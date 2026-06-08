@@ -144,6 +144,39 @@ const ORDER_CONTEXT_NOTIFICATION_TYPES = new Set([
   'installment_product_suspended'
 ]);
 
+const NOTIFICATION_PREFERENCE_ALIASES = Object.freeze({
+  order_placed: ['order_created'],
+  order_accepted: ['order_created'],
+  order_rejected: ['order_cancelled'],
+  product_approved: ['product_approval'],
+  product_rejected: ['product_rejection'],
+  payment_validated: ['payment_pending'],
+  payment_proof_submitted: ['payment_pending'],
+  delivery_assigned: ['delivery_request_assigned'],
+  delivery_in_progress: ['delivery_request_in_progress'],
+  delivery_completed: ['delivery_request_delivered'],
+  order_delivery_fee_updated: ['order_address_updated']
+});
+
+const userAllowsNotificationType = (user, type) => {
+  if (!user || !type) return true;
+  const prefs = user.notificationPreferences || {};
+  const aliases = NOTIFICATION_PREFERENCE_ALIASES[type] || [];
+  for (const key of aliases) {
+    if (prefs[key] === false) return false;
+  }
+  if (typeof prefs[type] === 'boolean') return prefs[type];
+  for (const key of aliases) {
+    if (typeof prefs[key] === 'boolean') return prefs[key];
+  }
+  return true;
+};
+
+const shouldRespectUserPreference = ({ actionRequired = false, audience = 'USER' } = {}) => {
+  if (actionRequired) return false;
+  return String(audience || 'USER').trim().toUpperCase() === 'USER';
+};
+
 const sanitizePriority = (priority) => {
   const normalized = String(priority || '').toUpperCase();
   if (Object.prototype.hasOwnProperty.call(PRIORITY_RANK, normalized)) return normalized;
@@ -477,6 +510,16 @@ export const createNotification = async ({
           shopId,
           dedupeKey
         });
+
+    if (shouldRespectUserPreference({ actionRequired: resolvedActionRequired, audience: resolvedAudience })) {
+      const recipient = await User.findById(userId)
+        .select('notificationPreferences')
+        .lean()
+        .catch(() => null);
+      if (recipient && !userAllowsNotificationType(recipient, type)) {
+        return null;
+      }
+    }
 
     let effectivePushEnabled = Boolean(pushEnabled);
     let effectiveSocketEnabled = Boolean(socketEnabled);

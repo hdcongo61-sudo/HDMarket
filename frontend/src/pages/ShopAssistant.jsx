@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Activity,
   AlertCircle,
@@ -9,6 +9,8 @@ import {
   CheckCircle,
   ChevronRight,
   Clock,
+  Edit3,
+  Eye,
   Hash,
   Loader2,
   LogOut,
@@ -16,6 +18,8 @@ import {
   MessageSquare,
   Package,
   Phone,
+  RefreshCw,
+  Search,
   ShieldCheck,
   ShoppingBag,
   SlidersHorizontal,
@@ -113,7 +117,15 @@ const ACTION_LABELS = {
   assistant_order_rejected: 'Commande rejetee',
   assistant_order_status_updated: 'Statut commande modifie',
   assistant_comment_replied: 'Commentaire traite',
-  assistant_message_replied: 'Message acheteur traite'
+  assistant_message_replied: 'Message acheteur traite',
+  assistant_products_viewed: 'Catalogue consulte',
+  assistant_product_update_requested: 'Modification produit demandee',
+  assistant_product_delete_requested: 'Suppression produit demandee'
+};
+
+const getProductImage = (product) => {
+  const images = Array.isArray(product?.images) ? product.images : [];
+  return images[0] || product?.image || product?.thumbnail || '';
 };
 
 const STATUS_COPY = {
@@ -122,6 +134,30 @@ const STATUS_COPY = {
   removed: { label: 'Retire', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: UserX },
   left: { label: 'Parti', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: LogOut }
 };
+
+const ORDER_STATUS_LABELS = {
+  pending_payment: 'Paiement en attente',
+  paid: 'Payee',
+  pending: 'Nouvelle commande',
+  confirmed: 'Confirmee',
+  ready_for_delivery: 'Prete a livrer',
+  ready_for_pickup: 'Prete au retrait',
+  delivering: 'En livraison',
+  out_for_delivery: 'En livraison',
+  delivery_proof_submitted: 'Preuve soumise',
+  picked_up_confirmed: 'Retrait confirme',
+  delivered: 'Livree',
+  confirmed_by_client: 'Confirmee client',
+  completed: 'Terminee',
+  cancelled: 'Annulee',
+  pending_installment: 'Vente par tranche',
+  installment_active: 'Tranche active',
+  overdue_installment: 'Tranche en retard',
+  dispute_opened: 'Litige'
+};
+
+const formatMoney = (value = 0) =>
+  `${Number(value || 0).toLocaleString('fr-FR')} FCFA`;
 
 const formatDate = (value) => {
   if (!value) return 'Non defini';
@@ -244,6 +280,452 @@ function ActivityLog({ logs, loading }) {
         )}
       </div>
     </section>
+  );
+}
+
+function WorkspaceOrderRow({ order }) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const firstItem = items[0] || {};
+  const title = firstItem?.snapshot?.title || firstItem?.name || 'Commande boutique';
+  const itemCount = items.reduce((sum, item) => sum + Math.max(1, Number(item?.quantity || 1)), 0);
+  const status = String(order?.status || '').trim();
+  return (
+    <Link
+      to={`/seller/orders/detail/${order?._id}`}
+      className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 transition hover:border-[#FF6A00]/30 hover:bg-orange-50"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[#FF6A00]">
+        <Package size={17} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-gray-900">{title}</p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          {ORDER_STATUS_LABELS[status] || status || 'Statut inconnu'} · {itemCount} article{itemCount > 1 ? 's' : ''}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-black text-gray-900">{formatMoney(order?.totalAmount)}</p>
+        <ChevronRight size={15} className="ml-auto mt-1 text-gray-300" />
+      </div>
+    </Link>
+  );
+}
+
+function WorkspaceTaskCard({ title, description, count, icon: Icon, to, tone = 'orange' }) {
+  const toneClass =
+    tone === 'red'
+      ? 'bg-red-50 text-red-700 ring-red-100'
+      : tone === 'amber'
+        ? 'bg-amber-50 text-amber-700 ring-amber-100'
+        : 'bg-orange-50 text-[#FF6A00] ring-orange-100';
+  return (
+    <Link to={to} className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm transition hover:border-[#FF6A00]/30 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-gray-900">{title}</p>
+          <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
+        </div>
+        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClass}`}>
+          <Icon size={18} />
+        </span>
+      </div>
+      <p className="mt-4 text-2xl font-black text-gray-900">{count}</p>
+    </Link>
+  );
+}
+
+function AssistantWorkspace({ assignment, auditLogs }) {
+  const permissions = assignment?.permissions || [];
+  const canViewOrders = permissions.includes('view_shop_orders');
+  const canManageOrders = permissions.includes('update_order_status');
+  const canManageDelivery = permissions.includes('manage_delivery_requests');
+  const [summary, setSummary] = useState(null);
+  const [urgentOrders, setUrgentOrders] = useState([]);
+  const [deliveryOrders, setDeliveryOrders] = useState([]);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState('');
+
+  const loadWorkspace = useCallback(async () => {
+    if (!canViewOrders && !canManageDelivery) {
+      setSummary(null);
+      setUrgentOrders([]);
+      setDeliveryOrders([]);
+      return;
+    }
+    setWorkspaceLoading(true);
+    setWorkspaceError('');
+    try {
+      const requests = [];
+      if (canViewOrders) {
+        requests.push(api.get('/orders/seller/summary', { headers: { 'x-skip-cache': '1' } }));
+        requests.push(api.get('/orders/seller', { params: { statusGroup: 'new', limit: 5 }, headers: { 'x-skip-cache': '1' } }));
+      } else {
+        requests.push(Promise.resolve({ data: null }));
+        requests.push(Promise.resolve({ data: { items: [] } }));
+      }
+      if (canManageDelivery) {
+        requests.push(api.get('/orders/seller', { params: { statusGroup: 'handoff', limit: 5 }, headers: { 'x-skip-cache': '1' } }));
+      } else {
+        requests.push(Promise.resolve({ data: { items: [] } }));
+      }
+
+      const [summaryRes, urgentRes, deliveryRes] = await Promise.all(requests);
+      setSummary(summaryRes.data || null);
+      setUrgentOrders(Array.isArray(urgentRes.data?.items) ? urgentRes.data.items : []);
+      setDeliveryOrders(Array.isArray(deliveryRes.data?.items) ? deliveryRes.data.items : []);
+    } catch (error) {
+      setWorkspaceError(error.response?.data?.message || 'Impossible de charger le tableau de travail.');
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, [canManageDelivery, canViewOrders]);
+
+  useEffect(() => {
+    loadWorkspace();
+  }, [loadWorkspace]);
+
+  const statusCounts = summary?.statusCounts || {};
+  const groupCounts = summary?.groupCounts || {};
+  const totalOrders = Number(summary?.totalOrders || summary?.total || 0);
+  const totalAmount = Number(summary?.totalAmount || 0);
+  const newCount = Number(groupCounts.new || statusCounts.pending || statusCounts.paid || urgentOrders.length || 0);
+  const handoffCount = Number(groupCounts.handoff || deliveryOrders.length || 0);
+  const problemCount = Number(groupCounts.problems || statusCounts.cancelled || statusCounts.dispute_opened || 0);
+  const recentAssistantActions = (auditLogs || []).filter((log) => String(log.actorRole || '') === 'assistant').slice(0, 3);
+
+  return (
+    <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-black text-gray-900">Espace de travail</h2>
+          <p className="mt-1 text-sm leading-6 text-gray-500">
+            Commandes, livraisons et actions a traiter pour {getDisplayName(assignment?.shop, 'la boutique')}.
+          </p>
+        </div>
+        <button
+          onClick={loadWorkspace}
+          disabled={workspaceLoading}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          <RefreshCw size={15} className={workspaceLoading ? 'animate-spin' : ''} />
+          Actualiser
+        </button>
+      </div>
+
+      {workspaceError && (
+        <div className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {workspaceError}
+        </div>
+      )}
+
+      {!canViewOrders && !canManageDelivery ? (
+        <div className="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
+          <ShieldCheck size={24} className="mx-auto text-gray-300" />
+          <p className="mt-2 text-sm font-bold text-gray-600">Aucune permission operationnelle active.</p>
+          <p className="mt-1 text-xs text-gray-400">Le proprietaire doit ajouter les permissions commandes ou livraisons.</p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric label="Commandes" value={workspaceLoading ? '...' : totalOrders} icon={ShoppingBag} />
+            <Metric label="Montant" value={workspaceLoading ? '...' : formatMoney(totalAmount)} icon={BarChart3} />
+            <Metric label="A traiter" value={workspaceLoading ? '...' : newCount} icon={Clock} />
+            <Metric label="Livraisons" value={workspaceLoading ? '...' : handoffCount} icon={Truck} />
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {canViewOrders && (
+              <WorkspaceTaskCard
+                title="Nouvelles commandes"
+                description="Verifier, confirmer ou preparer les commandes recentes."
+                count={newCount}
+                icon={ShoppingBag}
+                to="/seller/orders?status=new"
+              />
+            )}
+            {canManageDelivery && (
+              <WorkspaceTaskCard
+                title="File livraison"
+                description="Preuves, demandes plateforme et handoff livraison."
+                count={handoffCount}
+                icon={Truck}
+                to="/seller/orders?status=handoff"
+                tone="amber"
+              />
+            )}
+            {canManageOrders && (
+              <WorkspaceTaskCard
+                title="Problemes"
+                description="Commandes annulees, en retard ou a surveiller."
+                count={problemCount}
+                icon={AlertCircle}
+                to="/seller/orders?status=problems"
+                tone="red"
+              />
+            )}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {canViewOrders && (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-black text-gray-900">Commandes prioritaires</p>
+                  <Link to="/seller/orders?status=new" className="text-xs font-bold text-[#FF6A00]">Voir tout</Link>
+                </div>
+                <div className="space-y-2">
+                  {workspaceLoading ? (
+                    <div className="h-24 animate-pulse rounded-lg bg-white" />
+                  ) : urgentOrders.length ? (
+                    urgentOrders.map((order) => <WorkspaceOrderRow key={order._id} order={order} />)
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-400">
+                      Aucune nouvelle commande.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {canManageDelivery && (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-black text-gray-900">Livraisons actives</p>
+                  <Link to="/seller/orders?status=handoff" className="text-xs font-bold text-[#FF6A00]">Voir tout</Link>
+                </div>
+                <div className="space-y-2">
+                  {workspaceLoading ? (
+                    <div className="h-24 animate-pulse rounded-lg bg-white" />
+                  ) : deliveryOrders.length ? (
+                    deliveryOrders.map((order) => <WorkspaceOrderRow key={order._id} order={order} />)
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-400">
+                      Aucune livraison active.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="text-sm font-black text-gray-900">Dernieres actions assistant</p>
+            <div className="mt-3 space-y-2">
+              {recentAssistantActions.length ? (
+                recentAssistantActions.map((log) => (
+                  <div key={log._id} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-gray-800">{ACTION_LABELS[log.action] || log.action}</p>
+                      <p className="text-xs text-gray-400">{formatDate(log.createdAt)}</p>
+                    </div>
+                    <Activity size={15} className="shrink-0 text-[#FF6A00]" />
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-gray-200 bg-white px-4 py-5 text-center text-sm text-gray-400">
+                  Les actions de travail apparaitront ici.
+                </p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function AssistantProductsView() {
+  const { showToast } = useToast();
+  const [products, setProducts] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [requestingId, setRequestingId] = useState('');
+
+  const canViewProducts = permissions.includes('view_shop_products');
+
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get('/products/assistant/shop-products', {
+        params: { search, status },
+        headers: { 'x-skip-cache': '1' }
+      });
+      setProducts(Array.isArray(data?.items) ? data.items : []);
+      setPermissions(Array.isArray(data?.permissions) ? data.permissions : []);
+    } catch (loadError) {
+      setError(loadError.response?.data?.message || 'Impossible de charger les produits de la boutique.');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, status]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  const sendRequest = async (product, action) => {
+    const productId = product?._id || product?.id;
+    if (!productId) return;
+    const actionLabel = action === 'delete' ? 'suppression' : 'modification';
+    const note = window.prompt(`Message pour le proprietaire concernant la ${actionLabel} de "${product?.title || 'ce produit'}"`, '');
+    if (note === null) return;
+    setRequestingId(`${productId}:${action}`);
+    try {
+      await api.post(`/products/assistant/products/${productId}/action-request`, {
+        action,
+        note
+      });
+      showToast(`Demande de ${actionLabel} envoyee au proprietaire.`, 'success');
+    } catch (requestError) {
+      showToast(requestError.response?.data?.message || 'Impossible d envoyer la demande.', 'error');
+    } finally {
+      setRequestingId('');
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-black text-gray-900">Produits boutique</h2>
+            <p className="mt-1 text-sm leading-6 text-gray-500">
+              Consultation du catalogue. Les modifications et suppressions doivent etre validees par le proprietaire.
+            </p>
+          </div>
+          <Link
+            to="/seller/assistant/workspace"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+          >
+            <ArrowLeft size={15} />
+            Workspace
+          </Link>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+          <label className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Rechercher un produit"
+              className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:bg-white"
+            />
+          </label>
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:bg-white"
+          >
+            <option value="all">Tous statuts</option>
+            <option value="approved">Approuves</option>
+            <option value="pending">En attente</option>
+            <option value="disabled">Desactives</option>
+            <option value="rejected">Rejetes</option>
+          </select>
+          <button
+            type="button"
+            onClick={loadProducts}
+            disabled={loading}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#FF6A00] px-4 text-sm font-black text-white disabled:opacity-60"
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            Actualiser
+          </button>
+        </div>
+      </section>
+
+      {error ? (
+        <section className="rounded-lg border border-red-100 bg-red-50 p-5 text-sm font-semibold text-red-700">
+          {error}
+        </section>
+      ) : null}
+
+      {!loading && !canViewProducts ? (
+        <section className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center">
+          <ShieldCheck size={28} className="mx-auto text-gray-300" />
+          <p className="mt-3 font-bold text-gray-700">Permission produits non active.</p>
+          <p className="mt-1 text-sm text-gray-500">Le proprietaire doit activer "Voir produits".</p>
+        </section>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="h-40 animate-pulse rounded-lg border border-gray-100 bg-white" />
+          ))}
+        </div>
+      ) : products.length ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {products.map((product) => {
+            const productId = product?._id || product?.id;
+            const image = getProductImage(product);
+            const updatePending = requestingId === `${productId}:update`;
+            const deletePending = requestingId === `${productId}:delete`;
+            return (
+              <article key={productId} className="rounded-lg border border-gray-100 bg-white p-3 shadow-sm">
+                <div className="flex gap-3">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    {image ? (
+                      <img src={image} alt={product?.title || 'Produit'} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-gray-300">
+                        <Package size={24} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="line-clamp-2 text-sm font-black text-gray-900">{product?.title || 'Produit'}</h3>
+                      <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black uppercase text-gray-500">
+                        {product?.status || 'draft'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm font-black text-[#FF6A00]">{formatMoney(product?.price)}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-gray-500">{product?.description || 'Aucune description.'}</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+                  <Link
+                    to={`/product/${product?.slug || productId}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                  >
+                    <Eye size={14} />
+                    Voir
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => sendRequest(product, 'update')}
+                    disabled={Boolean(requestingId)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-[#B45309] disabled:opacity-60"
+                  >
+                    {updatePending ? <Loader2 size={14} className="animate-spin" /> : <Edit3 size={14} />}
+                    Demander modification
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendRequest(product, 'delete')}
+                    disabled={Boolean(requestingId)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-60"
+                  >
+                    {deletePending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    Demander suppression
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <section className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center">
+          <Package size={28} className="mx-auto text-gray-300" />
+          <p className="mt-3 font-bold text-gray-700">Aucun produit trouve.</p>
+          <p className="mt-1 text-sm text-gray-500">Essayez un autre filtre ou une autre recherche.</p>
+        </section>
+      )}
+    </div>
   );
 }
 
@@ -706,6 +1188,8 @@ function AssistantView() {
 
       {assignment ? (
         <>
+          <AssistantWorkspace assignment={assignment} auditLogs={auditLogs} />
+
           <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex min-w-0 gap-3">
@@ -788,8 +1272,10 @@ function AssistantView() {
 
 export default function ShopAssistant() {
   const { user } = useContext(AuthContext);
+  const location = useLocation();
   const isShop = user?.accountType === 'shop';
   const shopId = user?._id || user?.id;
+  const isAssistantProductsRoute = String(location.pathname || '') === '/seller/products';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -821,6 +1307,8 @@ export default function ShopAssistant() {
           </section>
         ) : isShop ? (
           <OwnerView shopId={shopId} />
+        ) : isAssistantProductsRoute ? (
+          <AssistantProductsView />
         ) : (
           <AssistantView />
         )}

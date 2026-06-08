@@ -118,10 +118,18 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
 };
 
 const resolveOrderPaymentMode = (order) => {
+  const paymentSource = String(order?.paymentSource || '').trim().toLowerCase();
+  const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
+  if (
+    paymentSource === 'wallet' ||
+    ['WALLET', 'HDMARKET_WALLET', 'PORTEFEUILLE_HDMARKET'].includes(explicitPaymentMode)
+  ) {
+    return 'WALLET';
+  }
   if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
-    String(order?.paymentMode || '').toUpperCase() === 'FULL_PAYMENT' ||
-    String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL'
+    explicitPaymentMode === 'FULL_PAYMENT' ||
+    (!explicitPaymentMode && String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL')
   ) {
     return 'FULL_PAYMENT';
   }
@@ -130,6 +138,8 @@ const resolveOrderPaymentMode = (order) => {
 
 const getPaymentModeLabel = (mode) => {
   switch (mode) {
+    case 'WALLET':
+      return 'Portefeuille HDMarket';
     case 'INSTALLMENT':
       return 'Paiement par tranche';
     case 'FULL_PAYMENT':
@@ -138,6 +148,9 @@ const getPaymentModeLabel = (mode) => {
       return 'Paiement classique';
   }
 };
+
+const shouldHideDeliveryDetailsForPaymentMode = (mode) =>
+  ['FULL_PAYMENT'].includes(String(mode || '').toUpperCase());
 
 const getInstallmentSaleStatusClassName = (status) => {
   switch (status) {
@@ -461,11 +474,14 @@ export default function SellerOrderDetail() {
     'confirmed',
     'ready_for_pickup'
   ];
+  const orderPaymentMode = resolveOrderPaymentMode(order);
+  const hideDeliveryDetails = shouldHideDeliveryDetailsForPaymentMode(orderPaymentMode);
   const deliveryFeeLockedByFullPayment =
     Boolean(order?.deliveryFeeLocked) && String(order?.deliveryFeeWaiverReason || '') === 'FULL_PAYMENT';
   const canEditDeliveryFee =
     order &&
     SELLER_CAN_EDIT_DELIVERY_FEE.includes(String(order.status)) &&
+    !hideDeliveryDetails &&
     !deliveryFeeLockedByFullPayment;
   const deliveryFeeUpdatedAt = order?.deliveryFeeUpdatedAt ? new Date(order.deliveryFeeUpdatedAt) : null;
 
@@ -926,7 +942,6 @@ export default function SellerOrderDetail() {
   const paidAmount = Number(order.paidAmount || 0);
   const remainingAmount = Number(order.remainingAmount ?? Math.max(0, totalAmount - paidAmount));
   const isInstallmentOrder = order.paymentType === 'installment';
-  const orderPaymentMode = resolveOrderPaymentMode(order);
   const isFullPaymentOrder = orderPaymentMode === 'FULL_PAYMENT';
   const paymentModeLabel = getPaymentModeLabel(orderPaymentMode);
   const paidAmountLabel = isInstallmentOrder
@@ -1316,7 +1331,7 @@ export default function SellerOrderDetail() {
                   </div>
                   <span className="text-sm font-black text-slate-950">{paymentModeLabel}</span>
                 </div>
-                {!isPickupOrder && (Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee || deliveryFeeLockedByFullPayment) && (
+                {!hideDeliveryDetails && !isPickupOrder && (Number(order.deliveryFeeTotal ?? 0) > 0 || canEditDeliveryFee || deliveryFeeLockedByFullPayment) && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap">

@@ -210,6 +210,9 @@ const notificationMeta = (alert, t) => {
   if (type === 'shop_follow' || type === 'shop_review') {
     return { title: explicitTitle || t('notifications.shop', 'Boutique'), icon: <Store className="h-4 w-4" />, tone: 'shop' };
   }
+  if (type === 'assistant_product_action_request') {
+    return { title: explicitTitle || 'Demande assistant produit', icon: <Package className="h-4 w-4" />, tone: 'shop' };
+  }
   if (type.startsWith('installment_')) {
     return { title: explicitTitle || t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardList className="h-4 w-4" />, tone: 'payment' };
   }
@@ -231,16 +234,28 @@ const BUYER_SIDE_ORDER_TYPES_FALLBACK = new Set([
 ]);
 
 const buildOrderNotificationPath = (alert, user) => {
+  const type = String(alert?.type || '').trim();
+  const metadata = alert?.metadata || {};
+  const isOrderNotification =
+    ORDER_TYPES.has(type) ||
+    type === 'order_message' ||
+    type === 'review_reminder' ||
+    type.startsWith('order_') ||
+    type.startsWith('installment_') ||
+    Boolean(metadata.orderId);
+
+  if (!isOrderNotification) return '';
+
   const orderId =
-    extractObjectId(alert?.metadata?.orderId) ||
-    extractObjectId(alert?.entityId) ||
-    extractObjectId(alert?.metadata?.entityId);
+    extractObjectId(metadata.orderId) ||
+    extractObjectId(alert?.entityType === 'order' ? alert?.entityId : '') ||
+    extractObjectId(metadata.entityType === 'order' ? metadata.entityId : '');
   const normalizedRole = String(user?.role || '').toLowerCase();
   const normalizedAccountType = String(user?.accountType || '').toLowerCase();
   const isBackOffice = ['admin', 'founder', 'manager'].includes(normalizedRole);
   const isSeller = normalizedRole === 'seller' || normalizedAccountType === 'shop';
 
-  if (alert?.type === 'order_message') {
+  if (type === 'order_message') {
     if (!orderId) return '/orders/messages';
     return `/orders/messages?orderId=${encodeURIComponent(orderId)}`;
   }
@@ -264,12 +279,39 @@ const buildOrderNotificationPath = (alert, user) => {
   // User is seller/shop and NOT the customer
   if (isSeller) {
     // Fallback for old notifications without customerId: guess from notification type
-    if (!orderCustomerId && BUYER_SIDE_ORDER_TYPES_FALLBACK.has(String(alert?.type || ''))) {
+    if (!orderCustomerId && BUYER_SIDE_ORDER_TYPES_FALLBACK.has(type)) {
       return `/orders/detail/${orderId}`;
     }
     return `/seller/orders/detail/${orderId}`;
   }
   return `/orders/detail/${orderId}`;
+};
+
+const isWalletAction = (alert, to = '') => {
+  const type = String(alert?.type || '').trim();
+  const metadata = alert?.metadata || {};
+  const link = String(to || alert?.actionLink || alert?.deepLink || metadata?.deepLink || '').trim().toLowerCase();
+  const message = String(alert?.message || metadata?.message || '').trim().toLowerCase();
+  return (
+    link === '/wallet' ||
+    link.startsWith('/wallet?') ||
+    String(alert?.entityType || '').trim().toLowerCase() === 'wallet' ||
+    Boolean(metadata.walletId || metadata.walletBalance !== undefined || metadata.pendingBalance !== undefined || metadata.availableBalance !== undefined) ||
+    String(metadata.role || '').toLowerCase().includes('wallet') ||
+    message.includes('portefeuille') ||
+    message.includes('hdmarket wallet') ||
+    type.startsWith('wallet_')
+  );
+};
+
+const getPrimaryActionLabel = (alert, to, t) => {
+  if (isWalletAction(alert, to)) return t('notifications.openWallet', 'Ouvrir portefeuille');
+  if (String(alert?.type || '') === 'validation_required') return t('notifications.openTask', 'Ouvrir tâche');
+  if (String(to || '').includes('/admin/payment-verification')) return t('notifications.verifyPayment', 'Vérifier paiement');
+  if (String(to || '').includes('/orders') || String(to || '').includes('/seller/orders')) {
+    return t('notifications.viewOrder', 'Voir commande');
+  }
+  return alert?.display?.actionLabel || alert?.metadata?.actionLabel || t('notifications.open', 'Ouvrir');
 };
 
 const buildDisputeNotificationPath = (alert, user) => {
@@ -287,11 +329,15 @@ const getNotificationActions = (alert, user, t) => {
   const actions = [];
   const orderPath = buildOrderNotificationPath(alert, user);
   const primaryLink = resolveNotificationLink(alert, user);
-  if (primaryLink) actions.push({ to: primaryLink, label: t('notifications.openTask', 'Ouvrir tâche') });
+  if (primaryLink) actions.push({ to: primaryLink, label: getPrimaryActionLabel(alert, primaryLink, t) });
   if (orderPath) actions.push({ to: orderPath, label: t('notifications.viewOrder', 'Voir commande') });
   const disputePath = buildDisputeNotificationPath(alert, user);
   if (disputePath) actions.push({ to: disputePath, label: t('notifications.viewDispute', 'Voir litige') });
-  if (alert?.type === 'payment_pending' && (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager')) {
+  if (
+    alert?.type === 'payment_pending' &&
+    !isWalletAction(alert, primaryLink) &&
+    (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager')
+  ) {
     actions.push({ to: '/admin/payment-verification', label: t('notifications.verifyPayment', 'Vérifier paiement') });
   }
   if (alert?.product) actions.push({ to: buildProductPath(alert.product), label: t('notifications.viewProduct', 'Voir produit') });
@@ -799,12 +845,11 @@ export default function NotificationPage() {
                               onDelete={() => handleDelete(alert._id)}
                               markReadPending={markingIds.has(String(alert._id))}
                               deletePending={deletingIds.has(String(alert._id))}
-                              onNavigateAction={(to) => {
-                                api.post(`/users/notifications/${alert._id}/click`).catch(() => {});
-                                // Mark as read BEFORE navigation so the API call completes
-                                if (isUnread) {
-                                  handleMarkRead([alert._id]);
-                                }
+                              onNavigateAction={async (to) => {
+                                const notificationId = String(alert?._id || '');
+                                if (!notificationId || !to) return;
+                                await api.post(`/users/notifications/${notificationId}/click`).catch(() => {});
+                                if (isUnread) await handleMarkRead([notificationId]);
                                 if (/^https?:\/\//i.test(String(to || ''))) {
                                   window.location.assign(to);
                                 } else {

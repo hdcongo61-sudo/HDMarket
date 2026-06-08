@@ -308,12 +308,33 @@ const loadPushRecipient = async (userId) =>
     .select('role accountType notificationPreferences')
     .lean();
 
+const NOTIFICATION_PREFERENCE_ALIASES = Object.freeze({
+  order_placed: ['order_created'],
+  order_accepted: ['order_created'],
+  order_rejected: ['order_cancelled'],
+  product_approved: ['product_approval'],
+  product_rejected: ['product_rejection'],
+  payment_validated: ['payment_pending'],
+  payment_proof_submitted: ['payment_pending'],
+  delivery_assigned: ['delivery_request_assigned'],
+  delivery_in_progress: ['delivery_request_in_progress'],
+  delivery_completed: ['delivery_request_delivered'],
+  order_delivery_fee_updated: ['order_address_updated']
+});
+
 const shouldSendForPreference = (user, type) => {
   if (!user) return false;
   if (!type) return true;
   const prefs = user.notificationPreferences || {};
+  const aliases = NOTIFICATION_PREFERENCE_ALIASES[type] || [];
+  for (const key of aliases) {
+    if (prefs[key] === false) return false;
+  }
   if (typeof prefs[type] === 'boolean') {
     return prefs[type];
+  }
+  for (const key of aliases) {
+    if (typeof prefs[key] === 'boolean') return prefs[key];
   }
   return true;
 };

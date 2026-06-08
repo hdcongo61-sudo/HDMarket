@@ -224,6 +224,14 @@ const SELLER_SIDE_ORDER_TYPES = new Set([
   'order_full_payment_ready'
 ]);
 
+const WALLET_LINK_TYPES = new Set([
+  'wallet_deposit',
+  'wallet_withdrawal',
+  'wallet_refund',
+  'wallet_credit',
+  'wallet_debit'
+]);
+
 const buildOrderPath = (alert, user, fallbackOrderId = '') => {
   const metadata = alert?.metadata || {};
   const orderId =
@@ -254,6 +262,43 @@ const buildOrderPath = (alert, user, fallbackOrderId = '') => {
     return `/seller/orders/detail/${orderId}`;
   }
   return `/orders/detail/${orderId}`;
+};
+
+const isWalletNotification = (alert) => {
+  const type = String(alert?.type || '').trim();
+  const metadata = alert?.metadata || {};
+  const entityType = String(alert?.entityType || '').trim().toLowerCase();
+  const link = String(alert?.actionLink || alert?.deepLink || metadata?.deepLink || '').trim().toLowerCase();
+  const message = String(metadata?.message || alert?.message || '').trim().toLowerCase();
+  const metadataValues = [
+    metadata.walletId,
+    metadata.walletBalance,
+    metadata.pendingBalance,
+    metadata.availableBalance,
+    metadata.transactionId,
+    metadata.paymentSource,
+    metadata.reference,
+    metadata.role
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .join(' ');
+
+  return (
+    WALLET_LINK_TYPES.has(type) ||
+    entityType === 'wallet' ||
+    Boolean(metadata.walletId || metadata.walletBalance !== undefined || metadata.pendingBalance !== undefined || metadata.availableBalance !== undefined) ||
+    link.startsWith('/wallet') ||
+    link.includes('/wallet') ||
+    metadataValues.includes('wallet') ||
+    metadataValues.includes('portefeuille') ||
+    message.includes('portefeuille') ||
+    message.includes('hdmarket wallet')
+  );
+};
+
+const buildWalletPath = (alert, user) => {
+  if (!isWalletNotification(alert)) return '';
+  return '/wallet';
 };
 
 const buildOrderReviewPath = (alert) => {
@@ -392,6 +437,8 @@ export const resolveNotificationLink = (alert, user = null) => {
   const deepLink = normalizeNotificationLink(
     alert?.actionLink || alert?.deepLink || alert?.metadata?.deepLink || ''
   );
+  const walletPath = buildWalletPath(alert, user);
+  if (walletPath) return walletPath;
 
   if (type === 'order_message') {
     if (deepLink && deepLink.includes('/orders/messages')) return deepLink;

@@ -515,6 +515,7 @@ function AppContent() {
           <Route path="/seller/analytics" element={<SellerAnalyticsV2 />} />
           <Route path="/seller/promo-codes" element={<SellerPromoCodes />} />
           <Route path="/seller/assistant" element={<ShopAssistant />} />
+          <Route path="/seller/assistant/workspace" element={<ShopAssistant />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -870,6 +871,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Navigate to="/my" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/products"
+            element={
+              <ProtectedRoute>
+                <ShopAssistant />
               </ProtectedRoute>
             }
           />

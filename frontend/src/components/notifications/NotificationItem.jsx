@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, ExternalLink, Loader2, MoreHorizontal, Trash2 } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ExternalLink, Loader2, MoreHorizontal, Trash2 } from 'lucide-react';
 import SwipeActions from './SwipeActions';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { resolveUserProfileImage } from '../../utils/userAvatar';
@@ -40,6 +40,7 @@ export default function NotificationItem({
   const longPressTimer = useRef(null);
   const didLongPress = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navigatingTo, setNavigatingTo] = useState('');
 
   const avatarLetter = useMemo(() => {
     const name = alert?.actor?.name || alert?.user?.name || '';
@@ -99,6 +100,16 @@ export default function NotificationItem({
       return;
     }
     onToggleExpand?.();
+  };
+
+  const handleActionClick = async (to) => {
+    if (!to || navigatingTo) return;
+    setNavigatingTo(String(to));
+    try {
+      await onNavigateAction?.(to);
+    } finally {
+      setNavigatingTo('');
+    }
   };
 
   return (
@@ -202,54 +213,80 @@ export default function NotificationItem({
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="mt-3 flex flex-wrap items-center gap-2 overflow-hidden"
+                      className="mt-3 overflow-hidden"
                     >
-                      {visibleActions.map((item) => (
-                        <motion.button
-                          key={`${alert?._id || 'notification'}-${item.to}-${item.label}`}
-                          type="button"
-                          whileTap={{ scale: 0.96 }}
-                          whileHover={{ y: -1 }}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onNavigateAction?.(item.to);
-                          }}
-                          className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-[#ff6a00] px-3 py-1.5 text-xs font-black text-white shadow-[0_10px_22px_rgba(255,106,0,0.22)] transition duration-200 hover:bg-[#f45f00]"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          {item.label || t('notifications.view', 'Voir')}
-                        </motion.button>
-                      ))}
-                      {isUnread ? (
-                        <motion.button
-                          type="button"
-                          whileTap={{ scale: 0.96 }}
-                          whileHover={{ y: -1 }}
-                          disabled={markReadPending}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onMarkRead?.();
-                          }}
-                          className="inline-flex min-h-[34px] items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-xs font-bold text-[#9a4a00] transition duration-200 hover:bg-orange-100 disabled:opacity-60 dark:text-neutral-300"
-                        >
-                          {markReadPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                          {markReadPending ? t('common.loading', 'Chargement...') : t('notifications.markAsRead', 'Marquer comme lu')}
-                        </motion.button>
-                      ) : null}
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.96 }}
-                        whileHover={{ y: -1 }}
-                        disabled={deletePending}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDelete?.();
-                        }}
-                        className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-black text-red-600 ring-1 ring-red-100 transition duration-200 hover:bg-red-100 disabled:opacity-60"
-                      >
-                        {deletePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                        {deletePending ? t('common.loading', 'Chargement...') : t('notifications.delete', 'Supprimer')}
-                      </motion.button>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {visibleActions.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {visibleActions.map((item, index) => {
+                              const isPrimary = index === 0;
+                              const isNavigating = navigatingTo === String(item.to || '');
+                              return (
+                                <motion.button
+                                  key={`${alert?._id || 'notification'}-${item.to}-${item.label}`}
+                                  type="button"
+                                  whileTap={{ scale: 0.97 }}
+                                  whileHover={{ y: -1 }}
+                                  disabled={Boolean(navigatingTo)}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleActionClick(item.to);
+                                  }}
+                                  className={`inline-flex min-h-[40px] w-full max-w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2 text-xs font-black transition duration-200 disabled:cursor-wait disabled:opacity-70 ${
+                                    isPrimary
+                                      ? 'bg-neutral-950 text-white shadow-[0_12px_26px_rgba(23,23,23,0.2)] hover:bg-neutral-800'
+                                      : 'border border-orange-100 bg-white text-[#9a4a00] shadow-sm hover:bg-orange-50 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-900'
+                                  }`}
+                                >
+                                  {isNavigating ? (
+                                    <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />
+                                  ) : (
+                                    <ExternalLink className="h-4 w-4 flex-shrink-0" />
+                                  )}
+                                  <span className="truncate">{item.label || t('notifications.view', 'Voir')}</span>
+                                  {isUnread && isPrimary ? (
+                                    <span className="hidden rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-black sm:inline-flex">
+                                      {t('notifications.markAsReadShort', 'Lu')}
+                                    </span>
+                                  ) : null}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {isUnread ? (
+                            <motion.button
+                              type="button"
+                              whileTap={{ scale: 0.97 }}
+                              whileHover={{ y: -1 }}
+                              disabled={markReadPending || Boolean(navigatingTo)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onMarkRead?.();
+                              }}
+                              className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-3.5 py-2 text-xs font-black text-emerald-700 transition duration-200 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {markReadPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                              {markReadPending ? t('common.loading', 'Chargement...') : t('notifications.markAsRead', 'Marquer comme lu')}
+                            </motion.button>
+                          ) : null}
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.97 }}
+                            whileHover={{ y: -1 }}
+                            disabled={deletePending || Boolean(navigatingTo)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onDelete?.();
+                            }}
+                            className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-2xl border border-red-100 bg-white px-3.5 py-2 text-xs font-black text-red-600 transition duration-200 hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {deletePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            {deletePending ? t('common.loading', 'Chargement...') : t('notifications.delete', 'Supprimer')}
+                          </motion.button>
+                        </div>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -1797,6 +1797,45 @@ body.menu-open .verified-shops-header {
 .status-delivery-icon { animation: truckMove 1.4s ease-in-out infinite; }
 .status-completed-icon { animation: successBounce 0.5s ease-out; }
 
+@keyframes hdWalletFloat {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0) rotate(-0.6deg); }
+  50% { transform: translate(-50%, -50%) translateY(-4px) rotate(0.8deg); }
+}
+
+@keyframes hdWalletRail {
+  0% { transform: translateX(-18%); opacity: 0.76; filter: saturate(1); }
+  50% { transform: translateX(92%); opacity: 1; filter: saturate(1.35); }
+  100% { transform: translateX(-18%); opacity: 0.76; filter: saturate(1); }
+}
+
+@keyframes hdWalletPop {
+  0%, 100% { opacity: 0.78; transform: translateY(0) scale(1); }
+  50% { opacity: 1; transform: translateY(-4px) scale(1.025); }
+}
+
+@keyframes hdWalletShine {
+  0% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+  18% { opacity: 0.72; }
+  42% { transform: translateX(520%) skewX(-18deg); opacity: 0; }
+  100% { transform: translateX(520%) skewX(-18deg); opacity: 0; }
+}
+
+.hd-wallet-float {
+  animation: hdWalletFloat 5.4s ease-in-out infinite;
+}
+
+.hd-wallet-rail {
+  animation: hdWalletRail 3.2s ease-in-out infinite;
+}
+
+.hd-wallet-pop {
+  animation: hdWalletPop 3.1s ease-in-out infinite;
+}
+
+.hd-wallet-shine {
+  animation: hdWalletShine 5.6s ease-in-out infinite;
+}
+
 /* Shop Profile v2 */
 .shop-shell {
   background:
@@ -2603,8 +2642,12 @@ input[type="radio"] {
   }
 
   .hd-click-pending::after,
-  .ui-btn-spinner {
+  .ui-btn-spinner,
+  .hd-wallet-float,
+  .hd-wallet-rail,
+  .hd-wallet-pop {
     animation-duration: 1200ms;
+    animation-iteration-count: 1;
   }
 }
 

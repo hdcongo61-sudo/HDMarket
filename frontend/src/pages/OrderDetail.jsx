@@ -162,9 +162,15 @@ const formatOrderTimestamp = (value) =>
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim() : '');
 const resolveOrderPaymentMode = (order) => {
-  if (String(order?.paymentSource || '') === 'wallet') return 'WALLET';
-  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
+  const paymentSource = String(order?.paymentSource || '').trim().toLowerCase();
   const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
+  if (
+    paymentSource === 'wallet' ||
+    ['WALLET', 'HDMARKET_WALLET', 'PORTEFEUILLE_HDMARKET'].includes(explicitPaymentMode)
+  ) {
+    return 'WALLET';
+  }
+  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (explicitPaymentMode === 'FULL_PAYMENT') return 'FULL_PAYMENT';
   if (explicitPaymentMode && explicitPaymentMode !== 'STANDARD') return explicitPaymentMode;
   if (!explicitPaymentMode && String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL') return 'FULL_PAYMENT';
@@ -172,7 +178,7 @@ const resolveOrderPaymentMode = (order) => {
 };
 
 const shouldHideDeliveryDetailsForPaymentMode = (mode) =>
-  ['FULL_PAYMENT', 'WALLET'].includes(String(mode || '').toUpperCase());
+  ['FULL_PAYMENT'].includes(String(mode || '').toUpperCase());
 
 const getPaymentModeLabel = (mode) => {
   switch (mode) {
@@ -1550,7 +1556,7 @@ export default function OrderDetail() {
                 {!deliveryConfirmationDone && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-2">
-                      {buyerPrimaryAction?.key !== 'confirm_delivery' ? (
+                      {visibleBuyerPrimaryAction?.key !== 'confirm_delivery' ? (
                         <button
                           type="button"
                           onClick={handleConfirmDelivery}

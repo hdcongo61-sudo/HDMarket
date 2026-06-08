@@ -10,6 +10,8 @@ import Order from '../models/orderModel.js';
 import City from '../models/cityModel.js';
 import ProhibitedWord from '../models/prohibitedWordModel.js';
 import ProductAuditLog from '../models/productAuditLogModel.js';
+import ShopAssistant from '../models/shopAssistantModel.js';
+import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { createNotification } from '../utils/notificationService.js';
@@ -61,6 +63,48 @@ const LOCAL_VIEW_DEDUP_CACHE_MAX = Math.max(5000, Number(process.env.PRODUCT_VIE
 const localViewDedupCache = new Map();
 const localUniqueViewerCache = new Map();
 const localTodayViewsCache = new Map();
+
+const resolveAssistantProductAccess = async (req, permission = 'view_shop_products') => {
+  const actorId = req.user?.id || req.user?._id;
+  const assignment = await ShopAssistant.findOne({
+    assistant: actorId,
+    status: 'active'
+  }).lean();
+  if (!assignment) {
+    const error = new Error('Aucune boutique assistant active.');
+    error.statusCode = 403;
+    throw error;
+  }
+  if (permission && !(assignment.permissions || []).includes(permission)) {
+    const error = new Error(`Permission assistant manquante: ${permission}.`);
+    error.statusCode = 403;
+    throw error;
+  }
+  return {
+    actorId,
+    sellerId: assignment.shop,
+    ownerId: assignment.owner || assignment.shop,
+    permissions: assignment.permissions || [],
+    assignment
+  };
+};
+
+const auditAssistantProductAction = async ({ access, action, productId = '', metadata = {} }) => {
+  if (!access?.sellerId || !access?.actorId) return;
+  try {
+    await AssistantAuditLog.create({
+      shop: access.sellerId,
+      actor: access.actorId,
+      actorRole: 'assistant',
+      action,
+      targetType: 'product',
+      targetId: String(productId || ''),
+      metadata
+    });
+  } catch {
+    // Non-blocking.
+  }
+};
 
 const withRedis = async () => {
   if (isRedisReady()) return getRedisClient();
@@ -2196,6 +2240,101 @@ export const getMyProducts = asyncHandler(async (req, res) => {
     await Promise.all(products.map((product) => ensureProductSlug(product)));
   }
   res.json(products.map((item) => withCategoryCompatibility(item)));
+});
+
+export const getAssistantShopProducts = asyncHandler(async (req, res) => {
+  const access = await resolveAssistantProductAccess(req, 'view_shop_products');
+  const { search = '', status = '', limit = 100 } = req.query || {};
+  const filter = { user: access.sellerId };
+  const normalizedStatus = String(status || '').trim();
+  if (normalizedStatus && normalizedStatus !== 'all') filter.status = normalizedStatus;
+  const normalizedSearch = String(search || '').trim();
+  if (normalizedSearch) {
+    const matcher = new RegExp(normalizedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [{ title: matcher }, { description: matcher }];
+  }
+
+  const safeLimit = Math.max(1, Math.min(250, Number(limit) || 100));
+  const products = await Product.find(filter)
+    .populate('payment')
+    .sort('-createdAt')
+    .limit(safeLimit);
+  if (products.length) {
+    await Promise.all(products.map((product) => ensureProductSlug(product)));
+  }
+  await auditAssistantProductAction({
+    access,
+    action: 'assistant_products_viewed',
+    metadata: {
+      count: products.length,
+      search: normalizedSearch,
+      status: normalizedStatus || 'all'
+    }
+  });
+  res.json({
+    items: products.map((item) => withCategoryCompatibility(item)),
+    permissions: access.permissions,
+    shopId: String(access.sellerId)
+  });
+});
+
+export const requestAssistantProductAction = asyncHandler(async (req, res) => {
+  const access = await resolveAssistantProductAccess(req, 'view_shop_products');
+  const product = await Product.findOne({ _id: req.params.id, user: access.sellerId });
+  await ensureProductSlug(product);
+  if (!product) return res.status(404).json({ message: 'Produit introuvable.' });
+
+  const action = String(req.body?.action || '').trim().toLowerCase();
+  if (!['update', 'delete'].includes(action)) {
+    return res.status(400).json({ message: 'Action demandée invalide.' });
+  }
+  const note = String(req.body?.note || '').trim().slice(0, 600);
+  const actionLabel = action === 'delete' ? 'suppression' : 'modification';
+  const auditAction =
+    action === 'delete' ? 'assistant_product_delete_requested' : 'assistant_product_update_requested';
+
+  await createNotification({
+    userId: access.ownerId,
+    actorId: access.actorId,
+    productId: product._id,
+    shopId: access.sellerId,
+    type: 'assistant_product_action_request',
+    allowSelf: false,
+    priority: 'HIGH',
+    pushEnabled: true,
+    actionRequired: true,
+    actionType: 'REVIEW',
+    actionStatus: 'PENDING',
+    metadata: {
+      productId: String(product._id),
+      productTitle: product.title || '',
+      assistantId: String(access.actorId),
+      requestedAction: action,
+      requestedActionLabel: actionLabel,
+      note,
+      message: `Votre assistant demande la ${actionLabel} du produit "${product.title || 'Produit'}".${note ? ` Note: ${note}` : ''}`
+    },
+    entityType: 'product',
+    entityId: String(product._id),
+    deepLink: '/my',
+    actionLink: '/my'
+  });
+
+  await auditAssistantProductAction({
+    access,
+    action: auditAction,
+    productId: product._id,
+    metadata: {
+      title: product.title || '',
+      requestedAction: action,
+      note
+    }
+  });
+
+  res.status(201).json({
+    message: `Demande de ${actionLabel} envoyée au propriétaire.`,
+    requestedAction: action
+  });
 });
 
 export const getAllProductsAdmin = asyncHandler(async (req, res) => {

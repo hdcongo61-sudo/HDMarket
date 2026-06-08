@@ -4,6 +4,8 @@ import DeliveryGuy from '../models/deliveryGuyModel.js';
 import DeliveryRequest from '../models/deliveryRequestModel.js';
 import Order from '../models/orderModel.js';
 import User from '../models/userModel.js';
+import ShopAssistant from '../models/shopAssistantModel.js';
+import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import City from '../models/cityModel.js';
 import Commune from '../models/communeModel.js';
 import {
@@ -201,6 +203,52 @@ const resolveOrderSellerIdSet = (order) => {
     set.add(String(shopId));
   });
   return set;
+};
+
+const SELLER_ACCOUNT_ROLES = new Set(['seller', 'vendeur', 'boutique_owner']);
+
+const isSellerAccount = (user = {}) =>
+  user?.accountType === 'shop' || SELLER_ACCOUNT_ROLES.has(String(user?.role || '').toLowerCase());
+
+const resolveSellerDeliveryAccess = async (req) => {
+  const actorId = String(req.user?.id || req.user?._id || '');
+  if (isSellerAccount(req.user)) {
+    return { actorId, sellerId: actorId, isAssistant: false };
+  }
+
+  const assignment = await ShopAssistant.findOne({
+    assistant: actorId,
+    status: 'active'
+  }).lean();
+  if (!assignment) return { actorId, sellerId: actorId, isAssistant: false };
+  if (!(assignment.permissions || []).includes('manage_delivery_requests')) {
+    const error = new Error('Permission assistant manquante: manage_delivery_requests.');
+    error.statusCode = 403;
+    throw error;
+  }
+  return {
+    actorId,
+    sellerId: String(assignment.shop),
+    isAssistant: true,
+    assignment
+  };
+};
+
+const auditAssistantDeliveryAction = async ({ access, action = 'assistant_order_status_updated', orderId = '', metadata = {} }) => {
+  if (!access?.isAssistant) return;
+  try {
+    await AssistantAuditLog.create({
+      shop: access.sellerId,
+      actor: access.actorId,
+      actorRole: 'assistant',
+      action,
+      targetType: 'order',
+      targetId: String(orderId || ''),
+      metadata
+    });
+  } catch {
+    // Non-blocking.
+  }
 };
 
 const getOrderItemsForSeller = (order, sellerId) => {
@@ -462,6 +510,8 @@ const emitDeliveryNotifications = async ({
 
 export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => {
   const runtime = await assertPlatformDeliveryEnabled();
+  const access = await resolveSellerDeliveryAccess(req);
+  const { actorId, sellerId } = access;
   const orderId = normalizeText(req.params?.id || req.params?.orderId || '');
   if (!isObjectId(orderId)) {
     return res.status(400).json({ message: 'Commande invalide.' });
@@ -477,7 +527,6 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
     return res.status(400).json({ message: 'La commande doit être en mode livraison pour demander la plateforme.' });
   }
 
-  const sellerId = String(req.user?.id || req.user?._id || '');
   const sellerIds = resolveOrderSellerIdSet(order);
   if (!sellerIds.has(sellerId)) {
     return res.status(403).json({ message: 'Vous ne pouvez demander la livraison que pour vos commandes.' });
@@ -651,7 +700,7 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
     timeline: [
       {
         type: 'DELIVERY_REQUEST_CREATED',
-        by: req.user.id,
+        by: actorId,
         at: new Date(),
         meta: {
           orderId: String(order._id),
@@ -695,8 +744,8 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
   });
 
   const managerRecipients = await getDeliveryManagerRecipients(runtime);
-  await emitDeliveryNotifications({
-    actorId: req.user.id,
+    await emitDeliveryNotifications({
+    actorId,
     orderId: order._id,
     deliveryRequestId: deliveryRequest._id,
     pickupCommuneId: payload.pickup.communeId,
@@ -719,7 +768,7 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
   });
 
   await emitDeliveryNotifications({
-    actorId: req.user.id,
+    actorId,
     orderId: order._id,
     deliveryRequestId: deliveryRequest._id,
     pickupCommuneId: payload.pickup.communeId,
@@ -734,7 +783,7 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
   });
 
   await createAuditLogEntry({
-    performedBy: req.user.id,
+    performedBy: actorId,
     targetUser: buyer._id,
     actionType: 'DELIVERY_REQUEST_CREATED',
     newValue: {
@@ -754,6 +803,15 @@ export const requestPlatformDeliveryForOrder = asyncHandler(async (req, res) => 
     invalidateUserCache(buyer._id, ['orders', 'notifications']),
     invalidateAdminCache(['admin', 'dashboard'])
   ]);
+  await auditAssistantDeliveryAction({
+    access,
+    orderId: order._id,
+    metadata: {
+      deliveryRequestId: String(deliveryRequest._id),
+      deliveryPrice: Number(pricing.deliveryPrice || 0),
+      deliveryPriceSource: pricing.deliveryPriceSource || 'UNKNOWN'
+    }
+  });
 
   const hydrated = await loadDeliveryRequestById(deliveryRequest._id);
   return res.status(201).json({
@@ -775,7 +833,8 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
     return res.status(400).json({ message: 'Commande invalide.' });
   }
 
-  const sellerId = String(req.user?.id || req.user?._id || '');
+  const access = await resolveSellerDeliveryAccess(req);
+  const { actorId, sellerId } = access;
   const order = await Order.findById(orderId).select(
     '_id customer items deliveryMode platformDeliveryRequestId platformDeliveryStatus'
   );
@@ -821,7 +880,7 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
     deliveryRequest.deliveryPinCodeExpiresAt = null;
     appendTimeline(deliveryRequest, {
       type: 'DELIVERY_PIN_CLEARED_BY_SELLER',
-      by: req.user.id,
+      by: actorId,
       meta: { orderId: String(order._id) }
     });
     await deliveryRequest.save();
@@ -832,8 +891,8 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
     const recipients = [String(deliveryRequest.buyerId)];
     if (isObjectId(String(courier?.userId || ''))) recipients.push(String(courier.userId));
 
-    await emitDeliveryNotifications({
-      actorId: req.user.id,
+  await emitDeliveryNotifications({
+      actorId,
       orderId: order._id,
       deliveryRequestId: deliveryRequest._id,
       pickupCommuneId: deliveryRequest.pickup?.communeId || null,
@@ -848,7 +907,7 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
     });
 
     await createAuditLogEntry({
-      performedBy: req.user.id,
+      performedBy: actorId,
       targetUser: deliveryRequest.buyerId,
       actionType: 'DELIVERY_PIN_CLEARED_BY_SELLER',
       previousValue: { hadDeliveryPin: true },
@@ -865,6 +924,14 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
       invalidateUserCache(deliveryRequest.buyerId, ['orders', 'notifications']),
       invalidateAdminCache(['admin', 'dashboard', 'delivery'])
     ]);
+    await auditAssistantDeliveryAction({
+      access,
+      orderId: order._id,
+      metadata: {
+        deliveryRequestId: String(deliveryRequest._id),
+        deliveryPinCleared: true
+      }
+    });
 
     const hydratedCleared = await loadDeliveryRequestById(deliveryRequest._id);
     return res.json({
@@ -901,7 +968,7 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
   deliveryRequest.deliveryPinCodeExpiresAt = expiresAt;
   appendTimeline(deliveryRequest, {
     type: 'DELIVERY_PIN_ISSUED_BY_SELLER',
-    by: req.user.id,
+    by: actorId,
     meta: {
       orderId: String(order._id),
       expiresAt,
@@ -918,7 +985,7 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
   if (isObjectId(String(courier?.userId || ''))) recipients.push(String(courier.userId));
 
   await emitDeliveryNotifications({
-    actorId: req.user.id,
+    actorId,
     orderId: order._id,
     deliveryRequestId: deliveryRequest._id,
     pickupCommuneId: deliveryRequest.pickup?.communeId || null,
@@ -935,7 +1002,7 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
   });
 
   await createAuditLogEntry({
-    performedBy: req.user.id,
+    performedBy: actorId,
     targetUser: deliveryRequest.buyerId,
     actionType: 'DELIVERY_PIN_ISSUED_BY_SELLER',
     previousValue: { hadDeliveryPin: false },
@@ -956,6 +1023,16 @@ export const sellerUpdateDeliveryPinForOrder = asyncHandler(async (req, res) => 
     invalidateUserCache(deliveryRequest.buyerId, ['orders', 'notifications']),
     invalidateAdminCache(['admin', 'dashboard', 'delivery'])
   ]);
+  await auditAssistantDeliveryAction({
+    access,
+    orderId: order._id,
+    metadata: {
+      deliveryRequestId: String(deliveryRequest._id),
+      deliveryPinUpdated: true,
+      generated: shouldGenerate && !explicitCode,
+      expiresAt
+    }
+  });
 
   const hydrated = await loadDeliveryRequestById(deliveryRequest._id);
   return res.json({

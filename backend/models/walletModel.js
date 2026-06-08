@@ -4,7 +4,17 @@ const walletTransactionSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['deposit', 'withdrawal', 'purchase', 'refund', 'commission', 'sale'],
+      enum: [
+        'deposit',
+        'withdrawal',
+        'purchase',
+        'refund',
+        'commission',
+        'sale',
+        'sale_pending',
+        'sale_release',
+        'sale_reversal'
+      ],
       required: true
     },
     amount: {
@@ -64,10 +74,14 @@ const walletSchema = new mongoose.Schema(
     },
     balance: {
       type: Number,
+      default: 0
+    },
+    frozenBalance: {
+      type: Number,
       default: 0,
       min: 0
     },
-    frozenBalance: {
+    pendingBalance: {
       type: Number,
       default: 0,
       min: 0
@@ -94,6 +108,10 @@ const walletSchema = new mongoose.Schema(
 // Virtual: available balance (not frozen)
 walletSchema.virtual('availableBalance').get(function () {
   return Math.max(0, this.balance - this.frozenBalance);
+});
+
+walletSchema.virtual('totalBalance').get(function () {
+  return Math.max(0, Number(this.balance || 0) + Number(this.pendingBalance || 0));
 });
 
 export default mongoose.model('Wallet', walletSchema);

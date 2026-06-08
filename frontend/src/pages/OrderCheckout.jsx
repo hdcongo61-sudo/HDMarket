@@ -303,9 +303,9 @@ export default function OrderCheckout() {
 
   const effectiveDeliveryFeePreviewTotal = useMemo(() => {
     if (deliveryMode !== 'DELIVERY') return 0;
-    if (isFullPaymentSelected) return 0;
+    if (isFullPaymentSelected || isWalletPayment) return 0;
     return Number(deliveryFeePreviewTotal || 0);
-  }, [deliveryMode, isFullPaymentSelected, deliveryFeePreviewTotal]);
+  }, [deliveryMode, isFullPaymentSelected, isWalletPayment, deliveryFeePreviewTotal]);
 
   const checkoutTotalWithDelivery = useMemo(
     () =>
@@ -1255,12 +1255,12 @@ export default function OrderCheckout() {
                 <span className="text-neutral-700 font-semibold">
                   Livraison ({DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source'})
                 </span>
-                <span className={`font-black text-lg ${isFullPaymentSelected ? 'text-emerald-700' : 'text-neutral-700'}`}>
-                  {isFullPaymentSelected ? 'GRATUITE' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
+                <span className={`font-black text-lg ${(isFullPaymentSelected || isWalletPayment) ? 'text-emerald-700' : 'text-neutral-700'}`}>
+                  {(isFullPaymentSelected || isWalletPayment) ? 'GRATUITE' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
               </div>
             )}
-            {isFullPaymentSelected && (
+            {(isFullPaymentSelected || isWalletPayment) && (
               <div className="flex justify-between items-center py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
                 <span className="text-emerald-700 font-semibold">Livraison offerte</span>
                 <span className="font-black text-emerald-700 text-lg">0 FCFA</span>
@@ -1423,7 +1423,7 @@ export default function OrderCheckout() {
                     <MapPin size={14} className="inline mr-1" />
                     {selectedCity?.name ? `${selectedCity.name} · ` : ''}
                     Livraison: {DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source en attente'} (
-                    {isFullPaymentSelected ? 'GRATUITE' : formatCurrency(deliveryFeePreviewTotal)})
+                    {(isFullPaymentSelected || isWalletPayment) ? 'GRATUITE' : formatCurrency(effectiveDeliveryFeePreviewTotal)})
                   </div>
                 </div>
               ) : (
@@ -1574,7 +1574,7 @@ export default function OrderCheckout() {
               const groupEffectiveSubtotal = getSellerEffectiveSubtotal(group);
               const groupDeliveryFee =
                 !isInstallmentPayment && deliveryMode === 'DELIVERY'
-                  ? isFullPaymentSelected
+                  ? (isFullPaymentSelected || isWalletPayment)
                     ? 0
                     : Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0)
                   : 0;
@@ -1802,8 +1802,8 @@ export default function OrderCheckout() {
                         <span className="text-neutral-700 font-semibold">
                           Livraison ({DELIVERY_SOURCE_LABELS[deliveryPreviewBySeller[group.sellerId]?.source] || 'Source'})
                         </span>
-                        <span className={`font-black ${isFullPaymentSelected ? 'text-emerald-700' : 'text-neutral-700'}`}>
-                          {isFullPaymentSelected ? 'GRATUITE' : formatCurrency(groupDeliveryFee)}
+                        <span className={`font-black ${(isFullPaymentSelected || isWalletPayment) ? 'text-emerald-700' : 'text-neutral-700'}`}>
+                          {(isFullPaymentSelected || isWalletPayment) ? 'GRATUITE' : formatCurrency(groupDeliveryFee)}
                         </span>
                       </div>
                     )}

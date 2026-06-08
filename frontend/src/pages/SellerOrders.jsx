@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -396,6 +396,21 @@ const patchOrdersListPayload = (payload, nextOrder) => {
       )
     };
   }
+  if (payload && Array.isArray(payload.pages)) {
+    return {
+      ...payload,
+      pages: payload.pages.map((page) =>
+        page && Array.isArray(page.items)
+          ? {
+              ...page,
+              items: page.items.map((entry) =>
+                String(entry?._id || '') === String(nextOrder._id) ? nextOrder : entry
+              )
+            }
+          : page
+      )
+    };
+  }
   return payload;
 };
 
@@ -479,8 +494,9 @@ const OrderProgress = ({ status }) => {
 };
 
 // Compact order summary card - links to seller order detail page
-const SellerOrderSummaryCard = ({ order }) => {
+const SellerOrderSummaryCard = ({ order, assistantShop }) => {
   const { t } = useAppSettings();
+  const { user } = useContext(AuthContext);
   const orderItems = getOrderItems(order);
   const totalAmount = getOrderTotal(order);
   const uiState = getOrderUiState(order, 'seller');
@@ -501,6 +517,8 @@ const SellerOrderSummaryCard = ({ order }) => {
   const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
   const itemCount = getOrderItemCount(order);
   const customerName = order.customer?.name || t('orders.customer', 'Client');
+  const isOwnOrder = assistantShop?._id && order.customer?._id &&
+    String(order.customer._id) === String(user?._id || user?.id);
 
   return (
     <Link
@@ -513,6 +531,11 @@ const SellerOrderSummaryCard = ({ order }) => {
             <User className="w-3.5 h-3.5" />
           </span>
           <span className="font-black text-gray-950 truncate dark:text-white">{customerName}</span>
+          {isOwnOrder && (
+            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+              Ma commande
+            </span>
+          )}
           <ChevronRight className="w-4 h-4 text-orange-300 flex-shrink-0" />
         </div>
         <StatusBadge status={statusBadgeKey} />
@@ -1069,8 +1092,10 @@ export default function SellerOrders() {
   const { showToast } = useToast();
   const { shouldUseOfflineSnapshot } = useNetworkProfile();
   const queryClient = useQueryClient();
+  const loadMoreRef = useRef(null);
   const externalLinkProps = useDesktopExternalLink();
   const isMobile = useIsMobile(768);
+  const [assistantShop, setAssistantShop] = useState(null);
   const userScopeId = useMemo(() => String(user?._id || user?.id || '').trim(), [user?._id, user?.id]);
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
@@ -1106,8 +1131,19 @@ export default function SellerOrders() {
     setPage(1);
   }, [statusParam]);
 
+  // Check if user is a shop assistant
+  useEffect(() => {
+    if (!user?._id) return;
+    api.get('/shops/me/assistant-shop')
+      .then(({ data }) => {
+        if (data?.data?.shop) {
+          setAssistantShop({ _id: data.data.shop._id, shopName: data.data.shop.shopName || data.data.shop.name });
+        }
+      })
+      .catch(() => setAssistantShop(null));
+  }, [user?._id]);
+
   const sellerOrdersListQuery = useSellerOrdersListQuery({
-    page,
     limit: PAGE_SIZE,
     status: activeStatus,
     enabled: Boolean(user?._id || user?.id)
@@ -1165,6 +1201,19 @@ export default function SellerOrders() {
                 items: existing.items.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id))
               };
             }
+            if (existing && Array.isArray(existing.pages)) {
+              return {
+                ...existing,
+                pages: existing.pages.map((pageEntry) =>
+                  pageEntry && Array.isArray(pageEntry.items)
+                    ? {
+                        ...pageEntry,
+                        items: pageEntry.items.filter((entry) => String(entry?._id || '') !== String(updatedOrder._id))
+                      }
+                    : pageEntry
+                )
+              };
+            }
           }
           return patchOrdersListPayload(existing, updatedOrder);
         }
@@ -1190,15 +1239,11 @@ export default function SellerOrders() {
         refetchType: 'inactive'
       });
       await queryClient.invalidateQueries({
-        queryKey: orderQueryKeys.list('seller', {
-          page,
-          limit: PAGE_SIZE,
-          status: activeStatus
-        }),
+        queryKey: orderQueryKeys.listRoot('seller'),
         refetchType: 'active'
       });
     },
-    [activeStatus, page, queryClient]
+    [queryClient]
   );
 
   const refreshOrders = useCallback(async () => {
@@ -1252,22 +1297,53 @@ export default function SellerOrders() {
 
   useEffect(() => {
     if (!sellerOrdersListQuery.data) return;
-    const items = Array.isArray(sellerOrdersListQuery.data.items)
-      ? dedupeOrders(sellerOrdersListQuery.data.items)
-      : [];
+    const pages = Array.isArray(sellerOrdersListQuery.data.pages) ? sellerOrdersListQuery.data.pages : [];
+    const items = dedupeOrders(
+      pages.flatMap((entry) => (Array.isArray(entry?.items) ? entry.items : []))
+    );
+    const lastPage = pages[pages.length - 1] || {};
     setOrders(items);
     setMeta({
-      total: Number(sellerOrdersListQuery.data.total || items.length),
-      totalPages: Math.max(1, Number(sellerOrdersListQuery.data.totalPages || 1))
+      total: Number(lastPage.total || items.length),
+      totalPages: Math.max(1, Number(lastPage.totalPages || 1))
     });
-    const incomingPage = Number(sellerOrdersListQuery.data.page || page);
-    if (Number.isFinite(incomingPage) && incomingPage > 0 && incomingPage !== page) {
-      setPage(incomingPage);
-    }
+    setPage(Math.max(1, Number(lastPage.page || pages.length || 1)));
     if (!initialLoadingDone) {
       setInitialLoadingDone(true);
     }
-  }, [initialLoadingDone, page, sellerOrdersListQuery.data]);
+  }, [initialLoadingDone, sellerOrdersListQuery.data]);
+
+  useEffect(() => {
+    setOrders([]);
+    setMeta({ total: 0, totalPages: 1 });
+    setPage(1);
+    setInitialLoadingDone(false);
+  }, [activeStatus]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !sellerOrdersListQuery.hasNextPage || shouldUseOfflineSnapshot) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (
+          entry?.isIntersecting &&
+          sellerOrdersListQuery.hasNextPage &&
+          !sellerOrdersListQuery.isFetchingNextPage
+        ) {
+          sellerOrdersListQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: '600px 0px 900px 0px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    shouldUseOfflineSnapshot,
+    sellerOrdersListQuery.hasNextPage,
+    sellerOrdersListQuery.isFetchingNextPage,
+    sellerOrdersListQuery.fetchNextPage
+  ]);
 
   const hasActiveOrders = useMemo(
     () =>
@@ -1917,7 +1993,7 @@ export default function SellerOrders() {
           <>
             <div className="space-y-6">
               {orders.map((order) => (
-                <SellerOrderSummaryCard key={order._id} order={order} />
+                <SellerOrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} />
               ))}
             </div>
 
@@ -1992,34 +2068,26 @@ export default function SellerOrders() {
               </ModalFooter>
             </BaseModal>
 
-            {/* Pagination */}
-            {meta.totalPages > 1 && (
-              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between rounded-[24px] border border-orange-100 bg-white/90 p-6 shadow-sm">
-                <p className="text-sm text-gray-600">
-                  Page <span className="font-bold text-gray-900">{page}</span> sur{' '}
-                  <span className="font-bold text-gray-900">{meta.totalPages}</span> —{' '}
-                  <span className="font-bold text-gray-900">{meta.total}</span> commande{meta.total > 1 ? 's' : ''}
+            <div ref={loadMoreRef} className="mt-8 flex flex-col items-center gap-3 rounded-[24px] border border-orange-100 bg-white/90 p-5 text-center shadow-sm">
+              <p className="text-sm text-gray-600">
+                <span className="font-bold text-gray-900">{orders.length}</span> /{' '}
+                <span className="font-bold text-gray-900">{meta.total}</span> commande{meta.total > 1 ? 's' : ''}
+              </p>
+              {sellerOrdersListQuery.hasNextPage ? (
+                <button
+                  type="button"
+                  onClick={() => sellerOrdersListQuery.fetchNextPage()}
+                  disabled={sellerOrdersListQuery.isFetchingNextPage}
+                  className="hd-soft-button min-w-[180px] px-4 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {sellerOrdersListQuery.isFetchingNextPage ? 'Chargement...' : 'Voir plus'}
+                </button>
+              ) : (
+                <p className="text-xs font-semibold text-gray-400">
+                  Toutes les commandes sont affichées.
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                    disabled={page <= 1}
-                    className="hd-soft-button px-4 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Précédent
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((prev) => Math.min(meta.totalPages, prev + 1))}
-                    disabled={page >= meta.totalPages}
-                    className="hd-soft-button px-4 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Suivant
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </div>

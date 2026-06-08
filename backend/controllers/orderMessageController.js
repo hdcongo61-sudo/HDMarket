@@ -4,6 +4,8 @@ import OrderMessage from '../models/orderMessageModel.js';
 import Order from '../models/orderModel.js';
 import User from '../models/userModel.js';
 import Product from '../models/productModel.js';
+import ShopAssistant from '../models/shopAssistantModel.js';
+import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
@@ -45,6 +47,96 @@ const resolveOrderMessageDeepLink = ({ orderId }) => {
   return `/orders/messages?orderId=${encodeURIComponent(safeOrderId)}`;
 };
 
+const MESSAGE_ASSISTANT_PERMISSIONS = [
+  'respond_to_buyer_messages',
+  'view_shop_orders',
+  'update_order_status',
+  'manage_delivery_requests'
+];
+
+const getOrderSellerIds = (order) =>
+  new Set(
+    (order?.items || [])
+      .map((item) => String(item?.snapshot?.shopId || '').trim())
+      .filter(Boolean)
+  );
+
+const isAdminUser = (user = {}) =>
+  user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager';
+
+const resolveOrderMessageAccess = async ({ req, order, requireMessagePermission = false }) => {
+  const userId = req.user?.id || req.user?._id;
+  const sellerIds = getOrderSellerIds(order);
+  const isCustomer = String(order.customer) === String(userId);
+  const isSeller = sellerIds.has(String(userId));
+  const isAdmin = isAdminUser(req.user);
+  const access = {
+    userId,
+    actorId: userId,
+    sellerId: isSeller ? userId : null,
+    isCustomer,
+    isSeller,
+    isAdmin,
+    isAssistant: false,
+    canAccess: isCustomer || isSeller || isAdmin
+  };
+
+  if (access.canAccess) return access;
+
+  const assignment = await ShopAssistant.findOne({
+    assistant: userId,
+    status: 'active',
+    permissions: { $in: requireMessagePermission ? ['respond_to_buyer_messages'] : MESSAGE_ASSISTANT_PERMISSIONS }
+  }).lean();
+  if (!assignment || !sellerIds.has(String(assignment.shop))) return access;
+
+  return {
+    ...access,
+    sellerId: assignment.shop,
+    isSeller: true,
+    isAssistant: true,
+    canAccess: true,
+    assignment
+  };
+};
+
+const buildOrderVisibilityQueryForUser = async ({ req, includeMessagePermission = false }) => {
+  const userId = req.user?.id || req.user?._id;
+  if (isAdminUser(req.user)) return null;
+
+  const sellerIds = [userId];
+  const assignment = await ShopAssistant.findOne({
+    assistant: userId,
+    status: 'active',
+    permissions: { $in: includeMessagePermission ? ['respond_to_buyer_messages'] : MESSAGE_ASSISTANT_PERMISSIONS }
+  }).select('shop').lean();
+  if (assignment?.shop) sellerIds.push(assignment.shop);
+
+  return {
+    $or: [
+      { customer: userId },
+      { 'items.snapshot.shopId': { $in: sellerIds } }
+    ]
+  };
+};
+
+const auditAssistantMessageAction = async ({ access, orderId, action = 'assistant_message_replied', metadata = {} }) => {
+  if (!access?.isAssistant) return;
+  try {
+    await AssistantAuditLog.create({
+      shop: access.sellerId,
+      actor: access.actorId,
+      actorRole: 'assistant',
+      action,
+      targetType: 'order',
+      targetId: String(orderId || ''),
+      metadata
+    });
+  } catch {
+    // Non-blocking.
+  }
+};
+
 /**
  * Get messages for an order
  * Only the customer and sellers of the order can access messages
@@ -62,15 +154,9 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  // Verify user has access to this order
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
+  const access = await resolveOrderMessageAccess({ req, order });
 
-  if (!isCustomer && !isSeller && !isAdmin) {
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à accéder à cette conversation.' });
   }
 
@@ -137,6 +223,16 @@ export const getOrderMessages = asyncHandler(async (req, res) => {
       conversationUnread: unreadState.conversationUnread
     });
   }
+  await auditAssistantMessageAction({
+    access,
+    orderId,
+    action: 'assistant_conversation_viewed',
+    metadata: {
+      messageCount: raw.length,
+      markedReadCount: Number(markResult?.modifiedCount || 0),
+      paginated: hasCursorQuery || withMeta
+    }
+  });
 
   // Normalize so every message has _id and sender/recipient._id for consistent display (customer/seller/admin)
   const messages = raw.map((m) => ({
@@ -197,15 +293,10 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  // Verify user has access to this order
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
+  const access = await resolveOrderMessageAccess({ req, order, requireMessagePermission: true });
+  const { isCustomer, isSeller, isAdmin } = access;
 
-  if (!isCustomer && !isSeller && !isAdmin) {
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à envoyer un message pour cette commande.' });
   }
 
@@ -444,6 +535,15 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
     senderId: String(userId),
     recipientId: String(recipient._id)
   });
+  await auditAssistantMessageAction({
+    access,
+    orderId,
+    metadata: {
+      recipientId: String(recipient._id),
+      hasAttachments,
+      hasVoice: Boolean(hasVoice)
+    }
+  });
 
   res.status(201).json(payload);
 });
@@ -454,8 +554,7 @@ export const sendOrderMessage = asyncHandler(async (req, res) => {
  */
 export const getUnreadCount = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
+  const visibilityQuery = await buildOrderVisibilityQueryForUser({ req });
 
   const orderQuery = {
     $and: [
@@ -464,13 +563,8 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
       { $or: [{ deletedBy: { $exists: false } }, { deletedBy: { $nin: [userId] } }] }
     ]
   };
-  if (!isAdmin) {
-    orderQuery.$and.push({
-      $or: [
-        { customer: userId },
-        { 'items.snapshot.shopId': userId }
-      ]
-    });
+  if (visibilityQuery) {
+    orderQuery.$and.push(visibilityQuery);
   }
 
   const visibleOrderIds = await Order.find(orderQuery).select('_id').lean().then((orders) => orders.map((o) => o._id));
@@ -511,13 +605,8 @@ export const archiveOrderConversation = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
-  if (!isCustomer && !isSeller && !isAdmin) {
+  const access = await resolveOrderMessageAccess({ req, order });
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à archiver cette conversation.' });
   }
 
@@ -526,6 +615,11 @@ export const archiveOrderConversation = asyncHandler(async (req, res) => {
     order.archivedBy.push(userId);
     await order.save();
   }
+  await auditAssistantMessageAction({
+    access,
+    orderId,
+    action: 'assistant_conversation_archived'
+  });
 
   res.json({ message: 'Conversation archivée.', archived: true });
 });
@@ -542,13 +636,8 @@ export const unarchiveOrderConversation = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
-  if (!isCustomer && !isSeller && !isAdmin) {
+  const access = await resolveOrderMessageAccess({ req, order });
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à désarchiver cette conversation.' });
   }
 
@@ -556,6 +645,11 @@ export const unarchiveOrderConversation = asyncHandler(async (req, res) => {
     order.archivedBy = order.archivedBy.filter((id) => String(id) !== String(userId));
     await order.save();
   }
+  await auditAssistantMessageAction({
+    access,
+    orderId,
+    action: 'assistant_conversation_unarchived'
+  });
 
   res.json({ message: 'Conversation désarchivée.', archived: false });
 });
@@ -572,13 +666,8 @@ export const deleteOrderConversation = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
-  if (!isCustomer && !isSeller && !isAdmin) {
+  const access = await resolveOrderMessageAccess({ req, order });
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à supprimer cette conversation.' });
   }
 
@@ -594,6 +683,14 @@ export const deleteOrderConversation = asyncHandler(async (req, res) => {
     .filter((id) => mongoose.Types.ObjectId.isValid(id))
     .map((id) => new mongoose.Types.ObjectId(id));
   await order.save();
+  await auditAssistantMessageAction({
+    access,
+    orderId,
+    action: 'assistant_conversation_deleted',
+    metadata: {
+      deletedForPartyCount: partyIds.size
+    }
+  });
 
   res.json({ message: 'Conversation supprimée.', deleted: true });
 });
@@ -607,22 +704,15 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, archived = 'false' } = req.query;
   const showArchived = String(archived).toLowerCase() === 'true';
 
-  // If admin, get all orders
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
+  const visibilityQuery = await buildOrderVisibilityQueryForUser({ req });
   let query = {
     $and: [
       { $or: [{ isDraft: false }, { isInquiry: true }] }
     ]
   };
 
-  if (!isAdmin) {
-    query.$and.push({
-      $or: [
-        { customer: userId },
-        { 'items.snapshot.shopId': userId }
-      ]
-    });
+  if (visibilityQuery) {
+    query.$and.push(visibilityQuery);
   }
 
   // Filter by archived: false = exclude archived by this user, true = only archived by this user
@@ -827,14 +917,9 @@ export const addOrderMessageReaction = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
+  const access = await resolveOrderMessageAccess({ req, order });
 
-  if (!isCustomer && !isSeller && !isAdmin) {
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à réagir à ce message.' });
   }
   
@@ -854,6 +939,15 @@ export const addOrderMessageReaction = asyncHandler(async (req, res) => {
   emitOrderMessageUpdated({
     conversationId: message.order,
     message
+  });
+  await auditAssistantMessageAction({
+    access,
+    orderId: message.order,
+    action: 'assistant_message_reaction_added',
+    metadata: {
+      messageId: String(message._id),
+      emoji
+    }
   });
 
   res.json(message);
@@ -881,14 +975,9 @@ export const removeOrderMessageReaction = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
+  const access = await resolveOrderMessageAccess({ req, order });
 
-  if (!isCustomer && !isSeller && !isAdmin) {
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à modifier ce message.' });
   }
   
@@ -902,6 +991,14 @@ export const removeOrderMessageReaction = asyncHandler(async (req, res) => {
   emitOrderMessageUpdated({
     conversationId: message.order,
     message
+  });
+  await auditAssistantMessageAction({
+    access,
+    orderId: message.order,
+    action: 'assistant_message_reaction_removed',
+    metadata: {
+      messageId: String(message._id)
+    }
   });
 
   res.json(message);
@@ -925,14 +1022,10 @@ export const deleteOrderMessage = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
 
-  const isCustomer = String(order.customer) === String(userId);
-  const isSeller = order.items?.some(
-    (item) => String(item?.snapshot?.shopId) === String(userId)
-  );
-  const isAdmin =
-    req.user?.role === 'admin' || req.user?.role === 'founder' || req.user?.role === 'manager';
+  const access = await resolveOrderMessageAccess({ req, order });
+  const { isAdmin } = access;
 
-  if (!isCustomer && !isSeller && !isAdmin) {
+  if (!access.canAccess) {
     return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à supprimer ce message.' });
   }
 
@@ -960,6 +1053,15 @@ export const deleteOrderMessage = asyncHandler(async (req, res) => {
       conversationUnread: unreadState.conversationUnread
     });
   }
+  await auditAssistantMessageAction({
+    access,
+    orderId,
+    action: 'assistant_message_deleted',
+    metadata: {
+      messageId: String(messageId),
+      wasUnreadForRecipient
+    }
+  });
 
   emitOrderMessageDeleted({
     conversationId: orderId,

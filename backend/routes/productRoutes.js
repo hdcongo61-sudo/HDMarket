@@ -17,6 +17,8 @@ import {
   getPublicProductById,
   registerPublicProductView,
   getMyProducts,
+  getAssistantShopProducts,
+  requestAssistantProductAction,
   getAllProductsAdmin,
   getProductById,
   updateProduct,
@@ -101,6 +103,8 @@ router.get('/:id/rating', protect, validate(schemas.identifierParam, 'params'), 
 router.put('/:id/rating', protect, validate(schemas.identifierParam, 'params'), validate(schemas.ratingUpsert), upsertRating);
 router.delete('/:id/rating', protect, validate(schemas.identifierParam, 'params'), deleteRating);
 router.get('/:id/analytics', protect, validate(schemas.identifierParam, 'params'), getProductAnalytics);
+router.get('/assistant/shop-products', protect, getAssistantShopProducts);
+router.post('/assistant/products/:id/action-request', protect, requestAssistantProductAction);
 router.get('/:id', protect, validate(schemas.identifierParam, 'params'), getProductById);
 
 // User

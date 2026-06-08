@@ -47,12 +47,21 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_approval: true,
   product_rejection: true,
   product_boosted: true,
+  product_approved: true,
+  product_rejected: true,
+  boost_expired: true,
+  promo_expired: true,
   promotional: true,
   shop_review: true,
   shop_follow: true,
   payment_pending: true,
+  payment_validated: true,
+  payment_proof_submitted: true,
   order_created: true,
   order_received: true,
+  order_placed: true,
+  order_accepted: true,
+  order_rejected: true,
   order_full_payment_waived: true,
   order_full_payment_received: true,
   order_full_payment_ready: true,
@@ -64,8 +73,12 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   delivery_request_in_progress: true,
   delivery_request_delivered: true,
   delivery_distance_warning: true,
+  delivery_assigned: true,
+  delivery_in_progress: true,
+  delivery_completed: true,
   order_delivering: true,
   order_delivered: true,
+  order_delivery_fee_updated: true,
   order_cancelled: true,
   installment_due_reminder: true,
   installment_overdue_warning: true,
@@ -1595,7 +1608,8 @@ const NOTIFICATION_TITLES = Object.freeze({
   product_rejection: 'Produit rejeté',
   product_rejected: 'Produit rejeté',
   boost_expired: 'Boost expiré',
-  promo_expired: 'Promotion expirée'
+  promo_expired: 'Promotion expirée',
+  assistant_product_action_request: 'Demande assistant produit'
 });
 
 const resolveNotificationTitle = (notification, fallback = 'Notification') => {
@@ -2187,6 +2201,7 @@ export const trackNotificationClick = asyncHandler(async (req, res) => {
       ? notification.metadata
       : {};
   const clickCount = Number(currentMetadata.clickCount || 0) + 1;
+  const wasUnread = !notification.readAt;
 
   notification.metadata = {
     ...currentMetadata,
@@ -2196,9 +2211,16 @@ export const trackNotificationClick = asyncHandler(async (req, res) => {
   };
   notification.clickCount = clickCount;
   notification.clickedAt = new Date();
+  if (wasUnread) {
+    notification.readAt = notification.clickedAt;
+  }
   await notification.save();
+  if (wasUnread) {
+    await decrementUnreadCount(req.user.id, 1).catch(() => syncUnreadCount(req.user.id));
+    await invalidateUserCache(req.user.id, ['notifications']);
+  }
 
-  res.json({ success: true, clickCount });
+  res.json({ success: true, clickCount, readAt: notification.readAt });
 });
 
 export const getFavorites = asyncHandler(async (req, res) => {

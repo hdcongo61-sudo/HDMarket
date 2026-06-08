@@ -11,7 +11,11 @@ const TXN_ICONS = {
   withdrawal: ArrowUpRight,
   purchase: ArrowUpRight,
   refund: ArrowDownLeft,
-  commission: ArrowUpRight
+  commission: ArrowUpRight,
+  sale: ArrowDownLeft,
+  sale_pending: Clock,
+  sale_release: ArrowDownLeft,
+  sale_reversal: ArrowUpRight
 };
 
 const TXN_COLORS = {
@@ -19,7 +23,11 @@ const TXN_COLORS = {
   withdrawal: 'text-red-600',
   purchase: 'text-red-600',
   refund: 'text-green-600',
-  commission: 'text-orange-600'
+  commission: 'text-orange-600',
+  sale: 'text-green-600',
+  sale_pending: 'text-amber-600',
+  sale_release: 'text-green-600',
+  sale_reversal: 'text-red-600'
 };
 
 const TXN_LABELS = {
@@ -27,8 +35,14 @@ const TXN_LABELS = {
   withdrawal: 'Retrait',
   purchase: 'Achat',
   refund: 'Remboursement',
-  commission: 'Commission'
+  commission: 'Commission',
+  sale: 'Vente',
+  sale_pending: 'Vente en attente',
+  sale_release: 'Fonds libérés',
+  sale_reversal: 'Annulation vente'
 };
+
+const TRANSACTIONS_PAGE_SIZE = 20;
 
 export default function WalletPage() {
   const { user } = useContext(AuthContext);
@@ -43,7 +57,7 @@ export default function WalletPage() {
   const [txnLoading, setTxnLoading] = useState(false);
   const [error, setError] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawRef, setWithdrawRef] = useState('');
+  const [withdrawRef, setWithdrawRef] = useState(user?.phone || '');
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawModal, setWithdrawModal] = useState(false);
 
@@ -56,6 +70,20 @@ export default function WalletPage() {
   const [depositing, setDepositing] = useState(false);
   const [contactNetworks, setContactNetworks] = useState([]);
   const proofInputRef = useRef(null);
+  const transactionSentinelRef = useRef(null);
+
+  useEffect(() => {
+    setWithdrawRef(user?.phone || '');
+  }, [user?.phone]);
+
+  const loadContactNetworks = useCallback(async () => {
+    try {
+      const { data } = await api.get('/settings/networks');
+      setContactNetworks(Array.isArray(data) ? data.filter((n) => n.isActive !== false) : []);
+    } catch {
+      setContactNetworks([]);
+    }
+  }, []);
 
   const loadWallet = useCallback(async () => {
     setLoading(true);
@@ -74,11 +102,26 @@ export default function WalletPage() {
     }
   }, []);
 
-  const loadTransactions = useCallback(async (page = 1) => {
+  const loadTransactions = useCallback(async (page = 1, { append = false } = {}) => {
     setTxnLoading(true);
     try {
-      const { data } = await api.get('/wallet/transactions', { params: { page, limit: 20 } });
-      setTransactions(data.items || []);
+      const { data } = await api.get('/wallet/transactions', {
+        params: { page, limit: TRANSACTIONS_PAGE_SIZE },
+        skipCache: true
+      });
+      const nextItems = Array.isArray(data.items) ? data.items : [];
+      setTransactions((prev) => {
+        if (!append) return nextItems;
+        const seen = new Set(prev.map((txn) => String(txn?._id || '')));
+        const merged = [...prev];
+        nextItems.forEach((txn) => {
+          const id = String(txn?._id || '');
+          if (!id || seen.has(id)) return;
+          seen.add(id);
+          merged.push(txn);
+        });
+        return merged;
+      });
       setTxnTotal(data.total || 0);
       setTxnPage(page);
     } catch {
@@ -88,29 +131,40 @@ export default function WalletPage() {
     }
   }, []);
 
-  useEffect(() => { loadWallet(); loadTransactions(); loadContactNetworks(); }, [loadWallet, loadTransactions]);
+  useEffect(() => { loadWallet(); loadTransactions(1); loadContactNetworks(); }, [loadWallet, loadTransactions, loadContactNetworks]);
 
-  const loadContactNetworks = useCallback(async () => {
-    try {
-      const { data } = await api.get('/settings/networks');
-      setContactNetworks(Array.isArray(data) ? data.filter((n) => n.isActive !== false) : []);
-    } catch {
-      setContactNetworks([]);
-    }
-  }, []);
+  const txnTotalPages = Math.max(1, Math.ceil(Number(txnTotal || 0) / TRANSACTIONS_PAGE_SIZE));
+  const txnHasMore = transactions.length < Number(txnTotal || 0) && txnPage < txnTotalPages;
+
+  useEffect(() => {
+    const sentinel = transactionSentinelRef.current;
+    if (!sentinel || !txnHasMore || txnLoading) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadTransactions(txnPage + 1, { append: true });
+        }
+      },
+      { rootMargin: '360px 0px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadTransactions, txnHasMore, txnLoading, txnPage]);
 
   const handleWithdraw = async () => {
     const amount = Number(withdrawAmount);
     if (!amount || amount <= 0) return showToast('Montant invalide.', { variant: 'error' });
+    if (!user?.phone) return showToast('Aucun numéro de téléphone n’est associé à votre compte.', { variant: 'error' });
     setWithdrawing(true);
     try {
-      await api.post('/wallet/withdraw', { amount, reference: withdrawRef });
+      await api.post('/wallet/withdraw', { amount, reference: user.phone });
       showToast('Demande de retrait envoyée. En attente de validation.', { variant: 'success' });
       setWithdrawModal(false);
       setWithdrawAmount('');
-      setWithdrawRef('');
+      setWithdrawRef(user.phone || '');
       loadWallet();
-      loadTransactions();
+      loadTransactions(1);
     } catch (err) {
       showToast(err?.response?.data?.message || 'Erreur lors du retrait.', { variant: 'error' });
     } finally {
@@ -137,16 +191,35 @@ export default function WalletPage() {
       formData.append('paymentMethod', depositMethod);
       depositProof.forEach((file) => formData.append('proof', file));
 
-      await api.post('/wallet/deposit-request', formData);
+      const { data } = await api.post('/wallet/deposit-request', formData, {
+        skipCache: true,
+        timeout: 60000
+      });
       showToast('Demande de dépôt envoyée. En attente de vérification par un administrateur.', { variant: 'success' });
+      if (data?.transaction) {
+        setTransactions((prev) => {
+          const exists = prev.some((txn) => String(txn._id) === String(data.transaction._id));
+          return exists ? prev : [data.transaction, ...prev].slice(0, 20);
+        });
+        setTxnTotal((prev) => Number(prev || 0) + 1);
+      }
+      setWallet((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          balance: data?.balance ?? prev.balance,
+          availableBalance: data?.availableBalance ?? prev.availableBalance,
+          pendingBalance: data?.pendingBalance ?? prev.pendingBalance,
+          totalBalance: data?.totalBalance ?? prev.totalBalance
+        };
+      });
       setDepositModal(false);
       setDepositAmount('');
       setDepositRef('');
       setDepositMethod('orange_money');
       setDepositProof([]);
       setDepositPreview([]);
-      loadWallet();
-      loadTransactions();
+      await Promise.all([loadWallet(), loadTransactions(1)]);
     } catch (err) {
       showToast(err?.response?.data?.message || 'Erreur lors de la demande de dépôt.', { variant: 'error' });
     } finally {
@@ -225,9 +298,19 @@ export default function WalletPage() {
               <p className="text-sm font-semibold opacity-90">{t('wallet.balance', 'Solde disponible')}</p>
             </div>
             <p className="mt-2 text-3xl font-black">{formatPrice(wallet.availableBalance)}</p>
+            {Number(wallet.pendingBalance || 0) > 0 && (
+              <p className="mt-1 text-xs opacity-80">
+                En attente de confirmation: {formatPrice(wallet.pendingBalance)}
+              </p>
+            )}
             {wallet.frozenBalance > 0 && (
               <p className="mt-1 text-xs opacity-70">
                 {t('wallet.frozen', 'Bloqué')}: {formatPrice(wallet.frozenBalance)}
+              </p>
+            )}
+            {Number(wallet.totalBalance || 0) > Number(wallet.availableBalance || 0) && (
+              <p className="mt-1 text-xs opacity-70">
+                Total portefeuille: {formatPrice(wallet.totalBalance)}
               </p>
             )}
             <div className="mt-4 flex gap-2">
@@ -244,7 +327,7 @@ export default function WalletPage() {
                 {t('wallet.withdraw', 'Retirer')}
               </button>
               <button
-                onClick={() => { loadWallet(); loadTransactions(); }}
+                onClick={() => { loadWallet(); loadTransactions(1); }}
                 className="rounded-xl bg-white/10 px-3 py-2 text-xs backdrop-blur-sm hover:bg-white/20 transition"
               >
                 <RefreshCcw size={14} />
@@ -271,12 +354,18 @@ export default function WalletPage() {
               {t('wallet.noTransactions', 'Aucune transaction pour le moment.')}
             </p>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {transactions.map((txn) => {
-                const Icon = TXN_ICONS[txn.type] || Clock;
-                const colorClass = TXN_COLORS[txn.type] || 'text-gray-600';
-                const label = TXN_LABELS[txn.type] || txn.type;
+            <div className="space-y-1">
+              <div className="divide-y divide-gray-50">
+                {transactions.map((txn) => {
+                const isSellerReversal = txn.type === 'sale_reversal' || txn?.metadata?.reversal === true;
+                const Icon = isSellerReversal ? ArrowUpRight : TXN_ICONS[txn.type] || Clock;
+                const isDebit = txn.direction === 'debit' || Number(txn.signedAmount || 0) < 0;
+                const isCredit = txn.direction === 'credit' || Number(txn.signedAmount || 0) > 0;
+                const colorClass = isCredit ? 'text-green-600' : isDebit ? 'text-red-600' : TXN_COLORS[txn.type] || 'text-gray-600';
+                const label = isSellerReversal ? TXN_LABELS.sale_reversal : TXN_LABELS[txn.type] || txn.type;
                 const isPending = txn.status === 'pending';
+                const amountPrefix = isCredit ? '+' : isDebit ? '-' : '';
+                const displayAmount = Number(txn.displayAmount || Math.abs(Number(txn.signedAmount || 0)) || txn.amount || 0);
                 return (
                   <div key={txn._id} className="flex items-center gap-3 py-3">
                     <div className={`rounded-full p-2 ${isPending ? 'bg-amber-50' : 'bg-gray-50'}`}>
@@ -290,32 +379,29 @@ export default function WalletPage() {
                       {txn.note && <p className="text-xs text-gray-400 truncate">{txn.note}</p>}
                       <p className="text-[10px] text-gray-400">{formatDate(txn.createdAt)}</p>
                     </div>
-                    <span className={`text-sm font-bold ${txn.type === 'deposit' || txn.type === 'refund' ? 'text-green-600' : 'text-red-600'}`}>
-                      {txn.type === 'deposit' || txn.type === 'refund' ? '+' : '-'}{formatPrice(txn.amount)}
+                    <span className={`text-sm font-bold ${colorClass}`}>
+                      {amountPrefix}{formatPrice(displayAmount)}
                     </span>
                   </div>
                 );
-              })}
-            </div>
-          )}
-
-          {txnTotal > 20 && (
-            <div className="mt-3 flex items-center justify-center gap-2">
-              <button
-                disabled={txnPage <= 1}
-                onClick={() => loadTransactions(txnPage - 1)}
-                className="rounded-lg px-3 py-1 text-xs font-semibold disabled:opacity-30"
-              >
-                ‹ Précédent
-              </button>
-              <span className="text-xs text-gray-500">{txnPage}/{Math.ceil(txnTotal / 20)}</span>
-              <button
-                disabled={txnPage >= Math.ceil(txnTotal / 20)}
-                onClick={() => loadTransactions(txnPage + 1)}
-                className="rounded-lg px-3 py-1 text-xs font-semibold disabled:opacity-30"
-              >
-                Suivant ›
-              </button>
+                })}
+              </div>
+              <div ref={transactionSentinelRef} className="min-h-8">
+                {txnLoading && transactions.length > 0 ? (
+                  <div className="flex items-center justify-center gap-2 py-3 text-xs font-semibold text-gray-400">
+                    <RefreshCcw size={13} className="animate-spin" />
+                    Chargement des transactions...
+                  </div>
+                ) : txnHasMore ? (
+                  <div className="py-3 text-center text-xs font-semibold text-gray-400">
+                    Faites défiler pour charger plus
+                  </div>
+                ) : transactions.length > TRANSACTIONS_PAGE_SIZE ? (
+                  <div className="py-3 text-center text-xs font-semibold text-gray-300">
+                    Toutes les transactions sont affichées
+                  </div>
+                ) : null}
+              </div>
             </div>
           )}
         </div>
@@ -326,7 +412,8 @@ export default function WalletPage() {
           <div className="mt-2 space-y-2 text-xs text-gray-600">
             <p>💳 <strong>Recharger</strong> — Effectuez un dépôt Mobile Money et fournissez le code de transaction. Un administrateur valide et crédite votre portefeuille.</p>
             <p>🛒 <strong>Acheter</strong> — Lors du checkout, choisissez "Payer avec mon solde HDMarket".</p>
-            <p>💰 <strong>Retirer</strong> — Les vendeurs peuvent retirer leurs gains vers leur compte Mobile Money.</p>
+            <p>💰 <strong>Vendre</strong> — Les paiements Portefeuille HDMarket restent en attente puis deviennent disponibles après confirmation de la commande.</p>
+            <p>🏦 <strong>Retirer</strong> — Les vendeurs peuvent retirer uniquement leur solde disponible vers le numéro Mobile Money du compte.</p>
           </div>
         </div>
       </div>
@@ -351,11 +438,14 @@ export default function WalletPage() {
                 <label className="text-xs font-semibold text-gray-600">Numéro Mobile Money</label>
                 <input
                   type="text"
-                  value={withdrawRef}
-                  onChange={(e) => setWithdrawRef(e.target.value)}
-                  placeholder="ex: 06xxxxxx"
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                  value={withdrawRef || user?.phone || ''}
+                  readOnly
+                  placeholder="Numéro de téléphone du compte"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700"
                 />
+                <p className="mt-1 text-[11px] font-medium text-gray-500">
+                  Les retraits sont envoyés uniquement au numéro enregistré sur votre compte.
+                </p>
               </div>
             </div>
             <div className="mt-4 flex gap-2">
@@ -367,7 +457,7 @@ export default function WalletPage() {
               </button>
               <button
                 onClick={handleWithdraw}
-                disabled={withdrawing || !withdrawAmount}
+                disabled={withdrawing || !withdrawAmount || !user?.phone}
                 className="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white disabled:opacity-40"
               >
                 {withdrawing ? 'Envoi...' : 'Demander le retrait'}

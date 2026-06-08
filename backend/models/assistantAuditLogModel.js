@@ -30,8 +30,19 @@ const assistantAuditLogSchema = new mongoose.Schema(
         'assistant_order_confirmed',
         'assistant_order_rejected',
         'assistant_order_status_updated',
+        'assistant_order_viewed',
         'assistant_comment_replied',
-        'assistant_message_replied'
+        'assistant_message_replied',
+        'assistant_conversation_viewed',
+        'assistant_conversation_archived',
+        'assistant_conversation_unarchived',
+        'assistant_conversation_deleted',
+        'assistant_message_reaction_added',
+        'assistant_message_reaction_removed',
+        'assistant_message_deleted',
+        'assistant_products_viewed',
+        'assistant_product_update_requested',
+        'assistant_product_delete_requested'
       ],
       required: true
     },

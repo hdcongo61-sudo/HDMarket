@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { buildWhatsappLink } from '../utils/whatsapp';
 import api from '../services/api';
 import { buildProductPath } from '../utils/links';
@@ -38,6 +39,7 @@ export default function Cart() {
   const navigate = useNavigate();
   const { cart, loading, error, updateItem, removeItem, clearCart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
+  const { showToast } = useToast();
   const [pending, setPending] = useState({});
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showDistanceWarning, setShowDistanceWarning] = useState(false);
@@ -94,13 +96,18 @@ export default function Cart() {
   };
 
   const handleRemove = async (item) => {
-    const productId = item?.product?._id;
+    const productId = item?.product?._id || item?.product;
+    if (!productId) {
+      showToast('Impossible de supprimer cet article : produit introuvable.', { variant: 'error' });
+      return;
+    }
     const cartItemKey = getCartItemKey(item);
     setPending((prev) => ({ ...prev, [cartItemKey]: true }));
     try {
       await removeItem(productId, item?.selectedAttributes || [], item?.selectionKey || '');
+      showToast('Article retiré du panier.', { variant: 'success' });
     } catch (e) {
-      console.error(e);
+      showToast(e?.response?.data?.message || 'Impossible de retirer l\'article.', { variant: 'error' });
     } finally {
       setPending((prev) => ({ ...prev, [cartItemKey]: false }));
     }

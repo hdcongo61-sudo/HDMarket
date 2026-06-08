@@ -1,4 +1,8 @@
 import asyncHandler from 'express-async-handler';
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   getWallet,
   getWalletTransactions,
@@ -6,12 +10,63 @@ import {
   requestWithdrawal,
   processWithdrawal,
   getPendingWithdrawals,
+  getAdminWalletStats,
   submitDepositRequest,
   getPendingDeposits,
   approveDeposit,
   rejectDeposit
 } from '../services/walletService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import {
+  getCloudinaryFolder,
+  isCloudinaryConfigured,
+  uploadToCloudinary
+} from '../utils/cloudinaryUploader.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const WALLET_PROOF_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'wallet-proofs');
+
+const getProofFileExtension = (file = {}) => {
+  const fromOriginalName = path.extname(file.originalname || '').toLowerCase();
+  if (fromOriginalName) return fromOriginalName;
+  if (file.mimetype === 'application/pdf') return '.pdf';
+  if (file.mimetype === 'image/png') return '.png';
+  if (file.mimetype === 'image/webp') return '.webp';
+  if (file.mimetype === 'image/avif') return '.avif';
+  return '.jpg';
+};
+
+const persistWalletProofFile = async (file) => {
+  if (!file) return '';
+  if (file.location) return file.location;
+  if (file.path && !file.buffer) return file.path;
+
+  if (!file.buffer) return '';
+
+  if (isCloudinaryConfigured()) {
+    const uploaded = await uploadToCloudinary({
+      buffer: file.buffer,
+      resourceType: file.mimetype === 'application/pdf' ? 'raw' : 'image',
+      folder: getCloudinaryFolder(['wallet', 'proofs']),
+      options:
+        file.mimetype === 'application/pdf'
+          ? {}
+          : {
+              quality: 'auto:good',
+              fetch_format: 'auto',
+              flags: 'strip_profile'
+            }
+    });
+    return uploaded.secure_url || uploaded.url || '';
+  }
+
+  await fs.mkdir(WALLET_PROOF_UPLOAD_DIR, { recursive: true });
+  const extension = getProofFileExtension(file);
+  const fileName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${extension}`;
+  await fs.writeFile(path.join(WALLET_PROOF_UPLOAD_DIR, fileName), file.buffer);
+  return `uploads/wallet-proofs/${fileName}`;
+};
 
 // ─── MIDDLEWARE ───────────────────────────────────────────
 
@@ -76,7 +131,7 @@ export const requestMyDeposit = asyncHandler(async (req, res) => {
   // Collect uploaded proof file(s) — multer.fields() returns { proof: [...] }
   const proofField = req.files?.proof || [];
   const proofUrls = Array.isArray(proofField)
-    ? proofField.map((f) => f.path || f.location || '').filter(Boolean)
+    ? (await Promise.all(proofField.map((file) => persistWalletProofFile(file)))).filter(Boolean)
     : [];
 
   const result = await submitDepositRequest({
@@ -118,6 +173,11 @@ export const adminGetPendingWithdrawals = asyncHandler(async (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
 
   const result = await getPendingWithdrawals({ page, limit });
+  res.json(result);
+});
+
+export const adminGetWalletStats = asyncHandler(async (_req, res) => {
+  const result = await getAdminWalletStats();
   res.json(result);
 });
 

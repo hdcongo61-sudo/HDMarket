@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { orderQueryKeys } from './useOrderQueryKeys';
 import useNetworkProfile from './useNetworkProfile';
@@ -41,17 +41,18 @@ const normalizeOrdersListPayload = (payload, fallbackPage = 1) => {
 };
 
 export const useSellerOrdersListQuery = ({
-  page = 1,
   limit = 10,
   status = 'all',
   enabled = true
 } = {}) => {
   const { rapid3GActive } = useNetworkProfile();
 
-  return useQuery({
-    queryKey: orderQueryKeys.list('seller', { page, limit, status }),
+  return useInfiniteQuery({
+    queryKey: orderQueryKeys.list('seller', { limit, status, mode: 'infinite' }),
+    initialPageParam: 1,
     enabled: Boolean(enabled),
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 1 }) => {
+      const page = Math.max(1, Number(pageParam) || 1);
       const params = { page, limit };
       if (status && status !== 'all') {
         if (isOrderGroupKey('seller', status)) {
@@ -68,10 +69,15 @@ export const useSellerOrdersListQuery = ({
       return normalizeOrdersListPayload(data, page);
     },
     staleTime: rapid3GActive ? 45_000 : 20_000,
-    placeholderData: (prev) => prev,
+    getNextPageParam: (lastPage) => {
+      const currentPage = Math.max(1, Number(lastPage?.page || 1));
+      const totalPages = Math.max(1, Number(lastPage?.totalPages || 1));
+      return currentPage < totalPages ? currentPage + 1 : undefined;
+    },
     refetchOnWindowFocus: false,
     refetchInterval: (query) => {
-      const items = Array.isArray(query?.state?.data?.items) ? query.state.data.items : [];
+      const pages = Array.isArray(query?.state?.data?.pages) ? query.state.data.pages : [];
+      const items = pages.flatMap((page) => (Array.isArray(page?.items) ? page.items : []));
       return items.some((item) =>
         ACTIVE_ORDER_STATUSES.has(String(item?.status || '').trim().toLowerCase())
       )

@@ -31,6 +31,8 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
+  Users2,
+  Wallet,
   Package,
   Settings,
   Home,
@@ -700,8 +702,10 @@ export default function Navbar() {
     { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 8 },
     { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
     { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 10 },
-    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 11 },
-    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 12 }
+    { id: 'wallet', label: t('nav.wallet', 'Portefeuille'), path: '/wallet', icon: Wallet, badge: null, visible: user ? true : false, order: 11 },
+    { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
+    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
+    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 }
   ];
 
   const navItems = (customNavItems || defaultNavItems).map((item) => {
@@ -3937,6 +3941,38 @@ export default function Navbar() {
                       {t('nav.becomeShop', 'Devenir Boutique')}
                     </NavLink>
                   )}
+
+                  {/* Wallet */}
+                  <NavLink 
+                    to="/wallet" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className={({ isActive }) => 
+                      `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-black text-white shadow-lg' 
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                      }`
+                    }
+                  >
+                    <Wallet size={20} />
+                    {t('nav.wallet', 'Portefeuille')}
+                  </NavLink>
+
+                  {/* Shop Assistant */}
+                  <NavLink 
+                    to="/seller/assistant" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className={({ isActive }) => 
+                      `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-black text-white shadow-lg' 
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                      }`
+                    }
+                  >
+                    <Users2 size={20} />
+                    {t('nav.shopAssistant', 'Assistant boutique')}
+                  </NavLink>
 
                   <NavLink 
                     to="/notifications" 

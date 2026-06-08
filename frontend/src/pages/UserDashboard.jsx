@@ -184,6 +184,42 @@ export default function UserDashboard() {
   const [promoSubmitting, setPromoSubmitting] = useState(false);
   const [promoToggleLoadingId, setPromoToggleLoadingId] = useState('');
   const [recentlyCreatedProductId, setRecentlyCreatedProductId] = useState('');
+  const [assistantAssignment, setAssistantAssignment] = useState(null);
+  const [assistantInvites, setAssistantInvites] = useState([]);
+  const [assistantAccessLoading, setAssistantAccessLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user || isShopUser) {
+      setAssistantAssignment(null);
+      setAssistantInvites([]);
+      return;
+    }
+
+    let cancelled = false;
+    setAssistantAccessLoading(true);
+    Promise.allSettled([
+      api.get('/shops/me/assistant-shop'),
+      api.get('/shops/me/assistant-invitations')
+    ])
+      .then(([assignmentRes, invitesRes]) => {
+        if (cancelled) return;
+        const assignment =
+          assignmentRes.status === 'fulfilled' ? assignmentRes.value?.data?.data || null : null;
+        const invites =
+          invitesRes.status === 'fulfilled' && Array.isArray(invitesRes.value?.data?.data)
+            ? invitesRes.value.data.data
+            : [];
+        setAssistantAssignment(assignment);
+        setAssistantInvites(invites);
+      })
+      .finally(() => {
+        if (!cancelled) setAssistantAccessLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isShopUser, user]);
 
   const loadPromoCodes = async (status = promoCodeStatusFilter) => {
     if (!isShopUser) {
@@ -1164,6 +1200,30 @@ export default function UserDashboard() {
                 className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700 transition"
               >
                 <Wallet size={14} /> Mon portefeuille
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!loading && !isShopUser && (assistantAssignment || assistantInvites.length > 0 || assistantAccessLoading) && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 space-y-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Assistant boutique</h3>
+                <p className="text-sm text-gray-500">
+                  {assistantAssignment
+                    ? `Espace de travail pour ${assistantAssignment.shop?.shopName || assistantAssignment.shop?.name || 'la boutique'}.`
+                    : assistantInvites.length > 0
+                      ? `${assistantInvites.length} invitation${assistantInvites.length > 1 ? 's' : ''} en attente.`
+                      : 'Vérification de votre accès assistant...'}
+                </p>
+              </div>
+              <Link
+                to="/seller/assistant/workspace"
+                className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-[#FF6A00] px-3 py-2 text-xs font-bold text-white hover:bg-[#e05e00] transition"
+              >
+                {assistantAssignment ? <ShieldCheck size={14} /> : <Clock size={14} />}
+                {assistantAssignment ? 'Ouvrir workspace' : 'Voir invitation'}
               </Link>
             </div>
           </div>

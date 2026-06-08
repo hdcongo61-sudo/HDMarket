@@ -8,6 +8,7 @@ import {
   requestMyWithdrawal,
   requestMyDeposit,
   adminDeposit,
+  adminGetWalletStats,
   adminGetPendingWithdrawals,
   adminProcessWithdrawal,
   adminGetUserWallet,
@@ -35,6 +36,7 @@ router.post(
 );
 
 // ─── ADMIN ────────────────────────────────────────────────
+router.get('/admin/stats', protect, admin, adminGetWalletStats);
 router.get('/admin/pending-withdrawals', protect, admin, adminGetPendingWithdrawals);
 router.get('/admin/pending-deposits', protect, admin, adminGetPendingDeposits);
 router.post('/admin/deposit', protect, admin, adminDeposit);

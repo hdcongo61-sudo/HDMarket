@@ -5,6 +5,8 @@ import DeliveryLog from '../models/deliveryLogModel.js';
 import OrderMessage from '../models/orderMessageModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
+import ShopAssistant from '../models/shopAssistantModel.js';
+import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import City from '../models/cityModel.js';
 import Commune from '../models/communeModel.js';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
@@ -127,6 +129,108 @@ const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } 
     filter.status = { $in: groupStatuses };
   }
   return filter;
+};
+
+const WALLET_ESCROW_RELEASE_STATUSES = new Set(['confirmed_by_client', 'completed']);
+
+const getOrderSellerIds = (order) =>
+  Array.from(
+    new Set(
+      (order?.items || [])
+        .map((item) => String(item?.snapshot?.shopId || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+const releaseWalletEscrowForOrder = async (order, processedBy = null) => {
+  if (!order || order.paymentSource !== 'wallet') return;
+  const sellerIds = getOrderSellerIds(order);
+  if (!sellerIds.length) return;
+
+  try {
+    const { releaseSellerWalletSale } = await import('../services/walletService.js');
+    await Promise.all(
+      sellerIds.map((sellerId) =>
+        releaseSellerWalletSale({
+          userId: sellerId,
+          orderId: String(order._id),
+          processedBy
+        })
+      )
+    );
+  } catch (err) {
+    console.error('[walletEscrowRelease] Failed:', err?.message || err);
+  }
+};
+
+const SELLER_ACCOUNT_ROLES = new Set(['seller', 'vendeur', 'boutique_owner']);
+
+const isSellerAccount = (user = {}) =>
+  user?.accountType === 'shop' || SELLER_ACCOUNT_ROLES.has(String(user?.role || '').toLowerCase());
+
+const buildSellerIdValues = (sellerId) =>
+  ensureObjectId(sellerId)
+    ? [String(sellerId), new mongoose.Types.ObjectId(sellerId)]
+    : [String(sellerId || '')];
+
+const buildSellerIdMatch = (sellerId) => ({ $in: buildSellerIdValues(sellerId) });
+
+const resolveSellerAccess = async (req, permission = 'view_shop_orders') => {
+  const actorId = req.user?.id || req.user?._id;
+  if (isSellerAccount(req.user)) {
+    return {
+      actorId,
+      sellerId: actorId,
+      isAssistant: false,
+      actorRole: 'owner',
+      permissions: []
+    };
+  }
+
+  const assignment = await ShopAssistant.findOne({
+    assistant: actorId,
+    status: 'active'
+  }).lean();
+  if (!assignment) {
+    return {
+      actorId,
+      sellerId: actorId,
+      isAssistant: false,
+      actorRole: 'owner',
+      permissions: []
+    };
+  }
+  if (permission && !(assignment.permissions || []).includes(permission)) {
+    const error = new Error(`Permission assistant manquante: ${permission}.`);
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return {
+    actorId,
+    sellerId: assignment.shop,
+    isAssistant: true,
+    actorRole: 'assistant',
+    permissions: assignment.permissions || [],
+    assignment
+  };
+};
+
+const auditAssistantOrderAction = async ({ access, action, order, metadata = {} }) => {
+  if (!access?.isAssistant || !access?.sellerId || !access?.actorId) return;
+  try {
+    await AssistantAuditLog.create({
+      shop: access.sellerId,
+      actor: access.actorId,
+      actorRole: 'assistant',
+      action,
+      targetType: 'order',
+      targetId: String(order?._id || metadata.orderId || ''),
+      metadata
+    });
+  } catch {
+    // Audit must not block order operations.
+  }
 };
 
 const buildOrderSummary = async ({ baseFilter, role = 'buyer' }) => {
@@ -911,20 +1015,34 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
     });
   }
 
+  // Hoist: fetch wallet shop eligibility config once
+  const enabledPhonesStr = await getRuntimeConfig('wallet_enabled_shops', { fallback: '' });
+  const enabledPhones = enabledPhonesStr
+    ? String(enabledPhonesStr).split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  // Batch: fetch all shop phones at once
+  const shopIdsSet = new Set();
+  items.forEach((i) => {
+    const p = productMap.get(String(i.productId));
+    if (p) shopIdsSet.add(String(p.user || p.shopId || ''));
+  });
+  shopIdsSet.delete('');
+  const shopIds = [...shopIdsSet];
+  const shopPhoneMap = new Map();
+  if (enabledPhones.length > 0 && shopIds.length > 0) {
+    const shops = await User.find({ _id: { $in: shopIds } }).select('phone').lean();
+    shops.forEach((s) => shopPhoneMap.set(String(s._id), String(s.phone || '').trim()));
+  }
+
   for (const item of items) {
     const product = productMap.get(String(item.productId));
     if (!product) continue;
 
-    // Check per-shop wallet eligibility (by phone number)
+    // Check per-shop wallet eligibility (batched, no per-item DB call)
     const shopId = String(product.user || product.shopId || '');
-    const enabledPhonesStr = await getRuntimeConfig('wallet_enabled_shops', { fallback: '' });
-    const enabledPhones = String(enabledPhonesStr)
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
     if (enabledPhones.length > 0) {
-      const shop = await User.findById(shopId).select('phone').lean();
-      const shopPhone = String(shop?.phone || '').trim();
+      const shopPhone = shopPhoneMap.get(shopId) || '';
       if (!shopPhone || !enabledPhones.includes(shopPhone)) {
         return res.status(400).json({
           message: `Le paiement par portefeuille n'est pas disponible pour la boutique de "${product.title}".`
@@ -1081,6 +1199,40 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   res.status(201).json({
     message: 'Commande payée via portefeuille HDMarket.',
     orders: createdOrders.map(buildOrderResponse)
+  });
+
+  // Fire-and-forget: notify sellers + buyer
+  createdOrders.forEach((order) => {
+    const sellerId = String(order.items?.[0]?.snapshot?.shopId || '');
+    if (sellerId && sellerId !== String(userId)) {
+      createNotification({
+        userId: sellerId,
+        actorId: userId,
+        type: 'order_received',
+        metadata: {
+          orderId: order._id,
+          itemCount: order.items?.length || 1,
+          totalAmount: Number(order.totalAmount || 0),
+          paymentMode: 'FULL_PAYMENT',
+          paymentSource: 'wallet'
+        }
+      }).catch(() => {});
+    }
+    createNotification({
+      userId,
+      actorId: userId,
+      type: 'order_created',
+      allowSelf: true,
+      metadata: {
+        orderId: order._id,
+        deliveryCity: order.deliveryCity,
+        deliveryAddress: order.deliveryAddress,
+        status: 'paid',
+        paymentMode: 'FULL_PAYMENT',
+        paymentSource: 'wallet',
+        deliveryFeeWaived: Boolean(order.deliveryFeeWaived)
+      }
+    }).catch(() => {});
   });
   } catch (err) {
     console.error('[walletCheckout] Error:', err?.message || err, err?.stack);
@@ -1881,6 +2033,58 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+
+  if (
+    status &&
+    previousStatus !== order.status &&
+    WALLET_ESCROW_RELEASE_STATUSES.has(order.status)
+  ) {
+    releaseWalletEscrowForOrder(order, req.user.id).catch((err) =>
+      console.error('[sellerOrderStatus] Escrow release failed:', err?.message)
+    );
+  }
+
+  // ── Wallet refund on cancellation (seller) ─────────────
+  if (status === 'cancelled' && order.paymentSource === 'wallet' && previousStatus !== 'cancelled') {
+    const refundAmount = order.paidAmount || order.totalAmount || 0;
+    if (refundAmount > 0) {
+      try {
+        const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
+        await refundToWallet({
+          userId: order.customer,
+          amount: refundAmount,
+          orderId: String(order._id),
+          processedBy: req.user.id,
+          note: `Remboursement — commande ${String(order._id).slice(-6)} annulée.`
+        });
+        const sellerAmounts = new Map();
+        (order.items || []).forEach((item) => {
+          const sid = String(item?.snapshot?.shopId || '');
+          if (sid) sellerAmounts.set(sid, (sellerAmounts.get(sid) || 0) + Number(item.lineTotal || 0));
+        });
+        const lineSubtotal = Array.from(sellerAmounts.values()).reduce((sum, value) => sum + Number(value || 0), 0);
+        const singleSellerRefund = sellerAmounts.size === 1;
+        for (const [sellerId, amount] of sellerAmounts) {
+          const reversalAmount = singleSellerRefund
+            ? refundAmount
+            : lineSubtotal > 0
+              ? Math.round((Number(amount || 0) / lineSubtotal) * refundAmount)
+              : 0;
+          if (reversalAmount > 0) {
+            await reverseSellerCredit({
+              userId: sellerId,
+              amount: reversalAmount,
+              orderId: String(order._id),
+              processedBy: req.user.id
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[sellerCancelOrder] Wallet refund failed:', err?.message);
+      }
+    }
+  }
+
   await syncReviewReminderForOrderLifecycle(order);
   const baseMetadata = {
     orderId: order._id,
@@ -2554,6 +2758,48 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+
+  // ── Wallet refund on cancellation (buyer) ──────────────
+  if (status === 'cancelled' && order.paymentSource === 'wallet' && previousStatus !== 'cancelled') {
+    const refundAmount = order.paidAmount || order.totalAmount || 0;
+    if (refundAmount > 0) {
+      try {
+        const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
+        await refundToWallet({
+          userId,
+          amount: refundAmount,
+          orderId: String(order._id),
+          processedBy: userId,
+          note: `Remboursement — commande ${String(order._id).slice(-6)} annulée par l'acheteur.`
+        });
+        const sellerAmounts = new Map();
+        (order.items || []).forEach((item) => {
+          const sid = String(item?.snapshot?.shopId || '');
+          if (sid) sellerAmounts.set(sid, (sellerAmounts.get(sid) || 0) + Number(item.lineTotal || 0));
+        });
+        const lineSubtotal = Array.from(sellerAmounts.values()).reduce((sum, value) => sum + Number(value || 0), 0);
+        const singleSellerRefund = sellerAmounts.size === 1;
+        for (const [sellerId, amount] of sellerAmounts) {
+          const reversalAmount = singleSellerRefund
+            ? refundAmount
+            : lineSubtotal > 0
+              ? Math.round((Number(amount || 0) / lineSubtotal) * refundAmount)
+              : 0;
+          if (reversalAmount > 0) {
+            await reverseSellerCredit({
+              userId: sellerId,
+              amount: reversalAmount,
+              orderId: String(order._id),
+              processedBy: userId
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[buyerCancelOrder] Wallet refund failed:', err?.message);
+      }
+    }
+  }
+
   const sellerIds = Array.isArray(order.items)
     ? order.items
         .map((item) => item?.snapshot?.shopId)
@@ -2791,10 +3037,11 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
 });
 
 export const sellerListOrders = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'view_shop_orders');
+  const { sellerId } = access;
   const { status, statusGroup, page = 1, limit = 6 } = req.query || {};
 
-  const filter = { 'items.snapshot.shopId': userId, isDraft: false };
+  const filter = { 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false };
   applyOrderStatusFilter(filter, { status, statusGroup, role: 'seller' });
 
   const pageNumber = Math.max(1, Number(page) || 1);
@@ -2815,7 +3062,7 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const items = orders
     .map((order) => {
-      const filteredItems = filterOrderItemsForSeller(order, userId);
+      const filteredItems = filterOrderItemsForSeller(order, sellerId);
       if (!filteredItems.length) return null;
       const response = buildOrderResponse(order);
       response.items = filteredItems.map((item) => {
@@ -2839,9 +3086,8 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
 });
 
 export const sellerOrdersSummary = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.user?._id;
-  const sellerMatchIds = ensureObjectId(userId) ? [String(userId), new mongoose.Types.ObjectId(userId)] : [String(userId)];
-  const baseFilter = { 'items.snapshot.shopId': { $in: sellerMatchIds } };
+  const access = await resolveSellerAccess(req, 'view_shop_orders');
+  const baseFilter = { 'items.snapshot.shopId': buildSellerIdMatch(access.sellerId) };
   const summary = await buildOrderSummary({ baseFilter, role: 'seller' });
   res.json(summary);
 });
@@ -2849,17 +3095,18 @@ export const sellerOrdersSummary = asyncHandler(async (req, res) => {
 // Get single order (seller)
 export const sellerGetOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'view_shop_orders');
+  const { actorId, sellerId, isAssistant } = access;
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
   // First try: user is a seller of items in this order
-  let order = await baseOrderQuery().findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+  let order = await baseOrderQuery().findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false });
 
   // Fallback: user is the customer (e.g., shop user bought from another shop, routed to seller link)
-  if (!order) {
-    order = await baseOrderQuery().findOne({ _id: id, customer: userId, isDraft: false });
+  if (!order && !isAssistant) {
+    order = await baseOrderQuery().findOne({ _id: id, customer: actorId, isDraft: false });
     if (order) {
       // User is the customer — return full order (not filtered)
       await ensureOrderProductSlugs([order]);
@@ -2872,7 +3119,7 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
   }
 
   await ensureOrderProductSlugs([order]);
-  const filteredItems = filterOrderItemsForSeller(order, userId);
+  const filteredItems = filterOrderItemsForSeller(order, sellerId);
   if (!filteredItems.length) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -2880,6 +3127,15 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
   response.items = filteredItems.map((item) => {
     const normalized = item.toObject ? item.toObject() : item;
     return { ...normalized, snapshot: normalized.snapshot || {} };
+  });
+  await auditAssistantOrderAction({
+    access,
+    action: 'assistant_order_viewed',
+    order,
+    metadata: {
+      itemCount: filteredItems.length,
+      status: order.status
+    }
   });
   res.json(response);
 });
@@ -2899,11 +3155,12 @@ const SELLER_CAN_UPDATE_DELIVERY_FEE_STATUSES = new Set([
 export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { deliveryFeeTotal: newFee } = req.body;
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'manage_delivery_requests');
+  const { actorId, sellerId } = access;
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -2921,7 +3178,7 @@ export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
     ({ previousFee } = applyDeliveryFeeToOrder({
       order,
       nextFee: numFee,
-      actorId: userId,
+      actorId,
       updatedAt: new Date()
     }));
   } catch (error) {
@@ -2933,7 +3190,7 @@ export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
   await order.save();
   const populated = await baseOrderQuery().findById(order._id);
   const response = buildOrderResponse(populated);
-  const filteredItems = filterOrderItemsForSeller(populated, userId);
+  const filteredItems = filterOrderItemsForSeller(populated, sellerId);
   if (filteredItems.length) {
     response.items = filteredItems.map((item) => {
       const normalized = item.toObject ? item.toObject() : item;
@@ -2944,7 +3201,7 @@ export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
   if (customerId) {
     await createNotification({
       userId: customerId,
-      actorId: userId,
+      actorId,
       type: 'order_delivery_fee_updated',
       metadata: {
         orderId: order._id,
@@ -2955,19 +3212,30 @@ export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
       }
     });
   }
+  await auditAssistantOrderAction({
+    access,
+    action: 'assistant_order_status_updated',
+    order,
+    metadata: {
+      field: 'deliveryFeeTotal',
+      previousFee,
+      nextFee: numFee
+    }
+  });
   res.json(response);
 });
 
 export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'manage_delivery_requests');
+  const { actorId, sellerId } = access;
   const deliveryProofResubmissionLimit = await getDeliveryProofResubmissionLimit();
   const maxProofPhotos = await getMaxDeliveryProofPhotos();
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': userId, isDraft: false });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -3016,7 +3284,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   order.clientSignatureImage = signatureImage;
   order.deliveryNote = noteValue.slice(0, 1000);
   order.deliveryDate = now;
-  order.deliverySubmittedBy = userId;
+  order.deliverySubmittedBy = actorId;
   order.deliverySubmittedAt = now;
   order.deliveryStatus = isPlatformDeliveryOrderFlow || isPickupOrder ? 'verified' : 'submitted';
   order.deliveryProofAttemptCount = Number(order.deliveryProofAttemptCount || 0) + 1;
@@ -3045,7 +3313,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
 
   const baseLog = {
     orderId: order._id,
-    sellerId: userId,
+    sellerId,
     timestamp: now,
     ipAddress: getRequestIp(req),
     location: location || undefined
@@ -3068,7 +3336,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
 
   await createNotification({
     userId: order.customer,
-    actorId: userId,
+    actorId,
     type: 'order_delivered',
     metadata: {
       orderId: order._id,
@@ -3100,8 +3368,18 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     installmentSaleStatus: order.installmentSaleStatus,
     customerId: order.customer,
     sellerIds,
-    updatedBy: userId,
+    updatedBy: actorId,
     updatedAt: now.toISOString()
+  });
+  await auditAssistantOrderAction({
+    access,
+    action: 'assistant_order_status_updated',
+    order,
+    metadata: {
+      status: order.status,
+      deliveryProofSubmitted: true,
+      proofCount: cappedProofImages.length
+    }
   });
   res.json({
     message: isPickupOrder
@@ -3146,6 +3424,11 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       order.status = 'delivered';
     }
     await order.save();
+    if (order.paymentSource === 'wallet') {
+      releaseWalletEscrowForOrder(order, userId).catch((err) =>
+        console.error('[platformConfirm] Escrow release failed:', err?.message)
+      );
+    }
     res.json({
       message: 'Livraison plateforme validée automatiquement. Aucune confirmation client requise.',
       order: buildOrderResponse(order)
@@ -3209,15 +3492,22 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     order.completedAt = now;
   }
   await order.save();
+  if (previousStatus !== order.status) {
+    // Fire-and-forget — don't block the response
+    releaseWalletEscrowForOrder(order, userId).catch((err) =>
+      console.error('[clientConfirmDelivery] Escrow release failed:', err?.message)
+    );
+  }
 
   const sellerIds = new Set();
   (order.items || []).forEach((item) => {
     if (item?.snapshot?.shopId) sellerIds.add(String(item.snapshot.shopId));
   });
 
-  // Deduct platform commission from seller wallets (Proposal 6)
+  // Deduct platform commission from seller wallets — fire-and-forget
   const commissionRate = Number(process.env.PLATFORM_COMMISSION_RATE || 0.03);
-  if (commissionRate > 0) {
+  if (commissionRate > 0 && sellerIds.size > 0) {
+    const { deductCommission } = await import('../services/walletService.js');
     for (const sellerId of sellerIds) {
       const sellerItems = (order.items || []).filter(
         (item) => String(item?.snapshot?.shopId || '') === sellerId
@@ -3225,7 +3515,6 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       const sellerTotal = sellerItems.reduce((sum, item) => sum + (Number(item?.lineTotal) || 0), 0);
       const commission = Math.round(sellerTotal * commissionRate);
       if (commission > 0) {
-        const { deductCommission } = await import('../services/walletService.js');
         deductCommission({ userId: sellerId, amount: commission, orderId: String(order._id) }).catch(() => {});
       }
     }
@@ -3330,7 +3619,20 @@ export const getOrderDeliveryLogs = asyncHandler(async (req, res) => {
   const isSeller = Array.isArray(order.items)
     ? order.items.some((item) => String(item?.snapshot?.shopId || '') === String(userId))
     : false;
+  let isAssistant = false;
   if (!isAdmin && !isCustomer && !isSeller) {
+    const assignment = await ShopAssistant.findOne({
+      assistant: userId,
+      status: 'active',
+      permissions: { $in: ['view_shop_orders', 'manage_delivery_requests'] }
+    }).select('shop').lean();
+    isAssistant = Boolean(
+      assignment &&
+        Array.isArray(order.items) &&
+        order.items.some((item) => String(item?.snapshot?.shopId || '') === String(assignment.shop))
+    );
+  }
+  if (!isAdmin && !isCustomer && !isSeller && !isAssistant) {
     return res.status(403).json({ message: 'Accès refusé.' });
   }
 
@@ -3343,14 +3645,15 @@ export const getOrderDeliveryLogs = asyncHandler(async (req, res) => {
 
 export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'update_order_status');
+  const { actorId, sellerId } = access;
   const { status } = req.body;
 
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': userId });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId) });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -3390,7 +3693,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       }
       if (status === 'cancelled' && !order.cancelledAt) {
         order.cancelledAt = saleStatusChangedAt;
-        order.cancelledBy = userId;
+        order.cancelledBy = actorId;
       }
     }
 
@@ -3406,8 +3709,18 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       installmentSaleStatus: order.installmentSaleStatus,
       customerId: order.customer,
       sellerIds: installmentSellerIds,
-      updatedBy: userId,
+      updatedBy: actorId,
       updatedAt: saleStatusChangedAt.toISOString()
+    });
+    await auditAssistantOrderAction({
+      access,
+      action: status === 'cancelled' ? 'assistant_order_rejected' : 'assistant_order_status_updated',
+      order,
+      metadata: {
+        previousStatus: previousSaleStatus,
+        nextStatus: status,
+        paymentType: 'installment'
+      }
     });
 
     res.json(buildOrderResponse(order));
@@ -3416,7 +3729,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     if (notifyConfirmed) {
       lifecycleNotifications.push({
         userId: order.customer,
-        actorId: userId,
+        actorId,
         type: 'order_created',
         metadata: {
           orderId: order._id,
@@ -3431,7 +3744,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     if (notifyDelivering) {
       lifecycleNotifications.push({
         userId: order.customer,
-        actorId: userId,
+        actorId,
         type: 'order_delivering',
         metadata: {
           orderId: order._id,
@@ -3446,7 +3759,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     if (notifyDelivered) {
       lifecycleNotifications.push({
         userId: order.customer,
-        actorId: userId,
+        actorId,
         type: 'order_delivered',
         metadata: {
           orderId: order._id,
@@ -3462,7 +3775,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     if (notifyCancelled) {
       lifecycleNotifications.push({
         userId: order.customer,
-        actorId: userId,
+        actorId,
         type: 'order_cancelled',
         metadata: {
           orderId: order._id,
@@ -3481,7 +3794,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       {
         orderId: order._id,
         customerId: order.customer,
-        sellerIds: [userId],
+        sellerIds: [sellerId],
         notifications: lifecycleNotifications,
         smsMessages:
           notifyDelivering && order.customer?.phone
@@ -3519,7 +3832,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
           () =>
             createNotification({
               userId: order.customer,
-              actorId: userId,
+              actorId,
               type: 'order_created',
               metadata: {
                 orderId: order._id,
@@ -3553,7 +3866,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
           () =>
             createNotification({
               userId: order.customer,
-              actorId: userId,
+              actorId,
               type: 'order_delivering',
               metadata: {
                 orderId: order._id,
@@ -3573,7 +3886,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
           () =>
             createNotification({
               userId: order.customer,
-              actorId: userId,
+              actorId,
               type: 'order_delivered',
               metadata: {
                 orderId: order._id,
@@ -3594,7 +3907,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
           () =>
             createNotification({
               userId: order.customer,
-              actorId: userId,
+              actorId,
               type: 'order_cancelled',
               metadata: {
                 orderId: order._id,
@@ -3614,7 +3927,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         () =>
           invalidateOrderCachesForMutation({
             customerId: order.customer,
-            sellerIds: [userId]
+            sellerIds: [sellerId]
           }),
         { label: 'seller_installment_status_invalidate_order_caches' }
       );
@@ -3684,10 +3997,19 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
   if (status === 'cancelled' && !order.cancelledAt) {
     order.cancelledAt = statusChangedAt;
-    order.cancelledBy = userId;
+    order.cancelledBy = actorId;
   }
 
   await order.save();
+  if (
+    status &&
+    previousStatus !== order.status &&
+    WALLET_ESCROW_RELEASE_STATUSES.has(order.status)
+  ) {
+    releaseWalletEscrowForOrder(order, actorId).catch((err) =>
+      console.error('[sellerUpdateStatus] Escrow release failed:', err?.message)
+    );
+  }
   const sellerIds = Array.isArray(order.items)
     ? order.items
         .map((item) => item?.snapshot?.shopId)
@@ -3699,8 +4021,22 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     installmentSaleStatus: order.installmentSaleStatus,
     customerId: order.customer,
     sellerIds,
-    updatedBy: userId,
+    updatedBy: actorId,
     updatedAt: statusChangedAt.toISOString()
+  });
+  await auditAssistantOrderAction({
+    access,
+    action:
+      status === 'confirmed'
+        ? 'assistant_order_confirmed'
+        : status === 'cancelled'
+          ? 'assistant_order_rejected'
+          : 'assistant_order_status_updated',
+    order,
+    metadata: {
+      previousStatus,
+      nextStatus: order.status
+    }
   });
 
   res.json(buildOrderResponse(order));
@@ -3709,7 +4045,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   if (notifyPending && previousStatus !== 'pending') {
     lifecycleNotifications.push({
       userId: order.customer,
-      actorId: userId,
+      actorId,
       type: 'order_created',
       metadata: {
         orderId: order._id,
@@ -3723,7 +4059,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   if (notifyConfirmed && previousStatus !== 'confirmed') {
     lifecycleNotifications.push({
       userId: order.customer,
-      actorId: userId,
+      actorId,
       type: 'order_created',
       metadata: {
         orderId: order._id,
@@ -3737,7 +4073,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   if (status === 'delivered') {
     lifecycleNotifications.push({
       userId: order.customer,
-      actorId: userId,
+      actorId,
       type: 'order_delivered',
       metadata: {
         orderId: order._id,
@@ -3752,7 +4088,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   if (notifyDelivering && previousStatus !== 'delivering') {
     lifecycleNotifications.push({
       userId: order.customer,
-      actorId: userId,
+      actorId,
       type: 'order_delivering',
       metadata: {
         orderId: order._id,
@@ -3766,7 +4102,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   if (status === 'cancelled' && previousStatus !== 'cancelled') {
     lifecycleNotifications.push({
       userId: order.customer,
-      actorId: userId,
+      actorId,
       type: 'order_cancelled',
       metadata: {
         orderId: order._id,
@@ -3789,7 +4125,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     {
       orderId: order._id,
       customerId: order.customer,
-      sellerIds: [userId],
+      sellerIds: [sellerId],
       notifications: lifecycleNotifications,
       smsMessages:
         notifyDelivering && previousStatus !== 'delivering'
@@ -3820,7 +4156,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         () =>
           createNotification({
             userId: order.customer,
-            actorId: userId,
+            actorId,
             type: 'order_created',
             metadata: {
               orderId: order._id,
@@ -3854,7 +4190,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         () =>
           createNotification({
             userId: order.customer,
-            actorId: userId,
+            actorId,
             type: 'order_created',
             metadata: {
               orderId: order._id,
@@ -3873,7 +4209,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         () =>
           createNotification({
             userId: order.customer,
-            actorId: userId,
+            actorId,
             type: 'order_delivered',
             metadata: {
               orderId: order._id,
@@ -3907,7 +4243,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         () =>
           createNotification({
             userId: order.customer,
-            actorId: userId,
+            actorId,
             type: 'order_delivering',
             metadata: {
               orderId: order._id,
@@ -3926,7 +4262,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
         () =>
           createNotification({
             userId: order.customer,
-            actorId: userId,
+            actorId,
             type: 'order_cancelled',
             metadata: {
               orderId: order._id,
@@ -3960,7 +4296,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       () =>
         invalidateOrderCachesForMutation({
           customerId: order.customer,
-          sellerIds: [userId]
+          sellerIds: [sellerId]
         }),
       { label: 'seller_order_status_invalidate_order_caches' }
     );
@@ -3971,14 +4307,15 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
 
 export const sellerCancelOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'reject_orders');
+  const { actorId, sellerId } = access;
   const { reason, issueRefund = false } = req.body;
 
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': userId });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId) });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -3998,18 +4335,42 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
 
   order.status = 'cancelled';
   order.cancelledAt = new Date();
-  order.cancelledBy = userId;
+  order.cancelledBy = actorId;
   order.cancellationReason = reason.trim();
   const paidAmount = Number(order.paidAmount || 0);
   const refundAmount = issueRefund ? paidAmount : 0;
   if (issueRefund) {
     order.refundStatus = refundAmount > 0 ? 'pending' : 'none';
     order.refundAmount = refundAmount;
-    order.refundRequestedBy = userId;
+    order.refundRequestedBy = actorId;
     order.refundRequestedAt = new Date();
   }
 
   await order.save();
+  if (order.paymentSource === 'wallet' && paidAmount > 0) {
+    try {
+      const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
+      await refundToWallet({
+        userId: order.customer,
+        amount: paidAmount,
+        orderId: String(order._id),
+        processedBy: actorId,
+        note: `Remboursement — commande ${String(order._id).slice(-6)} annulée par le vendeur.`
+      });
+      await reverseSellerCredit({
+        userId: sellerId,
+        amount: paidAmount,
+        orderId: String(order._id),
+        processedBy: actorId
+      });
+      order.refundStatus = 'completed';
+      order.refundAmount = paidAmount;
+      order.refundedAt = new Date();
+      await order.save();
+    } catch (err) {
+      console.error('[sellerCancelOrder] Wallet refund failed:', err?.message || err);
+    }
+  }
   await syncReviewReminderForOrderLifecycle(order);
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
@@ -4024,8 +4385,18 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
     installmentSaleStatus: order.installmentSaleStatus,
     customerId: order.customer,
     sellerIds,
-    updatedBy: userId,
+    updatedBy: actorId,
     updatedAt: order.cancelledAt?.toISOString?.() || new Date().toISOString()
+  });
+  await auditAssistantOrderAction({
+    access,
+    action: 'assistant_order_rejected',
+    order,
+    metadata: {
+      reason: order.cancellationReason,
+      issueRefund: Boolean(issueRefund),
+      refundAmount
+    }
   });
 
   // Update product salesCount when order is cancelled (decrease count)
@@ -4044,7 +4415,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   // Send notification to customer
   await createNotification({
     userId: order.customer,
-    actorId: userId,
+    actorId,
     type: 'order_cancelled',
     metadata: {
       orderId: order._id,
@@ -4069,7 +4440,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       adminRecipients.map((recipient) =>
         createNotification({
           userId: recipient._id,
-          actorId: userId,
+          actorId,
           type: 'admin_broadcast',
           metadata: {
             message: `Remboursement demandé pour la commande #${String(order._id).slice(-6)}: ${formatCurrency(refundAmount)}.`,
@@ -4105,13 +4476,15 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
 
   await invalidateOrderCachesForMutation({
     customerId: order.customer,
-    sellerIds: [userId]
+    sellerIds: [sellerId]
   });
   res.json(buildOrderResponse(populated));
 });
 
 export const sellerDeliveryStatsOverview = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'manage_delivery_requests');
+  const { sellerId } = access;
+  const sellerMatchValues = buildSellerIdValues(sellerId);
   const from = req.query?.from ? new Date(req.query.from) : null;
   const to = req.query?.to ? new Date(req.query.to) : null;
   const createdAt = {};
@@ -4123,7 +4496,7 @@ export const sellerDeliveryStatsOverview = asyncHandler(async (req, res) => {
   }
   const baseMatch = {
     isDraft: { $ne: true },
-    'items.snapshot.shopId': new mongoose.Types.ObjectId(userId)
+    'items.snapshot.shopId': { $in: sellerMatchValues }
   };
   if (Object.keys(createdAt).length) {
     baseMatch.createdAt = createdAt;
@@ -4138,7 +4511,7 @@ export const sellerDeliveryStatsOverview = asyncHandler(async (req, res) => {
             $filter: {
               input: '$items',
               as: 'item',
-              cond: { $eq: ['$$item.snapshot.shopId', new mongoose.Types.ObjectId(userId)] }
+              cond: { $in: ['$$item.snapshot.shopId', sellerMatchValues] }
             }
           }
         }
@@ -4275,7 +4648,9 @@ export const sellerDeliveryStatsOverview = asyncHandler(async (req, res) => {
 });
 
 export const sellerDeliveryStatsProducts = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.user?._id;
+  const access = await resolveSellerAccess(req, 'manage_delivery_requests');
+  const { sellerId } = access;
+  const sellerMatchValues = buildSellerIdValues(sellerId);
   const from = req.query?.from ? new Date(req.query.from) : null;
   const to = req.query?.to ? new Date(req.query.to) : null;
   const createdAt = {};
@@ -4287,7 +4662,7 @@ export const sellerDeliveryStatsProducts = asyncHandler(async (req, res) => {
   }
   const baseMatch = {
     isDraft: { $ne: true },
-    'items.snapshot.shopId': new mongoose.Types.ObjectId(userId)
+    'items.snapshot.shopId': { $in: sellerMatchValues }
   };
   if (Object.keys(createdAt).length) {
     baseMatch.createdAt = createdAt;
@@ -4298,7 +4673,7 @@ export const sellerDeliveryStatsProducts = asyncHandler(async (req, res) => {
     { $unwind: '$items' },
     {
       $match: {
-        'items.snapshot.shopId': new mongoose.Types.ObjectId(userId)
+        'items.snapshot.shopId': { $in: sellerMatchValues }
       }
     },
     {

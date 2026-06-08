@@ -7,7 +7,7 @@ import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import categoryGroups, { allCategoryOptions } from "../data/categories";
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
@@ -202,6 +202,113 @@ const fullPaymentBannerText =
   ).trim() || 'Payez le montant total au checkout et profitez de la livraison offerte.';
 const primaryPageLimit = compactProductsPageSize || 12;
 const secondarySectionLimit = compactSecondaryLimit || 6;
+const WalletHomeCallout = ({ compact = false } = {}) => {
+  const walletPath = user ? '/wallet' : '/login';
+  const benefits = [
+    {
+      icon: Zap,
+      label: t('home.walletFastTitle', 'Paiement plus rapide'),
+      text: t('home.walletFastText', 'Validez vos achats sans refaire un dépôt à chaque commande.')
+    },
+    {
+      icon: Shield,
+      label: t('home.walletProtectedTitle', 'Argent mieux suivi'),
+      text: t('home.walletProtectedText', 'Chaque dépôt, achat et retrait reste visible dans votre historique.')
+    },
+    {
+      icon: RefreshCcw,
+      label: t('home.walletRefundTitle', 'Remboursement facilité'),
+      text: t('home.walletRefundText', 'En cas d’annulation éligible, le remboursement revient dans le portefeuille.')
+    }
+  ];
+
+  return (
+    <section className={`hd-wallet-callout relative w-full overflow-hidden rounded-[22px] border border-emerald-100 bg-[#06281f] text-white shadow-[0_14px_34px_rgba(6,40,31,0.18)] ${compact ? 'p-3' : 'p-4'}`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.16),transparent_25%),radial-gradient(circle_at_86%_12%,rgba(255,106,0,0.2),transparent_24%),linear-gradient(135deg,rgba(6,40,31,0.95),rgba(11,80,58,0.92))]" />
+      <div className="hd-wallet-shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+      <div className={`relative grid gap-3 ${compact ? 'grid-cols-[minmax(0,1fr)_104px] items-center max-[380px]:grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center'}`}>
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-50 backdrop-blur">
+              <Wallet className="h-3 w-3 shrink-0 text-emerald-200" />
+              <span className="truncate">{t('home.walletBadge', 'Portefeuille HDMarket')}</span>
+            </div>
+            <Link
+              to={walletPath}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black text-white ring-1 ring-white/15 transition hover:bg-white/16 active:scale-[0.98]"
+            >
+              {t('home.walletMiniLink', 'Mon portefeuille')}
+              <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <h2 className={`${compact ? 'text-lg' : 'text-xl lg:text-2xl'} font-black leading-tight tracking-tight text-white`}>
+            {t('home.walletTitle', 'Payez plus vite, gardez le contrôle de votre argent.')}
+          </h2>
+          <p className={`mt-1.5 max-w-2xl ${compact ? 'text-[12px] leading-5' : 'text-[13px] leading-5'} font-medium text-emerald-50/82`}>
+            {t('home.walletSubtitle', 'Rechargez une fois votre portefeuille HDMarket, commandez plus facilement, suivez vos mouvements et recevez les remboursements éligibles directement sur votre solde.')}
+          </p>
+          <div className={`mt-3 grid gap-2 ${compact ? 'grid-cols-3 max-[380px]:grid-cols-1' : 'sm:grid-cols-3'}`}>
+            {benefits.map(({ icon: Icon, label, text }) => (
+              <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur">
+                <div className={`${compact ? '' : 'mb-1.5'} flex items-center gap-2`}>
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white text-[#0b503a] shadow-sm">
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="min-w-0 text-[11px] font-black leading-4 text-white line-clamp-2">{label}</span>
+                </div>
+                {!compact ? <p className="text-[11px] font-semibold leading-4 text-emerald-50/72">{text}</p> : null}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Link
+              to={walletPath}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-[13px] font-black text-[#06281f] shadow-[0_10px_22px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-[0.98]"
+            >
+              {user ? t('home.walletOpen', 'Ouvrir mon portefeuille') : t('home.walletStart', 'Activer mon portefeuille')}
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1.5 text-[10px] font-black text-emerald-50">
+              <RefreshCcw className="h-3 w-3" />
+              {t('home.walletRefundBadge', 'Remboursements suivis')}
+            </span>
+          </div>
+        </div>
+
+        <div className={`relative ${compact ? 'min-h-[118px] max-[380px]:hidden' : 'min-h-[164px]'}`}>
+          <div className="hd-wallet-float absolute left-1/2 top-1/2 w-[min(100%,252px)] -translate-x-1/2 -translate-y-1/2 rounded-[22px] border border-white/15 bg-white p-3 text-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.26)]">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-[#ff6a00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.22)]">
+                <Wallet className="h-[18px] w-[18px]" />
+              </span>
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700">
+                Sécurisé
+              </span>
+            </div>
+            <p className="mt-3 text-[10px] font-black uppercase tracking-wide text-slate-500">
+              {t('home.walletBalancePreview', 'Solde disponible')}
+            </p>
+            <p className="mt-0.5 text-xl font-black tracking-tight text-slate-950">125 000 F</p>
+            <div className="mt-3 overflow-hidden rounded-full bg-slate-100 p-1">
+              <div className="hd-wallet-rail h-1.5 w-1/2 rounded-full bg-gradient-to-r from-[#ff6a00] via-emerald-500 to-[#ff6a00]" />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px] font-black">
+              <span className="rounded-xl bg-emerald-50 px-2 py-1.5 text-emerald-700">Dépôt prêt</span>
+              <span className="rounded-xl bg-orange-50 px-2 py-1.5 text-[#9a4a00]">Retour</span>
+            </div>
+          </div>
+          <span className="hd-wallet-pop absolute right-3 top-2 rounded-2xl bg-white px-2.5 py-1.5 text-[10px] font-black text-emerald-700 shadow-[0_10px_20px_rgba(0,0,0,0.16)]">
+            + Remboursement
+          </span>
+          <span className="hd-wallet-pop absolute bottom-2 left-3 rounded-2xl bg-[#ff6a00] px-2.5 py-1.5 text-[10px] font-black text-white shadow-[0_10px_20px_rgba(255,106,0,0.22)] [animation-delay:0.8s]">
+            Paye vite
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+};
 const homeSnapshotKey = useMemo(
   () =>
     [
@@ -1056,6 +1163,9 @@ const loadDiscountProducts = async () => {
             ) : null}
           </section>
         ) : null}
+
+        <WalletHomeCallout compact />
+
         <section className="-mx-2.5 overflow-hidden rounded-b-[30px] bg-[#ff3d13] text-white shadow-[0_16px_34px_rgba(255,106,0,0.2)] max-[375px]:-mx-2">
           <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
             <div className="pointer-events-none absolute -right-8 top-3 h-24 w-24 rounded-full bg-white/15 blur-2xl" />
@@ -2088,6 +2198,7 @@ const loadDiscountProducts = async () => {
             ) : null}
           </section>
         ) : null}
+        <WalletHomeCallout />
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
           <Link
@@ -2550,47 +2661,87 @@ const loadDiscountProducts = async () => {
 
         <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
           {shouldLoadSecondarySections && (
-          <section className="isolate rounded-2xl border border-neutral-100 bg-white shadow-sm p-4">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-base font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-                <p className="mt-0.5 text-xs text-neutral-600">
-                  {t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}
-                </p>
+          <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-emerald-50 via-white to-white border border-emerald-100 shadow-[0_8px_32px_rgba(16,185,129,0.06)]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-gray-900 tracking-tight">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+                  <p className="text-xs text-emerald-700 font-medium">{t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}</p>
+                </div>
               </div>
-              <Link to="/products?wholesaleOnly=true" className="shrink-0 text-xs font-semibold text-neutral-800">
+              <Link to="/products?wholesaleOnly=true" className="group flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition">
                 {t('home.viewAll', 'Voir tout')}
+                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
             </div>
+
             {wholesaleLoading && !wholesaleProducts.length ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={`wholesale-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
+              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={`wdsk-${i}`} className="aspect-[4/3] animate-pulse rounded-2xl bg-gray-100" />
                 ))}
               </div>
             ) : wholesaleProducts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {wholesaleProducts.slice(0, 4).map((product) => {
+              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+                {wholesaleProducts.slice(0, 4).map((product, idx) => {
                   const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
+                  const tierPrice = product?.wholesaleTiers?.[0]?.unitPrice || product?.price;
                   return (
-                    <div key={`wholesale-desktop-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
-                      <div className="min-h-0 flex-1">
-                        <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                      </div>
-                      <div className="mt-0 rounded-b-xl border-t border-neutral-100 bg-neutral-50 px-2.5 py-2">
-                        <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
-                          Vente en gros
+                    <Link
+                      key={`wholesale-dsk-${product._id}`}
+                      to={buildHomeProductLink(product)}
+                      className="group relative flex flex-col overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200"
+                    >
+                      {/* Image */}
+                      <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+                        <img
+                          src={product.images?.[0] || '/placeholder.jpg'}
+                          alt={product.title}
+                          className="h-full w-full object-cover transition duration-400 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        {/* Wholesale badge */}
+                        <span className="absolute top-2.5 left-2.5 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                          GROS
                         </span>
-                        <p className="mt-1 text-xs text-gray-600">
-                          Commande minimum: <span className="font-semibold text-neutral-800">{minQty}</span> unités
-                        </p>
+                        {/* Tier price badge */}
+                        {tierPrice && tierPrice !== product.price && (
+                          <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white">
+                            Dès {formatPrice(tierPrice)}/u
+                          </span>
+                        )}
                       </div>
-                    </div>
+                      {/* Info */}
+                      <div className="flex flex-col gap-1.5 p-3">
+                        <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-[#FF6A00] transition-colors">
+                          {product.title}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-black text-[#FF6A00]">{formatPrice(product.price)}</span>
+                          {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
+                            <span className="text-xs text-gray-400 line-through">{formatPrice(product.priceBeforeDiscount)}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                            Min. {minQty} u.
+                          </span>
+                          {product.salesCount > 0 && (
+                            <span className="text-[10px] text-gray-400">{product.salesCount} vendus</span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">
+              <p className="px-5 pb-5 text-sm text-gray-400">
                 {t('home.noWholesaleProducts', 'Aucun produit en vente en gros actuellement.')}
               </p>
             )}
@@ -2598,38 +2749,92 @@ const loadDiscountProducts = async () => {
           )}
 
           {shouldLoadSecondarySections && (
-          <section ref={installmentSectionRef} className="isolate rounded-2xl border border-neutral-100 bg-white shadow-sm p-4">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-base font-bold text-gray-900">
-                  {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
-                </h2>
-                <p className="mt-0.5 text-xs text-neutral-600">
-                  {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
-                </p>
+          <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-50 via-white to-white border border-sky-100 shadow-[0_8px_32px_rgba(14,165,233,0.06)]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-gray-900 tracking-tight">
+                    {t('home.installmentProducts', 'Paiement par tranche')}
+                  </h2>
+                  <p className="text-xs text-sky-700 font-medium">
+                    {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
+                  </p>
+                </div>
               </div>
-              <Link to="/products?installmentOnly=true" className="shrink-0 text-xs font-semibold text-neutral-800">
+              <Link to="/products?installmentOnly=true" className="group flex items-center gap-1 text-xs font-bold text-sky-700 hover:text-sky-800 transition">
                 Voir tout
+                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
             </div>
+
             {installmentLoading && !installmentProducts.length ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={`installment-desktop-skeleton-${index}`} className="h-56 animate-pulse rounded-xl bg-gray-200" />
+              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={`idsk-${i}`} className="aspect-[4/3] animate-pulse rounded-2xl bg-gray-100" />
                 ))}
               </div>
             ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
                 {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
                   .slice(0, 4)
-                  .map((product) => (
-                    <div key={`installment-desktop-${product._id}`} className="overflow-hidden rounded-xl border border-sky-100 bg-white p-1.5 shadow-sm">
-                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                    </div>
-                  ))}
+                  .map((product, idx) => {
+                    const duration = product?.installmentDuration || 0;
+                    const minAmount = product?.installmentMinAmount || 0;
+                    return (
+                      <Link
+                        key={`installment-dsk-${product._id}`}
+                        to={buildHomeProductLink(product)}
+                        className="group relative flex flex-col overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-sky-200 transition-all duration-200"
+                      >
+                        {/* Image */}
+                        <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+                          <img
+                            src={product.images?.[0] || '/placeholder.jpg'}
+                            alt={product.title}
+                            className="h-full w-full object-cover transition duration-400 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                          {/* Installment badge */}
+                          <span className="absolute top-2.5 left-2.5 rounded-full bg-sky-500 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                            {duration > 0 ? `${duration}J` : 'TRANCHE'}
+                          </span>
+                          {minAmount > 0 && (
+                            <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white">
+                              Dès {formatPrice(minAmount)}
+                            </span>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="flex flex-col gap-1.5 p-3">
+                          <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-[#FF6A00] transition-colors">
+                            {product.title}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-black text-[#FF6A00]">{formatPrice(product.price)}</span>
+                            {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
+                              <span className="text-xs text-gray-400 line-through">{formatPrice(product.priceBeforeDiscount)}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                              {duration > 0 ? `${duration} jours` : 'Tranches dispo.'}
+                            </span>
+                            {product.salesCount > 0 && (
+                              <span className="text-[10px] text-gray-400">{product.salesCount} vendus</span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">
+              <p className="px-5 pb-5 text-sm text-gray-400">
                 {t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}
               </p>
             )}

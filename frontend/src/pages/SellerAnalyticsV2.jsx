@@ -53,8 +53,23 @@ export default function SellerAnalyticsV2() {
   const [customers, setCustomers] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [assistantShop, setAssistantShop] = useState(null);
 
   const isShop = user?.accountType === 'shop';
+  const isAssistant = Boolean(assistantShop?._id);
+  const canView = isShop || isAssistant;
+
+  // Check if user is a shop assistant
+  useEffect(() => {
+    if (!user?._id || isShop) return;
+    api.get('/shops/me/assistant-shop')
+      .then(({ data }) => {
+        if (data?.data?.shop) {
+          setAssistantShop({ _id: data.data.shop._id, shopName: data.data.shop.shopName || data.data.shop.name });
+        }
+      })
+      .catch(() => setAssistantShop(null));
+  }, [user?._id, isShop]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -77,10 +92,10 @@ export default function SellerAnalyticsV2() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  if (!isShop) {
+  if (!canView) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-gray-500">Réservé aux boutiques.</p>
+        <p className="text-sm text-gray-500">Réservé aux boutiques et assistants.</p>
       </div>
     );
   }
@@ -119,7 +134,14 @@ export default function SellerAnalyticsV2() {
           </Link>
           <div>
             <h1 className="text-base font-bold">📊 {t('analytics.title', 'Tableau de bord')}</h1>
-            <p className="text-xs text-gray-500">{user?.shopName || user?.name}</p>
+            <p className="text-xs text-gray-500">
+              {isAssistant ? assistantShop?.shopName : user?.shopName || user?.name}
+              {isAssistant && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                  Assistant
+                </span>
+              )}
+            </p>
           </div>
         </div>
       </header>
@@ -143,6 +165,15 @@ export default function SellerAnalyticsV2() {
       </div>
 
       <div className="mx-auto max-w-3xl px-4 pb-20 pt-4">
+        {/* ── Assistant info banner ── */}
+        {isAssistant && (
+          <div className="mb-4 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+            <span className="font-bold">📊 Vue boutique :</span> Vous consultez les statistiques de <span className="font-bold">{assistantShop?.shopName}</span>.
+            <Link to="/user-stats" className="ml-2 text-xs font-semibold text-blue-600 underline">
+              Voir mes statistiques personnelles →
+            </Link>
+          </div>
+        )}
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && overview && (
           <div className="space-y-4">

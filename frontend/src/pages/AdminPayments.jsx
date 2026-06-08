@@ -22,6 +22,8 @@ const formatDateTime = (value) =>
       })
     : '—';
 
+const isLikelyImageUrl = (url = '') => /\.(avif|gif|heic|heif|jpe?g|png|webp)(?:[?#].*)?$/i.test(String(url));
+
 const paymentStatusLabels = {
   waiting: 'En attente',
   verified: 'Validé',
@@ -54,7 +56,9 @@ const paymentFilterOptions = [
   { value: 'verified', label: 'Validés' },
   { value: 'rejected', label: 'Rejetés' },
   { value: 'disabled_products', label: 'Annonces désactivées' },
-  { value: 'wallet_deposits', label: 'Portefeuille HDMarket' }
+  { value: 'wallet_overview', label: 'Statistiques portefeuille' },
+  { value: 'wallet_deposits', label: 'Dépôts portefeuille' },
+  { value: 'wallet_withdrawals', label: 'Retraits portefeuille' }
 ];
 
 const walletDepositStatusOptions = [
@@ -94,6 +98,15 @@ export default function AdminPayments() {
   const [walletDepositTotal, setWalletDepositTotal] = useState(0);
   const [walletDepositStatus, setWalletDepositStatus] = useState('pending');
   const [walletDepositingId, setWalletDepositingId] = useState('');
+  const [walletWithdrawals, setWalletWithdrawals] = useState([]);
+  const [walletWithdrawalsLoading, setWalletWithdrawalsLoading] = useState(false);
+  const [walletWithdrawalsError, setWalletWithdrawalsError] = useState('');
+  const [walletWithdrawalPage, setWalletWithdrawalPage] = useState(1);
+  const [walletWithdrawalTotal, setWalletWithdrawalTotal] = useState(0);
+  const [walletWithdrawalActionId, setWalletWithdrawalActionId] = useState('');
+  const [walletStats, setWalletStats] = useState(null);
+  const [walletStatsLoading, setWalletStatsLoading] = useState(false);
+  const [walletStatsError, setWalletStatsError] = useState('');
   const [proofPreviewUrl, setProofPreviewUrl] = useState('');
   const externalLinkProps = useDesktopExternalLink();
   const isMobileView = useIsMobile(1023);
@@ -121,6 +134,28 @@ export default function AdminPayments() {
     [normalizeUrl]
   );
 
+  const getWalletProofUrls = useCallback(
+    (transaction) => {
+      const rawUrls = [
+        ...(Array.isArray(transaction?.metadata?.proofUrls) ? transaction.metadata.proofUrls : []),
+        ...(Array.isArray(transaction?.proofUrls) ? transaction.proofUrls : []),
+        transaction?.metadata?.proofUrl,
+        transaction?.metadata?.proofImageUrl,
+        transaction?.proofUrl,
+        transaction?.proofImageUrl
+      ];
+      return Array.from(
+        new Set(
+          rawUrls
+            .map((url) => (typeof url === 'string' ? url.trim() : ''))
+            .filter(Boolean)
+            .map(normalizeUrl)
+        )
+      );
+    },
+    [normalizeUrl]
+  );
+
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     try {
@@ -135,6 +170,11 @@ export default function AdminPayments() {
   }, []);
 
   const loadPayments = useCallback(async () => {
+    if (filter === 'wallet_overview' || filter === 'wallet_deposits' || filter === 'wallet_withdrawals') {
+      setPayments([]);
+      setPaymentsLoading(false);
+      return;
+    }
     setPaymentsLoading(true);
     setPaymentsError('');
     try {
@@ -258,14 +298,20 @@ export default function AdminPayments() {
   }, [walletDepositStatus]);
 
   const handleWalletDepositAction = async (walletId, transactionId, approved, note = '') => {
+    const transactionKey = String(transactionId);
     setWalletDepositingId(String(transactionId));
+    setActionNotice('');
+    setActionError('');
     try {
       const endpoint = approved ? '/wallet/admin/approve-deposit' : '/wallet/admin/reject-deposit';
-      await api.post(endpoint, { walletId, transactionId, note });
-      setActionNotice(approved ? 'Dépôt validé avec succès.' : 'Dépôt refusé.');
-      loadWalletDeposits(walletDepositPage);
+      const { data } = await api.post(endpoint, { walletId, transactionId, note });
+      setWalletDeposits((items) => items.filter((item) => String(item._id) !== transactionKey));
+      setWalletDepositTotal((total) => Math.max(0, Number(total || 0) - 1));
+      setActionNotice(data?.message || (approved ? 'Dépôt validé avec succès.' : 'Dépôt refusé.'));
+      window.dispatchEvent(new CustomEvent('walletTransactionChanged', { detail: { transactionId, type: 'deposit' } }));
+      Promise.allSettled([loadWalletDeposits(walletDepositPage), loadWalletStats()]);
     } catch (err) {
-      setActionError(err?.response?.data?.message || 'Erreur lors de l\'opération.');
+      setActionError(err?.response?.data?.message || err?.message || 'Erreur lors de l\'opération.');
     } finally {
       setWalletDepositingId('');
       setTimeout(() => { setActionNotice(''); setActionError(''); }, 4000);
@@ -285,6 +331,87 @@ export default function AdminPayments() {
   }, [filter, walletDepositStatus]);
 
   const walletDepositTotalPages = Math.max(1, Math.ceil(walletDepositTotal / 10));
+
+  // ─── Wallet Withdrawal Review ──────────────────────────────
+  const loadWalletWithdrawals = useCallback(async (pageNum = 1) => {
+    setWalletWithdrawalsLoading(true);
+    setWalletWithdrawalsError('');
+    try {
+      const { data } = await api.get('/wallet/admin/pending-withdrawals', {
+        params: { page: pageNum, limit: 10 },
+        skipCache: true
+      });
+      setWalletWithdrawals(data.items || []);
+      setWalletWithdrawalTotal(data.total || 0);
+      setWalletWithdrawalPage(pageNum);
+    } catch (err) {
+      setWalletWithdrawalsError('Impossible de charger les retraits en attente.');
+    } finally {
+      setWalletWithdrawalsLoading(false);
+    }
+  }, []);
+
+  const handleWalletWithdrawalAction = async (walletId, transactionId, approved, note = '') => {
+    const transactionKey = String(transactionId);
+    setWalletWithdrawalActionId(String(transactionId));
+    setActionNotice('');
+    setActionError('');
+    try {
+      const { data } = await api.post('/wallet/admin/process-withdrawal', {
+        walletId,
+        transactionId,
+        approved,
+        note
+      });
+      setWalletWithdrawals((items) => items.filter((item) => String(item._id) !== transactionKey));
+      setWalletWithdrawalTotal((total) => Math.max(0, Number(total || 0) - 1));
+      setActionNotice(data?.message || (approved ? 'Retrait validé.' : 'Retrait refusé et montant retourné au portefeuille.'));
+      window.dispatchEvent(new CustomEvent('walletTransactionChanged', { detail: { transactionId, type: 'withdrawal' } }));
+      Promise.allSettled([loadWalletWithdrawals(walletWithdrawalPage), loadWalletStats()]);
+    } catch (err) {
+      setActionError(err?.response?.data?.message || err?.message || 'Erreur lors du traitement du retrait.');
+    } finally {
+      setWalletWithdrawalActionId('');
+      setTimeout(() => { setActionNotice(''); setActionError(''); }, 4000);
+    }
+  };
+
+  useEffect(() => {
+    if (filter === 'wallet_withdrawals') {
+      loadWalletWithdrawals();
+    }
+  }, [filter, loadWalletWithdrawals]);
+
+  useEffect(() => {
+    if (filter === 'wallet_withdrawals') {
+      setWalletWithdrawalPage(1);
+    }
+  }, [filter]);
+
+  const walletWithdrawalTotalPages = Math.max(1, Math.ceil(walletWithdrawalTotal / 10));
+  const isWalletAdminPanel = filter === 'wallet_overview' || filter === 'wallet_deposits' || filter === 'wallet_withdrawals';
+
+  const loadWalletStats = useCallback(async () => {
+    setWalletStatsLoading(true);
+    setWalletStatsError('');
+    try {
+      const { data } = await api.get('/wallet/admin/stats', {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
+      });
+      setWalletStats(data || null);
+    } catch (err) {
+      setWalletStatsError(err?.response?.data?.message || 'Impossible de charger les statistiques portefeuille.');
+    } finally {
+      setWalletStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isWalletAdminPanel) {
+      loadWalletStats();
+    }
+  }, [isWalletAdminPanel, loadWalletStats]);
 
 
   const paymentDecisionMutation = useReliableMutation({
@@ -471,7 +598,7 @@ export default function AdminPayments() {
         </Link>
       </header>
 
-      {filter !== 'wallet_deposits' && (
+      {!isWalletAdminPanel && (
         <>
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border bg-white p-4 shadow-sm">
@@ -533,11 +660,11 @@ export default function AdminPayments() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
-              {filter === 'wallet_deposits' ? 'Portefeuille HDMarket' : 'Liste des paiements'}
+              {isWalletAdminPanel ? 'Portefeuille HDMarket' : 'Liste des paiements'}
             </h2>
             <p className="text-xs text-gray-500">
-              {filter === 'wallet_deposits'
-                ? 'Filtrez les dépôts portefeuille et vérifiez les preuves de paiement.'
+              {isWalletAdminPanel
+                ? 'Traitez les dépôts et retraits du portefeuille HDMarket.'
                 : 'Utilisez les filtres pour trouver rapidement un produit ou une transaction.'}
             </p>
           </div>
@@ -578,7 +705,7 @@ export default function AdminPayments() {
                 </select>
               </div>
             )}
-            {filter !== 'wallet_deposits' && (
+            {!isWalletAdminPanel && (
               <>
                 <div className="w-full sm:w-64">
                   <input
@@ -626,7 +753,7 @@ export default function AdminPayments() {
         </div>
       </section>
 
-      {/* All payment content: stats + table, hidden when wallet deposits shown */}
+      {/* All payment content: stats + table, hidden when wallet admin views are shown */}
         {paymentsError && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{paymentsError}</div>
         )}
@@ -1032,6 +1159,192 @@ export default function AdminPayments() {
         )}
         </>
       )}
+      {isWalletAdminPanel && (
+        <section className="space-y-4">
+          <div className="rounded-xl border bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Statistiques Portefeuille HDMarket</h2>
+                <p className="text-xs text-gray-500">
+                  Vue admin/fondateur sur les soldes, files d’attente et mouvements du portefeuille.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadWalletStats}
+                disabled={walletStatsLoading}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {walletStatsLoading ? 'Actualisation...' : 'Actualiser'}
+              </button>
+            </div>
+
+            {walletStatsError && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {walletStatsError}
+              </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase text-gray-500">Solde disponible</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {formatCurrency(walletStats?.balances?.available || 0)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatNumber(walletStats?.wallets?.withAvailableBalance || 0)} portefeuilles avec solde
+                </p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <p className="text-xs font-semibold uppercase text-amber-700">En attente</p>
+                <p className="mt-1 text-2xl font-bold text-amber-800">
+                  {formatCurrency(walletStats?.balances?.pending || 0)}
+                </p>
+                <p className="mt-1 text-xs text-amber-700">
+                  Dépôts et ventes non confirmés
+                </p>
+              </div>
+              <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
+                <p className="text-xs font-semibold uppercase text-orange-700">Dépôts à valider</p>
+                <p className="mt-1 text-2xl font-bold text-orange-800">
+                  {formatNumber(walletStats?.actionQueue?.pendingDeposits?.count || 0)}
+                </p>
+                <p className="mt-1 text-xs text-orange-700">
+                  {formatCurrency(walletStats?.actionQueue?.pendingDeposits?.amount || 0)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                <p className="text-xs font-semibold uppercase text-red-700">Retraits à traiter</p>
+                <p className="mt-1 text-2xl font-bold text-red-800">
+                  {formatNumber(walletStats?.actionQueue?.pendingWithdrawals?.count || 0)}
+                </p>
+                <p className="mt-1 text-xs text-red-700">
+                  {formatCurrency(walletStats?.actionQueue?.pendingWithdrawals?.amount || 0)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-xs font-semibold uppercase text-gray-500">Volume 30 jours</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">
+                  {formatCurrency(walletStats?.volume?.last30Days?.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatNumber(walletStats?.volume?.last30Days?.count || 0)} mouvements
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-xs font-semibold uppercase text-gray-500">Aujourd’hui</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">
+                  {formatCurrency(walletStats?.volume?.today?.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatNumber(walletStats?.volume?.today?.count || 0)} mouvements
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-xs font-semibold uppercase text-gray-500">Dépôts validés</p>
+                <p className="mt-1 text-xl font-bold text-green-700">
+                  {formatCurrency(walletStats?.completed?.deposits?.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatNumber(walletStats?.completed?.deposits?.count || 0)} dépôts
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-xs font-semibold uppercase text-gray-500">Retraits validés</p>
+                <p className="mt-1 text-xl font-bold text-red-700">
+                  {formatCurrency(walletStats?.completed?.withdrawals?.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatNumber(walletStats?.completed?.withdrawals?.count || 0)} retraits
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase text-gray-500">Vue</span>
+              <button
+                type="button"
+                onClick={() => setFilter('wallet_overview')}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  filter === 'wallet_overview'
+                    ? 'bg-neutral-900 text-white'
+                    : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Statistiques
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter('wallet_deposits')}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  filter === 'wallet_deposits'
+                    ? 'bg-neutral-900 text-white'
+                    : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Dépôts
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter('wallet_withdrawals')}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  filter === 'wallet_withdrawals'
+                    ? 'bg-neutral-900 text-white'
+                    : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Retraits
+              </button>
+            </div>
+          </div>
+
+          {filter === 'wallet_overview' && (
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Activité récente</h3>
+                  <p className="text-xs text-gray-500">Derniers mouvements enregistrés dans les portefeuilles.</p>
+                </div>
+                <p className="text-xs font-semibold text-gray-500">
+                  {formatNumber(walletStats?.wallets?.total || 0)} portefeuilles
+                </p>
+              </div>
+              {walletStatsLoading && !walletStats ? (
+                <div className="py-8 text-center text-sm text-gray-400">Chargement des statistiques...</div>
+              ) : !walletStats?.recentTransactions?.length ? (
+                <div className="py-8 text-center text-sm text-gray-400">Aucune activité portefeuille à afficher.</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {walletStats.recentTransactions.map((txn) => {
+                    const isCredit = txn.direction === 'credit' || Number(txn.signedAmount || 0) > 0;
+                    const isDebit = txn.direction === 'debit' || Number(txn.signedAmount || 0) < 0;
+                    const amountPrefix = isCredit ? '+' : isDebit ? '-' : '';
+                    const amountClass = isCredit ? 'text-green-700' : isDebit ? 'text-red-700' : 'text-gray-700';
+                    return (
+                      <div key={`${txn.walletId}-${txn._id}`} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {txn.userName || 'Utilisateur'} · {txn.type}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {txn.userPhone || '—'} · {txn.status} · {formatDateTime(txn.createdAt)}
+                          </p>
+                        </div>
+                        <p className={`text-sm font-bold ${amountClass}`}>
+                          {amountPrefix}{formatCurrency(txn.displayAmount || txn.amount || 0)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
       {/* ─── Wallet Deposit Review Section ─────────────────── */}
       {filter === 'wallet_deposits' && (
         <>
@@ -1064,6 +1377,30 @@ export default function AdminPayments() {
             <p className="text-xs text-gray-500">
               Vérifiez les preuves de paiement des dépôts portefeuille.
             </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase text-gray-500">File</span>
+            <button
+              type="button"
+              onClick={() => setFilter('wallet_overview')}
+              className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Stats
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('wallet_deposits')}
+              className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Dépôts
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('wallet_withdrawals')}
+              className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Retraits
+            </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase text-gray-500">Statut</span>
@@ -1099,7 +1436,7 @@ export default function AdminPayments() {
           ) : (
             <div className="space-y-4">
               {walletDeposits.map((deposit) => {
-                const proofUrls = Array.isArray(deposit.metadata?.proofUrls) ? deposit.metadata.proofUrls : [];
+                const proofUrls = getWalletProofUrls(deposit);
                 const paymentMethod = deposit.metadata?.paymentMethod || 'other';
                 const methodLabels = { orange_money: 'Orange Money', mtn_money: 'MTN Money', airtel_money: 'Airtel Money', bank_transfer: 'Virement', other: 'Autre' };
 
@@ -1151,19 +1488,34 @@ export default function AdminPayments() {
                       {proofUrls.length > 0 ? (
                         <div className="flex gap-2 overflow-x-auto pb-1">
                           {proofUrls.map((url, i) => (
-                            <button
+                            <a
                               key={i}
-                              type="button"
-                              onClick={() => setProofPreviewUrl(normalizeUrl(url))}
-                              className="flex-shrink-0 cursor-zoom-in"
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(event) => {
+                                if (!isLikelyImageUrl(url)) return;
+                                event.preventDefault();
+                                setProofPreviewUrl(url);
+                              }}
+                              className="group flex-shrink-0"
                             >
-                              <img
-                                src={normalizeUrl(url)}
-                                alt={`Preuve dépôt ${i + 1}`}
-                                className="h-28 w-28 rounded-lg border border-gray-200 object-cover hover:ring-2 hover:ring-orange-400 transition"
-                                loading="lazy"
-                              />
-                            </button>
+                              {isLikelyImageUrl(url) ? (
+                                <img
+                                  src={url}
+                                  alt={`Preuve dépôt ${i + 1}`}
+                                  className="h-28 w-28 cursor-zoom-in rounded-lg border border-gray-200 object-cover transition hover:ring-2 hover:ring-orange-400"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="flex h-28 w-28 items-center justify-center rounded-lg border border-gray-200 bg-white px-2 text-center text-xs font-semibold text-gray-600">
+                                  Preuve PDF
+                                </div>
+                              )}
+                              <span className="mt-1 block max-w-28 truncate text-[10px] font-medium text-gray-500 group-hover:text-gray-700">
+                                Ouvrir preuve
+                              </span>
+                            </a>
                           ))}
                         </div>
                       ) : (
@@ -1200,6 +1552,146 @@ export default function AdminPayments() {
             </div>
           )}
         </section>
+        </>
+      )}
+
+      {/* ─── Wallet Withdrawal Review Section ─────────────── */}
+      {filter === 'wallet_withdrawals' && (
+        <>
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 mt-4">
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase">En attente</p>
+              <p className="text-2xl font-bold text-orange-600 mt-1">{formatNumber(walletWithdrawalTotal)}</p>
+              <p className="text-xs text-gray-500 mt-1">Demandes de retrait</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Montant affiché</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {formatCurrency(walletWithdrawals.reduce((s, item) => s + Number(item.amount || 0), 0))}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Somme de cette page</p>
+            </div>
+            <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Règle</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">Numéro du compte uniquement</p>
+              <p className="text-xs text-gray-500 mt-1">Le retrait doit être envoyé au téléphone enregistré.</p>
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-white p-5 shadow-sm space-y-4 mt-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Retraits Portefeuille HDMarket</h2>
+              <p className="text-xs text-gray-500">
+                Validez uniquement après transfert Mobile Money vers le numéro du compte utilisateur.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase text-gray-500">File</span>
+              <button
+                type="button"
+                onClick={() => setFilter('wallet_overview')}
+                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+              >
+                Stats
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter('wallet_deposits')}
+                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+              >
+                Dépôts
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter('wallet_withdrawals')}
+                className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                Retraits
+              </button>
+            </div>
+
+            {actionNotice && (
+              <div className="rounded-lg bg-green-50 px-4 py-2 text-sm font-medium text-green-700">{actionNotice}</div>
+            )}
+            {actionError && (
+              <div className="rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-700">{actionError}</div>
+            )}
+
+            {walletWithdrawalsLoading ? (
+              <div className="py-10 text-center text-sm text-gray-400">Chargement des retraits...</div>
+            ) : walletWithdrawalsError ? (
+              <div className="py-6 text-center text-sm text-red-500">{walletWithdrawalsError}</div>
+            ) : walletWithdrawals.length === 0 ? (
+              <div className="py-10 text-center text-sm text-gray-400">Aucun retrait portefeuille en attente.</div>
+            ) : (
+              <div className="space-y-4">
+                {walletWithdrawals.map((withdrawal) => {
+                  const payoutPhone = withdrawal.metadata?.payoutPhone || withdrawal.reference || withdrawal.userPhone || '';
+                  return (
+                    <div key={withdrawal._id} className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-gray-900">
+                            {withdrawal.userName || 'Utilisateur'} — {formatCurrency(withdrawal.amount)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Compte: <span className="font-semibold">{withdrawal.userPhone || '—'}</span>
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Numéro de retrait: <span className="font-mono font-semibold text-gray-800">{payoutPhone || '—'}</span>
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Demandé le {formatDateTime(withdrawal.createdAt)}
+                          </p>
+                          {withdrawal.note && <p className="text-xs text-gray-400 italic">{withdrawal.note}</p>}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleWalletWithdrawalAction(withdrawal.walletId, withdrawal._id, true)}
+                            disabled={walletWithdrawalActionId === String(withdrawal._id)}
+                            className="rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {walletWithdrawalActionId === String(withdrawal._id) ? '...' : 'Valider'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleWalletWithdrawalAction(withdrawal.walletId, withdrawal._id, false, 'Retrait refusé par l’administration')}
+                            disabled={walletWithdrawalActionId === String(withdrawal._id)}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {walletWithdrawalActionId === String(withdrawal._id) ? '...' : 'Refuser'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {walletWithdrawalTotal > 10 && (
+                  <div className="flex items-center justify-center gap-3 pt-3 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => loadWalletWithdrawals(walletWithdrawalPage - 1)}
+                      disabled={walletWithdrawalPage <= 1}
+                      className="rounded border px-3 py-1 text-xs font-semibold disabled:opacity-40"
+                    >
+                      ‹ Précédent
+                    </button>
+                    <span className="text-xs text-gray-500">Page {walletWithdrawalPage} / {walletWithdrawalTotalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => loadWalletWithdrawals(walletWithdrawalPage + 1)}
+                      disabled={walletWithdrawalPage >= walletWithdrawalTotalPages}
+                      className="rounded border px-3 py-1 text-xs font-semibold disabled:opacity-40"
+                    >
+                      Suivant ›
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
         </>
       )}
 
