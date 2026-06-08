@@ -1,6 +1,25 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Banknote,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  Download,
+  FileCheck2,
+  Gauge,
+  Layers3,
+  RefreshCw,
+  ShieldCheck,
+  ShoppingBag,
+  Store,
+  TrendingUp,
+  Wallet,
+  X,
+  XCircle
+} from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -66,6 +85,44 @@ const walletDepositStatusOptions = [
   { value: 'completed', label: 'Validés' },
   { value: 'failed', label: 'Refusés' }
 ];
+
+const metricToneClasses = {
+  neutral: 'border-slate-200 bg-white text-slate-700',
+  amber: 'border-amber-200 bg-amber-50 text-amber-700',
+  green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  red: 'border-red-200 bg-red-50 text-red-700',
+  blue: 'border-sky-200 bg-sky-50 text-sky-700',
+  indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  orange: 'border-orange-200 bg-orange-50 text-orange-700'
+};
+
+const DashboardCard = ({ label, value, hint, icon: Icon, tone = 'neutral' }) => (
+  <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+        <p className="mt-1 truncate text-2xl font-black tracking-tight text-slate-950">{value}</p>
+        {hint ? <p className="mt-1 text-xs font-semibold text-slate-500">{hint}</p> : null}
+      </div>
+      {Icon ? (
+        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${metricToneClasses[tone] || metricToneClasses.neutral}`}>
+          <Icon className="h-5 w-5" />
+        </span>
+      ) : null}
+    </div>
+  </article>
+);
+
+const SectionHeader = ({ eyebrow, title, description, action }) => (
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{eyebrow}</p> : null}
+      <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950">{title}</h2>
+      {description ? <p className="mt-1 text-xs font-semibold text-slate-500">{description}</p> : null}
+    </div>
+    {action}
+  </div>
+);
 
 export default function AdminPayments() {
   const { user } = useContext(AuthContext);
@@ -580,71 +637,65 @@ export default function AdminPayments() {
   const monthStats = useMemo(() => computeWindowStats(30), [computeWindowStats]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isManager ? 'Gestionnaire — Paiements' : 'Administration — Paiements'}
-          </h1>
-          <p className="text-sm text-gray-600">
-            Suivez l’état des transactions et traitez les preuves de paiement.
-          </p>
+    <div className="min-h-screen bg-slate-50/70">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+      <header className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+              <CreditCard className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-wide text-orange-600">Finance operations</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
+                {isManager ? 'Gestionnaire — Paiements' : 'Administration — Paiements'}
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm font-semibold text-slate-500">
+                Pilotez les validations, le portefeuille HDMarket, les preuves de paiement et les flux ecommerce.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => Promise.allSettled([loadStats(), loadPayments(), isWalletAdminPanel ? loadWalletStats() : Promise.resolve()])}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Actualiser
+            </button>
+            <Link
+              to="/admin"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-800"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Tableau de bord
+            </Link>
+          </div>
         </div>
-        <Link
-          to="/admin"
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          ← Retour au tableau de bord
-        </Link>
       </header>
 
       {!isWalletAdminPanel && (
         <>
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Total</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(paymentSummary.total)}</p>
-          <p className="text-xs text-gray-500 mt-1">Paiements enregistrés</p>
-        </div>
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">En attente</p>
-          <p className="text-2xl font-bold text-yellow-600 mt-1">{formatNumber(paymentSummary.waiting)}</p>
-          <p className="text-xs text-gray-500 mt-1">À vérifier</p>
-        </div>
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Validés</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">{formatNumber(paymentSummary.verified)}</p>
-          <p className="text-xs text-gray-500 mt-1">Mises en ligne confirmées</p>
-        </div>
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Rejetés</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">{formatNumber(paymentSummary.rejected)}</p>
-          <p className="text-xs text-gray-500 mt-1">Paiements refusés</p>
-        </div>
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Revenus cumulés</p>
-          <p className="text-2xl font-bold text-neutral-600 mt-1">{formatCurrency(paymentSummary.revenue)}</p>
-          <p className="text-xs text-gray-500 mt-1">Toutes commissions</p>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">24 heures</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(dayStats.count)} paiements</p>
-          <p className="text-xs text-gray-500 mt-1">Montant : {formatCurrency(dayStats.amount)}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">7 jours</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(weekStats.count)} paiements</p>
-          <p className="text-xs text-gray-500 mt-1">Montant : {formatCurrency(weekStats.amount)}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">30 jours</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{formatNumber(monthStats.count)} paiements</p>
-          <p className="text-xs text-gray-500 mt-1">Montant : {formatCurrency(monthStats.amount)}</p>
-        </div>
-      </section>
+        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <SectionHeader
+            eyebrow="Vue ecommerce"
+            title="Performance des paiements annonce"
+            description="Statuts de validation, revenus cumulés et activité récente."
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <DashboardCard label="Total" value={formatNumber(paymentSummary.total)} hint="Paiements enregistrés" icon={Layers3} />
+            <DashboardCard label="En attente" value={formatNumber(paymentSummary.waiting)} hint="À vérifier" icon={Clock3} tone="amber" />
+            <DashboardCard label="Validés" value={formatNumber(paymentSummary.verified)} hint="Mises en ligne confirmées" icon={CheckCircle2} tone="green" />
+            <DashboardCard label="Rejetés" value={formatNumber(paymentSummary.rejected)} hint="Paiements refusés" icon={XCircle} tone="red" />
+            <DashboardCard label="Revenus cumulés" value={formatCurrency(paymentSummary.revenue)} hint="Toutes commissions" icon={TrendingUp} tone="orange" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <DashboardCard label="24 heures" value={`${formatNumber(dayStats.count)} paiements`} hint={`Montant : ${formatCurrency(dayStats.amount)}`} icon={Gauge} tone="blue" />
+            <DashboardCard label="7 jours" value={`${formatNumber(weekStats.count)} paiements`} hint={`Montant : ${formatCurrency(weekStats.amount)}`} icon={TrendingUp} tone="indigo" />
+            <DashboardCard label="30 jours" value={`${formatNumber(monthStats.count)} paiements`} hint={`Montant : ${formatCurrency(monthStats.amount)}`} icon={Banknote} tone="green" />
+          </div>
+        </section>
 
       {statsError && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{statsError}</div>
@@ -1161,137 +1212,68 @@ export default function AdminPayments() {
       )}
       {isWalletAdminPanel && (
         <section className="space-y-4">
-          <div className="rounded-xl border bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Statistiques Portefeuille HDMarket</h2>
-                <p className="text-xs text-gray-500">
-                  Vue admin/fondateur sur les soldes, files d’attente et mouvements du portefeuille.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={loadWalletStats}
-                disabled={walletStatsLoading}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {walletStatsLoading ? 'Actualisation...' : 'Actualiser'}
-              </button>
-            </div>
-
+          <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeader
+              eyebrow="Wallet command center"
+              title="Portefeuille HDMarket"
+              description="Vue admin/fondateur sur les soldes, files d’attente et mouvements ecommerce du portefeuille."
+              action={
+                <button
+                  type="button"
+                  onClick={loadWalletStats}
+                  disabled={walletStatsLoading}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  {walletStatsLoading ? 'Actualisation...' : 'Actualiser'}
+                </button>
+              }
+            />
             {walletStatsError && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
                 {walletStatsError}
               </div>
             )}
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-xs font-semibold uppercase text-gray-500">Solde disponible</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">
-                  {formatCurrency(walletStats?.balances?.available || 0)}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  {formatNumber(walletStats?.wallets?.withAvailableBalance || 0)} portefeuilles avec solde
-                </p>
-              </div>
-              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-                <p className="text-xs font-semibold uppercase text-amber-700">En attente</p>
-                <p className="mt-1 text-2xl font-bold text-amber-800">
-                  {formatCurrency(walletStats?.balances?.pending || 0)}
-                </p>
-                <p className="mt-1 text-xs text-amber-700">
-                  Dépôts et ventes non confirmés
-                </p>
-              </div>
-              <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
-                <p className="text-xs font-semibold uppercase text-orange-700">Dépôts à valider</p>
-                <p className="mt-1 text-2xl font-bold text-orange-800">
-                  {formatNumber(walletStats?.actionQueue?.pendingDeposits?.count || 0)}
-                </p>
-                <p className="mt-1 text-xs text-orange-700">
-                  {formatCurrency(walletStats?.actionQueue?.pendingDeposits?.amount || 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
-                <p className="text-xs font-semibold uppercase text-red-700">Retraits à traiter</p>
-                <p className="mt-1 text-2xl font-bold text-red-800">
-                  {formatNumber(walletStats?.actionQueue?.pendingWithdrawals?.count || 0)}
-                </p>
-                <p className="mt-1 text-xs text-red-700">
-                  {formatCurrency(walletStats?.actionQueue?.pendingWithdrawals?.amount || 0)}
-                </p>
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Exposition financière</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <DashboardCard label="Solde disponible" value={formatCurrency(walletStats?.balances?.available || 0)} hint={`${formatNumber(walletStats?.wallets?.withAvailableBalance || 0)} portefeuilles avec solde`} icon={Wallet} tone="green" />
+                <DashboardCard label="En attente" value={formatCurrency(walletStats?.balances?.pending || 0)} hint="Dépôts et ventes non confirmés" icon={Clock3} tone="amber" />
+                <DashboardCard label="Gelé" value={formatCurrency(walletStats?.balances?.frozen || 0)} hint="Solde bloqué ou réservé" icon={ShieldCheck} tone="indigo" />
+                <DashboardCard label="Exposition totale" value={formatCurrency(walletStats?.balances?.totalExposure || 0)} hint={`${formatNumber(walletStats?.wallets?.total || 0)} portefeuilles`} icon={Banknote} tone="neutral" />
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="text-xs font-semibold uppercase text-gray-500">Volume 30 jours</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">
-                  {formatCurrency(walletStats?.volume?.last30Days?.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  {formatNumber(walletStats?.volume?.last30Days?.count || 0)} mouvements
-                </p>
-              </div>
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="text-xs font-semibold uppercase text-gray-500">Aujourd’hui</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">
-                  {formatCurrency(walletStats?.volume?.today?.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  {formatNumber(walletStats?.volume?.today?.count || 0)} mouvements
-                </p>
-              </div>
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="text-xs font-semibold uppercase text-gray-500">Dépôts validés</p>
-                <p className="mt-1 text-xl font-bold text-green-700">
-                  {formatCurrency(walletStats?.completed?.deposits?.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  {formatNumber(walletStats?.completed?.deposits?.count || 0)} dépôts
-                </p>
-              </div>
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="text-xs font-semibold uppercase text-gray-500">Retraits validés</p>
-                <p className="mt-1 text-xl font-bold text-red-700">
-                  {formatCurrency(walletStats?.completed?.withdrawals?.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  {formatNumber(walletStats?.completed?.withdrawals?.count || 0)} retraits
-                </p>
-              </div>
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                <p className="text-xs font-semibold uppercase text-emerald-700">Achats commandes</p>
-                <p className="mt-1 text-xl font-bold text-emerald-800">
-                  {formatCurrency(walletStats?.walletPayments?.orders?.amount || walletStats?.completed?.orderPurchases?.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-emerald-700">
-                  {formatNumber(walletStats?.walletPayments?.orders?.count || walletStats?.completed?.orderPurchases?.count || 0)} paiements wallet
-                </p>
-              </div>
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-                <p className="text-xs font-semibold uppercase text-indigo-700">Annonces / boosts</p>
-                <p className="mt-1 text-xl font-bold text-indigo-800">
-                  {formatCurrency(walletStats?.walletPayments?.boosts?.amount || walletStats?.completed?.boostPurchases?.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-indigo-700">
-                  {formatNumber(walletStats?.walletPayments?.boosts?.count || walletStats?.completed?.boostPurchases?.count || 0)} paiements wallet
-                </p>
-              </div>
-              <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
-                <p className="text-xs font-semibold uppercase text-sky-700">Devenir boutique</p>
-                <p className="mt-1 text-xl font-bold text-sky-800">
-                  {formatCurrency(walletStats?.walletPayments?.shopConversions?.amount || walletStats?.completed?.shopConversionPurchases?.amount || 0)}
-                </p>
-                <p className="mt-1 text-xs text-sky-700">
-                  {formatNumber(walletStats?.walletPayments?.shopConversions?.count || walletStats?.completed?.shopConversionPurchases?.count || 0)} paiements wallet
-                </p>
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Files de validation</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <DashboardCard label="Dépôts à valider" value={formatNumber(walletStats?.actionQueue?.pendingDeposits?.count || 0)} hint={formatCurrency(walletStats?.actionQueue?.pendingDeposits?.amount || 0)} icon={Download} tone="orange" />
+                <DashboardCard label="Retraits à traiter" value={formatNumber(walletStats?.actionQueue?.pendingWithdrawals?.count || 0)} hint={formatCurrency(walletStats?.actionQueue?.pendingWithdrawals?.amount || 0)} icon={FileCheck2} tone="red" />
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase text-gray-500">Vue</span>
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Volume portefeuille</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <DashboardCard label="Aujourd’hui" value={formatCurrency(walletStats?.volume?.today?.amount || 0)} hint={`${formatNumber(walletStats?.volume?.today?.count || 0)} mouvements`} icon={Gauge} tone="blue" />
+                <DashboardCard label="30 jours" value={formatCurrency(walletStats?.volume?.last30Days?.amount || 0)} hint={`${formatNumber(walletStats?.volume?.last30Days?.count || 0)} mouvements`} icon={TrendingUp} tone="indigo" />
+                <DashboardCard label="Dépôts validés" value={formatCurrency(walletStats?.completed?.deposits?.amount || 0)} hint={`${formatNumber(walletStats?.completed?.deposits?.count || 0)} dépôts`} icon={CheckCircle2} tone="green" />
+                <DashboardCard label="Retraits validés" value={formatCurrency(walletStats?.completed?.withdrawals?.amount || 0)} hint={`${formatNumber(walletStats?.completed?.withdrawals?.count || 0)} retraits`} icon={XCircle} tone="red" />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Canaux de paiement wallet</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <DashboardCard label="Achats commandes" value={formatCurrency(walletStats?.walletPayments?.orders?.amount || walletStats?.completed?.orderPurchases?.amount || 0)} hint={`${formatNumber(walletStats?.walletPayments?.orders?.count || walletStats?.completed?.orderPurchases?.count || 0)} paiements wallet`} icon={ShoppingBag} tone="green" />
+                <DashboardCard label="Annonces / boosts" value={formatCurrency(walletStats?.walletPayments?.boosts?.amount || walletStats?.completed?.boostPurchases?.amount || 0)} hint={`${formatNumber(walletStats?.walletPayments?.boosts?.count || walletStats?.completed?.boostPurchases?.count || 0)} paiements wallet`} icon={TrendingUp} tone="indigo" />
+                <DashboardCard label="Devenir boutique" value={formatCurrency(walletStats?.walletPayments?.shopConversions?.amount || walletStats?.completed?.shopConversionPurchases?.amount || 0)} hint={`${formatNumber(walletStats?.walletPayments?.shopConversions?.count || walletStats?.completed?.shopConversionPurchases?.count || 0)} paiements wallet`} icon={Store} tone="blue" />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">Vue</span>
               <button
                 type="button"
                 onClick={() => setFilter('wallet_overview')}
@@ -1329,22 +1311,24 @@ export default function AdminPayments() {
           </div>
 
           {filter === 'wallet_overview' && (
-            <div className="rounded-xl border bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900">Activité récente</h3>
-                  <p className="text-xs text-gray-500">Derniers mouvements enregistrés dans les portefeuilles.</p>
-                </div>
-                <p className="text-xs font-semibold text-gray-500">
-                  {formatNumber(walletStats?.wallets?.total || 0)} portefeuilles
-                </p>
-              </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <SectionHeader
+                eyebrow="Ledger"
+                title="Activité récente"
+                description="Derniers mouvements enregistrés dans les portefeuilles."
+                action={
+                  <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600">
+                    <Wallet className="h-3.5 w-3.5" />
+                    {formatNumber(walletStats?.wallets?.total || 0)} portefeuilles
+                  </span>
+                }
+              />
               {walletStatsLoading && !walletStats ? (
                 <div className="py-8 text-center text-sm text-gray-400">Chargement des statistiques...</div>
               ) : !walletStats?.recentTransactions?.length ? (
                 <div className="py-8 text-center text-sm text-gray-400">Aucune activité portefeuille à afficher.</div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100">
                   {walletStats.recentTransactions.map((txn) => {
                     const isCredit = txn.direction === 'credit' || Number(txn.signedAmount || 0) > 0;
                     const isDebit = txn.direction === 'debit' || Number(txn.signedAmount || 0) < 0;
@@ -1352,15 +1336,15 @@ export default function AdminPayments() {
                     const amountClass = isCredit ? 'text-green-700' : isDebit ? 'text-red-700' : 'text-gray-700';
                     return (
                       <div key={`${txn.walletId}-${txn._id}`} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">
+                        <div className="px-3 sm:px-4">
+                          <p className="text-sm font-black text-slate-950">
                             {txn.userName || 'Utilisateur'} · {txn.type}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs font-semibold text-slate-500">
                             {txn.userPhone || '—'} · {txn.status} · {formatDateTime(txn.createdAt)}
                           </p>
                         </div>
-                        <p className={`text-sm font-bold ${amountClass}`}>
+                        <p className={`px-3 text-sm font-black sm:px-4 ${amountClass}`}>
                           {amountPrefix}{formatCurrency(txn.displayAmount || txn.amount || 0)}
                         </p>
                       </div>
@@ -1376,35 +1360,36 @@ export default function AdminPayments() {
       {filter === 'wallet_deposits' && (
         <>
         {/* Wallet stats row */}
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 mt-4">
-          <div className="rounded-xl border bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold text-gray-500 uppercase">
-              {walletDepositStatusOptions.find((option) => option.value === walletDepositStatus)?.label || 'Dépôts'}
-            </p>
-            <p className="text-2xl font-bold text-yellow-600 mt-1">{formatNumber(walletDepositTotal)}</p>
-            <p className="text-xs text-gray-500 mt-1">Dépôts Portefeuille HDMarket</p>
-          </div>
-          <div className="rounded-xl border bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Montant total</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">
-              {formatCurrency(walletDeposits.reduce((s, d) => s + Number(d.amount || 0), 0))}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">FCFA en attente de validation</p>
-          </div>
-          <div className="rounded-xl border bg-white p-4 shadow-sm flex items-center justify-center">
-            <Link to="/admin" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
-              ← Retour au tableau de bord
-            </Link>
-          </div>
+        <section className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <DashboardCard
+            label={walletDepositStatusOptions.find((option) => option.value === walletDepositStatus)?.label || 'Dépôts'}
+            value={formatNumber(walletDepositTotal)}
+            hint="Dépôts Portefeuille HDMarket"
+            icon={Download}
+            tone="orange"
+          />
+          <DashboardCard
+            label="Montant total"
+            value={formatCurrency(walletDeposits.reduce((s, d) => s + Number(d.amount || 0), 0))}
+            hint="Somme affichée dans cette file"
+            icon={Banknote}
+            tone="green"
+          />
+          <DashboardCard
+            label="Preuves"
+            value="Validation admin"
+            hint="Contrôlez l’image ou le PDF avant crédit"
+            icon={FileCheck2}
+            tone="indigo"
+          />
         </section>
 
-        <section className="rounded-xl border bg-white p-5 shadow-sm space-y-4 mt-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Portefeuille HDMarket</h2>
-            <p className="text-xs text-gray-500">
-              Vérifiez les preuves de paiement des dépôts portefeuille.
-            </p>
-          </div>
+        <section className="mt-4 space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <SectionHeader
+            eyebrow="File de validation"
+            title="Dépôts Portefeuille HDMarket"
+            description="Vérifiez les preuves de paiement avant de créditer le solde utilisateur."
+          />
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase text-gray-500">File</span>
             <button
@@ -1468,7 +1453,7 @@ export default function AdminPayments() {
                 const methodLabels = { orange_money: 'Orange Money', mtn_money: 'MTN Money', airtel_money: 'Airtel Money', bank_transfer: 'Virement', other: 'Autre' };
 
                 return (
-                  <div key={deposit._id} className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 space-y-3">
+                  <div key={deposit._id} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-1">
                         <p className="text-sm font-bold text-gray-900">
@@ -1585,33 +1570,18 @@ export default function AdminPayments() {
       {/* ─── Wallet Withdrawal Review Section ─────────────── */}
       {filter === 'wallet_withdrawals' && (
         <>
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-3 mt-4">
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold text-gray-500 uppercase">En attente</p>
-              <p className="text-2xl font-bold text-orange-600 mt-1">{formatNumber(walletWithdrawalTotal)}</p>
-              <p className="text-xs text-gray-500 mt-1">Demandes de retrait</p>
-            </div>
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Montant affiché</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {formatCurrency(walletWithdrawals.reduce((s, item) => s + Number(item.amount || 0), 0))}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Somme de cette page</p>
-            </div>
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Règle</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900">Numéro du compte uniquement</p>
-              <p className="text-xs text-gray-500 mt-1">Le retrait doit être envoyé au téléphone enregistré.</p>
-            </div>
+          <section className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <DashboardCard label="En attente" value={formatNumber(walletWithdrawalTotal)} hint="Demandes de retrait" icon={Clock3} tone="orange" />
+            <DashboardCard label="Montant affiché" value={formatCurrency(walletWithdrawals.reduce((s, item) => s + Number(item.amount || 0), 0))} hint="Somme de cette page" icon={Banknote} tone="green" />
+            <DashboardCard label="Règle" value="Numéro du compte" hint="Le retrait doit aller au téléphone enregistré" icon={ShieldCheck} tone="indigo" />
           </section>
 
-          <section className="rounded-xl border bg-white p-5 shadow-sm space-y-4 mt-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Retraits Portefeuille HDMarket</h2>
-              <p className="text-xs text-gray-500">
-                Validez uniquement après transfert Mobile Money vers le numéro du compte utilisateur.
-              </p>
-            </div>
+          <section className="mt-4 space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <SectionHeader
+              eyebrow="Payout operations"
+              title="Retraits Portefeuille HDMarket"
+              description="Validez uniquement après transfert Mobile Money vers le numéro du compte utilisateur."
+            />
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase text-gray-500">File</span>
               <button
@@ -1655,7 +1625,7 @@ export default function AdminPayments() {
                 {walletWithdrawals.map((withdrawal) => {
                   const payoutPhone = withdrawal.metadata?.payoutPhone || withdrawal.reference || withdrawal.userPhone || '';
                   return (
-                    <div key={withdrawal._id} className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+                    <div key={withdrawal._id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-1">
                           <p className="text-sm font-bold text-gray-900">
@@ -1743,6 +1713,7 @@ export default function AdminPayments() {
           />
         </div>
       )}
+      </div>
     </div>
   );
 }

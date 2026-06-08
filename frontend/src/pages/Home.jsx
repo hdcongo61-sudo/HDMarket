@@ -286,17 +286,17 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
               </div>
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex items-center gap-2">
             <Link
               to={walletPath}
-              className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-[13px] font-black text-[#06281f] shadow-[0_10px_22px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-[0.98]"
+              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-white px-3 py-2 text-[12px] font-black text-[#06281f] shadow-[0_10px_22px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-[0.98] sm:flex-none sm:gap-2 sm:px-3.5 sm:text-[13px]"
             >
-              {user ? t('home.walletOpen', 'Ouvrir mon portefeuille') : t('home.walletStart', 'Activer mon portefeuille')}
-              <ChevronRight className="h-3.5 w-3.5" />
+              <span className="truncate">{user ? t('home.walletOpen', 'Ouvrir mon portefeuille') : t('home.walletStart', 'Activer mon portefeuille')}</span>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
             </Link>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1.5 text-[10px] font-black text-emerald-50">
-              <RefreshCcw className="h-3 w-3" />
-              {t('home.walletRefundBadge', 'Remboursements suivis')}
+            <span className="inline-flex min-w-0 shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2 py-1.5 text-[9px] font-black text-emerald-50 sm:gap-1.5 sm:px-2.5 sm:text-[10px]">
+              <RefreshCcw className="h-3 w-3 shrink-0" />
+              <span className="max-w-[108px] truncate sm:max-w-none">{t('home.walletRefundBadge', 'Remboursements suivis')}</span>
             </span>
           </div>
         </div>
@@ -311,22 +311,29 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
                 Sécurisé
               </span>
             </div>
-            <p className="mt-3 text-[10px] font-black uppercase tracking-wide text-slate-500">
-              {t('home.walletBalancePreview', 'Solde disponible')}
-            </p>
-            <p className="mt-0.5 text-xl font-black tracking-tight text-slate-950">125 000 F</p>
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-slate-100 bg-slate-50 px-2 py-1 text-[8.5px] font-black uppercase tracking-wide text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:text-[10px]">
+              <span className="h-1 w-3 rounded-full bg-gradient-to-r from-emerald-500 to-[#ff6a00]" />
+              <span>{t('home.walletBalancePreview', 'Solde disponible')}</span>
+            </div>
+            <p className="mt-0.5 text-base font-black tracking-tight text-slate-950 sm:text-xl">125 000 F</p>
             <div className="mt-3 overflow-hidden rounded-full bg-slate-100 p-1">
               <div className="hd-wallet-rail h-1.5 w-1/2 rounded-full bg-gradient-to-r from-[#ff6a00] via-emerald-500 to-[#ff6a00]" />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px] font-black">
-              <span className="rounded-xl bg-emerald-50 px-2 py-1.5 text-emerald-700">Dépôt prêt</span>
-              <span className="rounded-xl bg-orange-50 px-2 py-1.5 text-[#9a4a00]">Retour</span>
+            <div className="mt-3 grid grid-cols-2 gap-1.5 text-[9px] font-black sm:text-[10px]">
+              <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-xl border border-emerald-100 bg-emerald-50 px-1.5 py-1.5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.55)]" />
+                <span className="truncate">Dépôt prêt</span>
+              </span>
+              <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-xl border border-orange-100 bg-orange-50 px-1.5 py-1.5 text-[#9a4a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ff6a00] shadow-[0_0_8px_rgba(255,106,0,0.45)]" />
+                <span className="truncate">Retour</span>
+              </span>
             </div>
           </div>
-          <span className="hd-wallet-pop absolute right-3 top-2 rounded-2xl bg-white px-2.5 py-1.5 text-[10px] font-black text-emerald-700 shadow-[0_10px_20px_rgba(0,0,0,0.16)]">
+          <span className="hd-wallet-pop absolute bottom-0 right-1.5 rounded-2xl bg-white px-2.5 py-1.5 text-[10px] font-black text-emerald-700 shadow-[0_10px_20px_rgba(0,0,0,0.16)] sm:right-3">
             + Remboursement
           </span>
-          <span className="hd-wallet-pop absolute bottom-2 left-3 rounded-2xl bg-[#ff6a00] px-2.5 py-1.5 text-[10px] font-black text-white shadow-[0_10px_20px_rgba(255,106,0,0.22)] [animation-delay:0.8s]">
+          <span className="hd-wallet-pop absolute bottom-7 left-3 rounded-2xl bg-[#ff6a00] px-2.5 py-1.5 text-[10px] font-black text-white shadow-[0_10px_20px_rgba(255,106,0,0.22)] [animation-delay:0.8s]">
             Paye vite
           </span>
         </div>
@@ -2012,16 +2019,27 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Wholesale section — always reserve space to prevent scroll jump */}
-        <section className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
-          <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
-            <div>
-              <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-              <p className="mt-0.5 text-[11px] max-[375px]:text-[10px] text-neutral-600">
+        <section className="isolate overflow-hidden rounded-[22px] border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+          <div className="relative px-3 pb-3 pt-3 max-[375px]:px-2.5">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-neutral-100" />
+            <div className="relative mb-3 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_22px_rgba(5,150,105,0.22)]">
+                  <ShoppingBag className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="truncate text-[15px] font-black tracking-tight text-gray-950 max-[375px]:text-sm">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+                    <span className="rounded-full bg-[#ff6a00] px-1.5 py-0.5 text-[8px] font-black uppercase text-white">B2B</span>
+                  </div>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] font-semibold text-emerald-700 max-[375px]:text-[10px]">
                 {t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}
               </p>
+                </div>
             </div>
-            <Link to="/products?wholesaleOnly=true" className="shrink-0 text-xs max-[375px]:text-[11px] font-semibold text-neutral-800">
+              <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-100 bg-white px-2.5 py-1.5 text-[11px] font-black text-emerald-700 shadow-sm">
               {t('home.viewAll', 'Voir tout')}
+                <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           {!shouldLoadSecondarySections ? (
@@ -2041,16 +2059,20 @@ const loadDiscountProducts = async () => {
               {wholesaleProducts.slice(0, 4).map((product) => {
                 const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                 return (
-                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
+                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-[18px] border border-emerald-100 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
                     <div className="min-h-0 flex-1">
                       <ProductCard p={product} productLink={buildHomeProductLink(product)} />
                     </div>
-                    <div className="mt-1 rounded-b-xl border-t border-neutral-100 bg-neutral-50 px-2 py-1.5 max-[375px]:px-1.5 max-[375px]:py-1">
-                      <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[10px] max-[375px]:text-[9px] font-semibold text-neutral-700">
-                        Vente en gros
+                    <div className="border-t border-neutral-100 bg-white px-2 py-2 max-[375px]:px-1.5">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase text-white">
+                          <Tag className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">Prix de gros</span>
                       </span>
-                      <p className="mt-1 text-[11px] max-[375px]:text-[10px] leading-snug text-gray-600">
-                        Commande minimum: <span className="font-semibold text-neutral-800">{minQty}</span> unités
+                        <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-black text-emerald-700">x{minQty}+</span>
+                      </div>
+                      <p className="mt-1 text-[10px] font-semibold leading-snug text-gray-600">
+                        Minimum <span className="font-black text-emerald-800">{minQty}</span> unités, achat en quantité
                       </p>
                     </div>
                   </div>
@@ -2062,21 +2084,33 @@ const loadDiscountProducts = async () => {
               {t('home.noWholesaleProducts', 'Aucun produit en vente en gros actuellement.')}
             </p>
           )}
+          </div>
         </section>
 
         {/* Installment section — always reserve space to prevent scroll jump */}
-        <section ref={installmentSectionRef} className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
-          <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
-            <div>
-              <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">
+        <section ref={installmentSectionRef} className="isolate overflow-hidden rounded-[22px] border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+          <div className="relative px-3 pb-3 pt-3 max-[375px]:px-2.5">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-neutral-100" />
+            <div className="relative mb-3 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-[0_10px_22px_rgba(2,132,199,0.22)]">
+                  <Clock className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="line-clamp-1 text-[15px] font-black tracking-tight text-gray-950 max-[375px]:text-sm">
                 {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
               </h2>
-              <p className="mt-0.5 text-[11px] max-[375px]:text-[10px] text-neutral-600">
+                    <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[8px] font-black uppercase text-white">Flex</span>
+                  </div>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] font-semibold text-sky-700 max-[375px]:text-[10px]">
                 {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
               </p>
+                </div>
             </div>
-            <Link to="/products?installmentOnly=true" className="shrink-0 text-xs max-[375px]:text-[11px] font-semibold text-neutral-800">
+              <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-100 bg-white px-2.5 py-1.5 text-[11px] font-black text-sky-700 shadow-sm">
               Voir tout
+                <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           {!shouldLoadSecondarySections ? (
@@ -2096,14 +2130,29 @@ const loadDiscountProducts = async () => {
               {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
                 .slice(0, 4)
                 .map((product) => (
-                  <div key={`installment-mobile-${product._id}`} className="overflow-hidden rounded-xl border border-sky-100 bg-white p-1 max-[375px]:p-0.5 shadow-sm">
+                  <div key={`installment-mobile-${product._id}`} className="overflow-hidden rounded-[18px] border border-sky-100 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.06)] max-[375px]:p-0.5">
                     <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                    <div className="mx-1 mb-1 rounded-2xl border border-neutral-100 bg-white px-2 py-1.5 max-[375px]:mx-0.5">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-sky-600 px-2 py-0.5 text-[9px] font-black uppercase text-white">
+                          <Clock className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">Paiement fractionné</span>
+                        </span>
+                        {product?.installmentDuration ? (
+                          <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-black text-sky-700">{product.installmentDuration}j</span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-[10px] font-semibold leading-snug text-gray-600">
+                        Dès <span className="font-black text-sky-800">{formatPrice(product?.installmentMinAmount || product?.price || 0)}</span>
+                      </p>
+                    </div>
                   </div>
                 ))}
             </div>
           ) : (
             <p className="text-xs text-gray-500">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
           )}
+          </div>
         </section>
 
         {/* All Products Grid */}
@@ -2790,26 +2839,29 @@ const loadDiscountProducts = async () => {
 
         <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
           {shouldLoadSecondarySections && (
-          <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-emerald-50 via-white to-white border border-emerald-100 shadow-[0_8px_32px_rgba(16,185,129,0.06)]">
+          <section className="overflow-hidden rounded-[28px] border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+            <div className="relative flex items-center justify-between overflow-hidden border-b border-neutral-100 bg-white px-5 py-4 text-gray-950">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                  <ShoppingBag className="h-5 w-5" />
                 </div>
-                <div>
-                  <h2 className="text-lg font-black text-gray-900 tracking-tight">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-                  <p className="text-xs text-emerald-700 font-medium">{t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}</p>
+                <div className="relative">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black tracking-tight text-gray-950">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">B2B</span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-500">{t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}</p>
                 </div>
               </div>
-              <Link to="/products?wholesaleOnly=true" className="group flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition">
+              <Link to="/products?wholesaleOnly=true" className="group relative flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-black text-gray-700 transition hover:bg-neutral-50">
                 {t('home.viewAll', 'Voir tout')}
-                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
 
             {wholesaleLoading && !wholesaleProducts.length ? (
-              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+              <div className="grid grid-cols-2 gap-3 p-5">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={`wdsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
                     <div className="aspect-[4/3] animate-pulse bg-gray-100" />
@@ -2822,7 +2874,7 @@ const loadDiscountProducts = async () => {
                 ))}
               </div>
             ) : wholesaleProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+              <div className="grid grid-cols-2 gap-3 p-5">
                 {wholesaleProducts.slice(0, 4).map((product, idx) => {
                   const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                   const tierPrice = product?.wholesaleTiers?.[0]?.unitPrice || product?.price;
@@ -2830,7 +2882,7 @@ const loadDiscountProducts = async () => {
                     <Link
                       key={`wholesale-dsk-${product._id}`}
                       to={buildHomeProductLink(product)}
-                      className="group relative flex flex-col overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200"
+                      className="group relative flex flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
                     >
                       {/* Image */}
                       <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
@@ -2841,12 +2893,13 @@ const loadDiscountProducts = async () => {
                           loading="lazy"
                         />
                         {/* Wholesale badge */}
-                        <span className="absolute top-2.5 left-2.5 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                        <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                          <Tag className="h-3 w-3" />
                           GROS
                         </span>
                         {/* Tier price badge */}
                         {tierPrice && tierPrice !== product.price && (
-                          <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white">
+                          <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
                             Dès {formatPrice(tierPrice)}/u
                           </span>
                         )}
@@ -2864,7 +2917,7 @@ const loadDiscountProducts = async () => {
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                            <ShoppingBag className="h-2.5 w-2.5" />
                             Min. {minQty} u.
                           </span>
                           {product.salesCount > 0 && (
@@ -2885,30 +2938,33 @@ const loadDiscountProducts = async () => {
           )}
 
           {shouldLoadSecondarySections && (
-          <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-50 via-white to-white border border-sky-100 shadow-[0_8px_32px_rgba(14,165,233,0.06)]">
+          <section className="overflow-hidden rounded-[28px] border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+            <div className="relative flex items-center justify-between overflow-hidden border-b border-neutral-100 bg-white px-5 py-4 text-gray-950">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
+                  <Clock className="h-5 w-5" />
                 </div>
-                <div>
-                  <h2 className="text-lg font-black text-gray-900 tracking-tight">
+                <div className="relative">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black tracking-tight text-gray-950">
                     {t('home.installmentProducts', 'Paiement par tranche')}
                   </h2>
-                  <p className="text-xs text-sky-700 font-medium">
+                    <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-black uppercase text-sky-700">Flex</span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-500">
                     {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
                   </p>
                 </div>
               </div>
-              <Link to="/products?installmentOnly=true" className="group flex items-center gap-1 text-xs font-bold text-sky-700 hover:text-sky-800 transition">
+              <Link to="/products?installmentOnly=true" className="group relative flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-black text-gray-700 transition hover:bg-neutral-50">
                 Voir tout
-                <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
 
             {installmentLoading && !installmentProducts.length ? (
-              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+              <div className="grid grid-cols-2 gap-3 p-5">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={`idsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
                     <div className="aspect-[4/3] animate-pulse bg-gray-100" />
@@ -2921,7 +2977,7 @@ const loadDiscountProducts = async () => {
                 ))}
               </div>
             ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
-              <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+              <div className="grid grid-cols-2 gap-3 p-5">
                 {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
                   .slice(0, 4)
                   .map((product, idx) => {
@@ -2931,7 +2987,7 @@ const loadDiscountProducts = async () => {
                       <Link
                         key={`installment-dsk-${product._id}`}
                         to={buildHomeProductLink(product)}
-                        className="group relative flex flex-col overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-sky-200 transition-all duration-200"
+                        className="group relative flex flex-col overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
                       >
                         {/* Image */}
                         <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
@@ -2942,7 +2998,8 @@ const loadDiscountProducts = async () => {
                             loading="lazy"
                           />
                           {/* Installment badge */}
-                          <span className="absolute top-2.5 left-2.5 rounded-full bg-sky-500 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                          <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                            <Clock className="h-3 w-3" />
                             {duration > 0 ? `${duration}J` : 'TRANCHE'}
                           </span>
                           {minAmount > 0 && (
@@ -2964,7 +3021,7 @@ const loadDiscountProducts = async () => {
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                              <Clock className="h-2.5 w-2.5" />
                               {duration > 0 ? `${duration} jours` : 'Tranches dispo.'}
                             </span>
                             {product.salesCount > 0 && (
