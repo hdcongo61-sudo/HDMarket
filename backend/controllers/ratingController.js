@@ -34,6 +34,22 @@ const buildProductReviewsDeepLink = (product) => {
   return `${base}?${params.toString()}#comments`;
 };
 
+const refreshProductRatingStats = async (productId) => {
+  const [summary] = await Rating.aggregate([
+    { $match: { product: productId } },
+    { $group: { _id: null, average: { $avg: '$value' }, count: { $sum: 1 } } }
+  ]);
+  await Product.updateOne(
+    { _id: productId },
+    {
+      $set: {
+        ratingAverage: summary ? Number(summary.average?.toFixed(2) || 0) : 0,
+        ratingCount: summary ? Number(summary.count || 0) : 0
+      }
+    }
+  );
+};
+
 export const getRatingSummary = asyncHandler(async (req, res) => {
   const product = await ensureProductVisible(req.params.id);
   const productId = product._id;
@@ -80,6 +96,7 @@ export const upsertRating = asyncHandler(async (req, res) => {
     { value },
     { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
   );
+  await refreshProductRatingStats(product._id);
 
   if (String(product.user) !== req.user.id) {
     const targetLink = buildProductReviewsDeepLink(product);
@@ -114,6 +131,7 @@ export const deleteRating = asyncHandler(async (req, res) => {
   const product = await ensureProductVisible(req.params.id, req.query.productId);
 
   await Rating.findOneAndDelete({ product: product._id, user: req.user.id });
+  await refreshProductRatingStats(product._id);
 
   invalidateProductCache();
 

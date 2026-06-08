@@ -138,12 +138,14 @@ export default function Home() {
   const [installmentLoading, setInstallmentLoading] = useState(false);
   const [wholesaleProducts, setWholesaleProducts] = useState([]);
   const [wholesaleLoading, setWholesaleLoading] = useState(false);
+  const [homeFeedLoaded, setHomeFeedLoaded] = useState(false);
   const [shouldLoadSecondarySections, setShouldLoadSecondarySections] = useState(false);
   const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
   const secondarySectionsRef = useRef(null);
   const installmentSectionRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
   const homeProductsAbortRef = useRef(null);
+  const productsNextCursorRef = useRef('');
 const {
   rapid3GActive,
   compactProductsPageSize,
@@ -377,10 +379,22 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     setLoading(true);
     if (page <= 1) {
       setProductsError('');
+      productsNextCursorRef.current = '';
     }
     setLoadMoreError('');
     try {
       const requestParams = { page, limit: primaryPageLimit, sort };
+      if (
+        isMobileView &&
+        page > 1 &&
+        productsNextCursorRef.current &&
+        sort === 'new' &&
+        !category &&
+        !installmentOnlyFilter &&
+        !nearMeOnlyFilter
+      ) {
+        requestParams.cursor = productsNextCursorRef.current;
+      }
       if (category) requestParams.category = category;
       if (installmentOnlyFilter) requestParams.installmentOnly = true;
       if (hasUserCity) {
@@ -401,7 +415,9 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
         ? fetchedItems.length
         : Number(data?.pagination?.total) || fetchedItems.length;
       setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
-      setTotalPages(pages);
+      const nextCursor = String(data?.pagination?.nextCursor || data?.nextCursor || '');
+      productsNextCursorRef.current = nextCursor;
+      setTotalPages(nextCursor && isMobileView ? Math.max(page + 1, pages) : pages);
       setTotalProducts(total);
       setOfflineSnapshotActive(false);
     } catch (error) {
@@ -860,6 +876,88 @@ const loadDiscountProducts = async () => {
     }
   }, [compactSecondaryLimit, effectiveUserCity, hasUserCity, isMobileView]);
 
+  const loadHomeFeed = useCallback(async () => {
+    setPromoShopsLoading(true);
+    setFlashDealsLoading(true);
+    setActiveFlashSalesLoading(true);
+    setHighlightLoading(true);
+    setTopSalesLoading(true);
+    setVerifiedLoading(true);
+    setDiscountLoading(true);
+    setWholesaleLoading(true);
+    if (hasUserCity && effectiveUserCity) {
+      setTopSalesCityTodayLoading(true);
+    }
+
+    try {
+      const { data } = await api.get('/home/feed', {
+        params: {
+          secondaryLimit: secondarySectionLimit,
+          cityLimit: compactSecondaryLimit || (isMobileView ? 8 : 6),
+          city: hasUserCity ? effectiveUserCity : ''
+        }
+      });
+      const feedHighlights = data?.highlights || {};
+      setHighlights({
+        favorites: Array.isArray(feedHighlights.favorites) ? feedHighlights.favorites : [],
+        topRated: Array.isArray(feedHighlights.topRated) ? feedHighlights.topRated : [],
+        topDeals: Array.isArray(feedHighlights.topDeals) ? feedHighlights.topDeals : [],
+        topDiscounts: Array.isArray(feedHighlights.topDiscounts) ? feedHighlights.topDiscounts : [],
+        newProducts: Array.isArray(feedHighlights.newProducts) ? feedHighlights.newProducts : [],
+        usedProducts: Array.isArray(feedHighlights.usedProducts) ? feedHighlights.usedProducts : [],
+        installmentProducts: Array.isArray(feedHighlights.installmentProducts)
+          ? feedHighlights.installmentProducts
+          : [],
+        cityHighlights:
+          feedHighlights.cityHighlights && typeof feedHighlights.cityHighlights === 'object'
+            ? feedHighlights.cityHighlights
+            : {}
+      });
+      setTopSalesProducts(Array.isArray(data?.topSales) ? data.topSales : []);
+      setDiscountProducts(Array.isArray(data?.discountProducts) ? data.discountProducts : []);
+      setVerifiedShops(Array.isArray(data?.verifiedShops) ? data.verifiedShops : []);
+      setPromoShops(Array.isArray(data?.promoShops) ? data.promoShops : []);
+      setFlashDeals(Array.isArray(data?.flashDeals) ? data.flashDeals : []);
+      setActiveFlashSales(Array.isArray(data?.activeFlashSales) ? data.activeFlashSales : []);
+      setWholesaleProducts(Array.isArray(data?.wholesaleProducts) ? data.wholesaleProducts : []);
+      setTopSalesCityTodayProducts(Array.isArray(data?.topSalesCityToday) ? data.topSalesCityToday : []);
+      setInstallmentProducts(
+        Array.isArray(feedHighlights.installmentProducts) ? feedHighlights.installmentProducts : []
+      );
+      setHomeFeedLoaded(true);
+    } catch (error) {
+      if (isApiCanceledError(error)) return;
+      setHomeFeedLoaded(false);
+      await Promise.allSettled([
+        loadPromoHomeData(),
+        loadHighlights(),
+        loadTopSales(),
+        loadVerifiedShops(),
+        loadDiscountProducts(),
+        loadWholesaleProducts(),
+        loadTopSalesTodayByCity()
+      ]);
+    } finally {
+      setPromoShopsLoading(false);
+      setFlashDealsLoading(false);
+      setActiveFlashSalesLoading(false);
+      setHighlightLoading(false);
+      setTopSalesLoading(false);
+      setVerifiedLoading(false);
+      setDiscountLoading(false);
+      setWholesaleLoading(false);
+      setTopSalesCityTodayLoading(false);
+    }
+  }, [
+    compactSecondaryLimit,
+    effectiveUserCity,
+    hasUserCity,
+    isMobileView,
+    loadTopSalesTodayByCity,
+    loadWholesaleProducts,
+    secondarySectionLimit
+  ]);
+
   useEffect(() => {
     if (!shouldLoadSecondarySections) return;
     const timers = [];
@@ -870,34 +968,32 @@ const loadDiscountProducts = async () => {
       timers.push(timer);
     };
 
-    schedule(loadPromoHomeData, 0);
-    schedule(loadHighlights, rapid3GActive ? 180 : 40);
-    schedule(loadTopSales, rapid3GActive ? 360 : 90);
-    schedule(loadVerifiedShops, rapid3GActive ? 620 : 160);
-    schedule(loadDiscountProducts, rapid3GActive ? 900 : 240);
+    schedule(loadHomeFeed, 0);
 
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [shouldLoadSecondarySections]);
+  }, [loadHomeFeed, shouldLoadSecondarySections]);
 
   useEffect(() => {
+    if (homeFeedLoaded) return undefined;
     if (!shouldLoadSecondarySections) return;
     const timer = window.setTimeout(
       () => loadTopSalesTodayByCity(),
       rapid3GActive ? 520 : 120
     );
     return () => window.clearTimeout(timer);
-  }, [loadTopSalesTodayByCity, rapid3GActive, shouldLoadSecondarySections]);
+  }, [homeFeedLoaded, loadTopSalesTodayByCity, rapid3GActive, shouldLoadSecondarySections]);
 
   useEffect(() => {
+    if (homeFeedLoaded) return undefined;
     if (!shouldLoadSecondarySections) return;
     const timer = window.setTimeout(
       () => loadWholesaleProducts(),
       rapid3GActive ? 760 : 180
     );
     return () => window.clearTimeout(timer);
-  }, [loadWholesaleProducts, rapid3GActive, shouldLoadSecondarySections]);
+  }, [homeFeedLoaded, loadWholesaleProducts, rapid3GActive, shouldLoadSecondarySections]);
 
   useEffect(() => {
     if (!flashDeals.length) return undefined;

@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
-import api, { isApiPossiblyCommittedError, verifyTransactionCodeAvailability } from '../services/api';
+import api, { isApiPossiblyCommittedError, isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import {
   CreditCard,
@@ -99,6 +99,7 @@ export default function OrderCheckout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [checkoutStatus, setCheckoutStatus] = useState('');
   const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.STANDARD);
   const [guarantor, setGuarantor] = useState({
     fullName: '',
@@ -588,7 +589,8 @@ export default function OrderCheckout() {
   const reconcileCheckoutAfterTimeout = async ({
     transactionCodes = [],
     expectedCount = 1,
-    paymentType = ''
+    paymentType = '',
+    paymentSource = ''
   } = {}) => {
     const normalizedCodes = Array.from(
       new Set(
@@ -597,7 +599,9 @@ export default function OrderCheckout() {
           .filter((code) => code.length === 10)
       )
     );
-    if (!normalizedCodes.length) {
+    const canMatchByWallet =
+      String(paymentSource || '').toLowerCase() === 'wallet' || String(paymentType || '').toLowerCase() === 'full';
+    if (!normalizedCodes.length && !canMatchByWallet) {
       return {
         confirmed: false,
         matchedCount: 0,
@@ -625,6 +629,7 @@ export default function OrderCheckout() {
           const createdAtMs = new Date(order?.createdAt || 0).getTime();
           if (!Number.isFinite(createdAtMs) || now - createdAtMs > cutoffMs) return false;
           if (paymentType && String(order?.paymentType || '') !== String(paymentType)) return false;
+          if (paymentSource && String(order?.paymentSource || '') !== String(paymentSource)) return false;
           return true;
         })
         .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
@@ -632,9 +637,18 @@ export default function OrderCheckout() {
       recentOrders.forEach((order) => {
         const createdAtMs = new Date(order?.createdAt || 0).getTime();
         if (!Number.isFinite(createdAtMs) || now - createdAtMs > cutoffMs) return;
+        const sourceMatched =
+          canMatchByWallet &&
+          String(order?.paymentSource || '').toLowerCase() === 'wallet' &&
+          ['paid', 'paid_full'].includes(String(order?.paymentStatus || '').toLowerCase());
         const orderCode = String(order?.paymentTransactionCode || '').replace(/\D/g, '').trim();
-        if (orderCode && normalizedCodes.includes(orderCode)) {
-          matchedCodes.add(orderCode);
+        if ((orderCode && normalizedCodes.includes(orderCode)) || sourceMatched) {
+          if (orderCode) {
+            matchedCodes.add(orderCode);
+          }
+          if (sourceMatched) {
+            matchedCodes.add(`wallet:${getOrderId(order) || createdAtMs}`);
+          }
           if (!orderId) {
             orderId = getOrderId(order);
           }
@@ -643,7 +657,7 @@ export default function OrderCheckout() {
 
       const expected = Math.max(1, Number(expectedCount || normalizedCodes.length || 1));
       return {
-        confirmed: matchedCodes.size >= Math.min(expected, normalizedCodes.length),
+        confirmed: matchedCodes.size >= Math.min(expected, normalizedCodes.length || expected),
         matchedCount: matchedCodes.size,
         expectedCount: expected,
         orderId
@@ -656,6 +670,14 @@ export default function OrderCheckout() {
         orderId: ''
       };
     }
+  };
+
+  const clearCartAfterCheckout = () => {
+    Promise.resolve()
+      .then(() => clearCart())
+      .catch(() => {
+        // The order is already created; cart cleanup can be retried by the normal cart sync.
+      });
   };
 
   const handleSubmit = async (event) => {
@@ -865,10 +887,18 @@ export default function OrderCheckout() {
     }
     setLoading(true);
     setError('');
+    setCheckoutStatus(
+      isWalletPayment
+        ? 'Validation du paiement portefeuille...'
+        : isFullPaymentSelected
+          ? 'Validation du paiement intégral...'
+          : 'Confirmation de la commande...'
+    );
 
     // Wallet payment — backend owns balance checks and deductions.
     if (paymentMode === PAYMENT_MODES.WALLET) {
       try {
+        showToast('Paiement portefeuille en cours...', { variant: 'info' });
         const promoEntries = sellerGroups
           .map((group) => {
             const entry = payments[group.sellerId] || {};
@@ -887,19 +917,46 @@ export default function OrderCheckout() {
           shippingAddress,
           promoEntries
         });
-        const firstOrder = Array.isArray(data?.orders) ? data.orders[0] : null;
-        const createdOrderId = firstOrder?._id || firstOrder?.id;
+        const createdOrderId = extractFirstOrderId(data);
         setOrderConfirmed(true);
-        await clearCart();
+        setCheckoutStatus('Paiement confirmé. Redirection vers la commande...');
         showToast(data?.message || 'Commande payée via portefeuille HDMarket.', { variant: 'success' });
+        clearCartAfterCheckout();
         if (createdOrderId) {
-          navigate(`/order/detail/${createdOrderId}`);
+          navigate(`/order/detail/${createdOrderId}`, { replace: true });
         } else {
-          navigate('/orders');
+          navigate('/orders', { replace: true });
         }
       } catch (err) {
+        if (isApiTimeoutError(err) || isApiPossiblyCommittedError(err)) {
+          setCheckoutStatus('Vérification de la commande portefeuille...');
+          const reconciliation = await reconcileCheckoutAfterTimeout({
+            expectedCount: Math.max(1, sellerGroups.length || 1),
+            paymentType: 'full',
+            paymentSource: 'wallet'
+          });
+          if (reconciliation.confirmed) {
+            setOrderConfirmed(true);
+            setCheckoutStatus('Paiement confirmé. Redirection vers la commande...');
+            showToast('Commande payée via portefeuille HDMarket.', { variant: 'success' });
+            clearCartAfterCheckout();
+            if (reconciliation.orderId) {
+              navigate(`/order/detail/${reconciliation.orderId}`, { replace: true });
+            } else {
+              navigate('/orders', { replace: true });
+            }
+            return;
+          }
+          const timeoutMessage =
+            'Paiement portefeuille en cours de confirmation. Nous ouvrons vos commandes.';
+          setError(timeoutMessage);
+          showToast(timeoutMessage, { variant: 'warning' });
+          navigate('/orders', { replace: true });
+          return;
+        }
         const message = err.response?.data?.message || 'Impossible de finaliser le paiement portefeuille.';
         setError(message);
+        setCheckoutStatus('');
         showToast(message, { variant: 'error' });
       } finally {
         setLoading(false);
@@ -934,6 +991,7 @@ export default function OrderCheckout() {
       const createdOrderId = extractFirstOrderId(data);
       setOrderConfirmed(true);
       await clearCart();
+      setCheckoutStatus('');
       showToast(
         isFullPaymentSelected
           ? 'Commande payée intégralement. Livraison offerte activée.'
@@ -973,6 +1031,7 @@ export default function OrderCheckout() {
       }
       const message = err.response?.data?.message || 'Impossible de confirmer la commande.';
       setError(message);
+      setCheckoutStatus('');
       showToast(message, { variant: 'error' });
     } finally {
       setLoading(false);
@@ -1845,6 +1904,12 @@ export default function OrderCheckout() {
                 <p className="text-sm text-red-700 font-semibold">{error}</p>
               </div>
             )}
+            {loading && checkoutStatus && (
+              <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-3">
+                <div className="h-4 w-4 flex-shrink-0 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin" />
+                <p className="text-sm font-bold text-emerald-800">{checkoutStatus}</p>
+              </div>
+            )}
             <button
               type="submit"
               disabled={loading}
@@ -1853,7 +1918,7 @@ export default function OrderCheckout() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {isWalletPayment ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...'}
+                  {checkoutStatus || (isWalletPayment ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...')}
                 </>
               ) : (
                 <>

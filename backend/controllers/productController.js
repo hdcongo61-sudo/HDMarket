@@ -64,6 +64,26 @@ const localViewDedupCache = new Map();
 const localUniqueViewerCache = new Map();
 const localTodayViewsCache = new Map();
 
+const encodeProductCursor = (item) => {
+  const id = String(item?._id || '').trim();
+  const createdAt = new Date(item?.createdAt || 0).getTime();
+  if (!id || !Number.isFinite(createdAt) || createdAt <= 0) return '';
+  return Buffer.from(JSON.stringify({ createdAt, id })).toString('base64url');
+};
+
+const decodeProductCursor = (cursor) => {
+  try {
+    if (!cursor) return null;
+    const parsed = JSON.parse(Buffer.from(String(cursor), 'base64url').toString('utf8'));
+    const createdAt = new Date(Number(parsed?.createdAt || 0));
+    const id = String(parsed?.id || '');
+    if (!Number.isFinite(createdAt.getTime()) || !mongoose.Types.ObjectId.isValid(id)) return null;
+    return { createdAt, id: new mongoose.Types.ObjectId(id) };
+  } catch {
+    return null;
+  }
+};
+
 const resolveAssistantProductAccess = async (req, permission = 'view_shop_products') => {
   const actorId = req.user?.id || req.user?._id;
   const assignment = await ShopAssistant.findOne({
@@ -1055,7 +1075,8 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     minSales,
     sort: sortParam = 'new',
     page = 1,
-    limit = 12
+    limit = 12,
+    cursor = ''
   } = req.query;
 
   // Normalize sort: accept 'newest' as alias for 'new'
@@ -1226,7 +1247,13 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     minRating !== undefined ||
     freeDeliveryOnly === true ||
     freeDeliveryOnly === 'true';
-  const prefetchLimit = needsPostFilter ? pageSize * 2 : pageSize;
+  const decodedCursor = decodeProductCursor(cursor);
+  const cursorCapable =
+    !shouldApplyLocationPriority &&
+    !needsPostFilter &&
+    (sort === 'new' || sort === 'newest');
+  const canUseCursor = Boolean(decodedCursor) && cursorCapable;
+  const prefetchLimit = needsPostFilter ? pageSize * 2 : pageSize + (canUseCursor ? 1 : 0);
   let itemsRaw = [];
   let totalBeforeFilter = 0;
 
@@ -1302,13 +1329,23 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     itemsRaw = Array.isArray(aggregated?.items) ? aggregated.items : [];
     totalBeforeFilter = Number(aggregated?.totalCount?.[0]?.total || 0);
   } else {
+    const findFilter = { ...activeFilter };
+    if (canUseCursor) {
+      findFilter.$and = findFilter.$and || [];
+      findFilter.$and.push({
+        $or: [
+          { createdAt: { $lt: decodedCursor.createdAt } },
+          { createdAt: decodedCursor.createdAt, _id: { $lt: decodedCursor.id } }
+        ]
+      });
+    }
     [itemsRaw, totalBeforeFilter] = await Promise.all([
-      Product.find(activeFilter)
-        .sort({ ...baseSort, ...(sortOptions[sort] || sortOptions.new) })
-        .skip(skip)
+      Product.find(findFilter)
+        .sort({ ...baseSort, ...(sortOptions[sort] || sortOptions.new), _id: -1 })
+        .skip(canUseCursor ? 0 : skip)
         .limit(prefetchLimit)
         .lean(),
-      Product.countDocuments(activeFilter)
+      canUseCursor ? Promise.resolve(null) : Product.countDocuments(activeFilter)
     ]);
 
     // Post-process to ensure currently boosted products (within date range) appear first
@@ -1362,30 +1399,6 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
   await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
-
-  const productIds = itemsRaw.map((item) => item._id);
-
-  let commentStats = [];
-  let ratingStats = [];
-  if (productIds.length) {
-    commentStats = await Comment.aggregate([
-      { $match: { product: { $in: productIds } } },
-      { $group: { _id: '$product', count: { $sum: 1 } } }
-    ]);
-
-    ratingStats = await Rating.aggregate([
-      { $match: { product: { $in: productIds } } },
-      { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
-    ]);
-  }
-
-  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
-  const ratingMap = new Map(
-    ratingStats.map((stat) => [
-      String(stat._id),
-      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
-    ])
-  );
 
   // Filter by shopVerified if requested (after populate)
   let filteredItems = itemsRaw;
@@ -1460,8 +1473,11 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     const safeItem = { ...item };
     delete safeItem.locationPriorityRank;
     const compatibleItem = withCategoryCompatibility(safeItem);
-    const commentCount = commentMap.get(String(item._id)) || 0;
-    const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
+    const commentCount = Number(item.commentCount || 0);
+    const rating = {
+      average: Number(item.ratingAverage || 0),
+      count: Number(item.ratingCount || 0)
+    };
     const installmentAvailable = isProductInstallmentActive(safeItem);
     const isCurrentlyBoosted =
       typeof safeItem.isCurrentlyBoosted === 'boolean'
@@ -1496,11 +1512,13 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // Limit to page size after post-filtering
   if (needsPostFilter) {
     items = items.slice(0, pageSize);
+  } else if (canUseCursor && items.length > pageSize) {
+    items = items.slice(0, pageSize);
   }
 
   // For post-filtered results, we can't know exact total without full scan
   // Use a reasonable estimate based on current results
-  let total = totalBeforeFilter;
+  let total = canUseCursor ? pageNumber * pageSize + items.length : totalBeforeFilter;
   if (needsPostFilter && pageNumber === 1) {
     // On first page, if we have fewer results than page size, that's likely close to total
     if (items.length < pageSize) {
@@ -1509,6 +1527,12 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
+  const nextCursor =
+    cursorCapable &&
+    items.length &&
+    (canUseCursor ? itemsRaw.length > pageSize : pageNumber < totalPages)
+      ? encodeProductCursor(items[items.length - 1])
+      : '';
 
   res.json({
     items: items.map((item) => withCategoryCompatibility(item)),
@@ -1516,8 +1540,12 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
       page: pageNumber,
       limit: pageSize,
       total,
-      pages: totalPages
-    }
+      pages: totalPages,
+      nextCursor,
+      hasMore: cursorCapable ? Boolean(nextCursor) : pageNumber < totalPages
+    },
+    nextCursor,
+    hasMore: cursorCapable ? Boolean(nextCursor) : pageNumber < totalPages
   });
 });
 

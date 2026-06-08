@@ -25,7 +25,9 @@ const normalizeOrdersListPayload = (payload, fallbackPage = 1) => {
     items,
     total: Number(payload?.total ?? items.length),
     totalPages: Math.max(1, Number(payload?.totalPages) || 1),
-    page: Math.max(1, Number(payload?.page) || Number(fallbackPage) || 1)
+    page: Math.max(1, Number(payload?.page) || Number(fallbackPage) || 1),
+    nextCursor: String(payload?.nextCursor || ''),
+    hasMore: Boolean(payload?.hasMore)
   };
 };
 
@@ -38,11 +40,12 @@ export const useBuyerOrdersListQuery = ({
 
   return useInfiniteQuery({
     queryKey: orderQueryKeys.list('user', { limit, status, mode: 'infinite' }),
-    initialPageParam: 1,
+    initialPageParam: '',
     enabled: Boolean(enabled),
-    queryFn: async ({ pageParam = 1 }) => {
-      const page = Math.max(1, Number(pageParam) || 1);
-      const params = { page, limit };
+    queryFn: async ({ pageParam = '' }) => {
+      const cursor = String(pageParam || '');
+      const params = { limit };
+      if (cursor) params.cursor = cursor;
       if (status && status !== 'all') {
         if (isOrderGroupKey('buyer', status)) {
           params.statusGroup = status;
@@ -55,13 +58,11 @@ export const useBuyerOrdersListQuery = ({
         skipCache: true,
         headers: { 'x-skip-cache': '1' }
       });
-      return normalizeOrdersListPayload(data, page);
+      return normalizeOrdersListPayload(data, 1);
     },
     staleTime: rapid3GActive ? 45_000 : 20_000,
     getNextPageParam: (lastPage) => {
-      const currentPage = Math.max(1, Number(lastPage?.page || 1));
-      const totalPages = Math.max(1, Number(lastPage?.totalPages || 1));
-      return currentPage < totalPages ? currentPage + 1 : undefined;
+      return lastPage?.nextCursor || undefined;
     },
     refetchOnWindowFocus: false,
     refetchInterval: (query) => {

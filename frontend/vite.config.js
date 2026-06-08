@@ -21,5 +21,26 @@ export default defineConfig({
     postcss: {
       plugins: [autoprefixer()]
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('exceljs')) return 'vendor-exceljs';
+          if (id.includes('xlsx')) return 'vendor-xlsx';
+          if (id.includes('jspdf') || id.includes('html2canvas')) return 'vendor-pdf';
+          if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+          if (id.includes('framer-motion') || id.includes('/motion/')) return 'vendor-motion';
+          if (id.includes('@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('socket.io-client')) return 'vendor-socket';
+          if (id.includes('firebase')) return 'vendor-firebase';
+          if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            return 'vendor-react';
+          }
+          return undefined;
+        }
+      }
+    }
   }
 });

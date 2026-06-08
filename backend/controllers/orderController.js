@@ -418,6 +418,39 @@ const baseOrderQuery = () =>
     })
     .populate('createdBy', 'name email');
 
+const encodeListCursor = (item) => {
+  const id = String(item?._id || '').trim();
+  const createdAt = new Date(item?.createdAt || 0).getTime();
+  if (!id || !Number.isFinite(createdAt) || createdAt <= 0) return '';
+  return Buffer.from(JSON.stringify({ createdAt, id })).toString('base64url');
+};
+
+const decodeListCursor = (cursor) => {
+  try {
+    if (!cursor) return null;
+    const parsed = JSON.parse(Buffer.from(String(cursor), 'base64url').toString('utf8'));
+    const createdAt = new Date(Number(parsed?.createdAt || 0));
+    const id = String(parsed?.id || '');
+    if (!Number.isFinite(createdAt.getTime()) || !mongoose.Types.ObjectId.isValid(id)) return null;
+    return { createdAt, id: new mongoose.Types.ObjectId(id) };
+  } catch {
+    return null;
+  }
+};
+
+const applyCreatedAtCursor = (filter, cursor) => {
+  const decoded = decodeListCursor(cursor);
+  if (!decoded) return false;
+  filter.$and = filter.$and || [];
+  filter.$and.push({
+    $or: [
+      { createdAt: { $lt: decoded.createdAt } },
+      { createdAt: decoded.createdAt, _id: { $lt: decoded.id } }
+    ]
+  });
+  return true;
+};
+
 const collectOrderProductRefs = (orders = []) => {
   const list = Array.isArray(orders) ? orders : [orders];
   const seen = new Set();
@@ -1900,7 +1933,7 @@ export const adminListOrders = asyncHandler(async (req, res) => {
       .limit(pageSize),
     Order.countDocuments(filter)
   ]);
-  await ensureOrderProductSlugs(orders);
+  await ensureOrderProductSlugs(pageOrders);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -2372,7 +2405,7 @@ export const adminSearchProducts = asyncHandler(async (req, res) => {
 
 export const userListOrders = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { status, statusGroup, search = '', page = 1, limit = 6 } = req.query || {};
+  const { status, statusGroup, search = '', page = 1, limit = 6, cursor = '' } = req.query || {};
 
   const filter = userId ? { customer: userId, isDraft: false } : { customer: null, isDraft: false };
   applyOrderStatusFilter(filter, { status, statusGroup, role: 'buyer' });
@@ -2392,25 +2425,35 @@ export const userListOrders = asyncHandler(async (req, res) => {
   const requestedLimit = Number(limit) || 6;
   const pageSize = Math.max(1, requestedLimit > 24 ? Math.min(requestedLimit, 500) : Math.min(requestedLimit, 24));
   const skip = (pageNumber - 1) * pageSize;
+  const useCursor = Boolean(cursor);
+  applyCreatedAtCursor(filter, cursor);
 
   const [orders, total] = await Promise.all([
     baseOrderQuery()
       .find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(pageSize),
-    Order.countDocuments(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(useCursor ? 0 : skip)
+      .limit(pageSize + (useCursor ? 1 : 0)),
+    useCursor ? Promise.resolve(null) : Order.countDocuments(filter)
   ]);
+  const hasMore = useCursor && orders.length > pageSize;
+  const pageOrders = hasMore ? orders.slice(0, pageSize) : orders;
   await ensureOrderProductSlugs(orders);
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const totalPages = useCursor ? null : Math.max(1, Math.ceil(total / pageSize));
+  const nextCursor =
+    pageOrders.length && (useCursor ? hasMore : pageNumber < totalPages)
+      ? encodeListCursor(pageOrders[pageOrders.length - 1])
+      : '';
 
   res.json({
-    items: orders.map(buildOrderResponse),
-    total,
+    items: pageOrders.map(buildOrderResponse),
+    total: useCursor ? undefined : total,
     page: pageNumber,
     pageSize,
-    totalPages
+    totalPages,
+    nextCursor,
+    hasMore: Boolean(nextCursor)
   });
 });
 
@@ -3039,7 +3082,7 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
 export const sellerListOrders = asyncHandler(async (req, res) => {
   const access = await resolveSellerAccess(req, 'view_shop_orders');
   const { sellerId } = access;
-  const { status, statusGroup, page = 1, limit = 6 } = req.query || {};
+  const { status, statusGroup, page = 1, limit = 6, cursor = '' } = req.query || {};
 
   const filter = { 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false };
   applyOrderStatusFilter(filter, { status, statusGroup, role: 'seller' });
@@ -3048,19 +3091,23 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
   const requestedLimit = Number(limit) || 6;
   const pageSize = Math.max(1, requestedLimit > 24 ? Math.min(requestedLimit, 500) : Math.min(requestedLimit, 24));
   const skip = (pageNumber - 1) * pageSize;
+  const useCursor = Boolean(cursor);
+  applyCreatedAtCursor(filter, cursor);
 
   const [orders, total] = await Promise.all([
     baseOrderQuery()
       .find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(pageSize),
-    Order.countDocuments(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(useCursor ? 0 : skip)
+      .limit(pageSize + (useCursor ? 1 : 0)),
+    useCursor ? Promise.resolve(null) : Order.countDocuments(filter)
   ]);
-  await ensureOrderProductSlugs(orders);
+  const hasMore = useCursor && orders.length > pageSize;
+  const pageOrders = hasMore ? orders.slice(0, pageSize) : orders;
+  await ensureOrderProductSlugs(pageOrders);
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const items = orders
+  const totalPages = useCursor ? null : Math.max(1, Math.ceil(total / pageSize));
+  const items = pageOrders
     .map((order) => {
       const filteredItems = filterOrderItemsForSeller(order, sellerId);
       if (!filteredItems.length) return null;
@@ -3078,10 +3125,15 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
 
   res.json({
     items,
-    total,
+    total: useCursor ? undefined : total,
     page: pageNumber,
     pageSize,
-    totalPages
+    totalPages,
+    nextCursor:
+      pageOrders.length && (useCursor ? hasMore : pageNumber < totalPages)
+        ? encodeListCursor(pageOrders[pageOrders.length - 1])
+        : '',
+    hasMore: Boolean(pageOrders.length && (useCursor ? hasMore : pageNumber < totalPages))
   });
 });
 

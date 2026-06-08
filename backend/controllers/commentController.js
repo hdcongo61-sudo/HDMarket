@@ -126,6 +126,7 @@ export const addComment = asyncHandler(async (req, res) => {
     message,
     parent: parent ? parent._id : null
   });
+  await Product.updateOne({ _id: product._id }, { $inc: { commentCount: 1 } });
 
   await comment.populate('user', 'name profileImage shopLogo');
   await comment.populate({
@@ -259,6 +260,10 @@ export const deleteMyComment = asyncHandler(async (req, res) => {
       { parent: id }
     ]
   });
+  if (result.deletedCount) {
+    const nextCount = await Comment.countDocuments({ product: comment.product });
+    await Product.updateOne({ _id: comment.product }, { $set: { commentCount: nextCount } });
+  }
 
   // Invalidate product cache
   invalidateProductCache();
@@ -274,6 +279,9 @@ export const deleteMyComment = asyncHandler(async (req, res) => {
 
 export const deleteCommentAdmin = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const comment = mongoose.Types.ObjectId.isValid(id)
+    ? await Comment.findById(id).select('product').lean()
+    : null;
   // Delete the comment and all its replies (cascade delete)
   const result = await Comment.deleteMany({
     $or: [
@@ -284,6 +292,10 @@ export const deleteCommentAdmin = asyncHandler(async (req, res) => {
 
   if (!result.deletedCount) {
     return res.json({ success: true, message: 'Commentaire déjà supprimé.' });
+  }
+  if (comment?.product) {
+    const nextCount = await Comment.countDocuments({ product: comment.product });
+    await Product.updateOne({ _id: comment.product }, { $set: { commentCount: nextCount } });
   }
 
   // Invalidate product cache (comments are served under /products/public)

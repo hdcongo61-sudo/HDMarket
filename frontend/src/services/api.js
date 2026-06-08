@@ -68,6 +68,7 @@ const CACHE_STORAGE_KEY = 'hdmarket:cache-keys'; // Track all cache keys for cle
 
 // Endpoints that should be cached with their TTL (in ms)
 const CACHE_CONFIG = {
+  '/home/feed': 2 * 60 * 1000, // 2 minutes
   '/products/public': 3 * 60 * 1000, // 3 minutes
   '/products/public/installments': 3 * 60 * 1000, // 3 minutes
   '/marketplace-promo-codes/public/home': 3 * 60 * 1000, // 3 minutes

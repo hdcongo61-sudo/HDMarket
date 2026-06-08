@@ -10,13 +10,15 @@
     "seed:settings": "node ./seed/seedSettings.js",
     "normalize:phones": "node ./scripts/normalizePhones.js",
     "migrate:categories": "node ./scripts/migrateCategories.js",
-    "migrate:order-message-deeplinks": "node ./scripts/migrateOrderMessageDeepLinks.js"
+    "migrate:order-message-deeplinks": "node ./scripts/migrateOrderMessageDeepLinks.js",
+    "backfill:product-stats": "node ./scripts/backfillProductStats.js"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
     "@socket.io/redis-adapter": "^8.3.0",
+    "bcryptjs": "^2.4.3",
     "bullmq": "^5.8.0",
     "cloudinary": "^1.41.3",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

@@ -3,6 +3,7 @@ import express from 'express';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import cors from 'cors';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
@@ -43,6 +44,7 @@ import sellerReputationRoutes from './routes/sellerReputationRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
 import sellerAnalyticsV2Routes from './routes/sellerAnalyticsV2Routes.js';
 import shopAssistantRoutes from './routes/shopAssistantRoutes.js';
+import homeRoutes from './routes/homeRoutes.js';
 
 import User from './models/userModel.js';
 import Order from './models/orderModel.js';
@@ -249,7 +251,18 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(morgan('dev'));
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) return false;
+      return compression.filter(req, res);
+    }
+  })
+);
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -311,6 +324,7 @@ app.get('/api/health/performance', (req, res) => {
 app.use(maintenanceModeMiddleware);
 
 app.use('/api/auth', authRoutes);
+app.use('/api/home', homeRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cart', cartRoutes);
