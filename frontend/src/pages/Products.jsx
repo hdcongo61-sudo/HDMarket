@@ -444,7 +444,7 @@ const fetchProducts = useCallback(async () => {
           />
         )}
 
-        {loading && page === 1 ? (
+        {loading && items.length === 0 ? (
           <ProductCardSkeleton count={10} viewMode="masonry" />
         ) : items.length ? (
           <>

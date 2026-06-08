@@ -1988,8 +1988,8 @@ const loadDiscountProducts = async () => {
           </label>
         )}
 
-        {shouldLoadSecondarySections && (
-        <section className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
+        {/* Wholesale section — always reserve space to prevent scroll jump */}
+        <section className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
           <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
             <div>
               <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
@@ -2001,7 +2001,13 @@ const loadDiscountProducts = async () => {
               {t('home.viewAll', 'Voir tout')}
             </Link>
           </div>
-          {wholesaleLoading && !wholesaleProducts.length ? (
+          {!shouldLoadSecondarySections ? (
+            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={`ws-reserve-${i}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-100" />
+              ))}
+            </div>
+          ) : wholesaleLoading && !wholesaleProducts.length ? (
             <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={`wholesale-skeleton-${index}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-200 overflow-hidden" />
@@ -2034,10 +2040,9 @@ const loadDiscountProducts = async () => {
             </p>
           )}
         </section>
-        )}
 
-        {shouldLoadSecondarySections && (
-        <section ref={installmentSectionRef} className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm">
+        {/* Installment section — always reserve space to prevent scroll jump */}
+        <section ref={installmentSectionRef} className="isolate rounded-2xl border border-neutral-100 bg-white p-3 max-[375px]:p-2.5 shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
           <div className="mb-3 max-[375px]:mb-2.5 flex items-start justify-between gap-3 max-[375px]:gap-2">
             <div>
               <h2 className="text-sm max-[375px]:text-[13px] font-bold text-gray-900">
@@ -2051,7 +2056,13 @@ const loadDiscountProducts = async () => {
               Voir tout
             </Link>
           </div>
-          {installmentLoading && !installmentProducts.length ? (
+          {!shouldLoadSecondarySections ? (
+            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={`is-reserve-${i}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-100" />
+              ))}
+            </div>
+          ) : installmentLoading && !installmentProducts.length ? (
             <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={`installment-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
@@ -2071,7 +2082,6 @@ const loadDiscountProducts = async () => {
             <p className="text-xs text-gray-500">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
           )}
         </section>
-        )}
 
         {/* All Products Grid */}
         <section>
@@ -2110,7 +2120,7 @@ const loadDiscountProducts = async () => {
               retryLabel="Retry"
               refreshLabel="Refresh page"
             />
-          ) : loading && page === 1 ? (
+          ) : loading && items.length === 0 ? (
             <ShimmerSkeleton rows={3} />
           ) : items.length > 0 ? (
             <>
@@ -2778,7 +2788,14 @@ const loadDiscountProducts = async () => {
             {wholesaleLoading && !wholesaleProducts.length ? (
               <div className="grid grid-cols-2 gap-3 px-5 pb-5">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={`wdsk-${i}`} className="aspect-[4/3] animate-pulse rounded-2xl bg-gray-100" />
+                  <div key={`wdsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+                    <div className="aspect-[4/3] animate-pulse bg-gray-100" />
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 animate-pulse rounded bg-gray-100 w-3/4" />
+                      <div className="h-5 animate-pulse rounded bg-gray-100 w-1/3" />
+                      <div className="h-3 animate-pulse rounded bg-gray-100 w-1/2" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : wholesaleProducts.length > 0 ? (
@@ -2870,7 +2887,14 @@ const loadDiscountProducts = async () => {
             {installmentLoading && !installmentProducts.length ? (
               <div className="grid grid-cols-2 gap-3 px-5 pb-5">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={`idsk-${i}`} className="aspect-[4/3] animate-pulse rounded-2xl bg-gray-100" />
+                  <div key={`idsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+                    <div className="aspect-[4/3] animate-pulse bg-gray-100" />
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 animate-pulse rounded bg-gray-100 w-3/4" />
+                      <div className="h-5 animate-pulse rounded bg-gray-100 w-1/3" />
+                      <div className="h-3 animate-pulse rounded bg-gray-100 w-1/2" />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (

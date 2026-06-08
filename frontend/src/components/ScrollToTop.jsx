@@ -80,6 +80,7 @@ export default function ScrollToTop() {
   const navigationType = useNavigationType();
   const previousKeysRef = useRef(null);
   const saveTickRef = useRef(false);
+  const prevPathnameRef = useRef(location.pathname);
   const routeKey = useMemo(
     () => `${location.pathname}${location.search}`,
     [location.pathname, location.search]
@@ -157,6 +158,11 @@ export default function ScrollToTop() {
         cancelled = true;
       };
     }
+
+    // Only scroll to top when navigating to a different page,
+    // not on in-page query param updates (sort, filter, infinite scroll page)
+    if (navigationType !== 'POP' && location.pathname === prevPathnameRef.current) return;
+    prevPathnameRef.current = location.pathname;
 
     const saved =
       navigationType === 'POP'
