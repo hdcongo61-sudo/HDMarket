@@ -288,7 +288,15 @@ export const processWithdrawal = async ({ walletId, transactionId, approved = tr
 /**
  * Purchase — Deduct from buyer wallet at checkout.
  */
-export const purchaseFromWallet = async ({ userId, amount, orderId = '', reference = '' }) => {
+export const purchaseFromWallet = async ({
+  userId,
+  amount,
+  orderId = '',
+  reference = '',
+  purpose = 'order',
+  note = '',
+  metadata = {}
+}) => {
   if (!amount || amount <= 0) throw new Error('Le montant doit être supérieur à 0');
 
   const wallet = await getOrCreateWallet(userId);
@@ -306,13 +314,19 @@ export const purchaseFromWallet = async ({ userId, amount, orderId = '', referen
     reference,
     status: 'completed',
     processedAt: new Date(),
-    note: `Achat — commande ${orderId || reference}`,
-    metadata: { orderId, reference }
+    note: note || `Achat — commande ${orderId || reference}`,
+    metadata: { orderId, reference, purpose, ...metadata }
   });
 
   await wallet.save();
 
-  return { balance: wallet.balance, availableBalance: wallet.availableBalance };
+  const lastTxn = wallet.transactions[wallet.transactions.length - 1];
+  return {
+    balance: wallet.balance,
+    availableBalance: wallet.availableBalance,
+    transactionId: lastTxn?._id,
+    transaction: lastTxn ? decorateTransaction(lastTxn) : null
+  };
 };
 
 /**
@@ -756,8 +770,17 @@ export const getAdminWalletStats = async () => {
       deposits: emptyTransactionSummary(),
       withdrawals: emptyTransactionSummary(),
       purchases: emptyTransactionSummary(),
+      orderPurchases: emptyTransactionSummary(),
+      boostPurchases: emptyTransactionSummary(),
+      shopConversionPurchases: emptyTransactionSummary(),
       refunds: emptyTransactionSummary(),
       sellerReleased: emptyTransactionSummary()
+    },
+    walletPayments: {
+      orders: emptyTransactionSummary(),
+      boosts: emptyTransactionSummary(),
+      shopConversions: emptyTransactionSummary(),
+      other: emptyTransactionSummary()
     },
     volume: {
       today: emptyTransactionSummary(),
@@ -808,7 +831,22 @@ export const getAdminWalletStats = async () => {
       if (status === 'completed') {
         if (type === 'deposit') addTransactionSummary(stats.completed.deposits, amount);
         if (type === 'withdrawal') addTransactionSummary(stats.completed.withdrawals, amount);
-        if (type === 'purchase') addTransactionSummary(stats.completed.purchases, amount);
+        if (type === 'purchase') {
+          addTransactionSummary(stats.completed.purchases, amount);
+          const purpose = String(txn?.metadata?.purpose || '').trim().toLowerCase();
+          if (purpose === 'boost' || purpose === 'annonce_boost') {
+            addTransactionSummary(stats.completed.boostPurchases, amount);
+            addTransactionSummary(stats.walletPayments.boosts, amount);
+          } else if (purpose === 'shop_conversion') {
+            addTransactionSummary(stats.completed.shopConversionPurchases, amount);
+            addTransactionSummary(stats.walletPayments.shopConversions, amount);
+          } else if (purpose === 'order' || txn?.metadata?.orderId) {
+            addTransactionSummary(stats.completed.orderPurchases, amount);
+            addTransactionSummary(stats.walletPayments.orders, amount);
+          } else {
+            addTransactionSummary(stats.walletPayments.other, amount);
+          }
+        }
         if (type === 'refund') addTransactionSummary(stats.completed.refunds, amount);
         if (type === 'sale_release') addTransactionSummary(stats.completed.sellerReleased, amount);
       }
@@ -828,6 +866,10 @@ export const getAdminWalletStats = async () => {
         amount,
         reference: txn.reference || '',
         note: txn.note || '',
+        purpose: txn?.metadata?.purpose || '',
+        boostRequestId: txn?.metadata?.boostRequestId || '',
+        shopConversionRequestId: txn?.metadata?.shopConversionRequestId || '',
+        orderId: txn?.metadata?.orderId || '',
         createdAt: txn.createdAt,
         updatedAt: txn.updatedAt
       });

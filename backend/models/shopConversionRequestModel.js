@@ -9,9 +9,22 @@ const shopConversionRequestSchema = new mongoose.Schema(
     shopDescription: { type: String, trim: true, default: '' },
     paymentProof: { type: String, required: true },
     paymentAmount: { type: Number, required: true, default: 50000 },
-    operator: { type: String, enum: ['MTN', 'Airtel'], required: true, default: 'MTN' },
+    paymentMethod: {
+      type: String,
+      enum: ['mobile_money', 'wallet'],
+      default: 'mobile_money',
+      index: true
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending_admin_validation', 'paid', 'refunded'],
+      default: 'pending_admin_validation',
+      index: true
+    },
+    operator: { type: String, enum: ['MTN', 'Airtel', 'HDMarket Wallet'], required: true, default: 'MTN' },
     transactionName: { type: String, required: true, trim: true },
     transactionNumber: { type: String, required: true, trim: true },
+    walletTransactionId: { type: String, trim: true, default: '' },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

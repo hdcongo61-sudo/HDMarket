@@ -210,17 +210,26 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
     {
       icon: Zap,
       label: t('home.walletFastTitle', 'Paiement plus rapide'),
-      text: t('home.walletFastText', 'Validez vos achats sans refaire un dépôt à chaque commande.')
+      text: t('home.walletFastText', 'Validez vos achats sans refaire un dépôt à chaque commande.'),
+      stat: t('home.walletFastStat', '1 clic'),
+      tone: 'from-orange-400 to-amber-300',
+      glow: 'shadow-[0_10px_24px_rgba(255,106,0,0.22)]'
     },
     {
       icon: Shield,
       label: t('home.walletProtectedTitle', 'Argent mieux suivi'),
-      text: t('home.walletProtectedText', 'Chaque dépôt, achat et retrait reste visible dans votre historique.')
+      text: t('home.walletProtectedText', 'Chaque dépôt, achat et retrait reste visible dans votre historique.'),
+      stat: t('home.walletProtectedStat', 'Historique clair'),
+      tone: 'from-emerald-300 to-cyan-200',
+      glow: 'shadow-[0_10px_24px_rgba(16,185,129,0.2)]'
     },
     {
       icon: RefreshCcw,
       label: t('home.walletRefundTitle', 'Remboursement facilité'),
-      text: t('home.walletRefundText', 'En cas d’annulation éligible, le remboursement revient dans le portefeuille.')
+      text: t('home.walletRefundText', 'En cas d’annulation éligible, le remboursement revient dans le portefeuille.'),
+      stat: t('home.walletRefundStat', 'Retour suivi'),
+      tone: 'from-sky-300 to-indigo-200',
+      glow: 'shadow-[0_10px_24px_rgba(56,189,248,0.18)]'
     }
   ];
 
@@ -250,16 +259,30 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
           <p className={`mt-1.5 max-w-2xl ${compact ? 'text-[12px] leading-5' : 'text-[13px] leading-5'} font-medium text-emerald-50/82`}>
             {t('home.walletSubtitle', 'Rechargez une fois votre portefeuille HDMarket, commandez plus facilement, suivez vos mouvements et recevez les remboursements éligibles directement sur votre solde.')}
           </p>
-          <div className={`mt-3 grid gap-2 ${compact ? 'grid-cols-3 max-[380px]:grid-cols-1' : 'sm:grid-cols-3'}`}>
-            {benefits.map(({ icon: Icon, label, text }) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur">
-                <div className={`${compact ? '' : 'mb-1.5'} flex items-center gap-2`}>
-                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white text-[#0b503a] shadow-sm">
+          <div className={`mt-3 grid gap-2.5 ${compact ? 'grid-cols-3 max-[420px]:grid-cols-1' : 'sm:grid-cols-3'}`}>
+            {benefits.map(({ icon: Icon, label, text, stat, tone, glow }, index) => (
+              <div
+                key={label}
+                className={`hd-wallet-benefit group relative overflow-hidden rounded-[18px] border border-white/12 bg-white/[0.09] p-2.5 backdrop-blur ${compact ? 'min-h-[92px]' : 'min-h-[132px]'}`}
+                style={{ '--wallet-benefit-delay': `${index * 0.55}s` }}
+              >
+                <div className={`pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-gradient-to-br ${tone} opacity-20 blur-xl transition group-hover:opacity-35`} />
+                <div className="relative flex items-start justify-between gap-2">
+                  <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tone} text-[#06281f] ${glow}`}>
                     <Icon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="min-w-0 text-[11px] font-black leading-4 text-white line-clamp-2">{label}</span>
+                  <span className="hd-wallet-stat-chip relative inline-flex max-w-[94px] shrink-0 items-center gap-1.5 overflow-hidden rounded-full border border-white/14 bg-[#061f19]/72 px-2 py-1 text-[9px] font-black uppercase leading-none text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur">
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br ${tone} shadow-[0_0_10px_rgba(255,255,255,0.45)]`} />
+                    <span className="min-w-0 truncate">{stat}</span>
+                  </span>
                 </div>
-                {!compact ? <p className="text-[11px] font-semibold leading-4 text-emerald-50/72">{text}</p> : null}
+                <div className="relative mt-2">
+                  <p className="text-[12px] font-black leading-4 text-white">{label}</p>
+                  {!compact ? <p className="mt-1 text-[11px] font-semibold leading-4 text-emerald-50/76">{text}</p> : null}
+                </div>
+                <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                  <div className={`hd-wallet-benefit-rail h-full w-7/12 rounded-full bg-gradient-to-r ${tone}`} />
+                </div>
               </div>
             ))}
           </div>

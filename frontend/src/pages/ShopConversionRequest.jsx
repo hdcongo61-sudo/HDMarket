@@ -16,7 +16,8 @@ import {
   Hash,
   DollarSign,
   FileImage,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Wallet
 } from 'lucide-react';
 import { useNetworks } from '../hooks/useNetworks';
 
@@ -39,6 +40,9 @@ export default function ShopConversionRequest() {
   const [error, setError] = useState('');
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [walletInfo, setWalletInfo] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   // Get active networks sorted by order
   const activeNetworks = useMemo(
@@ -77,6 +81,7 @@ export default function ShopConversionRequest() {
 
   // Update operator when networks load
   useEffect(() => {
+    if (paymentMethod !== 'mobile_money') return;
     if (!networksLoading) {
       if (activeNetworks.length > 0 && !form.operator) {
         setForm((prev) => ({ ...prev, operator: activeNetworks[0].name }));
@@ -84,7 +89,26 @@ export default function ShopConversionRequest() {
         setForm((prev) => ({ ...prev, operator: 'MTN' }));
       }
     }
-  }, [networksLoading, activeNetworks, form.operator]);
+  }, [networksLoading, activeNetworks, form.operator, paymentMethod]);
+
+  useEffect(() => {
+    let alive = true;
+    const loadWallet = async () => {
+      setWalletLoading(true);
+      try {
+        const { data } = await api.get('/wallet');
+        if (alive) setWalletInfo(data || null);
+      } catch {
+        if (alive) setWalletInfo(null);
+      } finally {
+        if (alive) setWalletLoading(false);
+      }
+    };
+    loadWallet();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const [shopLogoFile, setShopLogoFile] = useState(null);
   const [shopLogoPreview, setShopLogoPreview] = useState('');
@@ -187,32 +211,44 @@ export default function ShopConversionRequest() {
       setError("L'adresse de la boutique est requise.");
       return;
     }
-    if (!form.transactionName.trim()) {
-      setError('Le nom de la transaction est requis.');
-      return;
-    }
-    if (form.transactionNumber.length !== 10) {
-      setError('Le numéro de transaction doit contenir exactement 10 chiffres.');
-      return;
-    }
-    try {
-      const verification = await verifyTransactionCodeAvailability(form.transactionNumber);
-      if (!verification.available) {
-        setError(verification.message || 'Ce code de transaction est déjà utilisé.');
+    if (paymentMethod === 'wallet') {
+      const availableBalance = Number(walletInfo?.availableBalance || 0);
+      if (!walletInfo) {
+        setError('Portefeuille HDMarket indisponible. Rechargez ou réessayez plus tard.');
         return;
       }
-    } catch (verificationError) {
-      setError(
-        verificationError?.response?.data?.message ||
-          'Impossible de vérifier le numéro de transaction.'
-      );
-      return;
+      if (availableBalance < requiredAmount) {
+        setError(`Solde portefeuille insuffisant. Disponible: ${formatPrice(availableBalance)}.`);
+        return;
+      }
+    } else {
+      if (!form.transactionName.trim()) {
+        setError('Le nom de la transaction est requis.');
+        return;
+      }
+      if (form.transactionNumber.length !== 10) {
+        setError('Le numéro de transaction doit contenir exactement 10 chiffres.');
+        return;
+      }
+      try {
+        const verification = await verifyTransactionCodeAvailability(form.transactionNumber);
+        if (!verification.available) {
+          setError(verification.message || 'Ce code de transaction est déjà utilisé.');
+          return;
+        }
+      } catch (verificationError) {
+        setError(
+          verificationError?.response?.data?.message ||
+            'Impossible de vérifier le numéro de transaction.'
+        );
+        return;
+      }
     }
     if (Number(form.paymentAmount) !== requiredAmount) {
       setError(`Le montant du paiement doit être de ${requiredAmountLabel}.`);
       return;
     }
-    if (!paymentProofFile) {
+    if (paymentMethod === 'mobile_money' && !paymentProofFile) {
       setError('La preuve de boutique est requise.');
       return;
     }
@@ -223,14 +259,19 @@ export default function ShopConversionRequest() {
       payload.append('shopName', form.shopName.trim());
       payload.append('shopAddress', form.shopAddress.trim());
       payload.append('shopDescription', form.shopDescription.trim());
-      payload.append('transactionName', form.transactionName.trim());
-      payload.append('transactionNumber', form.transactionNumber);
+      payload.append('paymentMethod', paymentMethod);
+      if (paymentMethod === 'mobile_money') {
+        payload.append('transactionName', form.transactionName.trim());
+        payload.append('transactionNumber', form.transactionNumber);
+        payload.append('operator', form.operator);
+      }
       payload.append('paymentAmount', form.paymentAmount);
-      payload.append('operator', form.operator);
       if (shopLogoFile) {
         payload.append('shopLogo', shopLogoFile);
       }
-      payload.append('paymentProof', paymentProofFile);
+      if (paymentMethod === 'mobile_money') {
+        payload.append('paymentProof', paymentProofFile);
+      }
 
       const { data } = await api.post('/users/shop-conversion-requests', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -250,10 +291,12 @@ export default function ShopConversionRequest() {
         paymentAmount: String(requiredAmount),
         operator: activeNetworks.length > 0 ? activeNetworks[0].name : 'MTN'
       });
+      setPaymentMethod('mobile_money');
       setShopLogoFile(null);
       setShopLogoPreview('');
       setPaymentProofFile(null);
       setPaymentProofPreview('');
+      api.get('/wallet').then(({ data: walletData }) => setWalletInfo(walletData || null)).catch(() => {});
       await loadRequests();
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Une erreur est survenue.';
@@ -500,11 +543,57 @@ export default function ShopConversionRequest() {
                     Montant requis: <span className="text-lg text-[#FF6A00]">{requiredAmountLabel}</span>
                   </p>
                   <p className="text-xs font-semibold leading-5 text-stone-600">
-                    Veuillez effectuer un paiement de {requiredAmountLabel} et fournir les informations de
-                    transaction ci-dessous.
+                    Payez {requiredAmountLabel} par Mobile Money ou directement avec votre Portefeuille HDMarket.
                   </p>
                 </div>
 
+                <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('mobile_money')}
+                    className={`rounded-[22px] border p-4 text-left transition-all ${
+                      paymentMethod === 'mobile_money'
+                        ? 'border-[#FF6A00] bg-orange-50 text-[#9A4A00] shadow-sm'
+                        : 'border-orange-100 bg-white text-stone-700 hover:bg-orange-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={18} />
+                      <p className="text-sm font-black">Mobile Money</p>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-stone-500">Paiement avec preuve et ID transaction.</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('wallet')}
+                    className={`rounded-[22px] border p-4 text-left transition-all ${
+                      paymentMethod === 'wallet'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm'
+                        : 'border-emerald-100 bg-white text-stone-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Wallet size={18} />
+                      <p className="text-sm font-black">Portefeuille HDMarket</p>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-stone-500">
+                      {walletLoading
+                        ? 'Lecture du solde...'
+                        : walletInfo
+                          ? `Disponible: ${formatPrice(walletInfo.availableBalance || 0)}`
+                          : 'Rechargez votre portefeuille pour payer instantanément.'}
+                    </p>
+                  </button>
+                </div>
+
+                {paymentMethod === 'wallet' && (
+                  <div className="mb-6 rounded-[22px] border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                    Le paiement est débité immédiatement. Si la demande est refusée, le montant est remboursé automatiquement dans votre portefeuille.
+                  </div>
+                )}
+
+                {paymentMethod === 'mobile_money' && (
+                  <>
                 {/* Transaction image example */}
                 <div className="mb-6 rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm">
                   <p className="mb-2 text-sm font-black text-stone-900">
@@ -683,6 +772,8 @@ export default function ShopConversionRequest() {
                     </label>
                   )}
                 </div>
+                  </>
+                )}
               </div>
 
               {/* Submit Button */}

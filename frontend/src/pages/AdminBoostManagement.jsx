@@ -488,6 +488,22 @@ export default function AdminBoostManagement() {
                     </div>
                     <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
                       <p>
+                        Paiement:{' '}
+                        <span className="font-semibold text-gray-800">
+                          {item.paymentMethod === 'wallet' ? 'Portefeuille HDMarket' : 'Mobile Money'}
+                        </span>
+                      </p>
+                      <p>
+                        Statut paiement:{' '}
+                        <span className="font-semibold text-gray-800">
+                          {item.paymentStatus === 'paid'
+                            ? 'Payé'
+                            : item.paymentStatus === 'refunded'
+                              ? 'Remboursé'
+                              : 'À valider'}
+                        </span>
+                      </p>
+                      <p>
                         Opérateur: <span className="font-semibold text-gray-800">{item.paymentOperator || '-'}</span>
                       </p>
                       <p>

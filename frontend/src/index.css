@@ -1820,6 +1820,17 @@ body.menu-open .verified-shops-header {
   100% { transform: translateX(520%) skewX(-18deg); opacity: 0; }
 }
 
+@keyframes hdWalletBenefitPulse {
+  0%, 100% { transform: translateY(0); border-color: rgba(255, 255, 255, 0.12); }
+  50% { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.24); }
+}
+
+@keyframes hdWalletBenefitRail {
+  0% { transform: translateX(-86%); opacity: 0.58; }
+  50% { transform: translateX(72%); opacity: 1; }
+  100% { transform: translateX(-86%); opacity: 0.58; }
+}
+
 .hd-wallet-float {
   animation: hdWalletFloat 5.4s ease-in-out infinite;
 }
@@ -1834,6 +1845,27 @@ body.menu-open .verified-shops-header {
 
 .hd-wallet-shine {
   animation: hdWalletShine 5.6s ease-in-out infinite;
+}
+
+.hd-wallet-benefit {
+  animation: hdWalletBenefitPulse 4.8s ease-in-out infinite;
+  animation-delay: var(--wallet-benefit-delay, 0s);
+}
+
+.hd-wallet-benefit-rail {
+  animation: hdWalletBenefitRail 3.4s ease-in-out infinite;
+  animation-delay: var(--wallet-benefit-delay, 0s);
+}
+
+.hd-wallet-stat-chip::after {
+  content: '';
+  position: absolute;
+  inset-inline: 8px;
+  bottom: 2px;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
+  opacity: 0.72;
 }
 
 /* Shop Profile v2 */
@@ -2645,7 +2677,9 @@ input[type="radio"] {
   .ui-btn-spinner,
   .hd-wallet-float,
   .hd-wallet-rail,
-  .hd-wallet-pop {
+  .hd-wallet-pop,
+  .hd-wallet-benefit,
+  .hd-wallet-benefit-rail {
     animation-duration: 1200ms;
     animation-iteration-count: 1;
   }

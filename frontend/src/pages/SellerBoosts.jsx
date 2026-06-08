@@ -170,6 +170,8 @@ export default function SellerBoosts() {
                   </div>
 
                   <div className="mt-2 grid grid-cols-1 gap-1.5 text-xs text-slate-600 sm:grid-cols-2">
+                    <p>Paiement: <span className="font-semibold text-slate-800">{item.paymentMethod === 'wallet' ? 'Portefeuille HDMarket' : 'Mobile Money'}</span></p>
+                    <p>Statut paiement: <span className="font-semibold text-slate-800">{item.paymentStatus === 'paid' ? 'Payé' : item.paymentStatus === 'refunded' ? 'Remboursé' : 'À valider'}</span></p>
                     <p>Opérateur: <span className="font-semibold text-slate-800">{item.paymentOperator || '-'}</span></p>
                     <p>Expéditeur: <span className="font-semibold text-slate-800">{item.paymentSenderName || '-'}</span></p>
                     <p className="sm:col-span-2">

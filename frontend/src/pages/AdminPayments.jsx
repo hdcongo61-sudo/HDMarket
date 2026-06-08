@@ -1224,7 +1224,7 @@ export default function AdminPayments() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
               <div className="rounded-xl border border-gray-100 p-4">
                 <p className="text-xs font-semibold uppercase text-gray-500">Volume 30 jours</p>
                 <p className="mt-1 text-xl font-bold text-gray-900">
@@ -1259,6 +1259,33 @@ export default function AdminPayments() {
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
                   {formatNumber(walletStats?.completed?.withdrawals?.count || 0)} retraits
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs font-semibold uppercase text-emerald-700">Achats commandes</p>
+                <p className="mt-1 text-xl font-bold text-emerald-800">
+                  {formatCurrency(walletStats?.walletPayments?.orders?.amount || walletStats?.completed?.orderPurchases?.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-emerald-700">
+                  {formatNumber(walletStats?.walletPayments?.orders?.count || walletStats?.completed?.orderPurchases?.count || 0)} paiements wallet
+                </p>
+              </div>
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                <p className="text-xs font-semibold uppercase text-indigo-700">Annonces / boosts</p>
+                <p className="mt-1 text-xl font-bold text-indigo-800">
+                  {formatCurrency(walletStats?.walletPayments?.boosts?.amount || walletStats?.completed?.boostPurchases?.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-indigo-700">
+                  {formatNumber(walletStats?.walletPayments?.boosts?.count || walletStats?.completed?.boostPurchases?.count || 0)} paiements wallet
+                </p>
+              </div>
+              <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
+                <p className="text-xs font-semibold uppercase text-sky-700">Devenir boutique</p>
+                <p className="mt-1 text-xl font-bold text-sky-800">
+                  {formatCurrency(walletStats?.walletPayments?.shopConversions?.amount || walletStats?.completed?.shopConversionPurchases?.amount || 0)}
+                </p>
+                <p className="mt-1 text-xs text-sky-700">
+                  {formatNumber(walletStats?.walletPayments?.shopConversions?.count || walletStats?.completed?.shopConversionPurchases?.count || 0)} paiements wallet
                 </p>
               </div>
             </div>

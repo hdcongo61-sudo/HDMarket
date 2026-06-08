@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CreditCard, Hash, Loader2, Receipt, Sparkles, Upload } from 'lucide-react';
+import { AlertCircle, CreditCard, Hash, Loader2, Receipt, Sparkles, Upload, Wallet } from 'lucide-react';
 import api, { verifyTransactionCodeAvailability } from '../services/api';
 import { useNetworks } from '../hooks/useNetworks';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -37,9 +37,12 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   const [duration, setDuration] = useState(7);
   const [city, setCity] = useState(normalizedDefaultCity || cityOptions[0] || '');
   const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
   const [paymentOperator, setPaymentOperator] = useState('');
   const [paymentSenderName, setPaymentSenderName] = useState('');
   const [paymentTransactionId, setPaymentTransactionId] = useState('');
+  const [walletInfo, setWalletInfo] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
@@ -82,10 +85,30 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   }, [city, cityOptions, normalizedDefaultCity]);
 
   useEffect(() => {
+    if (paymentMethod !== 'mobile_money') return;
     if (!paymentOperator && activeNetworks.length > 0) {
       setPaymentOperator(activeNetworks[0].name);
     }
-  }, [activeNetworks, paymentOperator]);
+  }, [activeNetworks, paymentMethod, paymentOperator]);
+
+  useEffect(() => {
+    let alive = true;
+    const loadWallet = async () => {
+      setWalletLoading(true);
+      try {
+        const { data } = await api.get('/wallet');
+        if (alive) setWalletInfo(data || null);
+      } catch {
+        if (alive) setWalletInfo(null);
+      } finally {
+        if (alive) setWalletLoading(false);
+      }
+    };
+    loadWallet();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const loadPreview = async () => {
@@ -132,29 +155,46 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
       setSubmitError('Aucune ville active n’est configurée pour ce boost local.');
       return;
     }
-    if (!String(paymentOperator || '').trim()) {
-      setSubmitError('Choisissez un opérateur Mobile Money.');
-      return;
-    }
     const cleanSenderName = paymentSenderName.trim();
     const cleanTransactionId = String(paymentTransactionId || '').replace(/\D/g, '');
-    if (!cleanSenderName) {
-      setSubmitError('Le nom de l’expéditeur est requis.');
-      return;
-    }
-    if (cleanTransactionId.length !== 10) {
-      setSubmitError('L’ID de transaction doit contenir exactement 10 chiffres.');
-      return;
-    }
-    try {
-      const verification = await verifyTransactionCodeAvailability(cleanTransactionId);
-      if (!verification.available) {
-        setSubmitError(verification.message || 'Ce code de transaction est déjà utilisé.');
+    if (paymentMethod === 'wallet') {
+      const totalPrice = Number(preview?.totalPrice || 0);
+      const availableBalance = Number(walletInfo?.availableBalance || 0);
+      if (!walletInfo) {
+        setSubmitError('Portefeuille HDMarket indisponible. Rechargez ou réessayez plus tard.');
         return;
       }
-    } catch (error) {
-      setSubmitError(error?.response?.data?.message || 'Impossible de vérifier l’ID de transaction.');
-      return;
+      if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
+        setSubmitError('Le prix du boost doit être calculé avant de payer par portefeuille.');
+        return;
+      }
+      if (availableBalance < totalPrice) {
+        setSubmitError(`Solde portefeuille insuffisant. Disponible: ${formatPrice(availableBalance)}.`);
+        return;
+      }
+    } else {
+      if (!String(paymentOperator || '').trim()) {
+        setSubmitError('Choisissez un opérateur Mobile Money.');
+        return;
+      }
+      if (!cleanSenderName) {
+        setSubmitError('Le nom de l’expéditeur est requis.');
+        return;
+      }
+      if (cleanTransactionId.length !== 10) {
+        setSubmitError('L’ID de transaction doit contenir exactement 10 chiffres.');
+        return;
+      }
+      try {
+        const verification = await verifyTransactionCodeAvailability(cleanTransactionId);
+        if (!verification.available) {
+          setSubmitError(verification.message || 'Ce code de transaction est déjà utilisé.');
+          return;
+        }
+      } catch (error) {
+        setSubmitError(error?.response?.data?.message || 'Impossible de vérifier l’ID de transaction.');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -164,17 +204,22 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
       payload.append('duration', String(duration));
       if (requiresCity) payload.append('city', city);
       if (selectedProductIds.length) payload.append('productIds', JSON.stringify(selectedProductIds));
-      payload.append('paymentOperator', String(paymentOperator || '').trim());
-      payload.append('paymentSenderName', cleanSenderName);
-      payload.append('paymentTransactionId', cleanTransactionId);
+      payload.append('paymentMethod', paymentMethod);
+      if (paymentMethod === 'mobile_money') {
+        payload.append('paymentOperator', String(paymentOperator || '').trim());
+        payload.append('paymentSenderName', cleanSenderName);
+        payload.append('paymentTransactionId', cleanTransactionId);
+      }
       const { data } = await api.post('/boosts/requests', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setPaymentSenderName('');
       setPaymentTransactionId('');
       setPaymentOperator(activeNetworks[0]?.name || '');
+      setPaymentMethod('mobile_money');
       setSelectedProductIds([]);
       setPreview(null);
+      api.get('/wallet').then(({ data: walletData }) => setWalletInfo(walletData || null)).catch(() => {});
       onSubmitted?.(data);
     } catch (error) {
       setSubmitError(error.response?.data?.message || 'Impossible d’envoyer la demande de boost.');
@@ -289,9 +334,60 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             Montant à payer: <span className="text-base">{formatPrice(preview?.totalPrice || 0)}</span>
           </p>
           <p className="mt-1 text-xs text-neutral-700">
-            Après paiement Mobile Money, renseignez le nom de l’expéditeur et l’ID de transaction.
+            Payez par Mobile Money ou directement avec votre Portefeuille HDMarket.
           </p>
         </div>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod('mobile_money')}
+            className={`rounded-2xl border p-3 text-left transition ${
+              paymentMethod === 'mobile_money'
+                ? 'border-[#ff6a00] bg-white text-[#9a4a00] shadow-sm'
+                : 'border-orange-100 bg-white/80 text-slate-700 hover:border-orange-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              <p className="text-sm font-black">Mobile Money</p>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">Soumettre l’ID transaction pour validation admin.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod('wallet')}
+            className={`rounded-2xl border p-3 text-left transition ${
+              paymentMethod === 'wallet'
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm'
+                : 'border-emerald-100 bg-white/80 text-slate-700 hover:border-emerald-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              <p className="text-sm font-black">Portefeuille HDMarket</p>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              {walletLoading
+                ? 'Lecture du solde...'
+                : walletInfo
+                  ? `Disponible: ${formatPrice(walletInfo.availableBalance || 0)}`
+                  : 'Rechargez votre portefeuille pour payer instantanément.'}
+            </p>
+          </button>
+        </div>
+
+        {paymentMethod === 'wallet' && (
+          <div className="rounded-2xl border border-emerald-100 bg-white p-3 text-sm text-emerald-800">
+            <p className="font-semibold">Paiement instantané par portefeuille.</p>
+            <p className="mt-1 text-xs">
+              Si l’annonce boostée est refusée par l’admin, le montant est remboursé automatiquement dans le portefeuille.
+            </p>
+          </div>
+        )}
+
+        {paymentMethod === 'mobile_money' && (
+          <>
         <div className="rounded-2xl border border-orange-100 bg-white p-3">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Opérateur Mobile Money</p>
           {networksLoading ? (
@@ -363,6 +459,8 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             </div>
           </label>
         </div>
+          </>
+        )}
       </div>
 
       <div className="mt-4 rounded-2xl border border-orange-100 bg-white/85 p-3">

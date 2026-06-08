@@ -36,9 +36,22 @@ const boostRequestSchema = new mongoose.Schema(
     seasonalCampaignId: { type: mongoose.Schema.Types.ObjectId, ref: 'SeasonalPricing', default: null },
     seasonalCampaignName: { type: String, trim: true, default: '' },
     totalPrice: { type: Number, min: 0, required: true },
+    paymentMethod: {
+      type: String,
+      enum: ['mobile_money', 'wallet'],
+      default: 'mobile_money',
+      index: true
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending_admin_validation', 'paid', 'refunded'],
+      default: 'pending_admin_validation',
+      index: true
+    },
     paymentOperator: { type: String, trim: true, default: '' },
     paymentSenderName: { type: String, trim: true, default: '' },
     paymentTransactionId: { type: String, trim: true, default: '' },
+    walletTransactionId: { type: String, trim: true, default: '' },
     paymentProofImage: { type: boostPaymentProofSchema, default: () => ({}) },
     status: { type: String, enum: BOOST_REQUEST_STATUSES, default: 'PENDING', index: true },
     startDate: { type: Date, default: null, index: true },
@@ -74,7 +87,16 @@ boostRequestSchema.pre('validate', function validateBoostRequest(next) {
   this.paymentOperator = String(this.paymentOperator || '').trim();
   this.paymentSenderName = String(this.paymentSenderName || '').trim();
   this.paymentTransactionId = String(this.paymentTransactionId || '').replace(/\D/g, '');
-  if (this.isNew) {
+  this.walletTransactionId = String(this.walletTransactionId || '').trim();
+  if (this.paymentMethod === 'wallet') {
+    if (this.isNew && this.paymentStatus === 'pending_admin_validation') {
+      this.paymentStatus = 'paid';
+    }
+    this.paymentOperator = this.paymentOperator || 'HDMarket Wallet';
+    this.paymentSenderName = this.paymentSenderName || 'Portefeuille HDMarket';
+    this.paymentTransactionId = '';
+  }
+  if (this.isNew && this.paymentMethod !== 'wallet') {
     if (!this.paymentOperator) {
       return next(new Error('L’opérateur Mobile Money est requis.'));
     }

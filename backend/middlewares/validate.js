@@ -395,12 +395,25 @@ export const schemas = {
     ),
     city: Joi.string().trim().min(2).max(80).allow('', null),
     duration: Joi.number().integer().min(1).max(365).default(1),
-    paymentOperator: Joi.string().trim().min(2).max(40).required(),
-    paymentSenderName: Joi.string().trim().min(2).max(120).required(),
-    paymentTransactionId: Joi.string()
-      .pattern(/^\d{10}$/)
-      .required()
-      .messages({ 'string.pattern.base': 'L’ID de transaction doit contenir exactement 10 chiffres.' })
+    paymentMethod: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    paymentOperator: Joi.when('paymentMethod', {
+      is: 'wallet',
+      then: Joi.string().trim().max(40).allow('', null),
+      otherwise: Joi.string().trim().min(2).max(40).required()
+    }),
+    paymentSenderName: Joi.when('paymentMethod', {
+      is: 'wallet',
+      then: Joi.string().trim().max(120).allow('', null),
+      otherwise: Joi.string().trim().min(2).max(120).required()
+    }),
+    paymentTransactionId: Joi.when('paymentMethod', {
+      is: 'wallet',
+      then: Joi.string().trim().allow('', null),
+      otherwise: Joi.string()
+        .pattern(/^\d{10}$/)
+        .required()
+        .messages({ 'string.pattern.base': 'L’ID de transaction doit contenir exactement 10 chiffres.' })
+    })
   }),
   boostRequestListQuery: Joi.object({
     page: Joi.number().integer().min(1).default(1),
