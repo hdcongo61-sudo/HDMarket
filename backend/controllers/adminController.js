@@ -230,6 +230,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     paymentsRejected,
     totalRevenueAgg,
     revenueLast30Agg,
+    paymentChannelAgg,
     orderStatusAgg,
     favoritesAgg,
     totalComments,
@@ -268,6 +269,52 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Payment.aggregate([
       { $match: { status: 'verified', createdAt: { $gte: thirtyDaysAgo } } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]),
+    Payment.aggregate([
+      {
+        $match: {
+          $or: [
+            { paymentType: 'LISTING_FEE' },
+            { product: { $exists: true, $ne: null } }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          resolvedPaymentChannel: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: ['$paymentMethod', 'wallet'] },
+                  { $eq: ['$operator', 'HDMARKET_WALLET'] },
+                  { $ne: [{ $ifNull: ['$walletTransactionId', ''] }, ''] }
+                ]
+              },
+              'wallet',
+              'mobile_money'
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$resolvedPaymentChannel',
+          count: { $sum: 1 },
+          amount: { $sum: { $ifNull: ['$amount', 0] } },
+          verifiedCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'verified'] }, 1, 0] }
+          },
+          verifiedAmount: {
+            $sum: { $cond: [{ $eq: ['$status', 'verified'] }, { $ifNull: ['$amount', 0] }, 0] }
+          },
+          waitingCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'waiting'] }, 1, 0] }
+          },
+          rejectedCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] }
+          }
+        }
+      }
     ]),
     Order.aggregate([
       {
@@ -310,7 +357,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Payment.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('payerName amount status operator createdAt validatedAt')
+      .select('payerName amount status operator paymentMethod walletTransactionId createdAt validatedAt')
       .populate('product', 'title')
       .populate('user', 'name')
       .populate('validatedBy', 'name')
@@ -393,6 +440,37 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   const totalRevenue = totalRevenueAgg[0]?.total || 0;
   const revenueLast30Days = revenueLast30Agg[0]?.total || 0;
   const totalFavorites = favoritesAgg[0]?.total || 0;
+  const emptyPaymentChannel = () => ({
+    count: 0,
+    amount: 0,
+    verifiedCount: 0,
+    verifiedAmount: 0,
+    waitingCount: 0,
+    rejectedCount: 0
+  });
+  const paymentChannels = {
+    mobileMoney: emptyPaymentChannel(),
+    wallet: emptyPaymentChannel(),
+    total: emptyPaymentChannel()
+  };
+  paymentChannelAgg.forEach((entry) => {
+    const key = entry?._id === 'wallet' ? 'wallet' : 'mobileMoney';
+    const normalized = {
+      count: Number(entry?.count || 0),
+      amount: Number(entry?.amount || 0),
+      verifiedCount: Number(entry?.verifiedCount || 0),
+      verifiedAmount: Number(entry?.verifiedAmount || 0),
+      waitingCount: Number(entry?.waitingCount || 0),
+      rejectedCount: Number(entry?.rejectedCount || 0)
+    };
+    paymentChannels[key] = normalized;
+    paymentChannels.total.count += normalized.count;
+    paymentChannels.total.amount += normalized.amount;
+    paymentChannels.total.verifiedCount += normalized.verifiedCount;
+    paymentChannels.total.verifiedAmount += normalized.verifiedAmount;
+    paymentChannels.total.waitingCount += normalized.waitingCount;
+    paymentChannels.total.rejectedCount += normalized.rejectedCount;
+  });
   const orderStatuses = ['pending', 'confirmed', 'delivering', 'delivered'];
   const ordersByStatus = orderStatuses.reduce((acc, status) => {
     acc[status] = { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0 };
@@ -454,6 +532,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     amount: payment.amount,
     status: payment.status,
     operator: payment.operator,
+    paymentMethod: payment.paymentMethod || '',
+    walletTransactionId: payment.walletTransactionId || '',
     product: payment.product ? payment.product.title : null,
     user: payment.user ? payment.user.name : null,
     validator: payment.validatedBy ? payment.validatedBy.name : null,
@@ -526,7 +606,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       verified: paymentsVerified,
       rejected: paymentsRejected,
       revenue: totalRevenue,
-      revenueLast30Days
+      revenueLast30Days,
+      channels: paymentChannels
     },
     engagement: {
       favorites: totalFavorites,

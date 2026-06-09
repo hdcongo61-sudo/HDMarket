@@ -259,6 +259,9 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
           <p className={`mt-1.5 max-w-2xl ${compact ? 'text-[12px] leading-5' : 'text-[13px] leading-5'} font-medium text-emerald-50/82`}>
             {t('home.walletSubtitle', 'Rechargez une fois votre portefeuille HDMarket, commandez plus facilement, suivez vos mouvements et recevez les remboursements éligibles directement sur votre solde.')}
           </p>
+          <p className="mt-1 inline-flex rounded-full border border-white/12 bg-white/10 px-2.5 py-1 text-[10px] font-black text-emerald-50 sm:text-[11px]">
+            {t('home.walletListingAutoValidation', 'Faites valider vos annonces automatiquement.')}
+          </p>
           <div className={`mt-3 grid gap-2.5 ${compact ? 'grid-cols-3 max-[420px]:grid-cols-1' : 'sm:grid-cols-3'}`}>
             {benefits.map(({ icon: Icon, label, text, stat, tone, glow }, index) => (
               <div

@@ -277,6 +277,7 @@ export const schemas = {
   }),
   paymentCreate: Joi.object({
     productId: Joi.string().hex().length(24).required(),
+    paymentMethod: Joi.string().valid('mobile_money', 'wallet', 'promo').default('mobile_money'),
     promoCode: Joi.string().trim().uppercase().max(40).allow('', null),
     payerName: Joi.string().min(2).max(120).allow('', null),
     transactionNumber: Joi.string()

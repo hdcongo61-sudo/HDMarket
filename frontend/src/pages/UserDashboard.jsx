@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
@@ -62,6 +62,7 @@ import { appConfirm } from '../utils/appDialog';
 import { useAppSettings } from '../context/AppSettingsContext';
 
 const ITEMS_PER_PAGE = 12;
+const MOBILE_ITEMS_BATCH = 12;
 const RECENT_CREATE_HIGHLIGHT_MS = 12000;
 
 const STATUS_LABELS = {
@@ -147,11 +148,13 @@ export default function UserDashboard() {
   const isShopUser = user?.accountType === 'shop';
   const sellingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_selling', true), true);
   const [items, setItems] = useState([]);
+  const mobileLoadMoreRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isProductModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [mobileVisibleCount, setMobileVisibleCount] = useState(MOBILE_ITEMS_BATCH);
   const [statusFilter, setStatusFilter] = useState('all');
   const [updatingId, setUpdatingId] = useState('');
   const [selectedProducts, setSelectedProducts] = useState(new Set());
@@ -727,13 +730,23 @@ export default function UserDashboard() {
 
   // Pagination
   const totalPages = visibleItems.length ? Math.ceil(visibleItems.length / ITEMS_PER_PAGE) : 1;
+  const hasMoreMobileItems = isMobile && mobileVisibleCount < visibleItems.length;
   const paginatedItems = useMemo(() => {
+    if (isMobile) {
+      return visibleItems.slice(0, mobileVisibleCount);
+    }
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return visibleItems.slice(start, start + ITEMS_PER_PAGE);
-  }, [visibleItems, currentPage]);
+  }, [visibleItems, currentPage, isMobile, mobileVisibleCount]);
 
-  const currentRangeStart = visibleItems.length ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
-  const currentRangeEnd = Math.min(visibleItems.length, currentPage * ITEMS_PER_PAGE);
+  const currentRangeStart = isMobile
+    ? (visibleItems.length ? 1 : 0)
+    : visibleItems.length
+    ? (currentPage - 1) * ITEMS_PER_PAGE + 1
+    : 0;
+  const currentRangeEnd = isMobile
+    ? Math.min(visibleItems.length, mobileVisibleCount)
+    : Math.min(visibleItems.length, currentPage * ITEMS_PER_PAGE);
 
   const goToPage = (page) => {
     const nextPage = Math.min(Math.max(page, 1), totalPages);
@@ -743,6 +756,7 @@ export default function UserDashboard() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setMobileVisibleCount(MOBILE_ITEMS_BATCH);
     setSelectedProducts(new Set()); // Clear selection when filter changes
   }, [
     statusFilter,
@@ -757,6 +771,32 @@ export default function UserDashboard() {
     installmentFilter,
     sortBy
   ]);
+
+  useEffect(() => {
+    setMobileVisibleCount(MOBILE_ITEMS_BATCH);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile || !hasMoreMobileItems) return undefined;
+    const node = mobileLoadMoreRef.current;
+    if (!node) return undefined;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        setMobileVisibleCount((prev) => Math.min(prev + MOBILE_ITEMS_BATCH, visibleItems.length));
+      },
+      { rootMargin: '420px 0px 520px 0px', threshold: 0.01 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMoreMobileItems, isMobile, visibleItems.length]);
 
   useEffect(() => {
     if (!recentlyCreatedProductId) return undefined;
@@ -2553,7 +2593,7 @@ export default function UserDashboard() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {!isMobile && totalPages > 1 && (
               <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <p className="text-sm text-gray-600">
                   Affichage <span className="font-bold text-gray-900">{currentRangeStart}</span> -{' '}
@@ -2586,6 +2626,28 @@ export default function UserDashboard() {
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+            )}
+            {isMobile && visibleItems.length > MOBILE_ITEMS_BATCH && (
+              <div ref={mobileLoadMoreRef} className="mt-6 flex flex-col items-center gap-3 px-2 pb-4">
+                <p className="text-xs font-medium text-gray-500">
+                  {currentRangeEnd} sur {visibleItems.length} annonce{visibleItems.length > 1 ? 's' : ''}
+                </p>
+                {hasMoreMobileItems ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileVisibleCount((prev) => Math.min(prev + MOBILE_ITEMS_BATCH, visibleItems.length));
+                    }}
+                    className="w-full rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 shadow-sm transition-all active:scale-[0.99]"
+                  >
+                    Voir plus
+                  </button>
+                ) : (
+                  <div className="rounded-full bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-500">
+                    Toutes les annonces sont affichées
+                  </div>
+                )}
               </div>
             )}
           </>

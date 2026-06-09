@@ -55,6 +55,28 @@ const paymentStatusStyles = {
   rejected: 'bg-red-100 text-red-800'
 };
 
+const isWalletListingPayment = (payment = {}) =>
+  payment?.paymentMethod === 'wallet' ||
+  payment?.operator === 'HDMARKET_WALLET' ||
+  Boolean(String(payment?.walletTransactionId || payment?.metadata?.walletTransactionId || '').trim());
+
+const getPaymentChannelLabel = (payment = {}) =>
+  isWalletListingPayment(payment) ? 'Portefeuille HDMarket' : 'Mobile Money';
+
+const getPaymentOperatorLabel = (payment = {}) => {
+  if (isWalletListingPayment(payment)) return 'Portefeuille HDMarket';
+  const value = String(payment?.operator || '').trim();
+  const labels = {
+    MTN_MONEY: 'MTN Money',
+    AIRTEL_MONEY: 'Airtel Money',
+    ORANGE_MONEY: 'Orange Money',
+    CASH: 'Cash',
+    CARD: 'Carte',
+    OTHER: 'Autre'
+  };
+  return labels[value] || value || '—';
+};
+
 const PAYMENTS_PER_PAGE = 12;
 const getPaymentSortTimestamp = (payment) => {
   const candidates = [
@@ -613,6 +635,13 @@ export default function AdminPayments() {
   }, [actionMessage, actionError]);
 
   const paymentSummary = stats?.payments || {};
+  const paymentChannels = paymentSummary.channels || {};
+  const mobileMoneyChannel = paymentChannels.mobileMoney || {};
+  const walletChannel = paymentChannels.wallet || {};
+  const channelTotal = paymentChannels.total || {};
+  const walletShare = Number(channelTotal.amount || 0) > 0
+    ? Math.round((Number(walletChannel.amount || 0) / Number(channelTotal.amount || 0)) * 100)
+    : 0;
 
   const computeWindowStats = useCallback(
     (days) => {
@@ -694,6 +723,47 @@ export default function AdminPayments() {
             <DashboardCard label="24 heures" value={`${formatNumber(dayStats.count)} paiements`} hint={`Montant : ${formatCurrency(dayStats.amount)}`} icon={Gauge} tone="blue" />
             <DashboardCard label="7 jours" value={`${formatNumber(weekStats.count)} paiements`} hint={`Montant : ${formatCurrency(weekStats.amount)}`} icon={TrendingUp} tone="indigo" />
             <DashboardCard label="30 jours" value={`${formatNumber(monthStats.count)} paiements`} hint={`Montant : ${formatCurrency(monthStats.amount)}`} icon={Banknote} tone="green" />
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">Canaux de paiement annonce</p>
+                <h3 className="text-base font-black text-slate-950">Mobile Money vs Portefeuille HDMarket</h3>
+              </div>
+              <p className="text-xs font-semibold text-slate-500">
+                {formatNumber(channelTotal.count || 0)} paiement{Number(channelTotal.count || 0) > 1 ? 's' : ''} analysé{Number(channelTotal.count || 0) > 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <DashboardCard
+                label="Mobile Money"
+                value={formatCurrency(mobileMoneyChannel.amount || 0)}
+                hint={`${formatNumber(mobileMoneyChannel.count || 0)} paiements • ${formatNumber(mobileMoneyChannel.verifiedCount || 0)} validés`}
+                icon={CreditCard}
+                tone="orange"
+              />
+              <DashboardCard
+                label="Portefeuille HDMarket"
+                value={formatCurrency(walletChannel.amount || 0)}
+                hint={`${formatNumber(walletChannel.count || 0)} paiements • ${formatNumber(walletChannel.verifiedCount || 0)} auto-validés`}
+                icon={Wallet}
+                tone="green"
+              />
+              <DashboardCard
+                label="En attente Mobile Money"
+                value={formatNumber(mobileMoneyChannel.waitingCount || 0)}
+                hint={`${formatNumber(mobileMoneyChannel.rejectedCount || 0)} refusés côté Mobile Money`}
+                icon={Clock3}
+                tone="amber"
+              />
+              <DashboardCard
+                label="Part portefeuille"
+                value={`${walletShare}%`}
+                hint="Part du volume annonce payé par wallet"
+                icon={Gauge}
+                tone="indigo"
+              />
+            </div>
           </div>
         </section>
 
@@ -872,7 +942,8 @@ export default function AdminPayments() {
                       Payeur : <span className="font-semibold text-gray-900">{payment.payerName || '—'}</span>
                     </p>
                     <p>Email : {payment.user?.email || '—'}</p>
-                    <p>Opérateur : {payment.operator || '—'}</p>
+                    <p>Méthode : <span className="font-semibold text-gray-900">{getPaymentChannelLabel(payment)}</span></p>
+                    <p>Opérateur : {getPaymentOperatorLabel(payment)}</p>
                     {payment.promoCodeValue ? (
                       <p className="text-emerald-700">Code promo : {payment.promoCodeValue}</p>
                     ) : null}
@@ -1013,7 +1084,7 @@ export default function AdminPayments() {
                   <th className="p-2 border text-left">Annonce</th>
                   <th className="p-2 border text-left">Prix</th>
                   <th className="p-2 border text-left">Payeur</th>
-                  <th className="p-2 border text-left">Opérateur</th>
+                  <th className="p-2 border text-left">Méthode</th>
                   <th className="p-2 border text-left">Montant</th>
                   <th className="p-2 border text-left">Preuve</th>
                   <th className="p-2 border text-left">Validé par</th>
@@ -1045,7 +1116,10 @@ export default function AdminPayments() {
                           <p className="text-xs text-emerald-700 font-semibold">{payment.promoCodeValue}</p>
                         ) : null}
                       </td>
-                      <td className="p-2 border align-top">{payment.operator || '—'}</td>
+                      <td className="p-2 border align-top">
+                        <p className="font-semibold text-gray-900">{getPaymentChannelLabel(payment)}</p>
+                        <p className="text-xs text-gray-500">{getPaymentOperatorLabel(payment)}</p>
+                      </td>
                       <td className="p-2 border align-top">
                         <p className="font-medium">{formatCurrency(payment.amount)}</p>
                         <p className="text-xs text-gray-500">

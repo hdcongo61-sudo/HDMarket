@@ -40,6 +40,9 @@ const mapLegacyOperator = (value) => {
   if (normalized === 'MTN') return 'MTN_MONEY';
   if (normalized === 'AIRTEL') return 'AIRTEL_MONEY';
   if (normalized === 'ORANGE') return 'ORANGE_MONEY';
+  if (['HDMARKET_WALLET', 'HDMARKET WALLET', 'WALLET', 'PORTEFEUILLE HDMARKET'].includes(normalized)) {
+    return 'HDMARKET_WALLET';
+  }
   return normalized || 'OTHER';
 };
 
@@ -112,7 +115,7 @@ const paymentSchema = new mongoose.Schema(
     },
     operator: {
       type: String,
-      enum: ['MTN_MONEY', 'AIRTEL_MONEY', 'ORANGE_MONEY', 'CASH', 'CARD', 'OTHER'],
+      enum: ['MTN_MONEY', 'AIRTEL_MONEY', 'ORANGE_MONEY', 'HDMARKET_WALLET', 'CASH', 'CARD', 'OTHER'],
       required: true,
       set: mapLegacyOperator
     },
@@ -124,7 +127,7 @@ const paymentSchema = new mongoose.Schema(
     },
     verificationMethod: {
       type: String,
-      enum: ['MANUAL', 'API', 'WEBHOOK'],
+      enum: ['MANUAL', 'API', 'WEBHOOK', 'WALLET'],
       default: 'MANUAL'
     },
     status: {
@@ -182,6 +185,13 @@ const paymentSchema = new mongoose.Schema(
     commissionBaseAmount: { type: Number, min: 0, default: 0 },
     commissionDiscountAmount: { type: Number, min: 0, default: 0 },
     commissionDueAmount: { type: Number, min: 0, default: 0 },
+    paymentMethod: {
+      type: String,
+      enum: ['mobile_money', 'wallet', 'promo'],
+      default: 'mobile_money',
+      index: true
+    },
+    walletTransactionId: { type: String, trim: true, default: '' },
     waivedByPromo: { type: Boolean, default: false },
     promoCode: { type: mongoose.Schema.Types.ObjectId, ref: 'PromoCode', default: null },
     promoCodeValue: { type: String, trim: true, uppercase: true, default: '' },

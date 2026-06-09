@@ -11,7 +11,8 @@ import {
   DollarSign,
   Send,
   Shield,
-  Ticket
+  Ticket,
+  Wallet
 } from 'lucide-react';
 import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hooks/useNetworks';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -56,6 +57,10 @@ export default function PaymentForm({ product, onSubmitted }) {
     amount: expected,
     promoCode: ''
   });
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [wallet, setWallet] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState('');
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoState, setPromoState] = useState({
@@ -74,6 +79,9 @@ export default function PaymentForm({ product, onSubmitted }) {
 
   const commissionDue = Number(commission.dueAmount || 0);
   const hasCommissionDue = commissionDue > 0;
+  const isWalletPayment = hasCommissionDue && paymentMethod === 'wallet';
+  const walletAvailableBalance = Number(wallet?.availableBalance ?? wallet?.balance ?? 0);
+  const hasEnoughWalletBalance = walletAvailableBalance >= commissionDue;
 
   const { networks } = useNetworks();
   const sendMoneyNumber =
@@ -106,6 +114,34 @@ export default function PaymentForm({ product, onSubmitted }) {
       });
     }
   }, [normalizedPromoCode, promoState.status, expected]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadWallet = async () => {
+      if (!hasCommissionDue || paymentMethod !== 'wallet') return;
+      setWalletLoading(true);
+      setWalletError('');
+      try {
+        const { data } = await api.get('/wallet', {
+          skipCache: true,
+          skipDedupe: true
+        });
+        if (!cancelled) setWallet(data || null);
+      } catch (error) {
+        if (!cancelled) {
+          setWalletError(error?.response?.data?.message || 'Impossible de charger votre portefeuille.');
+        }
+      } finally {
+        if (!cancelled) setWalletLoading(false);
+      }
+    };
+
+    loadWallet();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCommissionDue, paymentMethod]);
 
   const reconcilePaymentAfterTimeout = async ({ productId, transactionNumber }) => {
     const normalizedTransaction = String(transactionNumber || '').replace(/\D/g, '').trim();
@@ -184,21 +220,36 @@ export default function PaymentForm({ product, onSubmitted }) {
     }
 
     const payerName = String(form.payerName || '').trim();
-    if (hasCommissionDue && payerName.length < 2) {
+    if (isWalletPayment) {
+      if (walletLoading) {
+        appAlert('Chargement du solde portefeuille. Veuillez patienter.');
+        return;
+      }
+      if (walletError) {
+        appAlert(walletError);
+        return;
+      }
+      if (!hasEnoughWalletBalance) {
+        appAlert('Solde portefeuille insuffisant pour valider cette annonce.');
+        return;
+      }
+    }
+
+    if (hasCommissionDue && !isWalletPayment && payerName.length < 2) {
       appAlert('Le nom du payeur doit contenir au moins 2 caractères.');
       return;
     }
-    if (hasCommissionDue && !ALLOWED_PAYMENT_OPERATORS.has(form.operator)) {
+    if (hasCommissionDue && !isWalletPayment && !ALLOWED_PAYMENT_OPERATORS.has(form.operator)) {
       appAlert('Veuillez sélectionner un opérateur valide.');
       return;
     }
 
     const digitsOnly = (form.transactionNumber || '').replace(/\D/g, '');
-    if (hasCommissionDue && digitsOnly.length !== 10) {
+    if (hasCommissionDue && !isWalletPayment && digitsOnly.length !== 10) {
       appAlert('Le numéro de transaction doit contenir exactement 10 chiffres.');
       return;
     }
-    if (hasCommissionDue) {
+    if (hasCommissionDue && !isWalletPayment) {
       try {
         const verification = await verifyTransactionCodeAvailability(digitsOnly);
         if (!verification.available) {
@@ -243,14 +294,15 @@ export default function PaymentForm({ product, onSubmitted }) {
 
       const payload = {
         productId: product._id,
-        amount: safeCommissionDue
+        amount: safeCommissionDue,
+        paymentMethod: isWalletPayment ? 'wallet' : 'mobile_money'
       };
 
       if (isValidatedPromo) {
         payload.promoCode = normalizedPromoCode;
       }
 
-      if (hasCommissionDue) {
+      if (hasCommissionDue && !isWalletPayment) {
         payload.payerName = payerName;
         payload.operator = form.operator;
         payload.transactionNumber = digitsOnly;
@@ -271,6 +323,8 @@ export default function PaymentForm({ product, onSubmitted }) {
       appAlert(
         data?.alreadySubmitted
           ? 'Paiement déjà enregistré. Il est en attente de vérification.'
+          : isWalletPayment
+          ? 'Paiement portefeuille réussi. Votre annonce est validée.'
           : 'Paiement soumis. En attente de vérification.'
       );
       if (onSubmitted) await onSubmitted();
@@ -299,7 +353,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         });
         if (alreadyRecorded) {
           submitIdempotencyKeyRef.current = '';
-          appAlert('Paiement enregistré. En attente de vérification par l’admin.');
+          appAlert(isWalletPayment ? 'Paiement portefeuille enregistré.' : 'Paiement enregistré. En attente de vérification par l’admin.');
         } else {
           appAlert(
             'Paiement en cours de confirmation. Le statut sera synchronisé automatiquement.'
@@ -324,6 +378,10 @@ export default function PaymentForm({ product, onSubmitted }) {
   const isSubmitDisabled =
     loading ||
     (hasCommissionDue &&
+      isWalletPayment &&
+      (walletLoading || walletError || !hasEnoughWalletBalance)) ||
+    (hasCommissionDue &&
+      !isWalletPayment &&
       (String(form.payerName || '').trim().length < 2 ||
         !ALLOWED_PAYMENT_OPERATORS.has(form.operator) ||
         String(form.transactionNumber || '').replace(/\D/g, '').length !== 10));
@@ -525,9 +583,8 @@ export default function PaymentForm({ product, onSubmitted }) {
               <h3 className="font-semibold text-amber-800 text-sm">Instructions de paiement</h3>
               {hasCommissionDue ? (
                 <p className="text-amber-700 text-sm">
-                  Effectuez un transfert mobile de{' '}
-                  <span className="font-bold">{formatCurrency(commissionDue)}</span> et renseignez les
-                  détails de la transaction ci-dessous.
+                  Choisissez Mobile Money pour une vérification admin, ou utilisez votre Portefeuille HDMarket
+                  pour valider l’annonce immédiatement.
                 </p>
               ) : (
                 <p className="text-amber-700 text-sm">
@@ -553,7 +610,70 @@ export default function PaymentForm({ product, onSubmitted }) {
 
         <form onSubmit={submit} className="space-y-4">
           {hasCommissionDue && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('mobile_money')}
+                  disabled={loading}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    paymentMethod === 'mobile_money'
+                      ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950'
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    <CreditCard className="h-4 w-4" />
+                    Mobile Money
+                  </span>
+                  <span className={`mt-1 block text-xs ${paymentMethod === 'mobile_money' ? 'text-white/75 dark:text-slate-700' : 'text-gray-500 dark:text-slate-400'}`}>
+                    ID transaction, validation admin.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('wallet')}
+                  disabled={loading}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    paymentMethod === 'wallet'
+                      ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-emerald-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    <Wallet className="h-4 w-4" />
+                    Portefeuille HDMarket
+                  </span>
+                  <span className={`mt-1 block text-xs ${paymentMethod === 'wallet' ? 'text-white/80' : 'text-gray-500 dark:text-slate-400'}`}>
+                    Débit instantané, annonce validée.
+                  </span>
+                </button>
+              </div>
+
+              {isWalletPayment && (
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${
+                  walletError
+                    ? 'border-red-200 bg-red-50 text-red-700'
+                    : hasEnoughWalletBalance
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                    : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-semibold">Montant à débiter</p>
+                      <p className="text-xs opacity-80">
+                        {walletLoading
+                          ? 'Chargement du portefeuille...'
+                          : walletError || 'Ce montant sera débité de votre Portefeuille HDMarket.'}
+                      </p>
+                    </div>
+                    <p className="text-lg font-bold">{formatCurrency(commissionDue)}</p>
+                  </div>
+                </div>
+              )}
+
+              {!isWalletPayment && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                   <User className="w-4 h-4 text-neutral-500" />
@@ -565,7 +685,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   value={form.payerName}
                   onChange={(e) => setForm({ ...form, payerName: e.target.value })}
                   disabled={loading}
-                  required={hasCommissionDue}
+                  required={hasCommissionDue && !isWalletPayment}
                 />
               </div>
 
@@ -579,7 +699,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   value={form.operator}
                   onChange={(e) => setForm({ ...form, operator: e.target.value })}
                   disabled={loading}
-                  required={hasCommissionDue}
+                  required={hasCommissionDue && !isWalletPayment}
                 >
                   <option value="MTN">MTN</option>
                   <option value="Airtel">Airtel</option>
@@ -625,7 +745,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                     setForm({ ...form, transactionNumber: value });
                   }}
                   disabled={loading}
-                  required={hasCommissionDue}
+                  required={hasCommissionDue && !isWalletPayment}
                   title="ID de la transaction : 10 chiffres reçus par SMS"
                 />
               </div>
@@ -642,6 +762,8 @@ export default function PaymentForm({ product, onSubmitted }) {
                   disabled
                 />
               </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -664,13 +786,21 @@ export default function PaymentForm({ product, onSubmitted }) {
             ) : (
               <>
                 <Send className="w-5 h-5" />
-                <span>{hasCommissionDue ? 'Soumettre le paiement' : 'Soumettre la validation promo'}</span>
+                <span>
+                  {hasCommissionDue
+                    ? isWalletPayment
+                      ? 'Payer avec le portefeuille'
+                      : 'Soumettre le paiement'
+                    : 'Soumettre la validation promo'}
+                </span>
               </>
             )}
           </button>
 
           <p className="text-center text-xs text-gray-500 dark:text-slate-400">
-            Votre annonce sera approuvée sous 24h après vérification administrative
+            {isWalletPayment
+              ? 'Votre annonce est approuvée automatiquement après débit du portefeuille.'
+              : 'Votre annonce sera approuvée sous 24h après vérification administrative'}
           </p>
         </form>
       </div>

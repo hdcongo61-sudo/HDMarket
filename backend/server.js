@@ -206,6 +206,7 @@ const corsOptions = {
     'Pragma',
     'Accept',
     'x-skip-cache',
+    'x-skip-dedupe',
     'x-request-id',
     'x-correlation-id',
     'Idempotency-Key',
