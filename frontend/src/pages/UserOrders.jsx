@@ -845,15 +845,15 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
   return (
     <Link
       to={`/orders/detail/${order._id}`}
-      className="group block overflow-hidden rounded-[26px] border border-orange-100 bg-white shadow-[0_16px_38px_rgba(117,75,36,0.10)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950"
+      className="group block overflow-hidden rounded-[22px] border border-orange-100 bg-white shadow-[0_12px_28px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-[26px] sm:shadow-[0_16px_38px_rgba(117,75,36,0.10)]"
     >
       {/* Seller + Status header */}
-      <div className="flex items-center justify-between gap-3 border-b border-orange-50 bg-[#fff8ef] px-4 py-3 dark:border-orange-900/30 dark:bg-neutral-900/70">
+      <div className="flex items-center justify-between gap-2 border-b border-orange-50 bg-[#fff8ef] px-3 py-2.5 dark:border-orange-900/30 dark:bg-neutral-900/70 sm:gap-3 sm:px-4 sm:py-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-100 text-[#FF6A00]">
             <Store className="w-3.5 h-3.5" />
           </span>
-          <span className="font-black text-gray-950 truncate dark:text-white">{shopName}</span>
+          <span className="truncate text-sm font-black text-gray-950 dark:text-white sm:text-base">{shopName}</span>
           {isAssignedOrder && (
             <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
               Assigné
@@ -863,7 +863,7 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
         </div>
         <StatusBadge status={statusBadgeKey} />
       </div>
-      <div className="px-4 pt-3">
+      <div className="px-3 pt-2.5 sm:px-4 sm:pt-3">
         <div className="flex items-center justify-between gap-3">
           <p className="truncate text-xs font-bold text-[#9A4A00]">{uiState.nextStep}</p>
           <span className="shrink-0 text-[11px] font-black text-[#FF6A00]">{uiState.progress}%</span>
@@ -876,9 +876,9 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
         </div>
       </div>
       {/* Product summary */}
-      <div className="p-4 flex gap-3">
+      <div className="flex gap-3 p-3 sm:p-4">
         {firstItem?.snapshot?.image ? (
-          <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-[18px] bg-orange-50 sm:h-24 sm:w-24">
+          <div className="h-[76px] w-[76px] flex-shrink-0 overflow-hidden rounded-2xl bg-orange-50 sm:h-24 sm:w-24 sm:rounded-[18px]">
             <img
               src={firstItem.snapshot.image}
               alt={productTitle}
@@ -888,14 +888,14 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
             />
           </div>
         ) : (
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[18px] bg-orange-50 flex items-center justify-center flex-shrink-0">
+          <div className="flex h-[76px] w-[76px] flex-shrink-0 items-center justify-center rounded-2xl bg-orange-50 sm:h-24 sm:w-24 sm:rounded-[18px]">
             <Package className="w-8 h-8 text-[#FF6A00]" />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-black text-gray-950 text-sm line-clamp-2 dark:text-white">{productTitle}</p>
+          <p className="line-clamp-2 text-sm font-black leading-5 text-gray-950 dark:text-white">{productTitle}</p>
           {itemCount > 1 && <p className="text-xs text-gray-500 mt-0.5">+{itemCount - 1} autre{itemCount > 2 ? 's' : ''}</p>}
-          <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+          <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-600 sm:text-sm">
             <span>{formatCurrency(firstItem?.snapshot?.price ?? 0)}</span>
             <span className="text-gray-400">×</span>
             <span>{firstItem?.quantity ?? 1}</span>
@@ -931,15 +931,15 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
         </div>
       </div>
       {/* Footer: total + CTA */}
-      <div className="px-4 pb-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           {isInstallmentOrder ? (
             <StatusBadge paymentType="installment" compact />
           ) : (
             <StatusBadge status={fullPaymentBadgeStatus} compact />
           )}
-          <div className="flex items-center gap-2">
-            <span className="font-black text-[#FF6A00]">
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            <span className="truncate text-sm font-black text-[#FF6A00] sm:text-base">
               {formatCurrency(isInstallmentOrder ? installmentPaid : totalAmount)}
             </span>
             <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
@@ -1766,29 +1766,29 @@ export default function UserOrders() {
       )}
 
       <div className={!isOnline ? 'mt-10' : ''}>
-        <div className="px-4 pt-5 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-[28px] border border-orange-100 bg-white/80 px-4 py-4 shadow-[0_18px_42px_rgba(117,75,36,0.10)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950/80">
+        <div className="px-3 pt-3 sm:px-6 sm:pt-5 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 rounded-[22px] border border-orange-100 bg-white/90 px-3 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.09)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950/80 sm:gap-3 sm:rounded-[28px] sm:px-4 sm:py-4 sm:shadow-[0_18px_42px_rgba(117,75,36,0.10)]">
             <Link
               to="/"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-orange-50 text-[#9A4A00] transition active:scale-95"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-50 text-[#9A4A00] transition active:scale-95 sm:h-10 sm:w-10"
               aria-label={t('common.back', 'Retour')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#B45309]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#B45309] sm:text-[11px] sm:tracking-[0.16em]">
                 {t('orders.buyerCommandCenter', 'Suivi personnel')}
               </p>
-              <h1 className="truncate text-2xl font-black text-neutral-950 dark:text-white">
+              <h1 className="truncate text-xl font-black text-neutral-950 dark:text-white sm:text-2xl">
                 {t('orders.title', 'Mes commandes')}
               </h1>
-              <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
+              <p className="truncate text-xs text-neutral-500 dark:text-neutral-400 sm:text-sm">
                 {t('orders.subtitle', 'Suivi livraison et paiement')}
               </p>
             </div>
             <Link
               to="/stats"
-              className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-bold text-[#9A4A00] transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200"
+              className="inline-flex items-center gap-1.5 rounded-full border border-orange-100 bg-orange-50 px-2.5 py-2 text-xs font-bold text-[#9A4A00] transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200 sm:gap-2 sm:px-3"
             >
               <TrendingUp className="h-3.5 w-3.5" />
               {t('orders.stats', 'Stats')}
@@ -1797,7 +1797,7 @@ export default function UserOrders() {
         </div>
       </div>
 
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isMobile ? 'py-4 pb-6' : 'py-6 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
+      <div className={`mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 ${isMobile ? 'py-3 pb-6' : 'py-6 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
         <div className="mb-5 sm:mb-6">
           <OrderCommandCenter
             eyebrow={t('orders.buyerCommandCenter', 'Suivi personnel')}
@@ -1808,7 +1808,7 @@ export default function UserOrders() {
           />
         </div>
 
-        <div className="sticky top-2 z-20 mb-5 sm:static sm:z-auto sm:mb-6">
+        <div className="sticky top-[76px] z-20 mb-4 sm:static sm:z-auto sm:mb-6">
           <OrderFilterRail
             tabs={STATUS_TABS}
             activeKey={activeStatus}
@@ -1966,15 +1966,15 @@ export default function UserOrders() {
 
             {/* Card View - Summary cards linking to order detail */}
             {(viewMode === 'card' || isMobile) && (
-            <div className={`space-y-4 sm:space-y-6 ${isMobile ? 'pb-4' : ''}`}>
+            <div className={`space-y-3 sm:space-y-6 ${isMobile ? 'pb-4' : ''}`}>
               {orders.map((order) => (
                 <OrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} />
               ))}
             </div>
             )}
 
-            <div ref={loadMoreRef} className="mt-8 flex flex-col items-center gap-3 rounded-[24px] border border-orange-100 bg-white/90 p-5 text-center shadow-sm">
-              <p className="text-sm text-gray-600">
+            <div ref={loadMoreRef} className="mt-6 flex flex-col items-center gap-3 rounded-[22px] border border-orange-100 bg-white/90 p-4 text-center shadow-sm sm:mt-8 sm:rounded-[24px] sm:p-5">
+              <p className="text-xs font-semibold text-gray-600 sm:text-sm">
                 <span className="font-bold text-gray-900">{orders.length}</span> /{' '}
                 <span className="font-bold text-gray-900">{meta.total}</span> {t('orders.orderCount', `commande${meta.total > 1 ? 's' : ''}`)}
               </p>

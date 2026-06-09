@@ -187,6 +187,7 @@ export default function AdminPayments() {
   const [walletStatsLoading, setWalletStatsLoading] = useState(false);
   const [walletStatsError, setWalletStatsError] = useState('');
   const [proofPreviewUrl, setProofPreviewUrl] = useState('');
+  const [brokenProofUrls, setBrokenProofUrls] = useState(() => new Set());
   const externalLinkProps = useDesktopExternalLink();
   const isMobileView = useIsMobile(1023);
 
@@ -234,6 +235,15 @@ export default function AdminPayments() {
     },
     [normalizeUrl]
   );
+
+  const markProofUrlBroken = useCallback((url) => {
+    setBrokenProofUrls((prev) => {
+      if (prev.has(url)) return prev;
+      const next = new Set(prev);
+      next.add(url);
+      return next;
+    });
+  }, []);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -1573,9 +1583,9 @@ export default function AdminPayments() {
                       <p className="text-xs font-semibold text-gray-600 mb-2">Preuve de paiement :</p>
                       {proofUrls.length > 0 ? (
                         <div className="flex gap-2 overflow-x-auto pb-1">
-                          {proofUrls.map((url, i) => (
-                            <a
-                              key={i}
+	                          {proofUrls.map((url, i) => (
+	                            <a
+	                              key={i}
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -1584,20 +1594,22 @@ export default function AdminPayments() {
                                 event.preventDefault();
                                 setProofPreviewUrl(url);
                               }}
-                              className="group flex-shrink-0"
-                            >
-                              {isLikelyImageUrl(url) ? (
-                                <img
-                                  src={url}
-                                  alt={`Preuve dépôt ${i + 1}`}
-                                  className="h-28 w-28 cursor-zoom-in rounded-lg border border-gray-200 object-cover transition hover:ring-2 hover:ring-orange-400"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="flex h-28 w-28 items-center justify-center rounded-lg border border-gray-200 bg-white px-2 text-center text-xs font-semibold text-gray-600">
-                                  Preuve PDF
-                                </div>
-                              )}
+	                              className="group flex-shrink-0"
+	                            >
+	                              {isLikelyImageUrl(url) && !brokenProofUrls.has(url) ? (
+	                                <img
+	                                  src={url}
+	                                  alt={`Preuve dépôt ${i + 1}`}
+	                                  className="h-28 w-28 cursor-zoom-in rounded-lg border border-gray-200 object-cover transition hover:ring-2 hover:ring-orange-400"
+	                                  loading="lazy"
+	                                  onError={() => markProofUrlBroken(url)}
+	                                />
+	                              ) : (
+	                                <div className="flex h-28 w-28 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white px-2 text-center text-xs font-semibold text-gray-600">
+	                                  <span>{isLikelyImageUrl(url) ? 'Image indisponible' : 'Preuve PDF'}</span>
+	                                  <span className="mt-1 text-[10px] font-bold text-orange-600">Ouvrir</span>
+	                                </div>
+	                              )}
                               <span className="mt-1 block max-w-28 truncate text-[10px] font-medium text-gray-500 group-hover:text-gray-700">
                                 Ouvrir preuve
                               </span>
@@ -1772,17 +1784,25 @@ export default function AdminPayments() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
           onClick={() => setProofPreviewUrl('')}
         >
-          <button
-            type="button"
-            onClick={() => setProofPreviewUrl('')}
-            className="absolute top-4 right-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/30 transition"
-          >
-            <X size={24} />
-          </button>
-          <img
-            src={proofPreviewUrl}
-            alt="Preuve de paiement"
-            className="max-h-[90vh] max-w-full rounded-xl object-contain shadow-2xl"
+	          <button
+	            type="button"
+	            onClick={() => setProofPreviewUrl('')}
+	            className="absolute top-4 right-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/30 transition"
+	          >
+	            <X size={24} />
+	          </button>
+	          <a
+	            href={proofPreviewUrl}
+	            target="_blank"
+	            rel="noopener noreferrer"
+	            className="absolute left-4 top-4 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-900 transition hover:bg-orange-50"
+	          >
+	            Ouvrir l'original
+	          </a>
+	          <img
+	            src={proofPreviewUrl}
+	            alt="Preuve de paiement"
+	            className="max-h-[90vh] max-w-full rounded-xl object-contain shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

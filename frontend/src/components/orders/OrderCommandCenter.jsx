@@ -18,9 +18,9 @@ export function OrderCommandCenter({
   className = ''
 }) {
   return (
-    <section className={`overflow-hidden rounded-[28px] border border-orange-100 bg-[#fffaf4] shadow-[0_18px_55px_rgba(117,75,36,0.10)] dark:border-orange-900/30 dark:bg-neutral-950 ${className}`}>
+    <section className={`overflow-hidden rounded-[22px] border border-orange-100 bg-[#fffaf4] shadow-[0_14px_38px_rgba(117,75,36,0.09)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-[28px] sm:shadow-[0_18px_55px_rgba(117,75,36,0.10)] ${className}`}>
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="p-5 sm:p-6 lg:p-7">
+        <div className="p-3.5 sm:p-6 lg:p-7">
           {eyebrow ? (
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
               {eyebrow}
@@ -28,24 +28,24 @@ export function OrderCommandCenter({
           ) : null}
           <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
-              <h2 className="text-2xl font-black tracking-normal text-neutral-950 dark:text-white sm:text-3xl">
+              <h2 className="text-xl font-black tracking-normal text-neutral-950 dark:text-white sm:text-3xl">
                 {title}
               </h2>
               {subtitle ? (
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-500 dark:text-neutral-400">
+                <p className="mt-1 line-clamp-2 max-w-2xl text-xs leading-5 text-neutral-500 dark:text-neutral-400 sm:text-sm sm:leading-6">
                   {subtitle}
                 </p>
               ) : null}
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:grid-cols-4">
             {metrics.map((metric) => {
               const Icon = metric.icon;
               return (
                 <div
                   key={metric.label}
-                  className="rounded-[20px] border border-orange-100 bg-white p-3 shadow-[0_10px_24px_rgba(117,75,36,0.06)] dark:border-orange-900/30 dark:bg-neutral-900/80"
+                  className="min-w-0 rounded-2xl border border-orange-100 bg-white p-2.5 shadow-[0_8px_18px_rgba(117,75,36,0.05)] dark:border-orange-900/30 dark:bg-neutral-900/80 sm:rounded-[20px] sm:p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-[11px] font-semibold text-neutral-500 dark:text-neutral-400">
@@ -53,7 +53,7 @@ export function OrderCommandCenter({
                     </span>
                     {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-neutral-400" /> : null}
                   </div>
-                  <p className="mt-2 truncate text-lg font-black text-neutral-950 dark:text-white">
+                  <p className="mt-1.5 truncate text-base font-black text-neutral-950 dark:text-white sm:mt-2 sm:text-lg">
                     {metric.value}
                   </p>
                   {metric.help ? (
@@ -67,8 +67,8 @@ export function OrderCommandCenter({
           </div>
         </div>
 
-        <div className="border-t border-orange-100 bg-white/55 p-4 dark:border-orange-900/30 dark:bg-neutral-900/60 lg:border-l lg:border-t-0">
-          <div className="space-y-2">
+        <div className="border-t border-orange-100 bg-white/55 p-3 dark:border-orange-900/30 dark:bg-neutral-900/60 sm:p-4 lg:border-l lg:border-t-0">
+          <div className="grid grid-cols-2 gap-2 lg:block lg:space-y-2">
             {actions.map((action) => {
               const Icon = action.icon;
               const content = (
@@ -91,7 +91,7 @@ export function OrderCommandCenter({
               );
 
               const className =
-                'flex min-h-[56px] items-center gap-3 rounded-[20px] border border-orange-100 bg-white px-3 py-2 text-left transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-sm active:scale-[0.99] dark:border-orange-900/30 dark:bg-neutral-950 dark:hover:border-orange-800/60';
+                'flex min-h-[52px] items-center gap-2 rounded-2xl border border-orange-100 bg-white px-2.5 py-2 text-left transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-sm active:scale-[0.99] dark:border-orange-900/30 dark:bg-neutral-950 dark:hover:border-orange-800/60 sm:min-h-[56px] sm:gap-3 sm:px-3';
 
               return action.to ? (
                 <Link key={action.label} to={action.to} className={className}>
@@ -118,7 +118,7 @@ export function OrderCommandCenter({
 
 export function OrderFilterRail({ tabs = [], activeKey, counts = {}, onChange, mobile = false }) {
   return (
-    <section className="rounded-[24px] border border-orange-100 bg-white/90 p-2 shadow-[0_12px_30px_rgba(117,75,36,0.08)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950">
+    <section className="rounded-[20px] border border-orange-100 bg-white/95 p-1.5 shadow-[0_10px_24px_rgba(117,75,36,0.08)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-[24px] sm:p-2">
       <div
         className={`flex gap-1.5 ${mobile ? 'hide-scrollbar -mx-1 overflow-x-auto px-1 pb-1 snap-x snap-mandatory' : 'flex-wrap'}`}
         style={mobile ? { WebkitOverflowScrolling: 'touch' } : undefined}
@@ -132,7 +132,7 @@ export function OrderFilterRail({ tabs = [], activeKey, counts = {}, onChange, m
               key={tab.key}
               type="button"
               onClick={() => onChange?.(tab.key)}
-              className={`flex min-h-[44px] shrink-0 snap-start items-center gap-2 rounded-2xl px-3.5 py-2 text-sm font-bold transition active:scale-[0.98] ${
+              className={`flex min-h-[40px] shrink-0 snap-start items-center gap-1.5 rounded-2xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] sm:min-h-[44px] sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm ${
                 active
                   ? 'bg-[#FF6A00] text-white shadow-sm'
                   : 'text-neutral-600 hover:bg-orange-50 dark:text-neutral-300 dark:hover:bg-neutral-900'

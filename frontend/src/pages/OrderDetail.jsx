@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
-import useIsMobile from '../hooks/useIsMobile';
 import CancellationTimer from '../components/CancellationTimer';
 import EditAddressModal from '../components/EditAddressModal';
 import OrderChat from '../components/OrderChat';
@@ -375,7 +374,6 @@ export default function OrderDetail() {
   const [proofPreview, setProofPreview] = useState(null);
   const [queuedDeliveryActionCount, setQueuedDeliveryActionCount] = useState(0);
   const [deliveryQueueSyncing, setDeliveryQueueSyncing] = useState(false);
-  const isMobile = useIsMobile();
   const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
@@ -543,7 +541,7 @@ export default function OrderDetail() {
     }
   });
 
-  // Load suggestions / similar products for mobile bottom section
+  // Load suggestions / similar products from the ordered product category.
   useEffect(() => {
     if (!aiRecommendationsEnabled) {
       setSuggestionsProducts([]);
@@ -559,7 +557,9 @@ export default function OrderDetail() {
     }
     let active = true;
     setSuggestionsLoading(true);
-    const category = order?.items?.[0]?.product?.category || order?.items?.[0]?.product?.category || null;
+    const category = (order?.items || [])
+      .map((item) => item?.product?.category || item?.snapshot?.category)
+      .find(Boolean);
     api
       .get('/products/public', {
         params: { limit: 12, sort: 'new', ...(category ? { category } : {}) }
@@ -568,7 +568,7 @@ export default function OrderDetail() {
         if (!active) return;
         const raw = Array.isArray(res.data) ? res.data : res.data?.items || res.data?.data || [];
         const filtered = raw.filter((p) => p?._id && !orderProductIds.has(String(p._id)));
-        setSuggestionsProducts(filtered.slice(0, 10));
+        setSuggestionsProducts(filtered.slice(0, 9));
       })
       .catch(() => {
         if (active) setSuggestionsProducts([]);
@@ -579,7 +579,7 @@ export default function OrderDetail() {
     return () => {
       active = false;
     };
-  }, [aiRecommendationsEnabled, order?._id, order?.items?.length]);
+  }, [aiRecommendationsEnabled, order?._id, order?.items]);
 
   const handleSkipCancellationWindow = async () => {
     if (!order || !(await appConfirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande.'))) return;
@@ -2022,26 +2022,27 @@ export default function OrderDetail() {
           </div>
         </div>
 
-        {/* Mobile-only: Suggestions & similar products at bottom (like Suggestions page) */}
-        {isMobile && aiRecommendationsEnabled && (
-          <div className="mt-8 md:hidden">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-neutral-600" />
-                Suggestions & produits similaires
+        {aiRecommendationsEnabled && (
+          <section className="mt-5 rounded-[26px] border border-orange-100 bg-white p-3 shadow-[0_12px_30px_rgba(117,75,36,0.07)] sm:mt-8 sm:p-4">
+            <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+              <h3 className="flex min-w-0 items-center gap-2 text-sm font-black text-gray-900 sm:text-base">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <span className="truncate">Produits de la même catégorie</span>
               </h3>
-              <Link to="/suggestions" className="text-sm font-semibold text-neutral-600 flex items-center gap-0.5">
+              <Link to="/suggestions" className="flex shrink-0 items-center gap-0.5 text-xs font-black text-[#9A4A00] sm:text-sm">
                 Voir tout <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
             {suggestionsLoading ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex-shrink-0 w-28 h-40 rounded-xl bg-gray-100 animate-pulse" />
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="aspect-[3/4] rounded-2xl bg-orange-50/70 animate-pulse" />
                 ))}
               </div>
             ) : suggestionsProducts.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {suggestionsProducts.map((product) => {
                   const imageUrl = Array.isArray(product.images) ? product.images[0] : product.image;
                   const price = product.price != null ? product.price : product.prix;
@@ -2050,20 +2051,20 @@ export default function OrderDetail() {
                       key={product._id}
                       to={buildProductPath(product)}
                       {...externalLinkProps}
-                      className="flex-shrink-0 w-28 rounded-xl border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+                      className="min-w-0 overflow-hidden rounded-2xl border border-orange-100 bg-[#fffaf4] shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                     >
-                      <div className="aspect-square w-full bg-gray-50 relative">
+                      <div className="relative aspect-square w-full bg-orange-50">
                         {imageUrl ? (
-                          <img src={imageUrl} alt={product.title || 'Produit'} className="w-full h-full object-cover" />
+                          <img src={imageUrl} alt={product.title || 'Produit'} className="h-full w-full object-cover" loading="lazy" decoding="async" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-8 h-8 text-gray-300" />
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Package className="h-7 w-7 text-[#FF6A00]/45" />
                           </div>
                         )}
                       </div>
-                      <div className="p-2">
-                        <p className="text-xs font-semibold text-gray-900 line-clamp-2 min-h-[2rem]">{product.title || 'Produit'}</p>
-                        <p className="text-xs font-bold text-neutral-600 mt-0.5">{formatCurrency(price)}</p>
+                      <div className="p-2 sm:p-2.5">
+                        <p className="line-clamp-2 min-h-[2rem] text-[11px] font-bold leading-4 text-gray-900 sm:text-xs">{product.title || 'Produit'}</p>
+                        <p className="mt-1 truncate text-[11px] font-black text-[#FF6A00] sm:text-xs">{formatCurrency(price)}</p>
                       </div>
                     </Link>
                   );
@@ -2072,12 +2073,12 @@ export default function OrderDetail() {
             ) : (
               <Link
                 to="/suggestions"
-                className="block py-6 rounded-xl border border-dashed border-gray-200 text-center text-sm text-gray-500 hover:border-neutral-200 hover:text-neutral-600"
+                className="block rounded-2xl border border-dashed border-orange-200 bg-[#fffaf4] py-6 text-center text-sm font-semibold text-[#9A4A00] hover:border-orange-300"
               >
                 Découvrir des suggestions personnalisées
               </Link>
             )}
-          </div>
+          </section>
         )}
       </div>
 

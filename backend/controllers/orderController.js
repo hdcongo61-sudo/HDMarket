@@ -431,7 +431,7 @@ const baseOrderQuery = () =>
     .populate('customer', 'name email phone address city commune')
     .populate({
       path: 'items.product',
-      select: 'title price images status user slug',
+      select: 'title price images status user slug category categoryId subcategoryId',
       populate: { path: 'user', select: 'name shopName phone shopAddress city commune' }
     })
     .populate({

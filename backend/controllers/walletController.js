@@ -88,8 +88,12 @@ export const getMyWallet = asyncHandler(async (req, res) => {
 export const getMyTransactions = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const type = String(req.query.type || '').trim();
+  const status = String(req.query.status || '').trim();
+  const direction = String(req.query.direction || '').trim();
+  const search = String(req.query.search || '').trim();
 
-  const result = await getWalletTransactions(req.user.id, { page, limit });
+  const result = await getWalletTransactions(req.user.id, { page, limit, type, status, direction, search });
   res.json(result);
 });
 
@@ -133,6 +137,9 @@ export const requestMyDeposit = asyncHandler(async (req, res) => {
   const proofUrls = Array.isArray(proofField)
     ? (await Promise.all(proofField.map((file) => persistWalletProofFile(file)))).filter(Boolean)
     : [];
+  if (!proofUrls.length) {
+    return res.status(400).json({ message: 'Veuillez ajouter une preuve de paiement valide.' });
+  }
 
   const result = await submitDepositRequest({
     userId: req.user.id,

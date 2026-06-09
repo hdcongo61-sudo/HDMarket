@@ -194,11 +194,15 @@ export const requestWithdrawal = async ({ userId, amount, reference = '' }) => {
   });
 
   await wallet.save();
+  const lastTxn = wallet.transactions[wallet.transactions.length - 1];
 
   return {
     balance: wallet.balance,
     availableBalance: wallet.availableBalance,
-    transactionId: wallet.transactions[wallet.transactions.length - 1]._id
+    totalBalance: wallet.totalBalance,
+    pendingBalance: wallet.pendingBalance || 0,
+    transactionId: lastTxn._id,
+    transaction: decorateTransaction(lastTxn)
   };
 };
 
@@ -709,20 +713,81 @@ export const getWallet = async (userId) => {
   };
 };
 
-export const getWalletTransactions = async (userId, { page = 1, limit = 20 } = {}) => {
+const WALLET_TRANSACTION_TYPES = new Set([
+  'deposit',
+  'withdrawal',
+  'purchase',
+  'refund',
+  'commission',
+  'sale',
+  'sale_pending',
+  'sale_release',
+  'sale_reversal'
+]);
+
+const WALLET_TRANSACTION_STATUSES = new Set(['pending', 'completed', 'failed', 'reversed']);
+const WALLET_TRANSACTION_DIRECTIONS = new Set(['credit', 'debit', 'neutral']);
+
+const transactionMatchesSearch = (txn = {}, search = '') => {
+  const needle = String(search || '').trim().toLowerCase();
+  if (!needle) return true;
+  const metadata = txn.metadata || {};
+  const haystack = [
+    txn.type,
+    txn.status,
+    txn.reference,
+    txn.note,
+    metadata.orderId,
+    metadata.reference,
+    metadata.paymentMethod,
+    metadata.payoutPhone,
+    metadata.accountPhone
+  ]
+    .map((value) => String(value || '').toLowerCase())
+    .join(' ');
+  return haystack.includes(needle);
+};
+
+export const getWalletTransactions = async (
+  userId,
+  { page = 1, limit = 20, type = '', status = '', direction = '', search = '' } = {}
+) => {
   const wallet = await Wallet.findOne({ user: userId })
     .select('transactions')
     .lean();
 
   if (!wallet) return { items: [], total: 0, page, pages: 0 };
 
-  const allTxns = (wallet.transactions || []).sort((a, b) =>
-    new Date(b.createdAt) - new Date(a.createdAt)
-  );
+  const normalizedType = String(type || '').trim();
+  const normalizedStatus = String(status || '').trim();
+  const normalizedDirection = String(direction || '').trim();
+  const filteredTxns = (wallet.transactions || [])
+    .map(decorateTransaction)
+    .filter((txn) => {
+      if (normalizedType && WALLET_TRANSACTION_TYPES.has(normalizedType) && txn.type !== normalizedType) {
+        return false;
+      }
+      if (
+        normalizedStatus &&
+        WALLET_TRANSACTION_STATUSES.has(normalizedStatus) &&
+        txn.status !== normalizedStatus
+      ) {
+        return false;
+      }
+      if (
+        normalizedDirection &&
+        WALLET_TRANSACTION_DIRECTIONS.has(normalizedDirection) &&
+        txn.direction !== normalizedDirection
+      ) {
+        return false;
+      }
+      return transactionMatchesSearch(txn, search);
+    })
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  const total = allTxns.length;
+  const total = filteredTxns.length;
   const skip = (page - 1) * limit;
-  const items = allTxns.slice(skip, skip + limit).map(decorateTransaction);
+  const items = filteredTxns.slice(skip, skip + limit);
 
   return { items, total, page, pages: Math.ceil(total / limit) };
 };

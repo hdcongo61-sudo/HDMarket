@@ -1,6 +1,24 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Wallet, ArrowDownUp, ArrowUpRight, ArrowDownLeft, RefreshCcw, Clock, Ban, Upload, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Wallet,
+  ArrowDownUp,
+  ArrowUpRight,
+  ArrowDownLeft,
+  RefreshCcw,
+  Clock,
+  Ban,
+  Upload,
+  X,
+  Plus,
+  Send,
+  ShieldCheck,
+  ReceiptText,
+  LockKeyhole,
+  CheckCircle2,
+  Search
+} from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
@@ -52,6 +70,25 @@ const PAYMENT_METHOD_LABELS = {
   other: 'Autre'
 };
 
+const TRANSACTION_CATEGORY_FILTERS = [
+  { id: 'all', label: 'Tout', params: {} },
+  { id: 'credit', label: 'Entrées', params: { direction: 'credit' } },
+  { id: 'debit', label: 'Sorties', params: { direction: 'debit' } },
+  { id: 'deposit', label: 'Dépôts', params: { type: 'deposit' } },
+  { id: 'withdrawal', label: 'Retraits', params: { type: 'withdrawal' } },
+  { id: 'purchase', label: 'Achats', params: { type: 'purchase' } },
+  { id: 'sale_pending', label: 'Ventes en attente', params: { type: 'sale_pending' } },
+  { id: 'refund', label: 'Remboursements', params: { type: 'refund' } }
+];
+
+const TRANSACTION_STATUS_FILTERS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'pending', label: 'En attente' },
+  { id: 'completed', label: 'Validées' },
+  { id: 'failed', label: 'Échouées' },
+  { id: 'reversed', label: 'Annulées' }
+];
+
 const getTransactionOrderId = (txn = {}) =>
   String(txn?.metadata?.orderId || txn?.reference || '').trim();
 
@@ -102,6 +139,9 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState([]);
   const [txnPage, setTxnPage] = useState(1);
   const [txnTotal, setTxnTotal] = useState(0);
+  const [txnCategoryFilter, setTxnCategoryFilter] = useState('all');
+  const [txnStatusFilter, setTxnStatusFilter] = useState('all');
+  const [txnSearch, setTxnSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [txnLoading, setTxnLoading] = useState(false);
   const [error, setError] = useState('');
@@ -154,8 +194,18 @@ export default function WalletPage() {
   const loadTransactions = useCallback(async (page = 1, { append = false } = {}) => {
     setTxnLoading(true);
     try {
+      const categoryParams =
+        TRANSACTION_CATEGORY_FILTERS.find((filter) => filter.id === txnCategoryFilter)?.params || {};
+      const status = txnStatusFilter === 'all' ? '' : txnStatusFilter;
+      const search = txnSearch.trim();
       const { data } = await api.get('/wallet/transactions', {
-        params: { page, limit: TRANSACTIONS_PAGE_SIZE },
+        params: {
+          page,
+          limit: TRANSACTIONS_PAGE_SIZE,
+          ...categoryParams,
+          ...(status ? { status } : {}),
+          ...(search ? { search } : {})
+        },
         skipCache: true
       });
       const nextItems = Array.isArray(data.items) ? data.items : [];
@@ -178,9 +228,16 @@ export default function WalletPage() {
     } finally {
       setTxnLoading(false);
     }
-  }, []);
+  }, [txnCategoryFilter, txnSearch, txnStatusFilter]);
 
-  useEffect(() => { loadWallet(); loadTransactions(1); loadContactNetworks(); }, [loadWallet, loadTransactions, loadContactNetworks]);
+  useEffect(() => {
+    loadWallet();
+    loadContactNetworks();
+  }, [loadWallet, loadContactNetworks]);
+
+  useEffect(() => {
+    loadTransactions(1);
+  }, [loadTransactions]);
 
   const txnTotalPages = Math.max(1, Math.ceil(Number(txnTotal || 0) / TRANSACTIONS_PAGE_SIZE));
   const txnHasMore = transactions.length < Number(txnTotal || 0) && txnPage < txnTotalPages;
@@ -205,15 +262,34 @@ export default function WalletPage() {
     const amount = Number(withdrawAmount);
     if (!amount || amount <= 0) return showToast('Montant invalide.', { variant: 'error' });
     if (!user?.phone) return showToast('Aucun numéro de téléphone n’est associé à votre compte.', { variant: 'error' });
+    if (amount > availableBalance) {
+      return showToast(`Solde disponible insuffisant. Disponible: ${formatPrice(availableBalance)}.`, { variant: 'error' });
+    }
     setWithdrawing(true);
     try {
-      await api.post('/wallet/withdraw', { amount, reference: user.phone });
+      const { data } = await api.post('/wallet/withdraw', { amount, reference: withdrawRef || user.phone });
       showToast('Demande de retrait envoyée. En attente de validation.', { variant: 'success' });
+      if (data?.transaction) {
+        setTransactions((prev) => {
+          const exists = prev.some((txn) => String(txn._id) === String(data.transaction._id));
+          return exists ? prev : [data.transaction, ...prev].slice(0, TRANSACTIONS_PAGE_SIZE);
+        });
+        setTxnTotal((prev) => Number(prev || 0) + 1);
+      }
+      setWallet((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          balance: data?.balance ?? prev.balance,
+          availableBalance: data?.availableBalance ?? prev.availableBalance,
+          pendingBalance: data?.pendingBalance ?? prev.pendingBalance,
+          totalBalance: data?.totalBalance ?? prev.totalBalance
+        };
+      });
       setWithdrawModal(false);
       setWithdrawAmount('');
       setWithdrawRef(user.phone || '');
-      loadWallet();
-      loadTransactions(1);
+      await Promise.all([loadWallet(), loadTransactions(1)]);
     } catch (err) {
       showToast(err?.response?.data?.message || 'Erreur lors du retrait.', { variant: 'error' });
     } finally {
@@ -298,6 +374,22 @@ export default function WalletPage() {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
   });
 
+  const availableBalance = Number(wallet?.availableBalance || 0);
+  const pendingBalance = Number(wallet?.pendingBalance || 0);
+  const frozenBalance = Number(wallet?.frozenBalance || 0);
+  const totalBalance = Number(wallet?.totalBalance || wallet?.balance || availableBalance || 0);
+  const recentPendingCount = transactions.filter((txn) => txn.status === 'pending').length;
+  const withdrawAmountValue = Number(withdrawAmount || 0);
+  const withdrawAmountInvalid = withdrawAmountValue > 0 && withdrawAmountValue > availableBalance;
+  const hasActiveTransactionFilters =
+    txnCategoryFilter !== 'all' || txnStatusFilter !== 'all' || txnSearch.trim().length > 0;
+
+  const resetTransactionFilters = () => {
+    setTxnCategoryFilter('all');
+    setTxnStatusFilter('all');
+    setTxnSearch('');
+  };
+
   if (error === 'wallet_disabled') {
     return (
       <div className="hd-profile-flow hd-commerce-shell min-h-screen">
@@ -319,210 +411,389 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="hd-profile-flow hd-commerce-shell min-h-screen">
-      <header className="ui-glass-header sticky top-20 z-20">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
-          <Link to="/profile" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
-            <ArrowLeft size={18} />
-          </Link>
-          <h1 className="text-base font-semibold">{t('wallet.title', 'Portefeuille HDMarket')}</h1>
+    <div className="hd-profile-flow hd-commerce-shell min-h-screen bg-[#f5f7fb] text-slate-950">
+      <header className="sticky top-16 z-20 border-b border-slate-200/70 bg-white/92 backdrop-blur-xl sm:top-20">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link to="/profile" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-[#ff6a00]/40 hover:text-[#ff6a00] sm:h-10 sm:w-10">
+              <ArrowLeft size={17} />
+            </Link>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-black sm:text-lg">{t('wallet.title', 'Portefeuille HDMarket')}</h1>
+              <p className="hidden truncate text-[11px] font-semibold text-slate-500 min-[390px]:block">Paiements, remboursements et retraits centralisés.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { loadWallet(); loadTransactions(1); }}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-[#ff6a00]/40 hover:text-[#ff6a00] sm:h-10 sm:w-10"
+            aria-label="Actualiser"
+          >
+            <RefreshCcw size={16} className={loading || txnLoading ? 'animate-spin' : ''} />
+          </button>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-3xl px-4 pb-20 pt-4 space-y-4">
-        {/* Balance Card */}
-        {loading ? (
-          <div className="animate-pulse rounded-2xl bg-gray-200 h-40" />
-        ) : error ? (
-          <div className="rounded-2xl bg-red-50 p-6 text-center">
-            <p className="text-sm text-red-600">{t('wallet.error', 'Impossible de charger le portefeuille.')}</p>
-            <button onClick={loadWallet} className="mt-2 text-xs font-semibold text-red-700 underline">
-              {t('wallet.retry', 'Réessayer')}
+      <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 pb-24 pt-3 sm:gap-4 sm:px-6 sm:pt-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start lg:gap-5">
+        <section className="space-y-3 sm:space-y-4 lg:sticky lg:top-40">
+          {loading ? (
+            <div className="h-56 animate-pulse rounded-[24px] bg-white shadow-sm" />
+          ) : error ? (
+            <div className="rounded-[24px] border border-red-100 bg-white p-6 text-center shadow-sm">
+              <Ban size={36} className="mx-auto mb-3 text-red-300" />
+              <p className="text-sm font-bold text-red-600">{t('wallet.error', 'Impossible de charger le portefeuille.')}</p>
+              <button onClick={loadWallet} className="mt-3 rounded-full bg-red-50 px-4 py-2 text-xs font-black text-red-700">
+                {t('wallet.retry', 'Réessayer')}
+              </button>
+            </div>
+          ) : wallet ? (
+            <div className="overflow-hidden rounded-[22px] bg-[#ff6a00] text-white shadow-[0_18px_46px_rgba(255,106,0,0.22)] sm:rounded-[24px]">
+              <div className="relative p-4 sm:p-6">
+                <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10" />
+                <div className="absolute -bottom-20 left-1/2 h-44 w-44 rounded-full bg-amber-200/20" />
+	                <div className="relative flex items-center justify-between gap-2">
+	                  <div className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/14 px-3 py-1.5 text-[11px] font-black backdrop-blur sm:text-xs">
+	                    <Wallet size={15} />
+	                    <span className="truncate">Solde disponible</span>
+	                  </div>
+	                  <span className="shrink-0 rounded-full bg-white/14 px-2.5 py-1.5 text-[10px] font-bold backdrop-blur sm:px-3 sm:text-[11px]">
+	                    {recentPendingCount > 0 ? `${recentPendingCount} en attente` : 'A jour'}
+	                  </span>
+	                </div>
+
+                <div className="relative mt-4 sm:mt-5">
+                  <p className="text-[11px] font-bold uppercase text-white/70">Disponible maintenant</p>
+                  <p className="mt-1 break-words text-[28px] font-black leading-none tracking-normal min-[380px]:text-[32px] sm:text-[40px]">
+                    {formatPrice(availableBalance)}
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4">
+                    <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+                      <p className="text-[10px] font-bold uppercase text-white/65">En attente</p>
+                      <p className="mt-1 text-sm font-black">{formatPrice(pendingBalance)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+                      <p className="text-[10px] font-bold uppercase text-white/65">Total</p>
+                      <p className="mt-1 text-sm font-black">{formatPrice(totalBalance)}</p>
+                    </div>
+                  </div>
+                  {frozenBalance > 0 && (
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-bold text-white/85">
+                      <LockKeyhole size={13} />
+                      Bloqué: {formatPrice(frozenBalance)}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+	              <div className="grid grid-cols-2 gap-2 border-t border-white/12 bg-white/10 p-2.5 sm:p-3">
+                <button
+                  type="button"
+                  onClick={() => setDepositModal(true)}
+	                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-black text-[#ff6a00] shadow-sm transition hover:bg-orange-50 sm:px-4 sm:py-3"
+                >
+                  <Plus size={17} />
+                  {t('wallet.deposit', 'Déposer')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWithdrawModal(true)}
+	                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#d95700] px-3 py-2.5 text-sm font-black text-white transition hover:bg-[#bf4d00] sm:px-4 sm:py-3"
+                >
+                  <Send size={16} />
+                  {t('wallet.withdraw', 'Retirer')}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
+            {[
+              { icon: ShieldCheck, label: 'Protégé', value: 'Suivi clair' },
+              { icon: ReceiptText, label: 'Historique', value: `${transactions.length}/${txnTotal || 0}` },
+              { icon: CheckCircle2, label: 'Remboursement', value: 'Traçable' }
+            ].map(({ icon: Icon, label, value }) => (
+              <div key={label} className="min-w-[132px] rounded-2xl border border-slate-100 bg-white p-3 shadow-sm sm:min-w-0">
+                <Icon size={16} className="text-[#ff6a00]" />
+                <p className="mt-2 text-[10px] font-bold uppercase text-slate-400">{label}</p>
+                <p className="mt-0.5 truncate text-xs font-black text-slate-800">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-[20px] border border-slate-100 bg-white p-3.5 shadow-sm sm:rounded-[22px] sm:p-4">
+            <h3 className="text-sm font-black text-slate-900">{t('wallet.howItWorks', 'Sécurité et usage')}</h3>
+            <div className="mt-3 space-y-3 text-xs font-medium text-slate-600">
+              <div className="flex gap-3">
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[11px] font-black text-[#ff6a00]">1</span>
+                <p><strong className="text-slate-900">Rechargez</strong> par Mobile Money avec la preuve et le code transaction.</p>
+              </div>
+              <div className="flex gap-3">
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[11px] font-black text-[#ff6a00]">2</span>
+                <p><strong className="text-slate-900">Payez</strong> vos commandes et annonces directement avec le solde disponible.</p>
+              </div>
+              <div className="flex gap-3">
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[11px] font-black text-[#ff6a00]">3</span>
+                <p><strong className="text-slate-900">Suivez</strong> les fonds en attente jusqu'à la confirmation ou le remboursement.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-[22px] border border-slate-100 bg-white shadow-sm sm:rounded-[24px]">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 sm:px-5 sm:py-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-black text-slate-900">
+                <ArrowDownUp size={17} className="text-[#ff6a00]" />
+                {t('wallet.transactions', 'Transactions')}
+              </h2>
+              <p className="mt-0.5 text-xs font-semibold text-slate-400">
+                {txnTotal ? `${txnTotal} mouvement${txnTotal > 1 ? 's' : ''}` : 'Historique du portefeuille'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadTransactions(1)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-orange-50 hover:text-[#ff6a00]"
+              aria-label="Actualiser les transactions"
+            >
+              <RefreshCcw size={15} className={txnLoading ? 'animate-spin' : ''} />
             </button>
           </div>
-        ) : wallet ? (
-          <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 p-5 text-white shadow-lg">
-            <div className="flex items-center gap-2">
-              <Wallet size={18} />
-              <p className="text-sm font-semibold opacity-90">{t('wallet.balance', 'Solde disponible')}</p>
-            </div>
-            <p className="mt-2 text-3xl font-black">{formatPrice(wallet.availableBalance)}</p>
-            {Number(wallet.pendingBalance || 0) > 0 && (
-              <p className="mt-1 text-xs opacity-80">
-                En attente de confirmation: {formatPrice(wallet.pendingBalance)}
-              </p>
-            )}
-            {wallet.frozenBalance > 0 && (
-              <p className="mt-1 text-xs opacity-70">
-                {t('wallet.frozen', 'Bloqué')}: {formatPrice(wallet.frozenBalance)}
-              </p>
-            )}
-            {Number(wallet.totalBalance || 0) > Number(wallet.availableBalance || 0) && (
-              <p className="mt-1 text-xs opacity-70">
-                Total portefeuille: {formatPrice(wallet.totalBalance)}
-              </p>
-            )}
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => setDepositModal(true)}
-                className="rounded-xl bg-white/20 px-4 py-2 text-xs font-bold backdrop-blur-sm hover:bg-white/30 transition"
-              >
-                {t('wallet.deposit', 'Déposer')}
-              </button>
-              <button
-                onClick={() => setWithdrawModal(true)}
-                className="rounded-xl bg-white/20 px-4 py-2 text-xs font-bold backdrop-blur-sm hover:bg-white/30 transition"
-              >
-                {t('wallet.withdraw', 'Retirer')}
-              </button>
-              <button
-                onClick={() => { loadWallet(); loadTransactions(1); }}
-                className="rounded-xl bg-white/10 px-3 py-2 text-xs backdrop-blur-sm hover:bg-white/20 transition"
-              >
-                <RefreshCcw size={14} />
-              </button>
-            </div>
-          </div>
-        ) : null}
 
-        {/* Transactions */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-900">
-            <ArrowDownUp size={16} />
-            {t('wallet.transactions', 'Transactions')}
-          </h2>
-
-          {txnLoading && transactions.length === 0 ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-12 animate-pulse rounded-xl bg-gray-100" />
-              ))}
+          <div className="sticky top-[113px] z-10 space-y-2.5 border-b border-slate-100 bg-white/95 px-3 py-3 backdrop-blur sm:static sm:space-y-3 sm:px-5">
+            <div className="relative">
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={txnSearch}
+                onChange={(event) => setTxnSearch(event.target.value)}
+                placeholder="Référence, commande, note"
+                className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-[13px] font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#ff6a00] focus:bg-white focus:ring-4 focus:ring-orange-50 sm:h-11 sm:text-sm"
+              />
             </div>
-          ) : transactions.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">
-              {t('wallet.noTransactions', 'Aucune transaction pour le moment.')}
-            </p>
-          ) : (
-            <div className="space-y-1">
-              <div className="divide-y divide-gray-50">
-                {transactions.map((txn) => {
-                const isSellerReversal = txn.type === 'sale_reversal' || txn?.metadata?.reversal === true;
-                const Icon = isSellerReversal ? ArrowUpRight : TXN_ICONS[txn.type] || Clock;
-                const isDebit = txn.direction === 'debit' || Number(txn.signedAmount || 0) < 0;
-                const isCredit = txn.direction === 'credit' || Number(txn.signedAmount || 0) > 0;
-                const colorClass = isCredit ? 'text-green-600' : isDebit ? 'text-red-600' : TXN_COLORS[txn.type] || 'text-gray-600';
-                const label = isSellerReversal ? TXN_LABELS.sale_reversal : TXN_LABELS[txn.type] || txn.type;
-                const isPending = txn.status === 'pending';
-                const amountPrefix = isCredit ? '+' : isDebit ? '-' : '';
-                const displayAmount = Number(txn.displayAmount || Math.abs(Number(txn.signedAmount || 0)) || txn.amount || 0);
-                const pendingContext = getPendingTransactionContext(txn);
+
+            <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+              {TRANSACTION_CATEGORY_FILTERS.map((filter) => {
+                const active = txnCategoryFilter === filter.id;
                 return (
-                  <div key={txn._id} className="flex items-center gap-3 py-3">
-                    <div className={`rounded-full p-2 ${isPending ? 'bg-amber-50' : 'bg-gray-50'}`}>
-                      <Icon size={14} className={isPending ? 'text-amber-500' : colorClass} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-gray-800">
-                        {label}
-                        {isPending && <span className="ml-1 text-[10px] text-amber-600">(en attente)</span>}
-                      </p>
-                      {txn.note && <p className="text-xs text-gray-400 truncate">{txn.note}</p>}
-                      {pendingContext && (
-                        <div className="mt-1 rounded-xl border border-amber-100 bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
-                          <p className="font-bold">{pendingContext.title}</p>
-                          <p className="mt-0.5">{pendingContext.text}</p>
-                          {pendingContext.link && (
-                            <Link
-                              to={pendingContext.link}
-                              className="mt-1 inline-flex text-[10px] font-black uppercase tracking-wide text-amber-700 underline underline-offset-2"
-                            >
-                              Voir la commande
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                      <p className="text-[10px] text-gray-400">{formatDate(txn.createdAt)}</p>
-                    </div>
-                    <span className={`text-sm font-bold ${colorClass}`}>
-                      {amountPrefix}{formatPrice(displayAmount)}
-                    </span>
-                  </div>
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setTxnCategoryFilter(filter.id)}
+	                    className={`shrink-0 rounded-full px-3 py-2 text-[11px] font-black transition sm:text-xs ${
+                      active
+                        ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)]'
+                        : 'bg-slate-50 text-slate-600 hover:bg-orange-50 hover:text-[#ff6a00]'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
                 );
-                })}
-              </div>
-              <div ref={transactionSentinelRef} className="min-h-8">
-                {txnLoading && transactions.length > 0 ? (
-                  <div className="flex items-center justify-center gap-2 py-3 text-xs font-semibold text-gray-400">
-                    <RefreshCcw size={13} className="animate-spin" />
-                    Chargement des transactions...
-                  </div>
-                ) : txnHasMore ? (
-                  <div className="py-3 text-center text-xs font-semibold text-gray-400">
-                    Faites défiler pour charger plus
-                  </div>
-                ) : transactions.length > TRANSACTIONS_PAGE_SIZE ? (
-                  <div className="py-3 text-center text-xs font-semibold text-gray-300">
-                    Toutes les transactions sont affichées
-                  </div>
-                ) : null}
-              </div>
+              })}
             </div>
-          )}
-        </div>
 
-        {/* How it works */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-900">{t('wallet.howItWorks', 'Comment ça marche')}</h3>
-          <div className="mt-2 space-y-2 text-xs text-gray-600">
-            <p>💳 <strong>Recharger</strong> — Effectuez un dépôt Mobile Money et fournissez le code de transaction. Un administrateur valide et crédite votre portefeuille.</p>
-            <p>🛒 <strong>Acheter</strong> — Lors du checkout, choisissez "Payer avec mon solde HDMarket".</p>
-            <p>💰 <strong>Vendre</strong> — Les paiements Portefeuille HDMarket restent en attente puis deviennent disponibles après confirmation de la commande.</p>
-            <p>🏦 <strong>Retirer</strong> — Les vendeurs peuvent retirer uniquement leur solde disponible vers le numéro Mobile Money du compte.</p>
+            <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+              {TRANSACTION_STATUS_FILTERS.map((filter) => {
+                const active = txnStatusFilter === filter.id;
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setTxnStatusFilter(filter.id)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition ${
+                      active
+                        ? 'border-[#ff6a00] bg-orange-50 text-[#ff6a00]'
+                        : 'border-slate-200 bg-white text-slate-500 hover:border-orange-200 hover:text-[#ff6a00]'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                );
+              })}
+              {hasActiveTransactionFilters && (
+                <button
+                  type="button"
+                  onClick={resetTransactionFilters}
+                  className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+
+          <div className="p-2 sm:p-3">
+            {txnLoading && transactions.length === 0 ? (
+              <div className="space-y-2 p-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
+                ))}
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="px-4 py-14 text-center">
+                <ReceiptText size={34} className="mx-auto mb-3 text-slate-300" />
+                <p className="text-sm font-bold text-slate-500">
+                  {hasActiveTransactionFilters
+                    ? 'Aucune transaction ne correspond aux filtres.'
+                    : t('wallet.noTransactions', 'Aucune transaction pour le moment.')}
+                </p>
+                {hasActiveTransactionFilters ? (
+                  <button
+                    type="button"
+                    onClick={resetTransactionFilters}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-700"
+                  >
+                    Réinitialiser les filtres
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDepositModal(true)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#ff6a00] px-4 py-2 text-xs font-black text-white"
+                  >
+                    <Plus size={14} />
+                    Faire un dépôt
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {transactions.map((txn) => {
+                  const isSellerReversal = txn.type === 'sale_reversal' || txn?.metadata?.reversal === true;
+                  const Icon = isSellerReversal ? ArrowUpRight : TXN_ICONS[txn.type] || Clock;
+                  const isDebit = txn.direction === 'debit' || Number(txn.signedAmount || 0) < 0;
+                  const isCredit = txn.direction === 'credit' || Number(txn.signedAmount || 0) > 0;
+                  const colorClass = isCredit ? 'text-emerald-600' : isDebit ? 'text-rose-600' : TXN_COLORS[txn.type] || 'text-slate-600';
+                  const chipClass = isCredit ? 'bg-emerald-50' : isDebit ? 'bg-rose-50' : 'bg-slate-50';
+                  const label = isSellerReversal ? TXN_LABELS.sale_reversal : TXN_LABELS[txn.type] || txn.type;
+                  const isPending = txn.status === 'pending';
+                  const amountPrefix = isCredit ? '+' : isDebit ? '-' : '';
+                  const displayAmount = Number(txn.displayAmount || Math.abs(Number(txn.signedAmount || 0)) || txn.amount || 0);
+                  const pendingContext = getPendingTransactionContext(txn);
+                  return (
+                    <div key={txn._id} className="rounded-2xl border border-slate-100 bg-white p-2.5 transition hover:border-orange-100 hover:bg-orange-50/30 sm:p-4">
+                      <div className="flex items-start gap-2.5 sm:gap-3">
+                        <div className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl sm:h-10 sm:w-10 ${isPending ? 'bg-amber-50' : chipClass}`}>
+                          <Icon size={15} className={isPending ? 'text-amber-500' : colorClass} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-black text-slate-900 sm:text-sm">{label}</p>
+                              {txn.note && <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">{txn.note}</p>}
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className={`max-w-[116px] break-words text-right text-[13px] font-black leading-tight sm:max-w-none sm:text-sm ${colorClass}`}>{amountPrefix}{formatPrice(displayAmount)}</p>
+                              {isPending && (
+                                <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
+                                  En attente
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {pendingContext && (
+                            <div className="mt-2 rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-900 sm:mt-3">
+                              <p className="font-black">{pendingContext.title}</p>
+                              <p className="mt-0.5 font-medium">{pendingContext.text}</p>
+                              {pendingContext.link && (
+                                <Link
+                                  to={pendingContext.link}
+                                  className="mt-1.5 inline-flex text-[10px] font-black uppercase text-amber-700 underline underline-offset-2"
+                                >
+                                  Voir la commande
+                                </Link>
+                              )}
+                            </div>
+                          )}
+                          <p className="mt-2 text-[10px] font-bold uppercase text-slate-300">{formatDate(txn.createdAt)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={transactionSentinelRef} className="min-h-8">
+                  {txnLoading && transactions.length > 0 ? (
+                    <div className="flex items-center justify-center gap-2 py-4 text-xs font-bold text-slate-400">
+                      <RefreshCcw size={13} className="animate-spin" />
+                      Chargement des transactions...
+                    </div>
+                  ) : txnHasMore ? (
+                    <div className="py-4 text-center text-xs font-bold text-slate-400">
+                      Faites défiler pour charger plus
+                    </div>
+                  ) : transactions.length > TRANSACTIONS_PAGE_SIZE ? (
+                    <div className="py-4 text-center text-xs font-bold text-slate-300">
+                      Toutes les transactions sont affichées
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
 
       {/* Withdraw Modal */}
       {withdrawModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setWithdrawModal(false)}>
-          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-gray-900">{t('wallet.withdrawTitle', 'Retirer vers Mobile Money')}</h3>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4" onClick={() => setWithdrawModal(false)}>
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[28px] sm:p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-black text-slate-950">{t('wallet.withdrawTitle', 'Retirer vers Mobile Money')}</h3>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Le retrait sera traité vers le numéro de votre compte.</p>
+              </div>
+              <button type="button" onClick={() => setWithdrawModal(false)} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-500">
+                <X size={16} />
+              </button>
+            </div>
+	            <div className="mt-4 rounded-2xl bg-orange-50 p-3 text-xs font-bold text-[#ff6a00]">
+	              Disponible: {formatPrice(availableBalance)}
+	            </div>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="text-xs font-semibold text-gray-600">Montant (FCFA)</label>
+                <label className="text-xs font-black text-slate-600">Montant (FCFA)</label>
                 <input
                   type="number"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   placeholder="ex: 5000"
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                  className={`mt-1 w-full rounded-2xl border px-3 py-3 text-sm font-semibold outline-none transition focus:ring-4 ${
+                    withdrawAmountInvalid
+                      ? 'border-rose-200 bg-rose-50 focus:border-rose-400 focus:ring-rose-50'
+                      : 'border-slate-200 focus:border-[#ff6a00] focus:ring-orange-50'
+                  }`}
                 />
+                {withdrawAmountInvalid && (
+                  <p className="mt-1 text-[11px] font-bold text-rose-600">
+                    Montant supérieur au solde disponible.
+                  </p>
+                )}
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-600">Numéro Mobile Money</label>
+                <label className="text-xs font-black text-slate-600">Numéro Mobile Money</label>
                 <input
                   type="text"
                   value={withdrawRef || user?.phone || ''}
                   readOnly
                   placeholder="Numéro de téléphone du compte"
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700"
+                  className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-700"
                 />
-                <p className="mt-1 text-[11px] font-medium text-gray-500">
+                <p className="mt-1 text-[11px] font-semibold text-slate-500">
                   Les retraits sont envoyés uniquement au numéro enregistré sur votre compte.
                 </p>
               </div>
             </div>
-            <div className="mt-4 flex gap-2">
+            <div className="sticky bottom-0 -mx-4 mt-4 flex gap-2 border-t border-slate-100 bg-white/95 px-4 pb-[max(0rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
               <button
                 onClick={() => setWithdrawModal(false)}
-                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-600"
+                className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-black text-slate-600"
               >
                 Annuler
               </button>
               <button
                 onClick={handleWithdraw}
-                disabled={withdrawing || !withdrawAmount || !user?.phone}
-                className="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+                disabled={withdrawing || !withdrawAmount || !user?.phone || withdrawAmountInvalid}
+                className="flex-1 rounded-2xl bg-[#ff6a00] py-3 text-sm font-black text-white disabled:opacity-40"
               >
                 {withdrawing ? 'Envoi...' : 'Demander le retrait'}
               </button>
@@ -532,29 +803,36 @@ export default function WalletPage() {
       )}
       {/* Deposit Modal */}
       {depositModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setDepositModal(false)}>
-          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-gray-900">{t('wallet.depositTitle', 'Déposer sur mon portefeuille')}</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              {t('wallet.depositHint', 'Envoyez de l\'argent via Mobile Money, puis soumettez la preuve de paiement ci-dessous. Votre compte sera crédité après vérification.')}
-            </p>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4" onClick={() => setDepositModal(false)}>
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[28px] sm:p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-black text-slate-950">{t('wallet.depositTitle', 'Déposer sur mon portefeuille')}</h3>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  {t('wallet.depositHint', 'Envoyez de l\'argent via Mobile Money, puis soumettez la preuve de paiement ci-dessous. Votre compte sera crédité après vérification.')}
+                </p>
+              </div>
+              <button type="button" onClick={() => setDepositModal(false)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500">
+                <X size={16} />
+              </button>
+            </div>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="text-xs font-semibold text-gray-600">Montant envoyé (FCFA)</label>
+                <label className="text-xs font-black text-slate-600">Montant envoyé (FCFA)</label>
                 <input
                   type="number"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
                   placeholder="ex: 5000"
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                  className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-4 focus:ring-orange-50"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-600">Mode de paiement</label>
+                <label className="text-xs font-black text-slate-600">Mode de paiement</label>
                 <select
                   value={depositMethod}
                   onChange={(e) => setDepositMethod(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-white"
+                  className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-4 focus:ring-orange-50"
                 >
                   <option value="orange_money">Orange Money</option>
                   <option value="mtn_money">MTN Money</option>
@@ -569,28 +847,28 @@ export default function WalletPage() {
                   const network = contactNetworks.find((n) =>
                     String(n?.name || '').toLowerCase().includes(searchTerm)
                   );
-                  if (network?.phoneNumber) {
-                    return (
-                      <p className="mt-1.5 text-xs text-gray-500">
-                        Numéro à utiliser : <span className="font-bold text-[#FF6A00]">{network.phoneNumber}</span>
-                      </p>
-                    );
-                  }
+	                  if (network?.phoneNumber) {
+	                    return (
+	                      <p className="mt-2 rounded-2xl bg-orange-50 px-3 py-2 text-xs font-semibold text-slate-600">
+	                        Numéro à utiliser : <span className="font-black text-[#ff6a00]">{network.phoneNumber}</span>
+	                      </p>
+	                    );
+	                  }
                   return null;
                 })()}
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-600">Référence / Numéro de transaction</label>
+                <label className="text-xs font-black text-slate-600">Référence / Numéro de transaction</label>
                 <input
                   type="text"
                   value={depositRef}
                   onChange={(e) => setDepositRef(e.target.value)}
                   placeholder="ex: 0612345678 (10 chiffres)"
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                  className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-4 focus:ring-orange-50"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-600">Preuve de paiement</label>
+                <label className="text-xs font-black text-slate-600">Preuve de paiement</label>
                 <input
                   ref={proofInputRef}
                   type="file"
@@ -598,12 +876,12 @@ export default function WalletPage() {
                   onChange={handleProofChange}
                   className="hidden"
                 />
-                <button
-                  type="button"
-                  onClick={() => proofInputRef.current?.click()}
-                  disabled={depositProof.length >= 1}
-                  className="mt-1 w-full rounded-xl border-2 border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500 hover:border-orange-300 hover:text-orange-600 transition disabled:opacity-40 flex items-center justify-center gap-2"
-                >
+	                <button
+	                  type="button"
+	                  onClick={() => proofInputRef.current?.click()}
+	                  disabled={depositProof.length >= 1}
+	                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 px-3 py-5 text-sm font-bold text-slate-500 transition hover:border-[#ff6a00]/40 hover:bg-orange-50 hover:text-[#ff6a00] disabled:opacity-40"
+	                >
                   <Upload size={16} />
                   {depositProof.length === 0
                     ? 'Ajouter une capture d\'écran du paiement'
@@ -611,14 +889,14 @@ export default function WalletPage() {
                 </button>
                 {depositPreview.length > 0 && (
                   <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                    {depositPreview.map((url, i) => (
-                      <div key={i} className="relative flex-shrink-0">
-                        <img src={url} alt={`Preuve ${i + 1}`} className="h-20 w-20 rounded-lg object-cover border border-gray-200" />
-                        <button
-                          type="button"
-                          onClick={() => removeProof(i)}
-                          className="absolute -top-1.5 -right-1.5 rounded-full bg-red-500 text-white w-5 h-5 flex items-center justify-center shadow"
-                        >
+	                    {depositPreview.map((url, i) => (
+	                      <div key={i} className="relative flex-shrink-0">
+	                        <img src={url} alt={`Preuve ${i + 1}`} className="h-20 w-20 rounded-2xl border border-slate-200 object-cover" />
+	                        <button
+	                          type="button"
+	                          onClick={() => removeProof(i)}
+	                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-white shadow"
+	                        >
                           <X size={10} />
                         </button>
                       </div>
@@ -627,17 +905,17 @@ export default function WalletPage() {
                 )}
               </div>
             </div>
-            <div className="mt-4 flex gap-2">
+            <div className="sticky bottom-0 -mx-4 mt-4 flex gap-2 border-t border-slate-100 bg-white/95 px-4 pb-[max(0rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
               <button
                 onClick={() => setDepositModal(false)}
-                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-600"
+                className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-black text-slate-600"
               >
                 Annuler
               </button>
               <button
                 onClick={handleDeposit}
                 disabled={depositing || !depositAmount || !depositProof.length}
-                className="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white disabled:opacity-40"
+                className="flex-1 rounded-2xl bg-[#ff6a00] py-3 text-sm font-black text-white disabled:opacity-40"
               >
                 {depositing ? 'Envoi...' : 'Soumettre le dépôt'}
               </button>
