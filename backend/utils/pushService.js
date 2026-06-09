@@ -488,7 +488,9 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
           ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
           : '';
       title = 'Paiement validé';
-      body = `${actorName} a validé votre paiement${amountText}.`;
+      body = metadata.message && String(metadata.message).trim()
+        ? String(metadata.message).trim()
+        : `${actorName} a validé votre paiement${amountText}.`;
       break;
     }
     case 'order_placed':

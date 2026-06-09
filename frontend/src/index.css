@@ -403,7 +403,7 @@ select:disabled {
   transform: scale(0.98);
 }
 
-/* HDMarket commerce design system: Taobao discovery + Apple hierarchy + Threads restraint */
+/* HDMarket commerce design system: discovery flow + refined hierarchy + restrained surfaces */
 .hd-commerce-shell {
   background:
     radial-gradient(circle at 20% 0%, rgba(255, 106, 0, 0.09), transparent 28rem),
@@ -2807,34 +2807,34 @@ input[type="radio"] {
   background: rgba(255, 255, 255, 0.045);
 }
 
-.product-detail-taobao {
+.product-detail-commerce {
   background:
     radial-gradient(circle at 18% 0%, rgba(255, 106, 0, 0.1), transparent 24rem),
     linear-gradient(180deg, #fff7ef 0%, #f8f2eb 46%, #f4eee8 100%) !important;
   color: #24150c;
 }
 
-.dark .product-detail-taobao {
+.dark .product-detail-commerce {
   background:
     radial-gradient(circle at 18% 0%, rgba(255, 106, 0, 0.12), transparent 24rem),
     linear-gradient(180deg, #14110f 0%, #0f0d0c 100%) !important;
 }
 
-.product-detail-taobao .product-detail-mobile-header,
-.product-detail-taobao .product-detail-subnav {
+.product-detail-commerce .product-detail-mobile-header,
+.product-detail-commerce .product-detail-subnav {
   border-color: rgba(240, 223, 207, 0.92) !important;
   background: rgba(255, 250, 244, 0.92) !important;
   box-shadow: 0 12px 34px rgba(117, 75, 36, 0.08);
 }
 
-.product-detail-taobao .product-detail-search-pill {
+.product-detail-commerce .product-detail-search-pill {
   border: 1px solid rgba(240, 223, 207, 0.96);
   background: rgba(255, 255, 255, 0.9);
   color: #8a6a50;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.product-detail-taobao .product-detail-hero-gallery {
+.product-detail-commerce .product-detail-hero-gallery {
   border-left: 0 !important;
   border-right: 0 !important;
   border-top: 0 !important;
@@ -2843,33 +2843,33 @@ input[type="radio"] {
   box-shadow: 0 14px 34px rgba(117, 75, 36, 0.08) !important;
 }
 
-.product-detail-taobao .product-detail-thumb-rail {
+.product-detail-commerce .product-detail-thumb-rail {
   background: rgba(77, 67, 58, 0.5);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 
-.product-detail-taobao .product-detail-thumb {
+.product-detail-commerce .product-detail-thumb {
   border: 1px solid rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.55);
 }
 
-.product-detail-taobao .product-detail-thumb.is-active {
+.product-detail-commerce .product-detail-thumb.is-active {
   border-color: #ff6a00;
   box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.85);
 }
 
-.product-detail-taobao .product-detail-price-card {
+.product-detail-commerce .product-detail-price-card {
   border-bottom: 1px solid rgba(240, 223, 207, 0.92);
 }
 
-.product-detail-taobao .product-detail-tags span {
+.product-detail-commerce .product-detail-tags span {
   border-color: rgba(255, 106, 0, 0.18) !important;
   background-color: rgba(255, 246, 237, 0.92) !important;
   color: #9a4a00 !important;
 }
 
-.product-detail-taobao .product-shop-card {
+.product-detail-commerce .product-shop-card {
   background:
     linear-gradient(180deg, rgba(255, 250, 244, 0.98), rgba(255, 255, 255, 0.96)),
     radial-gradient(420px 160px at 100% 0%, rgba(255, 106, 0, 0.11), transparent 72%);
@@ -2877,72 +2877,72 @@ input[type="radio"] {
   box-shadow: 0 16px 42px rgba(117, 75, 36, 0.09);
 }
 
-.product-detail-taobao .product-detail-gallery,
-.product-detail-taobao .product-detail-buybox,
-.product-detail-taobao .product-detail-tabs,
-.product-detail-taobao :where(.rounded-2xl.border, .rounded-3xl.border) {
+.product-detail-commerce .product-detail-gallery,
+.product-detail-commerce .product-detail-buybox,
+.product-detail-commerce .product-detail-tabs,
+.product-detail-commerce :where(.rounded-2xl.border, .rounded-3xl.border) {
   border-color: rgba(240, 223, 207, 0.94) !important;
   background: rgba(255, 250, 244, 0.96);
   box-shadow: 0 16px 38px rgba(117, 75, 36, 0.09) !important;
 }
 
-.product-detail-taobao :where(.bg-neutral-50, .bg-gray-50, .bg-slate-50) {
+.product-detail-commerce :where(.bg-neutral-50, .bg-gray-50, .bg-slate-50) {
   background-color: rgba(255, 248, 239, 0.94) !important;
 }
 
-.product-detail-taobao :where(.border-neutral-100, .border-neutral-200, .border-gray-100, .border-gray-200, .border-slate-200) {
+.product-detail-commerce :where(.border-neutral-100, .border-neutral-200, .border-gray-100, .border-gray-200, .border-slate-200) {
   border-color: rgba(240, 223, 207, 0.94) !important;
 }
 
-.product-detail-taobao :where(.bg-black, .bg-neutral-950, .bg-neutral-900, .bg-neutral-800, .bg-gray-900, .bg-gray-600, .bg-neutral-600, .bg-neutral-700) {
+.product-detail-commerce :where(.bg-black, .bg-neutral-950, .bg-neutral-900, .bg-neutral-800, .bg-gray-900, .bg-gray-600, .bg-neutral-600, .bg-neutral-700) {
   background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 
-.product-detail-taobao :where(.text-neutral-900, .text-gray-900, .text-slate-900) {
+.product-detail-commerce :where(.text-neutral-900, .text-gray-900, .text-slate-900) {
   color: #24150c !important;
 }
 
-.product-detail-taobao :where(.text-neutral-700, .text-gray-700, .text-slate-700) {
+.product-detail-commerce :where(.text-neutral-700, .text-gray-700, .text-slate-700) {
   color: #3b2719 !important;
 }
 
-.product-detail-taobao :where(.text-neutral-600, .text-gray-600, .text-slate-600) {
+.product-detail-commerce :where(.text-neutral-600, .text-gray-600, .text-slate-600) {
   color: #7a4a24 !important;
 }
 
-.product-detail-taobao :where(.text-neutral-500, .text-gray-500, .text-slate-500) {
+.product-detail-commerce :where(.text-neutral-500, .text-gray-500, .text-slate-500) {
   color: #9a7352 !important;
 }
 
-.product-detail-taobao :where(input, textarea, select) {
+.product-detail-commerce :where(input, textarea, select) {
   border-color: rgba(240, 223, 207, 0.94) !important;
   background-color: rgba(255, 255, 255, 0.96) !important;
 }
 
-.product-detail-taobao :where(input, textarea, select):focus {
+.product-detail-commerce :where(input, textarea, select):focus {
   border-color: rgba(255, 106, 0, 0.56) !important;
   box-shadow: 0 0 0 4px rgba(255, 106, 0, 0.12) !important;
 }
 
-.product-detail-taobao .product-detail-tabs button[aria-selected="true"],
-.product-detail-taobao .product-detail-tabs .bg-neutral-900 {
+.product-detail-commerce .product-detail-tabs button[aria-selected="true"],
+.product-detail-commerce .product-detail-tabs .bg-neutral-900 {
   background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
 }
 
-.product-detail-taobao .product-detail-bottom-bar {
+.product-detail-commerce .product-detail-bottom-bar {
   border-color: rgba(240, 223, 207, 0.96) !important;
   background: rgba(255, 250, 244, 0.96) !important;
   box-shadow: 0 -18px 42px rgba(117, 75, 36, 0.14);
 }
 
-.product-detail-taobao button:not(:disabled),
-.product-detail-taobao a {
+.product-detail-commerce button:not(:disabled),
+.product-detail-commerce a {
   transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 
-.product-detail-taobao button:not(:disabled):active,
-.product-detail-taobao a:active {
+.product-detail-commerce button:not(:disabled):active,
+.product-detail-commerce a:active {
   transform: scale(0.98);
 }
 

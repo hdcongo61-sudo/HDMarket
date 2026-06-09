@@ -621,11 +621,11 @@ export const schemas = {
       })
     )
     .required(),
-  installmentCheckout: Joi.object({
-    productId: Joi.string().hex().length(24).required(),
-    quantity: Joi.number().integer().min(1).default(1),
-    firstPaymentAmount: Joi.number().positive().required(),
-    payerName: Joi.string().min(2).max(120).required(),
+	  installmentCheckout: Joi.object({
+	    productId: Joi.string().hex().length(24).required(),
+	    quantity: Joi.number().integer().min(1).default(1),
+	    firstPaymentAmount: Joi.number().positive().required(),
+	    payerName: Joi.string().min(2).max(120).required(),
     transactionCode: Joi.string()
       .pattern(/^\d{10}$/)
       .required()
@@ -642,11 +642,18 @@ export const schemas = {
         Joi.string().max(2000)
       )
       .optional(),
-    selectedAttributes: Joi.alternatives().try(
-      Joi.string().allow('', null),
-      Joi.array().items(selectedAttributeSchema)
-    ).optional()
-  }),
+	    selectedAttributes: Joi.alternatives().try(
+	      Joi.string().allow('', null),
+	      Joi.array().items(selectedAttributeSchema)
+	    ).optional(),
+	    deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
+	    shippingAddress: Joi.object({
+	      cityId: Joi.string().hex().length(24).allow('', null),
+	      communeId: Joi.string().hex().length(24).allow('', null),
+	      addressLine: Joi.string().max(250).allow('', null),
+	      phone: Joi.string().trim().min(5).max(30).allow('', null)
+	    }).allow(null)
+	  }),
   installmentPaymentProofSubmit: Joi.object({
     payerName: Joi.string().min(2).max(120).required(),
     transactionCode: Joi.string()

@@ -64,6 +64,11 @@ const reasonLabel = (reason) => {
   return 'Autre';
 };
 
+const getDeliveryProofLabel = (order = {}) =>
+  String(order?.deliveryMode || '').toUpperCase() === 'PICKUP'
+    ? 'Preuves de retrait boutique'
+    : 'Preuves de livraison';
+
 export default function AdminComplaints() {
   const { showToast } = useToast();
   const [items, setItems] = useState([]);
@@ -92,17 +97,30 @@ export default function AdminComplaints() {
   );
 
   const normalizeDispute = useCallback(
-    (dispute) => ({
-      ...dispute,
-      proofImages: (dispute?.proofImages || []).map((file) => ({
-        ...file,
-        url: normalizeUrl(file?.url || file?.path || '')
-      })),
-      sellerProofImages: (dispute?.sellerProofImages || []).map((file) => ({
-        ...file,
-        url: normalizeUrl(file?.url || file?.path || '')
-      }))
-    }),
+    (dispute) => {
+      const order = dispute?.orderId || {};
+      return {
+        ...dispute,
+        orderId: order
+          ? {
+              ...order,
+              deliveryProofImages: (order?.deliveryProofImages || []).map((file) => ({
+                ...file,
+                url: normalizeUrl(file?.url || file?.path || '')
+              })),
+              clientSignatureImage: order?.clientSignatureImage || ''
+            }
+          : order,
+        proofImages: (dispute?.proofImages || []).map((file) => ({
+          ...file,
+          url: normalizeUrl(file?.url || file?.path || '')
+        })),
+        sellerProofImages: (dispute?.sellerProofImages || []).map((file) => ({
+          ...file,
+          url: normalizeUrl(file?.url || file?.path || '')
+        }))
+      };
+    },
     [normalizeUrl]
   );
 
@@ -326,8 +344,70 @@ export default function AdminComplaints() {
                       {item?.orderId?.deliveryAddress || '—'} · {item?.orderId?.deliveryCity || '—'}
                     </p>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400">Livré le: {formatDate(item?.orderId?.deliveredAt)}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Preuve soumise le: {formatDate(item?.orderId?.deliverySubmittedAt)}</p>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400">Deadline vendeur: {formatDate(item?.sellerDeadline)}</p>
                   </div>
+
+                  {(
+                    item?.orderId?.deliveryProofImages?.length > 0 ||
+                    item?.orderId?.clientSignatureImage ||
+                    item?.orderId?.deliveryNote
+                  ) && (
+                    <div className="mt-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-black uppercase tracking-wide text-sky-800 dark:text-sky-200">
+                          {getDeliveryProofLabel(item.orderId)}
+                        </p>
+                        <p className="text-[11px] font-semibold text-sky-700 dark:text-sky-300">
+                          Signature: {item?.orderId?.clientSignatureImage ? 'présente' : 'absente'}
+                        </p>
+                      </div>
+                      {item?.orderId?.deliveryProofImages?.length > 0 && (
+                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+                          {item.orderId.deliveryProofImages.map((file, index) => (
+                            <a
+                              key={`${item._id}-delivery-proof-${index}`}
+                              href={file.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="group overflow-hidden rounded-xl border border-white bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-sky-900/40 dark:bg-neutral-950"
+                            >
+                              <img
+                                src={file.url}
+                                alt={`Preuve ${index + 1}`}
+                                className="h-24 w-full object-cover"
+                                loading="lazy"
+                              />
+                              <span className="block truncate px-2 py-1.5 text-[10px] font-bold text-sky-800 dark:text-sky-200">
+                                Photo {index + 1}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {item?.orderId?.clientSignatureImage && (
+                        <a
+                          href={item.orderId.clientSignatureImage}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 block overflow-hidden rounded-xl border border-white bg-white p-2 shadow-sm dark:border-sky-900/40 dark:bg-neutral-950"
+                        >
+                          <p className="mb-2 text-[11px] font-bold text-sky-800 dark:text-sky-200">Signature client</p>
+                          <img
+                            src={item.orderId.clientSignatureImage}
+                            alt="Signature client"
+                            className="max-h-32 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
+                      )}
+                      {item?.orderId?.deliveryNote && (
+                        <p className="mt-3 rounded-xl bg-white/80 p-2 text-xs font-semibold text-sky-900 dark:bg-neutral-950 dark:text-sky-100">
+                          Note: {item.orderId.deliveryNote}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="mt-3">
                     <p className="mb-1 text-xs font-bold text-neutral-500 dark:text-neutral-400">Description client</p>

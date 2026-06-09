@@ -249,6 +249,9 @@ export const createPayment = asyncHandler(async (req, res) => {
   res.status(201).json(payment);
 
   if (isWalletPayment) {
+    const productTitle = String(product.title || '').trim();
+    const productSlug = String(product.slug || '').trim();
+    const paymentAdminLink = `/admin/payment-verification?status=verified&paymentId=${encodeURIComponent(String(payment._id))}&productId=${encodeURIComponent(String(product._id))}${productTitle ? `&search=${encodeURIComponent(productTitle)}` : ''}`;
     const notification = {
       userId: product.user,
       actorId: req.user.id,
@@ -268,8 +271,59 @@ export const createPayment = asyncHandler(async (req, res) => {
         productId: product._id
       },
       async () => {
+        const moderators = await User.find({
+          $or: [
+            { role: { $in: ['admin', 'founder', 'manager'] } },
+            { canVerifyPayments: true },
+            { permissions: 'verify_payments' }
+          ],
+          isActive: { $ne: false }
+        })
+          .select('_id role canVerifyPayments permissions')
+          .lean();
+        const moderatorNotifications = moderators
+          .filter((moderator) => String(moderator._id) !== String(req.user.id))
+          .map((moderator) => {
+            const role = String(moderator.role || '').toLowerCase();
+            const hasVerifyPermission = Array.isArray(moderator.permissions) && moderator.permissions.includes('verify_payments');
+            const isVerifier = (Boolean(moderator.canVerifyPayments) || hasVerifyPermission) && !['admin', 'founder', 'manager'].includes(role);
+            return createNotification({
+              userId: moderator._id,
+              actorId: req.user.id,
+              productId: product._id,
+              type: 'payment_validated',
+              audience: isVerifier
+                ? 'ROLE_GROUP'
+                : role === 'founder'
+                ? 'FOUNDER'
+                : role === 'admin'
+                ? 'ADMIN'
+                : 'ROLE_GROUP',
+              targetRole: [String(moderator.role || '').toUpperCase()],
+              actionRequired: false,
+              actionStatus: 'DONE',
+              deepLink: paymentAdminLink,
+              actionLink: paymentAdminLink,
+              entityType: 'payment',
+              entityId: String(payment._id),
+              validationType: 'productValidation',
+              metadata: {
+                paymentId: String(payment._id),
+                productId: String(product._id),
+                productSlug,
+                productTitle,
+                amount: received,
+                paymentMethod: 'wallet',
+                operator: 'HDMARKET_WALLET',
+                status: 'verified',
+                autoApproved: true,
+                deepLink: paymentAdminLink,
+                message: `Paiement Portefeuille HDMarket reçu pour l'annonce${productTitle ? ` "${productTitle}"` : ''}. L'annonce a été validée automatiquement.`
+              }
+            });
+          });
         await invalidateProductCache();
-        await createNotification(notification);
+        await Promise.all([createNotification(notification), ...moderatorNotifications]);
       },
       { label: 'wallet_listing_payment_approval_side_effects' }
     );
@@ -302,11 +356,12 @@ export const createPayment = asyncHandler(async (req, res) => {
         User.find({
           $or: [
             { role: { $in: ['admin', 'founder', 'manager'] } },
-            { canVerifyPayments: true }
+            { canVerifyPayments: true },
+            { permissions: 'verify_payments' }
           ],
           isActive: { $ne: false }
         })
-          .select('_id role canVerifyPayments')
+          .select('_id role canVerifyPayments permissions')
           .lean(),
         Payment.countDocuments({ status: 'waiting' })
       ]);
@@ -321,7 +376,8 @@ export const createPayment = asyncHandler(async (req, res) => {
           .filter((moderator) => String(moderator._id) !== String(req.user.id))
           .map((moderator) => {
             const role = String(moderator.role || '').toLowerCase();
-            const isVerifier = Boolean(moderator.canVerifyPayments) && !['admin', 'founder', 'manager'].includes(role);
+            const hasVerifyPermission = Array.isArray(moderator.permissions) && moderator.permissions.includes('verify_payments');
+            const isVerifier = (Boolean(moderator.canVerifyPayments) || hasVerifyPermission) && !['admin', 'founder', 'manager'].includes(role);
             return createNotification({
               userId: moderator._id,
               actorId: req.user.id,

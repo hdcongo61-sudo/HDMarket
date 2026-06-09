@@ -44,6 +44,55 @@ const TXN_LABELS = {
 
 const TRANSACTIONS_PAGE_SIZE = 20;
 
+const PAYMENT_METHOD_LABELS = {
+  orange_money: 'Orange Money',
+  mtn_money: 'MTN Money',
+  airtel_money: 'Airtel Money',
+  bank_transfer: 'Virement bancaire',
+  other: 'Autre'
+};
+
+const getTransactionOrderId = (txn = {}) =>
+  String(txn?.metadata?.orderId || txn?.reference || '').trim();
+
+const getPendingTransactionContext = (txn = {}) => {
+  if (txn?.status !== 'pending') return null;
+  const metadata = txn?.metadata || {};
+  const orderId = getTransactionOrderId(txn);
+
+  if (txn.type === 'sale_pending') {
+    return {
+      title: 'En attente de confirmation de livraison',
+      text: orderId
+        ? `Commande #${orderId.slice(-6)}: les fonds seront disponibles quand le client confirme la livraison.`
+        : 'Les fonds seront disponibles quand le client confirme la livraison.',
+      link: orderId ? `/seller/orders/detail/${orderId}` : ''
+    };
+  }
+
+  if (txn.type === 'deposit') {
+    const method = PAYMENT_METHOD_LABELS[metadata.paymentMethod] || metadata.paymentMethod || 'Mobile Money';
+    const reference = String(metadata.reference || txn.reference || '').trim();
+    return {
+      title: 'En attente de validation admin',
+      text: `${method}${reference ? ` · Réf. ${reference}` : ''}: votre solde sera crédité après vérification.`
+    };
+  }
+
+  if (txn.type === 'withdrawal') {
+    const phone = String(metadata.payoutPhone || metadata.accountPhone || txn.reference || '').trim();
+    return {
+      title: 'En attente de traitement admin',
+      text: `${phone ? `Retrait vers ${phone}. ` : ''}Le montant a été réservé jusqu’à validation du retrait.`
+    };
+  }
+
+  return {
+    title: 'Transaction en attente',
+    text: 'Cette opération est en cours de traitement.'
+  };
+};
+
 export default function WalletPage() {
   const { user } = useContext(AuthContext);
   const { formatPrice, t } = useAppSettings();
@@ -366,6 +415,7 @@ export default function WalletPage() {
                 const isPending = txn.status === 'pending';
                 const amountPrefix = isCredit ? '+' : isDebit ? '-' : '';
                 const displayAmount = Number(txn.displayAmount || Math.abs(Number(txn.signedAmount || 0)) || txn.amount || 0);
+                const pendingContext = getPendingTransactionContext(txn);
                 return (
                   <div key={txn._id} className="flex items-center gap-3 py-3">
                     <div className={`rounded-full p-2 ${isPending ? 'bg-amber-50' : 'bg-gray-50'}`}>
@@ -377,6 +427,20 @@ export default function WalletPage() {
                         {isPending && <span className="ml-1 text-[10px] text-amber-600">(en attente)</span>}
                       </p>
                       {txn.note && <p className="text-xs text-gray-400 truncate">{txn.note}</p>}
+                      {pendingContext && (
+                        <div className="mt-1 rounded-xl border border-amber-100 bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
+                          <p className="font-bold">{pendingContext.title}</p>
+                          <p className="mt-0.5">{pendingContext.text}</p>
+                          {pendingContext.link && (
+                            <Link
+                              to={pendingContext.link}
+                              className="mt-1 inline-flex text-[10px] font-black uppercase tracking-wide text-amber-700 underline underline-offset-2"
+                            >
+                              Voir la commande
+                            </Link>
+                          )}
+                        </div>
+                      )}
                       <p className="text-[10px] text-gray-400">{formatDate(txn.createdAt)}</p>
                     </div>
                     <span className={`text-sm font-bold ${colorClass}`}>

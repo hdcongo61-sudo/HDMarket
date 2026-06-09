@@ -166,10 +166,11 @@ const TEMPLATES = {
   },
   payment_validated: ({ metadata }) => {
     const amount = formatAmount(metadata.amount || metadata.amountPaid);
+    const customMessage = String(metadata.message || '').trim();
     return {
       title: 'Paiement confirmé',
-      message: `Votre paiement${amount ? ` de ${amount}` : ''} a été validé avec succès. Votre commande peut maintenant être traitée.`,
-      actionLabel: 'Voir la commande'
+      message: customMessage || `Votre paiement${amount ? ` de ${amount}` : ''} a été validé avec succès. Votre commande peut maintenant être traitée.`,
+      actionLabel: metadata.paymentMethod === 'wallet' && metadata.productId ? 'Voir le paiement' : 'Voir la commande'
     };
   },
   order_full_payment_waived: ({ metadata }) => ({

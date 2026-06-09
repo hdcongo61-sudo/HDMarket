@@ -1984,7 +1984,7 @@ export default function ProductDetails() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: "easeOut" }}
-      className="product-detail-page product-detail-taobao min-h-screen bg-gray-50 pb-28 safe-area-bottom dark:bg-black"
+      className="product-detail-page product-detail-commerce min-h-screen bg-gray-50 pb-28 safe-area-bottom dark:bg-black"
     >
       <header className="product-detail-mobile-header sticky top-0 z-30 border-b border-neutral-200/80 bg-white/90 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
         <div
@@ -2945,7 +2945,7 @@ export default function ProductDetails() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: "easeOut" }}
-      className="product-detail-page product-detail-taobao min-h-screen bg-gray-50 dark:bg-black"
+      className="product-detail-page product-detail-commerce min-h-screen bg-gray-50 dark:bg-black"
     >
       {/* 🎯 NAVIGATION ENHANCED */}
       <nav className="product-detail-subnav sticky top-0 z-10 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80 sm:z-40">

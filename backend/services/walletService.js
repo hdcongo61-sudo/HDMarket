@@ -17,9 +17,9 @@ import { createNotification } from '../utils/notificationService.js';
 
 // ─── HELPERS ──────────────────────────────────────────────
 
-export const getOrCreateWallet = async (userId) => {
+export const getOrCreateWallet = async (userId, { createIfMissing = true } = {}) => {
   let wallet = await Wallet.findOne({ user: userId });
-  if (!wallet) {
+  if (!wallet && createIfMissing) {
     wallet = await Wallet.create({
       user: userId,
       balance: 0,
@@ -460,9 +460,9 @@ export const creditSellerWalletSale = async ({ userId, amount, orderId = '', buy
 };
 
 export const releaseSellerWalletSale = async ({ userId, orderId = '', processedBy = null }) => {
-  const wallet = await getOrCreateWallet(userId);
+  const wallet = await getOrCreateWallet(userId, { createIfMissing: false });
   const orderKey = toOrderKey(orderId);
-  if (!orderKey) return null;
+  if (!wallet || !orderKey) return null;
 
   const alreadyReleased = (wallet.transactions || []).some(
     (txn) =>

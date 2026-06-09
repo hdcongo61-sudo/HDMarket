@@ -54,7 +54,7 @@ export default function TopUsedProducts() {
           <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Occasion</p>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">Produits d&apos;occasion</h1>
           <p className="mt-2 max-w-2xl text-sm text-white/86">
-            Les meilleures affaires d&apos;occasion sélectionnées pour vous, avec une lecture plus proche d’un flux Taobao.
+            Les meilleures affaires d&apos;occasion sélectionnées pour vous, avec une lecture fluide et rapide.
           </p>
         </header>
 

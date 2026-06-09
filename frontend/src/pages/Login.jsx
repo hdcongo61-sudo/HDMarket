@@ -15,7 +15,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppSettings } from '../context/AppSettingsContext';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
-import TaobaoAuthPanel from '../components/auth/TaobaoAuthPanel';
+import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -342,7 +342,7 @@ export default function Login() {
           </motion.section>
 
           <motion.div variants={fadeUp}>
-            <TaobaoAuthPanel mode="login" logoSrc={logoSrc} />
+            <CommerceAuthPanel mode="login" logoSrc={logoSrc} />
           </motion.div>
         </div>
       </motion.div>

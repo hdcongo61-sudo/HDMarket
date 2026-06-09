@@ -916,7 +916,9 @@ export default function OrderDetail() {
     const pdfPaymentMode = resolveOrderPaymentMode(o);
     const hidePdfDeliveryDetails = shouldHideDeliveryDetailsForPaymentMode(pdfPaymentMode);
     const pdfCustomerName = escapeHtml(o?.customer?.name || o?.customerName || 'Client HDMarket');
-    const pdfCustomerPhone = escapeHtml(o?.customer?.phone || o?.customerPhone || '');
+    const pdfCustomerPhone = escapeHtml(
+      o?.shippingAddressSnapshot?.phone || o?.customerPhone || o?.customer?.phone || ''
+    );
     const pdfCustomerEmail = escapeHtml(o?.customer?.email || '');
     const pdfDeliveryAddress = escapeHtml(
       pickupOrderInPdf
@@ -955,11 +957,12 @@ export default function OrderDetail() {
       : '';
     const deliveryCardHtml = hidePdfDeliveryDetails
       ? ''
-      : `<section class="card">
-            <h2>${pickupOrderInPdf ? 'Retrait boutique' : 'Livraison'}</h2>
-            <p class="strong">${pdfDeliveryAddress}</p>
-            ${pdfDeliveryCity ? `<p class="muted">${pdfDeliveryCity}</p>` : ''}
-          </section>`;
+	      : `<section class="card">
+	            <h2>${pickupOrderInPdf ? 'Retrait boutique' : 'Livraison'}</h2>
+	            <p class="strong">${pdfDeliveryAddress}</p>
+	            ${pdfDeliveryCity ? `<p class="muted">${pdfDeliveryCity}</p>` : ''}
+	            ${!pickupOrderInPdf && pdfCustomerPhone ? `<p class="muted">Téléphone: ${pdfCustomerPhone}</p>` : ''}
+	          </section>`;
     const orderShort = escapeHtml(o?._id?.slice(-6) || '');
     const html = `<!doctype html>
 <html lang="fr">
@@ -1178,6 +1181,12 @@ export default function OrderDetail() {
     deliveryCityText ||
     normalizeAddressPart(order?.customer?.city) ||
     normalizeAddressPart(user?.city) ||
+    '';
+  const displayDeliveryPhone =
+    normalizeAddressPart(order?.shippingAddressSnapshot?.phone) ||
+    normalizeAddressPart(order?.customerPhone) ||
+    normalizeAddressPart(order?.customer?.phone) ||
+    normalizeAddressPart(user?.phone) ||
     '';
   // City mismatch warning for buyer
   const sellerCity = normalizeAddressPart(order?.seller?.city || '');
@@ -1419,13 +1428,18 @@ export default function OrderDetail() {
                       <p className="text-sm text-gray-800">{pickupShopAddress?.addressLine || 'Adresse boutique non renseignée'}</p>
                       {pickupShopAddress?.cityLine ? <p className="text-xs text-gray-500">{pickupShopAddress.cityLine}</p> : null}
                     </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-semibold text-gray-900">{displayDeliveryAddress}</p>
-                      <p className="text-xs text-gray-500">{displayDeliveryCity || 'Ville non renseignée'}</p>
-                      {isParticulierBuyer && personalAddressIsDifferent ? (
-                        <p className="text-xs text-gray-600">
-                          <span className="font-semibold">Adresse personnelle:</span> {personalAddressLine}
+	                  ) : (
+	                    <>
+	                      <p className="text-sm font-semibold text-gray-900">{displayDeliveryAddress}</p>
+	                      <p className="text-xs text-gray-500">{displayDeliveryCity || 'Ville non renseignée'}</p>
+	                      {displayDeliveryPhone ? (
+	                        <p className="text-xs font-semibold text-gray-700">
+	                          Téléphone: {displayDeliveryPhone}
+	                        </p>
+	                      ) : null}
+	                      {isParticulierBuyer && personalAddressIsDifferent ? (
+	                        <p className="text-xs text-gray-600">
+	                          <span className="font-semibold">Adresse personnelle:</span> {personalAddressLine}
                         </p>
                       ) : null}
                     </>

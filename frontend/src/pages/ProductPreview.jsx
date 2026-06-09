@@ -459,7 +459,7 @@ export default function ProductPreview() {
                 </div>
                 <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1.5 text-[11px] font-black text-[#9a4a00] ring-1 ring-orange-100">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Taobao
+                  Découverte
                 </span>
               </div>
 

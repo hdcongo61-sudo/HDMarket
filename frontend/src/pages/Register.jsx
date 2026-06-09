@@ -6,7 +6,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
-import TaobaoAuthPanel from '../components/auth/TaobaoAuthPanel';
+import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -778,7 +778,7 @@ export default function Register() {
 
           </section>
 
-          <TaobaoAuthPanel mode="register" logoSrc={logoSrc} />
+          <CommerceAuthPanel mode="register" logoSrc={logoSrc} />
         </div>
       </div>
     </main>

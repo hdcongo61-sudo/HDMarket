@@ -951,6 +951,10 @@ export default function SellerOrderDetail() {
       : 'Acompte versé';
   const isPickupOrder = resolvePickupOrder(order);
   const pickupShopAddress = isPickupOrder ? getPickupShopAddress(order) : null;
+  const orderContactPhone =
+    String(order?.shippingAddressSnapshot?.phone || '').trim() ||
+    String(order?.customerPhone || '').trim() ||
+    String(order?.customer?.phone || '').trim();
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
   const installmentWorkflow = isInstallmentOrder ? getInstallmentWorkflow(order) : null;
@@ -1261,7 +1265,7 @@ export default function SellerOrderDetail() {
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /> Client</h4>
                 <div className="space-y-2 rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm">
                   <p className="text-sm font-semibold text-gray-900">{order.customer?.name || 'Client'}</p>
-                  {order.customer?.phone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{order.customer.phone}</p>}
+	                  {orderContactPhone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{orderContactPhone}</p>}
                   {order.customer?.email && <p className="text-xs text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3" />{order.customer.email}</p>}
                 </div>
               </div>
@@ -1279,10 +1283,13 @@ export default function SellerOrderDetail() {
                     {pickupShopAddress?.cityLine ? <p className="text-xs text-gray-500">{pickupShopAddress.cityLine}</p> : null}
                   </>
                 ) : (
-                  <>
-                    <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
-                    <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
-                  </>
+	                  <>
+	                    <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
+	                    <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
+	                    {orderContactPhone ? (
+	                      <p className="text-xs font-semibold text-gray-700">Téléphone: {orderContactPhone}</p>
+	                    ) : null}
+	                  </>
                 )}
                 {!isPickupOrder && order.deliveryGuy && (
                   <div className="mt-3 flex items-center gap-2 border-t border-gray-200 pt-3 text-xs">

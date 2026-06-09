@@ -17,6 +17,8 @@ import { notifyBuyerOrderCancelled } from '../utils/orderCancellationNotificatio
 import { getManyRuntimeConfigs } from '../services/configService.js';
 
 const ORDER_DISPUTE_STATUS = 'dispute_opened';
+const DISPUTE_ORDER_SELECT =
+  'status deliveryAddress deliveryCity deliveryMode createdAt deliveredAt deliveryDate deliverySubmittedAt deliveryNote deliveryProofImages clientSignatureImage totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode';
 const DISPUTE_CONFIG_DEFAULTS = Object.freeze({
   disputeWindowHours: Math.max(24, Number(process.env.DISPUTE_WINDOW_HOURS || 72)),
   sellerResponseHours: Math.max(12, Number(process.env.DISPUTE_SELLER_RESPONSE_HOURS || 48)),
@@ -470,8 +472,7 @@ export const listClientDisputes = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .populate({
       path: 'orderId',
-      select:
-        'status deliveryAddress deliveryCity createdAt deliveredAt totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode'
+      select: DISPUTE_ORDER_SELECT
     })
     .populate('sellerId', 'name shopName phone')
     .lean();
@@ -491,8 +492,7 @@ export const listSellerDisputes = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .populate({
       path: 'orderId',
-      select:
-        'status deliveryAddress deliveryCity createdAt deliveredAt totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode'
+      select: DISPUTE_ORDER_SELECT
     })
     .populate('clientId', 'name phone email')
     .lean();
@@ -605,8 +605,7 @@ export const listAdminDisputes = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .populate({
       path: 'orderId',
-      select:
-        'status deliveryAddress deliveryCity createdAt deliveredAt totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode'
+      select: DISPUTE_ORDER_SELECT
     })
     .populate('clientId', 'name phone email reputationScore disputeStats')
     .populate('sellerId', 'name shopName phone email reputationScore disputeStats')
@@ -656,8 +655,7 @@ export const getDisputeDetails = asyncHandler(async (req, res) => {
   const dispute = await Dispute.findById(id)
     .populate({
       path: 'orderId',
-      select:
-        'status deliveryAddress deliveryCity createdAt deliveredAt totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode'
+      select: DISPUTE_ORDER_SELECT
     })
     .populate('clientId', 'name phone email reputationScore disputeStats')
     .populate('sellerId', 'name shopName phone email reputationScore disputeStats')

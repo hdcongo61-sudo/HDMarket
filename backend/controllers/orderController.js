@@ -143,13 +143,13 @@ const getOrderSellerIds = (order) =>
   );
 
 const releaseWalletEscrowForOrder = async (order, processedBy = null) => {
-  if (!order || order.paymentSource !== 'wallet') return;
+  if (!order) return [];
   const sellerIds = getOrderSellerIds(order);
-  if (!sellerIds.length) return;
+  if (!sellerIds.length) return [];
 
   try {
     const { releaseSellerWalletSale } = await import('../services/walletService.js');
-    await Promise.all(
+    return await Promise.all(
       sellerIds.map((sellerId) =>
         releaseSellerWalletSale({
           userId: sellerId,
@@ -160,6 +160,7 @@ const releaseWalletEscrowForOrder = async (order, processedBy = null) => {
     );
   } catch (err) {
     console.error('[walletEscrowRelease] Failed:', err?.message || err);
+    throw err;
   }
 };
 
@@ -1008,7 +1009,8 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 
 export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { items, deliveryMode, shippingAddress, promoEntries } = req.body;
+  const { items, deliveryMode: rawDeliveryMode, shippingAddress, promoEntries } = req.body;
+  const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
 
   // Verify wallet payment is enabled
   const walletEnabled = await getRuntimeConfig('enable_wallet_payment', { fallback: false });
@@ -1021,9 +1023,26 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   }
 
   try {
-  // Load wallet
-  const { getOrCreateWallet } = await import('../services/walletService.js');
-  const wallet = await getOrCreateWallet(userId);
+    // Load wallet
+    const { getOrCreateWallet } = await import('../services/walletService.js');
+    const [wallet, customer] = await Promise.all([
+      getOrCreateWallet(userId),
+      User.findById(userId).select('name email phone address city commune restrictions')
+    ]);
+    if (!customer) {
+      return res.status(404).json({ message: 'Client introuvable.' });
+    }
+    if (isRestricted(customer, 'canOrder')) {
+      return res.status(403).json({
+        message: getRestrictionMessage('canOrder'),
+        restrictionType: 'canOrder'
+      });
+    }
+    const shipping = await resolveCheckoutAddress({
+      deliveryMode,
+      shippingAddress,
+      customer
+    });
 
   // Calculate total
   const productIds = items.map((i) => i.productId);
@@ -1190,23 +1209,16 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
       customer: userId,
       createdBy: userId,
       items: sellerItems,
-      deliveryAddress: shippingAddress?.addressLine || 'Adresse non spécifiée',
-      deliveryCity: shippingAddress?.cityName || 'Brazzaville',
-      shippingAddressSnapshot: {
-        cityId: shippingAddress?.cityId || null,
-        cityName: shippingAddress?.cityName || '',
-        communeId: shippingAddress?.communeId || null,
-        communeName: shippingAddress?.communeName || '',
-        addressLine: shippingAddress?.addressLine || '',
-        phone: shippingAddress?.phone || ''
-      },
+      deliveryAddress: shipping.deliveryAddress,
+      deliveryCity: shipping.deliveryCity,
+      shippingAddressSnapshot: shipping.snapshot,
       status: 'paid',
       paymentType: 'full',
       paymentMode: 'FULL_PAYMENT',
       paymentSource: 'wallet',
       paymentStatus: 'PAID_FULL',
       paymentCompletedAt: new Date(),
-      deliveryMode: deliveryMode || 'PICKUP',
+      deliveryMode,
       deliveryFeeSource: 'FULL_PAYMENT_WAIVER',
       deliveryFeeWaived: true,
       deliveryFeeLocked: true,
@@ -2067,14 +2079,14 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
 
   await order.save();
 
-  if (
-    status &&
-    previousStatus !== order.status &&
-    WALLET_ESCROW_RELEASE_STATUSES.has(order.status)
-  ) {
-    releaseWalletEscrowForOrder(order, req.user.id).catch((err) =>
-      console.error('[sellerOrderStatus] Escrow release failed:', err?.message)
-    );
+  if (status && WALLET_ESCROW_RELEASE_STATUSES.has(order.status)) {
+    try {
+      await releaseWalletEscrowForOrder(order, req.user.id);
+    } catch (err) {
+      return res.status(500).json({
+        message: 'Commande mise à jour, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
+      });
+    }
   }
 
   // ── Wallet refund on cancellation (seller) ─────────────
@@ -3476,10 +3488,12 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       order.status = 'delivered';
     }
     await order.save();
-    if (order.paymentSource === 'wallet') {
-      releaseWalletEscrowForOrder(order, userId).catch((err) =>
-        console.error('[platformConfirm] Escrow release failed:', err?.message)
-      );
+    try {
+      await releaseWalletEscrowForOrder(order, userId);
+    } catch (err) {
+      return res.status(500).json({
+        message: 'Livraison confirmée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
+      });
     }
     res.json({
       message: 'Livraison plateforme validée automatiquement. Aucune confirmation client requise.',
@@ -3544,11 +3558,12 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     order.completedAt = now;
   }
   await order.save();
-  if (previousStatus !== order.status) {
-    // Fire-and-forget — don't block the response
-    releaseWalletEscrowForOrder(order, userId).catch((err) =>
-      console.error('[clientConfirmDelivery] Escrow release failed:', err?.message)
-    );
+  try {
+    await releaseWalletEscrowForOrder(order, userId);
+  } catch (err) {
+    return res.status(500).json({
+      message: 'Livraison confirmée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
+    });
   }
 
   const sellerIds = new Set();
@@ -4053,14 +4068,14 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
-  if (
-    status &&
-    previousStatus !== order.status &&
-    WALLET_ESCROW_RELEASE_STATUSES.has(order.status)
-  ) {
-    releaseWalletEscrowForOrder(order, actorId).catch((err) =>
-      console.error('[sellerUpdateStatus] Escrow release failed:', err?.message)
-    );
+  if (status && WALLET_ESCROW_RELEASE_STATUSES.has(order.status)) {
+    try {
+      await releaseWalletEscrowForOrder(order, actorId);
+    } catch (err) {
+      return res.status(500).json({
+        message: 'Commande mise à jour, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
+      });
+    }
   }
   const sellerIds = Array.isArray(order.items)
     ? order.items

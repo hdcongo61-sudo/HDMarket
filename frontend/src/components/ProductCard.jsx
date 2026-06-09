@@ -35,7 +35,7 @@ function ProductCard({
   compactMobile = false,
   shopProfileCompact = false,
   categoryListing = false,
-  taobaoFeed = false,
+  commerceFeed = false,
   viewMode = 'grid'
 }) {
   const { user } = useContext(AuthContext);
@@ -563,7 +563,7 @@ function ProductCard({
     });
     const primaryImageSrcSet = getProductCardSrcSet(primaryImageOriginal, { lite: useLiteImageMode });
     const shopName = p?.user?.shopName || 'Boutique HDMarket';
-    const useTaobaoMobileCard = Boolean((isMobile || taobaoFeed) && !isListCard && !isShopProfileCompact);
+    const useCommerceMobileCard = Boolean((isMobile || commerceFeed) && !isListCard && !isShopProfileCompact);
     const mobilePromoLabel = hasActivePromo
       ? `${promoScopeLabel} -${promoPercentLabel}%`
       : hasDiscount
@@ -585,19 +585,19 @@ function ProductCard({
       installmentAvailable ? { key: 'installment', label: 'Tranche', tone: 'soft', icon: Clock } : null,
       wholesaleEnabled ? { key: 'wholesale', label: wholesaleMinQty ? `Gros ${wholesaleMinQty}+` : 'Gros', tone: 'emerald', icon: Boxes } : null
     ].filter(Boolean);
-    const cardRadius = useTaobaoMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-[22px]';
+    const cardRadius = useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-[22px]';
     const imageAspect = isListCard
       ? 'h-auto min-h-[132px] w-[38%] shrink-0'
       : isShopProfileCompact
       ? 'aspect-[4/3]'
-      : useTaobaoMobileCard
+      : useCommerceMobileCard
         ? 'aspect-[1/1]'
       : useCompactMobile && !categoryListing
         ? 'aspect-[1/1]'
         : 'aspect-[4/5]';
     const bodyPadding = isShopProfileCompact
       ? 'p-2'
-      : useTaobaoMobileCard
+      : useCommerceMobileCard
         ? 'px-2.5 pb-2.5 pt-2'
       : useCompactMobile
         ? 'p-2.5'
@@ -628,7 +628,7 @@ function ProductCard({
         <article
           ref={cardRef}
           className={`hd-product-card group relative flex h-full min-w-0 overflow-hidden transition duration-200 hover:-translate-y-0.5 dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
-            useTaobaoMobileCard
+            useCommerceMobileCard
               ? 'border-0 bg-white shadow-[0_1px_0_rgba(117,75,36,0.04)] hover:shadow-[0_8px_24px_rgba(117,75,36,0.1)]'
               : 'border hover:shadow-[0_18px_44px_rgba(117,75,36,0.14)]'
           } ${
@@ -670,7 +670,7 @@ function ProductCard({
             />
             {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />}
 
-            <div className={`absolute left-1.5 top-1.5 max-w-[calc(100%-3.7rem)] flex-wrap gap-1 sm:left-2 sm:top-2 sm:gap-1.5 ${useTaobaoMobileCard ? 'hidden' : 'flex'}`}>
+            <div className={`absolute left-1.5 top-1.5 max-w-[calc(100%-3.7rem)] flex-wrap gap-1 sm:left-2 sm:top-2 sm:gap-1.5 ${useCommerceMobileCard ? 'hidden' : 'flex'}`}>
               {visibleBadges.map((badge) => {
                 const Icon = badge.icon;
                 const badgeClass =
@@ -700,7 +700,7 @@ function ProductCard({
                   ? 'bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]'
                   : 'bg-white/94 text-neutral-700 hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-950/90 dark:text-neutral-200'
               } ${
-                useTaobaoMobileCard ? 'hidden' : 'inline-flex'
+                useCommerceMobileCard ? 'hidden' : 'inline-flex'
               } ${
                 isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
               } ${favoritePending ? 'scale-95 opacity-80' : ''}`}
@@ -712,7 +712,7 @@ function ProductCard({
               />
             </button>
 
-            {productCity && !useTaobaoMobileCard ? (
+            {productCity && !useCommerceMobileCard ? (
               <span className="absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full bg-white/92 px-2 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-sm backdrop-blur dark:bg-neutral-950/90 dark:text-neutral-200 sm:bottom-2 sm:left-2 sm:px-2.5 sm:py-1 sm:text-[11px]">
                 <MapPin className="h-3 w-3 shrink-0" />
                 <span className="truncate">{productCity}</span>
@@ -721,7 +721,7 @@ function ProductCard({
           </Link>
 
           <div className={`flex flex-1 flex-col gap-2 ${bodyPadding}`}>
-            {useTaobaoMobileCard ? (
+            {useCommerceMobileCard ? (
               <Link
                 to={resolvedProductLink}
                 {...externalLinkProps}
@@ -752,26 +752,26 @@ function ProductCard({
               </Link>
             )}
 
-            <div className={`flex flex-wrap items-baseline gap-1.5 ${useTaobaoMobileCard ? '-mt-0.5' : ''}`}>
-              <span className={`${useTaobaoMobileCard ? 'text-[clamp(17px,5.2vw,22px)] leading-none' : priceClass} hd-product-price font-black tracking-tight dark:text-orange-300`}>
+            <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard ? '-mt-0.5' : ''}`}>
+              <span className={`${useCommerceMobileCard ? 'text-[clamp(17px,5.2vw,22px)] leading-none' : priceClass} hd-product-price font-black tracking-tight dark:text-orange-300`}>
                 {discountedPrice}
               </span>
-              {useTaobaoMobileCard && hasDiscount ? (
+              {useCommerceMobileCard && hasDiscount ? (
                 <span className="text-[12px] font-bold text-[#ff5a1f]">après remise</span>
               ) : null}
-              {originalPrice && !isShopProfileCompact && !useTaobaoMobileCard ? (
+              {originalPrice && !isShopProfileCompact && !useCommerceMobileCard ? (
                 <span className="text-xs font-medium text-neutral-400 line-through">{originalPrice}</span>
               ) : null}
             </div>
 
-            {useTaobaoMobileCard ? (
+            {useCommerceMobileCard ? (
               <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-neutral-500">
                 {originalPrice ? <span className="line-through">{originalPrice}</span> : null}
                 <span className="truncate">{mobileInterestLabel}</span>
               </div>
             ) : null}
 
-            {!isShopProfileCompact && !useTaobaoMobileCard ? (
+            {!isShopProfileCompact && !useCommerceMobileCard ? (
             <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] text-neutral-500">
               {isShopSeller ? (
                 <Link
@@ -804,14 +804,14 @@ function ProductCard({
             </div>
             ) : null}
 
-            {trustLabel && !isShopProfileCompact && !useTaobaoMobileCard ? (
+            {trustLabel && !isShopProfileCompact && !useCommerceMobileCard ? (
               <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#9A4A00] dark:bg-neutral-900 dark:text-orange-300">
                 <ShieldCheck className="h-3 w-3 shrink-0" />
                 <span className="truncate">{trustLabel}</span>
               </div>
             ) : null}
 
-            <div className={`mt-auto grid-cols-[1fr_auto] items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800 ${useTaobaoMobileCard ? 'hidden' : 'grid'}`}>
+            <div className={`mt-auto grid-cols-[1fr_auto] items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800 ${useCommerceMobileCard ? 'hidden' : 'grid'}`}>
               <Link
                 to={resolvedProductLink}
                 {...externalLinkProps}

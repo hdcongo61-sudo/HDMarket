@@ -1846,7 +1846,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
         const amountText = Number.isFinite(amountValue) && amountValue > 0
           ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
           : '';
-        message = `${actorName} a validé votre paiement${amountText}. Vous pouvez suivre la suite depuis la commande.`;
+        message = metadata.message && String(metadata.message).trim()
+          ? String(metadata.message).trim()
+          : `${actorName} a validé votre paiement${amountText}. Vous pouvez suivre la suite depuis la commande.`;
         break;
       }
       case 'order_placed':

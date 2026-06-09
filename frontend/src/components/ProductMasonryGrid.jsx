@@ -20,7 +20,7 @@ export default function ProductMasonryGrid({
         <div key={product._id || product.slug} className="mb-2 break-inside-avoid sm:mb-3">
           <ProductCard
             p={product}
-            taobaoFeed
+            commerceFeed
             onProductClick={onProductClick}
             {...cardProps}
           />

@@ -150,7 +150,7 @@ export default function TopSales() {
                   <ProductCard
                     p={product}
                     productLink={buildProductPath(product)}
-                    taobaoFeed
+                    commerceFeed
                   />
                 </div>
               ))}

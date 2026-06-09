@@ -4,6 +4,8 @@ import Order from '../models/orderModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
 import Cart from '../models/cartModel.js';
+import City from '../models/cityModel.js';
+import Commune from '../models/communeModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { getWholesalePricing } from '../utils/wholesaleUtils.js';
@@ -35,6 +37,82 @@ import { validateSelectedAttributesForProduct } from '../utils/productAttributes
 import { notifyBuyerDeliveryDistanceWarning } from '../utils/deliveryDistanceWarning.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+const normalizeDeliveryMode = (value) =>
+  String(value || '').trim().toUpperCase() === 'DELIVERY' ? 'DELIVERY' : 'PICKUP';
+
+const resolveCheckoutAddress = async ({ deliveryMode, shippingAddress = {}, customer }) => {
+  const phone =
+    String(shippingAddress?.phone || customer?.phone || '')
+      .trim()
+      .slice(0, 30) || '';
+
+  if (deliveryMode === 'PICKUP') {
+    return {
+      deliveryAddress: 'Retrait en boutique',
+      deliveryCity: customer?.city || '',
+      snapshot: {
+        cityId: null,
+        cityName: customer?.city || '',
+        communeId: null,
+        communeName: customer?.commune || '',
+        addressLine: 'Retrait en boutique',
+        phone
+      }
+    };
+  }
+
+  const cityId = String(shippingAddress?.cityId || '').trim();
+  const communeId = String(shippingAddress?.communeId || '').trim();
+  const addressLine = String(shippingAddress?.addressLine || '').trim();
+  if (!ensureObjectId(cityId)) {
+    const error = new Error('Ville de livraison invalide.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!ensureObjectId(communeId)) {
+    const error = new Error('Commune de livraison invalide.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!addressLine) {
+    const error = new Error('Adresse de livraison requise.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!phone) {
+    const error = new Error('Numéro de téléphone requis pour la livraison.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [cityDoc, communeDoc] = await Promise.all([
+    City.findOne({ _id: cityId, isActive: true }).lean(),
+    Commune.findOne({ _id: communeId, isActive: true }).lean()
+  ]);
+  if (!cityDoc) {
+    const error = new Error('Ville de livraison introuvable.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!communeDoc || String(communeDoc.cityId) !== String(cityDoc._id)) {
+    const error = new Error('Commune de livraison introuvable pour cette ville.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    deliveryAddress: addressLine,
+    deliveryCity: cityDoc.name || customer?.city || '',
+    snapshot: {
+      cityId: cityDoc._id,
+      cityName: cityDoc.name || '',
+      communeId: communeDoc._id,
+      communeName: communeDoc.name || '',
+      addressLine,
+      phone
+    }
+  };
+};
 
 const resolveItemShopId = (item) =>
   item?.snapshot?.shopId ||
@@ -282,8 +360,11 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
     firstPaymentAmount,
     payerName,
     transactionCode,
-    selectedAttributes
+    selectedAttributes,
+    deliveryMode: rawDeliveryMode,
+    shippingAddress
   } = req.body;
+  const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
   const guarantor = parseGuarantorPayload(req.body);
   const cleanPayerName = String(payerName || '').trim();
   const cleanTransactionCode = normalizeTransactionCode(transactionCode);
@@ -361,6 +442,11 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
 
   let createdOrder = null;
   try {
+    const shipping = await resolveCheckoutAddress({
+      deliveryMode,
+      shippingAddress,
+      customer
+    });
     const eligibilityScore = await calculateInstallmentEligibilityScore(customer._id);
     const riskLevel = getRiskLevelByScore(eligibilityScore);
     const now = new Date();
@@ -427,8 +513,10 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       paymentType: 'installment',
       paymentMode: 'INSTALLMENT',
       paymentStatus: 'PENDING',
-      deliveryAddress: customer.address?.trim() || 'À préciser',
-      deliveryCity: customer.city || 'Brazzaville',
+      deliveryMode,
+      deliveryAddress: shipping.deliveryAddress,
+      deliveryCity: shipping.deliveryCity,
+      shippingAddressSnapshot: shipping.snapshot,
       totalAmount,
       paidAmount: 0,
       remainingAmount: totalAmount,
