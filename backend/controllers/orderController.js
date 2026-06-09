@@ -107,6 +107,12 @@ const ORDER_STATUS_GROUPS = {
 };
 
 const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } = {}) => {
+  const normalizedStatusGroup = String(statusGroup || '').trim();
+  if (normalizedStatusGroup === 'wallet') {
+    filter.paymentSource = 'wallet';
+    return filter;
+  }
+
   if (status && ORDER_STATUS.includes(status)) {
     if (INSTALLMENT_SALE_STATUS_FILTERS.has(status)) {
       filter.$and = [
@@ -124,7 +130,7 @@ const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } 
     return filter;
   }
 
-  const groupStatuses = ORDER_STATUS_GROUPS[role]?.[String(statusGroup || '').trim()];
+  const groupStatuses = ORDER_STATUS_GROUPS[role]?.[normalizedStatusGroup];
   if (Array.isArray(groupStatuses) && groupStatuses.length) {
     filter.status = { $in: groupStatuses };
   }
@@ -141,6 +147,22 @@ const getOrderSellerIds = (order) =>
         .filter(Boolean)
     )
   );
+
+const emitOrderLifecycleUpdate = ({ order, updatedBy, updatedAt = new Date() }) => {
+  if (!order?._id) return;
+  const normalizedUpdatedAt = updatedAt instanceof Date ? updatedAt : new Date(updatedAt);
+  emitOrderStatusUpdated({
+    orderId: order._id,
+    status: order.status,
+    installmentSaleStatus: order.installmentSaleStatus,
+    customerId: order.customer,
+    sellerIds: getOrderSellerIds(order),
+    updatedBy,
+    updatedAt: Number.isNaN(normalizedUpdatedAt.getTime())
+      ? new Date().toISOString()
+      : normalizedUpdatedAt.toISOString()
+  });
+};
 
 const releaseWalletEscrowForOrder = async (order, processedBy = null) => {
   if (!order) return [];
@@ -2131,6 +2153,13 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   await syncReviewReminderForOrderLifecycle(order);
+  if (status && previousStatus !== order.status) {
+    emitOrderLifecycleUpdate({
+      order,
+      updatedBy: req.user.id,
+      updatedAt: order.updatedAt || new Date()
+    });
+  }
   const baseMetadata = {
     orderId: order._id,
     deliveryAddress: order.deliveryAddress,
@@ -2417,7 +2446,7 @@ export const adminSearchProducts = asyncHandler(async (req, res) => {
 
 export const userListOrders = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { status, statusGroup, search = '', page = 1, limit = 6, cursor = '' } = req.query || {};
+  const { status, statusGroup, search = '', page = 1, limit = 6, cursor = '', cursorMode = '' } = req.query || {};
 
   const filter = userId ? { customer: userId, isDraft: false } : { customer: null, isDraft: false };
   applyOrderStatusFilter(filter, { status, statusGroup, role: 'buyer' });
@@ -2437,7 +2466,7 @@ export const userListOrders = asyncHandler(async (req, res) => {
   const requestedLimit = Number(limit) || 6;
   const pageSize = Math.max(1, requestedLimit > 24 ? Math.min(requestedLimit, 500) : Math.min(requestedLimit, 24));
   const skip = (pageNumber - 1) * pageSize;
-  const useCursor = Boolean(cursor);
+  const useCursor = Boolean(cursor) || String(cursorMode || '').trim() === '1';
   applyCreatedAtCursor(filter, cursor);
 
   const [orders, total] = await Promise.all([
@@ -2855,19 +2884,10 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
     }
   }
 
-  const sellerIds = Array.isArray(order.items)
-    ? order.items
-        .map((item) => item?.snapshot?.shopId)
-        .filter(Boolean)
-    : [];
-  emitOrderStatusUpdated({
-    orderId: order._id,
-    status: order.status,
-    installmentSaleStatus: order.installmentSaleStatus,
-    customerId: order.customer,
-    sellerIds,
+  emitOrderLifecycleUpdate({
+    order,
     updatedBy: userId,
-    updatedAt: order.cancelledAt?.toISOString?.() || new Date().toISOString()
+    updatedAt: order.cancelledAt || order.updatedAt || new Date()
   });
 
   res.json(buildOrderResponse(order));
@@ -3094,7 +3114,7 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
 export const sellerListOrders = asyncHandler(async (req, res) => {
   const access = await resolveSellerAccess(req, 'view_shop_orders');
   const { sellerId } = access;
-  const { status, statusGroup, page = 1, limit = 6, cursor = '' } = req.query || {};
+  const { status, statusGroup, page = 1, limit = 6, cursor = '', cursorMode = '' } = req.query || {};
 
   const filter = { 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false };
   applyOrderStatusFilter(filter, { status, statusGroup, role: 'seller' });
@@ -3103,7 +3123,7 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
   const requestedLimit = Number(limit) || 6;
   const pageSize = Math.max(1, requestedLimit > 24 ? Math.min(requestedLimit, 500) : Math.min(requestedLimit, 24));
   const skip = (pageNumber - 1) * pageSize;
-  const useCursor = Boolean(cursor);
+  const useCursor = Boolean(cursor) || String(cursorMode || '').trim() === '1';
   applyCreatedAtCursor(filter, cursor);
 
   const [orders, total] = await Promise.all([
@@ -3495,6 +3515,11 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
         message: 'Livraison confirmée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
       });
     }
+    emitOrderLifecycleUpdate({
+      order,
+      updatedBy: userId,
+      updatedAt: order.updatedAt || now
+    });
     res.json({
       message: 'Livraison plateforme validée automatiquement. Aucune confirmation client requise.',
       order: buildOrderResponse(order)
@@ -3565,6 +3590,11 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       message: 'Livraison confirmée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
     });
   }
+  emitOrderLifecycleUpdate({
+    order,
+    updatedBy: userId,
+    updatedAt: order.updatedAt || now
+  });
 
   const sellerIds = new Set();
   (order.items || []).forEach((item) => {
@@ -3596,10 +3626,10 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   const confirmationNotification = sellerIdList.map((sellerId) => ({
     userId: sellerId,
     actorId: userId,
-    type: 'order_created',
+    type: 'order_completed',
     metadata: {
       orderId: order._id,
-      status: 'confirmed',
+      status: 'completed',
       deliveryStatus: 'verified',
       deliveryAddress: order.deliveryAddress,
       deliveryCity: order.deliveryCity

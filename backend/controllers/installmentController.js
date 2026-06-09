@@ -733,6 +733,11 @@ export const sellerConfirmInstallmentSale = asyncHandler(async (req, res) => {
     order.cancelledBy = userId;
     order.cancellationReason = 'Preuve de vente rejetée par le vendeur.';
     await order.save();
+    emitInstallmentOrderUpdate({
+      order,
+      updatedBy: userId,
+      updatedAt: order.cancelledAt || order.updatedAt || new Date()
+    });
     await notifyBuyerOrderCancelled({
       order,
       actorId: userId,

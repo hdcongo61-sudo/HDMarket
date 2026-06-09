@@ -191,6 +191,7 @@ const normalizeStatusFilter = (value) => {
 
 const orderMatchesSellerFilter = (order, filterKey) => {
   if (!filterKey || filterKey === 'all') return true;
+  if (filterKey === 'wallet') return String(order?.paymentSource || '') === 'wallet';
   if (isOrderGroupKey('seller', filterKey)) {
     return getOrderGroupStatuses('seller', filterKey).includes(String(order?.status || '').trim().toLowerCase());
   }

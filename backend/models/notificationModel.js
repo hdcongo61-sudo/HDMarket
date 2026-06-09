@@ -46,6 +46,7 @@ const notificationSchema = new mongoose.Schema(
       'order_full_payment_ready',
       'order_reminder',
       'order_delivered',
+      'order_completed',
       'installment_due_reminder',
       'installment_overdue_warning',
       'installment_payment_submitted',

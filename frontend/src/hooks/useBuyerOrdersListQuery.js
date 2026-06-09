@@ -44,7 +44,7 @@ export const useBuyerOrdersListQuery = ({
     enabled: Boolean(enabled),
     queryFn: async ({ pageParam = '' }) => {
       const cursor = String(pageParam || '');
-      const params = { limit };
+      const params = { limit, cursorMode: '1' };
       if (cursor) params.cursor = cursor;
       if (status && status !== 'all') {
         if (isOrderGroupKey('buyer', status)) {

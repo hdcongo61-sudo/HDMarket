@@ -86,6 +86,11 @@ const TEMPLATES = {
       actionLabel: 'Confirmer la réception'
     };
   },
+  order_completed: ({ metadata, snapshot }) => ({
+    title: 'Commande terminée',
+    message: `Le client a confirmé la réception de ${resolveOrderLabel(metadata, snapshot)}. La commande est maintenant terminée.`,
+    actionLabel: 'Voir la commande'
+  }),
   delivery_assigned: ({ metadata, snapshot }) => ({
     title: 'Livreur assigné',
     message: `La livraison de ${resolveOrderLabel(metadata, snapshot)} a été confiée${metadata.courierName ? ` à ${metadata.courierName}` : ' à un livreur'}.`,

@@ -8,6 +8,7 @@ const ORDER_GROUP_STATUS_MAP = {
     delivery: ['out_for_delivery', 'delivering', 'delivery_proof_submitted'],
     proof: ['delivery_proof_submitted'],
     installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    wallet: [],
     completed: ['confirmed_by_client', 'delivered', 'completed'],
     cancelled: ['cancelled']
   },
@@ -20,6 +21,7 @@ const ORDER_GROUP_STATUS_MAP = {
     proof: ['delivery_proof_submitted'],
     payment: ['pending_payment', 'paid', 'pending_installment', 'installment_active', 'overdue_installment'],
     installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    wallet: [],
     late: ['overdue_installment'],
     completed: ['picked_up_confirmed', 'confirmed_by_client', 'delivered', 'completed'],
     cancelled: ['cancelled'],

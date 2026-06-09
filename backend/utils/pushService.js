@@ -312,6 +312,7 @@ const NOTIFICATION_PREFERENCE_ALIASES = Object.freeze({
   order_placed: ['order_created'],
   order_accepted: ['order_created'],
   order_rejected: ['order_cancelled'],
+  order_completed: ['order_delivered'],
   product_approved: ['product_approval'],
   product_rejected: ['product_rejection'],
   payment_validated: ['payment_pending'],
@@ -591,6 +592,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
         title = 'Commande livrée';
         body = `${yourOrderSubject} a été livrée.`;
       }
+      break;
+    }
+    case 'order_completed': {
+      title = 'Commande terminée';
+      body = `Le client a confirmé la réception de ${orderSubject}.`;
       break;
     }
     case 'installment_due_reminder': {
