@@ -815,10 +815,11 @@ export default function ProductForm(props) {
             fail(new Error('La vidéo compressée est vide.'));
             return;
           }
+          const containerMimeType = String(mimeType || 'video/webm').split(';')[0] || 'video/webm';
           const compressedFile = new File(
             [blob],
             `${file.name.replace(/\.[^/.]+$/, '')}-hdmarket.webm`,
-            { type: blob.type || 'video/webm', lastModified: Date.now() }
+            { type: containerMimeType, lastModified: Date.now() }
           );
           const result = {
             file: compressedFile,

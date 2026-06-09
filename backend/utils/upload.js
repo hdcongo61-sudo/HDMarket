@@ -46,7 +46,7 @@ const UPLOAD_LIMITS = {
 
 const fileFilter = (req, file, cb) => {
   const extension = path.extname(file.originalname || '').toLowerCase();
-  const mimetype = file.mimetype || '';
+  const mimetype = String(file.mimetype || '').split(';')[0].trim().toLowerCase();
   if (PROOF_FIELD_SET.has(file.fieldname)) {
     const isImage = IMAGE_EXTENSION_SET.has(extension) && IMAGE_MIME_SET.has(mimetype);
     const isPdf = PDF_EXTENSION_SET.has(extension) && PDF_MIME_SET.has(mimetype);

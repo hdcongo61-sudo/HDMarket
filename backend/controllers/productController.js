@@ -550,7 +550,7 @@ const logProductAction = async ({ productId, action, performedBy, details = {} }
   }
 };
 
-const isVideoFile = (mimetype) => typeof mimetype === 'string' && mimetype.startsWith('video/');
+const isVideoFile = (mimetype) => String(mimetype || '').split(';')[0].trim().toLowerCase().startsWith('video/');
 const isPdfFile = (mimetype) => typeof mimetype === 'string' && mimetype === 'application/pdf';
 
 const getProductMediaFolder = (resourceType) => {
