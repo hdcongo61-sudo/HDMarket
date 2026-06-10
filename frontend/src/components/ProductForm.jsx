@@ -3,7 +3,7 @@ import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck } from 'lucide-react';
-import categoryGroups from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
 import useCommissionRate from '../hooks/useCommissionRate';
@@ -92,6 +92,7 @@ export default function ProductForm(props) {
   } = props;
   const { runtime, app } = useAppSettings();
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
+  const { categoryGroups } = useCategories();
   const [form, setForm] = useState({
     title: '',
     description: '',

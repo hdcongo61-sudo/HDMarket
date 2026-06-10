@@ -14,7 +14,7 @@ import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import { hasAnyPermission } from "../utils/permissions";
 import { resolveUserProfileImage } from "../utils/userAvatar";
 import { useAppSettings } from "../context/AppSettingsContext";
-import categoryGroups from "../data/categories";
+import useCategories from '../hooks/useCategories';
 import {
   ShoppingCart,
   Bell,
@@ -139,6 +139,7 @@ export default function Navbar() {
   const location = useLocation();
   const isCourierRoute = location.pathname.startsWith('/delivery') || location.pathname.startsWith('/courier');
   const { user, logout } = useContext(AuthContext);
+  const { categoryGroups } = useCategories();
   const { theme, setTheme, t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true

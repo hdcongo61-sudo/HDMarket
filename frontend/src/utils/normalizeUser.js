@@ -79,6 +79,7 @@ export function normalizeUser(raw = {}) {
     shopAddress: safeString(raw.shopAddress),
     shopLogo: safeString(raw.shopLogo),
     shopBanner: safeString(raw.shopBanner),
+    shopBannerMobile: safeString(raw.shopBannerMobile),
     shopDescription: safeString(raw.shopDescription),
     shopVerified: toBool(raw.shopVerified),
     followersCount: Math.max(0, Number(raw.followersCount) || 0),

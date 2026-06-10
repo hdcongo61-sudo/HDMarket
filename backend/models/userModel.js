@@ -74,6 +74,7 @@ const userSchema = new mongoose.Schema(
     shopAddress: { type: String },
     shopLogo: { type: String },
     shopBanner: { type: String },
+    shopBannerMobile: { type: String },
     shopVerified: { type: Boolean, default: false },
     shopVerificationSnapshot: {
       verified: { type: Boolean, default: false },

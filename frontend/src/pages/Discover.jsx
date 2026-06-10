@@ -18,7 +18,7 @@ import {
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import ShimmerSkeleton from '../components/ui/ShimmerSkeleton';
-import categoryGroups from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { useAppSettings } from '../context/AppSettingsContext';
 import AuthContext from '../context/AuthContext';
@@ -103,6 +103,7 @@ function ProductRail({ products = [], loading = false }) {
 }
 
 export default function Discover() {
+  const { categoryGroups } = useCategories();
   const { user } = useContext(AuthContext);
   const { city: preferredCity } = useAppSettings();
   const [sections, setSections] = useState({ topDeals: [], topSales: [], newProducts: [], local: [] });

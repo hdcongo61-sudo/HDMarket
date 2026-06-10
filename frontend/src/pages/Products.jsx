@@ -4,7 +4,7 @@ import { CreditCard, Search, ShieldCheck, SlidersHorizontal, Sparkles, X } from 
 import api, { isApiCanceledError } from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
-import { getCategoryMeta } from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import { recordProductView } from '../utils/recentViews';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
@@ -22,6 +22,7 @@ const PAGE_SIZE = 12;
 
 export default function Products() {
 const [searchParams, setSearchParams] = useSearchParams();
+const { getCategoryMeta } = useCategories();
 const categoryParam = (searchParams.get('category') || '').trim();
 const sortParam = searchParams.get('sort') || '';
 const shopVerifiedParam = searchParams.get('shopVerified') === 'true';

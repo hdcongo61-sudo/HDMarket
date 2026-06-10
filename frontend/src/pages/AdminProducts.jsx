@@ -32,7 +32,7 @@ import {
   Loader2
 } from 'lucide-react';
 import api from '../services/api';
-import categoryGroups from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import AuthContext from '../context/AuthContext';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 
@@ -188,14 +188,14 @@ const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => {
   );
 };
 
-const categoryOptions = categoryGroups.flatMap((group) =>
-  group.options.map((option) => ({
-    value: option.value,
-    label: `${group.label} · ${option.label}`
-  }))
-);
-
 export default function AdminProducts() {
+  const { categoryGroups } = useCategories();
+  const categoryOptions = useMemo(() => categoryGroups.flatMap((group) =>
+    group.options.map((option) => ({
+      value: option.value,
+      label: `${group.label} · ${option.label}`
+    }))
+  ), [categoryGroups]);
   const { user } = useContext(AuthContext);
   const isAdminUser = user?.role === 'admin' || user?.role === 'founder';
   const canManageProducts =

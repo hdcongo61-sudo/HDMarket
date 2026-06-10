@@ -19,7 +19,7 @@ import FavoriteContext from '../context/FavoriteContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
-import { getCategoryMeta } from '../data/categories';
+import useCategories from '../hooks/useCategories';
 
 const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
   const { formatPrice } = useAppSettings();
@@ -126,6 +126,7 @@ export default function Explorer() {
   const { user } = useContext(AuthContext);
   const { favorites, toggleFavorite } = useContext(FavoriteContext);
   const { t } = useAppSettings();
+  const { getCategoryMeta } = useCategories();
   const observerRef = useRef(null);
   const [activeCategory, setActiveCategory] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);

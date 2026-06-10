@@ -6,7 +6,7 @@ import FlashSaleCard from "../components/FlashSaleCard";
 import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
-import categoryGroups, { allCategoryOptions } from "../data/categories";
+import useCategories from '../hooks/useCategories';
 import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
@@ -72,6 +72,7 @@ const buildImageReportContext = (product, deepLink = '') => {
 
 export default function Home() {
   const { user } = useContext(AuthContext);
+  const { categoryGroups, allCategoryOptions } = useCategories();
   const {
     city: preferredCity,
     cities: configuredCities,

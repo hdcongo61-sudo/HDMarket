@@ -93,7 +93,8 @@ router.put(
   upload.fields([
     { name: 'profileImage', maxCount: 1 },
     { name: 'shopLogo', maxCount: 1 },
-    { name: 'shopBanner', maxCount: 1 }
+    { name: 'shopBanner', maxCount: 1 },
+    { name: 'shopBannerMobile', maxCount: 1 }
   ]),
   validate(schemas.profileUpdate),
   updateProfile

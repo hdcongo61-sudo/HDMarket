@@ -23,8 +23,7 @@ import {
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
-import { allCategoryOptions } from '../data/categories';
-import categoryGroups from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import { recordProductView } from '../utils/recentViews';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -45,6 +44,7 @@ const SORT_OPTIONS = [
 const PAGE_SIZE = 12;
 
 export default function AdvancedSearch() {
+  const { allCategoryOptions, categoryGroups } = useCategories();
   const { showToast } = useToast();
   const { cities } = useAppSettings();
   const navigate = useNavigate();

@@ -1160,6 +1160,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (user.accountType === 'shop') {
     const logoFile = req.files?.shopLogo?.[0] || req.file || null;
     const bannerFile = req.files?.shopBanner?.[0] || null;
+    const bannerMobileFile = req.files?.shopBannerMobile?.[0] || null;
 
     user.shopName = user.shopName || shopName;
     user.shopAddress = user.shopAddress || shopAddress;
@@ -1183,8 +1184,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
         message: 'La bannière est réservée aux boutiques certifiées.'
       });
     }
+    if (bannerMobileFile && !user.shopVerified) {
+      return res.status(403).json({
+        message: 'La bannière mobile est réservée aux boutiques certifiées.'
+      });
+    }
 
-    if (!isCloudinaryConfigured() && (logoFile || bannerFile)) {
+    if (!isCloudinaryConfigured() && (logoFile || bannerFile || bannerMobileFile)) {
       return res
         .status(503)
         .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
@@ -1230,7 +1236,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
           folder,
           options: {
             transformation: [
-              { width: 1200, crop: 'limit' },
+              { width: 1200, height: 400, crop: 'fill', gravity: 'auto' },
               { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
             ]
           }
@@ -1238,6 +1244,26 @@ export const updateProfile = asyncHandler(async (req, res) => {
         user.shopBanner = uploaded.secure_url || uploaded.url;
       } catch (error) {
         return res.status(500).json({ message: 'Erreur lors de l’upload de la bannière.' });
+      }
+    }
+
+    if (bannerMobileFile) {
+      try {
+        const folder = getCloudinaryFolder(['shops', 'banners']);
+        const uploaded = await uploadToCloudinary({
+          buffer: bannerMobileFile.buffer,
+          resourceType: 'image',
+          folder,
+          options: {
+            transformation: [
+              { width: 800, height: 420, crop: 'fill', gravity: 'auto' },
+              { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+            ]
+          }
+        });
+        user.shopBannerMobile = uploaded.secure_url || uploaded.url;
+      } catch (error) {
+        return res.status(500).json({ message: 'Erreur lors de l’upload de la bannière mobile.' });
       }
     }
     if (hasShopHoursField) {

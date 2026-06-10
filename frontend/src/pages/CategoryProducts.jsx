@@ -4,7 +4,7 @@ import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
-import categoryGroups, { getCategoryMeta } from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import { ChevronRight, ArrowLeft, SlidersHorizontal, Grid2X2, List } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
@@ -22,6 +22,7 @@ const VIEW_MODE_STORAGE_KEY = 'hdmarket:category-product-view-mode';
 
 export default function CategoryProducts() {
   const { categoryId } = useParams();
+  const { getCategoryMeta, categoryGroups } = useCategories();
   const categoryMeta = useMemo(() => getCategoryMeta(categoryId), [categoryId]);
   const group = categoryMeta?.group ?? null;
 

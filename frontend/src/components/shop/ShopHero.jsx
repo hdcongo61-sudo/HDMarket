@@ -2,6 +2,20 @@ import React from 'react';
 import { Calendar, Clock, MapPin, ShieldCheck, Sparkles, Star, Store, TrendingUp } from 'lucide-react';
 import { formatCount, formatDate, formatRatingLabel } from './shopProfileHelpers';
 
+const isCloudinaryUrl = (url = '') =>
+  typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
+
+const injectTransform = (url = '', transform = '') => {
+  if (!isCloudinaryUrl(url) || !transform) return url;
+  return url.replace('/upload/', `/upload/${transform}/`);
+};
+
+const getDesktopBannerUrl = (url = '') =>
+  injectTransform(url, 'c_fill,g_auto,w_1200,h_400,q_auto,f_auto');
+
+const getMobileBannerUrl = (url = '') =>
+  injectTransform(url, 'c_fill,g_auto,w_800,h_420,q_auto,f_auto');
+
 export default function ShopHero({
   shop,
   isCertifiedShop,
@@ -18,13 +32,21 @@ export default function ShopHero({
   return (
     <section className="overflow-hidden rounded-none bg-white shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 sm:rounded-[28px] dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="relative h-[210px] w-full overflow-hidden bg-[#fff0df] sm:h-[280px] dark:bg-neutral-900">
-        {shop?.shopBanner ? (
-          <img
-            src={shop.shopBanner}
-            alt={`${t('shop_profile.banner', 'Bannière')} ${shop.shopName}`}
-            className="h-full w-full object-cover"
-            loading="eager"
-          />
+        {shop?.shopBanner || shop?.shopBannerMobile ? (
+          <>
+            <img
+              src={getDesktopBannerUrl(shop.shopBanner || shop.shopBannerMobile)}
+              alt={`${t('shop_profile.banner', 'Bannière')} ${shop.shopName}`}
+              className="hidden h-full w-full object-cover sm:block"
+              loading="eager"
+            />
+            <img
+              src={getMobileBannerUrl(shop.shopBannerMobile || shop.shopBanner)}
+              alt={`${t('shop_profile.banner', 'Bannière')} ${shop.shopName}`}
+              className="h-full w-full object-cover sm:hidden"
+              loading="eager"
+            />
+          </>
         ) : (
           <div className="h-full w-full bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.85),transparent_28%),linear-gradient(135deg,#ff6a00_0%,#ff8a2a_42%,#fff0df_100%)] dark:bg-[linear-gradient(135deg,#2b1405_0%,#7c2d12_52%,#171717_100%)]" />
         )}

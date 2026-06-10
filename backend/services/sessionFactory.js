@@ -100,6 +100,7 @@ export function buildSession(user, decoded = {}, token = '') {
     shopAddress: safeString(user.shopAddress),
     shopLogo: safeString(user.shopLogo),
     shopBanner: safeString(user.shopBanner),
+    shopBannerMobile: safeString(user.shopBannerMobile),
     shopDescription: safeString(user.shopDescription),
     shopVerified: toBool(user.shopVerified),
     followersCount: Math.max(0, Number(user.followersCount) || 0),

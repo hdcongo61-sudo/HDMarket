@@ -1193,7 +1193,8 @@ export const updateUserAccountType = asyncHandler(async (req, res) => {
         shopLogo: user.shopLogo || null,
         shopVerified: Boolean(user.shopVerified),
         shopDescription: user.shopDescription || null,
-        shopBanner: user.shopBanner || null
+        shopBanner: user.shopBanner || null,
+        shopBannerMobile: user.shopBannerMobile || null
       },
       reason: reason || ''
     });

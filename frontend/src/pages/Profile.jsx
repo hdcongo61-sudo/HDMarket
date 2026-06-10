@@ -428,6 +428,8 @@ export default function Profile() {
   const [shopLogoPreview, setShopLogoPreview] = useState('');
   const [shopBannerFile, setShopBannerFile] = useState(null);
   const [shopBannerPreview, setShopBannerPreview] = useState('');
+  const [shopBannerMobileFile, setShopBannerMobileFile] = useState(null);
+  const [shopBannerMobilePreview, setShopBannerMobilePreview] = useState('');
   const [profileImageEditorOpen, setProfileImageEditorOpen] = useState(false);
   const [profileImageEditorSource, setProfileImageEditorSource] = useState('');
   const [profileImageEditorFile, setProfileImageEditorFile] = useState(null);
@@ -572,8 +574,11 @@ export default function Profile() {
       if (shopBannerPreview && shopBannerPreview.startsWith('blob:')) {
         URL.revokeObjectURL(shopBannerPreview);
       }
+      if (shopBannerMobilePreview && shopBannerMobilePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(shopBannerMobilePreview);
+      }
     },
-    [profileImagePreview, shopLogoPreview, shopBannerPreview]
+    [profileImagePreview, shopLogoPreview, shopBannerPreview, shopBannerMobilePreview]
   );
 
   useEffect(
@@ -610,6 +615,7 @@ export default function Profile() {
     setProfileImagePreview(resolveUserProfileImage(user));
     setShopLogoPreview(user.shopLogo || '');
     setShopBannerPreview(user.shopBanner || '');
+    setShopBannerMobilePreview(user.shopBannerMobile || '');
     setShopHours(hydrateShopHoursFromUser(user.shopHours));
   }, [user]);
 
@@ -887,6 +893,8 @@ export default function Profile() {
         setShopLogoPreview('');
         setShopBannerFile(null);
         setShopBannerPreview('');
+        setShopBannerMobileFile(null);
+        setShopBannerMobilePreview('');
       }
       return;
     }
@@ -1101,6 +1109,22 @@ export default function Profile() {
   const removeBanner = () => {
     setShopBannerFile(null);
     setShopBannerPreview('');
+  };
+
+  const onBannerMobileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setShopBannerMobileFile(file);
+    if (file) {
+      if (shopBannerMobilePreview && shopBannerMobilePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(shopBannerMobilePreview);
+      }
+      setShopBannerMobilePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeBannerMobile = () => {
+    setShopBannerMobileFile(null);
+    setShopBannerMobilePreview('');
   };
 
   const resetShopHours = () => {
@@ -1528,6 +1552,9 @@ export default function Profile() {
         if (user?.shopVerified && shopBannerFile) {
           payload.append('shopBanner', shopBannerFile);
         }
+        if (user?.shopVerified && shopBannerMobileFile) {
+          payload.append('shopBannerMobile', shopBannerMobileFile);
+        }
         payload.append('shopHours', JSON.stringify(normalizedShopHours));
       }
       if (profileImageFile) {
@@ -1562,6 +1589,8 @@ export default function Profile() {
       setShopLogoFile(null);
       setShopBannerPreview(data.shopBanner || '');
       setShopBannerFile(null);
+      setShopBannerMobilePreview(data.shopBannerMobile || '');
+      setShopBannerMobileFile(null);
       setPasswordCode('');
       setPasswordCodeSent(false);
       setPasswordCodeError('');
@@ -2454,7 +2483,8 @@ export default function Profile() {
                     <div className="space-y-3">
                       <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
                         <ImageIcon className="w-4 h-4 text-neutral-700" />
-                        <span>Bannière de la boutique</span>
+                        <span>Bannière desktop</span>
+                        <span className="text-xs text-gray-400 font-normal">(1200×400px)</span>
                       </label>
                       <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
                         {shopBannerPreview ? (
@@ -2464,7 +2494,7 @@ export default function Profile() {
                               alt="Bannière boutique"
                               className="h-32 w-full rounded-2xl object-cover mx-auto mb-3 border-2 border-neutral-200"
                             />
-                            <p className="text-sm text-gray-600 mb-2">Bannière actuelle</p>
+                            <p className="text-sm text-gray-600 mb-2">Bannière desktop actuelle</p>
                             <button
                               type="button"
                               onClick={removeBanner}
@@ -2479,7 +2509,7 @@ export default function Profile() {
                             <span className="text-sm text-gray-500">
                               <span className="text-neutral-800 font-medium">Cliquez pour uploader</span>
                               <br />
-                              <span className="text-xs">PNG, JPG - 1200x400px recommandé</span>
+                              <span className="text-xs">PNG, JPG - 1200×400px recommandé</span>
                             </span>
                             <input
                               type="file"
@@ -2489,6 +2519,49 @@ export default function Profile() {
                             />
                           </label>
                         )}
+                      </div>
+
+                      {/* Mobile Banner */}
+                      <div className="space-y-3 pt-4 border-t border-gray-100">
+                        <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                          <ImageIcon className="w-4 h-4 text-neutral-700" />
+                          <span>Bannière mobile</span>
+                          <span className="text-xs text-gray-400 font-normal">(800×420px)</span>
+                        </label>
+                        <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group p-6">
+                          {shopBannerMobilePreview ? (
+                            <div className="text-center w-full">
+                              <img
+                                src={shopBannerMobilePreview}
+                                alt="Bannière mobile"
+                                className="h-32 w-full rounded-2xl object-cover mx-auto mb-3 border-2 border-neutral-200"
+                              />
+                              <p className="text-sm text-gray-600 mb-2">Bannière mobile actuelle</p>
+                              <button
+                                type="button"
+                                onClick={removeBannerMobile}
+                                className="text-sm text-red-600 hover:text-red-500"
+                              >
+                                Supprimer
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="text-center cursor-pointer">
+                              <Upload className="w-8 h-8 text-gray-400 group-hover:text-neutral-700 transition-colors mb-2 mx-auto" />
+                              <span className="text-sm text-gray-500">
+                                <span className="text-neutral-800 font-medium">Cliquez pour uploader</span>
+                                <br />
+                                <span className="text-xs">PNG, JPG - 800×420px recommandé</span>
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={onBannerMobileChange}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : (

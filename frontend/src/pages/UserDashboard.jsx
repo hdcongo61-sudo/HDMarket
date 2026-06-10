@@ -54,7 +54,7 @@ import ProductAnalytics from '../components/ProductAnalytics';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { buildProductPath } from '../utils/links';
-import categoryGroups from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import storage from '../utils/storage';
 import BaseModal from '../components/modals/BaseModal';
 import PreviewableImage from '../components/media/PreviewableImage';
@@ -140,6 +140,7 @@ const buildDefaultPromoForm = () => ({
 });
 
 export default function UserDashboard() {
+  const { categoryGroups } = useCategories();
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
   const { getRuntimeValue } = useAppSettings();

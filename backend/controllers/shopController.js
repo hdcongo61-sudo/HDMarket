@@ -224,6 +224,7 @@ export const listShops = asyncHandler(async (req, res) => {
         shopAddress: shop.shopAddress || '',
         shopLogo: shop.shopLogo || null,
         shopBanner: shop.shopBanner || null,
+        shopBannerMobile: shop.shopBannerMobile || null,
         shopVerified: Boolean(shop.shopVerified),
         shopBoosted: Boolean(shop.shopBoosted),
         shopBoostScore: Number(shop.shopBoostScore || 0),

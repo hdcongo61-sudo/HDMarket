@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Filter, Tag, DollarSign, HeartOff, X } from 'lucide-react';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
-import { getCategoryMeta } from '../data/categories';
+import useCategories from '../hooks/useCategories';
 
 const PAGE_SIZE = 12;
 
@@ -19,6 +19,7 @@ const PRICE_RANGES = [
 export default function Favorites() {
   const navigate = useNavigate();
   const { favorites, loading, removeFavorite } = useContext(FavoriteContext);
+  const { getCategoryMeta } = useCategories();
   const [page, setPage] = useState(1);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterPrice, setFilterPrice] = useState('all');

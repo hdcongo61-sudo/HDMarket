@@ -4,13 +4,14 @@ import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle } from 'lucide-react';
-import categoryGroups, { getCategoryMeta } from '../data/categories';
+import useCategories from '../hooks/useCategories';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 export default function EditProduct() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { categoryGroups, getCategoryMeta } = useCategories();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
