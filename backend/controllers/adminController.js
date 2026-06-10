@@ -1276,9 +1276,9 @@ export const blockUser = asyncHandler(async (req, res) => {
     ipAddress: req.ip || req.connection?.remoteAddress
   });
 
-  // Send real-time notification + disconnect user
+  // Send real-time notification + disconnect user (fire-and-forget - don't block response)
   const restrictedUserIds = [String(user._id)];
-  await createNotification({
+  createNotification({
     userId: user._id,
     actorId: req.user.id,
     type: 'account_restriction',
@@ -1328,8 +1328,8 @@ export const unblockUser = asyncHandler(async (req, res) => {
     ipAddress: req.ip || req.connection?.remoteAddress
   });
 
-  // Notify user their account was restored
-  await createNotification({
+  // Notify user their account was restored (fire-and-forget)
+  createNotification({
     userId: user._id,
     actorId: req.user.id,
     type: 'account_restriction_lifted',
@@ -1386,7 +1386,8 @@ export const updateShopVerification = asyncHandler(async (req, res) => {
   }
 
   if (shouldVerify && !previouslyVerified) {
-    await createNotification({
+    // Fire-and-forget: don't block response
+    createNotification({
       userId: user._id,
       actorId: req.user.id,
       type: 'shop_verified',
@@ -2430,7 +2431,7 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
   let sent = 0;
   for (const u of users) {
     if (String(u._id) === actorId) continue;
-    const created = await createNotification({
+    createNotification({
       userId: u._id,
       actorId,
       type: 'admin_broadcast',
@@ -2612,7 +2613,8 @@ export const setUserRestriction = asyncHandler(async (req, res) => {
       ? `Restriction "${restrictionLabel}" appliquée. ${dateInfo}. Raison: ${trimmedReason}`
       : `Restriction "${restrictionLabel}" appliquée. ${dateInfo}.`;
 
-    await createNotification({
+    // Fire-and-forget: don't block response
+    createNotification({
       userId: user._id,
       actorId: req.user.id,
       type: 'account_restriction',
@@ -2627,7 +2629,8 @@ export const setUserRestriction = asyncHandler(async (req, res) => {
     });
   } else if (wasRestricted) {
     const restrictionLabel = getRestrictionLabel(type);
-    await createNotification({
+    // Fire-and-forget: don't block response
+    createNotification({
       userId: user._id,
       actorId: req.user.id,
       type: 'account_restriction_lifted',
@@ -2706,7 +2709,8 @@ export const removeUserRestriction = asyncHandler(async (req, res) => {
     // Send notification if restriction was previously active
     if (wasRestricted) {
       const restrictionLabel = getRestrictionLabel(type);
-      await createNotification({
+      // Fire-and-forget: don't block response
+      createNotification({
         userId: user._id,
         actorId: req.user.id,
         type: 'account_restriction_lifted',

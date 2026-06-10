@@ -137,7 +137,12 @@ const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } 
   return filter;
 };
 
-const WALLET_ESCROW_RELEASE_STATUSES = new Set(['confirmed_by_client', 'completed']);
+const WALLET_ESCROW_RELEASE_STATUSES = new Set([
+  'picked_up_confirmed',
+  'delivered',
+  'confirmed_by_client',
+  'completed'
+]);
 
 const getOrderSellerIds = (order) =>
   Array.from(
@@ -1967,7 +1972,7 @@ export const adminListOrders = asyncHandler(async (req, res) => {
       .limit(pageSize),
     Order.countDocuments(filter)
   ]);
-  await ensureOrderProductSlugs(pageOrders);
+  await ensureOrderProductSlugs(orders);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -1995,8 +2000,11 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   const previousStatus = order.status;
   let notifyPending = false;
   let notifyConfirmed = false;
+  let notifyReadyForDelivery = false;
+  let notifyReadyForPickup = false;
   let notifyDelivering = false;
   let notifyDelivered = false;
+  let notifyPickupConfirmed = false;
   let notifyCancelled = false;
   let deliveredTimestampAdded = false;
 
@@ -2031,8 +2039,11 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
       order.status = status;
       notifyPending = status === 'pending';
       notifyConfirmed = status === 'confirmed';
+      notifyReadyForDelivery = status === 'ready_for_delivery';
+      notifyReadyForPickup = status === 'ready_for_pickup';
       notifyDelivering = status === 'delivering' || status === 'out_for_delivery';
       notifyDelivered = status === 'delivered';
+      notifyPickupConfirmed = status === 'picked_up_confirmed';
       notifyCancelled = status === 'cancelled';
     }
     if (['confirmed', 'ready_for_delivery'].includes(status) && !order.confirmedAt) {
@@ -2195,10 +2206,36 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
     await createNotification({
       userId: order.customer,
       actorId: req.user.id,
-      type: 'order_created',
+      type: 'order_confirmed',
       metadata: {
         ...baseMetadata,
         status: 'confirmed'
+      },
+      allowSelf: true
+    });
+  }
+  if (notifyReadyForDelivery && previousStatus !== 'ready_for_delivery') {
+    await createNotification({
+      userId: order.customer,
+      actorId: req.user.id,
+      type: 'order_ready_for_delivery',
+      metadata: {
+        ...baseMetadata,
+        status: 'ready_for_delivery'
+      },
+      allowSelf: true
+    });
+  }
+  if (notifyReadyForPickup && previousStatus !== 'ready_for_pickup') {
+    await createNotification({
+      userId: order.customer,
+      actorId: req.user.id,
+      type: 'order_ready_for_pickup',
+      metadata: {
+        ...baseMetadata,
+        status: 'ready_for_pickup',
+        deliveryAddress: order.deliveryAddress,
+        deliveryCity: order.deliveryCity
       },
       allowSelf: true
     });
@@ -2224,6 +2261,19 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
         ...baseMetadata,
         status: 'delivered',
         deliveredAt: order.deliveredAt
+      },
+      allowSelf: true
+    });
+  }
+
+  if (notifyPickupConfirmed && previousStatus !== 'picked_up_confirmed') {
+    await createNotification({
+      userId: order.customer,
+      actorId: req.user.id,
+      type: 'order_picked_up',
+      metadata: {
+        ...baseMetadata,
+        status: 'picked_up_confirmed'
       },
       allowSelf: true
     });
@@ -3393,6 +3443,15 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     order.deliveredAt = now;
   }
   await order.save();
+  if (WALLET_ESCROW_RELEASE_STATUSES.has(order.status)) {
+    try {
+      await releaseWalletEscrowForOrder(order, actorId);
+    } catch (err) {
+      return res.status(500).json({
+        message: 'Preuve enregistrée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
+      });
+    }
+  }
   await syncReviewReminderForOrderLifecycle(order);
 
   const baseLog = {
@@ -3696,6 +3755,64 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     },
     { label: 'client_confirm_side_effects' }
   );
+});
+
+export const sellerSendClientConfirmationReminder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const access = await resolveSellerAccess(req, 'view_shop_orders');
+  const { actorId, sellerId } = access;
+
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+
+  const order = await Order.findOne({
+    _id: id,
+    'items.snapshot.shopId': buildSellerIdMatch(sellerId),
+    isDraft: false
+  }).lean();
+
+  if (!order) {
+    return res.status(404).json({ message: 'Commande introuvable.' });
+  }
+
+  const status = String(order.status || '').toLowerCase();
+  const canRemind = status === 'delivery_proof_submitted' || status === 'delivered';
+  if (!canRemind || order.clientDeliveryConfirmedAt) {
+    return res.status(400).json({
+      message: 'Cette commande ne nécessite plus de confirmation client.'
+    });
+  }
+
+  await createNotification({
+    userId: order.customer,
+    actorId,
+    type: 'order_reminder',
+    metadata: {
+      orderId: order._id,
+      orderCustomerId: order.customer,
+      status: order.status,
+      reminderType: 'buyer_delivery_confirmation',
+      deliveryAddress: order.deliveryAddress,
+      deliveryCity: order.deliveryCity,
+      message: 'Le vendeur vous demande de confirmer la réception afin de libérer ses fonds.'
+    },
+    allowSelf: true,
+    priority: 'HIGH',
+    pushEnabled: true
+  });
+
+  await auditAssistantOrderAction({
+    access,
+    action: 'assistant_order_status_updated',
+    order,
+    metadata: {
+      reminderType: 'buyer_delivery_confirmation',
+      status: order.status
+    }
+  });
+
+  res.json({ message: 'Relance envoyée au client pour confirmer la commande.' });
 });
 
 export const getOrderDeliveryLogs = asyncHandler(async (req, res) => {

@@ -168,6 +168,18 @@ import {
   listRoleValidationTasks,
   markRoleValidationTaskDone
 } from '../controllers/taskCenterController.js';
+import {
+  listCommunesAdmin,
+  createCommuneAdmin,
+  updateCommuneAdmin,
+  deleteCommuneAdmin
+} from '../controllers/communeController.js';
+import {
+  listCitiesAdmin,
+  createCityAdmin,
+  updateCityAdmin,
+  deleteCityAdmin
+} from '../controllers/cityController.js';
 
 const router = express.Router();
 const adminMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
@@ -588,5 +600,17 @@ router.get('/networks', protect, requireRole(['admin']), getAllNetworks);
 router.post('/networks', protect, requireRole(['admin']), adminMutationIdempotency, createNetwork);
 router.patch('/networks/:id', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), adminMutationIdempotency, updateNetwork);
 router.delete('/networks/:id', protect, requireRole(['admin']), validate(schemas.idParam, 'params'), adminMutationIdempotency, deleteNetwork);
+
+// Commune admin CRUD
+router.get('/communes', listCommunesAdmin);
+router.post('/communes', adminMutationIdempotency, createCommuneAdmin);
+router.patch('/communes/:id', validate(schemas.idParam, 'params'), adminMutationIdempotency, updateCommuneAdmin);
+router.delete('/communes/:id', validate(schemas.idParam, 'params'), adminMutationIdempotency, deleteCommuneAdmin);
+
+// City admin CRUD
+router.get('/cities', listCitiesAdmin);
+router.post('/cities', adminMutationIdempotency, createCityAdmin);
+router.patch('/cities/:id', validate(schemas.idParam, 'params'), adminMutationIdempotency, updateCityAdmin);
+router.delete('/cities/:id', validate(schemas.idParam, 'params'), adminMutationIdempotency, deleteCityAdmin);
 
 export default router;

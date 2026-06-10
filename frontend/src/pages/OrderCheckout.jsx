@@ -1331,58 +1331,58 @@ export default function OrderCheckout() {
               </div>
             ))}
           </div>
-          <div className="space-y-2 border-t border-slate-100 p-4 sm:p-5">
-            <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2">
-              <span className="font-semibold text-slate-600">Total commande</span>
-              <span className="text-lg font-black text-slate-950">
+          <div className="space-y-3 border-t border-slate-100 p-5 sm:p-6">
+            <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-5 py-4">
+              <span className="text-base font-black text-slate-700">Total commande</span>
+              <span className="text-2xl font-black text-slate-950">
                 {formatCurrency(summaryOrderTotal)}
               </span>
             </div>
             {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="font-semibold text-slate-600">
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <span className="text-base font-bold text-slate-600">
                   Livraison ({DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source'})
                 </span>
-                <span className={`font-black text-lg ${(isFullPaymentSelected || isWalletPayment) ? 'text-emerald-700' : 'text-neutral-700'}`}>
+                <span className={`text-lg font-black ${(isFullPaymentSelected || isWalletPayment) ? 'text-emerald-700' : 'text-neutral-700'}`}>
                   {(isFullPaymentSelected || isWalletPayment) ? 'GRATUITE' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
               </div>
             )}
             {(isFullPaymentSelected || isWalletPayment) && (
-              <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2">
-                <span className="font-semibold text-emerald-700">Livraison offerte</span>
+              <div className="flex items-center justify-between rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-5 py-4">
+                <span className="text-base font-black text-emerald-700">Livraison offerte</span>
                 <span className="text-lg font-black text-emerald-700">0 FCFA</span>
               </div>
             )}
             {!isInstallmentPayment && checkoutSavings > 0 && (
-              <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2">
-                <span className="font-semibold text-emerald-700">Économie via promo</span>
+              <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
+                <span className="text-base font-black text-emerald-700">Économie via promo</span>
                 <span className="text-lg font-black text-emerald-700">
                   -{formatCurrency(checkoutSavings)}
                 </span>
               </div>
             )}
             {!isWalletPayment && (
-              <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2">
-                <span className="font-semibold text-orange-800">
+              <div className="flex items-center justify-between rounded-2xl border-2 border-orange-300 bg-orange-50 px-5 py-4">
+                <span className="text-base font-black text-orange-800">
                   {summaryPrimaryPaymentLabel}
                 </span>
-                <span className="text-lg font-black text-[#ff6a00]">
+                <span className="text-2xl font-black text-[#ff6a00]">
                   {formatCurrency(summaryPaidAmount)}
                 </span>
               </div>
             )}
             {summaryRemainingAmount > 0 && (
-              <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2">
-                <span className="font-semibold text-slate-600">Reste à payer</span>
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-5 py-4">
+                <span className="text-base font-bold text-slate-600">Reste à payer</span>
                 <span className="text-lg font-black text-slate-950">
                   {formatCurrency(summaryRemainingAmount)}
                 </span>
               </div>
             )}
           </div>
-          <div className="mx-4 mb-4 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-800 sm:mx-5 sm:mb-5 sm:text-sm">
-            <ShieldCheck size={16} />
+          <div className="mx-5 mb-5 flex items-start gap-3 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-5 text-emerald-800 sm:text-base">
+            <ShieldCheck size={20} className="mt-0.5 flex-shrink-0" />
             <span>
               {isInstallmentPayment
                 ? 'Le vendeur doit confirmer la vente puis valider chaque tranche.'
@@ -1950,16 +1950,16 @@ export default function OrderCheckout() {
             <button
               type="submit"
               disabled={loading}
-              className="hidden w-full items-center justify-center gap-2 rounded-2xl bg-[#ff6a00] px-6 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:opacity-60 sm:text-base lg:inline-flex"
+              className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-[#ff6a00] px-8 py-5 text-lg font-black text-white shadow-[0_14px_32px_rgba(255,106,0,0.28)] transition hover:bg-[#f05f00] active:scale-[0.98] disabled:opacity-60 sm:text-xl"
             >
               {loading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
                   {checkoutStatus || (isWalletPayment ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...')}
                 </>
               ) : (
                 <>
-                  <Lock size={18} />
+                  <Lock size={22} />
                   {isWalletPayment ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
                 </>
               )}
@@ -1967,13 +1967,13 @@ export default function OrderCheckout() {
           </form>
         </section>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-7xl items-center gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-slate-200 bg-white/95 px-5 py-5 shadow-[0_-16px_36px_rgba(15,23,42,0.14)] backdrop-blur lg:hidden safe-area-bottom">
+        <div className="mx-auto flex max-w-7xl items-center gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-500">
               {isWalletPayment ? 'Paiement portefeuille' : summaryPrimaryPaymentLabel}
             </p>
-            <p className="truncate text-lg font-black text-[#ff6a00]">
+            <p className="truncate text-2xl font-black text-[#ff6a00]">
               {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}
             </p>
           </div>
@@ -1981,12 +1981,12 @@ export default function OrderCheckout() {
             type="submit"
             form="order-checkout-form"
             disabled={loading}
-            className="inline-flex min-h-[50px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#ff6a00] px-4 text-sm font-black text-white shadow-[0_12px_24px_rgba(255,106,0,0.24)] disabled:opacity-60"
+            className="inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#ff6a00] px-7 text-lg font-black text-white shadow-[0_14px_28px_rgba(255,106,0,0.30)] active:scale-[0.97] disabled:opacity-60"
           >
             {loading ? (
-              <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              <div className="h-6 w-6 rounded-full border-[3px] border-white border-t-transparent animate-spin" />
             ) : (
-              <Lock size={17} />
+              <Lock size={20} />
             )}
             {loading ? 'Validation...' : 'Confirmer'}
           </button>

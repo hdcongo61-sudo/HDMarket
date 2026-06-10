@@ -29,6 +29,7 @@ import {
   sellerGetOrder,
   sellerUpdateOrderDeliveryFee,
   sellerSubmitDeliveryProof,
+  sellerSendClientConfirmationReminder,
   clientConfirmDelivery,
   getOrderDeliveryLogs,
   sellerUpdateOrderStatus,
@@ -204,6 +205,12 @@ router.post(
   validate(schemas.deliveryProofSubmit),
   idempotencyMiddleware(),
   sellerSubmitDeliveryProof
+);
+router.post(
+  '/seller/:id/confirmation-reminder',
+  validate(schemas.idParam, 'params'),
+  idempotencyMiddleware(),
+  sellerSendClientConfirmationReminder
 );
 router.post(
   '/:id/confirm-delivery',

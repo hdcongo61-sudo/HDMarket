@@ -133,7 +133,7 @@ export const assertPlatformDeliveryEnabled = async () => {
 
 export const canManageDeliveryRequests = (user, runtime) => {
   if (!user) return false;
-  if (user.role === 'founder') return true;
+  if (user.role === 'founder' || user.role === 'admin') return true;
   if (hasAnyPermission(user, ['manage_delivery']) || user.canManageDelivery === true) return true;
   const roles = Array.isArray(runtime?.managerRoles) ? runtime.managerRoles : [];
   if (!roles.length) return false;

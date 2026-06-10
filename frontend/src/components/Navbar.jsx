@@ -269,6 +269,7 @@ export default function Navbar() {
   const [bottomBarExpanded, setBottomBarExpanded] = useState(false);
   const [bottomBarTouchStart, setBottomBarTouchStart] = useState(null);
   const [bottomNavHidden, setBottomNavHidden] = useState(false);
+  const [topNavHidden, setTopNavHidden] = useState(false);
   const lastScrollYRef = useRef(0);
   const navScrollTickRef = useRef(false);
   const [longPressTimer, setLongPressTimer] = useState(null);
@@ -541,6 +542,7 @@ export default function Navbar() {
     if (typeof window === 'undefined') return undefined;
     if (!isMobileLayout) {
       setBottomNavHidden(false);
+      setTopNavHidden(false);
       return undefined;
     }
     const onScroll = () => {
@@ -552,6 +554,7 @@ export default function Navbar() {
         lastScrollYRef.current = currentY;
         if (isMenuOpen || isSearchFullScreen || bottomBarExpanded) {
           setBottomNavHidden(false);
+          setTopNavHidden(false);
           navScrollTickRef.current = false;
           return;
         }
@@ -561,8 +564,10 @@ export default function Navbar() {
         }
         if (delta > 0 && currentY > 120) {
           setBottomNavHidden(true);
+          setTopNavHidden(true);
         } else if (delta < 0 || currentY < 72) {
           setBottomNavHidden(false);
+          setTopNavHidden(false);
         }
         navScrollTickRef.current = false;
       });
@@ -2911,7 +2916,9 @@ export default function Navbar() {
 
       {/* 🎯 NAVBAR PRINCIPALE - Proposal A: Two-Tier Layout */}
       <nav
-        className="hd-main-nav fixed top-0 left-0 right-0 z-50 shadow-sm"
+        className={`hd-main-nav fixed top-0 left-0 right-0 z-50 shadow-sm transition-transform duration-300 ${
+          topNavHidden ? '-translate-y-full' : 'translate-y-0'
+        }`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Top Bar: Logo, Search, Actions */}

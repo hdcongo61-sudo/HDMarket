@@ -77,8 +77,11 @@ const TRANSACTION_CATEGORY_FILTERS = [
   { id: 'deposit', label: 'Dépôts', params: { type: 'deposit' } },
   { id: 'withdrawal', label: 'Retraits', params: { type: 'withdrawal' } },
   { id: 'purchase', label: 'Achats', params: { type: 'purchase' } },
+  { id: 'sales', label: 'Ventes', params: { type: 'sale,sale_pending,sale_release,sale_reversal' } },
   { id: 'sale_pending', label: 'Ventes en attente', params: { type: 'sale_pending' } },
-  { id: 'refund', label: 'Remboursements', params: { type: 'refund' } }
+  { id: 'refund', label: 'Remboursements', params: { type: 'refund' } },
+  { id: 'commission', label: 'Commissions', params: { type: 'commission' } },
+  { id: 'neutral', label: 'Autres', params: { direction: 'neutral' } }
 ];
 
 const TRANSACTION_STATUS_FILTERS = [
@@ -234,6 +237,18 @@ export default function WalletPage() {
     loadWallet();
     loadContactNetworks();
   }, [loadWallet, loadContactNetworks]);
+
+  // Auto-refresh wallet when user returns to this tab/page
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadWallet();
+        loadTransactions(1);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [loadWallet, loadTransactions]);
 
   useEffect(() => {
     loadTransactions(1);
@@ -560,7 +575,7 @@ export default function WalletPage() {
             </button>
           </div>
 
-          <div className="sticky top-[113px] z-10 space-y-2.5 border-b border-slate-100 bg-white/95 px-3 py-3 backdrop-blur sm:static sm:space-y-3 sm:px-5">
+          <div className="space-y-2.5 border-b border-slate-100 bg-white px-3 py-3 sm:space-y-3 sm:px-5">
             <div className="relative">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -580,7 +595,7 @@ export default function WalletPage() {
                     key={filter.id}
                     type="button"
                     onClick={() => setTxnCategoryFilter(filter.id)}
-	                    className={`shrink-0 rounded-full px-3 py-2 text-[11px] font-black transition sm:text-xs ${
+                    className={`shrink-0 rounded-full px-3 py-2 text-[11px] font-black transition sm:text-xs ${
                       active
                         ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)]'
                         : 'bg-slate-50 text-slate-600 hover:bg-orange-50 hover:text-[#ff6a00]'
@@ -620,9 +635,14 @@ export default function WalletPage() {
                 </button>
               )}
             </div>
+            {hasActiveTransactionFilters && transactions.length > 0 && (
+              <div className="rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2 text-[11px] font-bold leading-snug text-[#9A4A00]">
+                Vue filtrée: certaines transactions peuvent être masquées. Utilisez “Tout” ou “Réinitialiser” pour voir tout l’historique.
+              </div>
+            )}
           </div>
 
-          <div className="p-2 sm:p-3">
+          <div className="p-2 pt-4 sm:p-3">
             {txnLoading && transactions.length === 0 ? (
               <div className="space-y-2 p-2">
                 {Array.from({ length: 6 }).map((_, i) => (

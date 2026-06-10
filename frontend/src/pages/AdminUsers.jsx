@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, AlertCircle, MapPin } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, AlertCircle, MapPin, Truck, Clock } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -1394,139 +1394,268 @@ export default function AdminUsers() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 px-3 py-4 sm:px-5 md:px-6 lg:px-8">
-      <header className="rounded-3xl border border-gray-100 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Admin Console</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-              Utilisateurs & Roles
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Vue unifiee des comptes, permissions et operations sensibles.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
-                {displayedUsers.length} visibles
-              </span>
-              {roleFilter !== 'all' ? (
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getRoleBadgeClass(roleFilter)}`}>
-                  Filtre role: {formatRoleLabel(roleFilter)}
-                </span>
-              ) : null}
-              {searchTerm ? (
-                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
-                  Recherche active
-                </span>
-              ) : null}
+      {/* ─── Professional Dashboard Header ─── */}
+      <header className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        <div className="border-b border-neutral-100 bg-neutral-50/50 px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-900 text-white">
+                <ShieldAlert size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500">Admin Console</p>
+                <h1 className="text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
+                  Utilisateurs &amp; Rôles
+                </h1>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {isFounder && canViewLogs && (
+            <div className="flex flex-wrap items-center gap-2">
+              {isFounder && canViewLogs && (
+                <button
+                  type="button"
+                  onClick={openFounderAuditModal}
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  <History size={14} />
+                  Timeline
+                </button>
+              )}
+              <Link
+                to="/admin"
+                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+              >
+                <ArrowLeft size={14} />
+                Dashboard
+              </Link>
               <button
                 type="button"
-                onClick={openFounderAuditModal}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                onClick={handleRefresh}
+                className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
               >
-                <History size={16} />
-                Timeline founder
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                Actualiser
               </button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />
+              {displayedUsers.length} utilisateur{displayedUsers.length !== 1 ? 's' : ''}
+            </span>
+            {roleFilter !== 'all' && (
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getRoleBadgeClass(roleFilter)}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" />
+                {formatRoleLabel(roleFilter)}
+              </span>
             )}
-            <Link
-              to="/admin"
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100"
-            >
-              <ArrowLeft size={16} />
-              Retour dashboard
-            </Link>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-              Actualiser
-            </button>
+            {searchTerm && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                <Search size={12} />
+                &quot;{searchTerm}&quot;
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Stats Grid ─── */}
+        <div className="grid grid-cols-2 gap-px bg-neutral-100 sm:grid-cols-3 xl:grid-cols-6">
+          {/* Total */}
+          <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100">
+                <User size={14} className="text-neutral-600" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Total</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-neutral-900">{formatNumber(stats.total)}</p>
+          </div>
+          {/* Actifs */}
+          <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100">
+                <CheckCircle2 size={14} className="text-emerald-600" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Actifs</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-emerald-600">{formatNumber(stats.active)}</p>
+          </div>
+          {/* Suspendus */}
+          <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-100">
+                <Ban size={14} className="text-red-600" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Suspendus</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-red-600">{formatNumber(stats.blocked)}</p>
+          </div>
+          {/* Boutiques */}
+          <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100">
+                <Store size={14} className="text-violet-600" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Boutiques</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-neutral-900">{formatNumber(stats.shops)}</p>
+          </div>
+          {/* Livreurs */}
+          <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-100">
+                <Truck size={14} className="text-cyan-600" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Livreurs</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-cyan-600">{formatNumber(stats.deliveryAgents)}</p>
+          </div>
+          {/* Demandes shop */}
+          <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100">
+                <Clock size={14} className="text-amber-600" />
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">En attente</p>
+            </div>
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-amber-600">{formatNumber(stats.pendingConversion)}</p>
           </div>
         </div>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Total</p>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{stats.total}</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Actifs</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-700">{stats.active}</p>
-        </div>
-        <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Suspendus</p>
-          <p className="mt-1 text-2xl font-semibold text-red-700">{stats.blocked}</p>
-        </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Boutiques</p>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{stats.shops}</p>
-        </div>
-        <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">Livreurs</p>
-          <p className="mt-1 text-2xl font-semibold text-cyan-700">{stats.deliveryAgents}</p>
-        </div>
-        <div className="rounded-2xl border border-teal-100 bg-teal-50/70 p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-700">Demandes shop</p>
-          <p className="mt-1 text-2xl font-semibold text-teal-700">{stats.pendingConversion}</p>
-        </div>
-      </section>
-
-      {roleFilterOptions.length > 1 ? (
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Repartition des roles</p>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            {roleFilterOptions
-              .filter((option) => option.value !== 'all')
-              .map((option) => {
-                const count = Number(stats.roleBuckets?.[option.value] || 0);
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setRoleFilter(option.value)}
-                    className={`inline-flex min-h-[36px] items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition ${
-                      roleFilter === option.value
-                        ? `${getRoleBadgeClass(option.value)} border-transparent`
-                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span>{option.label}</span>
-                    <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-gray-700">
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
+      {/* ─── Role Distribution + Filters ─── */}
+      <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
+        {/* Role Pills */}
+        {roleFilterOptions.length > 1 && (
+          <div className="border-b border-neutral-100 px-4 py-3 sm:px-5">
+            <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Rôles</p>
+            <div className="flex flex-wrap gap-1.5">
+              {roleFilterOptions
+                .filter((option) => option.value !== 'all')
+                .map((option) => {
+                  const count = Number(stats.roleBuckets?.[option.value] || 0);
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setRoleFilter(option.value)}
+                      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                        roleFilter === option.value
+                          ? `${getRoleBadgeClass(option.value)} shadow-sm`
+                          : 'border border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-100'
+                      }`}
+                    >
+                      {option.label}
+                      <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                        roleFilter === option.value
+                          ? 'bg-white/30'
+                          : 'bg-neutral-200 text-neutral-500'
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              {roleFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter('all')}
+                  className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-2 py-1 text-[10px] font-semibold text-neutral-400 hover:text-neutral-600 transition"
+                >
+                  <X size={12} />
+                  Effacer
+                </button>
+              )}
+            </div>
           </div>
-        </section>
-      ) : null}
+        )}
 
-      <section className="space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-        <form
-          onSubmit={handleSearchSubmit}
-          className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between"
-        >
-          <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+        {/* Search + Filters */}
+        <form onSubmit={handleSearchSubmit} className="px-4 py-3 sm:px-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            {/* Search bar */}
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="search"
-                placeholder="Rechercher un nom, email ou téléphone"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                placeholder="Rechercher nom, email ou téléphone…"
+                className="w-full rounded-lg border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 transition"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            {/* Desktop filters */}
+            {!isMobileView ? (
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={accountTypeFilter}
+                  onChange={(e) => setAccountTypeFilter(e.target.value)}
+                  className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                >
+                  {accountFilterOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                    statusFilter !== 'all'
+                      ? 'border-neutral-400 bg-neutral-100 text-neutral-800'
+                      : 'border-neutral-200 bg-white text-neutral-700'
+                  }`}
+                >
+                  {statusFilterOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                    roleFilter !== 'all'
+                      ? `${getRoleBadgeClass(roleFilter)} border-transparent`
+                      : 'border-neutral-200 bg-white text-neutral-700'
+                  }`}
+                >
+                  {roleFilterOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={restrictionFilter}
+                  onChange={(e) => setRestrictionFilter(e.target.value)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                    restrictionFilter !== 'all'
+                      ? 'border-amber-400 bg-amber-50 text-amber-700'
+                      : 'border-neutral-200 bg-white text-neutral-700'
+                  }`}
+                >
+                  {restrictionFilterOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={conversionFilter}
+                  onChange={(e) => setConversionFilter(e.target.value)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                    conversionFilter !== 'all'
+                      ? 'border-teal-500 bg-teal-50 text-teal-700'
+                      : 'border-neutral-200 bg-white text-neutral-700'
+                  }`}
+                >
+                  {conversionFilterOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
               <button
                 type="submit"
-                className="rounded-lg bg-neutral-600 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 transition"
+                className="rounded-lg bg-neutral-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800"
               >
                 Rechercher
               </button>
@@ -1534,174 +1663,84 @@ export default function AdminUsers() {
                 <button
                   type="button"
                   onClick={handleClearSearch}
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                  className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
                 >
                   Effacer
                 </button>
               )}
             </div>
           </div>
-          {isMobileView ? (
-            <div className="space-y-3">
-              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-                {accountFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setAccountTypeFilter(option.value)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      accountTypeFilter === option.value
-                        ? 'bg-neutral-600 text-white shadow'
-                        : 'border border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-                {statusFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setStatusFilter(option.value)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      statusFilter === option.value
-                        ? 'bg-gray-900 text-white shadow'
-                        : 'border border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-                {roleFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setRoleFilter(option.value)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      roleFilter === option.value
-                        ? `${getRoleBadgeClass(option.value)} shadow`
-                        : 'border border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-                {restrictionFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setRestrictionFilter(option.value)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      restrictionFilter === option.value
-                        ? 'bg-amber-500 text-white shadow'
-                        : 'border border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-                {conversionFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setConversionFilter(option.value)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      conversionFilter === option.value
-                        ? 'bg-teal-600 text-white shadow'
-                        : 'border border-gray-200 bg-white text-gray-600'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={accountTypeFilter}
-                onChange={(e) => setAccountTypeFilter(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
-              >
-                {accountFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
-              >
-                {statusFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className={`rounded-lg border px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
-                  roleFilter !== 'all'
-                    ? `${getRoleBadgeClass(roleFilter)} border-transparent`
-                    : 'border-gray-200 text-gray-700'
-                }`}
-              >
-                {roleFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={restrictionFilter}
-                onChange={(e) => setRestrictionFilter(e.target.value)}
-                className={`rounded-lg border px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
-                  restrictionFilter !== 'all' ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-700'
-                }`}
-              >
-                {restrictionFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={conversionFilter}
-                onChange={(e) => setConversionFilter(e.target.value)}
-                className={`rounded-lg border px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
-                  conversionFilter !== 'all' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-700'
-                }`}
-              >
-                {conversionFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+
+          {/* Mobile filter pills */}
+          {isMobileView && (
+            <div className="mt-3 space-y-2">
+              {[
+                { label: 'Type', options: accountFilterOptions, value: accountTypeFilter, setter: setAccountTypeFilter, activeClass: 'bg-neutral-900 text-white' },
+                { label: 'Statut', options: statusFilterOptions, value: statusFilter, setter: setStatusFilter, activeClass: 'bg-neutral-900 text-white' },
+                { label: 'Rôle', options: roleFilterOptions, value: roleFilter, setter: setRoleFilter, activeClass: '' },
+                { label: 'Restriction', options: restrictionFilterOptions, value: restrictionFilter, setter: setRestrictionFilter, activeClass: 'bg-amber-600 text-white' },
+                { label: 'Conversion', options: conversionFilterOptions, value: conversionFilter, setter: setConversionFilter, activeClass: 'bg-teal-600 text-white' }
+              ].map((group) => (
+                <div key={group.label} className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 w-16 shrink-0">{group.label}</span>
+                  <div className="flex gap-1 overflow-x-auto pb-0.5">
+                    {group.options.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => group.setter(option.value)}
+                        className={`flex-shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                          group.value === option.value
+                            ? group.activeClass || `${getRoleBadgeClass(option.value)} shadow-sm`
+                            : 'border border-neutral-200 bg-white text-neutral-500'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </form>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {actionError && <p className="text-sm text-red-600">{actionError}</p>}
-        {actionSuccess && <p className="text-sm text-green-700">{actionSuccess}</p>}
+        {/* ─── Messages ─── */}
+        {error && (
+          <div className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 sm:mx-5">
+            <AlertCircle size={16} className="mr-2 inline-block" />
+            {error}
+          </div>
+        )}
+        {actionError && (
+          <div className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 sm:mx-5">
+            <AlertCircle size={16} className="mr-2 inline-block" />
+            {actionError}
+          </div>
+        )}
+        {actionSuccess && (
+          <div className="mx-4 mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 sm:mx-5">
+            <CheckCircle2 size={16} className="mr-2 inline-block" />
+            {actionSuccess}
+          </div>
+        )}
+
+        {/* ─── User List ─── */}
 
         {isMobileView ? (
-          <div className="space-y-4">
+          <div className="divide-y divide-neutral-100">
             {loading ? (
-              <p className="text-sm text-gray-500">Chargement des utilisateurs…</p>
-            ) : paginatedUsers.length ? (
+              <div className="px-4 py-12 text-center sm:px-5">
+                <RefreshCw size={20} className="mx-auto animate-spin text-neutral-300" />
+                <p className="mt-3 text-sm text-neutral-400">Chargement des utilisateurs…</p>
+              </div>
+            ) : paginatedUsers.length === 0 ? (
+              <div className="px-4 py-12 text-center sm:px-5">
+                <User size={28} className="mx-auto text-neutral-200" />
+                <p className="mt-3 text-sm font-medium text-neutral-500">Aucun utilisateur trouvé</p>
+                <p className="mt-1 text-xs text-neutral-400">Essayez de modifier vos filtres</p>
+              </div>
+            ) : (
               paginatedUsers.map((user) => {
                 const isBlocked = Boolean(user.isBlocked);
                 const isShopAccount = user.accountType === 'shop';
@@ -1713,128 +1752,77 @@ export default function AdminUsers() {
                     user.shopLocationReviewStatus === 'rejected' ||
                     (Array.isArray(user.shopLocationReviewFlags) && user.shopLocationReviewFlags.length > 0));
                 return (
-                  <article key={user.id} className="space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex items-start gap-3">
+                  <article key={user.id} className="group px-4 py-3.5 transition hover:bg-neutral-50/50 sm:px-5">
+                    {/* Top row: Avatar + Info + Status */}
+                    <div className="flex items-start gap-3">
+                      <div className="relative shrink-0">
                         {resolveUserProfileImage(user) ? (
                           <img
                             src={resolveUserProfileImage(user)}
                             alt={user.name || 'Utilisateur'}
-                            className="h-10 w-10 rounded-full object-cover ring-1 ring-gray-200"
+                            className="h-11 w-11 rounded-xl object-cover ring-1 ring-neutral-200"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
-                            {String(user.name || 'U').charAt(0).toUpperCase()}
+                          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-neutral-100 text-sm font-bold text-neutral-400 uppercase">
+                            {String(user.name || 'U').charAt(0)}
                           </div>
                         )}
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
-                          <p className="break-all text-xs text-gray-500">{user.email}</p>
-                          <p className="text-xs text-gray-400">{user.phone || '—'}</p>
+                        <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${
+                          isBlocked ? 'bg-red-400' : 'bg-emerald-400'
+                        }`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-semibold text-neutral-900">{user.name}</p>
+                          {user.accountType === 'shop' && <VerifiedBadge verified={Boolean(user.shopVerified)} />}
                         </div>
-                        {user.accountType === 'shop' && user.shopName ? (
-                          <div className="text-xs space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-neutral-600">Boutique : {user.shopName}</span>
-                              <VerifiedBadge verified={Boolean(user.shopVerified)} />
-                            </div>
-                            <p className="text-gray-500">Abonnés : {formatNumber(user.followersCount)}</p>
-                          </div>
-                        ) : null}
-                      </div>
-                      <span className="rounded-full bg-neutral-50 px-2 py-1 text-[11px] font-semibold text-neutral-700">
-                        {accountTypeLabels[user.accountType] || user.accountType}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-semibold ${getRoleBadgeClass(user.role)}`}>
-                        {formatRoleLabel(user.role)}
-                      </span>
-                      {isBlocked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">
-                          <Ban size={12} />
-                          Suspendu
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 font-semibold text-green-600">
-                          <CheckCircle2 size={12} />
-                          Actif
-                        </span>
-                      )}
-                      {user.isLocked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
-                          <ShieldAlert size={12} />
-                          Verrouillé
-                        </span>
-                      ) : null}
-                    </div>
-                    {shouldShowLocationPanel ? (
-                      <div className="space-y-1 rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[11px] font-semibold text-sky-800">Localisation boutique</p>
-                          {user.shopLocationNeedsReview ? (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                              En attente de revue
-                            </span>
-                          ) : user.shopLocationReviewStatus === 'rejected' ? (
-                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-                              Rejetée
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                              Validée
-                            </span>
-                          )}
+                        <p className="truncate text-xs text-neutral-500">{user.email}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${getRoleBadgeClass(user.role)}`}>
+                            {formatRoleLabel(user.role)}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                            isBlocked ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                          }`}>
+                            {isBlocked ? <><Ban size={10} />Suspendu</> : <><CheckCircle2 size={10} />Actif</>}
+                          </span>
+                          <span className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-500">
+                            {accountTypeLabels[user.accountType] || user.accountType}
+                          </span>
                         </div>
-                        <p className="text-[11px] text-sky-900">{formatCoordinates(user.shopLocation)}</p>
-                        <p className="text-[10px] text-sky-700">
-                          Score confiance: {Number.isFinite(Number(user.shopLocationTrustScore)) ? Math.round(Number(user.shopLocationTrustScore)) : 0}%
-                          {user.shopLocationUpdatedAt ? ` · Mise à jour: ${formatDateTime(user.shopLocationUpdatedAt)}` : ''}
-                        </p>
+                        {user.accountType === 'shop' && user.shopName && (
+                          <p className="mt-1 text-[11px] text-neutral-500">
+                            <Store size={10} className="mr-1 inline-block text-neutral-400" />
+                            {user.shopName}
+                            <span className="mx-1 text-neutral-300">·</span>
+                            {formatNumber(user.followersCount)} abonnés
+                          </p>
+                        )}
                       </div>
-                    ) : null}
-                    <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
-                      <div className="space-y-0.5">
-                        <p className="text-[11px] font-semibold text-gray-700">Gestion templates chat</p>
-                        <p className="text-[10px] text-gray-500">
-                          {user.canManageChatTemplates ? 'Accès accordé' : 'Accès non accordé'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleChatTemplateAccess(user)}
-                        disabled={!canManagePermissions || ['admin', 'founder'].includes(user.role) || togglingChatTemplateUserId === user.id}
-                        className={`rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:opacity-50 ${
-                          user.canManageChatTemplates
-                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        {togglingChatTemplateUserId === user.id
-                          ? '...'
-                          : user.canManageChatTemplates
-                            ? 'ON'
-                            : 'OFF'}
-                      </button>
                     </div>
-                    {isBlocked ? (
-                      <div className="text-xs text-gray-500 space-y-1">
-                        <p>Depuis le {formatDate(user.blockedAt)}</p>
-                              {user.blockedReason ? <p className="italic">Motif : {user.blockedReason}</p> : null}
-                            </div>
-                          ) : null}
-                    {user.isLocked ? (
-                      <p className="text-xs text-amber-700">
-                        Verrouillage: {formatDate(user.lockedAt)} {user.lockReason ? `· ${user.lockReason}` : ''}
-                      </p>
-                    ) : null}
-                    {/* Active restrictions badges */}
+
+                    {/* Block/Lock details */}
+                    {isBlocked && (
+                      <div className="mt-2 rounded-lg border border-red-100 bg-red-50/50 px-3 py-2 text-[11px] text-red-700">
+                        <p className="font-semibold">Compte suspendu</p>
+                        <p className="mt-0.5 text-red-600">Depuis le {formatDate(user.blockedAt)}</p>
+                        {user.blockedReason && <p className="text-red-500 italic">Motif : {user.blockedReason}</p>}
+                      </div>
+                    )}
+                    {user.isLocked && (
+                      <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-700">
+                        <p className="font-semibold">Compte verrouillé</p>
+                        <p className="mt-0.5">{formatDate(user.lockedAt)}{user.lockReason ? ` · ${user.lockReason}` : ''}</p>
+                      </div>
+                    )}
+
+                    {/* Active restrictions */}
                     {getActiveRestrictionsCount(user) > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
+                      <div className="mt-2 flex flex-wrap gap-1">
                         {RESTRICTION_TYPES.filter((rt) => user.restrictions?.[rt.key]?.isActive).map((rt) => {
                           const IconComponent = rt.icon;
                           return (
-                            <span key={rt.key} className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                            <span key={rt.key} className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                               <IconComponent size={10} />
                               {rt.label}
                             </span>
@@ -2036,34 +2024,35 @@ export default function AdminUsers() {
                   </article>
                 );
               })
-            ) : (
-              <p className="text-sm text-gray-500">Aucun utilisateur à afficher.</p>
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-100">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50/90">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Utilisateur</th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Type</th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Rôle</th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Statut</th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Templates chat</th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Actions</th>
+          <div className="overflow-hidden rounded-2xl border border-neutral-200">
+            <table className="min-w-full divide-y divide-neutral-100 text-sm">
+              <thead>
+                <tr className="bg-neutral-50/80">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Utilisateur</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Type</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Rôle</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Statut</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Chat</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-neutral-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                      Chargement des utilisateurs…
+                    <td colSpan={6} className="px-4 py-16 text-center">
+                      <RefreshCw size={20} className="mx-auto animate-spin text-neutral-300" />
+                      <p className="mt-3 text-sm text-neutral-400">Chargement des utilisateurs…</p>
                     </td>
                   </tr>
                 ) : displayedUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                      Aucun utilisateur à afficher.
+                    <td colSpan={6} className="px-4 py-16 text-center">
+                      <User size={28} className="mx-auto text-neutral-200" />
+                      <p className="mt-3 text-sm font-medium text-neutral-500">Aucun utilisateur trouvé</p>
+                      <p className="mt-1 text-xs text-neutral-400">Essayez de modifier vos filtres</p>
                     </td>
                   </tr>
                 ) : (
@@ -2078,24 +2067,32 @@ export default function AdminUsers() {
                         user.shopLocationReviewStatus === 'rejected' ||
                         (Array.isArray(user.shopLocationReviewFlags) && user.shopLocationReviewFlags.length > 0));
                     return (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-3">
+                      <tr key={user.id} className="group transition hover:bg-neutral-50/70">
+                        <td className="px-4 py-3">
                           <div className="flex items-start gap-3">
-                            {resolveUserProfileImage(user) ? (
-                              <img
-                                src={resolveUserProfileImage(user)}
-                                alt={user.name || 'Utilisateur'}
-                                className="mt-0.5 h-10 w-10 rounded-full object-cover ring-1 ring-gray-200"
-                              />
-                            ) : (
-                              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
-                                {String(user.name || 'U').charAt(0).toUpperCase()}
+                            <div className="relative shrink-0">
+                              {resolveUserProfileImage(user) ? (
+                                <img
+                                  src={resolveUserProfileImage(user)}
+                                  alt={user.name || 'Utilisateur'}
+                                  className="h-10 w-10 rounded-xl object-cover ring-1 ring-neutral-200"
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100 text-sm font-bold text-neutral-400 uppercase">
+                                  {String(user.name || 'U').charAt(0)}
+                                </div>
+                              )}
+                              <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
+                                isBlocked ? 'bg-red-400' : 'bg-emerald-400'
+                              }`} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate text-sm font-semibold text-neutral-900">{user.name}</span>
+                                {user.accountType === 'shop' && <VerifiedBadge verified={Boolean(user.shopVerified)} />}
                               </div>
-                            )}
-                            <div className="flex min-w-0 flex-col">
-                              <span className="font-medium text-gray-900">{user.name}</span>
-                              <span className="text-gray-500">{user.email}</span>
-                              <span className="text-gray-400 text-xs">{user.phone}</span>
+                              <span className="text-xs text-neutral-500">{user.email}</span>
+                              <span className="ml-2 text-xs text-neutral-400">{user.phone || '—'}</span>
                             {user.accountType === 'shop' && user.shopName ? (
                               <div className="text-xs text-gray-500 mt-1 space-y-1">
                                 <span className="text-neutral-600 font-semibold">
@@ -2131,9 +2128,9 @@ export default function AdminUsers() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex items-center rounded-full bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-700">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">
                               {accountTypeLabels[user.accountType] || user.accountType}
                             </span>
                             {user.accountType === 'shop' && (
@@ -2141,12 +2138,12 @@ export default function AdminUsers() {
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-3">
-                          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getRoleBadgeClass(user.role)}`}>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-md px-2 py-1 text-[11px] font-semibold ${getRoleBadgeClass(user.role)}`}>
                             {formatRoleLabel(user.role)}
                           </span>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-4 py-3">
                           {isBlocked ? (
                             <div className="flex flex-col gap-1">
                               <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
@@ -2174,15 +2171,15 @@ export default function AdminUsers() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-4 py-3">
                           <button
                             type="button"
                             onClick={() => handleToggleChatTemplateAccess(user)}
                             disabled={!canManagePermissions || ['admin', 'founder'].includes(user.role) || togglingChatTemplateUserId === user.id}
-                            className={`inline-flex min-w-[128px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                            className={`inline-flex min-w-[110px] items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition disabled:opacity-50 ${
                               user.canManageChatTemplates
-                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100 border border-neutral-200'
                             }`}
                             title={
                               ['admin', 'founder'].includes(user.role)
@@ -2197,8 +2194,8 @@ export default function AdminUsers() {
                                 : 'Accès retiré'}
                           </button>
                         </td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
                             {isBlocked ? (
                               <button
                                 type="button"
@@ -2411,28 +2408,30 @@ export default function AdminUsers() {
         )}
         {displayedUsers.length > 0 && !loading ? (
           <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 text-xs text-gray-600 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Affichage {rangeStart}-{rangeEnd} sur {displayedUsers.length} utilisateurs
+            <p className="text-xs text-neutral-400">
+              {rangeStart}-{rangeEnd} sur {displayedUsers.length}
             </p>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                className="rounded-lg border border-gray-300 px-3 py-1.5 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
               >
+                <ChevronDown size={14} className="rotate-90" />
                 Précédent
               </button>
-              <span className="font-medium text-gray-700">
-                Page {page} / {totalPages}
+              <span className="text-xs font-medium text-neutral-500 tabular-nums">
+                {page}/{totalPages}
               </span>
               <button
                 type="button"
-                className="rounded-lg border border-gray-300 px-3 py-1.5 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={page >= totalPages}
               >
                 Suivant
+                <ChevronDown size={14} className="-rotate-90" />
               </button>
             </div>
           </div>

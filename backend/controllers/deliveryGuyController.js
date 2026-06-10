@@ -2,10 +2,6 @@ import asyncHandler from 'express-async-handler';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
 import Order from '../models/orderModel.js';
 import DeliveryRequest from '../models/deliveryRequestModel.js';
-import {
-  assertPlatformDeliveryEnabled,
-  canManageDeliveryRequests
-} from '../services/platformDeliveryService.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
 const toObjectId = (value = '') => {
@@ -45,10 +41,6 @@ const serializeDeliveryGuy = (item = {}) => {
 };
 
 export const listDeliveryGuysAdmin = asyncHandler(async (req, res) => {
-  const runtime = await assertPlatformDeliveryEnabled();
-  if (!canManageDeliveryRequests(req.user, runtime)) {
-    return res.status(403).json({ message: 'Accès refusé à la gestion des livreurs.' });
-  }
 
   const { search = '', page = 1, limit = 20, cityId = '', communeId = '', active = '' } = req.query;
   const filter = {};
@@ -183,10 +175,6 @@ export const listDeliveryGuysAdmin = asyncHandler(async (req, res) => {
 });
 
 export const createDeliveryGuyAdmin = asyncHandler(async (req, res) => {
-  const runtime = await assertPlatformDeliveryEnabled();
-  if (!canManageDeliveryRequests(req.user, runtime)) {
-    return res.status(403).json({ message: 'Accès refusé à la gestion des livreurs.' });
-  }
 
   const fullName = normalizeText(req.body?.fullName || req.body?.name || '');
   if (!fullName) {
@@ -222,10 +210,6 @@ export const createDeliveryGuyAdmin = asyncHandler(async (req, res) => {
 });
 
 export const updateDeliveryGuyAdmin = asyncHandler(async (req, res) => {
-  const runtime = await assertPlatformDeliveryEnabled();
-  if (!canManageDeliveryRequests(req.user, runtime)) {
-    return res.status(403).json({ message: 'Accès refusé à la gestion des livreurs.' });
-  }
 
   const { id } = req.params;
   const deliveryGuy = await DeliveryGuy.findById(id);
@@ -273,10 +257,6 @@ export const updateDeliveryGuyAdmin = asyncHandler(async (req, res) => {
 });
 
 export const deleteDeliveryGuyAdmin = asyncHandler(async (req, res) => {
-  const runtime = await assertPlatformDeliveryEnabled();
-  if (!canManageDeliveryRequests(req.user, runtime)) {
-    return res.status(403).json({ message: 'Accès refusé à la gestion des livreurs.' });
-  }
 
   const { id } = req.params;
   const deliveryGuy = await DeliveryGuy.findById(id);

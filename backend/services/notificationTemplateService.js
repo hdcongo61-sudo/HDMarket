@@ -466,9 +466,18 @@ const TEMPLATES = {
     actionLabel: 'Laisser un avis'
   }),
   order_reminder: ({ metadata, snapshot, actorName }) => ({
-    title: 'Rappel de commande',
-    message: `${actorName} vous rappelle de traiter ${resolveOrderLabel(metadata, snapshot)}.`,
-    actionLabel: 'Voir la commande'
+    title:
+      metadata.reminderType === 'buyer_delivery_confirmation'
+        ? 'Confirmation de réception demandée'
+        : 'Rappel de commande',
+    message:
+      metadata.reminderType === 'buyer_delivery_confirmation'
+        ? `${actorName} vous demande de confirmer la réception de ${resolveOrderLabel(metadata, snapshot)} afin de libérer les fonds du vendeur.`
+        : `${actorName} vous rappelle de traiter ${resolveOrderLabel(metadata, snapshot)}.`,
+    actionLabel:
+      metadata.reminderType === 'buyer_delivery_confirmation'
+        ? 'Confirmer la commande'
+        : 'Voir la commande'
   }),
   admin_broadcast: ({ metadata }) => ({
     title: '📢 Message HDMarket',

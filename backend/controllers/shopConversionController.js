@@ -203,7 +203,13 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
       const uploaded = await uploadToCloudinary({
         buffer: logoFile.buffer,
         resourceType: 'image',
-        folder: 'shop-conversions/logos'
+        folder: 'shop-conversions/logos',
+        options: {
+          transformation: [
+            { width: 500, height: 500, crop: 'fill', gravity: 'auto' },
+            { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+          ]
+        }
       });
       shopLogoUrl = uploaded.secure_url || uploaded.url;
     } catch (error) {

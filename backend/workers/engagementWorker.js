@@ -74,7 +74,13 @@ const JOB_HANDLERS = {
     sweepSellerLevels({ limit: Number(data?.limit || 100) })
 };
 
+const REDIS_ENABLED = Boolean(
+  process.env.REDIS_URL ||
+    (process.env.REDIS_HOST && process.env.REDIS_PORT)
+);
+
 export const initEngagementWorker = async () => {
+  if (!REDIS_ENABLED) return null;
   if (engagementWorker) return engagementWorker;
 
   const loaded = await loadWorkerClass();

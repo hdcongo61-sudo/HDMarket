@@ -23,7 +23,8 @@ import {
   Receipt,
   ShieldCheck,
   ClipboardList,
-  Loader2
+  Loader2,
+  Send
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -461,6 +462,7 @@ export default function SellerOrderDetail() {
   const [deliveryPinExpiresAt, setDeliveryPinExpiresAt] = useState('');
   const [deliveryFeeEditValue, setDeliveryFeeEditValue] = useState('');
   const [deliveryFeeSaving, setDeliveryFeeSaving] = useState(false);
+  const [confirmationReminderLoading, setConfirmationReminderLoading] = useState(false);
   const [proofPreview, setProofPreview] = useState(null);
 
   // Delivery fee cannot be modified once order is "Prête à livrer" or "En cours de livraison"
@@ -663,6 +665,19 @@ export default function SellerOrderDetail() {
       showToast(err.response?.data?.message || 'Impossible de modifier les frais.', { variant: 'error' });
     } finally {
       setDeliveryFeeSaving(false);
+    }
+  };
+
+  const handleSendConfirmationReminder = async () => {
+    if (!order?._id) return;
+    setConfirmationReminderLoading(true);
+    try {
+      const { data } = await api.post(`/orders/seller/${order._id}/confirmation-reminder`);
+      showToast(data?.message || 'Relance envoyée au client.', { variant: 'success' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Impossible d’envoyer la relance.', { variant: 'error' });
+    } finally {
+      setConfirmationReminderLoading(false);
     }
   };
 
@@ -1064,6 +1079,12 @@ export default function SellerOrderDetail() {
   const platformDeliveryAutoConfirmed =
     (hasPlatformDeliveryRequest || String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
     platformDeliveryStatus === 'DELIVERED';
+  const canSendConfirmationReminder =
+    String(order.paymentSource || '').toLowerCase() === 'wallet' &&
+    !isPickupOrder &&
+    !platformDeliveryAutoConfirmed &&
+    ['delivery_proof_submitted', 'delivered'].includes(String(order.status || '').toLowerCase()) &&
+    !order.clientDeliveryConfirmedAt;
   const canManageDeliveryPin =
     platformDeliveryEnabled &&
     deliveryPinEnabled &&
@@ -1790,6 +1811,35 @@ export default function SellerOrderDetail() {
                     Action en cours de confirmation. Le statut sera synchronisé automatiquement.
                   </p>
                 ) : null}
+              </div>
+            ) : null}
+
+            {canSendConfirmationReminder ? (
+              <div className="space-y-3 rounded-[26px] border border-amber-100 bg-amber-50/70 p-4 shadow-[0_12px_30px_rgba(117,75,36,0.06)]">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#FF6A00] ring-1 ring-amber-100">
+                    <ShieldCheck className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-black text-amber-950">Fonds portefeuille en attente</h4>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-amber-800">
+                      Le client doit confirmer la réception pour libérer le paiement dans votre portefeuille.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendConfirmationReminder}
+                  disabled={confirmationReminderLoading}
+                  className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#FF6A00] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,106,0,0.20)] transition hover:bg-[#e85f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {confirmationReminderLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  Relancer le client
+                </button>
               </div>
             ) : null}
 

@@ -36,7 +36,13 @@ const loadWorkerClass = async () => {
   }
 };
 
+const REDIS_ENABLED = Boolean(
+  process.env.REDIS_URL ||
+    (process.env.REDIS_HOST && process.env.REDIS_PORT)
+);
+
 export const initOrderAutomationWorker = async () => {
+  if (!REDIS_ENABLED) return null;
   if (orderAutomationWorker) return orderAutomationWorker;
 
   const loaded = await loadWorkerClass();

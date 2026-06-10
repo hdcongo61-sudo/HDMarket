@@ -728,6 +728,15 @@ const WALLET_TRANSACTION_TYPES = new Set([
 const WALLET_TRANSACTION_STATUSES = new Set(['pending', 'completed', 'failed', 'reversed']);
 const WALLET_TRANSACTION_DIRECTIONS = new Set(['credit', 'debit', 'neutral']);
 
+const normalizeTransactionTypeFilter = (type = '') => {
+  const values = String(type || '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  const allowed = values.filter((value) => WALLET_TRANSACTION_TYPES.has(value));
+  return new Set(allowed);
+};
+
 const transactionMatchesSearch = (txn = {}, search = '') => {
   const needle = String(search || '').trim().toLowerCase();
   if (!needle) return true;
@@ -758,26 +767,26 @@ export const getWalletTransactions = async (
 
   if (!wallet) return { items: [], total: 0, page, pages: 0 };
 
-  const normalizedType = String(type || '').trim();
-  const normalizedStatus = String(status || '').trim();
-  const normalizedDirection = String(direction || '').trim();
+  const normalizedTypes = normalizeTransactionTypeFilter(type);
+  const normalizedStatus = String(status || '').trim().toLowerCase();
+  const normalizedDirection = String(direction || '').trim().toLowerCase();
   const filteredTxns = (wallet.transactions || [])
     .map(decorateTransaction)
     .filter((txn) => {
-      if (normalizedType && WALLET_TRANSACTION_TYPES.has(normalizedType) && txn.type !== normalizedType) {
+      if (normalizedTypes.size > 0 && !normalizedTypes.has(txn.type)) {
         return false;
       }
       if (
         normalizedStatus &&
         WALLET_TRANSACTION_STATUSES.has(normalizedStatus) &&
-        txn.status !== normalizedStatus
+        String(txn.status || '').toLowerCase() !== normalizedStatus
       ) {
         return false;
       }
       if (
         normalizedDirection &&
         WALLET_TRANSACTION_DIRECTIONS.has(normalizedDirection) &&
-        txn.direction !== normalizedDirection
+        String(txn.direction || '').toLowerCase() !== normalizedDirection
       ) {
         return false;
       }

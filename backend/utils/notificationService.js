@@ -678,7 +678,8 @@ export const createNotification = async ({
       }
     }
 
-    await enqueueOrFallback({
+    // Fire-and-forget queue delivery — never block notification creation on Redis
+    enqueueOrFallback({
       notification,
       userId,
       priority: notification.priority || resolvedPriority,
@@ -686,7 +687,7 @@ export const createNotification = async ({
       socketEnabled: effectiveSocketEnabled,
       incrementUnread: !Boolean(notification?.metadata?.grouped) && !reusedDedupeExisting,
       delayMs
-    });
+    }).catch(() => {});
 
     if (Boolean(notification.actionRequired) && String(notification.actionStatus || '').toUpperCase() === 'PENDING') {
       await createAuditLogEntry({

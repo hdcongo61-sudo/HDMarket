@@ -958,7 +958,9 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
     }
     await request.save();
     await applyLegacyBoostFlagsOnActivation({ request, now: request.startDate });
-    await createNotification({
+
+    // Fire-and-forget notifications — don't block the response
+    createNotification({
       userId: request.sellerId,
       actorId: adminId,
       type: 'admin_broadcast',
@@ -969,8 +971,8 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
         status: request.status
       },
       allowSelf: true
-    });
-    await resolveValidationTaskNotifications({
+    }).catch(() => {});
+    resolveValidationTaskNotifications({
       entityType: 'boost',
       entityId: String(request._id),
       actionStatus: 'DONE',
@@ -1001,7 +1003,9 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
     request.rejectedAt = now;
     request.rejectionReason = String(req.body?.rejectionReason || '').trim();
     await request.save();
-    await createNotification({
+
+    // Fire-and-forget notifications
+    createNotification({
       userId: request.sellerId,
       actorId: adminId,
       type: 'admin_broadcast',
@@ -1014,8 +1018,8 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
         status: request.status
       },
       allowSelf: true
-    });
-    await resolveValidationTaskNotifications({
+    }).catch(() => {});
+    resolveValidationTaskNotifications({
       entityType: 'boost',
       entityId: String(request._id),
       actionStatus: 'DONE',

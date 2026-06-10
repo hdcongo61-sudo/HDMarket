@@ -71,8 +71,11 @@ const toClientError = (err) => {
   if (normalizedName === 'AuthenticationError' || status === 401) {
     return { status: 401, code: 'AUTHENTICATION_ERROR', message: 'Authentification requise.', expose: true };
   }
-  if (normalizedName === 'AuthorizationError' || status === 403) {
+  if (normalizedName === 'AuthorizationError') {
     return { status: 403, code: 'AUTHORIZATION_ERROR', message: "Vous n'avez pas accès à cette ressource.", expose: true };
+  }
+  if (status === 403) {
+    return { status: 403, code: 'REQUEST_ERROR', message: err?.message || "Vous n'avez pas accès à cette ressource.", expose: true };
   }
   if (normalizedName === 'NotFoundError' || status === 404) {
     return { status: 404, code: 'NOT_FOUND_ERROR', message: 'Ressource introuvable.', expose: true };

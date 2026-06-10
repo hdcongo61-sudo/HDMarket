@@ -1076,7 +1076,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
       const uploaded = await uploadToCloudinary({
         buffer: profileImageFile.buffer,
         resourceType: 'image',
-        folder
+        folder,
+        options: {
+          transformation: [
+            { width: 400, height: 400, crop: 'fill', gravity: 'auto' },
+            { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+          ]
+        }
       });
       user.profileImage = uploaded.secure_url || uploaded.url || '';
     } catch (error) {
@@ -1199,7 +1205,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
         const uploaded = await uploadToCloudinary({
           buffer: logoFile.buffer,
           resourceType: 'image',
-          folder
+          folder,
+          options: {
+            transformation: [
+              { width: 500, height: 500, crop: 'fill', gravity: 'auto' },
+              { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+            ]
+          }
         });
         user.shopLogo = uploaded.secure_url || uploaded.url;
       } catch (error) {
@@ -1215,7 +1227,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
         const uploaded = await uploadToCloudinary({
           buffer: bannerFile.buffer,
           resourceType: 'image',
-          folder
+          folder,
+          options: {
+            transformation: [
+              { width: 1200, crop: 'limit' },
+              { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+            ]
+          }
         });
         user.shopBanner = uploaded.secure_url || uploaded.url;
       } catch (error) {

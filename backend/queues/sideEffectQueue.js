@@ -33,7 +33,13 @@ const loadBullMQ = async () => {
   }
 };
 
+const REDIS_ENABLED = Boolean(
+  process.env.REDIS_URL ||
+    (process.env.REDIS_HOST && process.env.REDIS_PORT)
+);
+
 export const initSideEffectQueue = async () => {
+  if (!REDIS_ENABLED) return null;
   if (sideEffectQueue) return sideEffectQueue;
 
   const loaded = await loadBullMQ();
