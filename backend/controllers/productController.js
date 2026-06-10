@@ -1049,6 +1049,69 @@ export const createProduct = asyncHandler(async (req, res) => {
   // Invalidate product cache after creation
   invalidateProductCache();
 
+  // ─── Wallet payment: auto-validate after commission deduction ───
+  const payWithWallet = String(req.body?.payWithWallet || '').trim().toLowerCase() === 'true';
+  if (payWithWallet) {
+    const { purchaseFromWallet } = await import('../services/walletService.js');
+    const { calculateCommissionBreakdown } = await import('../utils/promoCodeUtils.js');
+    const configuredCommissionRate = Number(
+      await getRuntimeConfig('commission_rate', { fallback: 3 })
+    );
+    const commissionRate = Number.isFinite(configuredCommissionRate) ? configuredCommissionRate : 3;
+    const commission = calculateCommissionBreakdown({ productPrice: product.price, commissionRate });
+    const dueAmount = Number(commission?.dueAmount || 0);
+
+    if (dueAmount <= 0) {
+      // No commission due — auto-approve without payment
+      product.status = 'approved';
+      product.validationDate = new Date();
+      await product.save();
+    } else {
+      try {
+        const walletPayment = await purchaseFromWallet({
+          userId: req.user.id,
+          amount: dueAmount,
+          orderId: String(product._id),
+          reference: `product-publish-${product._id}`,
+          purpose: 'listing_fee',
+          note: `Commission de publication — ${product.title || product._id}`,
+          metadata: {
+            productId: String(product._id),
+            role: 'listing_fee_auto_validation'
+          }
+        });
+        product.status = 'approved';
+        product.validationDate = new Date();
+        await product.save();
+
+        // Attach wallet transaction reference to product metadata
+        await Product.updateOne(
+          { _id: product._id },
+          { $set: { 'metadata.walletPublishTxId': walletPayment?.transactionId || '' } }
+        );
+
+        // Notify user of auto-validation
+        createNotification({
+          userId: req.user.id,
+          actorId: req.user.id,
+          productId: product._id,
+          type: 'product_approved',
+          metadata: {
+            productTitle: product.title,
+            autoValidated: true,
+            paidAmount: dueAmount,
+            message: `Votre annonce "${product.title}" a été automatiquement validée après paiement de ${dueAmount} FCFA via votre portefeuille.`
+          }
+        }).catch(() => {});
+      } catch (error) {
+        return res.status(400).json({
+          message: error.message || 'Solde portefeuille insuffisant pour payer la commission de publication.',
+          code: 'wallet_insufficient_funds'
+        });
+      }
+    }
+  }
+
   res.status(201).json(withCategoryCompatibility(product));
 });
 

@@ -178,6 +178,7 @@ export default function ProductForm(props) {
   const CROP_MAX_ZOOM = 3;
   const ASPECT_PRESETS = { '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
   const [showPreview, setShowPreview] = useState(false);
+  const [payWithWallet, setPayWithWallet] = useState(false);
   const isMobile = useIsMobile(768);
   const maxImagesLimit = useMemo(() => {
     const candidates = [runtime?.max_image_upload, runtime?.maxUploadImages, app?.maxUploadImages, DEFAULT_MAX_IMAGES];
@@ -1268,6 +1269,10 @@ export default function ProductForm(props) {
       }
       if (removeExistingVideo) {
         data.append('removeVideo', 'true');
+      }
+      // Wallet auto-validation flag
+      if (!productId && payWithWallet) {
+        data.append('payWithWallet', 'true');
       }
       const url = `/products${productId ? `/${productId}` : ''}`;
       const method = productId ? 'put' : 'post';
@@ -2979,14 +2984,55 @@ export default function ProductForm(props) {
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-start space-x-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="space-y-2">
+                <div className="space-y-3 flex-1">
                   <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
                   <p className="text-amber-700 text-sm">
-                    Pour valider votre annonce, envoyez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> ({commissionRateLabel}% du prix). Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
+                    Pour valider votre annonce, envoyez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> ({commissionRateLabel}% du prix).
                   </p>
+
+                  {/* Wallet Payment Option */}
+                  <div className="rounded-xl border border-amber-300 bg-white p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">
+                          <ShieldCheck className="w-4 h-4 inline-block text-emerald-600 mr-1" />
+                          Payer avec le portefeuille
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Prélèvement automatique de {formatPriceWithStoredSettings(calculateCommission())}
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={payWithWallet}
+                          onChange={(e) => setPayWithWallet(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600" />
+                      </label>
+                    </div>
+                    {payWithWallet && (
+                      <div className="mt-3 flex items-start space-x-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-emerald-800">Validation automatique</p>
+                          <p className="text-xs text-emerald-700">
+                            Votre annonce sera <span className="font-bold">automatiquement validée</span> après prélèvement de {formatPriceWithStoredSettings(calculateCommission())} sur votre portefeuille. Aucun délai d'attente.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {!payWithWallet && (
+                    <p className="text-amber-700 text-sm">
+                      Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
+                    </p>
+                  )}
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Votre annonce sera approuvée sous 24h après paiement</span>
+                    <span>{payWithWallet ? 'Le montant sera débité immédiatement de votre portefeuille.' : 'Votre annonce sera approuvée sous 24h après paiement.'}</span>
                   </div>
                 </div>
               </div>
