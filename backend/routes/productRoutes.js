@@ -144,4 +144,27 @@ router.post('/bulk/delete', protect, productMutationIdempotency, validate(schema
 // Admin
 router.get('/admin/all', protect, requireRole(['admin']), getAllProductsAdmin);
 
+// Promo code preview for listing fee (wallet payment)
+router.post('/promo-preview', protect, async (req, res) => {
+  try {
+    const { code, price } = req.body || {};
+    if (!code || !price) {
+      return res.status(400).json({ valid: false, message: 'Code promo et prix requis.' });
+    }
+    const { previewPromoForSeller } = await import('../utils/promoCodeService.js');
+    const { getRuntimeConfig } = await import('../services/configService.js');
+    const configuredRate = Number(await getRuntimeConfig('commission_rate', { fallback: 3 }));
+    const commissionRate = Number.isFinite(configuredRate) ? configuredRate : 3;
+    const preview = await previewPromoForSeller({
+      code: String(code).trim().toUpperCase(),
+      sellerId: req.user.id,
+      productPrice: Number(price),
+      commissionRate
+    });
+    res.json(preview);
+  } catch (error) {
+    res.status(400).json({ valid: false, message: error.message || 'Erreur code promo.' });
+  }
+});
+
 export default router;

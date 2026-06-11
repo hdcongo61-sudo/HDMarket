@@ -9,7 +9,7 @@ const injectCloudinaryTransform = (url = '', transform = '') => {
 export const getProductCardImageUrl = (url = '', { width = 520, lite = false } = {}) => {
   const safeWidth = Math.min(900, Math.max(180, Number(width) || 520));
   const quality = lite ? 'q_auto:eco' : 'q_auto:good';
-  return injectCloudinaryTransform(url, `f_auto,c_fill,g_auto,w_${safeWidth},${quality}`);
+  return injectCloudinaryTransform(url, `f_auto,c_fill,g_auto,w_${safeWidth},h_${safeWidth},${quality}`);
 };
 
 export const getProductCardSrcSet = (url = '', { lite = false } = {}) => {

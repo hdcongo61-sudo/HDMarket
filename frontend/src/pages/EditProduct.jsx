@@ -1,11 +1,19 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle, Upload, X, Plus } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+
+const isCloudinaryUrl = (url = '') =>
+  typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
+
+const squareImageUrl = (url = '', size = 300) => {
+  if (!isCloudinaryUrl(url)) return url;
+  return url.replace('/upload/', `/upload/c_fill,g_auto,w_${size},h_${size},q_auto,f_auto/`);
+};
 
 export default function EditProduct() {
   const { slug } = useParams();
@@ -25,6 +33,10 @@ export default function EditProduct() {
     images: []
   });
   const [error, setError] = useState('');
+  const [newImages, setNewImages] = useState([]);
+  const [newImagePreviews, setNewImagePreviews] = useState([]);
+  const [removedImages, setRemovedImages] = useState([]);
+  const maxImages = 10;
 
   const priceDisplay = useMemo(() => {
     if (!product) return { current: '', before: '' };
@@ -87,14 +99,17 @@ export default function EditProduct() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = {
-        title: form.title,
-        description: form.description,
-        category: form.category,
-        discount: form.discount,
-        condition: form.condition
-      };
-      await api.put(`/products/${slug}`, payload);
+      const payload = new FormData();
+      payload.append('title', form.title);
+      payload.append('description', form.description);
+      payload.append('category', form.category);
+      payload.append('discount', String(form.discount));
+      payload.append('condition', form.condition);
+      removedImages.forEach((src) => payload.append('removeImages', src));
+      newImages.forEach((file) => payload.append('images', file));
+      await api.put(`/products/${slug}`, payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       showToast('Annonce mise à jour avec succès !', { variant: 'success' });
       navigate('/my');
     } catch (err) {
@@ -103,6 +118,33 @@ export default function EditProduct() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = maxImages - (form.images.length - removedImages.length + newImages.length);
+    const toAdd = files.slice(0, Math.max(0, remaining));
+    setNewImages((prev) => [...prev, ...toAdd]);
+    toAdd.forEach((file) => {
+      const preview = URL.createObjectURL(file);
+      setNewImagePreviews((prev) => [...prev, preview]);
+    });
+    e.target.value = '';
+  };
+
+  const removeNewImage = (index) => {
+    const preview = newImagePreviews[index];
+    if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
+    setNewImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingImage = (src) => {
+    setRemovedImages((prev) => [...prev, src]);
+  };
+
+  const restoreImage = (src) => {
+    setRemovedImages((prev) => prev.filter((s) => s !== src));
   };
 
   if (loading) {
@@ -335,42 +377,93 @@ export default function EditProduct() {
             </div>
           </div>
 
-          {/* Section Images */}
-          {form.images?.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
-                <h2 className="text-lg font-semibold text-gray-900">Images du produit</h2>
+          {/* Section Images — Modifiable */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
+              <h2 className="text-lg font-semibold text-gray-900">Images du produit</h2>
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <Image className="w-4 h-4 text-neutral-500" />
+                <span>Images ({form.images.length - removedImages.length + newImages.length} / {maxImages})</span>
+              </label>
+
+              {/* Existing images */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {form.images.map((src, index) => {
+                  const isRemoved = removedImages.includes(src);
+                  return (
+                    <div key={`existing-${index}`} className={`relative group rounded-lg border-2 overflow-hidden ${isRemoved ? 'border-red-300 opacity-40' : 'border-gray-200'}`}>
+                      <img
+                        src={squareImageUrl(src)}
+                        alt={`${form.title} ${index + 1}`}
+                        className="w-full aspect-square object-cover"
+                      />
+                      {isRemoved ? (
+                        <button
+                          type="button"
+                          onClick={() => restoreImage(src)}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-white shadow flex items-center justify-center text-xs font-bold text-gray-600 hover:bg-gray-100"
+                          title="Restaurer"
+                        >
+                          <ArrowLeft size={12} className="rotate-180" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(src)}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Supprimer"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* New images preview */}
+                {newImagePreviews.map((preview, index) => (
+                  <div key={`new-${index}`} className="relative group rounded-lg border-2 border-emerald-300 overflow-hidden">
+                    <img
+                      src={preview}
+                      alt={`Nouvelle ${index + 1}`}
+                      className="w-full aspect-square object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeNewImage(index)}
+                      className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Supprimer"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add image button */}
+                {form.images.length - removedImages.length + newImages.length < maxImages && (
+                  <label className="flex flex-col items-center justify-center aspect-square rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors group">
+                    <Plus className="w-6 h-6 text-gray-400 group-hover:text-neutral-600 transition-colors" />
+                    <span className="text-xs text-gray-400 mt-1">Ajouter</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
 
-              <div className="space-y-3">
-                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Image className="w-4 h-4 text-neutral-500" />
-                  <span>Images actuelles ({form.images.length})</span>
-                </label>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {form.images.map((src, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={src}
-                        alt={`${form.title} ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg border border-gray-200"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
-                        <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                          Vue {index + 1}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  Les images ne peuvent pas être modifiées après création
-                </p>
-              </div>
+              <p className="text-xs text-gray-500">
+                Les nouvelles images seront automatiquement recadrées en 800×800px. Cliquez sur <X size={10} className="inline" /> pour supprimer une image.
+              </p>
             </div>
-          )}
+          </div>
 
           {/* Boutons d'action */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">

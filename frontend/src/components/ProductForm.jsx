@@ -14,6 +14,14 @@ import { normalizeProductAttributes } from '../utils/productAttributes';
 import { formatFileSize, optimizeImageFiles } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
 
+const isCloudinaryUrl = (url = '') =>
+  typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
+
+const thumbImageUrl = (url = '', size = 300) => {
+  if (!isCloudinaryUrl(url)) return url;
+  return url.replace('/upload/', `/upload/c_fill,g_auto,w_${size},h_${size},q_auto,f_auto/`);
+};
+
 const DEFAULT_MAX_IMAGES = 3;
 const MAX_VIDEO_SIZE_MB = 20;
 const BYTES_PER_MB = 1024 * 1024;
@@ -180,6 +188,9 @@ export default function ProductForm(props) {
   const ASPECT_PRESETS = { '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
   const [showPreview, setShowPreview] = useState(false);
   const [payWithWallet, setPayWithWallet] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoPreview, setPromoPreview] = useState(null); // { valid, discount, waived, message }
   const isMobile = useIsMobile(768);
   const maxImagesLimit = useMemo(() => {
     const candidates = [runtime?.max_image_upload, runtime?.maxUploadImages, app?.maxUploadImages, DEFAULT_MAX_IMAGES];
@@ -1274,6 +1285,9 @@ export default function ProductForm(props) {
       // Wallet auto-validation flag
       if (!productId && payWithWallet) {
         data.append('payWithWallet', 'true');
+        if (promoCode.trim()) {
+          data.append('promoCode', promoCode.trim());
+        }
       }
       const url = `/products${productId ? `/${productId}` : ''}`;
       const method = productId ? 'put' : 'post';
@@ -1502,6 +1516,41 @@ export default function ProductForm(props) {
   }, [initialValues]);
 
   const isEditing = Boolean(productId);
+
+  // Preview promo code when wallet payment is selected
+  useEffect(() => {
+    if (!payWithWallet || !promoCode.trim() || isEditing) {
+      setPromoPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setPromoLoading(true);
+      try {
+        const { data } = await api.post('/products/promo-preview', {
+          code: promoCode.trim(),
+          price: Number(form.price || 0)
+        });
+        if (!cancelled) {
+          setPromoPreview(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setPromoPreview({
+            valid: false,
+            message: err.response?.data?.message || 'Code promo invalide.'
+          });
+        }
+      } finally {
+        if (!cancelled) setPromoLoading(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [payWithWallet, promoCode, form.price, isEditing]);
+
   const headerTitle = isEditing ? 'Modifier une annonce' : 'Publier une annonce';
   const headerSubtitle = isEditing
     ? 'Mettez à jour les informations de votre produit'
@@ -2571,7 +2620,7 @@ export default function ProductForm(props) {
                     <div className="space-y-1">
                       <p className="font-semibold">Pour de meilleures photos publiées</p>
                       <p className="leading-relaxed">
-                        Utilisez une lumière naturelle, gardez le produit entier dans le cadre, prenez la première photo de face et évitez les captures WhatsApp floues. Le format carré ou 4:3 donne le rendu le plus propre sur les cartes produit.
+                        Utilisez une lumière naturelle, gardez le produit entier dans le cadre, prenez la première photo de face et évitez les captures WhatsApp floues. <span className="font-bold text-emerald-800">Le format carré (1:1, ex: 800×800px)</span> donne le rendu le plus propre sur les cartes produit et la page détail.
                       </p>
                     </div>
                   </div>
@@ -2589,22 +2638,22 @@ export default function ProductForm(props) {
 
                 {existingImages.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs text-gray-500">Images actuelles</p>
+                    <p className="text-xs text-gray-500">Images actuelles ({existingImages.length})</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {existingImages.map((src, index) => (
-                        <div key={`${src}-${index}`} className="relative group">
+                        <div key={`${src}-${index}`} className="relative group rounded-lg border-2 border-gray-200 overflow-hidden aspect-square bg-gray-100">
                           <img
-                            src={src}
+                            src={thumbImageUrl(src)}
                             alt={`Image existante ${index + 1}`}
-                            className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                            className="w-full h-full object-contain"
                           />
                           <button
                             type="button"
                             onClick={() => removeExistingImage(index)}
-                            className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
+                            className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
                             aria-label="Supprimer l'image"
                           >
-                            <DeleteIcon className="w-3.5 h-3.5" />
+                            <X size={12} />
                           </button>
                         </div>
                       ))}
@@ -3014,13 +3063,55 @@ export default function ProductForm(props) {
                       </label>
                     </div>
                     {payWithWallet && (
-                      <div className="mt-3 flex items-start space-x-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-emerald-800">Validation automatique</p>
-                          <p className="text-xs text-emerald-700">
-                            Votre annonce sera <span className="font-bold">automatiquement validée</span> après prélèvement de {formatPriceWithStoredSettings(calculateCommission())} sur votre portefeuille. Aucun délai d'attente.
-                          </p>
+                      <div className="mt-3 space-y-3">
+                        <div className="flex items-start space-x-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-emerald-800">Validation automatique</p>
+                            <p className="text-xs text-emerald-700">
+                              Votre annonce sera <span className="font-bold">automatiquement validée</span> après prélèvement
+                              {promoPreview?.valid && promoPreview?.commission?.dueAmount !== undefined
+                                ? ` de ${formatPriceWithStoredSettings(promoPreview.commission.dueAmount)}`
+                                : ` de ${formatPriceWithStoredSettings(calculateCommission())}`} sur votre portefeuille.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Promo Code Input */}
+                        <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-3">
+                          <label className="text-xs font-semibold text-neutral-600">Code promo (optionnel)</label>
+                          <div className="mt-1.5 flex gap-2">
+                            <input
+                              type="text"
+                              value={promoCode}
+                              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                              placeholder="Ex: HDMPROMO"
+                              className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium uppercase placeholder:text-neutral-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                            />
+                          </div>
+                          {promoLoading && (
+                            <p className="mt-1 text-[10px] text-neutral-400">Vérification...</p>
+                          )}
+                          {!promoLoading && promoCode.trim() && promoPreview && (
+                            promoPreview.valid ? (
+                              <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-2 text-xs">
+                                {promoPreview.commission?.isWaived ? (
+                                  <p className="font-semibold text-emerald-700">
+                                    🎉 Commission offerte ! Votre annonce sera validée sans frais.
+                                  </p>
+                                ) : (
+                                  <p className="text-emerald-700">
+                                    <span className="font-semibold">Réduction :</span>{' '}
+                                    {formatPriceWithStoredSettings(promoPreview.commission?.discountAmount || 0)} —{' '}
+                                    reste à payer :{' '}
+                                    <span className="font-bold">{formatPriceWithStoredSettings(promoPreview.commission?.dueAmount || 0)}</span>
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-[10px] text-red-500">{promoPreview.message || 'Code invalide.'}</p>
+                            )
+                          )}
                         </div>
                       </div>
                     )}

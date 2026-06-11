@@ -569,9 +569,10 @@ const uploadProductMedia = async (file) => {
     options:
       resourceType === 'image'
         ? {
-            quality: 'auto:good',
-            fetch_format: 'auto',
-            flags: 'strip_profile'
+            transformation: [
+              { width: 800, height: 800, crop: 'fill', gravity: 'auto' },
+              { quality: 'auto:good', fetch_format: 'auto', flags: 'progressive' }
+            ]
           }
         : {
             quality: 'auto:eco'
@@ -1053,19 +1054,55 @@ export const createProduct = asyncHandler(async (req, res) => {
   const payWithWallet = String(req.body?.payWithWallet || '').trim().toLowerCase() === 'true';
   if (payWithWallet) {
     const { purchaseFromWallet } = await import('../services/walletService.js');
-    const { calculateCommissionBreakdown } = await import('../utils/promoCodeUtils.js');
+    const { calculateCommissionBreakdown, normalizePromoCode } = await import('../utils/promoCodeUtils.js');
+    const { previewPromoForSeller, consumePromoCodeForSeller } = await import('../utils/promoCodeService.js');
     const configuredCommissionRate = Number(
       await getRuntimeConfig('commission_rate', { fallback: 3 })
     );
     const commissionRate = Number.isFinite(configuredCommissionRate) ? configuredCommissionRate : 3;
-    const commission = calculateCommissionBreakdown({ productPrice: product.price, commissionRate });
+
+    // Check for promo code
+    const rawPromoCode = String(req.body?.promoCode || '').trim();
+    const promoCode = normalizePromoCode(rawPromoCode);
+    let promoPreview = null;
+
+    if (promoCode) {
+      promoPreview = await previewPromoForSeller({
+        code: promoCode,
+        sellerId: req.user.id,
+        productPrice: product.price,
+        commissionRate
+      });
+      if (!promoPreview.valid) {
+        return res.status(400).json({
+          message: promoPreview.message || 'Code promo invalide.',
+          code: 'promo_invalid'
+        });
+      }
+    }
+
+    const commission = promoPreview?.commission ||
+      calculateCommissionBreakdown({ productPrice: product.price, commissionRate });
     const dueAmount = Number(commission?.dueAmount || 0);
+    const promoDiscount = Number(commission?.discountAmount || 0);
+    const promoWaived = Boolean(commission?.isWaived);
 
     if (dueAmount <= 0) {
-      // No commission due — auto-approve without payment
+      // Commission waived by promo or zero — auto-approve without payment
       product.status = 'approved';
       product.validationDate = new Date();
       await product.save();
+
+      // Consume the promo code if one was used
+      if (promoCode && promoPreview?.valid) {
+        await consumePromoCodeForSeller({
+          code: promoCode,
+          sellerId: req.user.id,
+          productPrice: product.price,
+          commissionRate,
+          productId: String(product._id)
+        }).catch(() => {});
+      }
     } else {
       try {
         const walletPayment = await purchaseFromWallet({
@@ -1074,10 +1111,12 @@ export const createProduct = asyncHandler(async (req, res) => {
           orderId: String(product._id),
           reference: `product-publish-${product._id}`,
           purpose: 'listing_fee',
-          note: `Commission de publication — ${product.title || product._id}`,
+          note: `Commission de publication — ${product.title || product._id}${promoCode ? ` (promo: ${promoCode})` : ''}`,
           metadata: {
             productId: String(product._id),
-            role: 'listing_fee_auto_validation'
+            role: 'listing_fee_auto_validation',
+            promoCode: promoCode || undefined,
+            promoDiscount: promoDiscount || undefined
           }
         });
         product.status = 'approved';
@@ -1090,7 +1129,21 @@ export const createProduct = asyncHandler(async (req, res) => {
           { $set: { 'metadata.walletPublishTxId': walletPayment?.transactionId || '' } }
         );
 
+        // Consume the promo code after successful payment
+        if (promoCode && promoPreview?.valid) {
+          await consumePromoCodeForSeller({
+            code: promoCode,
+            sellerId: req.user.id,
+            productPrice: product.price,
+            commissionRate,
+            productId: String(product._id)
+          }).catch(() => {});
+        }
+
         // Notify user of auto-validation
+        const promoMsg = promoDiscount > 0
+          ? ` (économisé ${promoDiscount} FCFA avec le code ${promoCode})`
+          : '';
         createNotification({
           userId: req.user.id,
           actorId: req.user.id,
@@ -1100,7 +1153,9 @@ export const createProduct = asyncHandler(async (req, res) => {
             productTitle: product.title,
             autoValidated: true,
             paidAmount: dueAmount,
-            message: `Votre annonce "${product.title}" a été automatiquement validée après paiement de ${dueAmount} FCFA via votre portefeuille.`
+            promoCode: promoCode || undefined,
+            promoDiscount: promoDiscount || undefined,
+            message: `Votre annonce "${product.title}" a été automatiquement validée après paiement de ${dueAmount} FCFA via votre portefeuille.${promoMsg}`
           }
         }).catch(() => {});
       } catch (error) {

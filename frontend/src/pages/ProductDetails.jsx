@@ -1694,6 +1694,16 @@ export default function ProductDetails() {
   const publishedDate = product?.createdAt ? new Date(product.createdAt) : null;
   const daysSince = publishedDate ? Math.floor((Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const isNewProduct = daysSince <= 7;
+
+  // Inject Cloudinary 800x800 square transform for consistent rendering
+  const squareImageUrl = (url = '', size = 800) => {
+    if (!url || typeof url !== 'string') return url;
+    if (!url.includes('res.cloudinary.com') || !url.includes('/upload/')) return url;
+    return url.replace('/upload/', `/upload/c_fill,g_auto,w_${size},h_${size},q_auto,f_auto/`);
+  };
+
+  const thumbImageUrl = (url = '') => squareImageUrl(url, 300);
+
   const galleryImages = useMemo(() => {
     const base = Array.isArray(product?.images) ? product.images : [];
     const cleaned = base
@@ -1701,7 +1711,7 @@ export default function ProductDetails() {
       .filter(Boolean);
     const unique = Array.from(new Set(cleaned)).slice(0, 10);
     // Images first, then video at the end if present
-    const items = unique.map((src) => ({ type: 'image', src }));
+    const items = unique.map((src) => ({ type: 'image', src: squareImageUrl(src) }));
     if (product?.video && String(product.video).trim()) {
       items.push({ type: 'video', src: String(product.video).trim() });
     }
@@ -1713,7 +1723,7 @@ export default function ProductDetails() {
       const images = Array.isArray(shopProduct?.images) ? shopProduct.images : [];
       images.forEach((src, imgIndex) => {
         if (!src) return;
-        pool.push({ src, product: shopProduct, imageIndex: imgIndex });
+        pool.push({ src: squareImageUrl(src), product: shopProduct, imageIndex: imgIndex });
       });
     });
     const shuffled = [...pool];
@@ -1775,7 +1785,7 @@ export default function ProductDetails() {
     ? "grid gap-3 lg:grid-cols-[84px_minmax(0,1fr)]"
     : "grid gap-0";
   const desktopMainFrameClass = hasMultipleGalleryImages
-    ? "relative lg:aspect-square aspect-[4/5] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm"
+    ? "relative lg:aspect-square aspect-square overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm"
     : "relative min-h-[430px] sm:min-h-[520px] lg:min-h-[640px] overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm";
 
   const openImageModal = useCallback((index = selectedImage) => {
@@ -1904,7 +1914,7 @@ export default function ProductDetails() {
       return (
         <div className="min-h-screen bg-gray-50">
           <div className="animate-pulse">
-            <div className="w-full aspect-[4/5] bg-gray-200" />
+            <div className="w-full aspect-square bg-gray-200" />
             <div className="p-4 space-y-3">
               <div className="h-7 bg-gray-200 rounded w-2/5" />
               <div className="h-5 bg-gray-200 rounded w-4/5" />
@@ -2055,7 +2065,7 @@ export default function ProductDetails() {
               spaceBetween={0}
               slidesPerView={1}
               onSlideChange={(swiper) => setSelectedImage(swiper.activeIndex)}
-              className="w-full aspect-[4/5] bg-neutral-100 dark:bg-neutral-900"
+              className="w-full aspect-square bg-neutral-100 dark:bg-neutral-900"
             >
               {galleryImages.map((item, index) => (
                 <SwiperSlide key={item.src || index}>
@@ -2082,7 +2092,7 @@ export default function ProductDetails() {
             </Swiper>
           ) : (
             <div
-              className="w-full aspect-[4/5] bg-neutral-100 dark:bg-neutral-900"
+              className="w-full aspect-square bg-neutral-100 dark:bg-neutral-900"
               onClick={() => openImageModal(0)}
             >
               {galleryImages[0]?.type === 'video' ? (
@@ -2097,7 +2107,7 @@ export default function ProductDetails() {
                 />
               ) : (
                 <img
-                  src={galleryImages[0]?.src || "https://via.placeholder.com/600x750"}
+                  src={galleryImages[0]?.src || "https://via.placeholder.com/600x600"}
                   alt={product.title}
                   className={mobileMainGalleryImageClass}
                 />
@@ -2176,13 +2186,13 @@ export default function ProductDetails() {
               >
                 {item.type === 'video' ? (
                   <>
-                    <img src={galleryImages.find((g) => g.type === 'image')?.src || ''} alt="Vidéo" className="h-full w-full object-cover" loading="lazy" />
+                    <img src={galleryImages.find((g) => g.type === 'image')?.src || ''} alt="Vidéo" className="h-full w-full object-contain" loading="lazy" />
                     <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </span>
                   </>
                 ) : (
-                  <img src={item.src} alt={`${product.title} miniature ${index + 1}`} className="h-full w-full object-cover" />
+                  <img src={item.src} alt={`${product.title} miniature ${index + 1}`} className="h-full w-full object-contain" />
                 )}
               </button>
             ))}
@@ -2720,7 +2730,7 @@ export default function ProductDetails() {
               <Link key={rp._id} to={buildProductPath(rp)} {...externalLinkProps}
                 className="flex-shrink-0 w-36 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm active:scale-[0.97] transition-transform">
                 <div className="aspect-square bg-gray-100 overflow-hidden">
-                  <img src={rp.images?.[0] || "https://via.placeholder.com/300x300"} alt={rp.title} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={thumbImageUrl(rp.images?.[0]) || "https://via.placeholder.com/300x300"} alt={rp.title} className="w-full h-full object-cover" loading="lazy" />
                 </div>
                 <div className="p-2">
                   <p className="text-xs font-bold text-gray-900 line-clamp-2 mb-1">{rp.title}</p>
@@ -3077,14 +3087,14 @@ export default function ProductDetails() {
                             <img
                               src={galleryImages.find((g) => g.type === 'image')?.src || ''}
                               alt="Vidéo"
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-contain"
                             />
                             <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="1"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                             </span>
                           </>
                         ) : (
-                          <img src={item.src} alt={`${product.title} - Image ${index + 1}`} className="h-full w-full object-cover" />
+                          <img src={item.src} alt={`${product.title} - Image ${index + 1}`} className="h-full w-full object-contain" />
                         )}
                       </button>
                     ))}
@@ -4157,7 +4167,7 @@ export default function ProductDetails() {
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                     <img
-                      src={relatedProduct.images?.[0] || "https://via.placeholder.com/300x300"}
+                      src={thumbImageUrl(relatedProduct.images?.[0]) || "https://via.placeholder.com/300x300"}
                       alt={relatedProduct.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -4286,7 +4296,7 @@ export default function ProductDetails() {
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                     <img
-                      src={relatedProduct.images?.[0] || "https://via.placeholder.com/300x300"}
+                      src={thumbImageUrl(relatedProduct.images?.[0]) || "https://via.placeholder.com/300x300"}
                       alt={relatedProduct.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -4673,7 +4683,7 @@ export default function ProductDetails() {
                           <img
                             src={galleryImages.find((g) => g.type === 'image')?.src || ''}
                             alt="Vidéo miniature"
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain"
                           />
                           <span className="absolute inset-0 flex items-center justify-center bg-black/30">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -4683,7 +4693,7 @@ export default function ProductDetails() {
                         <img
                           src={item.src}
                           alt={`${product?.title || 'Produit'} miniature ${index + 1}`}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-contain"
                         />
                       )}
                     </button>
@@ -4954,7 +4964,7 @@ function RelatedProducts({ relatedProducts, product }) {
           >
             <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
               <img
-                src={relatedProduct.images?.[0] || "https://via.placeholder.com/300x300"}
+                src={thumbImageUrl(relatedProduct.images?.[0]) || "https://via.placeholder.com/300x300"}
                 alt={relatedProduct.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
