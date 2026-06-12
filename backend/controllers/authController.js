@@ -58,9 +58,8 @@ export const register = asyncHandler(async (req, res) => {
   if (!name || !email || !password || !phone || !city || !gender || !address?.trim()) {
     return res.status(400).json({ message: 'Missing fields' });
   }
-  // Skip email verification when: production (testing) OR email not configured (local dev without SMTP)
-  const isProduction = process.env.NODE_ENV === 'production';
-  const skipEmailVerification = isProduction || !isEmailConfigured();
+  // Skip email verification only when email is not configured (local dev without SMTP)
+  const skipEmailVerification = !isEmailConfigured();
   if (!skipEmailVerification) {
     if (!verificationCode) {
       return res.status(400).json({ message: 'Code de vérification manquant.' });
@@ -122,7 +121,6 @@ export const register = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify code using email (skipped in production or when email not configured)
   const normalizedRole = role === 'admin' ? 'admin' : role === 'manager' ? 'manager' : 'user';
   if (!skipEmailVerification) {
     const verificationCheck = await checkVerificationCode(normalizedEmail, verificationCode, 'registration');
@@ -191,23 +189,6 @@ export const login = asyncHandler(async (req, res) => {
 
 export const sendRegisterCode = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  // In production: skip sending verification email for registration
-  const isProduction = process.env.NODE_ENV === 'production';
-  if (isProduction) {
-    if (!email || !email.trim()) {
-      return res.status(400).json({ message: 'Adresse email manquante.' });
-    }
-    const normalizedEmail = email.toLowerCase().trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(normalizedEmail)) {
-      return res.status(400).json({ message: 'Adresse email invalide.' });
-    }
-    const emailTaken = await User.findOne({ email: normalizedEmail });
-    if (emailTaken) {
-      return res.status(400).json({ message: 'Email déjà utilisé' });
-    }
-    return res.json({ message: 'Inscription possible sans code en production.' });
-  }
 
   if (!isEmailConfigured()) {
     return res.status(503).json({
@@ -243,18 +224,6 @@ export const sendPasswordResetCode = asyncHandler(async (req, res) => {
     const byPhone = await User.findOne({ phone: { $in: phoneCandidates } }).select('email');
     normalizedEmail = String(byPhone?.email || '').toLowerCase().trim();
   }
-  // In production: skip sending verification email to facilitate testing
-  const isProduction = process.env.NODE_ENV === 'production';
-  if (isProduction) {
-    if (normalizedEmail) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(normalizedEmail)) {
-        return res.status(400).json({ message: 'Adresse email invalide.' });
-      }
-    }
-    return res.json({ message: 'En production, utilisez directement le formulaire de réinitialisation avec un code quelconque pour tester.' });
-  }
-
   if (!isEmailConfigured()) {
     return res.status(503).json({
       message: "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
@@ -285,9 +254,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     const byPhone = await User.findOne({ phone: { $in: phoneCandidates } }).select('email');
     normalizedEmail = String(byPhone?.email || '').toLowerCase().trim();
   }
-  // In production: skip email verification check to facilitate testing
-  const isProduction = process.env.NODE_ENV === 'production';
-  if (!isProduction && !isEmailConfigured()) {
+  if (!isEmailConfigured()) {
     return res.status(503).json({
       message: "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
     });
@@ -307,14 +274,11 @@ export const resetPassword = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Compte introuvable.' });
   }
   
-  // In production: skip verification code check to facilitate testing
-  if (!isProduction) {
-    const verificationCheck = await checkVerificationCode(normalizedEmail, verificationCode, 'password_reset');
-    if (verificationCheck?.status !== 'approved') {
-      return res.status(400).json({ 
-        message: verificationCheck?.message || 'Code de vérification invalide.' 
-      });
-    }
+  const verificationCheck = await checkVerificationCode(normalizedEmail, verificationCode, 'password_reset');
+  if (verificationCheck?.status !== 'approved') {
+    return res.status(400).json({
+      message: verificationCheck?.message || 'Code de vérification invalide.'
+    });
   }
   
   user.password = newPassword;

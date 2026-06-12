@@ -23,6 +23,7 @@
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.1",
+    "dompurify": "^3.4.9",
     "embla-carousel": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "exceljs": "^4.4.0",

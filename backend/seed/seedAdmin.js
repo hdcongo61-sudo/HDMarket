@@ -13,7 +13,7 @@ try {
   const exists = await User.findOne({ email: ADMIN_EMAIL });
   if (!exists) {
     const phone = normalizePhone('+242069822930');
-    await User.create({ name: 'Oumar', email: ADMIN_EMAIL, password: 'Mo6368041.', phone, role: 'admin' });
+    await User.create({ name: 'Oumar', email: ADMIN_EMAIL, password: 'password@11.', phone, role: 'admin' });
     console.log('Admin created:', ADMIN_EMAIL);
   } else {
     // Ensure existing user has admin role

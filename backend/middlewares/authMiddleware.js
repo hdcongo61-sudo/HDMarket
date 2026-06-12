@@ -7,11 +7,16 @@ import {
   wasSessionInvalidated
 } from '../services/sessionSecurityService.js';
 
+// SSE endpoints (EventSource) cannot send custom headers — query token allowed only here.
+const SSE_PATHS = ['/notifications/stream'];
+const isSseEndpoint = (req) =>
+  SSE_PATHS.some((p) => req.originalUrl?.includes(p));
+
 export const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization || '';
   let token = extractBearerToken(authHeader) || null;
-  if (!token && req.query?.token) {
-    token = req.query.token;
+  if (!token && isSseEndpoint(req) && req.query?.token) {
+    token = String(req.query.token);
   }
   if (!token) {
     return res.status(401).json({
@@ -81,9 +86,6 @@ export const protect = async (req, res, next) => {
     // Preserve raw token & decoded JWT on request for edge cases
     req.authToken = token;
     req.authDecoded = decoded;
-    if (req.query?.token) {
-      delete req.query.token;
-    }
     next();
   } catch (e) {
     return res.status(401).json({

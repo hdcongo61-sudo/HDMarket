@@ -1,27 +1,10 @@
-const ALLOWED_TAGS = new Set([
-  'p',
-  'br',
-  'strong',
-  'b',
-  'em',
-  'i',
-  'u',
-  's',
-  'strike',
-  'h1',
-  'h2',
-  'h3',
-  'ul',
-  'ol',
-  'li',
-  'a',
-  'code',
-  'pre',
-  'blockquote'
-]);
+import DOMPurify from 'dompurify';
 
-const ALLOWED_ATTRS = {
-  a: new Set(['href', 'target', 'rel'])
+const DOMPURIFY_CONFIG = {
+  ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote'],
+  ALLOWED_ATTR: ['href', 'target', 'rel'],
+  ALLOW_DATA_ATTR: false,
+  FORCE_BODY: false
 };
 
 function sanitizeHref(value) {
@@ -35,56 +18,20 @@ export function sanitizeHelpHtml(rawHtml = '') {
   if (!rawHtml) return '';
   if (typeof window === 'undefined') return String(rawHtml);
 
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div>${rawHtml}</div>`, 'text/html');
-  const root = doc.body.firstElementChild;
+  // Run DOMPurify first for battle-tested XSS sanitization
+  const clean = DOMPurify.sanitize(rawHtml, DOMPURIFY_CONFIG);
 
+  // Post-process: enforce safe hrefs and noopener on all links
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${clean}</div>`, 'text/html');
+  const root = doc.body.firstElementChild;
   if (!root) return '';
 
-  const cleanNode = (node) => {
-    const children = Array.from(node.childNodes);
-
-    children.forEach((child) => {
-      if (child.nodeType === Node.COMMENT_NODE) {
-        child.remove();
-        return;
-      }
-
-      if (child.nodeType === Node.TEXT_NODE) return;
-
-      if (child.nodeType !== Node.ELEMENT_NODE) {
-        child.remove();
-        return;
-      }
-
-      const tag = child.tagName.toLowerCase();
-      if (!ALLOWED_TAGS.has(tag)) {
-        const fragment = doc.createDocumentFragment();
-        while (child.firstChild) fragment.appendChild(child.firstChild);
-        child.replaceWith(fragment);
-        return;
-      }
-
-      const attrs = Array.from(child.attributes);
-      attrs.forEach((attr) => {
-        const attrName = attr.name.toLowerCase();
-        const allowed = ALLOWED_ATTRS[tag];
-        if (!allowed || !allowed.has(attrName)) {
-          child.removeAttribute(attr.name);
-        }
-      });
-
-      if (tag === 'a') {
-        child.setAttribute('href', sanitizeHref(child.getAttribute('href')));
-        child.setAttribute('target', '_blank');
-        child.setAttribute('rel', 'noopener noreferrer nofollow');
-      }
-
-      cleanNode(child);
-    });
-  };
-
-  cleanNode(root);
+  root.querySelectorAll('a').forEach((a) => {
+    a.setAttribute('href', sanitizeHref(a.getAttribute('href')));
+    a.setAttribute('target', '_blank');
+    a.setAttribute('rel', 'noopener noreferrer nofollow');
+  });
 
   return root.innerHTML
     .replace(/<p>(\s|&nbsp;)*<\/p>/gi, '<p><br></p>')

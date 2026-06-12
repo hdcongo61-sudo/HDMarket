@@ -1556,7 +1556,7 @@ export default function ProductForm(props) {
     ? 'Mettez à jour les informations de votre produit'
     : 'Remplissez les détails de votre produit pour commencer à vendre';
   const buttonLabel =
-    submitLabel || (isEditing ? 'Mettre à jour l’annonce' : 'Publier l’annonce');
+    submitLabel || (isEditing ? "Mettre à jour l'annonce" : "Publier l'annonce");
   const requiredFields = useMemo(
     () => ({
       title: Boolean(String(form.title || '').trim()),
@@ -1641,6 +1641,16 @@ export default function ProductForm(props) {
     { key: 'validation', label: 'Validation', done: !submitDisabled }
   ];
 
+  // Taobao-style shared input class
+  const tbInput = 'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#FF6A00] focus:ring-2 focus:ring-[#FF6A00]/15 transition-colors';
+  // Section title with orange left accent
+  const SectionTitle = ({ children }) => (
+    <h3 className="flex items-center gap-2">
+      <span className="w-[3px] h-[18px] rounded-full bg-[#FF6A00] flex-shrink-0" />
+      <span className="text-sm font-black text-gray-900">{children}</span>
+    </h3>
+  );
+
   return (
     <div
       ref={formShellRef}
@@ -1648,69 +1658,41 @@ export default function ProductForm(props) {
         isMobile
           ? isEmbeddedMobile
             ? 'px-0 pb-24 scroll-pb-40'
-            : 'px-0 pb-28 bg-[#f6f6f3] min-h-screen'
-          : ''
+            : 'px-0 pb-28 bg-[#f5f5f5] min-h-screen'
+          : 'bg-[#f5f5f5]'
       }`}
     >
-      {/* En-tête du formulaire — Apple-style on mobile */}
+      {/* ── TAOBAO HEADER ── */}
       {!hideHeader && (
-        <div
-          className={
-            isMobile
-              ? `text-left ${isEmbeddedMobile ? 'px-0 pt-1 pb-3' : 'px-4 pt-2 pb-4 bg-[#f6f6f3]'}`
-              : 'mb-6 text-left'
-          }
-        >
-          {!isMobile && (
-            <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Package className="w-8 h-8 text-white" />
-            </div>
-          )}
-          <div className={isMobile ? 'flex items-center gap-3' : 'rounded-[28px] border border-neutral-200 bg-white p-5 shadow-sm'}>
-            {isMobile && (
-              <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200/80">
-                <Package className="w-6 h-6 text-neutral-600" />
-              </div>
-            )}
-            <div className="min-w-0">
-              <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-[22px] leading-tight' : 'text-2xl mb-2'}`}>{headerTitle}</h1>
-              <p className={`text-gray-500 ${isMobile ? 'text-[13px] mt-0.5' : 'text-sm'}`}>{headerSubtitle}</p>
-            </div>
+        <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
+            {isEditing ? <Edit className="w-4 h-4 text-[#FF6A00]" /> : <Plus className="w-4 h-4 text-[#FF6A00]" />}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[15px] font-black text-gray-900 leading-tight">{headerTitle}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{headerSubtitle}</p>
           </div>
         </div>
       )}
 
-      <div className={isEmbeddedMobile ? 'mb-4' : isMobile ? 'mb-4 px-4' : 'mb-5'}>
-        <div className="rounded-[22px] border border-neutral-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
-          <div className="mb-2.5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Progression de l’annonce</p>
-              <p className="text-xs text-gray-500">Les champs essentiels restent en haut du parcours.</p>
-            </div>
-            <span className="rounded-full bg-neutral-900 px-2.5 py-1 text-xs font-semibold text-white">
-                {requiredCompletedCount}/{requiredTotalCount}
+      {/* ── PROGRESS ── */}
+      <div className="bg-white px-4 py-3 border-b border-gray-50">
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-xs font-semibold text-gray-500">Progression</p>
+          <span className="text-xs font-black text-[#FF6A00]">{requiredCompletedCount}/{requiredTotalCount}</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+          <div className="h-full rounded-full bg-[#FF6A00] transition-all duration-300" style={{ width: `${completionPercent}%` }} />
+        </div>
+        <div className="mt-2 flex gap-1.5">
+          {sectionProgressItems.map((item) => (
+            <span key={item.key}
+              className={`flex-1 py-1 text-center text-[10px] font-bold rounded transition-colors ${item.done ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-400'}`}>
+              {item.label}
             </span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-            <div
-              className="h-full rounded-full bg-neutral-900 transition-all duration-300"
-              style={{ width: `${completionPercent}%` }}
-            />
-          </div>
-          <div className="mt-3 grid grid-cols-4 gap-1.5">
-            {sectionProgressItems.map((item) => (
-              <span
-                key={item.key}
-                className={`rounded-full px-2 py-1 text-center text-[11px] font-semibold ${
-                  item.done ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
-                }`}
-              >
-                {item.label}
-              </span>
-            ))}
-          </div>
+          ))}
         </div>
-        </div>
+      </div>
 
       <form
         onSubmit={submit}
@@ -1745,7 +1727,7 @@ export default function ProductForm(props) {
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
-                  <p className="text-sm text-gray-500">Les détails qui aident l’acheteur à décider vite.</p>
+                  <p className="text-sm text-gray-500">Les détails qui aident l'acheteur à décider vite.</p>
                 </div>
               </div>
             )}
@@ -1920,7 +1902,7 @@ export default function ProductForm(props) {
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Garantie</p>
                   <p className="text-xs text-gray-500">
-                    Confirmez si le produit est couvert après l’achat et indiquez la durée.
+                    Confirmez si le produit est couvert après l'achat et indiquez la durée.
                   </p>
                 </div>
               </div>
@@ -2169,7 +2151,7 @@ export default function ProductForm(props) {
                     }
                     className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
                   />
-                  <span className="min-w-0">Exiger les informations d’un garant</span>
+                  <span className="min-w-0">Exiger les informations d'un garant</span>
                 </label>
               </div>
             )}
@@ -2342,7 +2324,7 @@ export default function ProductForm(props) {
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Attributs acheteur</p>
                     <p className="text-xs text-gray-500">
-                      Ajoutez des options comme couleur, taille, matière ou poids. Elles seront demandées à l’acheteur et sauvegardées dans la commande.
+                      Ajoutez des options comme couleur, taille, matière ou poids. Elles seront demandées à l'acheteur et sauvegardées dans la commande.
                     </p>
                   </div>
                   <button
@@ -2450,7 +2432,7 @@ export default function ProductForm(props) {
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="text-xs font-medium text-gray-700">Choix disponibles</p>
-                                  <p className="text-[11px] text-gray-500">Ajoutez autant d’options que nécessaire.</p>
+                                  <p className="text-[11px] text-gray-500">Ajoutez autant d'options que nécessaire.</p>
                                 </div>
                                 <button
                                   type="button"
@@ -2490,7 +2472,7 @@ export default function ProductForm(props) {
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-4 text-sm text-gray-500">
-                    Aucun attribut configuré. Ajoutez-en seulement si l’acheteur doit choisir une option avant de commander.
+                    Aucun attribut configuré. Ajoutez-en seulement si l'acheteur doit choisir une option avant de commander.
                   </div>
                 )}
               </div>
@@ -2827,7 +2809,7 @@ export default function ProductForm(props) {
                     <div>
                       <p className="text-sm font-semibold text-neutral-900">Compression de la vidéo en cours...</p>
                       <p className="text-xs text-neutral-600 mt-0.5">
-                        Optimisation en 720p pour réduire le poids et accélérer l’upload
+                        Optimisation en 720p pour réduire le poids et accélérer l'upload
                       </p>
                     </div>
                   </div>
@@ -2941,7 +2923,7 @@ export default function ProductForm(props) {
             <p>
               Contactez un administrateur via{' '}
               <a href="/help" className="font-semibold text-neutral-600 hover:underline">
-                le centre d’aide
+                le centre d'aide
               </a>{' '}
               pour valider votre boutique.
             </p>
@@ -2985,7 +2967,7 @@ export default function ProductForm(props) {
             )}
             {removePdf && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                <span>Le PDF sera supprimé lors de l’enregistrement.</span>
+                <span>Le PDF sera supprimé lors de l'enregistrement.</span>
                 <button
                   type="button"
                   onClick={() => setRemovePdf(false)}

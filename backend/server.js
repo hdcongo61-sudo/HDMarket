@@ -69,6 +69,7 @@ import {
   getRequestReliabilityConfig
 } from './middlewares/requestReliability.js';
 import { globalErrorHandler, notFoundApiHandler } from './middlewares/globalErrorHandler.js';
+import { protect, admin } from './middlewares/authMiddleware.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
 import { processInstallmentReminders } from './utils/installmentReminder.js';
 import { expireBoostRequests } from './utils/boostService.js';
@@ -175,18 +176,26 @@ const envOrigins = [
   .map((value) => value.trim())
   .filter(Boolean);
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+const devOrigins = isProduction
+  ? []
+  : [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:4173',
+      'http://127.0.0.1:4173',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost',
+      'https://localhost'
+    ];
+
 const allowedOrigins = new Set([
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'http://localhost:4173',
-  'http://127.0.0.1:4173',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost',
-  'https://localhost',
   'capacitor://localhost',
   'ionic://localhost',
   'https://hdmarket.onrender.com',
+  ...devOrigins,
   ...envOrigins
 ]);
 
@@ -284,7 +293,9 @@ app.use(
 );
 
 app.get('/', (req, res) => res.json({ ok: true, name: 'HDMarket API' }));
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', (req, res) => res.json({ ok: true, timestamp: new Date().toISOString() }));
+
+app.get('/api/health/details', protect, admin, async (req, res) => {
   const memory = process.memoryUsage();
   const reliability = await getRequestReliabilityConfig();
   res.json({
@@ -307,13 +318,13 @@ app.get('/api/health', async (req, res) => {
     }
   });
 });
-app.get('/api/health/requests', (req, res) => {
+app.get('/api/health/requests', protect, admin, (req, res) => {
   res.json({
     success: true,
     ...getDailyRequestStats()
   });
 });
-app.get('/api/health/performance', (req, res) => {
+app.get('/api/health/performance', protect, admin, (req, res) => {
   const windowMinutes = Math.max(5, Number(req.query.windowMinutes || 60));
   res.json({
     success: true,
