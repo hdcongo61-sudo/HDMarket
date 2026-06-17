@@ -182,9 +182,14 @@ export default function ProductForm(props) {
   const cropMoveRef = useRef(() => {});
   const cropUpRef = useRef(() => {});
   const submitIdempotencyKeyRef = useRef('');
+  // New: pinch-to-zoom tracking refs
+  const pinchDistRef = useRef(null);
+  const pinchScaleRef = useRef(null);
+  // New: natural image dimensions (reliable source of truth for crop math)
+  const imgNaturalSizeRef = useRef({ w: 0, h: 0 });
 
   const CROP_MIN_ZOOM = 0.3;
-  const CROP_MAX_ZOOM = 3;
+  const CROP_MAX_ZOOM = 5;
   const ASPECT_PRESETS = { '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
   const [showPreview, setShowPreview] = useState(false);
   const [payWithWallet, setPayWithWallet] = useState(false);
@@ -296,285 +301,251 @@ export default function ProductForm(props) {
     e.target.value = '';
   };
 
-  const initializeCropArea = (imageUrl) => {
-    setCropAspect(null);
+  // ── NEW CROP SYSTEM: fixed frame, image pans/zooms behind it ──────────
+  // The crop frame IS the canvas. Image must always cover the frame.
+  // Aspect ratio buttons resize the frame overlay, image adjusts to cover it.
+
+  // Pure helper: compute crop frame rectangle (canvas-relative, px)
+  const computeCropFrame = (cw, ch, aspect) => {
+    if (!aspect) return { x: 0, y: 0, w: cw, h: ch };
+    const ratio = ASPECT_PRESETS[aspect];
+    let w = cw;
+    let h = w / ratio;
+    if (h > ch) { h = ch; w = h * ratio; }
+    return {
+      x: Math.round((cw - w) / 2),
+      y: Math.round((ch - h) / 2),
+      w: Math.round(w),
+      h: Math.round(h)
+    };
+  };
+
+  // Minimum scale to make the image exactly cover the crop frame
+  const computeMinScale = (frame, nw, nh) => {
+    if (!nw || !nh) return 0.1;
+    return Math.max(frame.w / nw, frame.h / nh);
+  };
+
+  // Clamp position so image covers the entire crop frame (no empty space)
+  const clampImagePos = (pos, scale, frame, nw, nh) => {
+    const sw = nw * scale;
+    const sh = nh * scale;
+    return {
+      x: Math.min(frame.x, Math.max(frame.x + frame.w - sw, pos.x)),
+      y: Math.min(frame.y, Math.max(frame.y + frame.h - sh, pos.y))
+    };
+  };
+
+  // Pinch distance helper
+  const getTouchDist = (t1, t2) => {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Open crop editor: load image, fit-to-cover the canvas, reset aspect
+  const initializeCropArea = (imageUrl, forceAspect = null) => {
     const img = new Image();
     img.onload = () => {
       const container = cropContainerRef.current;
       if (!container) return;
-      
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      const imgAspect = img.width / img.height;
-      const containerAspect = containerWidth / containerHeight;
-      
-      let displayWidth, displayHeight;
-      if (imgAspect > containerAspect) {
-        displayWidth = containerWidth;
-        displayHeight = containerWidth / imgAspect;
-      } else {
-        displayHeight = containerHeight;
-        displayWidth = containerHeight * imgAspect;
-      }
-      
-      setImageScale(displayWidth / img.width);
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
+      const nw = img.naturalWidth;
+      const nh = img.naturalHeight;
+      imgNaturalSizeRef.current = { w: nw, h: nh };
+      const frame = computeCropFrame(cw, ch, forceAspect);
+      const minScale = computeMinScale(frame, nw, nh);
+      const scaledW = nw * minScale;
+      const scaledH = nh * minScale;
+      setCropAspect(forceAspect);
+      setImageScale(minScale);
       setImagePosition({
-        x: (containerWidth - displayWidth) / 2,
-        y: (containerHeight - displayHeight) / 2
-      });
-      
-      // Initialize crop area (square, centered)
-      const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
-      setCropData({
-        x: (containerWidth - cropSize) / 2,
-        y: (containerHeight - cropSize) / 2,
-        width: cropSize,
-        height: cropSize
+        x: frame.x + (frame.w - scaledW) / 2,
+        y: frame.y + (frame.h - scaledH) / 2
       });
     };
     img.src = imageUrl;
   };
 
-  const getCropPointerOffset = (clientX, clientY) => {
-    const rect = cropContainerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return {
-      x: clientX - rect.left - cropData.x,
-      y: clientY - rect.top - cropData.y
+  // Zoom toward a canvas pivot point; clamp scale + position
+  const doZoom = useCallback((newScale, pivotX, pivotY, currentScale, currentPos, aspect) => {
+    const container = cropContainerRef.current;
+    if (!container) return;
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    const frame = computeCropFrame(cw, ch, aspect);
+    const minScale = computeMinScale(frame, nw, nh);
+    const clampedScale = Math.max(minScale, Math.min(CROP_MAX_ZOOM, newScale));
+    const ratio = clampedScale / currentScale;
+    const rawPos = {
+      x: pivotX - (pivotX - currentPos.x) * ratio,
+      y: pivotY - (pivotY - currentPos.y) * ratio
     };
-  };
+    setImageScale(clampedScale);
+    setImagePosition(clampImagePos(rawPos, clampedScale, frame, nw, nh));
+  }, []); // stable — reads all values from args
 
-  const isPointInCropBox = (px, py) => {
-    return px >= cropData.x && px <= cropData.x + cropData.width &&
-           py >= cropData.y && py <= cropData.y + cropData.height;
-  };
-
-  const getCropInteraction = (clientX, clientY) => {
-    const rect = cropContainerRef.current?.getBoundingClientRect();
-    if (!rect) return 'pan';
-    const px = clientX - rect.left;
-    const py = clientY - rect.top;
-    const HANDLE = 28;
-    const { x, y, width, height } = cropData;
-    if (px >= x + width - HANDLE && py >= y + height - HANDLE && px <= x + width && py <= y + height) return 'resize-se';
-    if (px <= x + HANDLE && py <= y + HANDLE && px >= x && py >= y) return 'resize-nw';
-    if (px >= x + width - HANDLE && py <= y + HANDLE && py >= y) return 'resize-ne';
-    if (px <= x + HANDLE && py >= y + height - HANDLE && py <= y + height) return 'resize-sw';
-    if (isPointInCropBox(px, py)) return 'crop';
-    return 'pan';
-  };
-
+  // Mouse/touch event handlers
   const handleCropMouseDown = (e) => {
-    if (!croppingImage || !cropContainerRef.current) return;
-    const rect = cropContainerRef.current.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const action = getCropInteraction(e.clientX, e.clientY);
-    if (action === 'resize-se' || action === 'resize-nw' || action === 'resize-ne' || action === 'resize-sw') {
-      e.stopPropagation();
-      setIsResizingCrop(action.replace('resize-', ''));
-      setDragStart({ x: px, y: py });
-    } else if (action === 'crop') {
-      setIsDragging(true);
-      setDragStart(getCropPointerOffset(e.clientX, e.clientY));
-    } else {
-      setIsPanning(true);
-      setPanStart({ startX: e.clientX, startY: e.clientY, startPos: { ...imagePosition } });
-    }
+    if (!croppingImage) return;
+    setIsPanning(true);
+    setPanStart({ startX: e.clientX, startY: e.clientY, startPos: { ...imagePosition } });
   };
 
   const handleCropTouchStart = (e) => {
-    if (!croppingImage || !e.touches[0] || !cropContainerRef.current) return;
-    const t = e.touches[0];
-    const action = getCropInteraction(t.clientX, t.clientY);
-    const rect = cropContainerRef.current.getBoundingClientRect();
-    const px = t.clientX - rect.left;
-    const py = t.clientY - rect.top;
-    if (action.startsWith('resize-')) {
-      setIsResizingCrop(action.replace('resize-', ''));
-      setDragStart({ x: px, y: py });
-    } else if (action === 'crop') {
-      setIsDragging(true);
-      setDragStart(getCropPointerOffset(t.clientX, t.clientY));
-    } else {
-      setIsPanning(true);
-      setPanStart({ startX: t.clientX, startY: t.clientY, startPos: { ...imagePosition } });
+    if (!croppingImage) return;
+    if (e.touches.length === 2) {
+      pinchDistRef.current = getTouchDist(e.touches[0], e.touches[1]);
+      pinchScaleRef.current = imageScale;
+      setIsPanning(false);
+      return;
     }
+    if (!e.touches[0]) return;
+    setIsPanning(true);
+    setPanStart({ startX: e.touches[0].clientX, startY: e.touches[0].clientY, startPos: { ...imagePosition } });
   };
 
   const handleCropMouseMove = (e) => {
-    if (!croppingImage || !cropContainerRef.current) return;
-    const rect = cropContainerRef.current.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    if (!isPanning || !croppingImage) return;
+    const container = cropContainerRef.current;
+    if (!container) return;
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const frame = computeCropFrame(container.clientWidth, container.clientHeight, cropAspect);
+    setImagePosition(clampImagePos(
+      { x: panStart.startPos.x + (e.clientX - panStart.startX), y: panStart.startPos.y + (e.clientY - panStart.startY) },
+      imageScale, frame, nw, nh
+    ));
+  };
 
-    if (isPanning) {
-      setImagePosition({
-        x: panStart.startPos.x + (e.clientX - panStart.startX),
-        y: panStart.startPos.y + (e.clientY - panStart.startY)
-      });
+  const handleCropTouchMove = (e) => {
+    if (!croppingImage) return;
+    // Pinch-to-zoom
+    if (e.touches.length === 2 && pinchDistRef.current !== null && pinchScaleRef.current !== null) {
+      e.preventDefault();
+      const d = getTouchDist(e.touches[0], e.touches[1]);
+      const container = cropContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const pivotX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
+      const pivotY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
+      doZoom(pinchScaleRef.current * (d / pinchDistRef.current), pivotX, pivotY, pinchScaleRef.current, imagePosition, cropAspect);
       return;
     }
-    if (isResizingCrop) {
-      applyCropResize(px, py, rect);
-      return;
-    }
-    if (!isDragging) return;
-    const newX = e.clientX - rect.left - dragStart.x;
-    const newY = e.clientY - rect.top - dragStart.y;
-    const maxX = rect.width - cropData.width;
-    const maxY = rect.height - cropData.height;
-    setCropData({
-      ...cropData,
-      x: Math.max(0, Math.min(maxX, newX)),
-      y: Math.max(0, Math.min(maxY, newY))
-    });
+    // Single-finger pan
+    if (!isPanning || !e.touches[0]) return;
+    const container = cropContainerRef.current;
+    if (!container) return;
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const frame = computeCropFrame(container.clientWidth, container.clientHeight, cropAspect);
+    setImagePosition(clampImagePos(
+      { x: panStart.startPos.x + (e.touches[0].clientX - panStart.startX), y: panStart.startPos.y + (e.touches[0].clientY - panStart.startY) },
+      imageScale, frame, nw, nh
+    ));
   };
 
   const handleCropMouseUp = () => {
     setIsDragging(false);
     setIsPanning(false);
     setIsResizingCrop(null);
+    pinchDistRef.current = null;
+    pinchScaleRef.current = null;
   };
+
   const handleCropTouchEnd = () => {
     setIsDragging(false);
     setIsPanning(false);
     setIsResizingCrop(null);
+    pinchDistRef.current = null;
+    pinchScaleRef.current = null;
   };
 
-  const handleCropTouchMove = (e) => {
-    if (!croppingImage || !cropContainerRef.current || !e.touches[0]) return;
-    const t = e.touches[0];
-    const rect = cropContainerRef.current.getBoundingClientRect();
-    const px = t.clientX - rect.left;
-    const py = t.clientY - rect.top;
-
-    if (isPanning) {
-      setImagePosition({
-        x: panStart.startPos.x + (t.clientX - panStart.startX),
-        y: panStart.startPos.y + (t.clientY - panStart.startY)
-      });
-      return;
-    }
-    if (isResizingCrop) {
-      applyCropResize(px, py, rect);
-      return;
-    }
-    if (!isDragging) return;
-    const newX = t.clientX - rect.left - dragStart.x;
-    const newY = t.clientY - rect.top - dragStart.y;
-    const maxX = rect.width - cropData.width;
-    const maxY = rect.height - cropData.height;
-    setCropData({
-      ...cropData,
-      x: Math.max(0, Math.min(maxX, newX)),
-      y: Math.max(0, Math.min(maxY, newY))
-    });
+  // Mouse-wheel zoom (desktop)
+  const handleCropWheel = (e) => {
+    e.preventDefault();
+    const container = cropContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    doZoom(
+      imageScale + (e.deltaY < 0 ? 0.12 : -0.12),
+      e.clientX - rect.left, e.clientY - rect.top,
+      imageScale, imagePosition, cropAspect
+    );
   };
 
-  const MIN_CROP_SIZE = 80;
+  const handleZoomChange = (delta) => {
+    const container = cropContainerRef.current;
+    if (!container) return;
+    doZoom(imageScale + delta, container.clientWidth / 2, container.clientHeight / 2, imageScale, imagePosition, cropAspect);
+  };
 
-  const applyCropResize = (px, py, rect) => {
-    let { x, y, width, height } = cropData;
-    const aspect = cropAspect ? ASPECT_PRESETS[cropAspect] : null;
+  const handleZoomInput = (e) => {
+    const v = parseFloat(e.target.value);
+    if (Number.isNaN(v)) return;
+    const container = cropContainerRef.current;
+    if (!container) return;
+    doZoom(v, container.clientWidth / 2, container.clientHeight / 2, imageScale, imagePosition, cropAspect);
+  };
 
-    const applyAspect = (w, h) => {
-      if (!aspect) return { w, h };
-      if (aspect >= 1) return { w, h: w / aspect };
-      return { w: h * aspect, h };
-    };
-
-    if (isResizingCrop === 'se') {
-      let w = Math.max(MIN_CROP_SIZE, px - x);
-      let h = Math.max(MIN_CROP_SIZE, py - y);
-      ({ w, h } = applyAspect(w, h));
-      w = Math.min(w, rect.width - x);
-      h = Math.min(h, rect.height - y);
-      if (aspect) ({ w, h } = applyAspect(w, h));
-      setCropData({ x, y, width: w, height: h });
-    } else if (isResizingCrop === 'sw') {
-      let w = Math.max(MIN_CROP_SIZE, x + width - px);
-      let h = Math.max(MIN_CROP_SIZE, py - y);
-      ({ w, h } = applyAspect(w, h));
-      const newX = x + width - w;
-      if (newX < 0) { w = x + width; h = aspect ? w / aspect : h; }
-      setCropData({ x: Math.max(0, newX), y, width: w, height: Math.min(h, rect.height - y) });
-    } else if (isResizingCrop === 'ne') {
-      let w = Math.max(MIN_CROP_SIZE, px - x);
-      let h = Math.max(MIN_CROP_SIZE, y + height - py);
-      ({ w, h } = applyAspect(w, h));
-      const newY = y + height - h;
-      setCropData({ x, y: Math.max(0, newY), width: w, height: h });
-    } else if (isResizingCrop === 'nw') {
-      let w = Math.max(MIN_CROP_SIZE, x + width - px);
-      let h = Math.max(MIN_CROP_SIZE, y + height - py);
-      ({ w, h } = applyAspect(w, h));
-      const newX = x + width - w;
-      const newY = y + height - h;
-      setCropData({ x: Math.max(0, newX), y: Math.max(0, newY), width: w, height: h });
-    }
+  // Reset image to cover-fit (minimum zoom, centered)
+  const resetCropFit = () => {
+    const container = cropContainerRef.current;
+    if (!container) return;
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const frame = computeCropFrame(container.clientWidth, container.clientHeight, cropAspect);
+    const minScale = computeMinScale(frame, nw, nh);
+    const sw = nw * minScale;
+    const sh = nh * minScale;
+    setImageScale(minScale);
+    setImagePosition({ x: frame.x + (frame.w - sw) / 2, y: frame.y + (frame.h - sh) / 2 });
   };
 
   const applyCropAspectPreset = (preset) => {
     const container = cropContainerRef.current;
     if (!container) return;
-    const rect = { width: container.clientWidth, height: container.clientHeight };
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    const newFrame = computeCropFrame(cw, ch, preset);
+    const minScale = computeMinScale(newFrame, nw, nh);
+    const newScale = Math.max(minScale, imageScale);
     setCropAspect(preset);
-    if (!preset) return;
-    const ratio = ASPECT_PRESETS[preset];
-    const centerX = cropData.x + cropData.width / 2;
-    const centerY = cropData.y + cropData.height / 2;
-    let w = cropData.width;
-    let h = cropData.height;
-    if (ratio >= 1) {
-      h = w / ratio;
-      if (h > rect.height) { h = rect.height; w = h * ratio; }
-    } else {
-      w = h * ratio;
-      if (w > rect.width) { w = rect.width; h = w / ratio; }
-    }
-    w = Math.min(w, rect.width);
-    h = Math.min(h, rect.height);
-    const x = Math.max(0, Math.min(centerX - w / 2, rect.width - w));
-    const y = Math.max(0, Math.min(centerY - h / 2, rect.height - h));
-    setCropData({ x, y, width: w, height: h });
+    setImageScale(newScale);
+    setImagePosition(clampImagePos(imagePosition, newScale, newFrame, nw, nh));
   };
 
+  // Extract the image region visible inside the crop frame
   const cropImage = useCallback(() => {
-    if (!croppingImage || !imageRef.current) return null;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = imageRef.current;
-    
-    // Calculate actual crop coordinates on original image
-    const scaleX = img.naturalWidth / img.width;
-    const scaleY = img.naturalHeight / img.height;
-    
-    const cropX = (cropData.x - imagePosition.x) * scaleX;
-    const cropY = (cropData.y - imagePosition.y) * scaleY;
-    const cropWidth = cropData.width * scaleX;
-    const cropHeight = cropData.height * scaleY;
-    
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
-    
-    ctx.drawImage(
-      img,
-      cropX, cropY, cropWidth, cropHeight,
-      0, 0, cropWidth, cropHeight
-    );
-    
+    if (!croppingImage) return null;
+    const container = cropContainerRef.current;
+    if (!container) return null;
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const frame = computeCropFrame(container.clientWidth, container.clientHeight, cropAspect);
+
+    // Map crop-frame corners to natural-image coordinates
+    const natX = Math.max(0, (frame.x - imagePosition.x) / imageScale);
+    const natY = Math.max(0, (frame.y - imagePosition.y) / imageScale);
+    const natW = Math.min(nw - natX, frame.w / imageScale);
+    const natH = Math.min(nh - natY, frame.h / imageScale);
+    if (natW <= 0 || natH <= 0) return null;
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = Math.round(natW);
+    outCanvas.height = Math.round(natH);
+    const ctx = outCanvas.getContext('2d');
+
     return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        const file = new File([blob], croppingImage.file.name, {
-          type: croppingImage.file.type,
-          lastModified: Date.now()
-        });
-        resolve(file);
-      }, croppingImage.file.type, 0.95);
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, Math.round(natX), Math.round(natY), Math.round(natW), Math.round(natH), 0, 0, Math.round(natW), Math.round(natH));
+        outCanvas.toBlob((blob) => {
+          resolve(new File([blob], croppingImage.file.name, { type: croppingImage.file.type, lastModified: Date.now() }));
+        }, croppingImage.file.type, 0.95);
+      };
+      img.src = croppingImage.url;
     });
-  }, [croppingImage, cropData, imagePosition]);
+  }, [croppingImage, imagePosition, imageScale, cropAspect]);
 
   const handleCropConfirm = async () => {
     const croppedFile = await cropImage();
@@ -638,21 +609,14 @@ export default function ProductForm(props) {
     const url = URL.createObjectURL(file);
     if (croppingImage.url && croppingImage.url.startsWith('blob:')) URL.revokeObjectURL(croppingImage.url);
     setCroppingImage((prev) => ({ ...prev, file, url }));
-    setTimeout(() => initializeCropArea(url), 50);
-  }, [croppingImage]);
+    // Re-init crop area after transform, preserving current aspect ratio
+    setTimeout(() => initializeCropArea(url, cropAspect), 80);
+  }, [croppingImage, cropAspect]);
 
   const handleRotateLeft = () => applyImageTransform(-90, false, false);
   const handleRotateRight = () => applyImageTransform(90, false, false);
   const handleFlipH = () => applyImageTransform(0, true, false);
   const handleFlipV = () => applyImageTransform(0, false, true);
-
-  const handleZoomChange = (delta) => {
-    setImageScale((s) => Math.max(CROP_MIN_ZOOM, Math.min(CROP_MAX_ZOOM, s + delta)));
-  };
-  const handleZoomInput = (e) => {
-    const v = parseFloat(e.target.value);
-    if (!Number.isNaN(v)) setImageScale(Math.max(CROP_MIN_ZOOM, Math.min(CROP_MAX_ZOOM, v)));
-  };
 
   const editImageCrop = (index) => {
     const fileItem = files[index];
@@ -660,8 +624,11 @@ export default function ProductForm(props) {
     if (!fileItem || !preview?.url) return;
     const file = fileItem?.file || fileItem;
     if (!(file instanceof File)) return;
+    imgNaturalSizeRef.current = { w: 0, h: 0 };
+    pinchDistRef.current = null;
+    pinchScaleRef.current = null;
     setCroppingImage({ file, url: preview.url, index });
-    setTimeout(() => initializeCropArea(preview.url), 100);
+    // initializeCropArea fires via the img onLoad in the modal
   };
 
   const handleLeaveAsIs = (index) => {
@@ -3241,187 +3208,215 @@ export default function ProductForm(props) {
         )}
       </form>
 
-      {/* Image Crop Modal — full-screen on mobile */}
-      {croppingImage && (
-        <BaseModal
-          isOpen={Boolean(croppingImage)}
-          onClose={handleCropCancel}
-          size="full"
-          mobileSheet
-          ariaLabel="Recadrer image"
-          rootClassName={isMobile ? '!p-0' : ''}
-          panelClassName="border-0 bg-transparent shadow-none sm:max-w-none"
-          backdropClassName="!bg-black/70 backdrop-blur-sm"
-        >
-          <div className={`bg-white shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'w-full h-full max-h-none rounded-none' : 'rounded-2xl max-w-4xl w-full max-h-[90vh]'}`}>
-            <div className={`flex items-center justify-between border-b border-gray-200 flex-shrink-0 ${isMobile ? 'p-4 min-h-[56px] safe-area-top' : 'p-4'}`}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-xl flex items-center justify-center">
-                  <Crop className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Recadrer l'image</h3>
-                  <p className="text-xs text-gray-500">Glissez la fenêtre pour la déplacer · Zone sombre pour déplacer l'image · Coins pour redimensionner</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCropCancel}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label="Fermer"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+      {/* ── CROP MODAL (new system: fixed frame, image pans/zooms) ── */}
+      {croppingImage && (() => {
+        const cw = cropContainerRef.current?.clientWidth || 400;
+        const ch = cropContainerRef.current?.clientHeight || 400;
+        const { w: nw, h: nh } = imgNaturalSizeRef.current;
+        const frame = computeCropFrame(cw, ch, cropAspect);
+        const minScale = computeMinScale(frame, nw, nh);
+        const zoomPct = nw > 0 ? Math.round((imageScale / minScale) * 100) : 100;
+        return (
+          <BaseModal
+            isOpen={Boolean(croppingImage)}
+            onClose={handleCropCancel}
+            size="full"
+            mobileSheet
+            ariaLabel="Recadrer image"
+            rootClassName={isMobile ? '!p-0' : ''}
+            panelClassName="border-0 bg-transparent shadow-none sm:max-w-none"
+            backdropClassName="!bg-black/90 backdrop-blur-sm"
+          >
+            <div className={`bg-[#1a1a1a] shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'w-full h-full max-h-none rounded-none' : 'rounded-2xl max-w-2xl w-full max-h-[95vh]'}`}>
 
-            {/* Toolbar: rotate, flip, aspect, zoom */}
-            <div className="flex-shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-3 space-y-3">
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button type="button" onClick={handleRotateLeft} className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation" aria-label="Tourner à gauche">
-                  <RotateCcw className="w-5 h-5 text-gray-700" />
-                </button>
-                <button type="button" onClick={handleRotateRight} className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation" aria-label="Tourner à droite">
-                  <RotateCw className="w-5 h-5 text-gray-700" />
-                </button>
-                <button type="button" onClick={handleFlipH} className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation" aria-label="Retourner horizontalement">
-                  <FlipHorizontal className="w-5 h-5 text-gray-700" />
-                </button>
-                <button type="button" onClick={handleFlipV} className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation" aria-label="Retourner verticalement">
-                  <FlipVertical className="w-5 h-5 text-gray-700" />
+              {/* ── Header ── */}
+              <div className={`flex items-center justify-between bg-[#1a1a1a] border-b border-white/10 flex-shrink-0 ${isMobile ? 'px-4 py-3 safe-area-top' : 'px-4 py-3'}`}>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#FF6A00] flex items-center justify-center flex-shrink-0">
+                    <Crop className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Recadrer</p>
+                    <p className="text-[11px] text-white/50">Pincez pour zoomer · Glissez pour repositionner</p>
+                  </div>
+                </div>
+                <button type="button" onClick={handleCropCancel}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20 transition-colors touch-manipulation"
+                  aria-label="Fermer">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <span className="text-xs font-medium text-gray-500 mr-1">Format:</span>
-                {[null, '1:1', '4:3', '16:9'].map((preset) => (
-                  <button
-                    key={preset || 'free'}
-                    type="button"
-                    onClick={() => applyCropAspectPreset(preset)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors touch-manipulation ${cropAspect === preset ? 'bg-neutral-600 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'}`}
-                  >
-                    {preset === null ? 'Libre' : preset}
+
+              {/* ── Aspect ratio pills ── */}
+              <div className="flex-shrink-0 flex items-center justify-center gap-2 bg-[#111] px-4 py-2.5 border-b border-white/10">
+                {[
+                  { key: null, label: 'Libre' },
+                  { key: '1:1', label: '1:1' },
+                  { key: '4:3', label: '4:3' },
+                  { key: '16:9', label: '16:9' },
+                ].map(({ key, label }) => (
+                  <button key={label} type="button" onClick={() => applyCropAspectPreset(key)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all touch-manipulation ${
+                      cropAspect === key
+                        ? 'bg-[#FF6A00] text-white'
+                        : 'bg-white/10 text-white/70 active:bg-white/20'
+                    }`}>
+                    {label}
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => handleZoomChange(-0.2)} className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 active:bg-gray-200 touch-manipulation" aria-label="Zoom arrière">
-                  <ZoomOut className="w-5 h-5 text-gray-700" />
-                </button>
-                <input
-                  type="range"
-                  min={CROP_MIN_ZOOM}
-                  max={CROP_MAX_ZOOM}
-                  step={0.1}
-                  value={imageScale}
-                  onChange={handleZoomInput}
-                  className="flex-1 h-2 rounded-full appearance-none bg-gray-200 accent-neutral-600"
-                />
-                <button type="button" onClick={() => handleZoomChange(0.2)} className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 active:bg-gray-200 touch-manipulation" aria-label="Zoom avant">
-                  <ZoomIn className="w-5 h-5 text-gray-700" />
-                </button>
-              </div>
-            </div>
-            
-            <div className={`flex-1 overflow-auto ${isMobile ? 'p-2 flex items-center justify-center min-h-0' : 'p-4'}`}>
-              <div
-                ref={cropContainerRef}
-                className={`relative bg-gray-100 rounded-lg overflow-hidden cursor-move touch-none select-none ${isMobile ? 'w-full max-w-full flex-1 min-h-[280px] max-h-[60vh]' : 'w-full h-96'}`}
-                onMouseDown={handleCropMouseDown}
-                onMouseMove={handleCropMouseMove}
-                onMouseUp={handleCropMouseUp}
-                onMouseLeave={handleCropMouseUp}
-                onTouchStart={handleCropTouchStart}
-                onTouchMove={handleCropTouchMove}
-                onTouchEnd={handleCropTouchEnd}
-                onTouchCancel={handleCropTouchEnd}
-                style={{ touchAction: 'none' }}
-              >
-                <img
-                  ref={imageRef}
-                  src={croppingImage.url}
-                  alt="Image à recadrer"
-                  className="absolute"
-                  style={{
-                    width: `${imageRef.current?.naturalWidth * imageScale || 0}px`,
-                    height: `${imageRef.current?.naturalHeight * imageScale || 0}px`,
-                    left: `${imagePosition.x}px`,
-                    top: `${imagePosition.y}px`,
-                    pointerEvents: 'none'
-                  }}
-                  onLoad={(e) => {
-                    const img = e.target;
-                    const container = cropContainerRef.current;
-                    if (!container) return;
-                    
-                    const containerWidth = container.clientWidth;
-                    const containerHeight = container.clientHeight;
-                    const imgAspect = img.naturalWidth / img.naturalHeight;
-                    const containerAspect = containerWidth / containerHeight;
-                    
-                    let displayWidth, displayHeight;
-                    if (imgAspect > containerAspect) {
-                      displayWidth = containerWidth;
-                      displayHeight = containerWidth / imgAspect;
-                    } else {
-                      displayHeight = containerHeight;
-                      displayWidth = containerHeight * imgAspect;
-                    }
-                    
-                    setImageScale(displayWidth / img.naturalWidth);
-                    setImagePosition({
-                      x: (containerWidth - displayWidth) / 2,
-                      y: (containerHeight - displayHeight) / 2
-                    });
-                    
-                    const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
-                    setCropData({
-                      x: (containerWidth - cropSize) / 2,
-                      y: (containerHeight - cropSize) / 2,
-                      width: cropSize,
-                      height: cropSize
-                    });
-                  }}
-                />
-                
-                {/* Crop overlay — pointer-events-none so container gets all events */}
+
+              {/* ── Canvas ── */}
+              <div className="flex-1 min-h-0 flex items-center justify-center bg-black overflow-hidden">
                 <div
-                  className="absolute border-2 border-white shadow-lg pointer-events-none"
+                  ref={cropContainerRef}
+                  className={`relative overflow-hidden touch-none select-none cursor-grab active:cursor-grabbing ${
+                    isMobile ? 'w-full' : 'w-full max-w-lg'
+                  }`}
+                  onMouseDown={handleCropMouseDown}
+                  onMouseMove={(e) => cropMoveRef.current(e)}
+                  onMouseUp={handleCropMouseUp}
+                  onMouseLeave={handleCropMouseUp}
+                  onWheel={handleCropWheel}
+                  onTouchStart={handleCropTouchStart}
+                  onTouchMove={(e) => { e.preventDefault(); handleCropTouchMove(e); }}
+                  onTouchEnd={handleCropTouchEnd}
+                  onTouchCancel={handleCropTouchEnd}
                   style={{
-                    left: `${cropData.x}px`,
-                    top: `${cropData.y}px`,
-                    width: `${cropData.width}px`,
-                    height: `${cropData.height}px`,
-                    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)'
+                    aspectRatio: cropAspect ? String(ASPECT_PRESETS[cropAspect]) : '1 / 1',
+                    maxHeight: isMobile ? '55vh' : '480px',
+                    touchAction: 'none',
+                    backgroundColor: '#000'
                   }}
                 >
-                  {/* Visual corner handles */}
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
-                  <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
-                  <div className="absolute -top-1 -left-1 w-4 h-4 bg-white border-2 border-neutral-500 rounded-full pointer-events-none" />
+                  {/* The image — pans and zooms inside the canvas */}
+                  <img
+                    ref={imageRef}
+                    src={croppingImage.url}
+                    alt="A recadrer"
+                    draggable={false}
+                    className="absolute pointer-events-none select-none"
+                    style={{
+                      width: `${nw * imageScale || 0}px`,
+                      height: `${nh * imageScale || 0}px`,
+                      left: `${imagePosition.x}px`,
+                      top: `${imagePosition.y}px`,
+                      willChange: 'transform',
+                    }}
+                    onLoad={(e) => {
+                      const img = e.target;
+                      const container = cropContainerRef.current;
+                      if (!container) return;
+                      const natW = img.naturalWidth;
+                      const natH = img.naturalHeight;
+                      imgNaturalSizeRef.current = { w: natW, h: natH };
+                      const containerW = container.clientWidth;
+                      const containerH = container.clientHeight;
+                      const fr = computeCropFrame(containerW, containerH, cropAspect);
+                      const ms = computeMinScale(fr, natW, natH);
+                      const sw = natW * ms;
+                      const sh = natH * ms;
+                      setImageScale(ms);
+                      setImagePosition({
+                        x: fr.x + (fr.w - sw) / 2,
+                        y: fr.y + (fr.h - sh) / 2
+                      });
+                    }}
+                  />
+
+                  {/* Rule-of-thirds grid (always visible) */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {[1, 2].map((i) => (
+                      <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-white/20" style={{ left: `${(i / 3) * 100}%` }} />
+                    ))}
+                    {[1, 2].map((i) => (
+                      <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-white/20" style={{ top: `${(i / 3) * 100}%` }} />
+                    ))}
+                    {/* Orange border frame */}
+                    <div className="absolute inset-0 border-2 border-[#FF6A00]/80 pointer-events-none" />
+                    {/* Corner accents */}
+                    {[
+                      'top-0 left-0 border-t-2 border-l-2',
+                      'top-0 right-0 border-t-2 border-r-2',
+                      'bottom-0 left-0 border-b-2 border-l-2',
+                      'bottom-0 right-0 border-b-2 border-r-2',
+                    ].map((cls, i) => (
+                      <div key={i} className={`absolute w-5 h-5 border-[#FF6A00] ${cls}`} />
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              {/* ── Toolbar: rotate + flip + zoom ── */}
+              <div className="flex-shrink-0 bg-[#111] border-t border-white/10 px-4 py-3 space-y-3">
+                {/* Row 1: rotate + flip + fit */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {[
+                      { fn: handleRotateLeft, icon: RotateCcw, label: 'Tourner gauche' },
+                      { fn: handleRotateRight, icon: RotateCw, label: 'Tourner droite' },
+                      { fn: handleFlipH, icon: FlipHorizontal, label: 'Miroir H' },
+                      { fn: handleFlipV, icon: FlipVertical, label: 'Miroir V' },
+                    ].map(({ fn, icon: Icon, label }) => (
+                      <button key={label} type="button" onClick={fn}
+                        className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center active:bg-white/20 transition-colors touch-manipulation"
+                        aria-label={label}>
+                        <Icon className="w-4 h-4" />
+                      </button>
+                    ))}
+                  </div>
+                  {/* Fit button */}
+                  <button type="button" onClick={resetCropFit}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white/80 text-xs font-semibold active:bg-white/20 touch-manipulation">
+                    <ZoomOut className="w-3.5 h-3.5" />
+                    Ajuster
+                  </button>
+                </div>
+
+                {/* Row 2: zoom slider + zoom % */}
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => handleZoomChange(-0.15)}
+                    className="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center active:bg-white/20 touch-manipulation flex-shrink-0"
+                    aria-label="Zoom arrière">
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="range"
+                    min={minScale}
+                    max={CROP_MAX_ZOOM}
+                    step={0.01}
+                    value={imageScale}
+                    onChange={handleZoomInput}
+                    className="flex-1 h-1.5 rounded-full appearance-none bg-white/20 accent-[#FF6A00] cursor-pointer"
+                    style={{ accentColor: '#FF6A00' }}
+                  />
+                  <button type="button" onClick={() => handleZoomChange(0.15)}
+                    className="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center active:bg-white/20 touch-manipulation flex-shrink-0"
+                    aria-label="Zoom avant">
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-black text-[#FF6A00] w-12 text-right flex-shrink-0">
+                    {zoomPct}%
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Footer: cancel + confirm ── */}
+              <div className={`flex items-stretch gap-0 border-t border-white/10 bg-[#1a1a1a] flex-shrink-0 ${isMobile ? 'pb-[env(safe-area-inset-bottom)]' : ''}`}>
+                <button type="button" onClick={handleCropCancel}
+                  className="flex-1 py-4 text-sm font-semibold text-white/60 active:bg-white/5 transition-colors touch-manipulation border-r border-white/10">
+                  Annuler
+                </button>
+                <button type="button" onClick={handleCropConfirm}
+                  className="flex-1 py-4 text-sm font-bold text-[#FF6A00] active:bg-[#FF6A00]/10 transition-colors touch-manipulation">
+                  Confirmer
+                </button>
+              </div>
+
             </div>
-            
-            <div className={`flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 flex-shrink-0 ${isMobile ? 'p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] safe-area-pb' : 'p-4'}`}>
-              <button
-                type="button"
-                onClick={handleCropCancel}
-                className={`font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation ${isMobile ? 'min-h-[48px] px-5 py-3 text-base' : 'px-4 py-2 text-sm rounded-lg'}`}
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleCropConfirm}
-                className={`font-medium text-white bg-gradient-to-r from-neutral-600 to-neutral-600 rounded-xl hover:from-neutral-700 hover:to-neutral-700 active:scale-[0.98] transition-all shadow-sm touch-manipulation ${isMobile ? 'min-h-[48px] px-5 py-3 text-base' : 'px-4 py-2 text-sm rounded-lg'}`}
-              >
-                Confirmer le recadrage
-              </button>
-            </div>
-          </div>
-        </BaseModal>
-      )}
+          </BaseModal>
+        );
+      })()}
     </div>
   );
 }
