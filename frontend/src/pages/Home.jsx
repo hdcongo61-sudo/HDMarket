@@ -235,7 +235,7 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
   ];
 
   return (
-    <section className={`hd-wallet-callout relative w-full overflow-hidden rounded-[22px] border border-emerald-100 bg-[#06281f] text-white shadow-[0_14px_34px_rgba(6,40,31,0.18)] ${compact ? 'p-3' : 'p-4'}`}>
+    <section className={`hd-wallet-callout relative w-full overflow-hidden rounded-2xl border border-emerald-100 bg-[#06281f] text-white shadow-[0_14px_34px_rgba(6,40,31,0.18)] ${compact ? 'p-3' : 'p-4'}`}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.16),transparent_25%),radial-gradient(circle_at_86%_12%,rgba(255,106,0,0.2),transparent_24%),linear-gradient(135deg,rgba(6,40,31,0.95),rgba(11,80,58,0.92))]" />
       <div className="hd-wallet-shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/18 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent" />
@@ -267,7 +267,7 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
             {benefits.map(({ icon: Icon, label, text, stat, tone, glow }, index) => (
               <div
                 key={label}
-                className={`hd-wallet-benefit group relative overflow-hidden rounded-[18px] border border-white/12 bg-white/[0.09] p-2.5 backdrop-blur ${compact ? 'min-h-[92px]' : 'min-h-[132px]'}`}
+                className={`hd-wallet-benefit group relative overflow-hidden rounded-xl border border-white/12 bg-white/[0.09] p-2.5 backdrop-blur ${compact ? 'min-h-[92px]' : 'min-h-[132px]'}`}
                 style={{ '--wallet-benefit-delay': `${index * 0.55}s` }}
               >
                 <div className={`pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-gradient-to-br ${tone} opacity-20 blur-xl transition group-hover:opacity-35`} />
@@ -306,7 +306,7 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
         </div>
 
         <div className={`relative ${compact ? 'min-h-[118px] max-[380px]:hidden' : 'min-h-[164px]'}`}>
-          <div className="hd-wallet-float absolute left-1/2 top-1/2 w-[min(100%,252px)] -translate-x-1/2 -translate-y-1/2 rounded-[22px] border border-white/15 bg-white p-3 text-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.26)]">
+          <div className="hd-wallet-float absolute left-1/2 top-1/2 w-[min(100%,252px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/15 bg-white p-3 text-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.26)]">
             <div className="flex items-center justify-between">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-[#ff6a00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.22)]">
                 <Wallet className="h-[18px] w-[18px]" />
@@ -328,7 +328,7 @@ const WalletHomeCallout = ({ compact = false } = {}) => {
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.55)]" />
                 <span className="truncate">Dépôt prêt</span>
               </span>
-              <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-xl border border-orange-100 bg-orange-50 px-1.5 py-1.5 text-[#9a4a00] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-xl border border-gray-200 bg-gray-100 px-1.5 py-1.5 text-gray-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ff6a00] shadow-[0_0_8px_rgba(255,106,0,0.45)]" />
                 <span className="truncate">Retour</span>
               </span>
@@ -1234,18 +1234,18 @@ const loadDiscountProducts = async () => {
         <PourVousSection />
 
         {(user || showFullPaymentHomeBanner) ? (
-          <section className="overflow-hidden rounded-[24px] border border-orange-100 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
             {user ? (
               <Link
                 to="/profile"
                 className="flex items-center gap-3 px-3.5 py-3 active:scale-[0.99]"
               >
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-[#fff2e6] text-[#ff6a00] ring-1 ring-orange-100">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-gray-200">
                   <MapPin className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wide text-[#9a4a00]">
+                    <span className="text-[10px] font-black uppercase tracking-wide text-gray-500">
                       {t('home.deliveryAddress', 'Adresse de livraison')}
                     </span>
                     <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
@@ -1269,7 +1269,7 @@ const loadDiscountProducts = async () => {
                 to="/products"
                 {...externalLinkProps}
                 className={`group block bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-3.5 py-3 transition-all duration-200 active:scale-[0.99] ${
-                  user ? 'border-t border-orange-100' : ''
+                  user ? 'border-t border-gray-200' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -1333,7 +1333,7 @@ const loadDiscountProducts = async () => {
               <button
                 type="button"
                 onClick={() => setCategoryModalOpen(true)}
-                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-[#ff4f17] active:scale-95"
+                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-[#ff4f17] active:scale-95"
                 aria-label="Ouvrir les catégories"
               >
                 <LayoutGrid className="h-5 w-5" />
@@ -1357,7 +1357,7 @@ const loadDiscountProducts = async () => {
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-orange-100 bg-white p-3 shadow-[0_10px_28px_rgba(23,23,23,0.06)]">
+        <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_10px_28px_rgba(23,23,23,0.06)]">
           <div className="grid grid-cols-5 gap-2">
             {shortcutItems.map(({ label, icon: Icon, to }, index) => (
               <Link
@@ -1382,12 +1382,12 @@ const loadDiscountProducts = async () => {
         </section>
 
         {heroProducts.length > 0 ? (
-          <section className="overflow-hidden rounded-[24px] bg-[#ff3d13] p-2 shadow-[0_12px_30px_rgba(255,69,20,0.22)]">
+          <section className="overflow-hidden rounded-2xl bg-[#ff3d13] p-2 shadow-[0_12px_30px_rgba(255,69,20,0.22)]">
             <div className="grid grid-cols-2 gap-2">
               <Link
                 to="/top-deals"
                 {...externalLinkProps}
-                className="col-span-2 flex min-h-[118px] overflow-hidden rounded-[18px] bg-white/95 text-slate-950 active:scale-[0.99]"
+                className="col-span-2 flex min-h-[118px] overflow-hidden rounded-xl bg-white/95 text-slate-950 active:scale-[0.99]"
               >
                 <div className="flex flex-1 flex-col justify-between p-3">
                   <div>
@@ -1400,7 +1400,7 @@ const loadDiscountProducts = async () => {
                 </div>
                 <div className="grid w-[42%] grid-cols-2 gap-1 p-2">
                   {heroProducts.slice(0, 4).map((product, idx) => (
-                    <div key={`hero-thumb-${product._id || idx}`} className="overflow-hidden rounded-xl bg-orange-50">
+                    <div key={`hero-thumb-${product._id || idx}`} className="overflow-hidden rounded-xl bg-gray-100">
                       <PreviewableImage
                         src={resolveProductPrimaryImage(product)}
                         images={resolveProductImageSet(product)}
@@ -1419,9 +1419,9 @@ const loadDiscountProducts = async () => {
                   key={`hero-product-${product._id || idx}`}
                   to={buildHomeProductLink(product)}
                   {...externalLinkProps}
-                  className="overflow-hidden rounded-[18px] bg-white/95 active:scale-[0.98]"
+                  className="overflow-hidden rounded-xl bg-white/95 active:scale-[0.98]"
                 >
-                  <div className="aspect-[1.18/1] overflow-hidden bg-orange-50">
+                  <div className="aspect-[1.18/1] overflow-hidden bg-gray-100">
                     <PreviewableImage
                       src={resolveProductPrimaryImage(product)}
                       images={resolveProductImageSet(product)}
@@ -1445,18 +1445,18 @@ const loadDiscountProducts = async () => {
         ) : null}
 
         {/* Mobile Categories Module */}
-        <section className="hidden rounded-[24px] border border-orange-100 bg-white p-3 shadow-[0_14px_34px_rgba(117,75,36,0.08)] max-[375px]:p-2.5">
+        <section className="hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_14px_34px_rgba(117,75,36,0.08)] max-[375px]:p-2.5">
           <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 max-[375px]:gap-1.5">
               <div className="inline-flex h-7 w-7 max-[375px]:h-6 max-[375px]:w-6 items-center justify-center rounded-xl bg-[#FF6A00] shadow-sm">
                 <LayoutGrid className="h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3 text-white" />
               </div>
-              <p className="text-xs max-[375px]:text-[11px] font-black text-stone-950">{t('home.allCategories', 'Toutes catégories')}</p>
+              <p className="text-xs max-[375px]:text-[11px] font-black text-gray-900">{t('home.allCategories', 'Toutes catégories')}</p>
             </div>
             <button
               type="button"
               onClick={() => setCategoryModalOpen(true)}
-              className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 max-[375px]:px-2 py-1.5 max-[375px]:py-1 text-[11px] max-[375px]:text-[10px] font-black text-[#9A4A00] ring-1 ring-orange-100 transition-colors active:scale-95"
+              className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 max-[375px]:px-2 py-1.5 max-[375px]:py-1 text-[11px] max-[375px]:text-[10px] font-black text-gray-500 ring-1 ring-gray-200 transition-colors active:scale-95"
             >
               Tout voir <ChevronRight className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" />
             </button>
@@ -1476,11 +1476,11 @@ const loadDiscountProducts = async () => {
                 <Link
                   key={group.id}
                   to={`/categories/${group.options?.[0]?.value || ''}`}
-                  className="inline-flex min-w-0 max-w-[138px] max-[375px]:max-w-[124px] items-center justify-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full border border-orange-100 bg-white text-xs max-[375px]:text-[11px] font-black leading-none text-stone-800 whitespace-nowrap shadow-sm active:scale-95 transition-transform"
+                  className="inline-flex min-w-0 max-w-[138px] max-[375px]:max-w-[124px] items-center justify-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full border border-gray-200 bg-white text-xs max-[375px]:text-[11px] font-black leading-none text-gray-800 whitespace-nowrap shadow-sm active:scale-95 transition-transform"
                   title={group.label}
                 >
                   {Icon && (
-                    <span className="inline-flex h-5 w-5 max-[375px]:h-[18px] max-[375px]:w-[18px] items-center justify-center rounded-full bg-orange-50 text-[#FF6A00] flex-shrink-0 mx-auto">
+                    <span className="inline-flex h-5 w-5 max-[375px]:h-[18px] max-[375px]:w-[18px] items-center justify-center rounded-full bg-gray-100 text-[#FF6A00] flex-shrink-0 mx-auto">
                       <Icon className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
                     </span>
                   )}
@@ -2023,7 +2023,7 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Wholesale section — always reserve space to prevent scroll jump */}
-        <section className="isolate overflow-hidden rounded-[22px] border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+        <section className="isolate overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
           <div className="relative px-3 pb-3 pt-3 max-[375px]:px-2.5">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-neutral-100" />
             <div className="relative mb-3 flex items-center justify-between gap-2">
@@ -2063,7 +2063,7 @@ const loadDiscountProducts = async () => {
               {wholesaleProducts.slice(0, 4).map((product) => {
                 const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                 return (
-                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-[18px] border border-emerald-100 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
+                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
                     <div className="min-h-0 flex-1">
                       <ProductCard p={product} productLink={buildHomeProductLink(product)} />
                     </div>
@@ -2092,7 +2092,7 @@ const loadDiscountProducts = async () => {
         </section>
 
         {/* Installment section — always reserve space to prevent scroll jump */}
-        <section ref={installmentSectionRef} className="isolate overflow-hidden rounded-[22px] border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+        <section ref={installmentSectionRef} className="isolate overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
           <div className="relative px-3 pb-3 pt-3 max-[375px]:px-2.5">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-neutral-100" />
             <div className="relative mb-3 flex items-center justify-between gap-2">
@@ -2134,7 +2134,7 @@ const loadDiscountProducts = async () => {
               {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
                 .slice(0, 4)
                 .map((product) => (
-                  <div key={`installment-mobile-${product._id}`} className="overflow-hidden rounded-[18px] border border-sky-100 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.06)] max-[375px]:p-0.5">
+                  <div key={`installment-mobile-${product._id}`} className="overflow-hidden rounded-xl border border-sky-100 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.06)] max-[375px]:p-0.5">
                     <ProductCard p={product} productLink={buildHomeProductLink(product)} />
                     <div className="mx-1 mb-1 rounded-2xl border border-neutral-100 bg-white px-2 py-1.5 max-[375px]:mx-0.5">
                       <div className="flex items-center justify-between gap-1.5">
@@ -2327,14 +2327,14 @@ const loadDiscountProducts = async () => {
             {user ? (
               <Link
                 to="/profile"
-                className="group flex min-w-0 items-center gap-4 rounded-[24px] border border-orange-100 bg-white px-4 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-200"
+                className="group flex min-w-0 items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-200"
               >
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-[#fff2e6] text-[#ff6a00] ring-1 ring-orange-100">
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-gray-200">
                   <MapPin className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="text-[11px] font-black uppercase tracking-wide text-[#9a4a00]">
+                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">
                       {t('home.deliveryAddress', 'Adresse de livraison')}
                     </span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
@@ -2350,7 +2350,7 @@ const loadDiscountProducts = async () => {
                     Utilisée pour calculer la livraison au checkout
                   </span>
                 </span>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-[#9a4a00] ring-1 ring-orange-100 transition group-hover:bg-[#ff6a00] group-hover:text-white">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-500 ring-1 ring-gray-200 transition group-hover:bg-[#ff6a00] group-hover:text-white">
                   Modifier <ChevronRight className="h-3.5 w-3.5" />
                 </span>
               </Link>
@@ -2359,9 +2359,9 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="group flex min-w-0 items-center justify-between gap-4 rounded-[24px] border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-4 py-3 shadow-[0_14px_34px_rgba(16,185,129,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200"
+                className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-4 py-3 shadow-[0_14px_34px_rgba(16,185,129,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200"
               >
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)]">
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)]">
                   <Truck className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -2397,10 +2397,10 @@ const loadDiscountProducts = async () => {
               <Link
                 key={group.id}
                 to={`/categories/${group.options?.[0]?.value || ''}`}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-orange-100 bg-white text-sm font-black text-stone-800 whitespace-nowrap shadow-sm transition-colors hover:bg-orange-50"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 bg-white text-sm font-black text-gray-800 whitespace-nowrap shadow-sm transition-colors hover:bg-gray-100"
               >
                 {Icon && (
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-orange-50 text-[#FF6A00] flex-shrink-0 mx-auto">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[#FF6A00] flex-shrink-0 mx-auto">
                     <Icon className="w-4 h-4" />
                   </span>
                 )}
@@ -2411,7 +2411,7 @@ const loadDiscountProducts = async () => {
           <button
             type="button"
             onClick={() => setCategoryModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-orange-50 text-sm font-black text-[#9A4A00] whitespace-nowrap ring-1 ring-orange-100 hover:bg-orange-100 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-sm font-black text-gray-500 whitespace-nowrap ring-1 ring-gray-200 hover:bg-orange-100 transition-colors"
           >
             Tout voir <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -2843,7 +2843,7 @@ const loadDiscountProducts = async () => {
 
         <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
           {shouldLoadSecondarySections && (
-          <section className="overflow-hidden rounded-[28px] border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+          <section className="overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             {/* Header */}
             <div className="relative flex items-center justify-between overflow-hidden border-b border-neutral-100 bg-white px-5 py-4 text-gray-950">
               <div className="flex items-center gap-3">
@@ -2942,7 +2942,7 @@ const loadDiscountProducts = async () => {
           )}
 
           {shouldLoadSecondarySections && (
-          <section className="overflow-hidden rounded-[28px] border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+          <section className="overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             {/* Header */}
             <div className="relative flex items-center justify-between overflow-hidden border-b border-neutral-100 bg-white px-5 py-4 text-gray-950">
               <div className="flex items-center gap-3">
@@ -3248,7 +3248,7 @@ const loadDiscountProducts = async () => {
           onClose={() => setCategoryModalOpen(false)}
         />
         <ModalBody className="space-y-5">
-          <div className="hd-products-hero rounded-[24px] p-4 text-white sm:p-5">
+          <div className="hd-products-hero rounded-2xl p-4 text-white sm:p-5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
               <LayoutGrid className="w-4 h-4 text-white" />
               <span className="text-xs font-black uppercase tracking-wider text-white">
@@ -3274,19 +3274,19 @@ const loadDiscountProducts = async () => {
               return (
                 <article
                   key={group.id}
-                  className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)]"
+                  className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)]"
                 >
                   <Link
                     to={`/categories/${firstOption}`}
                     onClick={() => setCategoryModalOpen(false)}
                     className="group flex items-start gap-3"
                   >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100 transition group-hover:scale-105">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200 transition group-hover:scale-105">
                       {Icon ? <Icon className="h-6 w-6" /> : <LayoutGrid className="h-6 w-6" />}
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-base font-black text-stone-950">{group.label}</span>
-                      <span className="mt-1 line-clamp-2 block text-xs font-semibold leading-5 text-stone-500">{group.description}</span>
+                      <span className="block text-base font-black text-gray-900">{group.label}</span>
+                      <span className="mt-1 line-clamp-2 block text-xs font-semibold leading-5 text-gray-500">{group.description}</span>
                     </span>
                   </Link>
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -3295,7 +3295,7 @@ const loadDiscountProducts = async () => {
                         key={option.value}
                         to={`/categories/${option.value}`}
                         onClick={() => setCategoryModalOpen(false)}
-                        className="rounded-full border border-orange-100 bg-orange-50/70 px-3 py-1.5 text-xs font-black text-[#9A4A00] transition hover:bg-orange-100"
+                        className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-black text-gray-500 transition hover:bg-orange-100"
                       >
                         {option.label}
                       </Link>
@@ -3304,7 +3304,7 @@ const loadDiscountProducts = async () => {
                       <Link
                         to={`/categories/${firstOption}`}
                         onClick={() => setCategoryModalOpen(false)}
-                        className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-black text-stone-600 transition hover:border-orange-100 hover:text-[#FF6A00]"
+                        className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-black text-gray-600 transition hover:border-gray-200 hover:text-[#FF6A00]"
                       >
                         +{group.options.length - 5}
                       </Link>

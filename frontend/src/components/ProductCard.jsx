@@ -585,7 +585,7 @@ function ProductCard({
       installmentAvailable ? { key: 'installment', label: 'Tranche', tone: 'soft', icon: Clock } : null,
       wholesaleEnabled ? { key: 'wholesale', label: wholesaleMinQty ? `Gros ${wholesaleMinQty}+` : 'Gros', tone: 'emerald', icon: Boxes } : null
     ].filter(Boolean);
-    const cardRadius = useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-[22px]';
+    const cardRadius = useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-2xl';
     const imageAspect = isListCard
       ? 'h-auto min-h-[132px] w-[38%] shrink-0'
       : isShopProfileCompact
@@ -677,7 +677,7 @@ function ProductCard({
                   badge.tone === 'emerald'
                     ? 'bg-emerald-600 text-white'
                     : badge.tone === 'soft'
-                      ? 'bg-white/92 text-stone-900'
+                      ? 'bg-white/92 text-gray-900'
                       : 'bg-[#FF6A00] text-white';
                 return (
                   <span
@@ -698,7 +698,7 @@ function ProductCard({
               className={`absolute right-1.5 top-1.5 items-center justify-center rounded-full shadow-sm backdrop-blur transition active:scale-95 disabled:cursor-wait sm:right-2 sm:top-2 ${
                 favoriteActive
                   ? 'bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]'
-                  : 'bg-white/94 text-neutral-700 hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-950/90 dark:text-neutral-200'
+                  : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#FF6A00] dark:bg-neutral-950/90 dark:text-neutral-200'
               } ${
                 useCommerceMobileCard ? 'hidden' : 'inline-flex'
               } ${
@@ -805,7 +805,7 @@ function ProductCard({
             ) : null}
 
             {trustLabel && !isShopProfileCompact && !useCommerceMobileCard ? (
-              <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#9A4A00] dark:bg-neutral-900 dark:text-orange-300">
+              <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500 dark:bg-neutral-900 dark:text-orange-300">
                 <ShieldCheck className="h-3 w-3 shrink-0" />
                 <span className="truncate">{trustLabel}</span>
               </div>
@@ -820,7 +820,7 @@ function ProductCard({
                   trackCardInteraction('cta_open');
                   handleProductClick?.(p);
                 }}
-                className={`inline-flex items-center justify-center rounded-xl bg-[#FF6A00] px-3 text-xs font-bold text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)] transition active:scale-[0.98] dark:bg-orange-500 dark:text-white ${
+                className={`inline-flex items-center justify-center rounded-xl bg-[#FF6A00] px-3 text-xs font-bold text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)] transition active:scale-[0.98] dark:bg-gray-1000 dark:text-white ${
                   isShopProfileCompact ? 'h-8' : 'h-10'
                 }`}
               >
@@ -835,7 +835,7 @@ function ProductCard({
                     handleAddToCart();
                   }}
                   disabled={adding || inCart}
-                  className={`inline-flex items-center justify-center rounded-xl border border-orange-100 bg-white text-[#9A4A00] transition active:scale-95 disabled:opacity-45 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${
+                  className={`inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition active:scale-95 disabled:opacity-45 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${
                     isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
                   }`}
                   aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
@@ -1169,7 +1169,7 @@ function ProductCard({
             className={`absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 shadow-lg backdrop-blur-sm transition-all duration-150 tap-feedback sm:min-h-0 sm:min-w-0 sm:p-1.5 ${
               favoriteActive
                 ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.3)]'
-                : 'bg-white/95 text-gray-600 hover:scale-110 hover:bg-orange-50 hover:text-[#FF6A00] hover:shadow-xl'
+                : 'bg-white/95 text-gray-600 hover:scale-110 hover:bg-gray-100 hover:text-[#FF6A00] hover:shadow-xl'
             } ${favoritePending ? 'scale-95 cursor-wait opacity-85' : ''}`}
             aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >

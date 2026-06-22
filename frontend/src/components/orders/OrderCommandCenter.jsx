@@ -5,7 +5,7 @@ import { ChevronRight } from 'lucide-react';
 const toneClasses = {
   dark: 'bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.22)]',
   light: 'bg-white text-neutral-950 dark:bg-neutral-900 dark:text-neutral-50',
-  soft: 'bg-orange-50 text-[#9A4A00] dark:bg-orange-950/30 dark:text-orange-200',
+  soft: 'bg-gray-100 text-gray-500 dark:bg-orange-950/30 dark:text-orange-200',
   urgent: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
 };
 
@@ -18,7 +18,7 @@ export function OrderCommandCenter({
   className = ''
 }) {
   return (
-    <section className={`overflow-hidden rounded-[22px] border border-orange-100 bg-[#fffaf4] shadow-[0_14px_38px_rgba(117,75,36,0.09)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-[28px] sm:shadow-[0_18px_55px_rgba(117,75,36,0.10)] ${className}`}>
+    <section className={`overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-[0_14px_38px_rgba(117,75,36,0.09)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-2xl sm:shadow-[0_18px_55px_rgba(117,75,36,0.10)] ${className}`}>
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="p-3.5 sm:p-6 lg:p-7">
           {eyebrow ? (
@@ -45,7 +45,7 @@ export function OrderCommandCenter({
               return (
                 <div
                   key={metric.label}
-                  className="min-w-0 rounded-2xl border border-orange-100 bg-white p-2.5 shadow-[0_8px_18px_rgba(117,75,36,0.05)] dark:border-orange-900/30 dark:bg-neutral-900/80 sm:rounded-[20px] sm:p-3"
+                  className="min-w-0 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-[0_8px_18px_rgba(117,75,36,0.05)] dark:border-orange-900/30 dark:bg-neutral-900/80 sm:rounded-xl sm:p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-[11px] font-semibold text-neutral-500 dark:text-neutral-400">
@@ -67,7 +67,7 @@ export function OrderCommandCenter({
           </div>
         </div>
 
-        <div className="border-t border-orange-100 bg-white/55 p-3 dark:border-orange-900/30 dark:bg-neutral-900/60 sm:p-4 lg:border-l lg:border-t-0">
+        <div className="border-t border-gray-200 bg-white/55 p-3 dark:border-orange-900/30 dark:bg-neutral-900/60 sm:p-4 lg:border-l lg:border-t-0">
           <div className="grid grid-cols-2 gap-2 lg:block lg:space-y-2">
             {actions.map((action) => {
               const Icon = action.icon;
@@ -91,7 +91,7 @@ export function OrderCommandCenter({
               );
 
               const className =
-                'flex min-h-[52px] items-center gap-2 rounded-2xl border border-orange-100 bg-white px-2.5 py-2 text-left transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-sm active:scale-[0.99] dark:border-orange-900/30 dark:bg-neutral-950 dark:hover:border-orange-800/60 sm:min-h-[56px] sm:gap-3 sm:px-3';
+                'flex min-h-[52px] items-center gap-2 rounded-2xl border border-gray-200 bg-white px-2.5 py-2 text-left transition hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-sm active:scale-[0.99] dark:border-orange-900/30 dark:bg-neutral-950 dark:hover:border-orange-800/60 sm:min-h-[56px] sm:gap-3 sm:px-3';
 
               return action.to ? (
                 <Link key={action.label} to={action.to} className={className}>
@@ -118,7 +118,7 @@ export function OrderCommandCenter({
 
 export function OrderFilterRail({ tabs = [], activeKey, counts = {}, onChange, mobile = false }) {
   return (
-    <section className="rounded-[20px] border border-orange-100 bg-white/95 p-1.5 shadow-[0_10px_24px_rgba(117,75,36,0.08)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-[24px] sm:p-2">
+    <section className="rounded-xl border border-gray-200 bg-white/95 p-1.5 shadow-[0_10px_24px_rgba(117,75,36,0.08)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-2xl sm:p-2">
       <div
         className={`flex gap-1.5 ${mobile ? 'hide-scrollbar -mx-1 overflow-x-auto px-1 pb-1 snap-x snap-mandatory' : 'flex-wrap'}`}
         style={mobile ? { WebkitOverflowScrolling: 'touch' } : undefined}
@@ -135,13 +135,13 @@ export function OrderFilterRail({ tabs = [], activeKey, counts = {}, onChange, m
               className={`flex min-h-[40px] shrink-0 snap-start items-center gap-1.5 rounded-2xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] sm:min-h-[44px] sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm ${
                 active
                   ? 'bg-[#FF6A00] text-white shadow-sm'
-                  : 'text-neutral-600 hover:bg-orange-50 dark:text-neutral-300 dark:hover:bg-neutral-900'
+                  : 'text-neutral-600 hover:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-900'
               }`}
             >
               {Icon ? <Icon className="h-4 w-4" /> : null}
               <span>{tab.label}</span>
               {count > 0 ? (
-                <span className={`rounded-full px-2 py-0.5 text-[11px] ${active ? 'bg-white/18 text-white' : 'bg-orange-50 text-[#9A4A00] dark:bg-neutral-800 dark:text-neutral-300'}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] ${active ? 'bg-white/18 text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-800 dark:text-neutral-300'}`}>
                   {count}
                 </span>
               ) : null}

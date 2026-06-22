@@ -426,9 +426,9 @@ export default function ImagePreviewModal({
       ariaLabel="Aperçu image"
       rootClassName="sm:!p-0"
       backdropClassName="!bg-[#070707]/94 backdrop-blur-md"
-      panelClassName="sm:max-w-6xl !border-0 !bg-[#0b0b0b] text-white shadow-none sm:rounded-[28px]"
+      panelClassName="sm:max-w-6xl !border-0 !bg-[#0b0b0b] text-white shadow-none sm:rounded-2xl"
     >
-      <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#0b0b0b] sm:rounded-[28px]">
+      <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#0b0b0b] sm:rounded-2xl">
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-black/80 to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-t from-black via-black/70 to-transparent" />
 
@@ -468,11 +468,11 @@ export default function ImagePreviewModal({
               <MoreHorizontal className="h-5 w-5" />
             </button>
             {menuOpen ? (
-              <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-3xl border border-orange-100 bg-white p-1.5 text-slate-900 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
+              <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 text-slate-900 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-orange-50"
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-gray-100"
                 >
                   <Share2 className="h-4 w-4 text-[#FF6A00]" />
                   Partager
@@ -480,7 +480,7 @@ export default function ImagePreviewModal({
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-orange-50"
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-gray-100"
                 >
                   <Download className="h-4 w-4 text-[#FF6A00]" />
                   Télécharger
@@ -594,7 +594,7 @@ export default function ImagePreviewModal({
             </div>
           ) : null}
 
-          <div className="rounded-[28px] border border-white/10 bg-white/12 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+          <div className="rounded-2xl border border-white/10 bg-white/12 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-white">{title || 'Image produit'}</p>
@@ -609,7 +609,7 @@ export default function ImagePreviewModal({
               <button
                 type="button"
                 onClick={zoomOut}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-orange-50 active:scale-95 disabled:opacity-50"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-gray-100 active:scale-95 disabled:opacity-50"
                 aria-label="Zoom arrière"
                 disabled={scale <= ZOOM_MIN}
               >
@@ -628,7 +628,7 @@ export default function ImagePreviewModal({
               <button
                 type="button"
                 onClick={zoomIn}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-orange-50 active:scale-95 disabled:opacity-50"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-gray-100 active:scale-95 disabled:opacity-50"
                 aria-label="Zoom avant"
                 disabled={scale >= ZOOM_MAX}
               >
@@ -655,7 +655,7 @@ export default function ImagePreviewModal({
                 </span>
               )}
               {scale > 1 ? (
-                <span className="rounded-full bg-orange-500/16 px-3 py-1 text-xs font-bold text-orange-100 ring-1 ring-orange-400/20">
+                <span className="rounded-full bg-gray-1000/16 px-3 py-1 text-xs font-bold text-orange-100 ring-1 ring-orange-400/20">
                   Déplacez l’image avec un doigt
                 </span>
               ) : null}

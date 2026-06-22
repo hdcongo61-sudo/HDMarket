@@ -244,7 +244,7 @@ export default function AdminComplaints() {
           ]}
         />
 
-        <section className="rounded-[22px] border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
             <AdminSegmentedControl
               className="border-0 bg-transparent p-0 shadow-none"
@@ -275,11 +275,11 @@ export default function AdminComplaints() {
         {loading ? (
           <div className="grid gap-3">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-48 animate-pulse rounded-[24px] border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950" />
+              <div key={index} className="h-48 animate-pulse rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-[24px] border border-dashed border-neutral-300 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
               <ShieldAlert className="h-5 w-5" />
             </div>
@@ -292,7 +292,7 @@ export default function AdminComplaints() {
               const draft = getDraft(item._id);
               const isClosed = ['RESOLVED_CLIENT', 'RESOLVED_SELLER', 'REJECTED'].includes(item.status);
               return (
-                <li key={item._id} className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950">
+                <li key={item._id} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-bold text-neutral-950 dark:text-white">

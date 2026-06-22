@@ -50,12 +50,12 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
-  pending: 'bg-stone-100 text-stone-700 ring-1 ring-stone-200',
+  pending: 'bg-gray-100 text-gray-700 ring-1 ring-gray-200',
   confirmed: 'bg-amber-100 text-amber-800 ring-1 ring-amber-200',
-  delivering: 'bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100',
+  delivering: 'bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200',
   delivered: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200',
   cancelled: 'bg-red-100 text-red-800 ring-1 ring-red-200',
-  inquiry: 'bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800'
+  inquiry: 'bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800'
 };
 
 const STATUS_ICONS = {
@@ -545,7 +545,7 @@ export default function OrderMessages() {
           >
             <ModalBody className="px-8 py-6">
               <div className="flex flex-col items-center gap-4">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-100 border-t-[#FF6A00]" />
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-[#FF6A00]" />
                 <p className="text-center font-black text-slate-800 dark:text-gray-100">Ouverture de la conversation...</p>
               </div>
             </ModalBody>
@@ -555,7 +555,7 @@ export default function OrderMessages() {
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="flex items-center justify-center h-96">
               <div className="text-center">
-                <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-orange-100 border-t-[#FF6A00]" />
+                <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-gray-200 border-t-[#FF6A00]" />
                 <p className="font-semibold text-slate-600 dark:text-gray-400">Chargement des conversations...</p>
               </div>
             </div>
@@ -567,16 +567,16 @@ export default function OrderMessages() {
 
   return (
     <div className="min-h-screen bg-[#fff4e8] text-slate-950 dark:bg-neutral-950 dark:text-white">
-      <header className="sticky top-0 z-20 border-b border-orange-100/70 bg-[#fffaf4]/95 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95">
+      <header className="sticky top-0 z-20 border-b border-gray-200/70 bg-gray-50/95 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 text-[12px] font-black text-slate-500 [scrollbar-width:none] dark:text-gray-400 [&::-webkit-scrollbar]:hidden">
-            <Link to="/" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-orange-100 transition hover:text-[#FF6A00] dark:bg-neutral-900 dark:ring-neutral-800">Accueil</Link>
-            <Link to="/orders" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-orange-100 transition hover:text-[#FF6A00] dark:bg-neutral-900 dark:ring-neutral-800">Commandes</Link>
+            <Link to="/" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#FF6A00] dark:bg-neutral-900 dark:ring-neutral-800">Accueil</Link>
+            <Link to="/orders" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#FF6A00] dark:bg-neutral-900 dark:ring-neutral-800">Commandes</Link>
             <span className="shrink-0 rounded-full bg-[#FF6A00] px-3 py-1.5 text-white">Messagerie</span>
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#FF6A00] text-white shadow-[0_16px_32px_-20px_rgba(255,106,0,0.95)]">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00] text-white shadow-[0_16px_32px_-20px_rgba(255,106,0,0.95)]">
                 <MessageCircle className="h-6 w-6" />
               </div>
               <div className="min-w-0">
@@ -592,7 +592,7 @@ export default function OrderMessages() {
                 </p>
               </div>
             </div>
-            <div className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm ring-1 ring-orange-100 sm:flex dark:bg-neutral-900 dark:text-gray-200 dark:ring-neutral-800">
+            <div className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm ring-1 ring-gray-200 sm:flex dark:bg-neutral-900 dark:text-gray-200 dark:ring-neutral-800">
               <Lock className="h-4 w-4 text-emerald-500" />
               <span>Sécurisé</span>
             </div>
@@ -603,7 +603,7 @@ export default function OrderMessages() {
       <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-5">
         {(offlineSnapshotActive || rapid3GActive) && (
           <section
-            className={`mb-3 rounded-[22px] px-4 py-3 text-sm font-semibold shadow-sm ring-1 ${
+            className={`mb-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ring-1 ${
               offlineSnapshotActive
                 ? 'bg-amber-50 text-amber-800 ring-amber-100'
                 : 'bg-sky-50 text-sky-800 ring-sky-100'
@@ -615,7 +615,7 @@ export default function OrderMessages() {
           </section>
         )}
         {/* Toolbar: search + filters */}
-        <div className="mb-3 rounded-[28px] bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800">
+        <div className="mb-3 rounded-2xl bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#FF6A00]" />
@@ -624,13 +624,13 @@ export default function OrderMessages() {
               placeholder="Rechercher par produit, boutique ou message..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-12 w-full rounded-full border-0 bg-[#fff7ef] py-2.5 pl-12 pr-10 text-sm font-semibold text-slate-950 placeholder-slate-400 ring-1 ring-orange-100 transition focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
+              className="h-12 w-full rounded-full border-0 bg-gray-50 py-2.5 pl-12 pr-10 text-sm font-semibold text-slate-950 placeholder-slate-400 ring-1 ring-gray-200 transition focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-orange-50 hover:text-[#FF6A00] dark:hover:bg-neutral-800"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-gray-100 hover:text-[#FF6A00] dark:hover:bg-neutral-800"
                 aria-label="Effacer la recherche"
               >
                 <X className="w-4 h-4" />
@@ -644,7 +644,7 @@ export default function OrderMessages() {
               className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'all'
                   ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
-                  : 'bg-white text-slate-700 ring-1 ring-stone-200 hover:bg-orange-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
+                  : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
               <span className="flex items-center gap-1.5">
@@ -658,7 +658,7 @@ export default function OrderMessages() {
               className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'unread'
                   ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
-                  : 'bg-white text-slate-700 ring-1 ring-stone-200 hover:bg-orange-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
+                  : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
               <span className="flex items-center gap-1.5">
@@ -677,7 +677,7 @@ export default function OrderMessages() {
               className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'archived'
                   ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
-                  : 'bg-white text-slate-700 ring-1 ring-stone-200 hover:bg-orange-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
+                  : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
               <span className="flex items-center gap-1.5">
@@ -710,8 +710,8 @@ export default function OrderMessages() {
           {/* Conversations list */}
           <div className={`${selectedOrder ? 'hidden lg:block lg:w-[400px] xl:w-[420px] flex-shrink-0' : 'w-full'} flex flex-col`}>
             {filteredConversations.length === 0 ? (
-              <div className="rounded-[28px] bg-white p-8 text-center shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800 sm:p-12">
-                <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] bg-[#fff7ef] ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+              <div className="rounded-2xl bg-white p-8 text-center shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800 sm:p-12">
+                <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-50 ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                   <MessageCircle className="h-10 w-10 text-[#FF6A00]" />
                 </div>
                 <h2 className="mb-2 text-lg font-black text-slate-950 dark:text-white">Aucune conversation</h2>
@@ -780,12 +780,12 @@ export default function OrderMessages() {
                   tabIndex={0}
                   onClick={() => openConversation(conversation)}
                   onKeyDown={(e) => e.key === 'Enter' && openConversation(conversation)}
-                  className={`group cursor-pointer rounded-[24px] transition-all duration-200 ${
+                  className={`group cursor-pointer rounded-2xl transition-all duration-200 ${
                     isSelected
                       ? 'bg-white ring-2 ring-[#FF6A00]/35 shadow-[0_18px_40px_-34px_rgba(255,106,0,0.9)] dark:bg-neutral-950'
                       : hasUnread
-                        ? 'bg-white shadow-sm ring-1 ring-orange-100/80 hover:ring-orange-200 dark:bg-neutral-950 dark:ring-neutral-800'
-                        : 'bg-white shadow-sm ring-1 ring-stone-200 hover:ring-orange-200 dark:bg-neutral-950 dark:ring-neutral-800'
+                        ? 'bg-white shadow-sm ring-1 ring-gray-200/80 hover:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800'
+                        : 'bg-white shadow-sm ring-1 ring-gray-200 hover:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800'
                   }`}
                 >
                   <div className="flex gap-3 p-3 sm:p-4">
@@ -794,10 +794,10 @@ export default function OrderMessages() {
                         <img
                           src={conversation.productInfo.image}
                           alt=""
-                          className="h-16 w-16 rounded-[18px] object-cover"
+                          className="h-16 w-16 rounded-xl object-cover"
                         />
                       ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-[18px] bg-[#fff7ef] dark:bg-neutral-900">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-50 dark:bg-neutral-900">
                           <Package className="h-7 w-7 text-[#FF6A00]" />
                         </div>
                       )}
@@ -860,7 +860,7 @@ export default function OrderMessages() {
                         <button
                           type="button"
                           onClick={(e) => handleUnarchive(conversation.orderId, e)}
-                          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#fff7ef] px-2.5 py-1.5 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1.5 text-xs font-black text-[#FF6A00] ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
                         >
                           <ArchiveRestore className="w-3.5 h-3.5" />
                           Désarchiver
@@ -881,7 +881,7 @@ export default function OrderMessages() {
 
         {/* Pagination */}
         {filteredConversations.length > 0 && effectiveMeta.totalPages > 1 && (
-          <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-[24px] bg-white p-4 ring-1 ring-orange-100 dark:bg-neutral-950 dark:ring-neutral-800 sm:flex-row">
+          <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-2xl bg-white p-4 ring-1 ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800 sm:flex-row">
             <p className="text-sm font-semibold text-slate-600 dark:text-gray-400">
               Page <span className="font-semibold text-slate-900 dark:text-white">{page}</span> sur{' '}
               <span className="font-semibold text-slate-900 dark:text-white">{effectiveMeta.totalPages}</span>
@@ -891,7 +891,7 @@ export default function OrderMessages() {
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
-                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-stone-200 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
+                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
               >
                 Précédent
               </button>
@@ -899,7 +899,7 @@ export default function OrderMessages() {
                 type="button"
                 onClick={() => setPage((prev) => Math.min(effectiveMeta.totalPages, prev + 1))}
                 disabled={page >= effectiveMeta.totalPages}
-                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-stone-200 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
+                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
               >
                 Suivant
               </button>
@@ -908,7 +908,7 @@ export default function OrderMessages() {
         )}
 
         <footer className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-orange-100 dark:bg-neutral-950 dark:text-gray-400 dark:ring-neutral-800">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-gray-200 dark:bg-neutral-950 dark:text-gray-400 dark:ring-neutral-800">
             <Lock className="w-3.5 h-3.5 text-emerald-500" />
             <span>Tous vos messages sont chiffrés et sécurisés</span>
           </div>

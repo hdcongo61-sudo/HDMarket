@@ -23,6 +23,7 @@ import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useIsMobile from '../hooks/useIsMobile';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { setPendingAction } from '../utils/pendingAction';
+import { buildShopWhatsappLink } from '../utils/whatsapp';
 import ShopTopHeader from '../components/shop/ShopTopHeader';
 import ShopHero from '../components/shop/ShopHero';
 import ShopQuickInfo from '../components/shop/ShopQuickInfo';
@@ -36,7 +37,6 @@ import ShopLoadingSkeleton from '../components/shop/ShopLoadingSkeleton';
 import ShopBottomActions from '../components/shop/ShopBottomActions';
 import {
   buildAppleDirectionsUrl,
-  buildFullShopAddress,
   buildGoogleDirectionsUrl,
   buildGoogleEmbedUrl,
   buildOsmDirectionsUrl,
@@ -898,10 +898,13 @@ export default function ShopProfile() {
     }
   ].filter(Boolean);
 
-  const shopFullAddress = useMemo(() => buildFullShopAddress(shop), [shop]);
   const phoneLabel = user && shop?.phone
     ? shop.phone
     : t('shop_profile.show_phone', 'Connectez-vous pour afficher le numéro');
+  const whatsappLink = useMemo(
+    () => buildShopWhatsappLink(shop, shop?.phone),
+    [shop, shop?.phone]
+  );
 
   const stats = [
     {
@@ -979,7 +982,7 @@ export default function ShopProfile() {
 
   return (
     <main
-      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#fff4e8] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
+      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#f5f5f5] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
         isMobile ? 'pb-36' : 'pb-12'
       }`}
     >
@@ -997,7 +1000,7 @@ export default function ShopProfile() {
         />
 
         {isOfflineSnapshot && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+          <div className="mx-3 mb-2 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800 sm:mx-0 sm:mb-4">
             {offlineBannerText ||
               t(
                 'shop_profile.offline_snapshot',
@@ -1006,7 +1009,7 @@ export default function ShopProfile() {
           </div>
         )}
 
-        <div className="min-w-0 space-y-3 sm:space-y-4">
+        <div className="min-w-0 space-y-2 sm:space-y-4">
           <ShopHero
             shop={shop}
             isCertifiedShop={isCertifiedShop}
@@ -1023,8 +1026,8 @@ export default function ShopProfile() {
 
           <ShopQuickInfo openingSummary={openingSummary} trustQuickInfo={trustQuickInfo} t={t} />
 
-          <div className="grid min-w-0 gap-4 overflow-x-clip lg:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="min-w-0 space-y-3 overflow-x-clip sm:space-y-4">
+          <div className="grid min-w-0 gap-2 overflow-x-clip sm:gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="min-w-0 space-y-2 overflow-x-clip sm:space-y-4">
               {isMobile && (
                 <ShopOpeningHoursCard
                   openingSummary={openingSummary}
@@ -1038,6 +1041,7 @@ export default function ShopProfile() {
                 slug={slug}
                 user={user}
                 shopPhone={shop.phone}
+                whatsappLink={whatsappLink}
                 isCertifiedShop={isCertifiedShop}
                 isFollowing={isFollowing}
                 followDisabled={followDisabled}
@@ -1078,7 +1082,6 @@ export default function ShopProfile() {
                 shop={shop}
                 isCertifiedShop={isCertifiedShop}
                 shopCategoryLabel={shopCategoryLabel}
-                shopFullAddress={shopFullAddress}
                 phoneLabel={phoneLabel}
                 shopLocation={shopLocation}
                 activeEmbedUrl={activeEmbedUrl}
@@ -1126,6 +1129,7 @@ export default function ShopProfile() {
                   slug={slug}
                   user={user}
                   shopPhone={shop.phone}
+                  whatsappLink={whatsappLink}
                   isCertifiedShop={isCertifiedShop}
                   isFollowing={isFollowing}
                   followDisabled={followDisabled}
@@ -1146,7 +1150,8 @@ export default function ShopProfile() {
       {isMobile && (
         <ShopBottomActions
           user={user}
-          shopPhone={shop.phone}
+          whatsappLink={whatsappLink}
+          slug={slug}
           onMessage={goToMessage}
           onDirections={handleDirections}
           onShare={handleShareShop}

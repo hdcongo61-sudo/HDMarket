@@ -188,7 +188,7 @@ export default function Favorites() {
   return (
     <div className="hd-products-flow min-h-screen">
       <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 lg:px-8 md:pb-16">
-      <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
+      <header className="hd-products-hero rounded-2xl p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
         <button
           onClick={() => navigate(-1)}
           className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/24 bg-white/14 px-3 py-2 text-sm font-black text-white/90 transition hover:bg-white/22 hover:text-white"
@@ -206,15 +206,15 @@ export default function Favorites() {
       </header>
 
       {loading ? (
-        <div className="rounded-[28px] border border-orange-100 bg-white/88 px-6 py-12 text-center shadow-sm">
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
           <div className="mx-auto mb-4 h-6 w-6 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
-          <p className="font-semibold text-stone-600">Chargement de vos favoris…</p>
+          <p className="font-semibold text-gray-600">Chargement de vos favoris…</p>
         </div>
       ) : hasFavorites ? (
         <>
           {/* Filters — Category & Price */}
-          <div className="hd-products-toolbar sticky top-20 z-20 flex flex-wrap items-center gap-3 rounded-[24px] p-3 shadow-sm sm:p-4">
-            <div className="flex items-center gap-2 text-sm font-black text-stone-800">
+          <div className="hd-products-toolbar sticky top-20 z-20 flex flex-wrap items-center gap-3 rounded-2xl p-3 shadow-sm sm:p-4">
+            <div className="flex items-center gap-2 text-sm font-black text-gray-800">
               <Filter className="w-4 h-4 text-[#FF6A00]" />
               Filtres
             </div>
@@ -224,7 +224,7 @@ export default function Favorites() {
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className="min-h-[42px] min-w-[160px] rounded-full border border-orange-100 bg-white py-2 pl-3 pr-8 text-sm font-bold text-stone-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100"
+                  className="min-h-[42px] min-w-[160px] rounded-full border border-gray-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-gray-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-gray-200"
                   aria-label="Filtrer par catégorie"
                 >
                   <option value="">Toutes les catégories</option>
@@ -240,7 +240,7 @@ export default function Favorites() {
                 <select
                   value={filterPrice}
                   onChange={(e) => setFilterPrice(e.target.value)}
-                  className="min-h-[42px] min-w-[180px] rounded-full border border-orange-100 bg-white py-2 pl-3 pr-8 text-sm font-bold text-stone-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100"
+                  className="min-h-[42px] min-w-[180px] rounded-full border border-gray-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-gray-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-gray-200"
                   aria-label="Filtrer par prix"
                 >
                   {PRICE_RANGES.map((r) => (
@@ -264,16 +264,16 @@ export default function Favorites() {
                 </button>
               )}
             </div>
-            <p className="w-full text-xs font-bold text-stone-500 sm:mt-0 sm:w-auto">
+            <p className="w-full text-xs font-bold text-gray-500 sm:mt-0 sm:w-auto">
               {filteredFavorites.length} article{filteredFavorites.length !== 1 ? 's' : ''}
               {(filterCategory || filterPrice !== 'all') && ` sur ${favorites.length}`}
             </p>
           </div>
 
           {filteredFavorites.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-orange-200 bg-white px-6 py-10 text-center shadow-sm">
-              <p className="font-black text-stone-900">Aucun favori ne correspond aux filtres.</p>
-              <p className="mt-1 text-sm text-stone-500">Modifiez les filtres ou réinitialisez.</p>
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
+              <p className="font-black text-gray-900">Aucun favori ne correspond aux filtres.</p>
+              <p className="mt-1 text-sm text-gray-500">Modifiez les filtres ou réinitialisez.</p>
               <button
                 type="button"
                 onClick={() => { setFilterCategory(''); setFilterPrice('all'); setPage(1); }}
@@ -314,12 +314,12 @@ export default function Favorites() {
           )}
         </>
       ) : (
-        <div className="rounded-[28px] border border-orange-100 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)]">
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100">
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)]">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
             <Tag className="h-9 w-9" />
           </div>
-          <p className="text-lg font-black text-stone-950">Aucun favori pour le moment</p>
-          <p className="mt-2 text-stone-500">
+          <p className="text-lg font-black text-gray-900">Aucun favori pour le moment</p>
+          <p className="mt-2 text-gray-500">
             Explorez le catalogue et cliquez sur le coeur d&apos;un produit pour le retrouver ici.
           </p>
           <Link

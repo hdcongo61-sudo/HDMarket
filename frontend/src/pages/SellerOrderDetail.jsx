@@ -74,7 +74,7 @@ const STATUS_LABELS = {
 const STATUS_STYLES = {
   pending_payment: { header: 'bg-gray-600', card: 'bg-gray-50 border-gray-200 text-gray-700' },
   paid: { header: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
-  ready_for_pickup: { header: 'bg-orange-600', card: 'bg-orange-50 border-orange-200 text-orange-800' },
+  ready_for_pickup: { header: 'bg-orange-600', card: 'bg-gray-100 border-gray-200 text-orange-800' },
   picked_up_confirmed: { header: 'bg-emerald-700', card: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   ready_for_delivery: { header: 'bg-amber-600', card: 'bg-amber-50 border-amber-200 text-amber-800' },
   out_for_delivery: { header: 'bg-neutral-600', card: 'bg-neutral-50 border-neutral-200 text-neutral-800' },
@@ -1193,12 +1193,12 @@ export default function SellerOrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
-        <div className="overflow-hidden rounded-[30px] border border-orange-100 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]">
+        <div className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]">
           <div className="relative overflow-hidden bg-gradient-to-br from-[#ff6a00] via-[#ff3d13] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-white/20 shadow-[0_12px_26px_rgba(90,32,0,0.18)] ring-1 ring-white/25 backdrop-blur-sm">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 shadow-[0_12px_26px_rgba(90,32,0,0.18)] ring-1 ring-white/25 backdrop-blur-sm">
                   <StatusIcon className="w-6 h-6" />
                 </div>
                 <div>
@@ -1209,35 +1209,35 @@ export default function SellerOrderDetail() {
                   </p>
                 </div>
               </div>
-              <span className="rounded-full bg-white px-3 py-2 text-xs font-black uppercase text-[#9A4A00] shadow-sm">
+              <span className="rounded-full bg-white px-3 py-2 text-xs font-black uppercase text-gray-500 shadow-sm">
                 {STATUS_LABELS[displayStatusLabel] || displayStatusLabel}
               </span>
             </div>
           </div>
 
-          <div className="space-y-4 bg-[#fffaf4] p-3 sm:p-5">
-            <section className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+          <div className="space-y-4 bg-gray-50 p-3 sm:p-5">
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
                     <Package className="w-4 h-4" />
                   </span>
                   <div>
                     <h4 className="text-sm font-black text-gray-900">Articles commandés</h4>
-                    <p className="text-xs font-semibold text-stone-500">{orderItems.length} article{orderItems.length > 1 ? 's' : ''}</p>
+                    <p className="text-xs font-semibold text-gray-500">{orderItems.length} article{orderItems.length > 1 ? 's' : ''}</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-black text-[#9A4A00] ring-1 ring-orange-100">
+                <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-black text-gray-500 ring-1 ring-gray-200">
                   {formatCurrency(totalAmount)}
                 </span>
               </div>
               <div className="space-y-3">
                 {orderItems.map((item, index) => (
-                  <div key={`${order._id}-${index}`} className="flex items-start gap-3 rounded-[22px] border border-stone-100 bg-[#fffaf4] p-2.5 sm:gap-4 sm:p-3">
+                  <div key={`${order._id}-${index}`} className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-2.5 sm:gap-4 sm:p-3">
                     {item.snapshot?.image || item.product?.images?.[0] ? (
-                      <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="h-20 w-20 flex-shrink-0 rounded-[18px] border border-orange-100 object-cover sm:h-24 sm:w-24" />
+                      <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="h-20 w-20 flex-shrink-0 rounded-xl border border-gray-200 object-cover sm:h-24 sm:w-24" />
                     ) : (
-                      <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[18px] bg-orange-50 sm:h-24 sm:w-24">
+                      <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 sm:h-24 sm:w-24">
                         <Package className="w-6 h-6 text-neutral-600" />
                       </div>
                     )}
@@ -1253,8 +1253,8 @@ export default function SellerOrderDetail() {
                         <span className="whitespace-nowrap text-sm font-black text-[#FF6A00]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</span>
                       </div>
                       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
-                        <span className="rounded-full bg-white px-2 py-1 ring-1 ring-stone-100">Qté {item.quantity || 1}</span>
-                        <span className="rounded-full bg-white px-2 py-1 ring-1 ring-stone-100">{formatCurrency(item.snapshot?.price || 0)} / unité</span>
+                        <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">Qté {item.quantity || 1}</span>
+                        <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">{formatCurrency(item.snapshot?.price || 0)} / unité</span>
                       </div>
                       <SelectedAttributesList
                         selectedAttributes={item.selectedAttributes}
@@ -1276,7 +1276,7 @@ export default function SellerOrderDetail() {
               {order.deliveryCode && (
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-neutral-500" /> Code de livraison</h4>
-                  <div className="rounded-[22px] border border-orange-100 bg-orange-50 p-5">
+                  <div className="rounded-2xl border border-gray-200 bg-gray-100 p-5">
                     <p className="text-xs font-semibold text-neutral-700 uppercase mb-2">Code pour le livreur</p>
                     <div className="text-4xl font-black text-neutral-900 tracking-wider font-mono text-center">{order.deliveryCode}</div>
                   </div>
@@ -1284,7 +1284,7 @@ export default function SellerOrderDetail() {
               )}
               <div>
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /> Client</h4>
-                <div className="space-y-2 rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm">
+                <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                   <p className="text-sm font-semibold text-gray-900">{order.customer?.name || 'Client'}</p>
 	                  {orderContactPhone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{orderContactPhone}</p>}
                   {order.customer?.email && <p className="text-xs text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3" />{order.customer.email}</p>}
@@ -1296,7 +1296,7 @@ export default function SellerOrderDetail() {
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-500" /> {isPickupOrder ? 'Point de retrait' : 'Adresse de livraison'}
               </h4>
-              <div className="space-y-2 rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm">
+              <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 {isPickupOrder ? (
                   <>
                     <p className="text-sm font-semibold text-gray-900">{pickupShopAddress?.shopName || 'Boutique'}</p>
@@ -1339,18 +1339,18 @@ export default function SellerOrderDetail() {
             </div>
 
             {order.trackingNote && (
-              <div className="rounded-[24px] border border-orange-100 bg-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><Info className="w-4 h-4 text-gray-500" /> Note de suivi</h4>
                 <p className="text-sm font-semibold leading-6 text-gray-700">{order.trackingNote}</p>
               </div>
             )}
 
-            <section className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-orange-100 bg-orange-50 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-black text-[#9A4A00]">Mode de paiement</span>
+                    <span className="text-sm font-black text-gray-500">Mode de paiement</span>
                     {isFullPaymentOrder && (
                       <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                         BEST VALUE
@@ -1409,7 +1409,7 @@ export default function SellerOrderDetail() {
                     ) : null}
                   </div>
                 )}
-                <div className="flex justify-between rounded-[20px] border border-stone-100 bg-[#fffaf4] px-3 py-3">
+                <div className="flex justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-3">
                   <span className="text-sm font-semibold text-gray-600">Total commande</span>
                   <span className="text-xl font-black text-[#FF6A00]">
                     {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
@@ -1591,7 +1591,7 @@ export default function SellerOrderDetail() {
             )}
 
             {!isInstallmentOrder && ['submitted', 'verified'].includes(String(order.deliveryStatus || '').toLowerCase()) && !platformDeliveryAutoConfirmed && ((Array.isArray(order.deliveryProofImages) && order.deliveryProofImages.length > 0) || order.clientSignatureImage) && (
-              <div className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)] space-y-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)] space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-emerald-50">
                     <ClipboardList className="w-4 h-4 text-emerald-600" />
@@ -1764,12 +1764,12 @@ export default function SellerOrderDetail() {
               </div>
             )}
 
-            <div className="rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <OrderChat order={order} buttonText="Contacter l'acheteur" unreadCount={unreadCount} />
             </div>
 
             {sellerPrimaryAction ? (
-              <div className="space-y-3 rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+              <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
                   <h4 className="text-sm font-black text-gray-900">
@@ -1815,7 +1815,7 @@ export default function SellerOrderDetail() {
             ) : null}
 
             {canSendConfirmationReminder ? (
-              <div className="space-y-3 rounded-[26px] border border-amber-100 bg-amber-50/70 p-4 shadow-[0_12px_30px_rgba(117,75,36,0.06)]">
+              <div className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/70 p-4 shadow-[0_12px_30px_rgba(117,75,36,0.06)]">
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#FF6A00] ring-1 ring-amber-100">
                     <ShieldCheck className="h-4 w-4" />
@@ -1844,7 +1844,7 @@ export default function SellerOrderDetail() {
             ) : null}
 
             {canManageInstallmentSaleStatus && !sellerPrimaryAction && (
-              <div className="space-y-3 rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+              <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
                   <h4 className="text-sm font-black text-gray-900">
@@ -1929,7 +1929,7 @@ export default function SellerOrderDetail() {
               !['cancelled', 'delivery_proof_submitted', 'confirmed_by_client', 'completed', 'delivered', 'picked_up_confirmed'].includes(
                 order.status
               ) && (
-              <div className="space-y-3 rounded-[26px] border border-orange-100 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+              <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
                   <h4 className="text-sm font-black text-gray-900">
@@ -1959,7 +1959,7 @@ export default function SellerOrderDetail() {
                           statusUpdatingId === order._id ||
                           order.cancellationWindow?.isActive
                         }
-                        className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
                       >
                         <Package size={12} /> Prête au retrait
                       </button>

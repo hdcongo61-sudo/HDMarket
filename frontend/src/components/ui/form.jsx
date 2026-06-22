@@ -3,7 +3,7 @@ import cn from '../../lib/utils';
 
 export function FormSection({ className = '', children, ...props }) {
   return (
-    <section className={cn('ui-form-section rounded-[22px] border p-4 sm:p-5', className)} {...props}>
+    <section className={cn('ui-form-section rounded-2xl border p-4 sm:p-5', className)} {...props}>
       {children}
     </section>
   );

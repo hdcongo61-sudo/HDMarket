@@ -338,7 +338,7 @@ export default function AdminLayout() {
         <button
           type="button"
           onClick={() => setMobileMenuOpen((o) => !o)}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-100 bg-white text-[#7a4a24] shadow-sm hover:text-[#ff6a00] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-[#7a4a24] shadow-sm hover:text-[#ff6a00] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
           aria-label={mobileMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}

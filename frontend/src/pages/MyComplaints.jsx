@@ -266,11 +266,11 @@ export default function MyComplaints() {
   if (!user) {
     return (
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
-        <div className="rounded-[28px] border border-orange-100 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-orange-50 text-[#FF6A00]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00]">
             <User className="h-8 w-8" />
           </div>
-          <p className="text-sm font-semibold text-stone-600">Vous devez être connecté pour accéder à cette page.</p>
+          <p className="text-sm font-semibold text-gray-600">Vous devez être connecté pour accéder à cette page.</p>
           <Link to="/login" className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#FF6A00] px-5 text-sm font-black text-white">
             <ArrowLeft size={16} />
             Retour à la connexion
@@ -281,17 +281,17 @@ export default function MyComplaints() {
   }
 
   return (
-    <div className="hd-products-flow min-h-screen bg-[#f6f2ec] text-stone-950">
+    <div className="hd-products-flow min-h-screen bg-[#f6f2ec] text-gray-900">
       <div className="mx-auto max-w-5xl space-y-4 px-3 py-4 pb-24 sm:px-5 sm:py-6">
         <Link
           to="/profile"
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-orange-100 bg-white px-4 text-sm font-black text-[#9A4A00] shadow-sm transition active:scale-95"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-black text-gray-500 shadow-sm transition active:scale-95"
         >
           <ArrowLeft size={18} />
           Retour au profil
         </Link>
 
-        <section className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
           <div className="hd-products-hero p-5 text-white sm:p-6">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
                 <ShieldAlert className="h-5 w-5" />
@@ -308,9 +308,9 @@ export default function MyComplaints() {
           <form onSubmit={submit} className="space-y-4 p-5 sm:p-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-black text-stone-800">Commande concernée *</label>
+                <label className="text-sm font-black text-gray-800">Commande concernée *</label>
                 <select
-                  className="min-h-[52px] w-full rounded-[18px] border border-orange-100 bg-orange-50/35 px-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
+                  className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                   value={orderId}
                   onChange={(e) => {
                     setOrderId(e.target.value);
@@ -328,9 +328,9 @@ export default function MyComplaints() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-black text-stone-800">Motif *</label>
+                <label className="text-sm font-black text-gray-800">Motif *</label>
                 <select
-                  className="min-h-[52px] w-full rounded-[18px] border border-orange-100 bg-orange-50/35 px-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
+                  className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   disabled={submitLoading}
@@ -345,12 +345,12 @@ export default function MyComplaints() {
             </div>
 
             <div className="space-y-2">
-              <label className="flex items-center justify-between text-sm font-black text-stone-800">
+              <label className="flex items-center justify-between text-sm font-black text-gray-800">
                 <span className="inline-flex items-center gap-2">
                   <MessageCircle className="h-4 w-4 text-[#FF6A00]" />
                   Description *
                 </span>
-                <span className="text-xs font-bold text-stone-500">
+                <span className="text-xs font-bold text-gray-500">
                   {description.length}/{MAX_DESCRIPTION}
                 </span>
               </label>
@@ -361,7 +361,7 @@ export default function MyComplaints() {
                   setDescription(e.target.value.slice(0, MAX_DESCRIPTION));
                   setSubmitError('');
                 }}
-                className="w-full rounded-[18px] border border-orange-100 bg-orange-50/35 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-orange-100"
+                className="w-full rounded-xl border border-gray-200 bg-gray-100/35 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                 placeholder="Décrivez précisément le problème (état, article reçu, preuves, etc.)."
                 maxLength={MAX_DESCRIPTION}
                 required
@@ -369,15 +369,15 @@ export default function MyComplaints() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-black text-stone-800">
+              <label className="text-sm font-black text-gray-800">
                 Preuves (images/PDF, max {MAX_FILES})
               </label>
-              <label className="flex min-h-[56px] cursor-pointer items-center justify-between rounded-[18px] border border-dashed border-orange-200 bg-orange-50/40 px-4 text-sm font-bold text-[#9A4A00] transition hover:bg-orange-50">
+              <label className="flex min-h-[56px] cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-500 transition hover:bg-gray-100">
                 <span className="inline-flex items-center gap-2">
                   <Upload className="h-4 w-4" />
                   Ajouter des preuves
                 </span>
-                <span className="text-xs text-stone-500">{files.length}/{MAX_FILES}</span>
+                <span className="text-xs text-gray-500">{files.length}/{MAX_FILES}</span>
                 <input
                   type="file"
                   accept="image/*,.pdf"
@@ -393,7 +393,7 @@ export default function MyComplaints() {
                   {files.map((file, index) => (
                     <div
                       key={`${file.name}-${index}`}
-                      className="flex items-center justify-between rounded-2xl border border-orange-100 bg-white px-3 py-2 text-xs font-semibold"
+                      className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold"
                     >
                       <span className="inline-flex items-center gap-2 truncate">
                         <Paperclip className="h-3.5 w-3.5 text-[#FF6A00]" />
@@ -442,30 +442,30 @@ export default function MyComplaints() {
           </form>
         </section>
 
-        <section className="rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
           <div className="mb-4">
             <p className="text-xs font-black uppercase tracking-wide text-[#FF6A00]">Suivi</p>
-            <h2 className="mt-1 text-xl font-black text-stone-950">Historique des réclamations</h2>
+            <h2 className="mt-1 text-xl font-black text-gray-900">Historique des réclamations</h2>
           </div>
           {loading ? (
-            <p className="rounded-2xl bg-orange-50/50 p-4 text-sm font-bold text-stone-500">Chargement…</p>
+            <p className="rounded-2xl bg-gray-100/50 p-4 text-sm font-bold text-gray-500">Chargement…</p>
           ) : listError ? (
             <p className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700 ring-1 ring-red-100">{listError}</p>
           ) : disputes.length === 0 ? (
-            <p className="rounded-[22px] border border-dashed border-orange-200 bg-orange-50/35 p-5 text-sm font-semibold text-stone-500">Aucun litige pour le moment.</p>
+            <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-100/35 p-5 text-sm font-semibold text-gray-500">Aucun litige pour le moment.</p>
           ) : (
             <ul className="space-y-4">
               {disputes.map((dispute) => (
-                <li key={dispute._id} className="rounded-[24px] border border-orange-100 bg-orange-50/30 p-4">
+                <li key={dispute._id} className="rounded-2xl border border-gray-200 bg-gray-100/30 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-black text-stone-950">
+                      <p className="text-sm font-black text-gray-900">
                         Commande #{String(dispute?.orderId?._id || dispute.orderId || '').slice(-6)}
                       </p>
-                      <p className="text-xs font-semibold text-stone-500">
+                      <p className="text-xs font-semibold text-gray-500">
                         Motif: {REASON_OPTIONS.find((r) => r.value === dispute.reason)?.label || dispute.reason}
                       </p>
-                      <p className="text-xs font-semibold text-stone-500">Ouvert le {formatDate(dispute.createdAt)}</p>
+                      <p className="text-xs font-semibold text-gray-500">Ouvert le {formatDate(dispute.createdAt)}</p>
                     </div>
                     <span
                       className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
@@ -478,8 +478,8 @@ export default function MyComplaints() {
 
                   <DisputeTimeline status={dispute.status} />
 
-                  <p className="mt-3 whitespace-pre-line text-sm font-semibold leading-6 text-stone-700">{dispute.description}</p>
-                  <div className="mt-2 grid grid-cols-1 gap-1 text-xs font-semibold text-stone-500 sm:grid-cols-2">
+                  <p className="mt-3 whitespace-pre-line text-sm font-semibold leading-6 text-gray-700">{dispute.description}</p>
+                  <div className="mt-2 grid grid-cols-1 gap-1 text-xs font-semibold text-gray-500 sm:grid-cols-2">
                     <p>Total commande: {amount(dispute?.orderId?.totalAmount)}</p>
                     <p>Ville livraison: {dispute?.orderId?.deliveryCity || '—'}</p>
                     <p>Deadline réponse vendeur: {formatDate(dispute.sellerDeadline)}</p>
@@ -494,7 +494,7 @@ export default function MyComplaints() {
                           href={file.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-white px-3 py-1.5 text-xs font-bold text-[#9A4A00]"
+                          className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-500"
                         >
                           <Paperclip className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve'}
@@ -504,9 +504,9 @@ export default function MyComplaints() {
                   )}
 
                   {dispute.sellerResponse && (
-                    <div className="mt-3 rounded-2xl border border-orange-100 bg-white p-3">
-                      <p className="text-xs font-black text-[#9A4A00]">Réponse vendeur</p>
-                      <p className="whitespace-pre-line text-sm font-semibold text-stone-800">{dispute.sellerResponse}</p>
+                    <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-3">
+                      <p className="text-xs font-black text-gray-500">Réponse vendeur</p>
+                      <p className="whitespace-pre-line text-sm font-semibold text-gray-800">{dispute.sellerResponse}</p>
                     </div>
                   )}
 

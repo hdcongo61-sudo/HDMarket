@@ -14,7 +14,7 @@ export default function GlassHeader({
   return (
     <header
       className={join(
-        'glass-header rounded-[24px] px-4 py-3 shadow-sm sm:px-5 sm:py-4',
+        'glass-header rounded-2xl px-4 py-3 shadow-sm sm:px-5 sm:py-4',
         sticky ? 'sticky top-0 z-30' : '',
         className
       )}

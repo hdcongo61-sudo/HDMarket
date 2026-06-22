@@ -656,7 +656,7 @@ export default function NotificationPage() {
     return (
       <main className="hd-commerce-shell min-h-screen px-5 py-16 text-center">
         <div className="mx-auto max-w-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#ff6a00] text-white shadow-[0_16px_34px_rgba(255,106,0,0.24)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ff6a00] text-white shadow-[0_16px_34px_rgba(255,106,0,0.24)]">
             <Bell className="h-7 w-7" />
           </div>
           <h1 className="mt-5 text-2xl font-semibold text-neutral-950 dark:text-neutral-100">{t('notifications.title', 'Notifications')}</h1>
@@ -687,7 +687,7 @@ export default function NotificationPage() {
           </div>
         )}
         <header className="sticky top-0 z-30 px-3 pb-3 pt-3">
-          <section className="relative overflow-hidden rounded-[26px] bg-[#ff3d13] p-4 text-white shadow-[0_16px_34px_rgba(255,106,0,0.22)]">
+          <section className="relative overflow-hidden rounded-2xl bg-[#ff3d13] p-4 text-white shadow-[0_16px_34px_rgba(255,106,0,0.22)]">
             <div className="pointer-events-none absolute -right-8 top-0 h-24 w-24 rounded-full bg-white/14 blur-2xl" />
             <div className="relative flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -729,7 +729,7 @@ export default function NotificationPage() {
               </div>
             </div>
           </section>
-          <div className="mt-3 overflow-x-auto rounded-[22px] border border-orange-100 bg-white/92 p-2 shadow-[0_10px_26px_rgba(117,75,36,0.08)]">
+          <div className="mt-3 overflow-x-auto rounded-2xl border border-gray-200 bg-white/92 p-2 shadow-[0_10px_26px_rgba(117,75,36,0.08)]">
             <div className="flex w-max items-center gap-2">
               {filters.map((filter) => {
                 const isActive = activeFilter === filter.key;
@@ -741,7 +741,7 @@ export default function NotificationPage() {
                     className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                       isActive
                         ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
-                        : 'bg-orange-50 text-[#9a4a00] hover:bg-orange-100 dark:text-neutral-300 dark:hover:bg-neutral-900'
+                        : 'bg-gray-100 text-gray-500 hover:bg-orange-100 dark:text-neutral-300 dark:hover:bg-neutral-900'
                     }`}
                   >
                     {filter.label}
@@ -768,7 +768,7 @@ export default function NotificationPage() {
                 exit={{ opacity: 0, y: -8 }}
                 className="flex items-center justify-center py-2"
               >
-                <div className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white px-3 py-1 text-xs font-semibold text-[#9a4a00] shadow-sm dark:text-neutral-300">
+                <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-500 shadow-sm dark:text-neutral-300">
                   <Bell className={`h-3.5 w-3.5 ${refreshing ? 'animate-pulse' : ''}`} />
                   {refreshing ? t('notifications.refreshing', 'Actualisation…') : t('notifications.pullToRefresh', 'Relâchez pour actualiser')}
                 </div>
@@ -788,7 +788,7 @@ export default function NotificationPage() {
             </div>
           ) : error && !offlineSnapshotActive ? (
             <div className="mt-6">
-              <div className="rounded-2xl border border-orange-100 bg-white p-1 shadow-sm">
+              <div className="rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
                 <NetworkFallbackCard
                   title={t('notifications.errors.loadTitle', 'Unable to load data.')}
                   message={t('notifications.errors.load', 'Loading is taking longer than expected. Please try again shortly.')}
@@ -811,7 +811,7 @@ export default function NotificationPage() {
                       : t('notifications.earlier', 'Plus tôt');
                 return (
                   <section key={bucket} className="pt-4">
-                    <h2 className="mb-2 px-1 text-[11px] font-black uppercase tracking-[0.08em] text-[#9a4a00] dark:text-neutral-400">
+                    <h2 className="mb-2 px-1 text-[11px] font-black uppercase tracking-[0.08em] text-gray-500 dark:text-neutral-400">
                       {title}
                     </h2>
                     <div className="space-y-2">
@@ -873,8 +873,8 @@ export default function NotificationPage() {
           </div>
           ) : (
             <div className="mt-14 text-center">
-              <div className="mx-auto max-w-md rounded-[26px] border border-orange-100 bg-white p-6 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-orange-50 text-[#ff6a00]">
+              <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-[#ff6a00]">
                   <Bell className="h-6 w-6" />
                 </div>
                 <h3 className="mt-4 text-base font-medium text-neutral-900 dark:text-neutral-100">

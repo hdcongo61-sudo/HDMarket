@@ -2274,7 +2274,7 @@ export default function AdminUsers() {
                                 type="button"
                                 onClick={() => handleConvertToParticulier(user)}
                                 disabled={!canManageSellers || convertingUserId === user.id}
-                                className="rounded-lg border border-orange-500 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-50 disabled:opacity-50"
+                                className="rounded-lg border border-orange-500 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-gray-100 disabled:opacity-50"
                               >
                                 <User size={14} className="inline mr-1" />
                                 Reconvertir

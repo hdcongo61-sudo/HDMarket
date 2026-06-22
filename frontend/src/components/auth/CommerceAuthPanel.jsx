@@ -53,7 +53,7 @@ export default function CommerceAuthPanel({ mode = 'login', logoSrc = '' }) {
   ];
 
   return (
-    <aside className="relative hidden min-h-[640px] overflow-hidden rounded-[28px] bg-[#ff6a00] p-6 text-white shadow-[0_28px_80px_rgba(255,106,0,0.28)] lg:block">
+    <aside className="relative hidden min-h-[640px] overflow-hidden rounded-2xl bg-[#FF6A00] p-6 text-white shadow-sm lg:block">
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.20),transparent_34%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.26),transparent_28%),linear-gradient(180deg,#ff7a00_0%,#f45100_52%,#d83b00_100%)]" />
       <div className="absolute -bottom-24 -right-20 h-72 w-72 rounded-full border border-white/20" />
       <div className="absolute -bottom-10 right-24 h-32 w-32 rounded-full border border-white/15" />
@@ -78,11 +78,11 @@ export default function CommerceAuthPanel({ mode = 'login', logoSrc = '' }) {
           </p>
         </div>
 
-        <div className="mt-8 rounded-[22px] bg-white p-2 text-slate-900 shadow-[0_18px_48px_rgba(133,42,0,0.24)]">
-          <div className="flex items-center gap-2 rounded-[18px] border-2 border-[#ff6a00] bg-orange-50 px-3 py-3">
-            <Search size={18} className="text-[#ff6a00]" />
+        <div className="mt-8 rounded-xl bg-white p-2 text-slate-900 shadow-sm">
+          <div className="flex items-center gap-2 rounded border border-[#FF6A00] bg-orange-50 px-3 py-3">
+            <Search size={18} className="text-[#FF6A00]" />
             <span className="text-sm font-bold text-slate-700">{copy.search}</span>
-            <span className="ml-auto rounded-full bg-[#ff6a00] px-3 py-1.5 text-xs font-black text-white">
+            <span className="ml-auto rounded-full bg-[#FF6A00] px-3 py-1.5 text-xs font-black text-white">
               HD
             </span>
           </div>
@@ -92,7 +92,7 @@ export default function CommerceAuthPanel({ mode = 'login', logoSrc = '' }) {
           {chips.map((chip) => {
             const Icon = chip.icon;
             return (
-              <div key={chip.label} className="rounded-[18px] bg-white/14 p-3 ring-1 ring-white/16">
+              <div key={chip.label} className="rounded-xl bg-white/14 p-3 ring-1 ring-white/16">
                 <Icon size={18} />
                 <p className="mt-2 text-xs font-black leading-4">{chip.label}</p>
               </div>
@@ -100,7 +100,7 @@ export default function CommerceAuthPanel({ mode = 'login', logoSrc = '' }) {
           })}
         </div>
 
-        <div className="mt-auto rounded-[26px] bg-white p-4 text-slate-950 shadow-[0_24px_64px_rgba(105,32,0,0.28)]">
+        <div className="mt-auto rounded-2xl bg-white p-4 text-slate-950 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-wide text-orange-600">HDMarket Live</p>
@@ -113,8 +113,8 @@ export default function CommerceAuthPanel({ mode = 'login', logoSrc = '' }) {
             {activity.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.label} className="flex items-center gap-3 rounded-[18px] bg-orange-50 px-3 py-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#ff6a00] shadow-sm">
+                <div key={item.label} className="flex items-center gap-3 rounded-xl bg-orange-50 px-3 py-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#FF6A00] shadow-sm">
                     <Icon size={18} />
                   </span>
                   <div className="min-w-0">

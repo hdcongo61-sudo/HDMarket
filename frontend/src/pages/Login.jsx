@@ -159,8 +159,7 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#fff7ed] px-4 py-4 text-slate-950 dark:bg-[#120704] dark:text-white sm:px-6 lg:px-8">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,106,0,0.18),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,237,213,0.55))] dark:bg-[radial-gradient(circle_at_18%_8%,rgba(255,106,0,0.18),transparent_30%),linear-gradient(180deg,rgba(22,9,4,0.92),rgba(7,7,7,1))]" />
+    <main className="min-h-screen overflow-hidden bg-[#f5f5f5] px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
       <motion.div
         variants={staggerContainer}
         initial="hidden"
@@ -169,15 +168,15 @@ export default function Login() {
       >
         <motion.nav
           variants={fadeUp}
-          className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-[20px] border border-orange-100 bg-white/86 px-3 py-2 shadow-[0_16px_44px_rgba(154,69,0,0.10)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06]"
+          className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
         >
-          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl pr-2 text-sm font-black text-slate-950 dark:text-white">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-white/10">
+          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl pr-2 text-sm font-black text-gray-900 dark:text-white">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-neutral-900">
               <img src={logoSrc} alt={copy.appBadge} className="h-7 w-7 object-contain" />
             </span>
             {copy.appBadge}
           </Link>
-          <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-[#b84900] ring-1 ring-orange-100 dark:bg-orange-400/10 dark:text-orange-100 dark:ring-orange-300/15">
+          <span className="inline-flex items-center gap-2 rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#FF6A00] dark:bg-orange-400/10 dark:text-orange-100">
             <ShieldCheck size={14} />
             {copy.sessionLabel}
           </span>
@@ -186,9 +185,8 @@ export default function Login() {
         <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-stretch">
           <motion.section
             variants={fadeUp}
-            className="relative overflow-hidden rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_24px_70px_rgba(154,69,0,0.14)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/82 sm:p-7"
+            className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-7"
           >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-orange-50 to-transparent dark:from-orange-500/10" />
             <AnimatePresence mode="wait">
                 <motion.div
                   key="login-form"
@@ -197,17 +195,17 @@ export default function Login() {
                   transition={{ duration: 0.28 }}
                 >
                   <header className="mb-7">
-                    <div className="relative mb-5 inline-flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#ff6a00] shadow-[0_18px_44px_rgba(255,106,0,0.28)] dark:bg-white">
+                    <div className="relative mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#FF6A00] dark:bg-white">
                       <img
                         src={logoSrc}
                         alt={copy.appBadge}
                         className={`${isMobile ? 'h-10 w-10' : 'h-11 w-11'} object-contain`}
                       />
                     </div>
-                    <h1 className="text-[2rem] font-black leading-[1.05] tracking-normal text-slate-950 dark:text-white sm:text-[2.55rem]">
+                    <h1 className="text-[2rem] font-black leading-[1.05] tracking-normal text-gray-900 dark:text-white sm:text-[2.55rem]">
                       {copy.title}
                     </h1>
-                    <p className="mt-3 max-w-sm text-[15px] leading-6 text-slate-600 dark:text-neutral-300">
+                    <p className="mt-3 max-w-sm text-[15px] leading-6 text-gray-600 dark:text-neutral-300">
                       {copy.subtitle}
                     </p>
                   </header>
@@ -217,7 +215,7 @@ export default function Login() {
                       <motion.div
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-100"
+                        className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-100"
                         role="alert"
                       >
                         {error}
@@ -225,11 +223,11 @@ export default function Login() {
                     ) : null}
 
                     <div className="space-y-2">
-                      <label htmlFor="login-identifier" className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-neutral-400">
+                      <label htmlFor="login-identifier" className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">
                         {copy.identifierLabel}
                       </label>
-                      <div className="flex items-stretch overflow-hidden rounded-[16px] border-2 border-orange-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus-within:border-[#ff6a00] focus-within:ring-2 focus-within:ring-[#ff6a00]/10 dark:border-white/10 dark:bg-white/[0.04]">
-                        <span className="flex items-center justify-center border-r border-orange-100 bg-orange-50 px-4 text-[#ff6a00] dark:border-white/10 dark:bg-white/[0.04] dark:text-orange-200">
+                      <div className="flex items-stretch overflow-hidden rounded border border-gray-200 bg-white transition focus-within:border-[#FF6A00] focus-within:ring-2 focus-within:ring-[#FF6A00]/10 dark:border-neutral-800 dark:bg-neutral-900">
+                        <span className="flex items-center justify-center border-r border-gray-200 bg-gray-50 px-4 text-[#FF6A00] dark:border-neutral-800 dark:bg-neutral-950 dark:text-orange-200">
                           <Phone size={18} />
                         </span>
                         <input
@@ -257,11 +255,11 @@ export default function Login() {
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="login-password" className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-neutral-400">
+                      <label htmlFor="login-password" className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">
                         {copy.passwordLabel}
                       </label>
-                      <div className="flex items-stretch overflow-hidden rounded-[16px] border-2 border-orange-100 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus-within:border-[#ff6a00] focus-within:ring-2 focus-within:ring-[#ff6a00]/10 dark:border-white/10 dark:bg-white/[0.04]">
-                        <span className="flex items-center justify-center border-r border-orange-100 bg-orange-50 px-4 text-[#ff6a00] dark:border-white/10 dark:bg-white/[0.04] dark:text-orange-200">
+                      <div className="flex items-stretch overflow-hidden rounded border border-gray-200 bg-white transition focus-within:border-[#FF6A00] focus-within:ring-2 focus-within:ring-[#FF6A00]/10 dark:border-neutral-800 dark:bg-neutral-900">
+                        <span className="flex items-center justify-center border-r border-gray-200 bg-gray-50 px-4 text-[#FF6A00] dark:border-neutral-800 dark:bg-neutral-950 dark:text-orange-200">
                           <LockKeyhole size={18} />
                         </span>
                         <input
@@ -281,7 +279,7 @@ export default function Login() {
                         <button
                           type="button"
                           onClick={() => setShowPassword((prev) => !prev)}
-                          className="flex items-center justify-center border-l border-orange-100 bg-orange-50 px-3 text-[#b84900] transition hover:bg-orange-100 hover:text-slate-950 active:scale-95 dark:border-white/10 dark:bg-white/[0.04] dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
+                          className="flex items-center justify-center border-l border-gray-200 bg-gray-50 px-3 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 active:scale-95 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                           aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                         >
                           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -290,16 +288,16 @@ export default function Login() {
                     </div>
 
                     <div className="flex items-center justify-between gap-3 pt-1">
-                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-neutral-300">
+                      <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="h-4 w-4 rounded border-orange-200 accent-[#ff6a00] dark:border-neutral-700"
+                          className="h-4 w-4 rounded border-gray-300 accent-[#FF6A00] dark:border-neutral-700"
                         />
                         {copy.rememberMe}
                       </label>
-                      <Link to="/forgot-password" className="text-sm font-black text-[#d45a00] transition hover:text-[#9a4a00] dark:text-orange-200 dark:hover:text-orange-100">
+                      <Link to="/forgot-password" className="text-sm font-black text-[#FF6A00] transition hover:text-[#e85f00] dark:text-orange-200 dark:hover:text-orange-100">
                         {copy.forgotPassword}
                       </Link>
                     </div>
@@ -308,7 +306,7 @@ export default function Login() {
                       type="submit"
                       disabled={loading || !form.phone.trim() || !form.password.trim()}
                       whileTap={{ scale: 0.985 }}
-                      className="group inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#ff6a00] px-4 text-[15px] font-black text-white shadow-[0_16px_36px_rgba(255,106,0,0.28)] transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-55"
+                      className="group inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded bg-[#FF6A00] px-4 text-[15px] font-black text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-55"
                     >
                       {loading ? <Loader2 size={17} className="animate-spin" /> : null}
                       {loading ? copy.submitting : copy.submit}
@@ -322,17 +320,17 @@ export default function Login() {
                     ) : null}
                   </form>
 
-                  <footer className="mt-6 grid gap-2 border-t border-orange-100 pt-5 text-sm text-slate-600 dark:border-white/10 dark:text-neutral-300">
+                  <footer className="mt-6 grid gap-2 border-t border-gray-100 pt-5 text-sm text-gray-600 dark:border-neutral-800 dark:text-neutral-300">
                     <p>
                       {copy.noAccount}{' '}
-                      <Link to="/register" className="font-black text-[#d45a00] transition hover:text-[#9a4a00] dark:text-orange-100">
+                      <Link to="/register" className="font-black text-[#FF6A00] transition hover:text-[#e85f00] dark:text-orange-100">
                         {copy.createAccount}
                       </Link>
                     </p>
                     <p className="inline-flex items-center gap-1.5">
                       <HelpCircle size={15} />
                       {copy.supportLead}{' '}
-                      <Link to="/help" className="font-black text-slate-950 transition hover:text-[#d45a00] dark:text-white dark:hover:text-orange-100">
+                      <Link to="/help" className="font-black text-gray-900 transition hover:text-[#FF6A00] dark:text-white dark:hover:text-orange-100">
                         {copy.support}
                       </Link>
                     </p>

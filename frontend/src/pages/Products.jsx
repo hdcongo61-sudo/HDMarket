@@ -311,7 +311,7 @@ const fetchProducts = useCallback(async () => {
   return (
     <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
-        <header className="hd-products-hero overflow-hidden rounded-[28px] p-4 text-white sm:p-6">
+        <header className="hd-products-hero overflow-hidden rounded-2xl p-4 text-white sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/20">
@@ -334,13 +334,13 @@ const fetchProducts = useCallback(async () => {
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
                   placeholder="Rechercher un produit..."
-                  className="min-h-0 flex-1 border-0 bg-transparent px-0 py-2 text-sm font-semibold text-stone-900 placeholder:text-stone-400 focus:ring-0"
+                  className="min-h-0 flex-1 border-0 bg-transparent px-0 py-2 text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:ring-0"
                 />
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={clearSearch}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-[#9A4A00]"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500"
                     aria-label="Effacer la recherche"
                   >
                     <X className="h-4 w-4" />
@@ -371,7 +371,7 @@ const fetchProducts = useCallback(async () => {
           </section>
         )}
 
-        <section className="hd-products-toolbar sticky top-20 z-20 flex flex-col gap-3 rounded-[24px] px-3 py-3 md:flex-row md:items-center md:justify-between sm:px-4">
+        <section className="hd-products-toolbar sticky top-20 z-20 flex flex-col gap-3 rounded-2xl px-3 py-3 md:flex-row md:items-center md:justify-between sm:px-4">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 flex-wrap">
             <span>
               {items.length} résultat{items.length > 1 ? 's' : ''} affiché{items.length > 1 ? 's' : ''}
@@ -424,7 +424,7 @@ const fetchProducts = useCallback(async () => {
               id="sort-options"
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-black text-stone-700 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 sm:text-sm"
+              className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 sm:text-sm"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -473,7 +473,7 @@ const fetchProducts = useCallback(async () => {
                 <button
                   type="button"
                   onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-                  className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+                  className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-500 shadow-sm active:scale-95"
                 >
                   Charger plus
                 </button>
@@ -481,13 +481,13 @@ const fetchProducts = useCallback(async () => {
             )}
           </>
         ) : (
-          <div className="rounded-[24px] border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
             <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-[#FF6A00]" />
-            <p className="font-bold text-stone-900">Aucun produit ne correspond à votre recherche pour le moment.</p>
+            <p className="font-bold text-gray-900">Aucun produit ne correspond à votre recherche pour le moment.</p>
           </div>
         )}
 
-        <section className="rounded-[24px] border border-neutral-100 bg-white px-4 py-4 text-sm text-neutral-700 sm:px-6 sm:py-5">
+        <section className="rounded-2xl border border-neutral-100 bg-white px-4 py-4 text-sm text-neutral-700 sm:px-6 sm:py-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-semibold text-neutral-800">
               Besoin d&apos;une catégorie spécifique&nbsp;?

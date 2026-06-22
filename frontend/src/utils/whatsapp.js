@@ -21,3 +21,16 @@ export const buildWhatsappLink = (product, phone) => {
   const message = buildWhatsappMessage(product.title, productUrl);
   return `https://wa.me/${sanitizedPhone}?text=${message}`;
 };
+
+export const buildShopWhatsappLink = (shop, phone) => {
+  const sanitizedPhone = sanitizePhoneNumber(phone);
+  if (!shop?._id || !sanitizedPhone) return null;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const shopSlug = shop.slug || shop._id;
+  const shopUrl = origin && shopSlug ? `${origin}/shop/${shopSlug}` : '';
+  const shopName = shop.shopName || shop.name || 'votre boutique';
+  const message = encodeURIComponent(
+    `Bonjour, je souhaite contacter ${shopName} sur HDMarket. ${shopUrl}`.trim()
+  );
+  return `https://wa.me/${sanitizedPhone}?text=${message}`;
+};

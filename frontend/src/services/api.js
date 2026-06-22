@@ -79,7 +79,8 @@ const CACHE_CONFIG = {
   '/categories': 30 * 60 * 1000, // 30 minutes
   '/cities': 30 * 60 * 1000, // 30 minutes
   '/users/notifications': 1 * 60 * 1000, // 1 minute
-  '/admin/dashboard/stats': 1 * 60 * 1000, // 1 minute
+  // NOTE: /admin/* is force-excluded below (CACHE_EXCLUDE_PREFIXES), so admin
+  // endpoints are intentionally never cached.
 };
 
 const CACHE_ALLOW_PREFIXES = Object.keys(CACHE_CONFIG);
@@ -764,7 +765,10 @@ api.interceptors.response.use(
     const config = response.config || {};
     clearAbortTimer(config);
     removePendingController(config.__requestKey);
-    if (shouldCacheRequest(config)) {
+    // Skip re-writing on a cache HIT: the synthetic cached response still flows
+    // through here, and re-writing would refresh the timestamp on every read
+    // (sliding TTL) so hot entries would never expire.
+    if (!response.request?.fromCache && shouldCacheRequest(config)) {
       const key = config.__cacheKey || buildCacheKey(config);
       const normalized = config.__normalizedUrl || normalizeUrl(config);
       if (key && response.status === 200) {

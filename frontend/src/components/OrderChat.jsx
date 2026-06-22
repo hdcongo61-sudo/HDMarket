@@ -1344,13 +1344,13 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       isOpen={isOpen}
       onClose={closeChat}
       size="md"
-      panelClassName="w-full h-full sm:h-[88vh] sm:max-h-[740px] sm:max-w-lg overflow-hidden border-0 bg-[#fff4e8] shadow-2xl ring-1 ring-orange-100 animate-in slide-in-from-bottom-4 duration-300 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-[30px]"
+      panelClassName="w-full h-full sm:h-[88vh] sm:max-h-[740px] sm:max-w-lg overflow-hidden border-0 bg-[#fff4e8] shadow-2xl ring-1 ring-gray-200 animate-in slide-in-from-bottom-4 duration-300 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-[30px]"
       rootClassName="z-[130] p-0 sm:p-4"
       ariaLabel="Conversation commande"
     >
       <div className="flex h-full w-full flex-col">
         <header
-          className="flex-shrink-0 border-b border-orange-100/80 bg-[#fffaf4]/96 shadow-[0_10px_34px_-28px_rgba(255,106,0,0.85)] backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/96"
+          className="flex-shrink-0 border-b border-gray-200/80 bg-gray-50/96 shadow-[0_10px_34px_-28px_rgba(255,106,0,0.85)] backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/96"
           style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -1358,7 +1358,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={closeChat}
-                className="-ml-1 flex-shrink-0 rounded-full bg-white p-2 text-slate-700 shadow-sm ring-1 ring-orange-100 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+                className="-ml-1 flex-shrink-0 rounded-full bg-white p-2 text-slate-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-100 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                 aria-label="Retour"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -1369,10 +1369,10 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                   <img
                     src={productImage}
                     alt={productName}
-                    className="h-12 w-12 rounded-[18px] object-cover ring-2 ring-white dark:ring-neutral-800"
+                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-white dark:ring-neutral-800"
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#fff7ef] text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-50 text-[#FF6A00] ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                     {isCustomer ? <Store className="w-6 h-6" /> : <User className="w-6 h-6" />}
                   </div>
                 )}
@@ -1403,7 +1403,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={() => setShowSearch(!showSearch)}
-                className={`rounded-full p-2.5 transition-colors ${showSearch ? 'bg-[#FF6A00] text-white' : 'bg-white text-slate-600 ring-1 ring-orange-100 hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
+                className={`rounded-full p-2.5 transition-colors ${showSearch ? 'bg-[#FF6A00] text-white' : 'bg-white text-slate-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
                 title="Rechercher dans les messages"
               >
                 <Search className="w-5 h-5" />
@@ -1411,7 +1411,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={() => setShowInfo(!showInfo)}
-                className={`rounded-full p-2.5 transition-colors ${showInfo ? 'bg-[#FF6A00] text-white' : 'bg-white text-slate-600 ring-1 ring-orange-100 hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
+                className={`rounded-full p-2.5 transition-colors ${showInfo ? 'bg-[#FF6A00] text-white' : 'bg-white text-slate-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
                 title="Informations commande"
               >
                 <Info className="w-5 h-5" />
@@ -1420,7 +1420,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 <button
                   type="button"
                   onClick={() => setShowChatMenu(!showChatMenu)}
-                  className="rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-orange-100 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+                  className="rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                   title="Options"
                 >
                   <MoreVertical className="w-5 h-5" />
@@ -1428,7 +1428,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 {showChatMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} aria-hidden="true" />
-                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-[20px] bg-white p-1.5 shadow-2xl ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl bg-white p-1.5 shadow-2xl ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                       {hasProductLink && (
                         <Link
                           to={productPath}
@@ -1436,7 +1436,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                             setShowChatMenu(false);
                             closeChat();
                           }}
-                          className="flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-orange-50 dark:text-gray-200 dark:hover:bg-neutral-800"
+                          className="flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800"
                         >
                           <ExternalLink className="w-4 h-4" />
                           Voir le produit
@@ -1459,7 +1459,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                               setArchiving(false);
                             }
                           }}
-                          className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-orange-50 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-neutral-800"
+                          className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-neutral-800"
                         >
                           {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
                           Archiver la conversation
@@ -1495,7 +1495,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
               <button
                 type="button"
                 onClick={closeChat}
-                className="hidden rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-orange-100 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800 sm:flex"
+                className="hidden rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 hover:text-[#FF6A00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800 sm:flex"
                 aria-label="Fermer"
               >
                 <X className="w-5 h-5" />
@@ -1523,7 +1523,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Search panel */}
         {showSearch && (
-          <div className="flex-shrink-0 border-b border-orange-100 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#FF6A00]" />
               <input
@@ -1531,14 +1531,14 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher dans les messages..."
-                className="w-full rounded-full border-0 bg-[#fff7ef] py-2.5 pl-11 pr-10 text-sm font-semibold text-slate-950 placeholder-slate-400 ring-1 ring-orange-100 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
+                className="w-full rounded-full border-0 bg-gray-50 py-2.5 pl-11 pr-10 text-sm font-semibold text-slate-950 placeholder-slate-400 ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
                 autoFocus
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-orange-50 hover:text-[#FF6A00] dark:hover:bg-neutral-800"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-[#FF6A00] dark:hover:bg-neutral-800"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1554,10 +1554,10 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Info panel — product, order ref */}
         {showInfo && (
-          <div className="flex-shrink-0 space-y-4 border-b border-orange-100 bg-white/90 px-4 py-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 space-y-4 border-b border-gray-200 bg-white/90 px-4 py-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="flex items-center gap-4">
               {productImage && (
-                <img src={productImage} alt={productName} className="h-16 w-16 flex-shrink-0 rounded-[20px] object-cover ring-1 ring-orange-100 dark:ring-neutral-800" />
+                <img src={productImage} alt={productName} className="h-16 w-16 flex-shrink-0 rounded-xl object-cover ring-1 ring-gray-200 dark:ring-neutral-800" />
               )}
               <div className="flex-1 min-w-0">
                 {hasProductLink ? (
@@ -1582,7 +1582,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                       setShowInfo(false);
                       closeChat();
                     }}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#fff7ef] px-3 py-1.5 text-sm font-black text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1.5 text-sm font-black text-[#FF6A00] ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Voir le produit
@@ -1611,7 +1611,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
         >
           {loadingOlderMessages && (
             <div className="flex items-center justify-center py-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Chargement des anciens messages…
               </span>
@@ -1620,7 +1620,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           {/* Client name inside chat (when admin/seller) */}
           {showClientLabel && clientName && (
             <div className="flex justify-center mb-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
                 <User className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
                 Client : {clientName}
               </span>
@@ -1628,7 +1628,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
           )}
           {searchQuery && filteredMessages.length === 0 && !loading ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-8">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-white ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-white ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                 <Search className="h-7 w-7 text-[#FF6A00]" />
               </div>
               <h3 className="mb-1 font-black text-slate-950 dark:text-white">Aucun résultat</h3>
@@ -1638,12 +1638,12 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             </div>
           ) : loading && messages.length === 0 && !offlineSnapshotActive ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 py-8">
-              <div className="h-10 w-10 animate-spin rounded-full border-2 border-orange-100 border-t-[#FF6A00]" />
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-gray-200 border-t-[#FF6A00]" />
               <p className="text-sm font-semibold text-slate-500 dark:text-gray-400">Chargement des messages...</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-8">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-white ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-white ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                 <MessageCircle className="h-7 w-7 text-[#FF6A00]" />
               </div>
               <h3 className="mb-1 font-black text-slate-950 dark:text-white">Démarrez la conversation</h3>
@@ -1656,7 +1656,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                     key={index}
                     type="button"
                     onClick={() => sendQuickReply(reply)}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+                    className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                   >
                     {reply}
                   </button>
@@ -1667,7 +1667,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             Object.entries(messageGroups).map(([dateKey, msgs]) => (
               <div key={dateKey}>
                 <div className="flex items-center justify-center my-4">
-                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
+                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
                     {formatDate(msgs[0].createdAt)}
                   </span>
                 </div>
@@ -1698,7 +1698,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                 {message.sender.shopName.charAt(0).toUpperCase()}
                               </div>
                             ) : (
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                                 <User className="h-4 w-4 text-[#FF6A00]" />
                               </div>
                             )}
@@ -1708,8 +1708,8 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                         <div
                           className={`max-w-[80%] sm:max-w-[75%] group ${
                             isOwnMessage
-                              ? 'rounded-[22px] rounded-br-md bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-[0_14px_28px_-20px_rgba(255,106,0,0.85)]'
-                              : 'rounded-[22px] rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
+                              ? 'rounded-2xl rounded-br-md bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-[0_14px_28px_-20px_rgba(255,106,0,0.85)]'
+                              : 'rounded-2xl rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
                           } relative px-4 py-2.5 ${isPending ? 'opacity-80' : ''}`}
                         >
                           {!isOwnMessage && showAvatar && (
@@ -1745,7 +1745,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                   type="button"
                                   onClick={handleSaveEdit}
                                   disabled={savingEditId === message._id || !editingText.trim()}
-                                  className="flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-sm font-black text-[#FF6A00] transition-colors hover:bg-orange-50 disabled:opacity-50"
+                                  className="flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-sm font-black text-[#FF6A00] transition-colors hover:bg-gray-100 disabled:opacity-50"
                                 >
                                   {savingEditId === message._id ? (
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1771,7 +1771,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                       onClick={() => setSelectedImage(att.url)}
                                     />
                                   ) : att.type === 'audio' ? (
-                                    <div className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20' : 'bg-[#fff7ef] dark:bg-neutral-800'}`}>
+                                    <div className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20' : 'bg-gray-50 dark:bg-neutral-800'}`}>
                                       <span className="text-xs">{att.filename}</span>
                                       {message.voiceMessage?.duration && (
                                         <span className="text-[11px] opacity-80">{Math.round(message.voiceMessage.duration)}s</span>
@@ -1781,7 +1781,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                     <a
                                       href={att.url}
                                       download={att.filename}
-                                      className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-[#fff7ef] hover:bg-orange-50 dark:bg-neutral-800 dark:hover:bg-neutral-700'}`}
+                                      className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-gray-50 hover:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700'}`}
                                     >
                                       <File className="h-4 w-4" />
                                       <span className="text-xs">{att.filename}</span>
@@ -1854,7 +1854,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                                       handleAddReaction(message._id, emoji);
                                     }
                                   }}
-                                  className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-black ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100 hover:bg-orange-100 dark:bg-neutral-800 dark:ring-neutral-700'}`}
+                                  className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-black ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200 hover:bg-orange-100 dark:bg-neutral-800 dark:ring-neutral-700'}`}
                                 >
                                   <span>{emoji}</span>
                                   {count > 1 && <span>{count}</span>}
@@ -1978,7 +1978,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Quick replies */}
         {showQuickReplies && (
-          <div className="flex-shrink-0 border-t border-orange-100 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
             <p className="mb-2 text-xs font-black uppercase tracking-wide text-[#FF6A00]">Réponses rapides</p>
             <div className="flex flex-wrap gap-2">
               {QUICK_REPLIES.map((reply, index) => (
@@ -1986,7 +1986,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                   key={index}
                   type="button"
                   onClick={() => sendQuickReply(reply)}
-                  className="rounded-full bg-[#fff7ef] px-3 py-2 text-sm font-black text-slate-700 ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+                  className="rounded-full bg-gray-50 px-3 py-2 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
                 >
                   {reply}
                 </button>
@@ -2024,7 +2024,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Upload progress */}
         {uploadProgress != null && (
-          <div className="flex-shrink-0 border-t border-orange-100 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="flex items-center justify-between gap-3 mb-2">
               <span className="text-sm font-black text-slate-700 dark:text-neutral-300">Envoi en cours...</span>
               <span className="text-sm font-black tabular-nums text-[#FF6A00]">{uploadProgress}%</span>
@@ -2043,7 +2043,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Attachments preview */}
         {attachments.length > 0 && (
-          <div className="flex-shrink-0 border-t border-orange-100 bg-white/90 px-4 py-2 dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white/90 px-4 py-2 dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="flex flex-wrap gap-2">
               {attachments.map((att, idx) => (
                 <div key={att.url || att.filename || `preview-att-${idx}`} className="relative">
@@ -2052,7 +2052,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                       <img
                         src={att.url}
                         alt={att.filename}
-                        className="h-16 w-16 rounded-[18px] object-cover"
+                        className="h-16 w-16 rounded-xl object-cover"
                       />
                       <button
                         type="button"
@@ -2063,7 +2063,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 rounded-[16px] bg-[#fff7ef] px-2 py-1 ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+                    <div className="flex items-center gap-2 rounded-[16px] bg-gray-50 px-2 py-1 ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                       <File className="h-4 w-4" />
                       <span className="text-xs">{att.filename}</span>
                       <button

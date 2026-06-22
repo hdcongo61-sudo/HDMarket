@@ -82,6 +82,7 @@ const userSchema = new mongoose.Schema(
       verifiedAt: { type: Date, default: null }
     },
     shopDescription: { type: String, trim: true, default: '' },
+    shopLocationAddress: { type: String, trim: true, default: '' },
     shopLocation: {
       type: {
         type: String,

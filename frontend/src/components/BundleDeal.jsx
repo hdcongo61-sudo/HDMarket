@@ -51,7 +51,7 @@ export default function BundleDeal({ bundleData, onAddAll }) {
             <Link
               to={item.slug ? `/product/${item.slug}` : '#'}
               className={`flex flex-col items-center rounded-xl border bg-white p-2 shadow-sm transition hover:shadow-md ${
-                idx === 0 ? 'border-orange-200 ring-1 ring-orange-100' : 'border-gray-100'
+                idx === 0 ? 'border-gray-200 ring-1 ring-gray-200' : 'border-gray-100'
               }`}
               style={{ width: '80px' }}
             >

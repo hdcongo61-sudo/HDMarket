@@ -229,14 +229,14 @@ export default function Suggestions() {
       <div className="hd-products-flow min-h-screen">
         <div className="max-w-7xl mx-auto px-3 py-6 pb-24 sm:px-6 lg:px-8">
           <div className="space-y-8">
-            <div className="hd-products-hero rounded-[28px] p-5 sm:p-7">
+            <div className="hd-products-hero rounded-2xl p-5 sm:p-7">
               <div className="h-7 w-56 animate-pulse rounded-full bg-white/25" />
               <div className="mt-4 h-10 w-72 max-w-full animate-pulse rounded-2xl bg-white/20" />
               <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-full bg-white/20" />
             </div>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div key={i} className="h-72 animate-pulse rounded-[24px] border border-orange-100 bg-white shadow-sm" />
+                <div key={i} className="h-72 animate-pulse rounded-2xl border border-gray-200 bg-white shadow-sm" />
               ))}
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function Suggestions() {
   return (
     <div className="hd-products-flow min-h-screen">
       <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 lg:px-8 md:pb-16">
-        <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
+        <header className="hd-products-hero rounded-2xl p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/20">
@@ -275,45 +275,45 @@ export default function Suggestions() {
         {/* Statistics Cards */}
         {views.length > 0 && (
           <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
-            <div className="rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-950">
                   <Eye className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-black text-stone-950 sm:text-2xl">{formatNumber(views.length)}</span>
+                <span className="text-xl font-black text-gray-900 sm:text-2xl">{formatNumber(views.length)}</span>
               </div>
-              <p className="text-[11px] font-black uppercase tracking-wide text-stone-700 sm:text-sm">Consultés</p>
-              <p className="mt-1 hidden text-xs text-stone-500 sm:block">Vos vues récentes</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-gray-700 sm:text-sm">Consultés</p>
+              <p className="mt-1 hidden text-xs text-gray-500 sm:block">Vos vues récentes</p>
             </div>
-            <div className="rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FF6A00]">
                   <Target className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-black text-stone-950 sm:text-2xl">{formatNumber(preferredCategories.length)}</span>
+                <span className="text-xl font-black text-gray-900 sm:text-2xl">{formatNumber(preferredCategories.length)}</span>
               </div>
-              <p className="text-[11px] font-black uppercase tracking-wide text-stone-700 sm:text-sm">Catégories</p>
-              <p className="mt-1 hidden text-xs text-stone-500 sm:block">Basé sur vos intérêts</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-gray-700 sm:text-sm">Catégories</p>
+              <p className="mt-1 hidden text-xs text-gray-500 sm:block">Basé sur vos intérêts</p>
             </div>
-            <div className="rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-700">
                   <ShoppingBag className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-black text-stone-950 sm:text-2xl">{formatNumber(items.length)}</span>
+                <span className="text-xl font-black text-gray-900 sm:text-2xl">{formatNumber(items.length)}</span>
               </div>
-              <p className="text-[11px] font-black uppercase tracking-wide text-stone-700 sm:text-sm">Suggestions</p>
-              <p className="mt-1 hidden text-xs text-stone-500 sm:block">Produits recommandés</p>
+              <p className="text-[11px] font-black uppercase tracking-wide text-gray-700 sm:text-sm">Suggestions</p>
+              <p className="mt-1 hidden text-xs text-gray-500 sm:block">Produits recommandés</p>
             </div>
           </div>
         )}
 
         {/* Category Badges */}
         {preferredCategories.length > 0 && (
-          <div className="hd-products-toolbar rounded-[24px] p-3 shadow-sm sm:p-4">
+          <div className="hd-products-toolbar rounded-2xl p-3 shadow-sm sm:p-4">
             <div className="flex items-center gap-2 mb-3">
               <Filter className="w-4 h-4 text-[#FF6A00]" />
-              <h3 className="text-sm font-black text-stone-950 uppercase tracking-wide">Catégories suggérées</h3>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide">Catégories suggérées</h3>
             </div>
             <div className="flex flex-wrap gap-2">
               {preferredCategories.map((category) => (
@@ -322,9 +322,9 @@ export default function Suggestions() {
                   className="hd-products-chip inline-flex items-center gap-2 rounded-full px-4 py-2"
                 >
                   <TrendingUp className="w-4 h-4 text-[#FF6A00]" />
-                  <span className="text-sm font-black text-stone-800">{CATEGORY_LABELS[category] || category}</span>
+                  <span className="text-sm font-black text-gray-800">{CATEGORY_LABELS[category] || category}</span>
                   {categoryStats[category] > 0 && (
-                    <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-black text-[#9A4A00]">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-black text-gray-500">
                       {categoryStats[category]}
                     </span>
                   )}
@@ -336,7 +336,7 @@ export default function Suggestions() {
 
         {/* Error Message */}
         {error && (
-          <div className="rounded-[24px] border border-red-200 bg-red-50 p-5 shadow-sm">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
@@ -349,12 +349,12 @@ export default function Suggestions() {
 
         {/* Empty State - No Views */}
         {!preferredCategories.length && !loading && (
-          <div className="rounded-[28px] border border-orange-100 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
-            <div className="mx-auto w-20 h-20 rounded-[24px] bg-orange-50 flex items-center justify-center mb-4 ring-1 ring-orange-100">
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
               <Search className="w-10 h-10 text-[#FF6A00]" />
             </div>
-            <h3 className="text-lg font-black text-stone-950 mb-2">Aucune suggestion disponible</h3>
-            <p className="text-sm text-stone-500 mb-6 max-w-md mx-auto">
+            <h3 className="text-lg font-black text-gray-900 mb-2">Aucune suggestion disponible</h3>
+            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
               Consultez quelques produits pour obtenir des suggestions personnalisées basées sur vos intérêts.
             </p>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -378,12 +378,12 @@ export default function Suggestions() {
 
         {/* Empty State - No Items but has Categories */}
         {!loading && items.length === 0 && preferredCategories.length > 0 && (
-          <div className="rounded-[28px] border border-orange-100 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
-            <div className="mx-auto w-20 h-20 rounded-[24px] bg-orange-50 flex items-center justify-center mb-4 ring-1 ring-orange-100">
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
               <Zap className="w-10 h-10 text-[#FF6A00]" />
             </div>
-            <h3 className="text-lg font-black text-stone-950 mb-2">Aucune suggestion disponible</h3>
-            <p className="text-sm text-stone-500 mb-6 max-w-md mx-auto">
+            <h3 className="text-lg font-black text-gray-900 mb-2">Aucune suggestion disponible</h3>
+            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
               Nous avons analysé vos préférences, mais aucun nouveau produit ne correspond à vos critères pour le moment.
             </p>
             <button
@@ -402,8 +402,8 @@ export default function Suggestions() {
           <>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black text-stone-950">Produits recommandés</h2>
-                <p className="text-sm font-semibold text-stone-500 mt-1">
+                <h2 className="text-xl font-black text-gray-900">Produits recommandés</h2>
+                <p className="text-sm font-semibold text-gray-500 mt-1">
                   {items.length} produit{items.length > 1 ? 's' : ''} suggéré{items.length > 1 ? 's' : ''} pour vous
                 </p>
               </div>
@@ -420,7 +420,7 @@ export default function Suggestions() {
         {loading && items.length > 0 && (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-72 animate-pulse rounded-[24px] border border-orange-100 bg-white shadow-sm" />
+              <div key={i} className="h-72 animate-pulse rounded-2xl border border-gray-200 bg-white shadow-sm" />
             ))}
           </div>
         )}
@@ -442,7 +442,7 @@ export default function Suggestions() {
         {/* End of Results */}
         {!hasMore && items.length > 0 && (
           <div className="mt-8 text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white px-4 py-2 text-sm font-bold text-stone-600 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-600 shadow-sm">
               <CheckCircle className="w-4 h-4" />
               <span>Toutes les suggestions ont été chargées</span>
             </div>

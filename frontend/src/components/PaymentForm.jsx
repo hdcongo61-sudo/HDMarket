@@ -554,7 +554,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
-              className="ui-input flex-1 rounded-[18px] px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
+              className="ui-input flex-1 rounded-xl px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
               placeholder="Ex: FIRST10"
               value={form.promoCode}
               onChange={(e) => setForm((prev) => ({ ...prev, promoCode: e.target.value.toUpperCase() }))}
@@ -564,7 +564,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               type="button"
               onClick={validatePromo}
               disabled={loading || promoLoading}
-              className="hd-soft-button px-4 py-3 rounded-[18px] text-sm font-semibold disabled:opacity-50"
+              className="hd-soft-button px-4 py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
             >
               {promoLoading ? 'Validation...' : 'Valider le code'}
             </button>
@@ -680,7 +680,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   <span>Nom du payeur *</span>
                 </label>
                 <input
-                  className="ui-input w-full rounded-[18px] px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
+                  className="ui-input w-full rounded-xl px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="Votre nom complet"
                   value={form.payerName}
                   onChange={(e) => setForm({ ...form, payerName: e.target.value })}
@@ -695,7 +695,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   <span>Opérateur mobile *</span>
                 </label>
                 <select
-                  className="ui-input w-full rounded-[18px] px-4 py-3"
+                  className="ui-input w-full rounded-xl px-4 py-3"
                   value={form.operator}
                   onChange={(e) => setForm({ ...form, operator: e.target.value })}
                   disabled={loading}
@@ -737,7 +737,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                   type="text"
                   inputMode="numeric"
                   maxLength={10}
-                  className="ui-input w-full rounded-[18px] px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
+                  className="ui-input w-full rounded-xl px-4 py-3 placeholder-slate-400 dark:placeholder-slate-500"
                   placeholder="10 chiffres (ex: 7232173826)"
                   value={form.transactionNumber}
                   onChange={(e) => {
@@ -757,7 +757,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                 </label>
                 <input
                   type="number"
-                  className="ui-input w-full rounded-[18px] px-4 py-3 text-gray-600 dark:text-slate-300"
+                  className="ui-input w-full rounded-xl px-4 py-3 text-gray-600 dark:text-slate-300"
                   value={commissionDue}
                   disabled
                 />
@@ -776,7 +776,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           <button
             type="submit"
             disabled={isSubmitDisabled}
-            className="hd-primary-button flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="hd-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>

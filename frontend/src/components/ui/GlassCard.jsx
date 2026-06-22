@@ -14,7 +14,7 @@ export default function GlassCard({
   return (
     <Component
       className={join(
-        'ui-card rounded-[22px] p-4 shadow-sm transition-all duration-200 sm:p-5',
+        'ui-card rounded-2xl p-4 shadow-sm transition-all duration-200 sm:p-5',
         resolveGlassVariantClass(variant),
         interactive ? 'ui-card-interactive hover:shadow-md active:scale-[0.99]' : '',
         className

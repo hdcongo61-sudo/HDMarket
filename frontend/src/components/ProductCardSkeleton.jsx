@@ -26,7 +26,7 @@ export default function ProductCardSkeleton({
         <article
           key={`product-card-skeleton-${index}`}
           className={`overflow-hidden border border-neutral-100 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950 ${
-            isList ? 'flex rounded-[22px]' : `rounded-[14px] ${isMasonry ? 'mb-2 break-inside-avoid sm:mb-3' : ''}`
+            isList ? 'flex rounded-2xl' : `rounded-[14px] ${isMasonry ? 'mb-2 break-inside-avoid sm:mb-3' : ''}`
           }`}
         >
           <ShimmerBlock

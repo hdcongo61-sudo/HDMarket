@@ -40,9 +40,9 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
     >
       <Link
         to={buildProductPath(product)}
-        className="block overflow-hidden rounded-[22px] bg-white shadow-[0_8px_24px_rgba(117,75,36,0.06)] ring-1 ring-orange-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(117,75,36,0.12)] hover:ring-orange-200"
+        className="block overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(117,75,36,0.06)] ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(117,75,36,0.12)] hover:ring-gray-200"
       >
-        <div className="relative aspect-[3/4] w-full overflow-hidden bg-orange-50">
+        <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
           <img
             src={primaryImage}
             alt={product?.title || 'Produit'}
@@ -110,8 +110,8 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
 const DiscoverySkeleton = () => (
   <div className="grid grid-cols-2 gap-3 p-3">
     {Array.from({ length: 8 }).map((_, i) => (
-      <div key={`skel-${i}`} className="rounded-[22px] overflow-hidden bg-white ring-1 ring-orange-100">
-        <div className={`${['aspect-[3/4]', 'aspect-[4/5]', 'aspect-[3/4]', 'aspect-[4/5]'][i % 4]} w-full bg-orange-50 animate-pulse`} />
+      <div key={`skel-${i}`} className="rounded-2xl overflow-hidden bg-white ring-1 ring-gray-200">
+        <div className={`${['aspect-[3/4]', 'aspect-[4/5]', 'aspect-[3/4]', 'aspect-[4/5]'][i % 4]} w-full bg-gray-100 animate-pulse`} />
         <div className="p-3 space-y-2">
           <div className="h-3 bg-gray-100 rounded animate-pulse w-3/4" />
           <div className="h-2.5 bg-gray-50 rounded animate-pulse w-1/2" />
@@ -228,7 +228,7 @@ export default function Explorer() {
 
       {/* ── Category Chips ── */}
       {categoryChips.length > 0 && (
-        <div className="sticky top-0 z-20 bg-[#f6f3ee]/90 backdrop-blur-xl dark:bg-neutral-950/90 border-b border-orange-100/60">
+        <div className="sticky top-0 z-20 bg-[#f6f3ee]/90 backdrop-blur-xl dark:bg-neutral-950/90 border-b border-gray-200/60">
           <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-2.5 scrollbar-hide">
             <button
               type="button"
@@ -236,7 +236,7 @@ export default function Explorer() {
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                 !activeCategory
                   ? 'bg-[#FF6A00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
-                  : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-orange-50 hover:text-[#9A4A00]'
+                  : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-500'
               }`}
             >
               <Grid3X3 className="inline h-3 w-3 mr-1 -mt-0.5" />
@@ -250,7 +250,7 @@ export default function Explorer() {
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                   activeCategory === cat
                     ? 'bg-[#FF6A00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
-                    : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-orange-50 hover:text-[#9A4A00]'
+                    : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-500'
                 }`}
               >
                 {label}
@@ -266,7 +266,7 @@ export default function Explorer() {
 
         {isError && !isLoading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-orange-50 ring-1 ring-orange-100">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
               <TrendingUp className="h-8 w-8 text-[#FF6A00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900">{t('explorer.errorTitle', 'Oups !')}</h3>
@@ -279,7 +279,7 @@ export default function Explorer() {
 
         {hasContent === false && !isLoading && !isError && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-orange-50 ring-1 ring-orange-100">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
               <Package className="h-8 w-8 text-[#FF6A00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900">
@@ -311,7 +311,7 @@ export default function Explorer() {
             </div>
             <div ref={observerRef} className="flex justify-center py-8">
               {isFetchingNextPage && (
-                <div className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm text-gray-500 shadow-sm ring-1 ring-orange-100">
+                <div className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm text-gray-500 shadow-sm ring-1 ring-gray-200">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
                   {t('explorer.loading', 'Chargement...')}
                 </div>

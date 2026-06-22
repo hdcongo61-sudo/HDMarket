@@ -15,11 +15,11 @@ const toneClass = (tone = '') => {
   if (tone === 'risk') return 'bg-red-50 text-red-700 border-red-100';
   if (tone === 'delivery') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
   if (tone === 'payment') return 'bg-amber-50 text-amber-700 border-amber-100';
-  if (tone === 'boost') return 'bg-orange-50 text-[#ff6a00] border-orange-100';
+  if (tone === 'boost') return 'bg-gray-100 text-[#ff6a00] border-gray-200';
   if (tone === 'shop') return 'bg-sky-50 text-sky-700 border-sky-100';
   if (tone === 'admin') return 'bg-slate-100 text-slate-700 border-slate-200';
   if (tone === 'message') return 'bg-violet-50 text-violet-700 border-violet-100';
-  return 'bg-orange-50 text-[#9a4a00] border-orange-100';
+  return 'bg-gray-100 text-gray-500 border-gray-200';
 };
 
 export default function NotificationItem({
@@ -137,12 +137,12 @@ export default function NotificationItem({
               onPointerDown={startLongPress}
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
-              className={`group relative flex w-full items-start gap-3 rounded-[22px] border px-3.5 py-3.5 text-left shadow-[0_10px_26px_rgba(117,75,36,0.07)] transition-all hover:scale-[1.002] ${
+              className={`group relative flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3.5 text-left shadow-[0_10px_26px_rgba(117,75,36,0.07)] transition-all hover:scale-[1.002] ${
                 isActionsOpen
                   ? 'border-red-200 bg-white/25 backdrop-blur-sm'
                   : isUnread
-                    ? 'border-orange-200 bg-white'
-                    : 'border-orange-100/80 bg-white/88'
+                    ? 'border-gray-200 bg-white'
+                    : 'border-gray-200/80 bg-white/88'
               }`}
             >
               {isUnread ? (
@@ -156,7 +156,7 @@ export default function NotificationItem({
                     className="h-11 w-11 rounded-[17px] object-cover ring-2 ring-orange-50"
                   />
                 ) : avatarLetter ? (
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[17px] border border-orange-100 bg-orange-50 text-sm font-black text-[#ff6a00] dark:text-neutral-200">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[17px] border border-gray-200 bg-gray-100 text-sm font-black text-[#ff6a00] dark:text-neutral-200">
                     {avatarLetter}
                   </div>
                 ) : (
@@ -180,7 +180,7 @@ export default function NotificationItem({
                         {String(alert?.type || 'info').replaceAll('_', ' ')}
                       </span>
                       {actorName ? (
-                        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-black text-neutral-600 ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-black text-neutral-600 ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
                           <span className="truncate">{actorName}</span>
                           <span className="text-neutral-400">· {actorRole}</span>
                         </span>
@@ -235,7 +235,7 @@ export default function NotificationItem({
                                   className={`inline-flex min-h-[40px] w-full max-w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2 text-xs font-black transition duration-200 disabled:cursor-wait disabled:opacity-70 ${
                                     isPrimary
                                       ? 'bg-neutral-950 text-white shadow-[0_12px_26px_rgba(23,23,23,0.2)] hover:bg-neutral-800'
-                                      : 'border border-orange-100 bg-white text-[#9a4a00] shadow-sm hover:bg-orange-50 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-900'
+                                      : 'border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-100 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-900'
                                   }`}
                                 >
                                   {isNavigating ? (
@@ -317,7 +317,7 @@ export default function NotificationItem({
             onClick={() => setMenuOpen(false)}
           >
             <motion.div
-                className="absolute inset-x-4 bottom-4 rounded-[24px] border border-orange-100 bg-white p-2 shadow-xl"
+                className="absolute inset-x-4 bottom-4 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl"
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}
@@ -331,7 +331,7 @@ export default function NotificationItem({
                     onMarkRead?.();
                     setMenuOpen(false);
                   }}
-                  className="w-full rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-[#9a4a00] hover:bg-orange-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                  className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold text-gray-500 hover:bg-gray-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
                   {t('notifications.markAsRead', 'Marquer comme lu')}
                 </button>
@@ -343,7 +343,7 @@ export default function NotificationItem({
                   setMenuOpen(false);
                 }}
                 disabled={deletePending}
-                className="inline-flex w-full items-center gap-2 rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
+                className="inline-flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
               >
                 {deletePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 {t('notifications.delete', 'Supprimer')}
@@ -351,7 +351,7 @@ export default function NotificationItem({
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
-                className="mt-1 w-full rounded-[18px] px-3 py-2.5 text-left text-sm font-bold text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                className="mt-1 w-full rounded-xl px-3 py-2.5 text-left text-sm font-bold text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
               >
                 {t('common.cancel', 'Annuler')}
               </button>

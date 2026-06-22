@@ -47,7 +47,7 @@ const paymentStatusStyles = {
 const operatorStyles = {
   MTN: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300',
   Airtel: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
-  Orange: 'bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300',
+  Orange: 'bg-gray-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300',
   Moov: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
   Other: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'
 };
@@ -83,7 +83,7 @@ const getProductLink = (product) => {
 
 function PaymentSkeleton() {
   return (
-    <div className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
       <div className="flex gap-4">
         <div className="h-24 w-24 shrink-0 animate-pulse rounded-2xl bg-neutral-100 dark:bg-neutral-900" />
         <div className="flex-1 space-y-3">
@@ -380,7 +380,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
 
         {activePanel === 'payments' ? (
           <section className="space-y-4">
-            <div className="rounded-[22px] border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
@@ -413,7 +413,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
             ) : null}
 
             {!loadingPayments && payments.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-neutral-300 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                 <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
                   <CreditCard className="h-5 w-5" />
                 </div>
@@ -436,7 +436,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                 return (
                   <article
                     key={payment._id}
-                    className="overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950"
+                    className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950"
                   >
                     <div className="grid gap-4 p-4 lg:grid-cols-[128px_minmax(0,1fr)_220px] lg:items-start">
                       <div className="aspect-square overflow-hidden rounded-2xl bg-neutral-100 dark:bg-neutral-900">
@@ -565,7 +565,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
 
         {activePanel === 'verifiers' && canManageVerifiers ? (
           <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
               <div className="flex items-start gap-3">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-200">
                   <UserPlus className="h-5 w-5" />
@@ -630,7 +630,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-base font-bold text-neutral-950 dark:text-white">Vérificateurs actifs</h2>

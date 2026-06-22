@@ -313,7 +313,7 @@ export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
 
 export const getShopProfile = asyncHandler(async (req, res) => {
   const shop = await loadShopByIdentifier(req.params.id, [
-    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked followersCount slug'
+    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked followersCount slug'
   ].join(' '));
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
@@ -413,6 +413,7 @@ export const getShopProfile = asyncHandler(async (req, res) => {
     phone: shop.phone,
     shopLogo: shop.shopLogo,
     shopAddress: shop.shopAddress,
+    shopLocationAddress: shop.shopLocationAddress || '',
     shopVerified: Boolean(shop.shopVerified)
   };
 
@@ -470,6 +471,11 @@ export const getShopProfile = asyncHandler(async (req, res) => {
   );
 
   const recentReviews = recentReviewsRaw.map(formatShopReview);
+  const hasShopCoordinates =
+    Array.isArray(shop.shopLocation?.coordinates) && shop.shopLocation.coordinates.length === 2;
+  const publicShopLocationAddress = String(
+    shop.shopLocationAddress || (hasShopCoordinates ? shop.shopAddress : '') || ''
+  ).trim();
 
   res.json({
     shop: {
@@ -482,11 +488,12 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       shopLogo: shop.shopLogo || null,
       shopBanner: shop.shopBanner || null,
       shopAddress: shop.shopAddress || null,
+      shopLocationAddress: publicShopLocationAddress,
       shopVerified: Boolean(shop.shopVerified),
       shopDescription: shop.shopDescription || '',
       followersCount: Number(shop.followersCount || 0),
       location:
-        Array.isArray(shop.shopLocation?.coordinates) && shop.shopLocation.coordinates.length === 2
+        hasShopCoordinates
           ? {
               type: 'Point',
               coordinates: [

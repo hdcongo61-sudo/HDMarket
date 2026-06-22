@@ -20,7 +20,7 @@ export function AdminCommandHero({
   className = ''
 }) {
   return (
-    <section className={`overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950 ${className}`}>
+    <section className={`overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950 ${className}`}>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="p-5 sm:p-6 lg:p-7">
           {eyebrow ? (
@@ -124,7 +124,7 @@ export function AdminCommandHero({
 
 export function AdminSegmentedControl({ options = [], value, onChange, className = '' }) {
   return (
-    <div className={`rounded-[22px] border border-neutral-200 bg-white p-2 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 ${className}`}>
+    <div className={`rounded-2xl border border-neutral-200 bg-white p-2 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 ${className}`}>
       <div className="hide-scrollbar flex gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
         {options.map((option) => {
           const active = String(option.value || '') === String(value || '');

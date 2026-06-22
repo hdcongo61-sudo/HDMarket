@@ -140,7 +140,7 @@ export default function FounderIntelligence() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-neutral-50 px-3 py-4 dark:bg-neutral-950 sm:px-4 sm:py-6 md:px-6">
       <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
-        <section className="relative overflow-hidden rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950 sm:p-6">
+        <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950 sm:p-6">
           <div className="relative flex flex-col gap-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
@@ -269,7 +269,7 @@ export default function FounderIntelligence() {
               />
             </section>
 
-            <section className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+            <section className="glass-card overflow-hidden rounded-2xl p-4 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">
@@ -361,7 +361,7 @@ export default function FounderIntelligence() {
             </section>
 
             <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5 xl:col-span-2">
+              <div className="glass-card overflow-hidden rounded-2xl p-4 sm:p-5 xl:col-span-2">
                 <div className="mb-3 flex items-center gap-2">
                   <Activity size={16} className="text-emerald-600 dark:text-emerald-300" />
                   <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Seller Leaderboard</h2>
@@ -381,7 +381,7 @@ export default function FounderIntelligence() {
                 </div>
               </div>
 
-              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+              <div className="glass-card overflow-hidden rounded-2xl p-4 sm:p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <AlertTriangle size={16} className="text-amber-600 dark:text-amber-300" />
                   <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Risk Alerts</h2>
@@ -401,7 +401,7 @@ export default function FounderIntelligence() {
             </section>
 
             <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+              <div className="glass-card overflow-hidden rounded-2xl p-4 sm:p-5">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Conversion par ville</h2>
                 <div className="space-y-2">
                   {conversionCities.slice(0, 8).map((row) => (
@@ -413,7 +413,7 @@ export default function FounderIntelligence() {
                 </div>
               </div>
 
-              <div className="glass-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+              <div className="glass-card overflow-hidden rounded-2xl p-4 sm:p-5">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Heatmap activité (7+ jours)</h2>
                 <div className="space-y-2">
                   {heatmap.slice(-7).map((entry) => {

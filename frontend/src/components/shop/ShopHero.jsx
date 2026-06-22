@@ -30,7 +30,7 @@ export default function ShopHero({
   t
 }) {
   return (
-    <section className="overflow-hidden rounded-none bg-white shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 sm:rounded-[28px] dark:bg-neutral-950 dark:ring-neutral-800">
+    <section className="overflow-hidden rounded-none bg-white shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="relative h-[210px] w-full overflow-hidden bg-[#fff0df] sm:h-[280px] dark:bg-neutral-900">
         {shop?.shopBanner || shop?.shopBannerMobile ? (
           <>
@@ -67,7 +67,7 @@ export default function ShopHero({
         </div>
         <div className="absolute inset-x-4 bottom-4">
           <div className="flex items-end gap-3">
-            <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-[22px] border-[3px] border-white bg-white shadow-xl ring-1 ring-black/5 dark:border-neutral-950 dark:bg-neutral-900 dark:ring-white/10">
+            <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-xl ring-1 ring-black/5 dark:border-neutral-950 dark:bg-neutral-900 dark:ring-white/10">
               {shop?.shopLogo ? (
                 <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" />
               ) : (
@@ -107,7 +107,7 @@ export default function ShopHero({
             <span className={`h-1.5 w-1.5 rounded-full ${openingSummary?.isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`} />
             {openingSummary?.statusText}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-black text-stone-800 dark:bg-neutral-900 dark:text-neutral-100">
+          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-black text-gray-800 dark:bg-neutral-900 dark:text-neutral-100">
             <Star size={12} className="fill-amber-400 text-amber-400" />
             {formatCount(ratingCount)} {t('shop_profile.reviews_count', 'avis')}
           </span>
@@ -116,7 +116,7 @@ export default function ShopHero({
               Livraison offerte
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-black text-[#FF6A00] ring-1 ring-gray-200">
               <Store size={12} />
               Retrait boutique
             </span>
@@ -131,29 +131,29 @@ export default function ShopHero({
             )}
         </p>
 
-        <div className="mt-4 grid grid-cols-4 overflow-hidden rounded-[20px] bg-[#fff7ef] ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-neutral-800">
+        <div className="mt-4 grid grid-cols-4 overflow-hidden rounded border border-gray-100 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-900">
           {stats.map((item) => (
-            <div key={item.label} className="flex flex-col items-center gap-0.5 border-r border-orange-100 px-1 py-3 last:border-r-0 dark:border-neutral-800">
-              <span className="text-lg font-black text-slate-950 dark:text-white">{item.value}</span>
-              <span className="text-center text-[10px] font-semibold leading-tight text-slate-500 dark:text-slate-400">{item.label}</span>
+            <div key={item.label} className="flex flex-col items-center gap-0.5 border-r border-gray-100 px-1 py-3 last:border-r-0 dark:border-neutral-800">
+              <span className="text-lg font-black text-[#FF6A00]">{item.value}</span>
+              <span className="text-center text-[10px] font-semibold leading-tight text-gray-500 dark:text-slate-400">{item.label}</span>
             </div>
           ))}
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {yearsActiveLabel && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
               <Clock size={11} />
               {yearsActiveLabel}
             </span>
           )}
           {customerSatisfaction && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
               <TrendingUp size={11} />
               {customerSatisfaction}
             </span>
           )}
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
             <Calendar size={11} />
             {t('shop_profile.member_since', 'Membre depuis')} {formatDate(shop?.createdAt)}
           </span>

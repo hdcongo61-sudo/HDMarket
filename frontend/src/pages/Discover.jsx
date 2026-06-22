@@ -57,14 +57,14 @@ function SectionHeader({ icon: Icon, title, subtitle, to }) {
           <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-orange-100 text-[#FF6A00]">
             <Icon className="h-4 w-4" />
           </span>
-          <h2 className="text-lg font-black text-stone-950">{title}</h2>
+          <h2 className="text-lg font-black text-gray-900">{title}</h2>
         </div>
-        <p className="mt-1 text-sm leading-5 text-stone-500">{subtitle}</p>
+        <p className="mt-1 text-sm leading-5 text-gray-500">{subtitle}</p>
       </div>
       {to ? (
         <Link
           to={to}
-          className="hidden shrink-0 items-center gap-1 rounded-full bg-white px-3 py-2 text-sm font-bold text-[#9A4A00] shadow-sm ring-1 ring-orange-100 transition hover:bg-orange-50 sm:inline-flex"
+          className="hidden shrink-0 items-center gap-1 rounded-full bg-white px-3 py-2 text-sm font-bold text-gray-500 shadow-sm ring-1 ring-gray-200 transition hover:bg-gray-100 sm:inline-flex"
         >
           Voir
           <ArrowRight className="h-4 w-4" />
@@ -79,7 +79,7 @@ function ProductRail({ products = [], loading = false }) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, index) => (
-          <ShimmerSkeleton key={index} className="h-64 rounded-[22px]" />
+          <ShimmerSkeleton key={index} className="h-64 rounded-2xl" />
         ))}
       </div>
     );
@@ -87,7 +87,7 @@ function ProductRail({ products = [], loading = false }) {
 
   if (!products.length) {
     return (
-      <div className="rounded-[24px] border border-orange-100 bg-white/80 p-6 text-sm text-stone-500">
+      <div className="rounded-2xl border border-gray-200 bg-white/80 p-6 text-sm text-gray-500">
         Aucun produit disponible pour ce bloc.
       </div>
     );
@@ -231,7 +231,7 @@ export default function Discover() {
   return (
     <div className="hd-search-flow hd-commerce-shell min-h-screen">
       <div className="mx-auto max-w-7xl px-3 pb-12 pt-4 sm:px-6 lg:px-8">
-        <section className="relative overflow-hidden rounded-[30px] border border-orange-100 bg-[#fffaf4] p-5 shadow-[0_24px_70px_rgba(117,75,36,0.12)] sm:p-7">
+        <section className="relative overflow-hidden rounded-[30px] border border-gray-200 bg-gray-50 p-5 shadow-[0_24px_70px_rgba(117,75,36,0.12)] sm:p-7">
           <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-orange-200/45 blur-3xl" />
           <div className="relative z-10 grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
             <div>
@@ -239,14 +239,14 @@ export default function Discover() {
                 <Compass className="h-3.5 w-3.5" />
                 Découvrir
               </div>
-              <h1 className="max-w-3xl text-3xl font-black leading-tight text-stone-950 sm:text-5xl">
+              <h1 className="max-w-3xl text-3xl font-black leading-tight text-gray-900 sm:text-5xl">
                 Trouvez plus vite les produits qui valent le détour.
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600 sm:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
                 Une navigation pensée pour mobile: recherche persistante, raccourcis catégories, produits locaux et recommandations à forte intention d’achat.
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-2 rounded-[24px] bg-white/70 p-2 ring-1 ring-orange-100">
+            <div className="grid grid-cols-3 gap-2 rounded-2xl bg-white/70 p-2 ring-1 ring-gray-200">
               {[
                 { label: 'Local', value: city || 'Toutes villes', icon: MapPin },
                 { label: 'Tendance', value: 'Top ventes', icon: TrendingUp },
@@ -254,10 +254,10 @@ export default function Discover() {
               ].map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="rounded-2xl bg-[#fff7ef] p-3">
+                  <div key={item.label} className="rounded-2xl bg-gray-50 p-3">
                     <Icon className="h-4 w-4 text-[#FF6A00]" />
-                    <p className="mt-2 text-[11px] font-bold uppercase text-stone-400">{item.label}</p>
-                    <p className="truncate text-sm font-black text-stone-900">{item.value}</p>
+                    <p className="mt-2 text-[11px] font-bold uppercase text-gray-400">{item.label}</p>
+                    <p className="truncate text-sm font-black text-gray-900">{item.value}</p>
                   </div>
                 );
               })}
@@ -285,7 +285,7 @@ export default function Discover() {
         </section>
 
         {error ? (
-          <div className="mt-5 rounded-3xl border border-orange-100 bg-white p-5 text-sm font-semibold text-stone-600">
+          <div className="mt-5 rounded-3xl border border-gray-200 bg-white p-5 text-sm font-semibold text-gray-600">
             {error}
           </div>
         ) : null}
@@ -301,26 +301,26 @@ export default function Discover() {
         </section>
 
         <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
-          <div className="hd-surface rounded-[26px] p-4">
+          <div className="hd-surface rounded-2xl p-4">
             <SectionHeader icon={Store} title="Boutiques à suivre" subtitle="Vendeurs vérifiés pour une navigation plus sûre." to="/shops/verified" />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {(loadingSections.shops ? Array.from({ length: 4 }) : shops).map((shop, index) =>
                 loadingSections.shops ? (
                   <ShimmerSkeleton key={index} className="h-28 rounded-3xl" />
                 ) : (
-                  <Link key={shop._id || shop.slug} to={buildShopPath(shop)} className="rounded-3xl bg-white p-3 ring-1 ring-orange-100 transition hover:-translate-y-0.5 hover:bg-orange-50">
-                    <div className="h-12 w-12 overflow-hidden rounded-2xl bg-orange-50">
+                  <Link key={shop._id || shop.slug} to={buildShopPath(shop)} className="rounded-3xl bg-white p-3 ring-1 ring-gray-200 transition hover:-translate-y-0.5 hover:bg-gray-100">
+                    <div className="h-12 w-12 overflow-hidden rounded-2xl bg-gray-100">
                       {shop.shopLogo ? <img src={shop.shopLogo} alt="" className="h-full w-full object-cover" loading="lazy" /> : null}
                     </div>
-                    <p className="mt-3 truncate text-sm font-black text-stone-950">{shop.shopName || shop.name || 'Boutique'}</p>
-                    <p className="text-xs text-stone-500">Boutique vérifiée</p>
+                    <p className="mt-3 truncate text-sm font-black text-gray-900">{shop.shopName || shop.name || 'Boutique'}</p>
+                    <p className="text-xs text-gray-500">Boutique vérifiée</p>
                   </Link>
                 )
               )}
             </div>
           </div>
 
-          <div className="rounded-[26px] bg-[#FF6A00] p-5 text-white shadow-[0_20px_60px_rgba(255,106,0,0.22)]">
+          <div className="rounded-2xl bg-[#FF6A00] p-5 text-white shadow-[0_20px_60px_rgba(255,106,0,0.22)]">
             <ShoppingBag className="h-8 w-8" />
             <h2 className="mt-4 text-2xl font-black">Navigation rapide</h2>
             <p className="mt-2 text-sm leading-6 text-white/86">

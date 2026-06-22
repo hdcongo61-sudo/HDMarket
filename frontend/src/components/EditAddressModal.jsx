@@ -132,7 +132,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
                   value={deliveryCity}
                   onChange={(e) => setDeliveryCity(e.target.value)}
                   required
-                  className="ui-input w-full rounded-[18px] px-4 py-3 text-gray-900 dark:text-white"
+                  className="ui-input w-full rounded-xl px-4 py-3 text-gray-900 dark:text-white"
                 >
                   {cityOptions.map((city) => (
                     <option key={city} value={city}>
@@ -157,7 +157,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="hd-soft-button flex-1 px-4 py-2.5 rounded-[18px] font-semibold disabled:opacity-50"
+              className="hd-soft-button flex-1 px-4 py-2.5 rounded-xl font-semibold disabled:opacity-50"
             >
               Annuler
             </button>
@@ -165,7 +165,7 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
               <button
                 type="submit"
                 disabled={loading || !deliveryAddress.trim()}
-                className="hd-primary-button flex-1 px-4 py-2.5 rounded-[18px] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="hd-primary-button flex-1 px-4 py-2.5 rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Enregistrement...' : 'Enregistrer'}
               </button>

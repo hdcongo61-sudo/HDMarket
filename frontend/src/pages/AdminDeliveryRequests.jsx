@@ -1594,7 +1594,7 @@ export default function AdminDeliveryRequests() {
                         onClick={() => handleUnassign(item)}
                         disabled={!canUnassign || savingAction}
                         title={courierHasAccepted ? 'Désassigner impossible : le livreur a accepté la livraison.' : undefined}
-                        className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-orange-50 px-3 text-xs font-semibold text-orange-700 ring-1 ring-orange-300 hover:bg-orange-100 disabled:opacity-40"
+                        className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gray-100 px-3 text-xs font-semibold text-orange-700 ring-1 ring-orange-300 hover:bg-orange-100 disabled:opacity-40"
                       >
                         <UserCheck size={12} />
                         Désassigner

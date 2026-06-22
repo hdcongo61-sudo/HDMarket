@@ -2831,7 +2831,7 @@ export default function Navbar() {
                   if (searchInputRef.current) searchInputRef.current.blur();
                   triggerHaptic(50);
                 }}
-                className="hd-soft-button -ml-2 p-2 text-[#9A4A00]"
+                className="hd-soft-button -ml-2 p-2 text-gray-500"
               >
                 <ArrowDown size={20} />
               </button>
@@ -2843,7 +2843,7 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.search', 'Rechercher')}
-                  className="hd-global-search w-full rounded-full py-3 pl-11 pr-10 text-sm transition-all placeholder:text-stone-400"
+                  className="hd-global-search w-full rounded-full py-3 pl-11 pr-10 text-sm transition-all placeholder:text-gray-400"
                   onKeyDown={handleSearchKeyDown}
                   autoFocus
                 />
@@ -2854,7 +2854,7 @@ export default function Navbar() {
                       setSearchQuery('');
                       triggerHaptic(50);
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-stone-400 hover:text-stone-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:text-gray-700"
                   >
                     <X size={18} />
                   </button>
@@ -2893,7 +2893,7 @@ export default function Navbar() {
             {/* Bottom Sheet for Filters on Mobile */}
             {showBottomSheet && (
               <div className="hd-search-panel fixed inset-x-0 bottom-0 z-[101] max-h-[80vh] overflow-y-auto rounded-t-[30px] border-x-0 border-b-0">
-                <div className="sticky top-0 flex items-center justify-between border-b border-orange-100 bg-[#fffaf4]/95 px-4 py-3 backdrop-blur">
+                <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-gray-50/95 px-4 py-3 backdrop-blur">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white">{t('nav.filters', 'Filtres')}</h3>
                   <button
                     type="button"
@@ -2901,7 +2901,7 @@ export default function Navbar() {
                       setShowBottomSheet(false);
                       triggerHaptic(50);
                     }}
-                    className="hd-soft-button p-2 text-[#9A4A00]"
+                    className="hd-soft-button p-2 text-gray-500"
                   >
                     <X size={20} />
                   </button>
@@ -2966,7 +2966,7 @@ export default function Navbar() {
                 setTimeout(() => searchInputRef.current?.focus?.(), 60);
                 triggerHaptic('light');
               }}
-              className="hd-mobile-search-pill flex flex-1 items-center gap-2 rounded-full px-3 py-2.5 text-left text-sm font-medium text-stone-500 lg:hidden"
+              className="hd-mobile-search-pill flex flex-1 items-center gap-2 rounded-full px-3 py-2.5 text-left text-sm font-medium text-gray-500 lg:hidden"
               aria-label={t('nav.search', 'Rechercher')}
             >
               <Search className="h-4 w-4 text-[#FF6A00]" />
@@ -2978,7 +2978,7 @@ export default function Navbar() {
               <div className="md:hidden flex items-center gap-2">
                 <Link
                   to="/notifications"
-                  className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200 active:scale-95"
+                  className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200 active:scale-95"
                   aria-label={t('nav.notifications', 'Notifications')}
                 >
                   <Bell size={18} />
@@ -3001,7 +3001,7 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.searchPlaceholderFull', 'Rechercher produits, boutiques, catégories...')}
-                  className="hd-global-search w-full rounded-full py-3 pl-12 pr-24 text-sm transition-all duration-200 placeholder:text-stone-500"
+                  className="hd-global-search w-full rounded-full py-3 pl-12 pr-24 text-sm transition-all duration-200 placeholder:text-gray-500"
                   onFocus={() => { 
                     setShowResults(true); 
                     if (isMobileLayout) setIsSearchFullScreen(true);
@@ -3019,7 +3019,7 @@ export default function Navbar() {
                   </button>
                 </div>
                 {showResults && (
-                  <div className="hd-search-panel absolute left-0 right-0 top-14 z-50 max-h-80 w-full overflow-auto rounded-[24px] scrollbar-thin scrollbar-thumb-orange-200">
+                  <div className="hd-search-panel absolute left-0 right-0 top-14 z-50 max-h-80 w-full overflow-auto rounded-2xl scrollbar-thin scrollbar-thumb-orange-200">
                     {isHistoryPanelOpen ? renderHistoryResults() : renderDesktopSearchResults()}
                   </div>
                 )}
@@ -3033,7 +3033,7 @@ export default function Navbar() {
                 <>
                   <Link
                     to="/notifications"
-                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
+                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.notifications', 'Notifications')}
                   >
                     <Bell size={18} />
@@ -3046,7 +3046,7 @@ export default function Navbar() {
                   {chatEnabled && (
                     <Link
                       to="/orders/messages"
-                      className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
+                      className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                       aria-label={t('nav.messages', 'Messages')}
                     >
                       <MessageSquare size={18} />
@@ -3059,7 +3059,7 @@ export default function Navbar() {
                   )}
                   <Link
                     to="/favorites"
-                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
+                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.favorites', 'Favoris')}
                   >
                     <Heart size={18} />
@@ -3071,7 +3071,7 @@ export default function Navbar() {
                   </Link>
                   <Link
                     to="/cart"
-                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-orange-50 text-[#9A4A00] hover:bg-orange-100 transition-all duration-200"
+                    className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.cart', 'Panier')}
                   >
                     <ShoppingCart size={18} />
@@ -3123,9 +3123,9 @@ export default function Navbar() {
                   </button>
 
                   {/* Dropdown panel: professional layout with sections */}
-                  <div className="hd-menu-panel absolute right-0 mt-2 flex max-h-[min(28rem,calc(100vh-5rem))] w-72 flex-col overflow-hidden rounded-[24px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="hd-menu-panel absolute right-0 mt-2 flex max-h-[min(28rem,calc(100vh-5rem))] w-72 flex-col overflow-hidden rounded-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     {/* User header (fixed at top) */}
-                    <div className="flex-shrink-0 border-b border-orange-100 bg-[#fff7ef] p-4">
+                    <div className="flex-shrink-0 border-b border-gray-200 bg-gray-50 p-4">
                       <div className="flex items-center gap-3">
                         {resolveUserProfileImage(user) ? (
                           <img
@@ -3503,12 +3503,12 @@ export default function Navbar() {
                 {/* MEGA MENU CATÉGORIES */}
                 {isCategoryMenuOpen && (
                   <div 
-                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-[860px] overflow-hidden rounded-[26px]"
+                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-[860px] overflow-hidden rounded-2xl"
                     onMouseEnter={handleCategoryMenuOpen}
                     onMouseLeave={handleCategoryMenuDelayedClose}
                   >
                     <div className="p-5">
-                      <div className="mb-5 rounded-[22px] bg-gradient-to-br from-[#ff4f1f] via-[#ff6a00] to-[#ff922e] p-4 text-white shadow-[0_14px_32px_rgba(255,106,0,0.16)]">
+                      <div className="mb-5 rounded-2xl bg-gradient-to-br from-[#ff4f1f] via-[#ff6a00] to-[#ff922e] p-4 text-white shadow-[0_14px_32px_rgba(255,106,0,0.16)]">
                         <p className="text-xs font-black uppercase tracking-wide text-white/78">
                           {t('nav.categories', 'Catégories')}
                         </p>
@@ -3523,16 +3523,16 @@ export default function Navbar() {
                         {categoryGroups.map((group) => {
                           const Icon = group.icon;
                           return (
-                            <div key={group.id} className="rounded-[20px] border border-orange-100 bg-white p-3 shadow-sm">
+                            <div key={group.id} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
                               <Link
                                 to={`/categories/${group.options?.[0]?.value || ''}`}
                                 onClick={() => setIsCategoryMenuOpen(false)}
-                                className="mb-3 flex items-center gap-2 rounded-2xl p-1 transition hover:bg-orange-50"
+                                className="mb-3 flex items-center gap-2 rounded-2xl p-1 transition hover:bg-gray-100"
                               >
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#FF6A00] ring-1 ring-orange-100">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
                                   {Icon && <Icon className="w-5 h-5" />}
                                 </span>
-                                <h3 className="text-sm font-black text-stone-950">
+                                <h3 className="text-sm font-black text-gray-900">
                                   {group.label}
                                 </h3>
                               </Link>
@@ -3541,7 +3541,7 @@ export default function Navbar() {
                                   <li key={option.value}>
                                     <Link
                                       to={`/categories/${option.value}`}
-                                      className="block rounded-full border border-orange-100 bg-orange-50/70 px-2.5 py-1.5 text-xs font-black text-[#9A4A00] transition hover:bg-orange-100"
+                                      className="block rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-black text-gray-500 transition hover:bg-orange-100"
                                       onClick={() => setIsCategoryMenuOpen(false)}
                                     >
                                       {option.label}
@@ -3552,7 +3552,7 @@ export default function Navbar() {
                                   <li>
                                     <Link
                                       to={`/categories/${group.options?.[0]?.value || ''}`}
-                                      className="block rounded-full border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-black text-stone-600 transition hover:border-orange-100 hover:text-[#FF6A00]"
+                                      className="block rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-black text-gray-600 transition hover:border-gray-200 hover:text-[#FF6A00]"
                                       onClick={() => setIsCategoryMenuOpen(false)}
                                     >
                                       +{group.options.length - 5}
@@ -3564,7 +3564,7 @@ export default function Navbar() {
                           );
                         })}
                       </div>
-                      <div className="mt-5 border-t border-orange-100 pt-4">
+                      <div className="mt-5 border-t border-gray-200 pt-4">
                         <Link
                           to="/products"
                           className="hd-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black"
@@ -3595,7 +3595,7 @@ export default function Navbar() {
                 {/* ENHANCED BOUTIQUES MENU */}
                 {isShopMenuOpen && (
                   <div 
-                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-96 overflow-hidden rounded-[24px]"
+                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-96 overflow-hidden rounded-2xl"
                     onMouseEnter={handleShopMenuOpen}
                     onMouseLeave={handleShopMenuDelayedClose}
                   >
@@ -3756,7 +3756,7 @@ export default function Navbar() {
           className="md:hidden fixed inset-0 z-40 bg-stone-950/35 backdrop-blur-sm"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
         >
-          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-[30px] border border-orange-100 bg-[#fffaf4] shadow-[0_28px_70px_rgba(124,58,0,0.22)] dark:border-orange-900/40 dark:bg-neutral-950">
+          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-[30px] border border-gray-200 bg-gray-50 shadow-[0_28px_70px_rgba(124,58,0,0.22)] dark:border-orange-900/40 dark:bg-neutral-950">
             <div className="h-full overflow-y-auto px-3 py-4 pb-32 space-y-3">
 
               {/* User avatar / profile card */}
@@ -3764,7 +3764,7 @@ export default function Navbar() {
                 <Link
                   to="/profile"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-[24px] border border-orange-100 bg-gradient-to-br from-[#FF6A00] to-[#ff8a2a] px-4 py-4 text-white shadow-[0_16px_38px_rgba(255,106,0,0.28)] transition active:scale-[0.99]"
+                  className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gradient-to-br from-[#FF6A00] to-[#ff8a2a] px-4 py-4 text-white shadow-[0_16px_38px_rgba(255,106,0,0.28)] transition active:scale-[0.99]"
                 >
                   {resolveUserProfileImage(user) ? (
                     <img
@@ -3788,9 +3788,9 @@ export default function Navbar() {
                 <Link
                   to="/login"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-[24px] border border-orange-100 bg-white px-4 py-4 shadow-sm transition active:scale-[0.99] dark:border-orange-900/40 dark:bg-neutral-900"
+                  className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm transition active:scale-[0.99] dark:border-orange-900/40 dark:bg-neutral-900"
                 >
-                  <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center flex-shrink-0 text-[#FF6A00]">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-[#FF6A00]">
                     <User size={24} />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -4399,7 +4399,7 @@ export default function Navbar() {
                     }}
                     onTouchStart={handleBottomBarTouchStart}
                     onTouchEnd={handleBottomBarTouchEnd}
-                    className={`relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 text-stone-500 hover:text-[#FF6A00] active:scale-95 ${
+                    className={`relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 text-gray-500 hover:text-[#FF6A00] active:scale-95 ${
                       isMenuOpen ? 'text-[#FF6A00] scale-105' : ''
                     }`}
                   >
@@ -4459,7 +4459,7 @@ export default function Navbar() {
                     `relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 ${
                       navIsActive
                         ? "text-[#FF6A00] scale-105"
-                        : "text-stone-500 hover:text-[#FF6A00]"
+                        : "text-gray-500 hover:text-[#FF6A00]"
                     }`
                   }
                   onClick={() => {

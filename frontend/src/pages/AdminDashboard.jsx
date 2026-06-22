@@ -281,7 +281,7 @@ function AdminQuickKpiCard({ label, value, helper, icon: Icon, tone = 'slate' })
     purple:
       'bg-purple-500/10 border-purple-200 text-purple-900 dark:border-purple-900/70 dark:bg-purple-500/20 dark:text-purple-100',
     orange:
-      'bg-orange-500/10 border-orange-200 text-orange-900 dark:border-orange-900/70 dark:bg-orange-500/20 dark:text-orange-100',
+      'bg-gray-1000/10 border-gray-200 text-orange-900 dark:border-orange-900/70 dark:bg-gray-1000/20 dark:text-orange-100',
     slate: 'bg-slate-500/10 border-slate-200 text-slate-900 dark:border-slate-700 dark:bg-slate-500/20 dark:text-slate-100'
   };
   const colorClass = toneClasses[tone] || toneClasses.slate;
@@ -1493,7 +1493,7 @@ export default function AdminDashboard() {
   return (
     <div className="glass-page-shell min-h-screen lg:min-h-0">
       <div className="glass-content-spacing mx-auto max-w-7xl space-y-8 py-6 sm:py-8 lg:px-8">
-        <section className="relative overflow-hidden rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] sm:p-6 dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] sm:p-6 dark:border-neutral-800 dark:bg-neutral-950">
           <div className="relative space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">

@@ -452,9 +452,9 @@ export default function WalletPage() {
       <div className="mx-auto grid w-full max-w-6xl gap-3 px-3 pb-24 pt-3 sm:gap-4 sm:px-6 sm:pt-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start lg:gap-5">
         <section className="space-y-3 sm:space-y-4 lg:sticky lg:top-40">
           {loading ? (
-            <div className="h-56 animate-pulse rounded-[24px] bg-white shadow-sm" />
+            <div className="h-56 animate-pulse rounded-2xl bg-white shadow-sm" />
           ) : error ? (
-            <div className="rounded-[24px] border border-red-100 bg-white p-6 text-center shadow-sm">
+            <div className="rounded-2xl border border-red-100 bg-white p-6 text-center shadow-sm">
               <Ban size={36} className="mx-auto mb-3 text-red-300" />
               <p className="text-sm font-bold text-red-600">{t('wallet.error', 'Impossible de charger le portefeuille.')}</p>
               <button onClick={loadWallet} className="mt-3 rounded-full bg-red-50 px-4 py-2 text-xs font-black text-red-700">
@@ -462,7 +462,7 @@ export default function WalletPage() {
               </button>
             </div>
           ) : wallet ? (
-            <div className="overflow-hidden rounded-[22px] bg-[#ff6a00] text-white shadow-[0_18px_46px_rgba(255,106,0,0.22)] sm:rounded-[24px]">
+            <div className="overflow-hidden rounded-2xl bg-[#ff6a00] text-white shadow-[0_18px_46px_rgba(255,106,0,0.22)] sm:rounded-2xl">
               <div className="relative p-4 sm:p-6">
                 <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10" />
                 <div className="absolute -bottom-20 left-1/2 h-44 w-44 rounded-full bg-amber-200/20" />
@@ -504,7 +504,7 @@ export default function WalletPage() {
                 <button
                   type="button"
                   onClick={() => setDepositModal(true)}
-	                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-black text-[#ff6a00] shadow-sm transition hover:bg-orange-50 sm:px-4 sm:py-3"
+	                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-black text-[#ff6a00] shadow-sm transition hover:bg-gray-100 sm:px-4 sm:py-3"
                 >
                   <Plus size={17} />
                   {t('wallet.deposit', 'Déposer')}
@@ -535,26 +535,26 @@ export default function WalletPage() {
             ))}
           </div>
 
-          <div className="rounded-[20px] border border-slate-100 bg-white p-3.5 shadow-sm sm:rounded-[22px] sm:p-4">
+          <div className="rounded-xl border border-slate-100 bg-white p-3.5 shadow-sm sm:rounded-2xl sm:p-4">
             <h3 className="text-sm font-black text-slate-900">{t('wallet.howItWorks', 'Sécurité et usage')}</h3>
             <div className="mt-3 space-y-3 text-xs font-medium text-slate-600">
               <div className="flex gap-3">
-                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[11px] font-black text-[#ff6a00]">1</span>
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-black text-[#ff6a00]">1</span>
                 <p><strong className="text-slate-900">Rechargez</strong> par Mobile Money avec la preuve et le code transaction.</p>
               </div>
               <div className="flex gap-3">
-                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[11px] font-black text-[#ff6a00]">2</span>
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-black text-[#ff6a00]">2</span>
                 <p><strong className="text-slate-900">Payez</strong> vos commandes et annonces directement avec le solde disponible.</p>
               </div>
               <div className="flex gap-3">
-                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[11px] font-black text-[#ff6a00]">3</span>
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-black text-[#ff6a00]">3</span>
                 <p><strong className="text-slate-900">Suivez</strong> les fonds en attente jusqu'à la confirmation ou le remboursement.</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[22px] border border-slate-100 bg-white shadow-sm sm:rounded-[24px]">
+        <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm sm:rounded-2xl">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 sm:px-5 sm:py-4">
             <div>
               <h2 className="flex items-center gap-2 text-base font-black text-slate-900">
@@ -568,7 +568,7 @@ export default function WalletPage() {
             <button
               type="button"
               onClick={() => loadTransactions(1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-orange-50 hover:text-[#ff6a00]"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-gray-100 hover:text-[#ff6a00]"
               aria-label="Actualiser les transactions"
             >
               <RefreshCcw size={15} className={txnLoading ? 'animate-spin' : ''} />
@@ -598,7 +598,7 @@ export default function WalletPage() {
                     className={`shrink-0 rounded-full px-3 py-2 text-[11px] font-black transition sm:text-xs ${
                       active
                         ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)]'
-                        : 'bg-slate-50 text-slate-600 hover:bg-orange-50 hover:text-[#ff6a00]'
+                        : 'bg-slate-50 text-slate-600 hover:bg-gray-100 hover:text-[#ff6a00]'
                     }`}
                   >
                     {filter.label}
@@ -617,8 +617,8 @@ export default function WalletPage() {
                     onClick={() => setTxnStatusFilter(filter.id)}
                     className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition ${
                       active
-                        ? 'border-[#ff6a00] bg-orange-50 text-[#ff6a00]'
-                        : 'border-slate-200 bg-white text-slate-500 hover:border-orange-200 hover:text-[#ff6a00]'
+                        ? 'border-[#ff6a00] bg-gray-100 text-[#ff6a00]'
+                        : 'border-slate-200 bg-white text-slate-500 hover:border-gray-200 hover:text-[#ff6a00]'
                     }`}
                   >
                     {filter.label}
@@ -636,7 +636,7 @@ export default function WalletPage() {
               )}
             </div>
             {hasActiveTransactionFilters && transactions.length > 0 && (
-              <div className="rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2 text-[11px] font-bold leading-snug text-[#9A4A00]">
+              <div className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-2 text-[11px] font-bold leading-snug text-gray-500">
                 Vue filtrée: certaines transactions peuvent être masquées. Utilisez “Tout” ou “Réinitialiser” pour voir tout l’historique.
               </div>
             )}
@@ -691,7 +691,7 @@ export default function WalletPage() {
                   const displayAmount = Number(txn.displayAmount || Math.abs(Number(txn.signedAmount || 0)) || txn.amount || 0);
                   const pendingContext = getPendingTransactionContext(txn);
                   return (
-                    <div key={txn._id} className="rounded-2xl border border-slate-100 bg-white p-2.5 transition hover:border-orange-100 hover:bg-orange-50/30 sm:p-4">
+                    <div key={txn._id} className="rounded-2xl border border-slate-100 bg-white p-2.5 transition hover:border-gray-200 hover:bg-gray-100/30 sm:p-4">
                       <div className="flex items-start gap-2.5 sm:gap-3">
                         <div className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl sm:h-10 sm:w-10 ${isPending ? 'bg-amber-50' : chipClass}`}>
                           <Icon size={15} className={isPending ? 'text-amber-500' : colorClass} />
@@ -756,7 +756,7 @@ export default function WalletPage() {
       {/* Withdraw Modal */}
       {withdrawModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4" onClick={() => setWithdrawModal(false)}>
-          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[28px] sm:p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-slate-950">{t('wallet.withdrawTitle', 'Retirer vers Mobile Money')}</h3>
@@ -766,7 +766,7 @@ export default function WalletPage() {
                 <X size={16} />
               </button>
             </div>
-	            <div className="mt-4 rounded-2xl bg-orange-50 p-3 text-xs font-bold text-[#ff6a00]">
+	            <div className="mt-4 rounded-2xl bg-gray-100 p-3 text-xs font-bold text-[#ff6a00]">
 	              Disponible: {formatPrice(availableBalance)}
 	            </div>
             <div className="mt-4 space-y-3">
@@ -824,7 +824,7 @@ export default function WalletPage() {
       {/* Deposit Modal */}
       {depositModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4" onClick={() => setDepositModal(false)}>
-          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[28px] sm:p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-slate-950">{t('wallet.depositTitle', 'Déposer sur mon portefeuille')}</h3>
@@ -869,7 +869,7 @@ export default function WalletPage() {
                   );
 	                  if (network?.phoneNumber) {
 	                    return (
-	                      <p className="mt-2 rounded-2xl bg-orange-50 px-3 py-2 text-xs font-semibold text-slate-600">
+	                      <p className="mt-2 rounded-2xl bg-gray-100 px-3 py-2 text-xs font-semibold text-slate-600">
 	                        Numéro à utiliser : <span className="font-black text-[#ff6a00]">{network.phoneNumber}</span>
 	                      </p>
 	                    );
@@ -900,7 +900,7 @@ export default function WalletPage() {
 	                  type="button"
 	                  onClick={() => proofInputRef.current?.click()}
 	                  disabled={depositProof.length >= 1}
-	                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 px-3 py-5 text-sm font-bold text-slate-500 transition hover:border-[#ff6a00]/40 hover:bg-orange-50 hover:text-[#ff6a00] disabled:opacity-40"
+	                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 px-3 py-5 text-sm font-bold text-slate-500 transition hover:border-[#ff6a00]/40 hover:bg-gray-100 hover:text-[#ff6a00] disabled:opacity-40"
 	                >
                   <Upload size={16} />
                   {depositProof.length === 0

@@ -1586,7 +1586,7 @@ export default function ProductForm(props) {
         if (!disabled) onChange?.(!checked);
       }}
       className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:ring-offset-2 ${
-        checked ? 'border-[#ff6a00] bg-[#ff6a00]' : 'border-orange-100 bg-orange-50'
+        checked ? 'border-[#ff6a00] bg-[#ff6a00]' : 'border-gray-200 bg-gray-100'
       } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-95'}`}
     >
       <span
@@ -1597,10 +1597,10 @@ export default function ProductForm(props) {
     </button>
   );
   const sectionShellClass =
-    'hd-form-card rounded-[22px] p-4 sm:p-5';
-  const innerPanelClass = 'rounded-2xl border border-orange-100 bg-orange-50/45 p-4';
+    'hd-form-card rounded-2xl p-4 sm:p-5';
+  const innerPanelClass = 'rounded-2xl border border-gray-200 bg-gray-100/45 p-4';
   const inputClass =
-    'ui-input w-full min-w-0 rounded-[18px] px-4 py-3 text-sm text-gray-900 placeholder-gray-400';
+    'ui-input w-full min-w-0 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400';
   const sectionProgressItems = [
     { key: 'info', label: 'Infos', done: requiredFields.title && requiredFields.description },
     { key: 'price', label: 'Prix', done: requiredFields.category && requiredFields.price },
@@ -2885,7 +2885,7 @@ export default function ProductForm(props) {
             )}
           </div>
         ) : (
-          <div className="rounded-[22px] border border-dashed border-neutral-200 bg-white p-4 text-sm text-gray-500 shadow-sm">
+          <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-4 text-sm text-gray-500 shadow-sm">
             <p className="font-semibold text-gray-700">Vidéo réservée aux boutiques certifiées</p>
             <p>
               Contactez un administrateur via{' '}
@@ -3163,7 +3163,7 @@ export default function ProductForm(props) {
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="hd-soft-button w-full min-h-[46px] rounded-[18px] text-sm font-semibold"
+                  className="hd-soft-button w-full min-h-[46px] rounded-xl text-sm font-semibold"
                 >
                   Annuler
                 </button>
@@ -3172,7 +3172,7 @@ export default function ProductForm(props) {
             <button
               type="submit"
               disabled={submitDisabled}
-              className="hd-primary-button flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[20px] py-4 text-[17px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="hd-primary-button flex min-h-[54px] w-full items-center justify-center gap-2 rounded-xl py-4 text-[17px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -3191,7 +3191,7 @@ export default function ProductForm(props) {
           <button
             type="submit"
             disabled={submitDisabled}
-            className="hd-primary-button flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="hd-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>

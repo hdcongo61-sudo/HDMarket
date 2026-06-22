@@ -215,7 +215,7 @@ function PermissionPill({ permissionKey }) {
 function PermissionSwitch({ permission, checked, onToggle, disabled }) {
   const Icon = permission.icon;
   return (
-    <label className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${checked ? 'border-[#FF6A00]/30 bg-orange-50/50' : 'border-gray-100 bg-white hover:bg-gray-50'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
+    <label className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${checked ? 'border-[#FF6A00]/30 bg-gray-100/50' : 'border-gray-100 bg-white hover:bg-gray-50'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
       <input
         type="checkbox"
         checked={checked}
@@ -292,7 +292,7 @@ function WorkspaceOrderRow({ order }) {
   return (
     <Link
       to={`/seller/orders/detail/${order?._id}`}
-      className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 transition hover:border-[#FF6A00]/30 hover:bg-orange-50"
+      className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 transition hover:border-[#FF6A00]/30 hover:bg-gray-100"
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[#FF6A00]">
         <Package size={17} />
@@ -317,7 +317,7 @@ function WorkspaceTaskCard({ title, description, count, icon: Icon, to, tone = '
       ? 'bg-red-50 text-red-700 ring-red-100'
       : tone === 'amber'
         ? 'bg-amber-50 text-amber-700 ring-amber-100'
-        : 'bg-orange-50 text-[#FF6A00] ring-orange-100';
+        : 'bg-gray-100 text-[#FF6A00] ring-gray-200';
   return (
     <Link to={to} className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm transition hover:border-[#FF6A00]/30 hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
@@ -699,7 +699,7 @@ function AssistantProductsView() {
                     type="button"
                     onClick={() => sendRequest(product, 'update')}
                     disabled={Boolean(requestingId)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-[#B45309] disabled:opacity-60"
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-bold text-[#B45309] disabled:opacity-60"
                   >
                     {updatePending ? <Loader2 size={14} className="animate-spin" /> : <Edit3 size={14} />}
                     Demander modification
@@ -973,7 +973,7 @@ function OwnerView({ shopId }) {
                 key={preset.key}
                 type="button"
                 onClick={() => applyPreset(preset)}
-                className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-[#FF6A00]/30 hover:bg-orange-50"
+                className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-[#FF6A00]/30 hover:bg-gray-100"
               >
                 <p className="text-sm font-black text-gray-900">{preset.label}</p>
                 <p className="mt-1 text-xs leading-5 text-gray-500">{preset.description}</p>
@@ -1230,7 +1230,7 @@ function AssistantView() {
                     <Link
                       key={link.to}
                       to={link.to}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3 text-sm font-bold text-gray-800 hover:bg-orange-50 hover:text-[#FF6A00]"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3 text-sm font-bold text-gray-800 hover:bg-gray-100 hover:text-[#FF6A00]"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Icon size={16} />

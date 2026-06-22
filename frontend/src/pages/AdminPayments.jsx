@@ -115,7 +115,7 @@ const metricToneClasses = {
   red: 'border-red-200 bg-red-50 text-red-700',
   blue: 'border-sky-200 bg-sky-50 text-sky-700',
   indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-  orange: 'border-orange-200 bg-orange-50 text-orange-700'
+  orange: 'border-gray-200 bg-gray-100 text-orange-700'
 };
 
 const DashboardCard = ({ label, value, hint, icon: Icon, tone = 'neutral' }) => (
@@ -1795,7 +1795,7 @@ export default function AdminPayments() {
 	            href={proofPreviewUrl}
 	            target="_blank"
 	            rel="noopener noreferrer"
-	            className="absolute left-4 top-4 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-900 transition hover:bg-orange-50"
+	            className="absolute left-4 top-4 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-900 transition hover:bg-gray-100"
 	          >
 	            Ouvrir l'original
 	          </a>

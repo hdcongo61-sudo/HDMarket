@@ -66,7 +66,7 @@ export default function TopDeals() {
   return (
     <div className="hd-products-flow">
     <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 md:px-8 space-y-6">
-      <header className="hd-products-hero rounded-[28px] p-5 text-white sm:p-6">
+      <header className="hd-products-hero rounded-2xl p-5 text-white sm:p-6">
         <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Promotions</p>
         <h1 className="text-2xl md:text-3xl font-black text-white">Bonnes affaires</h1>
         <p className="mt-2 text-sm text-white/86">
@@ -96,7 +96,7 @@ export default function TopDeals() {
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-500 shadow-sm active:scale-95"
               >
                 Charger plus
               </button>

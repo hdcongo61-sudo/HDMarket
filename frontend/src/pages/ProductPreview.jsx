@@ -293,19 +293,19 @@ export default function ProductPreview() {
   return (
     <div className="min-h-screen bg-[#f6f3ee] text-slate-950">
       <div className="mx-auto w-full max-w-7xl pb-24">
-        <header className="sticky top-0 z-30 border-b border-orange-100/80 bg-[#fffaf4]/95 px-3 py-3 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-gray-200/80 bg-gray-50/95 px-3 py-3 backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => navigate(-1)}
               aria-label="Retour"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-orange-100 active:scale-95"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-gray-200 active:scale-95"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <Link
               to="/products"
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2.5 text-sm font-black text-slate-500 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-orange-100"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2.5 text-sm font-black text-slate-500 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-gray-200"
             >
               <Eye className="h-4 w-4 text-[#ff6a00]" />
               <span className="truncate">Explorer HDMarket</span>
@@ -316,7 +316,7 @@ export default function ProductPreview() {
         <main className="space-y-3 px-2.5 pt-3">
         {loading ? (
           <div className="space-y-3">
-            <div className="animate-pulse overflow-hidden rounded-[28px] bg-white shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+            <div className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
               <div className="aspect-[4/3] bg-orange-100/70" />
               <div className="space-y-3 p-4">
                 <div className="h-4 w-3/4 rounded-full bg-stone-200" />
@@ -335,7 +335,7 @@ export default function ProductPreview() {
             </div>
           </div>
         ) : error ? (
-          <div className="rounded-[28px] border border-red-100 bg-white p-8 text-center shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+          <div className="rounded-2xl border border-red-100 bg-white p-8 text-center shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
               <Zap className="h-7 w-7 text-red-500" />
             </div>
@@ -350,9 +350,9 @@ export default function ProductPreview() {
           </div>
         ) : product ? (
           <div className="space-y-3">
-            <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_18px_40px_rgba(117,75,36,0.10)]">
+            <section className="overflow-hidden rounded-2xl bg-white shadow-[0_18px_40px_rgba(117,75,36,0.10)]">
               <Link to={productLink} state={{ previewBackPath }} className="group block">
-                <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
+                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                   <img
                     src={primaryImage}
                     alt={product.title}
@@ -377,7 +377,7 @@ export default function ProductPreview() {
                           {formatCurrency(product.price)}
                         </p>
                         {hasProductDiscount ? (
-                          <p className="text-sm font-bold text-stone-400 line-through">
+                          <p className="text-sm font-bold text-gray-400 line-through">
                             {formatCurrency(product.priceBeforeDiscount)}
                           </p>
                         ) : null}
@@ -386,12 +386,12 @@ export default function ProductPreview() {
                         {product.title}
                       </h1>
                     </div>
-                    <span className="inline-flex shrink-0 items-center rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-[#9a4a00] ring-1 ring-orange-100">
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-500 ring-1 ring-gray-200">
                       Voir
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-black text-stone-600">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-black text-gray-600">
                     {productRatingAverage > 0 ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-amber-700">
                         <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
@@ -399,13 +399,13 @@ export default function ProductPreview() {
                       </span>
                     ) : null}
                     {product?.commentCount > 0 ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-stone-50 px-2 py-1">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-1">
                         <MessageCircle className="h-3.5 w-3.5" />
                         {formatCount(product.commentCount)}
                       </span>
                     ) : null}
                     {cityLabel ? (
-                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-stone-50 px-2 py-1">
+                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-gray-50 px-2 py-1">
                         <MapPin className="h-3.5 w-3.5 text-[#ff6a00]" />
                         <span className="max-w-[160px] truncate">{cityLabel}</span>
                       </span>
@@ -415,28 +415,28 @@ export default function ProductPreview() {
               </Link>
 
               {shopName ? (
-                <div className="border-t border-stone-100 px-4 py-3">
+                <div className="border-t border-gray-100 px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-orange-100">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-gray-200">
                       <Store className="h-5 w-5" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-slate-950">{shopName}</p>
-                      <p className="flex items-center gap-1 text-[11px] font-bold text-stone-500">
+                      <p className="flex items-center gap-1 text-[11px] font-bold text-gray-500">
                         <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
                         Boutique reliée au produit
                       </p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-stone-400" />
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
                   </div>
                 </div>
               ) : null}
 
-              <div className="grid grid-cols-[1fr_1.45fr] gap-2 border-t border-stone-100 p-3">
+              <div className="grid grid-cols-[1fr_1.45fr] gap-2 border-t border-gray-100 p-3">
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
-                  className="min-h-[48px] rounded-full bg-stone-100 text-sm font-black text-slate-800 active:scale-[0.98]"
+                  className="min-h-[48px] rounded-full bg-gray-100 text-sm font-black text-slate-800 active:scale-[0.98]"
                 >
                   Retour
                 </button>
@@ -451,13 +451,13 @@ export default function ProductPreview() {
               </div>
             </section>
 
-            <section className="rounded-[28px] bg-white p-3 shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+            <section className="rounded-2xl bg-white p-3 shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
               <div className="mb-3 flex items-center justify-between px-1">
                 <div>
                   <h2 className="text-lg font-black text-slate-950">Produits à découvrir</h2>
-                  <p className="text-xs font-semibold text-stone-500">Sélection rapide en 3 colonnes</p>
+                  <p className="text-xs font-semibold text-gray-500">Sélection rapide en 3 colonnes</p>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1.5 text-[11px] font-black text-[#9a4a00] ring-1 ring-orange-100">
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1.5 text-[11px] font-black text-gray-500 ring-1 ring-gray-200">
                   <Sparkles className="h-3.5 w-3.5" />
                   Découverte
                 </span>
@@ -468,7 +468,7 @@ export default function ProductPreview() {
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((item) => (
                     <div
                       key={`preview-related-skeleton-${item}`}
-                      className="animate-pulse overflow-hidden rounded-2xl bg-stone-50 p-1.5"
+                      className="animate-pulse overflow-hidden rounded-2xl bg-gray-50 p-1.5"
                     >
                       <div className="aspect-square w-full rounded-xl bg-stone-200" />
                       <div className="mt-2 h-3 w-4/5 rounded bg-stone-200" />
@@ -488,9 +488,9 @@ export default function ProductPreview() {
                         key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
                         to={buildPreviewLink(pick.product)}
                         state={{ previewBackPath }}
-                        className="group overflow-hidden rounded-2xl bg-white p-1.5 shadow-[0_8px_18px_rgba(117,75,36,0.07)] ring-1 ring-stone-100 transition active:scale-[0.97]"
+                        className="group overflow-hidden rounded-2xl bg-white p-1.5 shadow-[0_8px_18px_rgba(117,75,36,0.07)] ring-1 ring-gray-100 transition active:scale-[0.97]"
                       >
-                        <div className="relative aspect-square overflow-hidden rounded-xl bg-stone-100">
+                        <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
                           <img
                             src={pick.image}
                             alt={pick.product?.title || 'Produit'}
@@ -510,7 +510,7 @@ export default function ProductPreview() {
                           <p className="mt-1 truncate text-sm font-black leading-none text-[#ff6a00]">
                             {formatCurrency(pick.product?.price)}
                           </p>
-                          <div className="mt-1 flex min-h-[16px] items-center gap-1 text-[9px] font-bold text-stone-500">
+                          <div className="mt-1 flex min-h-[16px] items-center gap-1 text-[9px] font-bold text-gray-500">
                             {pickRatingAverage > 0 ? (
                               <span className="inline-flex items-center gap-0.5">
                                 <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
@@ -525,12 +525,12 @@ export default function ProductPreview() {
                   })}
                 </div>
               ) : (
-                <div className="rounded-3xl border border-dashed border-orange-100 bg-orange-50/40 p-8 text-center">
+                <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#ff6a00] shadow-sm">
                     <Sparkles className="h-7 w-7" />
                   </div>
                   <p className="text-sm font-black text-slate-800">Aucune inspiration pour le moment</p>
-                  <p className="mt-1 text-xs font-semibold text-stone-500">
+                  <p className="mt-1 text-xs font-semibold text-gray-500">
                     D'autres produits similaires apparaîtront ici.
                   </p>
                 </div>

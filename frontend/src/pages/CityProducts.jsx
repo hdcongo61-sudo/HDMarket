@@ -155,7 +155,7 @@ export default function CityProducts() {
   return (
     <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
-        <header className="hd-products-hero flex flex-col gap-3 rounded-[28px] p-5 text-white sm:gap-4 sm:p-6 md:flex-row md:items-end md:justify-between">
+        <header className="hd-products-hero flex flex-col gap-3 rounded-2xl p-5 text-white sm:gap-4 sm:p-6 md:flex-row md:items-end md:justify-between">
           <div>
             <button
               onClick={() => navigate(-1)}
@@ -178,7 +178,7 @@ export default function CityProducts() {
               id="city-select"
               value={selectedCity}
               onChange={(event) => setSelectedCity(event.target.value)}
-              className="rounded-full border border-white/30 bg-white px-3 py-2 text-sm font-black text-stone-800 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/30"
+              className="rounded-full border border-white/30 bg-white px-3 py-2 text-sm font-black text-gray-800 focus:border-white focus:outline-none focus:ring-2 focus:ring-white/30"
             >
               {cityOptions.map((city) => (
                 <option key={city} value={city}>

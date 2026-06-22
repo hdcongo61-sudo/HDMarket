@@ -59,7 +59,7 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
   }
 
   return (
-    <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
       <h3 className="text-sm font-bold text-gray-900">Évaluez votre expérience</h3>
       <p className="mt-0.5 text-xs text-gray-500">Votre avis aide les autres acheteurs et motive les vendeurs.</p>
 
@@ -175,7 +175,7 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
           placeholder="Partagez votre expérience (optionnel)..."
           maxLength={500}
           rows={2}
-          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs focus:border-orange-300 focus:outline-none focus:ring-1 focus:ring-orange-200"
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs focus:border-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-200"
         />
       </div>
 
@@ -187,7 +187,7 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
         type="button"
         onClick={handleSubmit}
         disabled={!canSubmit || submitting}
-        className="mt-3 w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-3 w-full rounded-xl bg-gray-1000 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {submitting ? 'Envoi...' : 'Envoyer mon avis'}
       </button>

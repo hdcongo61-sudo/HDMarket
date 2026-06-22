@@ -45,7 +45,7 @@ const STATUS_CLASSES = {
   delivery_proof_submitted: 'bg-violet-100 text-violet-800 border-violet-200',
   confirmed_by_client: 'bg-teal-100 text-teal-800 border-teal-200',
   pending: 'bg-gray-100 text-gray-700 border-gray-200',
-  pending_installment: 'bg-orange-100 text-orange-800 border-orange-200',
+  pending_installment: 'bg-orange-100 text-orange-800 border-gray-200',
   installment_active: 'bg-lime-100 text-lime-800 border-lime-200',
   overdue_installment: 'bg-rose-100 text-rose-800 border-rose-200',
   dispute_opened: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',

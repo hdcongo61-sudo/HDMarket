@@ -50,7 +50,7 @@ export default function TopUsedProducts() {
   return (
     <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 md:px-8 md:pb-16 space-y-6">
-        <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] sm:p-6">
+        <header className="hd-products-hero rounded-2xl p-5 text-white shadow-[0_18px_46px_rgba(15,23,42,0.08)] sm:p-6">
           <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Occasion</p>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">Produits d&apos;occasion</h1>
           <p className="mt-2 max-w-2xl text-sm text-white/86">

@@ -4,7 +4,7 @@ import { ShimmerBlock } from '../ui/ShimmerSkeleton';
 
 export default function ShopLoadingSkeleton() {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-4 pb-24 sm:px-6">
+    <main className="mx-auto max-w-7xl bg-[#f5f5f5] px-4 py-4 pb-24 dark:bg-neutral-950 sm:px-6">
       <GlassCard className="mb-4">
         <ShimmerBlock className="h-5 w-1/3" />
         <ShimmerBlock className="mt-2 h-4 w-1/2" />

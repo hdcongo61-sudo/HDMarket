@@ -1858,7 +1858,7 @@ export default function UserDashboard() {
 
                           {/* Installment expired warning */}
                           {isInstallmentExpired && (
-                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-orange-600 bg-orange-50 rounded px-2 py-1">
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-orange-600 bg-gray-100 rounded px-2 py-1">
                               <AlertTriangle className="w-3 h-3 flex-shrink-0" />
                               <span className="font-semibold">Tranche expirée · {formatDate(product.installmentEndDate)}</span>
                               <button type="button"
@@ -1930,7 +1930,7 @@ export default function UserDashboard() {
                         : isSelected
                         ? 'border-neutral-500 ring-2 ring-neutral-200'
                         : isInstallmentExpired
-                        ? 'border-orange-400 ring-2 ring-orange-100'
+                        ? 'border-orange-400 ring-2 ring-gray-200'
                         : isTopPerformer
                         ? 'border-yellow-400 ring-2 ring-yellow-200'
                         : 'border-gray-100'
@@ -2053,7 +2053,7 @@ export default function UserDashboard() {
 
                       {/* Expired installment warning - Grid View */}
                       {isInstallmentExpired && (
-                        <div className="rounded-xl border border-orange-300 bg-orange-50 p-3 flex flex-col gap-2">
+                        <div className="rounded-xl border border-gray-200 bg-gray-100 p-3 flex flex-col gap-2">
                           <div className="flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
                             <div className="flex-1 min-w-0">
@@ -2065,7 +2065,7 @@ export default function UserDashboard() {
                             <button
                               type="button"
                               onClick={() => { setEditingProduct(product); setProductModalOpen(true); }}
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-1000 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
                             >
                               <CalendarClock className="w-3.5 h-3.5" />
                               Prolonger
@@ -2247,8 +2247,8 @@ export default function UserDashboard() {
         rootClassName={isMobile ? '!p-0 hd-my-flow' : 'hd-my-flow'}
         panelClassName={
           isMobile
-            ? 'min-h-0 h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-[#fff7ef] sm:rounded-none'
-            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl border-orange-100 bg-[#fffaf4]'
+            ? 'min-h-0 h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-gray-50 sm:rounded-none'
+            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl border-gray-200 bg-gray-50'
         }
       >
             {/* Modal Header */}

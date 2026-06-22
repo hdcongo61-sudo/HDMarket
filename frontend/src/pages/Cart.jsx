@@ -194,7 +194,7 @@ export default function Cart() {
   return ( 
     <main className="hd-products-flow min-h-screen">
       <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 lg:px-8 space-y-5 sm:space-y-7">
-      <header className="hd-products-hero rounded-[28px] p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
+      <header className="hd-products-hero rounded-2xl p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-black uppercase tracking-wide text-white/76">Commande</p>
@@ -315,25 +315,25 @@ export default function Cart() {
       </BaseModal>
 
       {error && (
-        <div className="rounded-[24px] border border-red-200 bg-red-50 p-4 shadow-sm sm:p-5">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm sm:p-5">
           <p className="text-red-700 text-sm font-semibold">{error}</p>
         </div>
       )}
 
       {loading && items.length === 0 ? (
-        <div className="flex items-center justify-center rounded-[28px] border border-orange-100 bg-white/86 py-16 shadow-sm">
+        <div className="flex items-center justify-center rounded-2xl border border-gray-200 bg-white py-16 shadow-sm">
           <div className="flex items-center gap-3 text-gray-600">
             <div className="w-6 h-6 border-2 border-[#FF6A00] border-t-transparent rounded-full animate-spin" />
             <span className="font-medium">Chargement du panier...</span>
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-[28px] border border-orange-100 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:py-16">
-          <div className="w-24 h-24 bg-orange-50 rounded-[28px] flex items-center justify-center mx-auto mb-6 ring-1 ring-orange-100">
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:py-16">
+          <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-gray-200">
             <ShoppingBagIcon className="w-12 h-12 text-[#FF6A00]" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-stone-950 mb-3">Panier vide</h2>
-          <p className="text-stone-600 mb-8 max-w-sm mx-auto font-medium">
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Panier vide</h2>
+          <p className="text-gray-600 mb-8 max-w-sm mx-auto font-medium">
             Votre panier est vide. Découvrez nos produits et ajoutez vos articles préférés.
           </p>
           <Link
@@ -360,7 +360,7 @@ export default function Cart() {
               return (
                 <div
                   key={cartItemKey}
-                  className="group rounded-[24px] border border-orange-100 bg-white p-3 shadow-[0_12px_32px_rgba(117,75,36,0.07)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(117,75,36,0.11)] sm:p-5"
+                  className="group rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_12px_32px_rgba(117,75,36,0.07)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(117,75,36,0.11)] sm:p-5"
                 >
                   <div className="flex gap-3 sm:gap-5">
                     {/* Product Image Enhanced - Much Smaller on Mobile */}
@@ -368,7 +368,7 @@ export default function Cart() {
                       <Link
                         to={buildProductPath(product)}
                         {...externalLinkProps}
-                        className="block relative overflow-hidden rounded-[18px] aspect-square bg-orange-50 transition-all duration-300"
+                        className="block relative overflow-hidden rounded-xl aspect-square bg-gray-100 transition-all duration-300"
                       >
                         <img
                           src={product.images?.[0] || 'https://via.placeholder.com/300'}
@@ -391,11 +391,11 @@ export default function Cart() {
                   <Link
                     to={buildProductPath(product)}
                     {...externalLinkProps}
-                    className="line-clamp-2 text-sm font-black text-stone-950 transition-colors hover:text-[#FF6A00] sm:text-lg"
+                    className="line-clamp-2 text-sm font-black text-gray-900 transition-colors hover:text-[#FF6A00] sm:text-lg"
                   >
                             {product.title}
                           </Link>
-                          <p className="text-[11px] sm:text-sm text-stone-500 font-semibold">Catégorie : <span className="text-stone-800">{product.category}</span></p>
+                          <p className="text-[11px] sm:text-sm text-gray-500 font-semibold">Catégorie : <span className="text-gray-800">{product.category}</span></p>
                           <SelectedAttributesList
                             selectedAttributes={item.selectedAttributes}
                             compact
@@ -421,8 +421,8 @@ export default function Cart() {
                         </div>
 
                         <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-end">
-                          <div className="rounded-[20px] border border-orange-100 bg-[#fff7ed] p-1.5 shadow-[0_8px_20px_rgba(255,106,0,0.08)]">
-                            <div className="mb-1 flex items-center justify-center gap-1 px-2 text-[10px] font-black uppercase tracking-wide text-[#9A4A00]">
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-1.5 shadow-[0_8px_20px_rgba(255,106,0,0.08)]">
+                            <div className="mb-1 flex items-center justify-center gap-1 px-2 text-[10px] font-black uppercase tracking-wide text-gray-500">
                               Qté
                               {pending[cartItemKey] ? (
                                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#FF6A00]" />
@@ -431,7 +431,7 @@ export default function Cart() {
                             <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-800 shadow-sm ring-1 ring-orange-100 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
+                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-gray-800 shadow-sm ring-1 ring-gray-200 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity - 1)}
                               disabled={disableAll || quantity <= 1}
                               aria-label="Diminuer la quantité"
@@ -445,7 +445,7 @@ export default function Cart() {
                                 min="1"
                                 inputMode="numeric"
                                 aria-label="Quantité"
-                                className="h-10 w-full rounded-full border border-orange-200 bg-white text-center text-base font-black text-slate-950 shadow-inner outline-none transition focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100 disabled:bg-stone-50 disabled:text-stone-400"
+                                className="h-10 w-full rounded-full border border-gray-200 bg-white text-center text-base font-black text-slate-950 shadow-inner outline-none transition focus:border-[#FF6A00] focus:ring-2 focus:ring-gray-200 disabled:bg-gray-50 disabled:text-gray-400"
                                 value={quantity}
                                 onChange={(e) => changeQuantity(item, e.target.value)}
                                 disabled={disableAll}
@@ -454,7 +454,7 @@ export default function Cart() {
                             
                             <button
                               type="button"
-                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-stone-800 shadow-sm ring-1 ring-orange-100 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
+                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-gray-800 shadow-sm ring-1 ring-gray-200 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
                               onClick={() => changeQuantity(item, quantity + 1)}
                               disabled={disableAll}
                               aria-label="Augmenter la quantité"
@@ -465,9 +465,9 @@ export default function Cart() {
                           </div>
 
                           {/* Line Total Enhanced - Much Smaller on Mobile */}
-                          <div className="rounded-2xl border border-orange-100 bg-white px-3 py-2 text-right">
-                            <span className="block text-[10px] font-bold text-stone-500">Sous-total</span>
-                            <div className="text-sm font-black text-stone-950 sm:text-lg">
+                          <div className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-right">
+                            <span className="block text-[10px] font-bold text-gray-500">Sous-total</span>
+                            <div className="text-sm font-black text-gray-900 sm:text-lg">
                               {formatPrice(lineTotal)}
                             </div>
                           </div>
@@ -475,7 +475,7 @@ export default function Cart() {
                       </div>
 
                       {/* Actions Enhanced - Compact Design for Mobile */}
-                      <div className="flex items-center gap-2 border-t border-orange-100 pt-3 w-full">
+                      <div className="flex items-center gap-2 border-t border-gray-200 pt-3 w-full">
                         {whatsappLink && (
                           <button
                             type="button"
@@ -519,14 +519,14 @@ export default function Cart() {
 
           {/* Order Summary Enhanced */}
           <div className="space-y-4">
-            <div className="sticky top-6 rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_18px_45px_rgba(117,75,36,0.09)] sm:p-6">
-              <h2 className="mb-5 text-xl font-black text-stone-950">Résumé</h2>
+            <div className="sticky top-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(117,75,36,0.09)] sm:p-6">
+              <h2 className="mb-5 text-xl font-black text-gray-900">Résumé</h2>
               
               <div className="space-y-4">
                 {/* Items Count Enhanced */}
-                <div className="flex justify-between items-center rounded-2xl bg-orange-50/70 px-4 py-3">
-                  <span className="text-stone-700 font-semibold">Articles ({totals.quantity})</span>
-                  <span className="font-black text-stone-950 text-lg">{formatPrice(totals.subtotal)}</span>
+                <div className="flex justify-between items-center rounded-2xl bg-gray-50 px-4 py-3">
+                  <span className="text-gray-700 font-semibold">Articles ({totals.quantity})</span>
+                  <span className="font-black text-gray-900 text-lg">{formatPrice(totals.subtotal)}</span>
                 </div>
 
                 {/* Savings Enhanced */}
@@ -538,22 +538,22 @@ export default function Cart() {
                 )}
 
                 {/* Shipping Estimate Enhanced */}
-                <div className="flex justify-between items-center rounded-2xl border border-orange-100 bg-white px-4 py-3">
-                  <span className="text-stone-700 font-semibold">Livraison estimée</span>
+                <div className="flex justify-between items-center rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                  <span className="text-gray-700 font-semibold">Livraison estimée</span>
                   <span className="font-black text-[#FF6A00]">À confirmer</span>
                 </div>
 
                 {/* Divider Enhanced */}
-                <div className="border-t border-orange-100 pt-5">
+                <div className="border-t border-gray-200 pt-5">
                   <div className="flex justify-between items-center">
-                    <span className="text-xl font-black text-stone-950">Total</span>
+                    <span className="text-xl font-black text-gray-900">Total</span>
                     <span className="text-3xl font-black text-[#FF6A00]">{formatPrice(totals.subtotal)}</span>
                   </div>
                 </div>
 
                 {/* Info Note Enhanced */}
-                <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-4">
-                  <p className="text-center text-xs font-semibold leading-relaxed text-stone-700">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-center text-xs font-semibold leading-relaxed text-gray-700">
                     Les paiements sont sécurisés et gérés après validation des annonces.
                     Contactez directement les vendeurs pour finaliser vos achats.
                   </p>
@@ -573,9 +573,9 @@ export default function Cart() {
             </div>
 
             {/* Security Badges Enhanced */}
-            <div className="rounded-[24px] border border-orange-100 bg-white p-5 text-center shadow-sm">
-              <h3 className="font-black text-stone-950 mb-4">Achat protégé</h3>
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-3 text-stone-600">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 text-center shadow-sm">
+              <h3 className="font-black text-gray-900 mb-4">Achat protégé</h3>
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-3 text-gray-600">
                 <div className="text-xs font-semibold">Paiement vérifié</div>
                 <div className="text-xs font-semibold">Livraison suivie</div>
                 <div className="text-xs font-semibold">Support HDMarket</div>

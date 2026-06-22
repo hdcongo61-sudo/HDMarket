@@ -9,7 +9,7 @@ export default function NetworkFallbackCard({
   refreshLabel = 'Refresh page'
 }) {
   return (
-    <section className="glass-card rounded-[24px] p-4 shadow-sm sm:p-5">
+    <section className="glass-card rounded-2xl p-4 shadow-sm sm:p-5">
       <p className="text-sm font-semibold text-slate-900 dark:text-white">{title}</p>
       <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{message}</p>
       <div className="mt-3 flex flex-wrap gap-2">

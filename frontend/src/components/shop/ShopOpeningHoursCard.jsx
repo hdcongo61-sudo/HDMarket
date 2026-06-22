@@ -6,25 +6,25 @@ export default function ShopOpeningHoursCard({ openingSummary, isCertifiedShop, 
   const hours = openingSummary?.normalizedHours || [];
 
   return (
-    <div className="min-w-0 space-y-3 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+          <p className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
             {t('shop_profile.opening_hours', "Horaires d'ouverture")}
           </p>
-          <p className="mt-1 truncate text-sm font-semibold text-neutral-950 dark:text-white">
+          <p className="mt-1 truncate pl-2.5 text-xs font-semibold text-gray-500 dark:text-neutral-400">
             {openingSummary?.statusText}
           </p>
         </div>
         {isCertifiedShop && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 max-[360px]:text-[10px] dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 max-[360px]:text-[10px] dark:bg-emerald-500/10 dark:text-emerald-300">
             <ShieldCheck size={12} />
             {t('shop_profile.verified', 'Vérifiée')}
           </span>
         )}
       </div>
 
-      <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="rounded border border-gray-100 bg-gray-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <p className="inline-flex min-w-0 items-center gap-1 text-xs text-neutral-600 dark:text-neutral-300">
             <Clock size={13} />

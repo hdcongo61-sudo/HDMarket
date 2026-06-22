@@ -381,7 +381,7 @@ export default function AdminFeedback() {
         />
 
         {isAdmin && showReaders && (
-          <section className="space-y-4 rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <section className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-neutral-950 dark:text-white">Lecteurs d’avis autorisés</h2>
               <button
@@ -472,7 +472,7 @@ export default function AdminFeedback() {
           </section>
         )}
 
-        <section className="space-y-4 rounded-[24px] border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <AdminSegmentedControl
               className="border-0 bg-transparent p-0 shadow-none"
@@ -508,7 +508,7 @@ export default function AdminFeedback() {
               ))}
             </div>
           ) : items.length === 0 ? (
-            <div className="rounded-[24px] border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+            <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
               <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
                 <MessageSquare className="h-5 w-5" />
               </div>
@@ -522,7 +522,7 @@ export default function AdminFeedback() {
                 return (
                   <article
                     key={item._id}
-                    className="space-y-3 rounded-[22px] border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950"
+                    className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950"
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="space-y-1">

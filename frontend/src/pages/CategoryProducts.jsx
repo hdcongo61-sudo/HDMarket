@@ -288,24 +288,24 @@ export default function CategoryProducts() {
     return (
       <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 md:px-8 space-y-6">
-        <div className="hd-products-hero rounded-[28px] p-5 text-white sm:p-7">
+        <div className="hd-products-hero rounded-2xl p-5 text-white sm:p-7">
           <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Catégories</p>
           <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">Catégorie introuvable</h1>
           <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/86">
             Cette catégorie n’existe pas ou n’est plus disponible. Parcourez nos univers populaires ci-dessous.
           </p>
         </div>
-        <div className="rounded-[28px] border border-orange-100 bg-white p-4 shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-5">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categoryGroups.map((groupItem) => (
-              <div key={groupItem.id} className="rounded-[22px] border border-orange-100 bg-orange-50/40 p-4">
-                <h3 className="text-sm font-black text-stone-950 mb-3">{groupItem.label}</h3>
+              <div key={groupItem.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <h3 className="text-sm font-black text-gray-900 mb-3">{groupItem.label}</h3>
                 <div className="flex flex-wrap gap-2">
                   {groupItem.options.map((option) => (
                     <Link
                       key={option.value}
                       to={`/categories/${option.value}`}
-                      className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-white px-3 py-1.5 text-xs font-black text-[#9A4A00] hover:bg-orange-50 transition-colors"
+                      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-black text-gray-500 hover:bg-gray-100 transition-colors"
                     >
                       {option.label}
                       <ChevronRight className="w-3 h-3" />
@@ -361,7 +361,7 @@ export default function CategoryProducts() {
           <span className="text-gray-900 font-semibold">{categoryMeta.label}</span>
         </nav>
 
-        <div className="hd-products-hero rounded-[28px] border border-neutral-200 p-4 text-white shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
+        <div className="hd-products-hero rounded-2xl border border-neutral-200 p-4 text-white shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
               <p className="mb-1 text-xs font-bold uppercase tracking-wide text-white/78">
@@ -426,7 +426,7 @@ export default function CategoryProducts() {
         </div>
 
         {group && (
-          <div className="hd-products-toolbar overflow-x-auto rounded-[22px] p-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="hd-products-toolbar overflow-x-auto rounded-2xl p-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex min-w-max gap-2">
               {group.options.map((option) => {
                 const isActive = option.value === categoryMeta.value;
@@ -499,7 +499,7 @@ export default function CategoryProducts() {
               <button
                 type="button"
                 onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-                className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-500 shadow-sm active:scale-95"
               >
                 Charger plus
               </button>

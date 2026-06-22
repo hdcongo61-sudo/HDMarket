@@ -6,7 +6,6 @@ export default function ShopAboutSection({
   shop,
   isCertifiedShop,
   shopCategoryLabel,
-  shopFullAddress,
   phoneLabel,
   shopLocation,
   activeEmbedUrl,
@@ -20,46 +19,59 @@ export default function ShopAboutSection({
   t
 }) {
   return (
-    <section className="min-w-0 space-y-3 overflow-hidden rounded-[28px] bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">Détails boutique</p>
-          <h2 className="truncate text-lg font-black text-slate-950 dark:text-white sm:text-xl">
-            {t('shop_profile.about', 'À propos')}
-          </h2>
-          <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {t('shop_profile.about_subtitle', 'Présentation et informations publiques')}
-          </p>
-        </div>
-        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-[#fff7ef] px-2.5 py-1 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800">
+    <section className="min-w-0 space-y-3 overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+          {t('shop_profile.about', 'À propos')}
+        </h2>
+        <span className="inline-flex max-w-full items-center gap-1 rounded bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-[#FF6A00] dark:bg-neutral-800 dark:text-orange-300">
           <Store size={12} />
           <span className="truncate">{shopCategoryLabel || 'Marketplace'}</span>
         </span>
       </div>
 
-      <section className="rounded-[22px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
-        <p className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <section className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+        <p className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
           {t('shop_profile.description', 'Description')}
         </p>
-        <p className="mt-1.5 break-words text-sm leading-relaxed text-slate-700 dark:text-neutral-200">
+        <p className="mt-1.5 break-words text-sm leading-relaxed text-gray-700 dark:text-neutral-200">
           {shop?.shopDescription || t('shop_profile.no_description', "Cette boutique n'a pas encore de description détaillée.")}
         </p>
       </section>
 
       <dl className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
-          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+          <dt className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
             {t('shop_profile.location', 'Localisation')}
           </dt>
           <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
             <MapPin size={15} className="mt-0.5 shrink-0 text-[#FF6A00]" />
-            <span className="break-words">
-              {shopFullAddress || t('shop_profile.address_unknown', 'Adresse non renseignée')}
-            </span>
+            {shop?.shopLocationAddress ? (
+              <span className="break-words">{shop.shopLocationAddress}</span>
+            ) : (
+              <span className="text-slate-400 dark:text-slate-500 font-normal text-xs">
+                {t('shop_profile.location_address_unknown', 'Adresse capturée non disponible')}
+              </span>
+            )}
           </dd>
         </div>
-        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
-          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+          <dt className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
+            {t('shop_profile.address', 'Adresse')}
+          </dt>
+          <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
+            <MapPin size={15} className="mt-0.5 shrink-0 text-[#FF6A00]" />
+            {shop?.shopAddress ? (
+              <span className="break-words">{shop.shopAddress}</span>
+            ) : (
+              <span className="text-slate-400 dark:text-slate-500 font-normal text-xs">
+                {t('shop_profile.address_unknown', 'Adresse non renseignée')}
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+          <dt className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
             {t('shop_profile.phone', 'Téléphone')}
           </dt>
           <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
@@ -67,8 +79,8 @@ export default function ShopAboutSection({
             <span className="break-all">{phoneLabel}</span>
           </dd>
         </div>
-        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
-          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+          <dt className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
             {t('shop_profile.member_since', 'Membre depuis')}
           </dt>
           <dd className="mt-1 flex items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
@@ -76,8 +88,8 @@ export default function ShopAboutSection({
             <span>{formatDate(shop?.createdAt)}</span>
           </dd>
         </div>
-        <div className="rounded-[20px] bg-[#fffaf6] p-3 ring-1 ring-orange-100/70 dark:bg-neutral-900 dark:ring-neutral-800">
-          <dt className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+          <dt className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
             {t('shop_profile.profile', 'Profil')}
           </dt>
           <dd className="mt-1 flex items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
@@ -92,9 +104,9 @@ export default function ShopAboutSection({
       </dl>
 
       {shopLocation ? (
-        <section className="min-w-0 space-y-3 overflow-hidden rounded-[24px] bg-white p-3 ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800">
+        <section className="min-w-0 space-y-3 overflow-hidden rounded border border-gray-100 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-black text-slate-950 dark:text-white">
+            <p className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
               {t('shop_profile.location', 'Localisation')}
             </p>
             <span
@@ -111,7 +123,7 @@ export default function ShopAboutSection({
             </span>
           </div>
 
-          <div className="overflow-hidden rounded-[20px] bg-neutral-100 ring-1 ring-stone-200 dark:bg-neutral-900 dark:ring-neutral-800">
+          <div className="overflow-hidden rounded border border-gray-100 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
             {activeEmbedUrl ? (
               <iframe
                 title={`${t('shop_profile.map', 'Carte')} ${shop?.shopName || ''}`}
@@ -132,7 +144,7 @@ export default function ShopAboutSection({
               href={activeDirectionsUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-full bg-[#FF6A00] px-3 text-center text-xs font-black leading-tight text-white sm:w-auto"
+              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded bg-[#FF6A00] px-3 text-center text-xs font-black leading-tight text-white sm:w-auto"
             >
               <Navigation size={14} />
               <span className="truncate">
@@ -146,7 +158,7 @@ export default function ShopAboutSection({
               href={appleDirectionsUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-full bg-[#fff7ef] px-3 text-center text-xs font-black leading-tight text-slate-700 ring-1 ring-orange-100 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800 sm:w-auto"
+              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded border border-gray-100 bg-gray-50 px-3 text-center text-xs font-black leading-tight text-gray-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 sm:w-auto"
             >
               <MapPin size={14} />
               <span className="truncate">Apple Plans</span>
@@ -156,7 +168,7 @@ export default function ShopAboutSection({
               type="button"
               onClick={onRequestLocation}
               disabled={distanceLoading}
-              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-full bg-stone-100 px-3 text-center text-xs font-black leading-tight text-slate-700 disabled:opacity-60 dark:bg-neutral-900 dark:text-neutral-200 sm:w-auto"
+              className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded border border-gray-100 bg-gray-50 px-3 text-center text-xs font-black leading-tight text-gray-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 sm:w-auto"
             >
               <Navigation size={14} />
               <span className="truncate">

@@ -28,10 +28,10 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="hidden md:block border-t border-orange-100 bg-[#fff8f1] text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+    <footer className="hidden md:block border-t border-gray-200 bg-gray-50 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
       <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.85fr_0.85fr_1.1fr]">
-          <section className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_18px_50px_rgba(17,24,39,0.07)] dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_50px_rgba(17,24,39,0.07)] dark:border-neutral-800 dark:bg-neutral-900">
             <div className="bg-gradient-to-br from-[#ff6a00] via-[#ff7a1a] to-[#f04423] px-6 py-6 text-white">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/75">
                 ETS HD Tech Filial
@@ -50,7 +50,7 @@ export default function Footer() {
                 { icon: BadgeCheck, label: 'Boutiques vérifiées' },
                 { icon: Truck, label: 'Livraison locale' }
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="rounded-2xl bg-orange-50 px-3 py-3 text-center text-[11px] font-bold text-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
+                <div key={label} className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-[11px] font-bold text-orange-800 dark:bg-orange-950/30 dark:text-orange-200">
                   <Icon className="mx-auto mb-1 h-4 w-4 text-[#ff6a00]" />
                   {label}
                 </div>
@@ -58,7 +58,7 @@ export default function Footer() {
             </div>
           </section>
 
-          <section className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-[0_12px_34px_rgba(17,24,39,0.05)] dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_12px_34px_rgba(17,24,39,0.05)] dark:border-neutral-800 dark:bg-neutral-900">
             <h4 className="text-sm font-black uppercase tracking-[0.12em] text-neutral-950 dark:text-white">
               {t('footer.navigation', 'Navigation')}
             </h4>
@@ -74,7 +74,7 @@ export default function Footer() {
             </ul>
           </section>
 
-          <section className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-[0_12px_34px_rgba(17,24,39,0.05)] dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_12px_34px_rgba(17,24,39,0.05)] dark:border-neutral-800 dark:bg-neutral-900">
             <h4 className="text-sm font-black uppercase tracking-[0.12em] text-neutral-950 dark:text-white">
               Services
             </h4>
@@ -97,22 +97,22 @@ export default function Footer() {
             </Link>
           </section>
 
-          <section className="rounded-[24px] border border-orange-100 bg-white p-5 shadow-[0_12px_34px_rgba(17,24,39,0.05)] dark:border-neutral-800 dark:bg-neutral-900">
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_12px_34px_rgba(17,24,39,0.05)] dark:border-neutral-800 dark:bg-neutral-900">
             <h4 className="text-sm font-black uppercase tracking-[0.12em] text-neutral-950 dark:text-white">
               {t('footer.support', 'Support')}
             </h4>
             <div className="mt-4 space-y-3 text-sm">
-              <p className="flex items-center gap-3 rounded-2xl bg-[#fff8f1] px-3 py-2 font-semibold dark:bg-neutral-950">
+              <p className="flex items-center gap-3 rounded-2xl bg-gray-50 px-3 py-2 font-semibold dark:bg-neutral-950">
                 <Mail size={16} className="text-[#ff6a00]" />
                 support@hdmarket.cg
               </p>
               {(supportNetworks.length > 0 ? supportNetworks : [{ _id: 'default', name: 'HDMarket', phoneNumber: '+242 06 000 00 00' }]).map((network) => (
-                <p key={network._id || network.phoneNumber} className="flex items-center gap-3 rounded-2xl bg-[#fff8f1] px-3 py-2 font-semibold dark:bg-neutral-950">
+                <p key={network._id || network.phoneNumber} className="flex items-center gap-3 rounded-2xl bg-gray-50 px-3 py-2 font-semibold dark:bg-neutral-950">
                   <Phone size={16} className="text-[#ff6a00]" />
                   <span>{network.name}: {network.phoneNumber}</span>
                 </p>
               ))}
-              <p className="flex items-center gap-3 rounded-2xl bg-[#fff8f1] px-3 py-2 font-semibold dark:bg-neutral-950">
+              <p className="flex items-center gap-3 rounded-2xl bg-gray-50 px-3 py-2 font-semibold dark:bg-neutral-950">
                 <MapPin size={16} className="text-[#ff6a00]" />
                 {t('footer.location', 'Brazzaville, Congo')}
               </p>
@@ -123,7 +123,7 @@ export default function Footer() {
           </section>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 rounded-[22px] border border-orange-100 bg-white px-5 py-4 text-xs font-semibold text-neutral-500 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+        <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-xs font-semibold text-neutral-500 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
           <p>{t('footer.rights', `© ${year} ETS HD Tech Filial — Tous droits réservés.`).replace('{year}', String(year))}</p>
           <p className="flex items-center gap-2">
             <Store className="h-4 w-4 text-[#ff6a00]" />

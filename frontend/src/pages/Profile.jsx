@@ -637,11 +637,11 @@ export default function Profile() {
       id: 'current-shop-location',
       latitude: Number(currentShopCoordinates.latitude),
       longitude: Number(currentShopCoordinates.longitude),
-      label: form.shopAddress || 'Position actuelle enregistrée',
+      label: user?.shopLocationAddress || 'Position actuelle enregistrée',
       source: 'map'
     };
     setMapPickerSelection(preview);
-  }, [currentShopCoordinates, form.shopAddress, mapPickerOpen, mapPickerSelection]);
+  }, [currentShopCoordinates, mapPickerOpen, mapPickerSelection, user?.shopLocationAddress]);
 
   useEffect(() => {
     if (!user) {
@@ -1305,7 +1305,7 @@ export default function Profile() {
         accuracy: locationDraft.accuracy,
         source: locationDraft.source || 'gps',
         resolvedAddress: locationDraft.resolvedAddress || '',
-        applyResolvedAddress: Boolean(locationDraft.resolvedAddress)
+        applyResolvedAddress: false
       });
 
       if (data?.user) {
@@ -1622,22 +1622,22 @@ export default function Profile() {
     <div className="hd-profile-flow hd-commerce-shell min-h-screen">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* En-tête */}
-        <section className="mb-5 overflow-hidden rounded-[28px] border border-orange-100 bg-gradient-to-br from-[#fff7ed] via-white to-[#ffe1c2] p-4 shadow-[0_18px_48px_rgba(255,106,0,0.12)] sm:mb-8 sm:p-6">
+        <section className="mb-5 overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-[#fff7ed] via-white to-[#ffe1c2] p-4 shadow-[0_18px_48px_rgba(255,106,0,0.12)] sm:mb-8 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               {profileImagePreview ? (
                 <img
                   src={profileImagePreview}
                   alt={form.name || 'Profil'}
-                  className="h-[72px] w-[72px] flex-shrink-0 rounded-[24px] border-2 border-white object-cover shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+                  className="h-[72px] w-[72px] flex-shrink-0 rounded-2xl border-2 border-white object-cover shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
                 />
               ) : (
-                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-[24px] border-2 border-white bg-[#ff6a00] shadow-[0_10px_24px_rgba(255,106,0,0.22)]">
+                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#ff6a00] shadow-[0_10px_24px_rgba(255,106,0,0.22)]">
                   <User className="h-9 w-9 text-white" />
                 </div>
               )}
               <div className="min-w-0">
-                <div className="inline-flex max-w-full items-center rounded-xl border border-orange-100 bg-white/85 px-3 py-1.5 shadow-sm">
+                <div className="inline-flex max-w-full items-center rounded-xl border border-gray-200 bg-white/85 px-3 py-1.5 shadow-sm">
                   <span className="truncate text-sm font-bold text-slate-900">
                     {form.name ? `Salut, ${form.name}` : 'Compléter votre profil'}
                   </span>
@@ -1679,7 +1679,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="mt-5 rounded-[24px] bg-gradient-to-r from-[#ff8a1f] to-[#ff4f17] p-4 text-white shadow-[0_14px_30px_rgba(255,106,0,0.28)]">
+          <div className="mt-5 rounded-2xl bg-gradient-to-r from-[#ff8a1f] to-[#ff4f17] p-4 text-white shadow-[0_14px_30px_rgba(255,106,0,0.28)]">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-2xl font-black leading-none">HD VIP</p>
@@ -1697,7 +1697,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-4 gap-2 rounded-[24px] bg-white/90 p-3 shadow-sm">
+          <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl bg-white/90 p-3 shadow-sm">
             {[
               { label: 'Favoris', icon: Heart, value: stats.engagement?.favoritesReceived || 0, tab: 'stats' },
               { label: 'Boutique', icon: Store, value: stats.listings?.total || 0, tab: user?.accountType === 'shop' ? 'shop' : 'profile' },
@@ -1717,7 +1717,7 @@ export default function Profile() {
             ))}
           </div>
 
-          <div className="mt-4 rounded-[24px] bg-white/95 p-4 shadow-sm">
+          <div className="mt-4 rounded-2xl bg-white/95 p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-black text-slate-950">Mes commandes</h1>
               <button
@@ -1756,7 +1756,7 @@ export default function Profile() {
           {userShopLink && (
             <Link
               to={userShopLink}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition-colors hover:bg-orange-50"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition-colors hover:bg-gray-100"
             >
               <Store className="h-4 w-4 text-[#ff6a00]" />
               Voir ma boutique publique
@@ -2311,6 +2311,9 @@ export default function Profile() {
                             Mise à jour:{' '}
                             {new Date(user.shopLocationUpdatedAt).toLocaleString('fr-FR')}
                           </p>
+                        )}
+                        {user?.shopLocationAddress && (
+                          <p>Adresse capturée: {user.shopLocationAddress}</p>
                         )}
                       </div>
                     )}
@@ -3030,7 +3033,7 @@ export default function Profile() {
           mobileSheet
           ariaLabel="Mes commandes"
           rootClassName="hd-profile-flow"
-          panelClassName="border-orange-100 bg-[#fffaf4]"
+          panelClassName="border-gray-200 bg-gray-50"
         >
           <ModalHeader
             icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
@@ -3455,7 +3458,7 @@ export default function Profile() {
               mobileSheet
               ariaLabel="Détail commande"
               rootClassName="hd-profile-flow"
-              panelClassName="border-orange-100 bg-[#fffaf4]"
+              panelClassName="border-gray-200 bg-gray-50"
             >
               <ModalHeader
                 icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
@@ -3862,7 +3865,7 @@ export default function Profile() {
           mobileSheet={true}
           ariaLabel="Modifier la photo de profil"
           rootClassName="hd-profile-flow"
-          panelClassName="border-orange-100 bg-[#fffaf4]"
+          panelClassName="border-gray-200 bg-gray-50"
         >
           <ModalHeader
             title="Modifier la photo de profil"
@@ -4031,7 +4034,7 @@ export default function Profile() {
           mobileSheet={true}
           ariaLabel="Sélectionner la position boutique sur la carte"
           rootClassName="hd-profile-flow"
-          panelClassName="border-orange-100 bg-[#fffaf4]"
+          panelClassName="border-gray-200 bg-gray-50"
         >
           <ModalHeader
             title="Sélectionner sur carte"

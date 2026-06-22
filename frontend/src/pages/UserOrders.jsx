@@ -845,7 +845,7 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
   return (
     <Link
       to={`/orders/detail/${order._id}`}
-      className="group block overflow-hidden rounded-[22px] border border-orange-100 bg-white shadow-[0_12px_28px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-[26px] sm:shadow-[0_16px_38px_rgba(117,75,36,0.10)]"
+      className="group block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_12px_28px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-2xl sm:shadow-[0_16px_38px_rgba(117,75,36,0.10)]"
     >
       {/* Seller + Status header */}
       <div className="flex items-center justify-between gap-2 border-b border-orange-50 bg-[#fff8ef] px-3 py-2.5 dark:border-orange-900/30 dark:bg-neutral-900/70 sm:gap-3 sm:px-4 sm:py-3">
@@ -865,10 +865,10 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
       </div>
       <div className="px-3 pt-2.5 sm:px-4 sm:pt-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-bold text-[#9A4A00]">{uiState.nextStep}</p>
+          <p className="truncate text-xs font-bold text-gray-500">{uiState.nextStep}</p>
           <span className="shrink-0 text-[11px] font-black text-[#FF6A00]">{uiState.progress}%</span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-orange-50 dark:bg-neutral-800">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
           <div
             className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-[#FF6A00]'}`}
             style={{ width: `${uiState.progress}%` }}
@@ -878,7 +878,7 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
       {/* Product summary */}
       <div className="flex gap-3 p-3 sm:p-4">
         {firstItem?.snapshot?.image ? (
-          <div className="h-[76px] w-[76px] flex-shrink-0 overflow-hidden rounded-2xl bg-orange-50 sm:h-24 sm:w-24 sm:rounded-[18px]">
+          <div className="h-[76px] w-[76px] flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100 sm:h-24 sm:w-24 sm:rounded-xl">
             <img
               src={firstItem.snapshot.image}
               alt={productTitle}
@@ -888,7 +888,7 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
             />
           </div>
         ) : (
-          <div className="flex h-[76px] w-[76px] flex-shrink-0 items-center justify-center rounded-2xl bg-orange-50 sm:h-24 sm:w-24 sm:rounded-[18px]">
+          <div className="flex h-[76px] w-[76px] flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100 sm:h-24 sm:w-24 sm:rounded-xl">
             <Package className="w-8 h-8 text-[#FF6A00]" />
           </div>
         )}
@@ -907,10 +907,10 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
           />
           {isInstallmentOrder && (
             <div className="mt-2 space-y-1">
-              <p className="text-xs font-bold text-[#9A4A00]">
+              <p className="text-xs font-bold text-gray-500">
                 {t('orders.installmentProgress', 'Progression tranche')}: {installmentProgress}%
               </p>
-              <div className="h-1.5 rounded-full bg-orange-50 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                 <div
                   className="h-full bg-[#FF6A00]"
                   style={{ width: `${installmentProgress}%` }}
@@ -1767,10 +1767,10 @@ export default function UserOrders() {
 
       <div className={!isOnline ? 'mt-10' : ''}>
         <div className="px-3 pt-3 sm:px-6 sm:pt-5 lg:px-8">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 rounded-[22px] border border-orange-100 bg-white/90 px-3 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.09)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950/80 sm:gap-3 sm:rounded-[28px] sm:px-4 sm:py-4 sm:shadow-[0_18px_42px_rgba(117,75,36,0.10)]">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-white/90 px-3 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.09)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950/80 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-4 sm:shadow-[0_18px_42px_rgba(117,75,36,0.10)]">
             <Link
               to="/"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-50 text-[#9A4A00] transition active:scale-95 sm:h-10 sm:w-10"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500 transition active:scale-95 sm:h-10 sm:w-10"
               aria-label={t('common.back', 'Retour')}
             >
               <ArrowLeft className="h-4 w-4" />
@@ -1788,7 +1788,7 @@ export default function UserOrders() {
             </div>
             <Link
               to="/stats"
-              className="inline-flex items-center gap-1.5 rounded-full border border-orange-100 bg-orange-50 px-2.5 py-2 text-xs font-bold text-[#9A4A00] transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200 sm:gap-2 sm:px-3"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-2 text-xs font-bold text-gray-500 transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200 sm:gap-2 sm:px-3"
             >
               <TrendingUp className="h-3.5 w-3.5" />
               {t('orders.stats', 'Stats')}
@@ -1834,8 +1834,8 @@ export default function UserOrders() {
             </div>
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-[28px] border border-orange-100 bg-white/90 p-8 text-center shadow-[0_18px_42px_rgba(117,75,36,0.10)] sm:p-12">
-            <div className="mx-auto w-20 h-20 rounded-[24px] bg-orange-50 flex items-center justify-center mb-4">
+          <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-[0_18px_42px_rgba(117,75,36,0.10)] sm:p-12">
+            <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
               <ClipboardList className="w-10 h-10 text-[#FF6A00]" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
@@ -1973,7 +1973,7 @@ export default function UserOrders() {
             </div>
             )}
 
-            <div ref={loadMoreRef} className="mt-6 flex flex-col items-center gap-3 rounded-[22px] border border-orange-100 bg-white/90 p-4 text-center shadow-sm sm:mt-8 sm:rounded-[24px] sm:p-5">
+            <div ref={loadMoreRef} className="mt-6 flex flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-white/90 p-4 text-center shadow-sm sm:mt-8 sm:rounded-2xl sm:p-5">
               <p className="text-xs font-semibold text-gray-600 sm:text-sm">
                 <span className="font-bold text-gray-900">{orders.length}</span> /{' '}
                 <span className="font-bold text-gray-900">{meta.total}</span> {t('orders.orderCount', `commande${meta.total > 1 ? 's' : ''}`)}

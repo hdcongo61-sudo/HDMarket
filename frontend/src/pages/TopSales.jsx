@@ -167,7 +167,7 @@ export default function TopSales() {
                 <button
                   type="button"
                   onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                  className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+                  className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-500 shadow-sm active:scale-95"
                 >
                   Charger plus
                 </button>

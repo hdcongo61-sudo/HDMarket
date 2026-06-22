@@ -313,7 +313,7 @@ export default function AdvancedSearch() {
       <div className="hd-search-hero text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-6">
-            <div className="rounded-[20px] bg-white/18 p-3 backdrop-blur-sm ring-1 ring-white/24">
+            <div className="rounded-xl bg-white/18 p-3 backdrop-blur-sm ring-1 ring-white/24">
               <Search className="w-6 h-6" />
             </div>
             <div>
@@ -335,7 +335,7 @@ export default function AdvancedSearch() {
                 setPage(1);
               }}
               placeholder="Rechercher un produit..."
-              className="hd-global-search w-full rounded-full py-4 pl-14 pr-5 text-gray-900 placeholder:text-stone-400 focus:outline-none"
+              className="hd-global-search w-full rounded-full py-4 pl-14 pr-5 text-gray-900 placeholder:text-gray-400 focus:outline-none"
             />
           </div>
         </div>
@@ -345,7 +345,7 @@ export default function AdvancedSearch() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters Sidebar */}
           <aside className={`lg:w-80 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="hd-search-panel sticky top-4 rounded-[24px]">
+            <div className="hd-search-panel sticky top-4 rounded-2xl">
               {/* Filters Header */}
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-2">
@@ -635,7 +635,7 @@ export default function AdvancedSearch() {
               </section>
             )}
             {/* Results Header */}
-            <div className="hd-search-panel mb-6 rounded-[24px] p-4">
+            <div className="hd-search-panel mb-6 rounded-2xl p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">
@@ -716,7 +716,7 @@ export default function AdvancedSearch() {
                       type="button"
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={loading}
-                      className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                      className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-500 shadow-sm active:scale-95 disabled:cursor-wait disabled:opacity-60"
                     >
                       Charger plus
                     </button>

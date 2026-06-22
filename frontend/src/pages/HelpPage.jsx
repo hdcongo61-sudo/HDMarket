@@ -86,7 +86,7 @@ function SectionTitle({ icon: Icon, title, subtitle }) {
     <div className="mb-4">
       <div className="flex items-center gap-2 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">
         {Icon ? (
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-orange-50 text-[#ff6a00] ring-1 ring-orange-100 dark:bg-orange-950/30 dark:ring-orange-900/50">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-gray-100 text-[#ff6a00] ring-1 ring-gray-200 dark:bg-orange-950/30 dark:ring-orange-900/50">
             <Icon className="h-4 w-4" />
           </span>
         ) : null}
@@ -542,7 +542,7 @@ export default function HelpPage() {
     <div className="min-h-screen bg-[#f7f3ee] text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-orange-100/80 via-[#fff4e8] to-transparent dark:from-orange-950/20 dark:via-neutral-950" />
 
-      <header className="sticky top-0 z-20 border-b border-orange-100/80 bg-white/85 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/80">
+      <header className="sticky top-0 z-20 border-b border-gray-200/80 bg-white/85 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] text-[#ff6a00]">
@@ -552,7 +552,7 @@ export default function HelpPage() {
           </div>
           <Link
             to="/"
-            className="inline-flex min-h-9 items-center rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-xs font-bold text-[#ff6a00] transition hover:bg-orange-100 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200"
+            className="inline-flex min-h-9 items-center rounded-full border border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-bold text-[#ff6a00] transition hover:bg-orange-100 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200"
           >
             Retour
           </Link>
@@ -566,7 +566,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="rounded-[24px] border border-orange-100 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={UserCog}
@@ -581,7 +581,7 @@ export default function HelpPage() {
                   value={editorSearch}
                   onChange={(event) => setEditorSearch(event.target.value)}
                   placeholder="Rechercher un utilisateur"
-                  className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] py-2 pl-9 pr-3 text-sm outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900"
                 />
               </label>
 
@@ -680,7 +680,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.24, ease: 'easeOut' }}
-              className="rounded-[24px] border border-orange-100 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={CircleHelp}
@@ -695,7 +695,7 @@ export default function HelpPage() {
                     <select
                       value={category}
                       onChange={(event) => setCategory(event.target.value)}
-                      className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-800 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-800 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                     >
                       {HELP_CATEGORIES.map((item) => (
                         <option key={item.value} value={item.value}>
@@ -713,7 +713,7 @@ export default function HelpPage() {
                       onChange={(event) => setSubject(event.target.value)}
                       maxLength={140}
                       placeholder="Ex: Paiement non validé"
-                      className="w-full rounded-2xl border border-orange-100 bg-[#fffaf4] px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                     />
                   </label>
                 </div>
@@ -730,7 +730,7 @@ export default function HelpPage() {
                       className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
                         contentFormat === format
                           ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.20)]'
-                          : 'border border-orange-100 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                          : 'border border-gray-200 bg-gray-100 text-orange-700 hover:bg-orange-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
                       }`}
                     >
                       {format.toUpperCase()}
@@ -752,7 +752,7 @@ export default function HelpPage() {
                   saveIndicator={saveIndicator}
                 />
 
-                <div className="rounded-[22px] border border-orange-100 bg-[#fffaf4] p-3 dark:border-neutral-700 dark:bg-neutral-900/70">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/70">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
                       Pièces jointes (images/PDF)
@@ -760,7 +760,7 @@ export default function HelpPage() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-white px-3 py-1 text-[11px] font-bold text-[#ff6a00] transition hover:bg-orange-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-bold text-[#ff6a00] transition hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     >
                       <Paperclip className="h-3.5 w-3.5" />
                       Ajouter
@@ -824,7 +824,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.26, ease: 'easeOut' }}
-              className="rounded-[24px] border border-orange-100 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={FileText}
@@ -917,7 +917,7 @@ export default function HelpPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="rounded-[24px] border border-orange-100 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+            className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
             <SectionTitle icon={CircleHelp} title="Contact support" />
             <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">
@@ -940,7 +940,7 @@ export default function HelpPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.24, ease: 'easeOut' }}
-            className="rounded-[24px] border border-orange-100 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+            className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
             <SectionTitle icon={FileText} title="Bonnes pratiques" />
             <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">

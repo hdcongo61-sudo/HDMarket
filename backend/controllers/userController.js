@@ -206,6 +206,7 @@ const sanitizeUser = (user) => ({
   profileImage: user.profileImage || '',
   shopName: user.shopName,
   shopAddress: user.shopAddress,
+  shopLocationAddress: user.shopLocationAddress || '',
   shopLogo: user.shopLogo,
   shopBanner: user.shopBanner,
   shopVerified: Boolean(user.shopVerified),
@@ -1461,8 +1462,8 @@ export const updateShopLocation = asyncHandler(async (req, res) => {
       !needsReview
   );
 
-  if (resolvedAddress && (applyResolvedAddress || !String(user.shopAddress || '').trim())) {
-    user.shopAddress = resolvedAddress;
+  if (resolvedAddress) {
+    user.shopLocationAddress = resolvedAddress;
   }
 
   await user.save();
@@ -1499,6 +1500,7 @@ export const updateShopLocation = asyncHandler(async (req, res) => {
       device: getClientDevice(req),
       meta: {
         applyResolvedAddress,
+        locationAddress: resolvedAddress || '',
         hasResolvedAddress: Boolean(resolvedAddress),
         accountType: user.accountType,
         reviewScoreThreshold,

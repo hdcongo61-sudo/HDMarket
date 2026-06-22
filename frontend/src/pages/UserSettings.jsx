@@ -25,7 +25,7 @@ const NotifToggle = React.memo(({ label, checked, onChange }) => (
       aria-checked={checked}
       onClick={onChange}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
-        checked ? 'bg-orange-500' : 'bg-gray-300 dark:bg-neutral-600'
+        checked ? 'bg-gray-1000' : 'bg-gray-300 dark:bg-neutral-600'
       }`}
     >
       <span
@@ -256,7 +256,7 @@ export default function UserSettings() {
       </header>
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-20 pt-6">
-        <section className="ui-card rounded-[24px] px-4 py-5">
+        <section className="ui-card rounded-2xl px-4 py-5">
           <div className="mb-3 flex items-center gap-2">
             <UserCircle size={18} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">{t('settings.profile', 'Profil')}</h2>
@@ -268,23 +268,23 @@ export default function UserSettings() {
           </div>
         </section>
 
-        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
+        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
           <h2 className="text-sm font-semibold">{t('settings.language', 'Langue')}</h2>
           <LanguageSwitcher />
         </section>
 
-        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
+        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
           <h2 className="text-sm font-semibold">{t('settings.currency', 'Devise')}</h2>
           <CurrencySelector />
           <p className="text-xs text-gray-500 dark:text-neutral-400">{t('settings.pricePreview', 'Apercu prix')}: {previewPrice}</p>
         </section>
 
-        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
+        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
           <h2 className="text-sm font-semibold">{t('settings.city', 'Ville')}</h2>
           <CitySelector />
         </section>
 
-        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
+        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
           <div className="flex items-center gap-2">
             <Palette size={16} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">{t('settings.appearance', 'Apparence')}</h2>
@@ -302,7 +302,7 @@ export default function UserSettings() {
           </select>
         </section>
 
-        <section className="ui-card rounded-[24px] space-y-3 px-4 py-5">
+        <section className="ui-card rounded-2xl space-y-3 px-4 py-5">
           <div className="flex items-center gap-2">
             <Bot size={16} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">
@@ -327,7 +327,7 @@ export default function UserSettings() {
         </section>
 
         {/* ── Notification Preferences ── */}
-        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
+        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
           <div className="flex items-center gap-2">
             <Bell size={16} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">{t('settings.notifications', 'Notifications')}</h2>
@@ -413,7 +413,7 @@ export default function UserSettings() {
           )}
         </section>
 
-        <section className="ui-card rounded-[24px] space-y-4 px-4 py-5">
+        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
           <div className="flex items-center gap-2">
             <RefreshCcw size={16} className="text-gray-500 dark:text-neutral-300" />
             <h2 className="text-sm font-semibold">{t('settings.cache.title', 'Maintenance cache')}</h2>

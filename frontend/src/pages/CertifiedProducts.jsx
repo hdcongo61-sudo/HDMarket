@@ -71,7 +71,7 @@ export default function CertifiedProducts() {
   return (
     <div className="hd-products-flow">
     <div className="max-w-7xl mx-auto px-2 py-5 sm:px-4 sm:py-8 lg:px-8 space-y-4 sm:space-y-8 pb-24">
-      <header className="hd-products-hero rounded-[28px] p-5 text-white sm:p-6">
+      <header className="hd-products-hero rounded-2xl p-5 text-white sm:p-6">
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
@@ -104,7 +104,7 @@ export default function CertifiedProducts() {
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                className="rounded-full border border-orange-100 bg-white px-4 py-2 text-xs font-black text-[#9A4A00] shadow-sm active:scale-95"
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-500 shadow-sm active:scale-95"
               >
                 Charger plus
               </button>

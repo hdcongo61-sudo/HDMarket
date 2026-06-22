@@ -69,7 +69,7 @@ export default function OrderTrackingMap({ trackingData }) {
                 <div
                   className={`z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${
                     isCurrent
-                      ? 'bg-orange-500 text-white shadow-md ring-4 ring-orange-100'
+                      ? 'bg-gray-1000 text-white shadow-md ring-4 ring-gray-200'
                       : cp.active
                         ? 'bg-gray-100 text-gray-700'
                         : 'bg-gray-50 text-gray-300'

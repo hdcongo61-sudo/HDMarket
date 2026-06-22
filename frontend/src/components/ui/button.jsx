@@ -8,12 +8,12 @@ const VARIANT_CLASSES = {
   destructive:
     'border border-red-600 bg-red-600 text-white shadow-[0_10px_24px_rgba(220,38,38,0.18)] hover:bg-red-700',
   outline:
-    'border border-orange-200 bg-white/90 text-slate-900 shadow-sm backdrop-blur hover:border-orange-300 hover:bg-orange-50 dark:border-orange-900/60 dark:bg-neutral-950/88 dark:text-neutral-100 dark:hover:bg-orange-950/20',
+    'border border-gray-200 bg-white/90 text-slate-900 shadow-sm backdrop-blur hover:border-gray-200 hover:bg-gray-100 dark:border-orange-900/60 dark:bg-neutral-950/88 dark:text-neutral-100 dark:hover:bg-orange-950/20',
   secondary:
-    'border border-orange-100 bg-[#fff0e4] text-[#9a4a00] hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/25 dark:text-orange-100 dark:hover:bg-orange-950/40',
+    'border border-gray-200 bg-[#fff0e4] text-gray-500 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/25 dark:text-orange-100 dark:hover:bg-orange-950/40',
   ghost:
-    'border border-transparent text-slate-800 hover:bg-orange-50 hover:text-[#b45100] dark:text-neutral-100 dark:hover:bg-orange-950/25',
-  link: 'border border-transparent text-[#d45a00] underline-offset-4 hover:underline dark:text-orange-200'
+    'border border-transparent text-slate-800 hover:bg-gray-100 hover:text-[#b45100] dark:text-neutral-100 dark:hover:bg-orange-950/25',
+  link: 'border border-transparent text-[#FF6A00] underline-offset-4 hover:underline dark:text-orange-200'
 };
 
 const SIZE_CLASSES = {
@@ -25,7 +25,7 @@ const SIZE_CLASSES = {
 
 export function buttonVariants({ variant = 'default', size = 'default', className = '' } = {}) {
   return cn(
-    'ui-btn inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[18px] text-sm font-semibold ring-offset-background',
+    'ui-btn inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background',
     'transition-all duration-200 ease-out active:scale-[0.98]',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30 focus-visible:ring-offset-2 dark:focus-visible:ring-orange-300/30',
     'disabled:pointer-events-none disabled:opacity-50',

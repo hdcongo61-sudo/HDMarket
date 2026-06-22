@@ -1249,17 +1249,17 @@ export default function OrderCheckout() {
     <div className="hd-order-flow hd-commerce-shell min-h-screen bg-[#f5f5f5] pb-28 dark:bg-black lg:pb-8">
       <div className="mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
       {/* Header Enhanced */}
-      <header className="rounded-[22px] border border-orange-100 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
+      <header className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             to="/cart"
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700 transition hover:border-orange-200 hover:bg-orange-50 hover:text-[#ff6a00]"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700 transition hover:border-gray-200 hover:bg-gray-100 hover:text-[#ff6a00]"
           >
             <ArrowLeft size={16} />
             <span>Retour panier</span>
           </Link>
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-wide">
-            <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[#ff6a00]">{totals.quantity} article{totals.quantity > 1 ? 's' : ''}</span>
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[#ff6a00]">{totals.quantity} article{totals.quantity > 1 ? 's' : ''}</span>
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">Paiement sécurisé</span>
           </div>
         </div>
@@ -1268,7 +1268,7 @@ export default function OrderCheckout() {
             <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Confirmer votre commande</h1>
             <p className="max-w-2xl text-sm font-semibold leading-6 text-slate-600">{paymentModeDescription}</p>
           </div>
-          <div className="hidden rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-right lg:block">
+          <div className="hidden rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 text-right lg:block">
             <p className="text-[11px] font-black uppercase tracking-wide text-orange-800">À payer maintenant</p>
             <p className="text-2xl font-black text-[#ff6a00]">
               {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}
@@ -1279,7 +1279,7 @@ export default function OrderCheckout() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-start">
         {/* Order Summary Enhanced */}
-        <section className="rounded-[22px] border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24">
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-5">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm">
@@ -1363,7 +1363,7 @@ export default function OrderCheckout() {
               </div>
             )}
             {!isWalletPayment && (
-              <div className="flex items-center justify-between rounded-2xl border-2 border-orange-300 bg-orange-50 px-5 py-4">
+              <div className="flex items-center justify-between rounded-2xl border-2 border-gray-200 bg-gray-100 px-5 py-4">
                 <span className="text-base font-black text-orange-800">
                   {summaryPrimaryPaymentLabel}
                 </span>
@@ -1396,10 +1396,10 @@ export default function OrderCheckout() {
         </section>
 
         {/* Payment Form Enhanced */}
-        <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-orange-50 text-[#ff6a00]">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gray-100 text-[#ff6a00]">
                 <CreditCard size={19} />
               </div>
               <div>
@@ -1410,7 +1410,7 @@ export default function OrderCheckout() {
           </div>
           
           <form id="order-checkout-form" className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-3 rounded-[22px] border border-slate-200 bg-slate-50 p-3 sm:p-4">
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
               <p className="text-xs font-black uppercase tracking-wide text-slate-600">Mode de livraison</p>
               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white p-1 ring-1 ring-slate-200">
                 <button
@@ -1457,7 +1457,7 @@ export default function OrderCheckout() {
                           communeId: ''
                         }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-orange-100"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
                     >
                       <option value="">Sélectionner une ville</option>
                       {cities.map((entry) => (
@@ -1478,7 +1478,7 @@ export default function OrderCheckout() {
                         }))
                       }
                       disabled={!shippingAddress.cityId}
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition disabled:bg-slate-100 focus:border-[#ff6a00] focus:ring-2 focus:ring-orange-100"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition disabled:bg-slate-100 focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
                     >
                       <option value="">Sélectionner une commune</option>
                       {availableCommunes.map((entry) => (
@@ -1496,7 +1496,7 @@ export default function OrderCheckout() {
                       onChange={(e) =>
                         setShippingAddress((prev) => ({ ...prev, addressLine: e.target.value }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-orange-100"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
                       placeholder="Quartier, rue, repère"
                     />
                   </div>
@@ -1508,7 +1508,7 @@ export default function OrderCheckout() {
                       onChange={(e) =>
                         setShippingAddress((prev) => ({ ...prev, phone: e.target.value }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-orange-100"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
                       placeholder="Ex: 06xxxxxxx"
                     />
                   </div>
@@ -1526,7 +1526,7 @@ export default function OrderCheckout() {
             </div>
 
             {paymentModeCards.length > 1 && (
-              <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -1571,12 +1571,12 @@ export default function OrderCheckout() {
                           }
                         : {
                             card: selected
-                              ? 'border-[#ff6a00] bg-orange-50 shadow-[0_14px_30px_rgba(255,106,0,0.16)] ring-2 ring-orange-100'
-                              : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/35',
-                            icon: selected ? 'bg-[#ff6a00] text-white' : 'bg-orange-50 text-[#ff6a00]',
-                            badge: selected ? 'bg-[#ff6a00] text-white' : 'bg-orange-50 text-[#9a4a00]',
+                              ? 'border-[#ff6a00] bg-gray-100 shadow-[0_14px_30px_rgba(255,106,0,0.16)] ring-2 ring-gray-200'
+                              : 'border-slate-200 bg-white hover:border-gray-200 hover:bg-gray-100/35',
+                            icon: selected ? 'bg-[#ff6a00] text-white' : 'bg-gray-100 text-[#ff6a00]',
+                            badge: selected ? 'bg-[#ff6a00] text-white' : 'bg-gray-100 text-gray-500',
                             amount: 'text-gray-950',
-                            chip: 'bg-white text-[#9a4a00] ring-orange-100'
+                            chip: 'bg-white text-gray-500 ring-gray-200'
                           };
 
                     return (
@@ -1584,7 +1584,7 @@ export default function OrderCheckout() {
                         key={option.id}
                         type="button"
                         onClick={() => setPaymentMode(option.id)}
-                        className={`group relative min-h-[188px] overflow-hidden rounded-[22px] border p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.985] sm:p-4 ${toneClasses.card}`}
+                        className={`group relative min-h-[188px] overflow-hidden rounded-2xl border p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.985] sm:p-4 ${toneClasses.card}`}
                         aria-pressed={selected}
                       >
                         {selected && (
@@ -1594,7 +1594,7 @@ export default function OrderCheckout() {
                         )}
 
                         <div className="flex items-start gap-3 pr-16">
-                          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] transition ${toneClasses.icon}`}>
+                          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${toneClasses.icon}`}>
                             <Icon size={19} />
                           </span>
                           <div className="min-w-0">
@@ -1609,7 +1609,7 @@ export default function OrderCheckout() {
                           {option.subtitle}
                         </p>
 
-                        <div className="mt-3 rounded-[18px] bg-white p-3 ring-1 ring-slate-200/80">
+                        <div className="mt-3 rounded-xl bg-white p-3 ring-1 ring-slate-200/80">
                           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
                             <div>
                               <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
@@ -1686,7 +1686,7 @@ export default function OrderCheckout() {
               return (
                 <div
                   key={group.sellerId}
-                  className="space-y-4 rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+                  className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
                 >
                   <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
                     <div className="space-y-1.5">
@@ -1696,7 +1696,7 @@ export default function OrderCheckout() {
                         <p className="text-xs font-semibold text-slate-500">{group.sellerPhone}</p>
                       )}
                     </div>
-                    <div className="rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2 text-right">
+                    <div className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-2 text-right">
                       <p className="text-base font-black text-[#ff6a00] sm:text-lg">
                         {isWalletPayment ? 'Automatique' : formatCurrency(groupDeposit)}
                       </p>
@@ -1720,7 +1720,7 @@ export default function OrderCheckout() {
                             onChange={(e) =>
                               handlePaymentChange(group.sellerId, 'payerName', e.target.value)
                             }
-                            className="min-h-[48px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-orange-100"
+                            className="min-h-[48px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
                             placeholder={user?.name || 'Ex: Jean K.'}
                           />
                         </div>
@@ -1741,7 +1741,7 @@ export default function OrderCheckout() {
                           <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">
                             Code transaction
                           </label>
-                          <div className="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition-all focus-within:border-[#ff6a00] focus-within:ring-2 focus-within:ring-orange-100">
+                          <div className="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition-all focus-within:border-[#ff6a00] focus-within:ring-2 focus-within:ring-gray-200">
                             <CreditCard size={18} className="flex-shrink-0 text-slate-400" />
                             <input
                               type="text"

@@ -343,33 +343,31 @@ export default function Register() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#fff7ed] px-4 py-4 text-slate-950 dark:bg-[#120704] dark:text-white sm:px-6 lg:px-8">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,106,0,0.18),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,237,213,0.55))] dark:bg-[radial-gradient(circle_at_18%_8%,rgba(255,106,0,0.18),transparent_30%),linear-gradient(180deg,rgba(22,9,4,0.92),rgba(7,7,7,1))]" />
+    <main className="min-h-screen overflow-hidden bg-[#f5f5f5] px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
       <div className="relative mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-6xl flex-col justify-center gap-4">
-        <nav className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-[20px] border border-orange-100 bg-white/86 px-3 py-2 shadow-[0_16px_44px_rgba(154,69,0,0.10)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06]">
-          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl pr-2 text-sm font-black text-slate-950 dark:text-white">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 shadow-sm ring-1 ring-orange-100 dark:bg-neutral-900 dark:ring-white/10">
+        <nav className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl pr-2 text-sm font-black text-gray-900 dark:text-white">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-neutral-900">
               <img src={logoSrc} alt={copy.appBadge} className="h-7 w-7 object-contain" />
             </span>
             {copy.appBadge}
           </Link>
           <Link
             to="/login"
-            className="rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-orange-400/10 dark:text-orange-100 dark:ring-orange-300/15"
+            className="rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#FF6A00] transition hover:bg-orange-100 dark:bg-orange-400/10 dark:text-orange-100"
           >
             {copy.signIn}
           </Link>
         </nav>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,0.96fr)_minmax(0,1.04fr)] lg:items-stretch">
-          <section className="relative overflow-hidden rounded-[28px] border border-orange-100 bg-white p-5 shadow-[0_24px_70px_rgba(154,69,0,0.14)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/82 sm:p-7">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-orange-50 to-transparent dark:from-orange-500/10" />
+          <section className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-7">
             {!successPayload ? (
               <>
                 <header className="relative mb-6">
                   <div className="mb-4 flex justify-center lg:justify-start">
                     <div className="inline-flex flex-col items-center lg:items-start">
-                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-[22px] bg-[#ff6a00] shadow-[0_18px_44px_rgba(255,106,0,0.28)] dark:bg-white">
+                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-[#FF6A00] dark:bg-white">
                         <img
                           src={logoSrc}
                           alt={copy.appBadge}
@@ -378,19 +376,19 @@ export default function Register() {
                       </div>
                     </div>
                   </div>
-                  <h1 className="mt-4 text-2xl font-black tracking-normal text-slate-950 dark:text-white sm:text-3xl">
+                  <h1 className="mt-4 text-2xl font-black tracking-normal text-gray-900 dark:text-white sm:text-3xl">
                     {copy.title}
                   </h1>
-                  <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+                  <p className="mt-2 text-sm font-medium leading-6 text-gray-600 dark:text-slate-300">
                     {copy.subtitle}
                   </p>
                 </header>
 
                 <div className="mb-5 grid grid-cols-2 gap-2">
-                  <div className={`rounded-[16px] px-3 py-2 text-xs font-black ${step === 1 ? 'bg-orange-50 text-[#b84900] ring-1 ring-orange-100 dark:bg-orange-500/10 dark:text-orange-100' : 'bg-slate-50 text-slate-500 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10'}`}>
+                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 1 ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
                     {copy.step1}
                   </div>
-                  <div className={`rounded-[16px] px-3 py-2 text-xs font-black ${step === 2 ? 'bg-orange-50 text-[#b84900] ring-1 ring-orange-100 dark:bg-orange-500/10 dark:text-orange-100' : 'bg-slate-50 text-slate-500 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10'}`}>
+                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 2 ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
                     {copy.step2}
                   </div>
                 </div>
@@ -399,7 +397,7 @@ export default function Register() {
                   {step === 1 ? (
                     <>
                       <div className="space-y-1.5">
-                        <label htmlFor="register-name" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <label htmlFor="register-name" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                           {copy.fullName}
                         </label>
                         <input
@@ -407,7 +405,7 @@ export default function Register() {
                           ref={nameRef}
                           type="text"
                           autoComplete="name"
-                          className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
+                          className="ui-input min-h-[48px] rounded px-3 text-sm"
                           placeholder={copy.fullNamePlaceholder}
                           value={form.name}
                           onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -422,7 +420,7 @@ export default function Register() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label htmlFor="register-email" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <label htmlFor="register-email" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                           {copy.email}
                         </label>
                         <input
@@ -430,7 +428,7 @@ export default function Register() {
                           ref={emailRef}
                           type="email"
                           autoComplete="email"
-                          className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
+                          className="ui-input min-h-[48px] rounded px-3 text-sm"
                           placeholder={copy.emailPlaceholder}
                           value={form.email}
                           onChange={(e) => {
@@ -448,7 +446,7 @@ export default function Register() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label htmlFor="register-phone" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <label htmlFor="register-phone" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                           {copy.phone}
                         </label>
                         <input
@@ -457,7 +455,7 @@ export default function Register() {
                           type="tel"
                           inputMode="tel"
                           autoComplete="tel"
-                          className="ui-input min-h-[48px] rounded-xl px-3 text-sm"
+                          className="ui-input min-h-[48px] rounded px-3 text-sm"
                           placeholder={copy.phonePlaceholder}
                           value={form.phone}
                           onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
@@ -471,7 +469,7 @@ export default function Register() {
                         />
                       </div>
 
-                      <div className="rounded-[18px] bg-orange-50 p-3 ring-1 ring-orange-100 dark:bg-white/[0.04] dark:ring-white/10">
+                      <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
                         <p className="text-xs font-black text-slate-700 dark:text-slate-100">
                           {copy.verificationTitle}
                         </p>
@@ -479,7 +477,7 @@ export default function Register() {
                           <input
                             type="text"
                             autoComplete="one-time-code"
-                            className="ui-input min-h-[48px] flex-1 rounded-xl px-3 text-sm"
+                            className="ui-input min-h-[48px] flex-1 rounded px-3 text-sm"
                             placeholder={copy.verificationPlaceholder}
                             value={verificationCode}
                             onChange={(e) => setVerificationCode(e.target.value)}
@@ -488,7 +486,7 @@ export default function Register() {
                             type="button"
                             onClick={sendVerificationCode}
                             disabled={codeSending || !form.email.trim()}
-                            className="min-h-[48px] rounded-[16px] bg-white px-3 text-xs font-black text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 disabled:opacity-60 dark:bg-orange-500/10 dark:text-orange-100 dark:ring-orange-300/15"
+                            className="min-h-[48px] rounded border border-gray-200 bg-white px-3 text-xs font-black text-[#FF6A00] transition hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-orange-100"
                           >
                             {codeSending ? copy.sendingCode : codeSent ? copy.resendCode : copy.sendCode}
                           </button>
@@ -508,7 +506,7 @@ export default function Register() {
                           setStep(2);
                           setTimeout(() => passwordRef.current?.focus(), 80);
                         }}
-                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded-[16px] bg-[#ff6a00] px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,106,0,0.24)] transition hover:bg-[#e85f00]"
+                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[#FF6A00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00]"
                       >
                         {copy.continueStep2}
                       </button>
@@ -517,7 +515,7 @@ export default function Register() {
                     <>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5 sm:col-span-1">
-                          <label htmlFor="register-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <label htmlFor="register-password" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                             {copy.password}
                           </label>
                           <div className="relative">
@@ -526,7 +524,7 @@ export default function Register() {
                               ref={passwordRef}
                               type={showPassword ? 'text' : 'password'}
                               autoComplete="new-password"
-                              className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
+                              className="ui-input min-h-[48px] w-full rounded px-3 pr-12 text-sm"
                               placeholder={copy.passwordPlaceholder}
                               value={form.password}
                               onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
@@ -535,7 +533,7 @@ export default function Register() {
                             <button
                               type="button"
                               onClick={() => setShowPassword((prev) => !prev)}
-                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10"
+                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded bg-gray-100 text-gray-500 transition hover:bg-gray-200 dark:bg-neutral-800 dark:text-slate-200"
                             >
                               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -543,7 +541,7 @@ export default function Register() {
                         </div>
 
                         <div className="space-y-1.5 sm:col-span-1">
-                          <label htmlFor="register-confirm-password" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <label htmlFor="register-confirm-password" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                             {copy.confirmPassword}
                           </label>
                           <div className="relative">
@@ -552,7 +550,7 @@ export default function Register() {
                               ref={confirmRef}
                               type={showConfirmPassword ? 'text' : 'password'}
                               autoComplete="new-password"
-                              className="ui-input min-h-[48px] w-full rounded-xl px-3 pr-12 text-sm"
+                              className="ui-input min-h-[48px] w-full rounded px-3 pr-12 text-sm"
                               placeholder={copy.confirmPasswordPlaceholder}
                               value={form.confirmPassword}
                               onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
@@ -561,7 +559,7 @@ export default function Register() {
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword((prev) => !prev)}
-                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10"
+                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded bg-gray-100 text-gray-500 transition hover:bg-gray-200 dark:bg-neutral-800 dark:text-slate-200"
                             >
                               {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -569,7 +567,7 @@ export default function Register() {
                         </div>
                       </div>
 
-                      <section className="rounded-[18px] bg-orange-50 p-3 ring-1 ring-orange-100 dark:bg-white/[0.04] dark:ring-white/10">
+                      <section className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
                             {copy.passwordStrength}
@@ -578,7 +576,7 @@ export default function Register() {
                             {passwordStrengthLabel}
                           </span>
                         </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/55 dark:bg-slate-800">
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-neutral-800">
                           <div
                             className={`h-full ${passwordStrength.color} transition-all`}
                             style={{ width: `${Math.max(8, (passwordScore / 4) * 100)}%` }}
@@ -601,13 +599,13 @@ export default function Register() {
                       </section>
 
                       <div className="space-y-1.5">
-                        <label htmlFor="register-address" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <label htmlFor="register-address" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                           {copy.address}
                         </label>
                         <textarea
                           id="register-address"
                           rows={2}
-                          className="ui-input min-h-[74px] w-full rounded-xl px-3 py-2.5 text-sm"
+                          className="ui-input min-h-[74px] w-full rounded px-3 py-2.5 text-sm"
                           placeholder={copy.addressPlaceholder}
                           value={form.address}
                           onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
@@ -617,12 +615,12 @@ export default function Register() {
 
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                          <label htmlFor="register-city" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <label htmlFor="register-city" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                             {copy.city}
                           </label>
                           <select
                             id="register-city"
-                            className="ui-input min-h-[48px] w-full rounded-xl px-3 text-sm"
+                            className="ui-input min-h-[48px] w-full rounded px-3 text-sm"
                             value={form.city}
                             onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value, commune: '' }))}
                             required
@@ -636,12 +634,12 @@ export default function Register() {
                           </select>
                         </div>
                         <div className="space-y-1.5">
-                          <label htmlFor="register-commune" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <label htmlFor="register-commune" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
                             {copy.commune}
                           </label>
                           <select
                             id="register-commune"
-                            className="ui-input min-h-[48px] w-full rounded-xl px-3 text-sm"
+                            className="ui-input min-h-[48px] w-full rounded px-3 text-sm"
                             value={form.commune}
                             onChange={(e) => setForm((prev) => ({ ...prev, commune: e.target.value }))}
                             required={availableCommunes.length > 0}
@@ -660,7 +658,7 @@ export default function Register() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{copy.gender}</label>
+                        <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">{copy.gender}</label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
                             { value: 'homme', label: copy.male },
@@ -668,10 +666,10 @@ export default function Register() {
                           ].map((option) => (
                             <label
                               key={option.value}
-                              className={`min-h-[48px] rounded-xl px-3 py-3 text-center text-sm font-semibold transition ${
+                              className={`min-h-[48px] rounded px-3 py-3 text-center text-sm font-semibold transition ${
                                 form.gender === option.value
-                                  ? 'bg-orange-50 text-[#b84900] ring-1 ring-orange-100 dark:bg-orange-500/10 dark:text-orange-100 dark:ring-orange-300/15'
-                                  : 'bg-slate-50 text-slate-700 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-100 dark:ring-white/10'
+                                  ? 'bg-[#FF6A00] text-white'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-neutral-900 dark:text-slate-100'
                               }`}
                             >
                               <input
@@ -688,12 +686,12 @@ export default function Register() {
                         </div>
                       </div>
 
-                      <label className="flex items-start gap-2 rounded-[16px] bg-slate-50 px-3 py-2.5 text-xs text-slate-700 ring-1 ring-slate-100 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10">
+                      <label className="flex items-start gap-2 rounded border border-gray-100 bg-gray-50 px-3 py-2.5 text-xs text-gray-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-200">
                         <input
                           type="checkbox"
                           checked={acceptedTerms}
                           onChange={(e) => setAcceptedTerms(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                          className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#FF6A00]"
                         />
                         <span>
                           {copy.termsLead}{' '}
@@ -724,14 +722,14 @@ export default function Register() {
                         <button
                           type="button"
                           onClick={() => setStep(1)}
-                          className="min-h-[48px] rounded-[16px] bg-orange-50 px-4 text-sm font-black text-[#b84900] ring-1 ring-orange-100 transition hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-100 dark:ring-orange-300/15"
+                          className="min-h-[48px] rounded border border-gray-200 bg-gray-50 px-4 text-sm font-black text-gray-800 transition hover:bg-gray-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-100"
                         >
                           {copy.back}
                         </button>
                         <button
                           type="submit"
                           disabled={!canSubmit}
-                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[16px] bg-[#ff6a00] px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,106,0,0.24)] transition hover:bg-[#e85f00] disabled:opacity-60"
+                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded bg-[#FF6A00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00] disabled:opacity-60"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                           {loading ? copy.creatingAccount : copy.createAccount}
@@ -741,10 +739,10 @@ export default function Register() {
                   )}
                 </form>
 
-                <footer className="mt-6 border-t border-orange-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+                <footer className="mt-6 border-t border-gray-100 pt-4 text-sm text-gray-600 dark:border-neutral-800 dark:text-slate-300">
                   <p>
                     {copy.haveAccount}{' '}
-                    <Link to="/login" className="font-black text-[#d45a00] hover:underline dark:text-orange-100">
+                    <Link to="/login" className="font-black text-[#FF6A00] hover:underline dark:text-orange-100">
                       {copy.signIn}
                     </Link>
                   </p>

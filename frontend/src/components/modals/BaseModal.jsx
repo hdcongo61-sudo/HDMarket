@@ -275,7 +275,7 @@ export default function BaseModal({
         className={cx(
           'ui-modal-panel glass-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-neutral-200 bg-white/95 text-neutral-950 shadow-2xl outline-none backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95 dark:text-neutral-100',
           sizeClass,
-          fullscreen ? 'rounded-none' : mobileSheet ? 'rounded-t-[28px] sm:rounded-[24px]' : 'rounded-[24px]',
+          fullscreen ? 'rounded-none' : mobileSheet ? 'rounded-t-[28px] sm:rounded-2xl' : 'rounded-2xl',
           panelClassName
         )}
         onClick={(event) => event.stopPropagation()}

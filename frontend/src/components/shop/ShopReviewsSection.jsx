@@ -31,70 +31,60 @@ export default function ShopReviewsSection({
   const ownCommentExists = Boolean(currentUserReview?.comment?.trim());
 
   return (
-    <section className="overflow-hidden rounded-[28px] bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-orange-100/80 dark:bg-neutral-950 dark:ring-neutral-800" id="reviews">
-      <div className="flex items-start justify-between gap-2 px-1">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">Communauté</p>
-          <h2 className="text-xl font-black text-slate-950 dark:text-white sm:text-2xl">
-            {t('shop_profile.reviews', 'Avis clients')}
-          </h2>
-          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {formatCount(ratingCount)} {t('shop_profile.reviews_count', 'avis')} ·{' '}
-            {formatRatingLabel(ratingAverage)}/5
-          </p>
-        </div>
+    <section className="overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800" id="reviews">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+          {t('shop_profile.reviews', 'Avis clients')}
+        </h2>
         <button
           type="button"
           onClick={() => setShowCommentsModal(true)}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[#fff7ef] px-3 text-xs font-black text-[#FF6A00] ring-1 ring-orange-100 transition hover:bg-orange-50 dark:bg-neutral-900 dark:ring-neutral-800"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded bg-gray-100 px-3 text-[11px] font-bold text-[#FF6A00] transition hover:bg-gray-200 dark:bg-neutral-800"
         >
           <span>{t('shop_profile.view_all', 'Voir tout')}</span>
           <ExternalLink size={13} />
         </button>
       </div>
 
-      {/* Rating summary card */}
+      {/* Rating summary */}
       {ratingCount > 0 && (
-        <div className="mt-4 overflow-hidden rounded-[24px] bg-slate-950 p-4 dark:bg-neutral-900">
-          <div className="flex items-center gap-5">
-            <span className="text-[44px] font-extrabold leading-none text-white">
-              {formatRatingLabel(ratingAverage)}
-            </span>
-            <div className="flex-1">
-              <div className="mb-2.5 flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={14}
-                    className={
-                      star <= Math.round(ratingAverage)
-                        ? 'fill-amber-400 text-amber-400'
-                        : 'text-white/25'
-                    }
-                  />
-                ))}
-                <span className="ml-1 text-xs text-white/60">
-                  {formatCount(ratingCount)} {t('shop_profile.reviews_count', 'avis')}
-                </span>
-              </div>
-              {[5, 4, 3, 2, 1].map((bar) => {
-                const count = recentReviews.filter(
-                  (r) => Math.round(Number(r.rating || 0)) === bar
-                ).length;
-                const pct = ratingCount > 0 ? Math.round((count / ratingCount) * 100) : 0;
-                return (
-                  <div key={bar} className="mb-1 flex items-center gap-2">
-                    <span className="w-2 text-[10px] text-white/50">{bar}</span>
-                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/15">
-                      <div
-                        className="h-1 rounded-full bg-amber-400"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+        <div className="mt-4 flex items-center gap-4 border-b border-gray-100 pb-4 dark:border-neutral-800">
+          <div className="text-center">
+            <p className="text-4xl font-black text-[#FF6A00]">{formatRatingLabel(ratingAverage)}</p>
+            <div className="mt-1 flex items-center justify-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  size={13}
+                  className={
+                    star <= Math.round(ratingAverage)
+                      ? 'fill-[#FF6A00] text-[#FF6A00]'
+                      : 'text-gray-200 dark:text-neutral-700'
+                  }
+                />
+              ))}
             </div>
+            <p className="mt-0.5 text-[11px] text-gray-400">
+              {formatCount(ratingCount)} {t('shop_profile.reviews_count', 'avis')}
+            </p>
+          </div>
+          <div className="flex-1 space-y-1">
+            {[5, 4, 3, 2, 1].map((bar) => {
+              const count = recentReviews.filter(
+                (r) => Math.round(Number(r.rating || 0)) === bar
+              ).length;
+              const pct = ratingCount > 0 ? Math.round((count / ratingCount) * 100) : 0;
+              return (
+                <div key={bar} className="flex items-center gap-2 text-[11px] text-gray-500">
+                  <span className="w-3 text-right">{bar}</span>
+                  <Star size={10} className="fill-[#FF6A00] text-[#FF6A00]" />
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
+                    <div className="h-full rounded-full bg-[#FF6A00]" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-8">{pct}%</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -109,9 +99,9 @@ export default function ShopReviewsSection({
       {showReviewForm && (
         <form
           onSubmit={onSubmitReview}
-          className="mt-4 rounded-[24px] bg-[#fffaf6] p-4 ring-1 ring-orange-100/80 dark:bg-neutral-900 dark:ring-neutral-800"
+          className="mt-4 rounded border border-gray-100 bg-gray-50 p-4 dark:border-neutral-800 dark:bg-neutral-900"
         >
-          <p className="text-sm font-black text-slate-950 dark:text-white">
+          <p className="text-sm font-black text-gray-900 dark:text-white">
             {t('shop_profile.your_rating', 'Votre note')}
           </p>
           <div className="mt-2 flex gap-2">
@@ -126,8 +116,8 @@ export default function ShopReviewsSection({
                   size={26}
                   className={
                     value <= Number(reviewForm.rating)
-                      ? 'fill-amber-400 text-amber-400'
-                      : 'text-neutral-300 dark:text-neutral-700'
+                      ? 'fill-[#FF6A00] text-[#FF6A00]'
+                      : 'text-gray-300 dark:text-neutral-700'
                   }
                 />
               </button>
@@ -137,7 +127,7 @@ export default function ShopReviewsSection({
             value={reviewForm.comment}
             onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
             rows={4}
-            className="mt-3 w-full rounded-[18px] border border-orange-100 bg-white px-3 py-2.5 text-sm text-slate-950 placeholder-slate-400 focus:border-[#FF6A00] focus:outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
+            className="mt-3 w-full rounded border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#FF6A00] focus:outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
             placeholder={t('shop_profile.comment_placeholder', 'Partagez votre expérience...')}
           />
           {reviewError && (
@@ -146,7 +136,7 @@ export default function ShopReviewsSection({
           <button
             type="submit"
             disabled={reviewPending || !user}
-            className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#FF6A00] text-sm font-black text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[#FF6A00] text-sm font-black text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {reviewPending
               ? t('shop_profile.sending', 'Envoi...')
@@ -158,7 +148,7 @@ export default function ShopReviewsSection({
       )}
 
       {!showReviewForm && ownCommentExists && (
-        <div className="mt-3 flex items-center justify-between gap-2 rounded-[20px] bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/30">
+        <div className="mt-3 flex items-center justify-between gap-2 rounded bg-emerald-50 px-3 py-2 dark:bg-emerald-500/10">
           <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
             {t('shop_profile.review_published', 'Votre avis est publié')}
           </p>
@@ -186,7 +176,7 @@ export default function ShopReviewsSection({
             return (
               <article
                 key={review._id}
-                className="rounded-[22px] bg-white p-3 ring-1 ring-stone-200 dark:bg-neutral-950 dark:ring-neutral-800"
+                className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900"
               >
                 <div className="flex items-start gap-3">
                   {avatarSrc ? (
@@ -244,7 +234,7 @@ export default function ShopReviewsSection({
             );
           })
         ) : (
-        <div className="rounded-[22px] border border-dashed border-orange-200 bg-orange-50/40 px-4 py-8 text-center text-sm font-semibold text-slate-500 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-400">
+        <div className="rounded border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm font-semibold text-gray-500 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-400">
             {t('shop_profile.no_reviews', 'Aucun avis publié pour le moment')}
           </div>
         )}

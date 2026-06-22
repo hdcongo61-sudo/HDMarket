@@ -28,7 +28,7 @@ export default function AppOfflineDiagnosticsCard({
       : 'Aucune attente locale';
 
   const fullCard = (
-    <GlassCard variant="glass" className="overflow-hidden rounded-[28px] p-4 sm:p-5">
+    <GlassCard variant="glass" className="overflow-hidden rounded-2xl p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white dark:bg-white/10 dark:text-slate-100">

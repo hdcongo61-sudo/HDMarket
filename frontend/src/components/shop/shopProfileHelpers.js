@@ -167,15 +167,6 @@ export const parseGeoPoint = (location) => {
   return { latitude, longitude };
 };
 
-export const buildFullShopAddress = (shop = {}) =>
-  Array.from(
-    new Set(
-      [shop?.shopAddress, shop?.commune, shop?.city]
-        .map((value) => String(value || '').trim())
-        .filter(Boolean)
-    )
-  ).join(', ');
-
 export const buildGoogleDirectionsUrl = ({ destination, origin = null }) => {
   if (!destination) return null;
   const url = new URL('https://www.google.com/maps/dir/');
@@ -240,6 +231,9 @@ export const readShopSnapshot = (slug) => {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return undefined;
     if (!parsed?.shop?._id) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(parsed.shop, 'shopLocationAddress')) {
+      return undefined;
+    }
     return parsed;
   } catch {
     return undefined;
@@ -254,4 +248,3 @@ export const writeShopSnapshot = (slug, payload) => {
     // ignore storage failure
   }
 };
-

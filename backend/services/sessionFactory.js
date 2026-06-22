@@ -98,6 +98,7 @@ export function buildSession(user, decoded = {}, token = '') {
     // ── Shop fields ──
     shopName: safeString(user.shopName),
     shopAddress: safeString(user.shopAddress),
+    shopLocationAddress: safeString(user.shopLocationAddress),
     shopLogo: safeString(user.shopLogo),
     shopBanner: safeString(user.shopBanner),
     shopBannerMobile: safeString(user.shopBannerMobile),
