@@ -292,6 +292,9 @@ const isWalletAction = (alert, to = '') => {
   const metadata = alert?.metadata || {};
   const link = String(to || alert?.actionLink || alert?.deepLink || metadata?.deepLink || '').trim().toLowerCase();
   const message = String(alert?.message || metadata?.message || '').trim().toLowerCase();
+  // App/platform-wallet alerts resolve to an /admin route — those are not a
+  // personal "open wallet" action, so let the admin label take over.
+  if (link.startsWith('/admin')) return false;
   return (
     link === '/wallet' ||
     link.startsWith('/wallet?') ||

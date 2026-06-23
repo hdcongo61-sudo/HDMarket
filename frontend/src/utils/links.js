@@ -1,32 +1,27 @@
+export const isGeneratedTimestampSlug = (value) => {
+  const normalized = String(value || '').trim();
+  return /^\d{10,}(?:-\d+)?$/.test(normalized);
+};
+
 const extractIdentifier = (value, slugKey = 'slug') => {
   if (!value) return null;
   if (typeof value === 'string') return value;
   if (typeof value === 'object') {
-    if (value[slugKey]) return value[slugKey];
+    const slug = value[slugKey] || value.slug;
+    if (slug && !isGeneratedTimestampSlug(slug)) return slug;
     if (value._id) return value._id;
     if (value.id) return value.id;
-    if (value.slug) return value.slug;
-  }
-  return null;
-};
-
-const extractSlug = (value, slugKey = 'slug') => {
-  if (!value) return null;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'object') {
-    if (value[slugKey]) return value[slugKey];
-    if (value.slug) return value.slug;
+    if (slug) return slug;
   }
   return null;
 };
 
 export const buildProductPath = (product) => {
-  const slug = extractSlug(product, 'slug');
-  if (slug) return `/product/${slug}`;
-  // Fallback to ID when slug is missing
-  const id = product?._id || product?.id;
-  if (id) return `/product/${id}`;
-  return '/product';
+  // Prefer a real slug, but fall back to the _id when the slug is a generated
+  // timestamp placeholder (e.g. "1782162322025") — the backend can't resolve
+  // those slugs, which results in a 404.
+  const identifier = extractIdentifier(product, 'slug');
+  return identifier ? `/product/${identifier}` : '/product';
 };
 
 export const buildShopPath = (shop) => {
@@ -36,6 +31,6 @@ export const buildShopPath = (shop) => {
 
 export const buildProductShareUrl = (product, origin = '') => {
   const urlOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : '');
-  const slug = extractSlug(product, 'slug');
-  return slug ? `${urlOrigin}/product/${slug}` : urlOrigin;
+  const identifier = extractIdentifier(product, 'slug');
+  return identifier ? `${urlOrigin}/product/${identifier}` : urlOrigin;
 };

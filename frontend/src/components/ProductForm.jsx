@@ -174,7 +174,7 @@ export default function ProductForm(props) {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [cropAspect, setCropAspect] = useState(null); // null = free, '1:1', '4:3', '16:9'
+  const [cropAspect, setCropAspect] = useState('1:1'); // default = card display (square); also: null = free, '4:3', '16:9'
   const [isResizingCrop, setIsResizingCrop] = useState(null); // null | 'se' | 'sw' | 'ne' | 'nw'
   const cropCanvasRef = useRef(null);
   const cropContainerRef = useRef(null);
@@ -191,6 +191,9 @@ export default function ProductForm(props) {
   const CROP_MIN_ZOOM = 0.3;
   const CROP_MAX_ZOOM = 5;
   const ASPECT_PRESETS = { '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
+  // Product cards display the image as a square (ui-media-frame-square), so the
+  // crop/edit editor defaults to this ratio to match how the image will appear.
+  const CARD_DISPLAY_ASPECT = '1:1';
   const [showPreview, setShowPreview] = useState(false);
   const [payWithWallet, setPayWithWallet] = useState(false);
   const [promoCode, setPromoCode] = useState('');
@@ -627,6 +630,9 @@ export default function ProductForm(props) {
     imgNaturalSizeRef.current = { w: 0, h: 0 };
     pinchDistRef.current = null;
     pinchScaleRef.current = null;
+    // Default the frame to the product-card display ratio (square) so the crop
+    // matches how the image will be shown on the cards.
+    setCropAspect(CARD_DISPLAY_ASPECT);
     setCroppingImage({ file, url: preview.url, index });
     // initializeCropArea fires via the img onLoad in the modal
   };

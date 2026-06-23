@@ -1,4 +1,4 @@
-import { buildProductShareUrl } from './links';
+import { buildProductShareUrl, buildShopPath } from './links';
 
 export const sanitizePhoneNumber = (phone) => {
   if (!phone) return '';
@@ -26,8 +26,8 @@ export const buildShopWhatsappLink = (shop, phone) => {
   const sanitizedPhone = sanitizePhoneNumber(phone);
   if (!shop?._id || !sanitizedPhone) return null;
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const shopSlug = shop.slug || shop._id;
-  const shopUrl = origin && shopSlug ? `${origin}/shop/${shopSlug}` : '';
+  const shopPath = buildShopPath(shop);
+  const shopUrl = origin && shopPath !== '/shop' ? `${origin}${shopPath}` : '';
   const shopName = shop.shopName || shop.name || 'votre boutique';
   const message = encodeURIComponent(
     `Bonjour, je souhaite contacter ${shopName} sur HDMarket. ${shopUrl}`.trim()

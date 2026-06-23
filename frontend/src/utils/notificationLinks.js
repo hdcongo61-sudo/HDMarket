@@ -1,4 +1,9 @@
 import { buildProductPath, buildShopPath } from './links';
+import { hasAnyPermission } from './permissions';
+
+// Where admins / founders / granted users manage the platform ("app") wallet:
+// deposits to verify, withdrawals to process, platform balance.
+const APP_WALLET_PATH = '/admin/payments';
 
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
@@ -296,8 +301,41 @@ const isWalletNotification = (alert) => {
   );
 };
 
+// Can this recipient act on the platform/app wallet (verify deposits, process
+// withdrawals)? Founders + admins/managers, or anyone granted the permission.
+const userCanManageAppWallet = (user) =>
+  userIsBackoffice(user) ||
+  user?.canVerifyPayments === true ||
+  hasAnyPermission(user, ['verify_payments', 'manage_payments', 'manage_wallet']);
+
+// Distinguishes an "app/platform wallet" alert (a deposit/withdrawal the admin
+// must process, or any admin-scoped wallet alert) from a personal-wallet alert
+// (the recipient's own balance was credited/debited).
+const isAppWalletScopedNotification = (alert) => {
+  const metadata = alert?.metadata || {};
+  const explicitLink = normalizeNotificationLink(
+    alert?.actionLink || alert?.deepLink || metadata?.deepLink || ''
+  ).toLowerCase();
+  if (explicitLink.startsWith('/admin')) return true;
+  const role = String(metadata?.role || '').trim().toLowerCase();
+  if (role === 'wallet_deposit_request' || role === 'wallet_withdrawal_request') return true;
+  const scope = String(metadata?.walletScope || metadata?.scope || metadata?.walletType || '')
+    .trim()
+    .toLowerCase();
+  return scope === 'app' || scope === 'platform' || scope === 'admin';
+};
+
 const buildWalletPath = (alert, user) => {
   if (!isWalletNotification(alert)) return '';
+  // App/platform-wallet alerts route privileged recipients to the app wallet
+  // (deposit/withdrawal verification) instead of their personal portefeuille.
+  // Personal-wallet alerts — and everyone without app-wallet access — go to /wallet.
+  if (isAppWalletScopedNotification(alert) && userCanManageAppWallet(user)) {
+    const explicit = normalizeNotificationLink(
+      alert?.actionLink || alert?.deepLink || alert?.metadata?.deepLink || ''
+    );
+    return explicit && explicit.toLowerCase().startsWith('/admin') ? explicit : APP_WALLET_PATH;
+  }
   return '/wallet';
 };
 

@@ -23,6 +23,7 @@ import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useIsMobile from '../hooks/useIsMobile';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { setPendingAction } from '../utils/pendingAction';
+import { isGeneratedTimestampSlug } from '../utils/links';
 import { buildShopWhatsappLink } from '../utils/whatsapp';
 import ShopTopHeader from '../components/shop/ShopTopHeader';
 import ShopHero from '../components/shop/ShopHero';
@@ -131,12 +132,14 @@ export default function ShopProfile() {
     queryFn: async () => {
       const pageLimit = rapid3GActive ? Math.max(12, Number(compactProductsPageSize || 8) * 2) : 36;
       const maxPagesToLoad = rapid3GActive ? 1 : 2;
+      const cachedShopId = isGeneratedTimestampSlug(slug) ? readShopSnapshot(slug)?.shop?._id : null;
+      const shopRequestId = cachedShopId || slug;
       const requestOptions = {
         skipCache: true,
         headers: { 'x-skip-cache': '1' }
       };
 
-      const { data: firstPageData } = await api.get(`/shops/${slug}`, {
+      const { data: firstPageData } = await api.get(`/shops/${shopRequestId}`, {
         ...requestOptions,
         params: { page: 1, limit: pageLimit }
       });
@@ -146,7 +149,7 @@ export default function ShopProfile() {
       const allProducts = Array.isArray(firstPageData?.products) ? [...firstPageData.products] : [];
 
       for (let page = 2; page <= pagesToLoad; page += 1) {
-        const { data: pageData } = await api.get(`/shops/${slug}`, {
+        const { data: pageData } = await api.get(`/shops/${shopRequestId}`, {
           ...requestOptions,
           params: { page, limit: pageLimit }
         });
@@ -213,7 +216,8 @@ export default function ShopProfile() {
     const canonicalSlug = String(shop?.slug || '').trim();
     const routeSlug = String(slug || '').trim();
     const looksLikeObjectId = /^[a-f0-9]{24}$/i.test(routeSlug);
-    if (!looksLikeObjectId || !canonicalSlug || canonicalSlug === routeSlug) return;
+    const shouldUseCanonicalRoute = looksLikeObjectId || isGeneratedTimestampSlug(routeSlug);
+    if (!shouldUseCanonicalRoute || !canonicalSlug || canonicalSlug === routeSlug) return;
     navigate(`/shop/${canonicalSlug}`, { replace: true });
   }, [navigate, shop?.slug, slug]);
 
@@ -391,7 +395,7 @@ export default function ShopProfile() {
     [shop?._id, viewerUserId]
   );
 
-  const verifyFollowMutation = useCallback(async () => {
+  const refreshFollowingState = useCallback(async () => {
     if (!shop?._id || !user) return null;
     try {
       const [{ data: followedShops }] = await Promise.all([
@@ -408,15 +412,11 @@ export default function ShopProfile() {
         updateUser({ followingShops: followedIds.filter(Boolean) });
       }
       const match = normalizedList.find((entry) => String(entry?._id || '') === String(shop._id));
-      const confirmedFollowing = Boolean(match);
-      if (confirmedFollowing === isFollowing) {
-        return null;
-      }
-      return confirmedFollowing;
+      return Boolean(match);
     } catch {
       return null;
     }
-  }, [isFollowing, queryClient, shop?._id, shopProfileQueryKey, updateUser, user]);
+  }, [queryClient, shop?._id, shopProfileQueryKey, updateUser, user]);
 
   const verifyReviewMutation = useCallback(
     async ({ rating, comment }) => {
@@ -449,29 +449,27 @@ export default function ShopProfile() {
   );
 
   const followMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ shouldFollow }) => {
       if (!shop?._id) throw new Error('Boutique introuvable.');
-      if (isFollowing) {
-        const { data } = await api.delete(`/users/shops/${shop._id}/follow`, {
-          silentGlobalError: true
-        });
-        return data;
-      }
-      const { data } = await api.post(`/users/shops/${shop._id}/follow`, null, {
-        silentGlobalError: true
-      });
+      const { data } = shouldFollow
+        ? await api.post(`/users/shops/${shop._id}/follow`, null, {
+            silentGlobalError: true
+          })
+        : await api.delete(`/users/shops/${shop._id}/follow`, {
+            silentGlobalError: true
+          });
       return data;
     },
-    onMutate: async () => {
+    onMutate: async ({ shouldFollow }) => {
       await queryClient.cancelQueries({ queryKey: shopProfileQueryKey });
       const previous = queryClient.getQueryData(shopProfileQueryKey);
       const previousFollowingShops = Array.isArray(user?.followingShops)
         ? user.followingShops.map((entry) => String(entry))
         : [];
       const shopId = String(shop?._id || '');
-      const nextFollowingShops = isFollowing
-        ? previousFollowingShops.filter((entry) => entry !== shopId)
-        : Array.from(new Set([...previousFollowingShops, shopId]));
+      const nextFollowingShops = shouldFollow
+        ? Array.from(new Set([...previousFollowingShops, shopId]))
+        : previousFollowingShops.filter((entry) => entry !== shopId);
 
       if (typeof updateUser === 'function' && shopId) {
         updateUser({ followingShops: nextFollowingShops });
@@ -480,9 +478,9 @@ export default function ShopProfile() {
       queryClient.setQueryData(shopProfileQueryKey, (old) => {
         if (!old?.shop) return old;
         const currentFollowers = Number(old.shop.followersCount || 0);
-        const nextFollowers = isFollowing
-          ? Math.max(0, currentFollowers - 1)
-          : currentFollowers + 1;
+        const nextFollowers = shouldFollow
+          ? currentFollowers + 1
+          : Math.max(0, currentFollowers - 1);
         return {
           ...old,
           shop: {
@@ -491,11 +489,11 @@ export default function ShopProfile() {
           }
         };
       });
-      return { previous, previousFollowingShops, wasFollowing: isFollowing };
+      return { previous, previousFollowingShops, shouldFollow };
     },
     onError: async (err, _variables, context) => {
       if (isApiPossiblyCommittedError(err)) {
-        const confirmedFollowing = await verifyFollowMutation();
+        const confirmedFollowing = await refreshFollowingState();
         if (confirmedFollowing !== null) {
           showToast(
             confirmedFollowing
@@ -522,7 +520,7 @@ export default function ShopProfile() {
           : Array.isArray(user?.followingShops)
             ? user.followingShops.map((entry) => String(entry))
             : [];
-        const shouldFollow = !Boolean(context?.wasFollowing ?? isFollowing);
+        const shouldFollow = Boolean(context?.shouldFollow);
         const next = shouldFollow
           ? Array.from(new Set([...current, String(shop._id)]))
           : current.filter((entry) => entry !== String(shop._id));
@@ -540,9 +538,9 @@ export default function ShopProfile() {
       });
       showToast(
         data?.message ||
-          (context?.wasFollowing ?? isFollowing
-            ? t('shop_profile.unfollowed', 'Boutique désabonnée.')
-            : t('shop_profile.followed', 'Boutique suivie.')),
+          (context?.shouldFollow
+            ? t('shop_profile.followed', 'Boutique suivie.')
+            : t('shop_profile.unfollowed', 'Boutique désabonnée.')),
         { variant: 'success' }
       );
     }
@@ -730,7 +728,7 @@ export default function ShopProfile() {
   );
   const isCertifiedShop = shopVerifiedFlag || hasVerifiedSellerInProducts;
 
-  const handleFollowToggle = useCallback(() => {
+  const handleFollowToggle = useCallback(async () => {
     if (followMutation.isPending) return;
     if (!shop?._id) {
       showToast(t('shop_profile.loading_retry', 'Chargement de la boutique en cours. Réessayez dans un instant.'), {
@@ -756,11 +754,15 @@ export default function ShopProfile() {
       });
       return;
     }
-    followMutation.mutate();
+    const confirmedFollowing = await refreshFollowingState();
+    const shouldFollow = !(confirmedFollowing ?? isFollowing);
+    followMutation.mutate({ shouldFollow });
   }, [
     followMutation,
     isOwnShop,
+    isFollowing,
     navigate,
+    refreshFollowingState,
     shop?._id,
     shopQuery,
     shopVerifiedFlag,

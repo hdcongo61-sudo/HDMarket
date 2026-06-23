@@ -27,7 +27,8 @@ import {
   Flag,
   Trash2,
   Search,
-  Video
+  Video,
+  Zap
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -47,6 +48,7 @@ import {
   validateSelectedAttributes
 } from "../utils/productAttributes";
 import { resolveUserProfileImage } from "../utils/userAvatar";
+import { isColorAttribute, resolveSwatchColor } from "../utils/colorSwatch";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
 import BundleDeal from "../components/BundleDeal";
@@ -2240,6 +2242,7 @@ export default function ProductDetails() {
                 const selectedValue = normalizedSelectedAttributes.find(
                   (e) => e.name.toLowerCase() === attribute.name.toLowerCase()
                 )?.value || '';
+                const isColor = isColorAttribute(attribute);
                 return (
                   <div key={`mob-opt-${attribute.key || attribute.name}`}>
                     <p className="text-xs font-semibold text-gray-600 mb-2">
@@ -2250,12 +2253,19 @@ export default function ProductDetails() {
                       <div className="flex flex-wrap gap-2">
                         {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
                           const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                          const swatch = isColor ? resolveSwatchColor(option) : '';
                           return (
                             <button key={`${attribute.name}-${option}`} type="button"
                               onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
-                              className={`rounded border px-3.5 py-2 text-sm font-semibold transition-all active:scale-[0.97] ${active
+                              className={`inline-flex items-center gap-2 rounded border px-3.5 py-2 text-sm font-semibold transition-all active:scale-[0.97] ${active
                                 ? 'border-[#FF6A00] bg-[#fff0e4] text-[#FF6A00]'
                                 : 'border-gray-200 bg-white text-gray-700'}`}>
+                              {swatch && (
+                                <span
+                                  className="h-4 w-4 shrink-0 rounded-full border border-black/15 shadow-inner"
+                                  style={{ background: swatch }}
+                                />
+                              )}
                               {option}
                             </button>
                           );
@@ -2735,20 +2745,24 @@ export default function ProductDetails() {
               </span>
             </button>
             {/* Add to Cart + Buy Now */}
-            <button type="button" onClick={handleAddToCart}
-              disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
-              className={`flex flex-1 items-center justify-center font-black text-sm transition-all active:brightness-95 ${inCart || isOutOfStock || isOptionSelectionBlocked
-                ? 'bg-gray-200 text-gray-400'
-                : 'bg-gradient-to-r from-[#FFCD1F] to-[#FF9A1F] text-white'}`}>
-              {isOptionSelectionBlocked ? 'Options' : isOutOfStock ? 'Rupture' : inCart ? 'Au panier' : normalizedQuantity > 1 ? `×${normalizedQuantity}` : 'Ajouter'}
-            </button>
-            <button type="button" onClick={handleBuyNow}
-              disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
-              className={`flex flex-1 items-center justify-center font-black text-sm transition-all active:brightness-95 ${isOutOfStock || isOptionSelectionBlocked
-                ? 'bg-gray-200 text-gray-400'
-                : 'bg-gradient-to-r from-[#FF6A00] to-[#FF3D1F] text-white'}`}>
-              {isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}
-            </button>
+            <div className="flex flex-1 items-center gap-2 px-2">
+              <button type="button" onClick={handleAddToCart}
+                disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock || isOptionSelectionBlocked
+                  ? 'bg-gray-100 text-gray-400'
+                  : 'border border-[#FF6A00] bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                <ShoppingCart size={16} className="flex-shrink-0" />
+                <span className="truncate">{isOptionSelectionBlocked ? 'Options' : isOutOfStock ? 'Rupture' : inCart ? 'Au panier' : normalizedQuantity > 1 ? `×${normalizedQuantity}` : 'Ajouter'}</span>
+              </button>
+              <button type="button" onClick={handleBuyNow}
+                disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock || isOptionSelectionBlocked
+                  ? 'bg-gray-200 text-gray-400'
+                  : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
+                <Zap size={16} className="flex-shrink-0" fill="currentColor" />
+                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3360,10 +3374,10 @@ export default function ProductDetails() {
                       disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
                       className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock || isOptionSelectionBlocked
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
-                        : 'bg-neutral-950 text-white shadow-[0_18px_34px_-22px_rgba(15,23,42,0.82)] hover:bg-black hover:shadow-md'
+                        : 'border border-[#FF6A00] bg-[#FFF0E4] text-[#FF6A00] hover:bg-[#ffe4cf]'
                         }`}
                     >
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#FF6A00]">
                         <ShoppingCart size={16} />
                       </span>
                       <span className="truncate leading-tight">
@@ -3376,12 +3390,12 @@ export default function ProductDetails() {
                       disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
                       className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isOutOfStock || isOptionSelectionBlocked
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
-                        : 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:shadow-sm'
+                        : 'bg-[#FF6A00] text-white shadow-[0_18px_34px_-22px_rgba(255,106,0,0.9)] hover:bg-[#f45f00]'
                         }`}
                     >
-                      <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isOutOfStock ? 'bg-slate-300' : 'bg-slate-900 text-white'
+                      <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isOutOfStock ? 'bg-slate-300' : 'bg-white/15 text-white'
                         }`}>
-                        <ShoppingCart size={16} />
+                        <Zap size={16} fill="currentColor" />
                       </span>
                       <span className="truncate leading-tight">
                         {isOptionSelectionBlocked ? 'Choisir les options' : buyNowButtonLabel}
@@ -4176,6 +4190,7 @@ export default function ProductDetails() {
                 <div className="flex flex-wrap gap-2">
                   {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
                     const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                    const swatch = isColorAttribute(attribute) ? resolveSwatchColor(option) : '';
                     return (
                       <button
                         key={`${attribute.name}-${option}`}
@@ -4186,12 +4201,18 @@ export default function ProductDetails() {
                             !attribute.required && active ? '' : option
                           )
                         }
-                        className={`rounded-2xl border px-3.5 py-2 text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                        className={`inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
                           active
                             ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
+                        {swatch && (
+                          <span
+                            className={`h-4 w-4 shrink-0 rounded-full border shadow-inner ${active ? 'border-white/40' : 'border-black/15'}`}
+                            style={{ background: swatch }}
+                          />
+                        )}
                         {option}
                       </button>
                     );
