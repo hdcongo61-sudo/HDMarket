@@ -1,6 +1,20 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Bot, Palette, RefreshCcw, UserCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Bell,
+  Bot,
+  ChevronRight,
+  Coins,
+  Globe,
+  Monitor,
+  Moon,
+  Palette,
+  RefreshCcw,
+  ShieldAlert,
+  Sun
+} from 'lucide-react';
+import { resolveUserProfileImage } from '../utils/userAvatar';
 import { useQueryClient } from '@tanstack/react-query';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -17,15 +31,15 @@ import { appConfirm } from '../utils/appDialog';
 
 // ── Notification Toggle Component ──
 const NotifToggle = React.memo(({ label, checked, onChange }) => (
-  <div className="flex items-center justify-between py-2">
-    <span className="text-sm text-gray-700 dark:text-neutral-300">{label}</span>
+  <div className="flex items-center justify-between gap-3 py-2.5">
+    <span className="text-sm font-medium text-gray-700 dark:text-neutral-200">{label}</span>
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       onClick={onChange}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
-        checked ? 'bg-gray-1000' : 'bg-gray-300 dark:bg-neutral-600'
+        checked ? 'bg-[#FF6A00]' : 'bg-black/15 dark:bg-white/25'
       }`}
     >
       <span
@@ -36,6 +50,50 @@ const NotifToggle = React.memo(({ label, checked, onChange }) => (
     </button>
   </div>
 ));
+
+// ── Settings card with an accent icon chip + heading ──
+const SectionCard = ({ icon: Icon, title, subtitle, action, children }) => (
+  <section className="ui-card rounded-2xl p-4">
+    <div className="flex items-center gap-2.5">
+      {Icon && (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00]/10 text-[#FF6A00]">
+          <Icon size={17} />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <h2 className="text-sm font-black text-gray-900 dark:text-white">{title}</h2>
+        {subtitle && (
+          <p className="mt-0.5 text-[11px] font-medium leading-snug text-gray-500 dark:text-neutral-400">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {action}
+    </div>
+    {children && <div className="mt-3.5">{children}</div>}
+  </section>
+);
+
+// ── A labelled row inside a card (for stacked selectors) ──
+const SettingRow = ({ label, children }) => (
+  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+    <p className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-neutral-400">{label}</p>
+    {children}
+  </div>
+);
+
+// ── A notification category with a colored dot ──
+const NotifGroup = ({ dotClass, title, items, notifPrefs, onToggle }) => (
+  <div className="py-1.5">
+    <p className="mb-1 flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-neutral-400">
+      <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+      {title}
+    </p>
+    {items.map(([key, label]) => (
+      <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => onToggle(key)} />
+    ))}
+  </div>
+);
 
 export default function UserSettings() {
   const { user } = useContext(AuthContext);
@@ -59,9 +117,9 @@ export default function UserSettings() {
   const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
   const themeOptions = useMemo(
     () => [
-      { value: 'system', label: t('settings.theme.system', 'Systeme') },
-      { value: 'light', label: t('settings.theme.light', 'Clair') },
-      { value: 'dark', label: t('settings.theme.dark', 'Sombre') }
+      { value: 'system', label: t('settings.theme.system', 'Systeme'), icon: Monitor },
+      { value: 'light', label: t('settings.theme.light', 'Clair'), icon: Sun },
+      { value: 'dark', label: t('settings.theme.dark', 'Sombre'), icon: Moon }
     ],
     [t]
   );
@@ -246,75 +304,105 @@ export default function UserSettings() {
           >
             <ArrowLeft size={18} />
           </Link>
-          <div>
-            <h1 className="text-base font-semibold">{t('settings.title', 'Parametres')}</h1>
-            <p className="text-xs text-gray-500 dark:text-neutral-400">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-black text-gray-900 dark:text-white">{t('settings.title', 'Parametres')}</h1>
+            <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-neutral-400">
+              <span className={`h-1.5 w-1.5 rounded-full ${savingPreferences ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'}`} />
               {savingPreferences ? t('settings.syncing', 'Synchronisation en cours...') : t('settings.saved', 'Enregistre')}
             </p>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-20 pt-6">
-        <section className="ui-card rounded-2xl px-4 py-5">
-          <div className="mb-3 flex items-center gap-2">
-            <UserCircle size={18} className="text-gray-500 dark:text-neutral-300" />
-            <h2 className="text-sm font-semibold">{t('settings.profile', 'Profil')}</h2>
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-24 pt-5">
+        <Link
+          to="/profile"
+          className="ui-card flex items-center gap-3 rounded-2xl p-3.5 transition active:scale-[0.99]"
+        >
+          {resolveUserProfileImage(user) ? (
+            <img
+              src={resolveUserProfileImage(user)}
+              alt={user?.name || t('settings.user', 'Utilisateur')}
+              className="h-14 w-14 shrink-0 rounded-2xl object-cover ring-1 ring-black/5 dark:ring-white/10"
+            />
+          ) : (
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FF6A00] text-xl font-black text-white">
+              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-base font-black text-gray-900 dark:text-white">
+              {user?.name || t('settings.user', 'Utilisateur')}
+            </p>
+            <p className="truncate text-xs font-medium text-gray-500 dark:text-neutral-400">
+              {[user?.phone, user?.city].filter(Boolean).join(' · ') || '-'}
+            </p>
+            <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6A00]">
+              {t('settings.editProfile', 'Modifier le profil')}
+            </span>
           </div>
-          <div className="space-y-2 text-sm text-gray-600 dark:text-neutral-300">
-            <p>{user?.name || t('settings.user', 'Utilisateur')}</p>
-            <p>{user?.phone || '-'}</p>
-            <p>{user?.city || '-'}</p>
+          <ChevronRight size={18} className="shrink-0 text-gray-400" />
+        </Link>
+
+        <SectionCard
+          icon={Globe}
+          title={t('settings.localization', 'Région & langue')}
+          subtitle={t('settings.localizationDescription', 'Langue, devise et ville de livraison.')}
+        >
+          <div className="divide-y divide-black/5 dark:divide-white/10">
+            <SettingRow label={t('settings.language', 'Langue')}>
+              <LanguageSwitcher />
+            </SettingRow>
+            <SettingRow label={t('settings.currency', 'Devise')}>
+              <CurrencySelector />
+              <p className="flex items-center gap-1.5 text-[11px] font-medium text-gray-500 dark:text-neutral-400">
+                <Coins size={12} className="text-[#FF6A00]" />
+                {t('settings.pricePreview', 'Apercu prix')}: <span className="font-bold text-gray-700 dark:text-neutral-200">{previewPrice}</span>
+              </p>
+            </SettingRow>
+            <SettingRow label={t('settings.city', 'Ville')}>
+              <CitySelector />
+            </SettingRow>
           </div>
-        </section>
+        </SectionCard>
 
-        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
-          <h2 className="text-sm font-semibold">{t('settings.language', 'Langue')}</h2>
-          <LanguageSwitcher />
-        </section>
-
-        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
-          <h2 className="text-sm font-semibold">{t('settings.currency', 'Devise')}</h2>
-          <CurrencySelector />
-          <p className="text-xs text-gray-500 dark:text-neutral-400">{t('settings.pricePreview', 'Apercu prix')}: {previewPrice}</p>
-        </section>
-
-        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
-          <h2 className="text-sm font-semibold">{t('settings.city', 'Ville')}</h2>
-          <CitySelector />
-        </section>
-
-        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
-          <div className="flex items-center gap-2">
-            <Palette size={16} className="text-gray-500 dark:text-neutral-300" />
-            <h2 className="text-sm font-semibold">{t('settings.appearance', 'Apparence')}</h2>
+        <SectionCard
+          icon={Palette}
+          title={t('settings.appearance', 'Apparence')}
+          subtitle={t('settings.appearanceDescription', 'Choisissez le thème de l’application.')}
+        >
+          <div className="grid grid-cols-3 gap-2">
+            {themeOptions.map((item) => {
+              const ItemIcon = item.icon;
+              const active = theme === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setTheme(item.value)}
+                  aria-pressed={active}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border py-3.5 text-xs font-bold transition active:scale-[0.97] ${
+                    active
+                      ? 'border-[#FF6A00] bg-[#FF6A00]/10 text-[#FF6A00]'
+                      : 'border-gray-200 text-gray-600 hover:bg-black/[0.03] dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <ItemIcon size={20} />
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
-          <select
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            className="ui-input w-full px-3 py-2 text-sm"
-          >
-            {themeOptions.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </section>
+        </SectionCard>
 
-        <section className="ui-card rounded-2xl space-y-3 px-4 py-5">
-          <div className="flex items-center gap-2">
-            <Bot size={16} className="text-gray-500 dark:text-neutral-300" />
-            <h2 className="text-sm font-semibold">
-              {t('settings.assistantChat', 'Assistant chat')}
-            </h2>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-neutral-400">
-            {t(
-              'settings.assistantChatDescription',
-              'Activez ou desactivez le bouton flottant de l’assistant HDMarket.'
-            )}
-          </p>
+        <SectionCard
+          icon={Bot}
+          title={t('settings.assistantChat', 'Assistant chat')}
+          subtitle={t(
+            'settings.assistantChatDescription',
+            'Activez ou desactivez le bouton flottant de l’assistant HDMarket.'
+          )}
+        >
           <NotifToggle
             label={
               assistantChatEnabled
@@ -324,26 +412,24 @@ export default function UserSettings() {
             checked={assistantChatEnabled}
             onChange={() => setAssistantChatEnabled(!assistantChatEnabled)}
           />
-        </section>
+        </SectionCard>
 
         {/* ── Notification Preferences ── */}
-        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
-          <div className="flex items-center gap-2">
-            <Bell size={16} className="text-gray-500 dark:text-neutral-300" />
-            <h2 className="text-sm font-semibold">{t('settings.notifications', 'Notifications')}</h2>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-neutral-400">
-            {t('settings.notifDescription', 'Choisissez les notifications que vous souhaitez recevoir.')}
-          </p>
-
+        <SectionCard
+          icon={Bell}
+          title={t('settings.notifications', 'Notifications')}
+          subtitle={t('settings.notifDescription', 'Choisissez les notifications que vous souhaitez recevoir.')}
+        >
           {!notifPrefs ? (
             <p className="py-3 text-center text-sm text-gray-400">{t('settings.loading', 'Chargement...')}</p>
           ) : (
-            <div className="divide-y divide-gray-100 dark:divide-neutral-700">
-              {/* ── COMMANDES ── */}
-              <div className="py-2">
-                <p className="mb-2 text-xs font-semibold text-orange-600">{t('settings.notifOrders', 'Commandes')}</p>
-                {[
+            <div className="divide-y divide-black/5 dark:divide-white/10">
+              <NotifGroup
+                dotClass="bg-[#FF6A00]"
+                title={t('settings.notifOrders', 'Commandes')}
+                notifPrefs={notifPrefs}
+                onToggle={handleNotifToggle}
+                items={[
                   ['order_created', t('settings.notifOrderCreated', 'Commande confirmée')],
                   ['order_received', t('settings.notifOrderReceived', 'Nouvelle commande reçue')],
                   ['order_delivering', t('settings.notifOrderDelivering', 'Colis en route')],
@@ -351,100 +437,94 @@ export default function UserSettings() {
                   ['order_cancelled', t('settings.notifOrderCancelled', 'Commande annulée')],
                   ['order_message', t('settings.notifOrderMessage', 'Nouveau message commande')],
                   ['order_reminder', t('settings.notifOrderReminder', 'Rappel de commande')],
-                  ['review_reminder', t('settings.notifReviewReminder', 'Rappel d\'avis')],
-                ].map(([key, label]) => (
-                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
-                ))}
-              </div>
-
-              {/* ── PAIEMENTS ── */}
-              <div className="py-2">
-                <p className="mb-2 text-xs font-semibold text-green-600">{t('settings.notifPayments', 'Paiements')}</p>
-                {[
+                  ['review_reminder', t('settings.notifReviewReminder', 'Rappel d\'avis')]
+                ]}
+              />
+              <NotifGroup
+                dotClass="bg-emerald-500"
+                title={t('settings.notifPayments', 'Paiements')}
+                notifPrefs={notifPrefs}
+                onToggle={handleNotifToggle}
+                items={[
                   ['payment_pending', t('settings.notifPaymentPending', 'Paiement en attente')],
                   ['installment_due_reminder', t('settings.notifInstallmentDue', 'Échéance approche')],
-                  ['installment_overdue_warning', t('settings.notifInstallmentOverdue', 'Tranche en retard')],
-                ].map(([key, label]) => (
-                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
-                ))}
-              </div>
-
-              {/* ── SOCIAL ── */}
-              <div className="py-2">
-                <p className="mb-2 text-xs font-semibold text-blue-600">{t('settings.notifSocial', 'Social')}</p>
-                {[
+                  ['installment_overdue_warning', t('settings.notifInstallmentOverdue', 'Tranche en retard')]
+                ]}
+              />
+              <NotifGroup
+                dotClass="bg-sky-500"
+                title={t('settings.notifSocial', 'Social')}
+                notifPrefs={notifPrefs}
+                onToggle={handleNotifToggle}
+                items={[
                   ['product_comment', t('settings.notifComment', 'Commentaires')],
                   ['reply', t('settings.notifReply', 'Réponses')],
                   ['favorite', t('settings.notifFavorite', 'Ajouts aux favoris')],
                   ['rating', t('settings.notifRating', 'Évaluations')],
                   ['shop_review', t('settings.notifShopReview', 'Avis boutique')],
-                  ['shop_follow', t('settings.notifShopFollow', 'Nouveaux abonnés')],
-                ].map(([key, label]) => (
-                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
-                ))}
-              </div>
-
-              {/* ── ENGAGEMENT (Proposal 8) ── */}
-              <div className="py-2">
-                <p className="mb-2 text-xs font-semibold text-purple-600">{t('settings.notifEngagement', 'Découvertes & Bons plans')}</p>
-                {[
+                  ['shop_follow', t('settings.notifShopFollow', 'Nouveaux abonnés')]
+                ]}
+              />
+              <NotifGroup
+                dotClass="bg-violet-500"
+                title={t('settings.notifEngagement', 'Découvertes & Bons plans')}
+                notifPrefs={notifPrefs}
+                onToggle={handleNotifToggle}
+                items={[
                   ['price_drop', t('settings.notifPriceDrop', '📉 Baisse de prix sur mes favoris')],
                   ['back_in_stock', t('settings.notifBackInStock', '🔄 Produit de retour en stock')],
                   ['abandoned_cart', t('settings.notifAbandonedCart', '🛒 Rappel panier oublié')],
                   ['seller_new_product', t('settings.notifSellerNewProduct', '🆕 Nouveautés des boutiques suivies')],
-                  ['weekly_digest', t('settings.notifWeeklyDigest', '📊 Récap hebdomadaire')],
-                ].map(([key, label]) => (
-                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
-                ))}
-              </div>
-
-              {/* ── COMPTE ── */}
-              <div className="py-2">
-                <p className="mb-2 text-xs font-semibold text-gray-600">{t('settings.notifAccount', 'Compte')}</p>
-                {[
+                  ['weekly_digest', t('settings.notifWeeklyDigest', '📊 Récap hebdomadaire')]
+                ]}
+              />
+              <NotifGroup
+                dotClass="bg-gray-400"
+                title={t('settings.notifAccount', 'Compte')}
+                notifPrefs={notifPrefs}
+                onToggle={handleNotifToggle}
+                items={[
                   ['admin_broadcast', t('settings.notifAdminBroadcast', 'Messages HDMarket')],
                   ['account_restriction', t('settings.notifAccountRestriction', 'Restrictions de compte')],
-                  ['dispute_created', t('settings.notifDisputeCreated', 'Litiges')],
-                ].map(([key, label]) => (
-                  <NotifToggle key={key} label={label} checked={!!notifPrefs[key]} onChange={() => handleNotifToggle(key)} />
-                ))}
-              </div>
+                  ['dispute_created', t('settings.notifDisputeCreated', 'Litiges')]
+                ]}
+              />
             </div>
           )}
-        </section>
+        </SectionCard>
 
-        <section className="ui-card rounded-2xl space-y-4 px-4 py-5">
-          <div className="flex items-center gap-2">
-            <RefreshCcw size={16} className="text-gray-500 dark:text-neutral-300" />
-            <h2 className="text-sm font-semibold">{t('settings.cache.title', 'Maintenance cache')}</h2>
+        <SectionCard
+          icon={ShieldAlert}
+          title={t('settings.cache.title', 'Maintenance cache')}
+          subtitle={t(
+            'settings.cache.description',
+            'Supprime les caches locaux (PWA, IndexedDB, donnees temporaires) ou force un rechargement immediat.'
+          )}
+        >
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleHardRefresh}
+              disabled={hardRefreshing || clearingPwaCache}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white transition hover:bg-[#f45f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCcw size={16} className={hardRefreshing ? 'animate-spin' : ''} />
+              {hardRefreshing
+                ? t('settings.cache.refreshing', 'Actualisation...')
+                : t('settings.cache.hardRefresh', 'Hard refresh (forcer)')}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearPwaCache}
+              disabled={clearingPwaCache}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-600 transition hover:bg-red-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400"
+            >
+              {clearingPwaCache
+                ? t('settings.cache.clearing', 'Nettoyage en cours...')
+                : t('settings.cache.action', 'Vider tout le cache utilisateur')}
+            </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-neutral-400">
-            {t(
-              'settings.cache.description',
-              'Supprime les caches locaux (PWA, IndexedDB, donnees temporaires) ou force un rechargement immediat.'
-            )}
-          </p>
-          <button
-            type="button"
-            onClick={handleClearPwaCache}
-            disabled={clearingPwaCache}
-            className="hd-soft-button inline-flex min-h-11 w-full items-center justify-center px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {clearingPwaCache
-              ? t('settings.cache.clearing', 'Nettoyage en cours...')
-              : t('settings.cache.action', 'Vider tout le cache utilisateur')}
-          </button>
-          <button
-            type="button"
-            onClick={handleHardRefresh}
-            disabled={hardRefreshing || clearingPwaCache}
-            className="hd-primary-button inline-flex min-h-11 w-full items-center justify-center px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {hardRefreshing
-              ? t('settings.cache.refreshing', 'Actualisation...')
-              : t('settings.cache.hardRefresh', 'Hard refresh (forcer)')}
-          </button>
-        </section>
+        </SectionCard>
       </div>
     </div>
   );

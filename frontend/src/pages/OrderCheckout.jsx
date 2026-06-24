@@ -182,11 +182,15 @@ export default function OrderCheckout() {
       const sellerId = rawSellerId ? String(rawSellerId) : 'unknown';
       const sellerName = seller?.shopName || seller?.name || 'Vendeur';
       const sellerPhone = seller?.phone || item?.product?.contactPhone || '';
+      const sellerLogo = seller?.shopLogo || seller?.logo || seller?.avatar || '';
+      const sellerIsShop = Boolean(seller?.shopName || seller?.accountType === 'shop');
       if (!groups.has(sellerId)) {
         groups.set(sellerId, {
           sellerId,
           sellerName,
           sellerPhone,
+          sellerLogo,
+          sellerIsShop,
           items: [],
           subtotal: 0
         });
@@ -1689,12 +1693,28 @@ export default function OrderCheckout() {
                   className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
                 >
                   <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-black uppercase tracking-wide text-[#ff6a00]">Paiement vendeur</p>
-                      <p className="text-base font-black text-slate-950 sm:text-lg">{group.sellerName}</p>
-                      {group.sellerPhone && (
-                        <p className="text-xs font-semibold text-slate-500">{group.sellerPhone}</p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      {group.sellerLogo ? (
+                        <img
+                          src={group.sellerLogo}
+                          alt={group.sellerName}
+                          className="h-11 w-11 shrink-0 rounded-2xl border border-slate-200 object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff0e4] text-base font-black text-[#ff6a00]">
+                          {String(group.sellerName || 'V').charAt(0).toUpperCase()}
+                        </span>
                       )}
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="text-[11px] font-black uppercase tracking-wide text-[#ff6a00]">
+                          {group.sellerIsShop ? 'Boutique' : 'Vendeur'}
+                        </p>
+                        <p className="truncate text-base font-black text-slate-950 sm:text-lg">{group.sellerName}</p>
+                        {group.sellerPhone && (
+                          <p className="truncate text-xs font-semibold text-slate-500">{group.sellerPhone}</p>
+                        )}
+                      </div>
                     </div>
                     <div className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-2 text-right">
                       <p className="text-base font-black text-[#ff6a00] sm:text-lg">

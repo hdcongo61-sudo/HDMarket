@@ -7,7 +7,7 @@ import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet, Pencil } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
@@ -1229,7 +1229,7 @@ const loadDiscountProducts = async () => {
     const scrollStyle = { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
     return (
-      <main className="max-w-7xl mx-auto px-2.5 max-[375px]:px-2 pt-0 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
+      <main className="max-w-7xl mx-auto px-2.5 max-[375px]:px-2 pt-3 max-[375px]:pt-2.5 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
         {/* Pour Vous — AI Recommendations (placed prominently at top) */}
         <PourVousSection />
 
@@ -1238,43 +1238,54 @@ const loadDiscountProducts = async () => {
             {user ? (
               <Link
                 to="/profile"
-                className="flex items-center gap-3 px-3.5 py-3 active:scale-[0.99]"
+                className={`flex items-center gap-3 px-4 py-3.5 transition-colors active:scale-[0.99] ${
+                  hasDeliveryAddress ? '' : 'bg-amber-50/60'
+                }`}
               >
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-gray-200">
-                  <MapPin className="h-5 w-5" />
+                <span
+                  className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 ${
+                    hasDeliveryAddress
+                      ? 'bg-[#fff2e6] text-[#ff6a00] ring-orange-100'
+                      : 'bg-amber-100 text-amber-700 ring-amber-200'
+                  }`}
+                >
+                  <MapPin className="h-[22px] w-[22px]" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-wide text-gray-500">
+                  <span className="flex items-center gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">
                       {t('home.deliveryAddress', 'Adresse de livraison')}
                     </span>
-                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
-                      hasDeliveryAddress ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                    }`}>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black ${
+                        hasDeliveryAddress ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${hasDeliveryAddress ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                       {hasDeliveryAddress ? 'Prête' : 'À compléter'}
                     </span>
                   </span>
-                  <span className="mt-0.5 block truncate text-[13px] font-black leading-tight text-slate-950">
+                  <span className="mt-1 block truncate text-[15px] font-black leading-tight text-slate-950">
                     {connectedUserDeliveryAddressLabel}
                   </span>
-                  <span className="mt-0.5 block text-[11px] font-semibold text-slate-500">
-                    Modifier avant de commander
-                  </span>
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-[11px] font-black text-gray-700">
+                  <Pencil className="h-3.5 w-3.5" />
+                  <span className="hidden min-[400px]:inline">Modifier</span>
+                </span>
               </Link>
             ) : null}
             {showFullPaymentHomeBanner ? (
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className={`group block bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-3.5 py-3 transition-all duration-200 active:scale-[0.99] ${
+                className={`group block bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] ${
                   user ? 'border-t border-gray-200' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-emerald-600 text-white shadow-[0_10px_20px_rgba(16,185,129,0.18)]">
-                    <Truck className="h-5 w-5" />
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_20px_rgba(16,185,129,0.18)]">
+                    <Truck className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
@@ -1285,8 +1296,9 @@ const loadDiscountProducts = async () => {
                       {fullPaymentBannerText}
                     </span>
                   </span>
-                  <span className="inline-flex shrink-0 items-center rounded-full bg-neutral-950 px-3 py-1.5 text-[11px] font-black text-white shadow-sm">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white shadow-sm">
                     Voir
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </Link>

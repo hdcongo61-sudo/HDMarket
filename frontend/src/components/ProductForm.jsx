@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } 
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck, CreditCard, Boxes, Megaphone, Lock } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -212,6 +212,7 @@ export default function ProductForm(props) {
   }, [app?.maxUploadImages, runtime?.maxUploadImages, runtime?.max_image_upload]);
   const [expandedSections, setExpandedSections] = useState({
     info: true,
+    commercialisation: true,
     options: true,
     images: true,
     media: true,
@@ -1610,6 +1611,7 @@ export default function ProductForm(props) {
   const sectionProgressItems = [
     { key: 'info', label: 'Infos', done: requiredFields.title && requiredFields.description },
     { key: 'price', label: 'Prix', done: requiredFields.category && requiredFields.price },
+    { key: 'commercial', label: 'Commercial', done: Boolean(form.installmentEnabled || form.wholesaleEnabled) },
     { key: 'media', label: 'Photos', done: imagePreviews.length > 0 || existingImages.length > 0 },
     { key: 'validation', label: 'Validation', done: !submitDisabled }
   ];
@@ -2005,18 +2007,51 @@ export default function ProductForm(props) {
               </p>
             )}
           </div>
+                </div>
+          )}
+        </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Commercialisation
-          </div>
+        {/* Section Commercialisation */}
+        <div className={sectionShellClass}>
+          {isMobile ? (
+            <button
+              type="button"
+              onClick={() => toggleSection('commercialisation')}
+              className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
+              aria-expanded={expandedSections.commercialisation}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
+                  <Megaphone className="w-4 h-4 text-[#FF6A00]" />
+                </div>
+                <h2 className="text-[17px] font-semibold text-gray-900">Commercialisation</h2>
+              </div>
+              <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
+                {expandedSections.commercialisation ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </span>
+            </button>
+          ) : (
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Commercialisation</h2>
+              <p className="text-sm text-gray-500">Outils de vente optionnels — activez seulement ce dont vous avez besoin.</p>
+            </div>
+          )}
 
-          <div className="min-w-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900">Paiement par tranche</p>
-                <p className="text-xs text-gray-500">
-                  Activez cette option pour proposer un échéancier de paiement sur ce produit.
-                </p>
+          {(!isMobile || expandedSections.commercialisation) && (
+            <div className="space-y-4 pt-1">
+
+          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.installmentEnabled ? 'border-[#FF6A00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.installmentEnabled ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                  <CreditCard className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-gray-900">Paiement par tranche</p>
+                  <p className="mt-0.5 text-xs leading-snug text-gray-500">
+                    Proposez un échéancier de paiement sur ce produit.
+                  </p>
+                </div>
               </div>
               {renderSwitchButton({
                 checked: Boolean(form.installmentEnabled),
@@ -2027,8 +2062,9 @@ export default function ProductForm(props) {
             </div>
 
             {!isBoutiqueOwner && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Cette option est réservée aux comptes convertis en boutique.
+              <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+                Réservé aux comptes convertis en boutique.
               </p>
             )}
 
@@ -2136,13 +2172,18 @@ export default function ProductForm(props) {
             )}
           </div>
 
-          <div className="min-w-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900">Vente en gros</p>
-                <p className="text-xs text-gray-500">
-                  Configurez des paliers: plus la quantité augmente, plus le prix unitaire baisse.
-                </p>
+          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.wholesaleEnabled ? 'border-[#FF6A00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.wholesaleEnabled ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                  <Boxes className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-gray-900">Vente en gros</p>
+                  <p className="mt-0.5 text-xs leading-snug text-gray-500">
+                    Des paliers: plus la quantité augmente, plus le prix unitaire baisse.
+                  </p>
+                </div>
               </div>
               {renderSwitchButton({
                 checked: Boolean(form.wholesaleEnabled),
@@ -2153,8 +2194,9 @@ export default function ProductForm(props) {
             </div>
 
             {!isBoutiqueOwner && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Cette option est réservée aux comptes convertis en boutique.
+              <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+                Réservé aux comptes convertis en boutique.
               </p>
             )}
 

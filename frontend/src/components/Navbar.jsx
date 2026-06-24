@@ -3807,7 +3807,7 @@ export default function Navbar() {
                 className={({ isActive }) => 
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive 
-                      ? 'bg-black text-white shadow-lg' 
+                      ? 'bg-[#FF6A00] text-white shadow-sm'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3823,7 +3823,7 @@ export default function Navbar() {
                 className={({ isActive }) => 
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive 
-                      ? 'bg-black text-white shadow-lg' 
+                      ? 'bg-[#FF6A00] text-white shadow-sm'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3839,7 +3839,7 @@ export default function Navbar() {
                   className={({ isActive }) => 
                     `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                       isActive 
-                        ? 'bg-black text-white shadow-lg' 
+                        ? 'bg-[#FF6A00] text-white shadow-sm'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                     }`
                   }
@@ -3879,7 +3879,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-black text-white shadow-lg' 
+                          ? 'bg-[#FF6A00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3894,7 +3894,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-black text-white shadow-lg' 
+                          ? 'bg-[#FF6A00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3909,7 +3909,7 @@ export default function Navbar() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive
-                          ? 'bg-black text-white shadow-lg'
+                          ? 'bg-[#FF6A00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3924,7 +3924,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-gradient-to-r from-neutral-900 to-neutral-800 text-white shadow-lg' 
+                          ? 'bg-[#FF6A00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3940,7 +3940,7 @@ export default function Navbar() {
                       className={({ isActive }) => 
                         `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                           isActive 
-                            ? 'bg-gradient-to-r from-neutral-900 to-neutral-900 text-white shadow-lg' 
+                            ? 'bg-[#FF6A00] text-white shadow-sm' 
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                         }`
                       }
@@ -3957,7 +3957,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-black text-white shadow-lg' 
+                          ? 'bg-[#FF6A00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -3973,7 +3973,7 @@ export default function Navbar() {
                     className={({ isActive }) => 
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive 
-                          ? 'bg-black text-white shadow-lg' 
+                          ? 'bg-[#FF6A00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -4323,14 +4323,14 @@ export default function Navbar() {
                   <NavLink
                     to="/login"
                     onClick={() => setIsMenuOpen(false)}
-                    className="px-4 py-3 rounded-xl border border-neutral-600 text-neutral-900 text-center font-medium hover:bg-neutral-100 transition-colors"
+                    className="px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-center font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   >
                     {t('nav.login', 'Connexion')}
                   </NavLink>
                   <NavLink
                     to="/register"
                     onClick={() => setIsMenuOpen(false)}
-                    className="px-4 py-3 rounded-xl bg-black text-white text-center font-medium hover:bg-neutral-700 transition-colors"
+                    className="px-4 py-3 rounded-xl bg-[#FF6A00] text-white text-center font-medium hover:bg-[#f45f00] transition-colors"
                   >
                     {t('nav.register', 'Inscription')}
                   </NavLink>
@@ -4342,7 +4342,7 @@ export default function Navbar() {
                       logout();
                       setIsMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-neutral-800 hover:bg-neutral-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     <LogOut size={20} />
                     {t('nav.logout', 'Déconnexion')}

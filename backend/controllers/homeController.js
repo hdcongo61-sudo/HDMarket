@@ -4,6 +4,7 @@ import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
 import FlashSale from '../models/flashSaleModel.js';
 import MarketplacePromoCode from '../models/marketplacePromoCodeModel.js';
+import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
 
 const SHOP_SELECT_FIELDS =
   'name shopName shopAddress shopLogo city country shopVerified isBlocked slug followersCount createdAt freeDeliveryEnabled';
@@ -28,6 +29,42 @@ const listProducts = async ({ filter = {}, sort = { createdAt: -1 }, limit = 8 }
     .populate('user', SHOP_SELECT_FIELDS)
     .lean();
   return items.map(serializeProduct);
+};
+
+const listVerifiedShops = async (limit = 8) => {
+  const shops = await User.find({
+    accountType: 'shop',
+    shopVerified: true,
+    isBlocked: { $ne: true }
+  })
+    .select('name shopName shopLogo shopAddress shopVerified slug followersCount createdAt')
+    .sort({ followersCount: -1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  if (!shops.length) return [];
+
+  const shopIds = shops.map((shop) => shop._id);
+  const productCounts = await Product.aggregate([
+    {
+      $match: await withVerifiedPublicProductFilter({
+        user: { $in: shopIds },
+        status: 'approved'
+      })
+    },
+    { $group: { _id: '$user', count: { $sum: 1 } } }
+  ]);
+  const productCountMap = new Map(
+    productCounts.map((entry) => [String(entry._id), Number(entry.count || 0)])
+  );
+
+  return shops.map((shop) => ({
+    ...shop,
+    shopName: shop.shopName || shop.name || 'Boutique',
+    shopVerified: Boolean(shop.shopVerified),
+    followersCount: Number(shop.followersCount || 0),
+    productCount: productCountMap.get(String(shop._id)) || 0
+  }));
 };
 
 const getPromoHomeData = async ({ shopLimit = 8, flashLimit = 8 }) => {
@@ -184,15 +221,7 @@ export const getHomeFeed = asyncHandler(async (req, res) => {
     listProducts({ filter: { installmentEnabled: true }, sort: { createdAt: -1 }, limit: secondaryLimit }),
     listProducts({ filter: { salesCount: { $gt: 0 } }, sort: { salesCount: -1, createdAt: -1 }, limit: secondaryLimit }),
     listProducts({ filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
-    User.find({
-      accountType: 'shop',
-      shopVerified: true,
-      isBlocked: { $ne: true }
-    })
-      .select('name shopName shopLogo shopAddress shopVerified slug productCount followersCount')
-      .sort({ followersCount: -1, createdAt: -1 })
-      .limit(secondaryLimit)
-      .lean(),
+    listVerifiedShops(secondaryLimit),
     getPromoHomeData({ shopLimit: secondaryLimit, flashLimit: secondaryLimit }),
     FlashSale.find({ status: 'active', isVisible: { $ne: false }, endDate: { $gte: now } })
       .sort({ endDate: 1 })

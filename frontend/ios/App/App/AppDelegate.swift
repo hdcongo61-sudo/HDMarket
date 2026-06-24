@@ -1,4 +1,4 @@
-indei the import UIKit
+import UIKit
 import Capacitor
 import UserNotifications
 

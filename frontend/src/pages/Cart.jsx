@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
@@ -33,18 +33,38 @@ const ShoppingBagIcon = ({ className }) => (
   </svg>
 );
 
+const CloseIcon = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
+
+const UndoIcon = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
+  </svg>
+);
+
 const formatPrice = (value) => formatPriceWithStoredSettings(value);
 
 export default function Cart() {
   const navigate = useNavigate();
-  const { cart, loading, error, updateItem, removeItem, clearCart } = useContext(CartContext);
+  const { cart, loading, error, addItem, updateItem, removeItem, clearCart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
   const [pending, setPending] = useState({});
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showDistanceWarning, setShowDistanceWarning] = useState(false);
   const [clickCounts, setClickCounts] = useState({});
+  const [lastRemoved, setLastRemoved] = useState(null);
+  const [restoring, setRestoring] = useState(false);
+  const undoTimerRef = useRef(null);
   const externalLinkProps = useDesktopExternalLink();
+
+  useEffect(() => () => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  }, []);
 
   const items = cart.items || [];
   const totals = cart.totals || { quantity: 0, subtotal: 0 };
@@ -105,11 +125,35 @@ export default function Cart() {
     setPending((prev) => ({ ...prev, [cartItemKey]: true }));
     try {
       await removeItem(productId, item?.selectedAttributes || [], item?.selectionKey || '');
-      showToast('Article retiré du panier.', { variant: 'success' });
+      // Offer a one-tap undo instead of an irreversible confirmation prompt.
+      const snapshot = {
+        productId,
+        quantity: Number(item?.quantity || 1),
+        selectedAttributes: item?.selectedAttributes || [],
+        title: item?.product?.title || 'Article'
+      };
+      setLastRemoved(snapshot);
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = setTimeout(() => setLastRemoved(null), 7000);
     } catch (e) {
       showToast(e?.response?.data?.message || 'Impossible de retirer l\'article.', { variant: 'error' });
     } finally {
       setPending((prev) => ({ ...prev, [cartItemKey]: false }));
+    }
+  };
+
+  const handleUndoRemove = async () => {
+    if (!lastRemoved || restoring) return;
+    const snapshot = lastRemoved;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setRestoring(true);
+    try {
+      await addItem(snapshot.productId, snapshot.quantity, snapshot.selectedAttributes);
+      setLastRemoved(null);
+    } catch (e) {
+      showToast(e?.response?.data?.message || 'Impossible de restaurer l\'article.', { variant: 'error' });
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -348,6 +392,28 @@ export default function Cart() {
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_400px] xl:gap-7">
           {/* Cart Items Enhanced */}
           <div className="space-y-3 sm:space-y-4">
+            {/* Undo banner — one-tap restore after a removal */}
+            {lastRemoved && (
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 shadow-sm">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                    <TrashIcon className="h-4 w-4" />
+                  </span>
+                  <p className="min-w-0 truncate text-sm font-semibold text-gray-700">
+                    « {lastRemoved.title} » retiré du panier
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUndoRemove}
+                  disabled={restoring}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#FF6A00] px-4 py-2 text-xs font-black text-white transition hover:bg-[#f45f00] active:scale-95 disabled:opacity-60"
+                >
+                  <UndoIcon className="h-3.5 w-3.5" />
+                  {restoring ? '…' : 'Annuler'}
+                </button>
+              </div>
+            )}
             {items.map((item) => {
               const { product, quantity, lineTotal } = item;
               const sellerPhone = product.user?.phone || product?.contactPhone;
@@ -357,12 +423,28 @@ export default function Cart() {
               const cartItemKey = getCartItemKey(item);
               const clickCount = clickCounts[cartItemKey] ?? product.whatsappClicks ?? 0;
               
+              const isRemoving = Boolean(pending[cartItemKey]);
               return (
                 <div
                   key={cartItemKey}
-                  className="group rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_12px_32px_rgba(117,75,36,0.07)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(117,75,36,0.11)] sm:p-5"
+                  className={`group relative rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_12px_32px_rgba(117,75,36,0.07)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(117,75,36,0.11)] sm:p-5 ${isRemoving ? 'pointer-events-none opacity-50' : ''}`}
                 >
-                  <div className="flex gap-3 sm:gap-5">
+                  {/* One-tap remove — always visible in the corner */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(item)}
+                    disabled={disableAll || isRemoving}
+                    aria-label="Retirer du panier"
+                    title="Retirer du panier"
+                    className="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-400 shadow-sm ring-1 ring-gray-200 backdrop-blur transition hover:bg-red-50 hover:text-red-600 hover:ring-red-200 active:scale-90 disabled:opacity-50"
+                  >
+                    {isRemoving ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                    ) : (
+                      <CloseIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                  <div className="flex gap-3 pr-8 sm:gap-5 sm:pr-9">
                     {/* Product Image Enhanced - Much Smaller on Mobile */}
                     <div className="w-24 shrink-0 sm:w-36 lg:w-40">
                       <Link
@@ -431,12 +513,13 @@ export default function Cart() {
                             <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-gray-800 shadow-sm ring-1 ring-gray-200 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
-                              onClick={() => changeQuantity(item, quantity - 1)}
-                              disabled={disableAll || quantity <= 1}
-                              aria-label="Diminuer la quantité"
+                              className={`flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white shadow-sm ring-1 transition active:scale-95 disabled:opacity-40 ${quantity <= 1 ? 'text-red-500 ring-red-100 hover:bg-red-50' : 'text-gray-800 ring-gray-200 hover:text-[#FF6A00]'}`}
+                              onClick={() => (quantity <= 1 ? handleRemove(item) : changeQuantity(item, quantity - 1))}
+                              disabled={disableAll || isRemoving}
+                              aria-label={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
+                              title={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
                             >
-                              <span className="text-lg font-black">−</span>
+                              {quantity <= 1 ? <TrashIcon className="h-[18px] w-[18px]" /> : <span className="text-lg font-black">−</span>}
                             </button>
                             
                             <div className="relative w-12 sm:w-16">
@@ -474,19 +557,19 @@ export default function Cart() {
                         </div>
                       </div>
 
-                      {/* Actions Enhanced - Compact Design for Mobile */}
-                      <div className="flex items-center gap-2 border-t border-gray-200 pt-3 w-full">
-                        {whatsappLink && (
+                      {/* Contact seller — removal now lives in the corner ✕ and the qty stepper */}
+                      {whatsappLink && (
+                        <div className="border-t border-gray-200 pt-3 w-full">
                           <button
                             type="button"
                             onClick={() => handleWhatsappClick(item, whatsappLink)}
-                            className="inline-flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-full border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-3 py-2.5 text-xs font-black text-emerald-700 shadow-[0_8px_18px_rgba(16,185,129,0.10)] transition-all hover:bg-emerald-100 active:scale-95 sm:text-sm"
+                            className="inline-flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-full border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-3 py-2.5 text-xs font-black text-emerald-700 shadow-[0_8px_18px_rgba(16,185,129,0.10)] transition-all hover:bg-emerald-100 active:scale-95 sm:text-sm"
                           >
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
                               <WhatsAppIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                             </span>
                             <div className="flex flex-col items-start leading-tight text-left min-w-0 flex-1 overflow-hidden">
-                              <span className="w-full truncate text-xs font-black sm:text-sm">Contacter</span>
+                              <span className="w-full truncate text-xs font-black sm:text-sm">Contacter le vendeur</span>
                               {sellerPhone && (
                                 <span className="w-full truncate text-[10px] font-bold text-emerald-600 sm:text-xs">
                                   {sellerPhone}
@@ -497,19 +580,8 @@ export default function Cart() {
                               </span>
                             </div>
                           </button>
-                        )}
-                        
-                        <button
-                          type="button"
-                          onClick={() => handleRemove(item)}
-                          disabled={disableAll || pending[cartItemKey]}
-                          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-white px-3 py-2.5 text-xs font-bold text-red-600 shadow-sm transition-all hover:bg-red-50 active:scale-95 disabled:opacity-60 sm:text-sm"
-                        >
-                          <TrashIcon className="w-4 h-4 flex-shrink-0" />
-                          <span className="hidden sm:inline">Supprimer</span>
-                          <span className="sm:hidden">Suppr.</span>
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
