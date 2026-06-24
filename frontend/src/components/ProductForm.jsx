@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } 
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck, CreditCard, Boxes, Megaphone, Lock } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -175,6 +175,8 @@ export default function ProductForm(props) {
   const [imageScale, setImageScale] = useState(1);
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [cropAspect, setCropAspect] = useState('1:1'); // default = card display (square); also: null = free, '4:3', '16:9'
+  const [cropTab, setCropTab] = useState('crop'); // 'crop' | 'filters'
+  const [imageFilters, setImageFilters] = useState({ brightness: 100, contrast: 100, saturate: 100 });
   const [isResizingCrop, setIsResizingCrop] = useState(null); // null | 'se' | 'sw' | 'ne' | 'nw'
   const cropCanvasRef = useRef(null);
   const cropContainerRef = useRef(null);
@@ -190,10 +192,17 @@ export default function ProductForm(props) {
 
   const CROP_MIN_ZOOM = 0.3;
   const CROP_MAX_ZOOM = 5;
-  const ASPECT_PRESETS = { '1:1': 1, '4:3': 4/3, '16:9': 16/9 };
+  const ASPECT_PRESETS = { '1:1': 1, '4:5': 4 / 5, '3:4': 3 / 4, '4:3': 4 / 3, '16:9': 16 / 9 };
   // Product cards display the image as a square (ui-media-frame-square), so the
   // crop/edit editor defaults to this ratio to match how the image will appear.
   const CARD_DISPLAY_ASPECT = '1:1';
+  const DEFAULT_IMAGE_FILTERS = { brightness: 100, contrast: 100, saturate: 100 };
+  const filtersAreDefault =
+    imageFilters.brightness === 100 && imageFilters.contrast === 100 && imageFilters.saturate === 100;
+  // CSS filter string used for both the live preview and the exported canvas.
+  const filterCss = filtersAreDefault
+    ? 'none'
+    : `brightness(${imageFilters.brightness}%) contrast(${imageFilters.contrast}%) saturate(${imageFilters.saturate}%)`;
   const [showPreview, setShowPreview] = useState(false);
   const [payWithWallet, setPayWithWallet] = useState(false);
   const [promoCode, setPromoCode] = useState('');
@@ -542,14 +551,17 @@ export default function ProductForm(props) {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
+        // Bake the live brightness/contrast/saturation adjustments into the export.
+        if (filterCss && filterCss !== 'none') ctx.filter = filterCss;
         ctx.drawImage(img, Math.round(natX), Math.round(natY), Math.round(natW), Math.round(natH), 0, 0, Math.round(natW), Math.round(natH));
+        ctx.filter = 'none';
         outCanvas.toBlob((blob) => {
           resolve(new File([blob], croppingImage.file.name, { type: croppingImage.file.type, lastModified: Date.now() }));
         }, croppingImage.file.type, 0.95);
       };
       img.src = croppingImage.url;
     });
-  }, [croppingImage, imagePosition, imageScale, cropAspect]);
+  }, [croppingImage, imagePosition, imageScale, cropAspect, filterCss]);
 
   const handleCropConfirm = async () => {
     const croppedFile = await cropImage();
@@ -634,6 +646,8 @@ export default function ProductForm(props) {
     // Default the frame to the product-card display ratio (square) so the crop
     // matches how the image will be shown on the cards.
     setCropAspect(CARD_DISPLAY_ASPECT);
+    setCropTab('crop');
+    setImageFilters(DEFAULT_IMAGE_FILTERS);
     setCroppingImage({ file, url: preview.url, index });
     // initializeCropArea fires via the img onLoad in the modal
   };
@@ -3284,8 +3298,8 @@ export default function ProductForm(props) {
                     <Crop className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white">Recadrer</p>
-                    <p className="text-[11px] text-white/50">Pincez pour zoomer · Glissez pour repositionner</p>
+                    <p className="text-sm font-bold text-white">Modifier la photo</p>
+                    <p className="text-[11px] text-white/50">Recadrez, pivotez et retouchez votre image</p>
                   </div>
                 </div>
                 <button type="button" onClick={handleCropCancel}
@@ -3296,17 +3310,20 @@ export default function ProductForm(props) {
               </div>
 
               {/* ── Aspect ratio pills ── */}
-              <div className="flex-shrink-0 flex items-center justify-center gap-2 bg-[#111] px-4 py-2.5 border-b border-white/10">
+              <div className="flex-shrink-0 flex items-center gap-2 overflow-x-auto bg-[#111] px-4 py-2.5 border-b border-white/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
+                <span className="flex-shrink-0 text-[10px] font-black uppercase tracking-wide text-white/40">Format</span>
                 {[
-                  { key: null, label: 'Libre' },
-                  { key: '1:1', label: '1:1' },
-                  { key: '4:3', label: '4:3' },
-                  { key: '16:9', label: '16:9' },
+                  { key: '1:1', label: 'Carré', hint: 'Fiche produit' },
+                  { key: '4:5', label: 'Portrait', hint: '' },
+                  { key: '4:3', label: 'Paysage', hint: '' },
+                  { key: '3:4', label: '3:4', hint: '' },
+                  { key: '16:9', label: '16:9', hint: '' },
+                  { key: null, label: 'Libre', hint: '' },
                 ].map(({ key, label }) => (
                   <button key={label} type="button" onClick={() => applyCropAspectPreset(key)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all touch-manipulation ${
+                    className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all touch-manipulation ${
                       cropAspect === key
-                        ? 'bg-[#FF6A00] text-white'
+                        ? 'bg-[#FF6A00] text-white shadow-[0_4px_12px_rgba(255,106,0,0.4)]'
                         : 'bg-white/10 text-white/70 active:bg-white/20'
                     }`}>
                     {label}
@@ -3349,6 +3366,7 @@ export default function ProductForm(props) {
                       height: `${nh * imageScale || 0}px`,
                       left: `${imagePosition.x}px`,
                       top: `${imagePosition.y}px`,
+                      filter: filterCss,
                       willChange: 'transform',
                     }}
                     onLoad={(e) => {
@@ -3395,58 +3413,104 @@ export default function ProductForm(props) {
                 </div>
               </div>
 
-              {/* ── Toolbar: rotate + flip + zoom ── */}
-              <div className="flex-shrink-0 bg-[#111] border-t border-white/10 px-4 py-3 space-y-3">
-                {/* Row 1: rotate + flip + fit */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {[
-                      { fn: handleRotateLeft, icon: RotateCcw, label: 'Tourner gauche' },
-                      { fn: handleRotateRight, icon: RotateCw, label: 'Tourner droite' },
-                      { fn: handleFlipH, icon: FlipHorizontal, label: 'Miroir H' },
-                      { fn: handleFlipV, icon: FlipVertical, label: 'Miroir V' },
-                    ].map(({ fn, icon: Icon, label }) => (
-                      <button key={label} type="button" onClick={fn}
-                        className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center active:bg-white/20 transition-colors touch-manipulation"
-                        aria-label={label}>
-                        <Icon className="w-4 h-4" />
+              {/* ── Tabbed editor: Recadrer / Filtres ── */}
+              <div className="flex-shrink-0 bg-[#111] border-t border-white/10">
+                {/* Tab switcher */}
+                <div className="flex items-center gap-2 px-4 pt-3">
+                  {[
+                    { id: 'crop', label: 'Recadrer', icon: Crop },
+                    { id: 'filters', label: 'Filtres', icon: SlidersHorizontal }
+                  ].map(({ id, label, icon: Icon }) => {
+                    const active = cropTab === id;
+                    return (
+                      <button key={id} type="button" onClick={() => setCropTab(id)}
+                        className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition touch-manipulation ${
+                          active ? 'bg-white text-[#1a1a1a]' : 'bg-white/10 text-white/60 active:bg-white/20'
+                        }`}>
+                        <Icon className="w-3.5 h-3.5" />
+                        {label}
+                        {id === 'filters' && !filtersAreDefault && (
+                          <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
+                        )}
                       </button>
-                    ))}
-                  </div>
-                  {/* Fit button */}
-                  <button type="button" onClick={resetCropFit}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 text-white/80 text-xs font-semibold active:bg-white/20 touch-manipulation">
-                    <ZoomOut className="w-3.5 h-3.5" />
-                    Ajuster
-                  </button>
+                    );
+                  })}
                 </div>
 
-                {/* Row 2: zoom slider + zoom % */}
-                <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => handleZoomChange(-0.15)}
-                    className="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center active:bg-white/20 touch-manipulation flex-shrink-0"
-                    aria-label="Zoom arrière">
-                    <ZoomOut className="w-4 h-4" />
-                  </button>
-                  <input
-                    type="range"
-                    min={minScale}
-                    max={CROP_MAX_ZOOM}
-                    step={0.01}
-                    value={imageScale}
-                    onChange={handleZoomInput}
-                    className="flex-1 h-1.5 rounded-full appearance-none bg-white/20 accent-[#FF6A00] cursor-pointer"
-                    style={{ accentColor: '#FF6A00' }}
-                  />
-                  <button type="button" onClick={() => handleZoomChange(0.15)}
-                    className="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center active:bg-white/20 touch-manipulation flex-shrink-0"
-                    aria-label="Zoom avant">
-                    <ZoomIn className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs font-black text-[#FF6A00] w-12 text-right flex-shrink-0">
-                    {zoomPct}%
-                  </span>
-                </div>
+                {/* Tab content */}
+                {cropTab === 'crop' ? (
+                  <div className="px-4 py-3 space-y-3">
+                    {/* Rotate / flip / fit */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {[
+                          { fn: handleRotateLeft, icon: RotateCcw, label: 'Tourner gauche' },
+                          { fn: handleRotateRight, icon: RotateCw, label: 'Tourner droite' },
+                          { fn: handleFlipH, icon: FlipHorizontal, label: 'Miroir H' },
+                          { fn: handleFlipV, icon: FlipVertical, label: 'Miroir V' }
+                        ].map(({ fn, icon: Icon, label }) => (
+                          <button key={label} type="button" onClick={fn}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white transition-colors active:bg-white/20 touch-manipulation"
+                            aria-label={label} title={label}>
+                            <Icon className="w-4 h-4" />
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" onClick={resetCropFit}
+                        className="flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/80 active:bg-white/20 touch-manipulation">
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        Ajuster
+                      </button>
+                    </div>
+
+                    {/* Zoom */}
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => handleZoomChange(-0.15)}
+                        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white active:bg-white/20 touch-manipulation"
+                        aria-label="Zoom arrière">
+                        <ZoomOut className="w-4 h-4" />
+                      </button>
+                      <input type="range" min={minScale} max={CROP_MAX_ZOOM} step={0.01} value={imageScale}
+                        onChange={handleZoomInput}
+                        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20"
+                        style={{ accentColor: '#FF6A00' }} />
+                      <button type="button" onClick={() => handleZoomChange(0.15)}
+                        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white active:bg-white/20 touch-manipulation"
+                        aria-label="Zoom avant">
+                        <ZoomIn className="w-4 h-4" />
+                      </button>
+                      <span className="w-12 flex-shrink-0 text-right text-xs font-black text-[#FF6A00]">{zoomPct}%</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 space-y-3.5">
+                    {[
+                      { key: 'brightness', label: 'Luminosité', icon: Sun, min: 50, max: 150 },
+                      { key: 'contrast', label: 'Contraste', icon: Contrast, min: 50, max: 150 },
+                      { key: 'saturate', label: 'Saturation', icon: Droplet, min: 0, max: 200 }
+                    ].map(({ key, label, icon: Icon, min, max }) => (
+                      <div key={key}>
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-xs font-semibold text-white/80">
+                            <Icon className="w-3.5 h-3.5 text-white/50" />
+                            {label}
+                          </span>
+                          <span className="w-12 text-right text-[11px] font-black text-[#FF6A00]">
+                            {imageFilters[key]}%
+                          </span>
+                        </div>
+                        <input type="range" min={min} max={max} step={1} value={imageFilters[key]}
+                          onChange={(e) => setImageFilters((f) => ({ ...f, [key]: Number(e.target.value) }))}
+                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20"
+                          style={{ accentColor: '#FF6A00' }} />
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setImageFilters(DEFAULT_IMAGE_FILTERS)} disabled={filtersAreDefault}
+                      className="w-full rounded-xl bg-white/10 py-2.5 text-xs font-bold text-white/80 transition active:bg-white/20 disabled:opacity-40 touch-manipulation">
+                      Réinitialiser les filtres
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* ── Footer: cancel + confirm ── */}

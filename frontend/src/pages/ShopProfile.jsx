@@ -293,6 +293,13 @@ export default function ShopProfile() {
           reviewsNode.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 120);
       }
+    } else if (targetId === 'products') {
+      const productsNode = document.getElementById('products');
+      if (productsNode) {
+        setTimeout(() => {
+          productsNode.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+      }
     }
   }, [location.hash, location.search, shop]);
 

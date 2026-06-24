@@ -28,7 +28,8 @@ import {
   Trash2,
   Search,
   Video,
-  Zap
+  Zap,
+  SlidersHorizontal
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -2230,13 +2231,39 @@ export default function ProductDetails() {
       {/* ── PRODUCT OPTIONS ── */}
       {hasProductOptions && (
         <>
-          <section className="bg-white px-4 pt-3.5 pb-4">
-            <h3 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 mb-3.5">
-              Options du produit
+          <section className={`px-4 pt-3.5 pb-4 transition-colors ${isOptionSelectionBlocked ? 'bg-[#FFF7ED]' : 'bg-white'}`}>
+            <div className="mb-3.5 flex items-center justify-between gap-2">
+              <h3 className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]">
+                  <SlidersHorizontal size={17} />
+                </span>
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="text-sm font-black text-gray-900">Options du produit</span>
+                  <span className="truncate text-[11px] font-semibold text-gray-500">
+                    {isOptionSelectionBlocked
+                      ? 'Sélectionnez vos options pour continuer'
+                      : `${productOptionDefinitions.length} option${productOptionDefinitions.length > 1 ? 's' : ''} à personnaliser`}
+                  </span>
+                </span>
+              </h3>
               {hasRequiredProductOptions && (
-                <span className="ml-2 text-[11px] font-semibold text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">Requis</span>
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${
+                    selectedAttributeValidation.valid
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'animate-pulse bg-[#FF6A00] text-white'
+                  }`}
+                >
+                  {selectedAttributeValidation.valid ? (
+                    <>
+                      <Check size={11} /> Prêt
+                    </>
+                  ) : (
+                    'À choisir'
+                  )}
+                </span>
               )}
-            </h3>
+            </div>
             <div className="space-y-4">
               {productOptionDefinitions.map((attribute) => {
                 const selectedValue = normalizedSelectedAttributes.find(
@@ -2245,9 +2272,13 @@ export default function ProductDetails() {
                 const isColor = isColorAttribute(attribute);
                 return (
                   <div key={`mob-opt-${attribute.key || attribute.name}`}>
-                    <p className="text-xs font-semibold text-gray-600 mb-2">
-                      {attribute.name}{attribute.required && <span className="text-[#FF6A00] ml-0.5">*</span>}
-                      {selectedValue && <span className="ml-2 text-gray-900 font-black">{selectedValue}</span>}
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+                      <span>{attribute.name}{attribute.required && <span className="ml-0.5 text-[#FF6A00]">*</span>}</span>
+                      {selectedValue ? (
+                        <span className="rounded bg-[#FFF0E4] px-1.5 py-0.5 font-black text-[#FF6A00]">{selectedValue}</span>
+                      ) : attribute.required ? (
+                        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">À choisir</span>
+                      ) : null}
                     </p>
                     {attribute.type === 'select' ? (
                       <div className="flex flex-wrap gap-2">
@@ -2543,10 +2574,21 @@ export default function ProductDetails() {
       {canOpenShopProfile && (
         <section className="bg-white px-4 pt-3.5 pb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900">
+            <Link
+              to={`${buildShopPath(shopIdentifier)}#products`}
+              {...externalLinkProps}
+              className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 transition-colors hover:text-[#FF6A00]"
+            >
               Autres articles de la boutique
-            </h3>
-            <Link to={buildShopPath(shopIdentifier)} className="text-xs font-semibold text-[#FF6A00]">Voir tout</Link>
+            </Link>
+            <Link
+              to={`${buildShopPath(shopIdentifier)}#products`}
+              {...externalLinkProps}
+              className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#FF6A00]"
+            >
+              Voir tout
+              <ChevronRight size={13} />
+            </Link>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {shopGalleryImages.length > 0
@@ -4153,17 +4195,40 @@ export default function ProductDetails() {
 
   // === MAIN RETURN: conditional mobile / desktop ===
   const productOptionsPanel = hasProductOptions ? (
-    <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold text-slate-900">Options du produit</p>
-          <p className="text-xs text-slate-500">
-            Choisissez vos options avant d’ajouter ce produit au panier.
-          </p>
+    <div
+      className={`rounded-3xl border bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4 transition-colors ${
+        isOptionSelectionBlocked ? 'border-[#FF6A00]/40 ring-1 ring-[#FF6A00]/20' : 'border-slate-200/80'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]">
+            <SlidersHorizontal size={18} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-slate-900">Options du produit</p>
+            <p className="text-xs text-slate-500">
+              {isOptionSelectionBlocked
+                ? 'Sélectionnez vos options pour continuer.'
+                : 'Choisissez vos options avant d’ajouter au panier.'}
+            </p>
+          </div>
         </div>
         {hasRequiredProductOptions && (
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-            Champs requis
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${
+              selectedAttributeValidation.valid
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'animate-pulse bg-[#FF6A00] text-white'
+            }`}
+          >
+            {selectedAttributeValidation.valid ? (
+              <>
+                <Check size={12} /> Prêt
+              </>
+            ) : (
+              'À choisir'
+            )}
           </span>
         )}
       </div>
