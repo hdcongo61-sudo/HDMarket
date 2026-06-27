@@ -388,17 +388,26 @@ export const refundToWallet = async ({ userId, amount, orderId = '', processedBy
 /**
  * Sale — Hold seller wallet funds after buyer pays with HDMarket wallet.
  */
-export const creditSellerWalletSale = async ({ userId, amount, orderId = '', buyerId = '', reference = '' }) => {
+export const creditSellerWalletSale = async ({
+  userId,
+  amount,
+  orderId = '',
+  buyerId = '',
+  reference = '',
+  transactionKey = ''
+}) => {
   if (!amount || amount <= 0) throw new Error('Le montant doit être supérieur à 0');
 
   const wallet = await getOrCreateWallet(userId);
   const orderKey = toOrderKey(orderId);
-  if (orderKey) {
+  const uniqueTransactionKey = toOrderKey(transactionKey) || orderKey;
+  if (uniqueTransactionKey) {
     const alreadyCredited = (wallet.transactions || []).some(
       (txn) =>
         ['sale', 'sale_pending'].includes(txn.type) &&
         ['pending', 'completed'].includes(txn.status) &&
-        String(txn?.metadata?.orderId || txn.reference || '') === orderKey
+        String(txn?.metadata?.transactionKey || txn?.metadata?.orderId || txn.reference || '') ===
+          uniqueTransactionKey
     );
     if (alreadyCredited) {
       return {
@@ -418,12 +427,13 @@ export const creditSellerWalletSale = async ({ userId, amount, orderId = '', buy
     amount,
     balanceBefore,
     balanceAfter: wallet.balance,
-    reference: orderKey || reference,
+    reference: uniqueTransactionKey || reference,
     status: 'pending',
     processedAt: new Date(),
     note: `Vente portefeuille HDMarket en attente — commande ${orderKey || reference}`,
     metadata: {
       orderId: orderKey,
+      transactionKey: uniqueTransactionKey,
       buyerId,
       reference,
       role: 'seller_sale_escrow',

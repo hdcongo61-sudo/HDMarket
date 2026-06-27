@@ -23,6 +23,7 @@ const orderItemSchema = new mongoose.Schema(
       shopName: String,
       shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       shopAddress: { type: String, default: '' },
+      shopPhone: { type: String, default: '' },
       shopCity: { type: String, default: '' },
       shopCommune: { type: String, default: '' },
       wholesaleEnabled: { type: Boolean, default: false },
@@ -55,6 +56,12 @@ const installmentTransactionProofSchema = new mongoose.Schema(
   {
     senderName: { type: String, trim: true, default: '' },
     transactionCode: { type: String, trim: true, default: '' },
+    paymentMethod: {
+      type: String,
+      enum: ['mobile_money', 'wallet', ''],
+      default: ''
+    },
+    walletTransactionId: { type: String, trim: true, default: '' },
     amount: { type: Number, default: 0, min: 0 },
     submittedAt: { type: Date, default: null },
     submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }

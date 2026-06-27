@@ -40,7 +40,8 @@ import {
   FlipHorizontal,
   ZoomIn,
   ZoomOut,
-  Move
+  Move,
+  Palette
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
@@ -57,6 +58,25 @@ const STATS_PERIOD_OPTIONS = [
   { value: 'all', label: 'Tout' }
 ];
 
+const SHOP_COLOR_PRESETS = [
+  '#FF6A00',
+  '#2563EB',
+  '#7C3AED',
+  '#DB2777',
+  '#059669',
+  '#DC2626',
+  '#0F766E',
+  '#111827'
+];
+
+const getShopColorContrast = (hexColor) => {
+  const normalized = /^#[0-9A-F]{6}$/i.test(String(hexColor || '')) ? hexColor.slice(1) : 'FF6A00';
+  const [red, green, blue] = [0, 2, 4].map((offset) =>
+    parseInt(normalized.slice(offset, offset + 2), 16)
+  );
+  return (red * 299 + green * 587 + blue * 114) / 1000 >= 150 ? '#111827' : '#FFFFFF';
+};
+
 const initialForm = {
   name: '',
   email: '',
@@ -67,6 +87,7 @@ const initialForm = {
   shopName: '',
   shopAddress: '',
   shopDescription: '',
+  shopColor: '#FF6A00',
   freeDeliveryEnabled: false,
   freeDeliveryNote: '',
   address: '',
@@ -604,6 +625,7 @@ export default function Profile() {
       shopName: user.shopName || '',
       shopAddress: user.shopAddress || '',
       shopDescription: user.shopDescription || '',
+      shopColor: user.shopColor || '#FF6A00',
       freeDeliveryEnabled: Boolean(user.freeDeliveryEnabled),
       freeDeliveryNote: user.freeDeliveryNote || '',
       address: user.address || '',
@@ -885,6 +907,7 @@ export default function Profile() {
         shopName: value === 'shop' ? prev.shopName : '',
         shopAddress: value === 'shop' ? prev.shopAddress : '',
         shopDescription: value === 'shop' ? prev.shopDescription : '',
+        shopColor: value === 'shop' ? prev.shopColor : '#FF6A00',
         freeDeliveryEnabled: value === 'shop' ? prev.freeDeliveryEnabled : false,
         freeDeliveryNote: value === 'shop' ? prev.freeDeliveryNote : ''
       }));
@@ -1544,6 +1567,7 @@ export default function Profile() {
         payload.append('shopName', form.shopName);
         payload.append('shopAddress', form.shopAddress);
         payload.append('shopDescription', form.shopDescription.trim());
+        payload.append('shopColor', form.shopColor || '#FF6A00');
         payload.append('freeDeliveryEnabled', String(Boolean(form.freeDeliveryEnabled)));
         payload.append('freeDeliveryNote', form.freeDeliveryNote || '');
         if (shopLogoFile) {
@@ -1575,6 +1599,7 @@ export default function Profile() {
         shopName: data.shopName || '',
         shopAddress: data.shopAddress || '',
         shopDescription: data.shopDescription || '',
+        shopColor: data.shopColor || '#FF6A00',
         freeDeliveryEnabled: Boolean(data.freeDeliveryEnabled),
         freeDeliveryNote: data.freeDeliveryNote || '',
         address: data.address || '',
@@ -2340,6 +2365,85 @@ export default function Profile() {
                     <p className="text-xs text-gray-500">
                       Ce texte s’affiche sur votre page publique pour rassurer vos clients.
                     </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <Palette className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Couleur de la boutique</p>
+                        <p className="text-xs text-gray-600">
+                          Cette couleur personnalise les boutons et les éléments importants de votre page publique.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      {SHOP_COLOR_PRESETS.map((color) => {
+                        const selected = form.shopColor.toUpperCase() === color;
+                        return (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setForm((prev) => ({ ...prev, shopColor: color }))}
+                            disabled={loading}
+                            className={`h-10 w-10 rounded-full border-2 transition-transform hover:scale-105 disabled:opacity-60 ${
+                              selected
+                                ? 'border-gray-900 ring-2 ring-white ring-offset-2 ring-offset-violet-100'
+                                : 'border-white shadow-sm'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            aria-label={`Choisir la couleur ${color}`}
+                            aria-pressed={selected}
+                          >
+                            {selected && (
+                              <CheckCircle
+                                className="mx-auto h-5 w-5 drop-shadow"
+                                style={{ color: getShopColorContrast(color) }}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+
+                      <label className="relative flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 shadow-sm">
+                        <span>Personnalisée</span>
+                        <input
+                          type="color"
+                          name="shopColor"
+                          value={form.shopColor}
+                          onChange={onChange}
+                          disabled={loading}
+                          className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+                          aria-label="Choisir une couleur personnalisée"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                      <div
+                        className="flex min-h-16 items-center justify-between gap-3 px-4 py-3"
+                        style={{ backgroundColor: form.shopColor }}
+                      >
+                        <div className="min-w-0">
+                          <p
+                            className="truncate text-sm font-bold drop-shadow-sm"
+                            style={{ color: getShopColorContrast(form.shopColor) }}
+                          >
+                            {form.shopName || 'Ma boutique'}
+                          </p>
+                          <p
+                            className="text-xs opacity-80"
+                            style={{ color: getShopColorContrast(form.shopColor) }}
+                          >
+                            Aperçu de votre couleur
+                          </p>
+                        </div>
+                        <span className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold" style={{ color: form.shopColor }}>
+                          Voir la boutique
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 space-y-3">

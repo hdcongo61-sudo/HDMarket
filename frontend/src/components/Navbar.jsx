@@ -68,7 +68,8 @@ import {
   Edit,
   Grid3x3,
   Plus,
-  Compass
+  Compass,
+  BadgePercent
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -711,7 +712,8 @@ export default function Navbar() {
     { id: 'wallet', label: t('nav.wallet', 'Portefeuille'), path: '/wallet', icon: Wallet, badge: null, visible: user ? true : false, order: 11 },
     { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
-    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 }
+    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
+    { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: BadgePercent, badge: null, visible: true, order: 15 }
   ];
 
   const navItems = (customNavItems || defaultNavItems).map((item) => {
@@ -3668,6 +3670,18 @@ export default function Navbar() {
               </div>
 
               {/* Promotions */}
+              <NavLink
+                to="/plans"
+                className={({ isActive }) =>
+                  `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 ${
+                    isActive ? 'underline' : ''
+                  }`
+                }
+              >
+                {t('nav.plans', 'Plans & tarifs')}
+              </NavLink>
+
+              {/* Promotions */}
               <NavLink 
                 to="/top-deals" 
                 className={({ isActive }) => 
@@ -3830,6 +3844,21 @@ export default function Navbar() {
               >
                 <Store size={20} />
                 {t('nav.shops', 'Boutiques')}
+              </NavLink>
+
+              <NavLink
+                to="/plans"
+                onClick={() => setIsMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[#FF6A00] text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                  }`
+                }
+              >
+                <BadgePercent size={20} />
+                {t('nav.plans', 'Plans & tarifs')}
               </NavLink>
 
               {aiRecommendationsEnabled && (

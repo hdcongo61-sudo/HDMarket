@@ -209,6 +209,8 @@ const sanitizeUser = (user) => ({
   shopLocationAddress: user.shopLocationAddress || '',
   shopLogo: user.shopLogo,
   shopBanner: user.shopBanner,
+  shopBannerMobile: user.shopBannerMobile,
+  shopColor: user.shopColor || '#FF6A00',
   shopVerified: Boolean(user.shopVerified),
   shopDescription: user.shopDescription || '',
   shopLocation: formatShopLocation(user),
@@ -1026,6 +1028,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     gender,
     address,
     shopDescription,
+    shopColor,
     shopHours,
     freeDeliveryEnabled,
     freeDeliveryNote
@@ -1159,6 +1162,15 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   if (user.accountType === 'shop') {
+    if (typeof shopColor !== 'undefined') {
+      const normalizedShopColor = String(shopColor || '').trim().toUpperCase();
+      if (!/^#[0-9A-F]{6}$/.test(normalizedShopColor)) {
+        return res.status(400).json({
+          message: 'La couleur de la boutique doit être au format hexadécimal (#RRGGBB).'
+        });
+      }
+      user.shopColor = normalizedShopColor;
+    }
     const logoFile = req.files?.shopLogo?.[0] || req.file || null;
     const bannerFile = req.files?.shopBanner?.[0] || null;
     const bannerMobileFile = req.files?.shopBannerMobile?.[0] || null;

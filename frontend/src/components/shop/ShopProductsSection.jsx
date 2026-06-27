@@ -32,12 +32,12 @@ export default function ShopProductsSection({
     : 'grid grid-cols-2 gap-3 sm:grid-cols-3';
 
   const activeTab =
-    'inline-flex items-center gap-1.5 rounded bg-[#FF6A00] px-3.5 py-2 text-xs font-black text-white transition';
+    'inline-flex items-center gap-1.5 rounded bg-[var(--shop-color)] px-3.5 py-2 text-xs font-black text-[var(--shop-color-contrast)] transition';
   const inactiveTab =
     'inline-flex items-center gap-1.5 rounded bg-gray-100 px-3.5 py-2 text-xs font-semibold text-gray-600 transition active:scale-95 dark:bg-neutral-800 dark:text-neutral-300';
 
   const activeChip =
-    'inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FF6A00] px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition';
+    'inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--shop-color)] px-2.5 py-1.5 text-[11px] font-bold text-[var(--shop-color-contrast)] shadow-sm transition';
   const inactiveChip =
     'inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 transition active:scale-95 dark:bg-neutral-800 dark:text-neutral-300';
 
@@ -52,7 +52,7 @@ export default function ShopProductsSection({
     <section className="overflow-hidden rounded-none bg-white shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800" id="products">
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 px-4 pt-4">
-        <h2 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+        <h2 className="border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
           {t('shop_profile.all_products', 'Produits')}
         </h2>
         <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export default function ShopProductsSection({
           <button
             type="button"
             onClick={onGoReviews}
-            className="inline-flex items-center gap-1 rounded bg-gray-100 px-3 py-1.5 text-[11px] font-bold text-[#FF6A00] transition hover:bg-gray-200 dark:bg-neutral-800"
+            className="inline-flex items-center gap-1 rounded bg-gray-100 px-3 py-1.5 text-[11px] font-bold text-[var(--shop-color)] transition hover:bg-gray-200 dark:bg-neutral-800"
           >
             {t('shop_profile.go_reviews', 'Avis')}
             <ArrowRight size={12} />
@@ -113,7 +113,7 @@ export default function ShopProductsSection({
               disabled={!hasPromoProducts}
               className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition ${
                 promoOnly
-                  ? 'bg-[#FF6A00] text-white shadow-sm'
+                  ? 'bg-[var(--shop-color)] text-[var(--shop-color-contrast)] shadow-sm'
                   : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100 dark:bg-amber-500/10 dark:text-amber-300'
               } ${!hasPromoProducts ? 'cursor-not-allowed opacity-40' : ''}`}
             >
@@ -177,7 +177,7 @@ export default function ShopProductsSection({
 
       {!loading && topSellingProducts.length > 0 && (
         <div className="mt-4 border-t border-gray-100 pt-4 dark:border-neutral-800">
-          <p className="mb-3 border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+          <p className="mb-3 border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
             {t('shop_profile.popular_products', 'Produits populaires')}
           </p>
           <div className={productGridClass}>

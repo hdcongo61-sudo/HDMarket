@@ -625,10 +625,11 @@ export const schemas = {
 	    productId: Joi.string().hex().length(24).required(),
 	    quantity: Joi.number().integer().min(1).default(1),
 	    firstPaymentAmount: Joi.number().positive().required(),
-	    payerName: Joi.string().min(2).max(120).required(),
+	    paymentMethod: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+	    payerName: Joi.string().min(2).max(120).allow('', null),
     transactionCode: Joi.string()
       .pattern(/^\d{10}$/)
-      .required()
+	  .allow('', null)
       .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
     guarantor: Joi.alternatives()
       .try(
@@ -655,10 +656,11 @@ export const schemas = {
 	    }).allow(null)
 	  }),
   installmentPaymentProofSubmit: Joi.object({
-    payerName: Joi.string().min(2).max(120).required(),
+    paymentMethod: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    payerName: Joi.string().min(2).max(120).allow('', null),
     transactionCode: Joi.string()
       .pattern(/^\d{10}$/)
-      .required()
+	  .allow('', null)
       .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
     amount: Joi.number().positive().required()
   }),

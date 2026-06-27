@@ -2035,25 +2035,24 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Wholesale section — always reserve space to prevent scroll jump */}
-        <section className="isolate overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
-          <div className="relative px-3 pb-3 pt-3 max-[375px]:px-2.5">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-neutral-100" />
-            <div className="relative mb-3 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_22px_rgba(5,150,105,0.22)]">
-                  <ShoppingBag className="h-4 w-4" />
+        <section className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+          <div className="px-3 pb-3 pt-3 max-[375px]:px-2.5">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
+                  <ShoppingBag className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h2 className="truncate text-[15px] font-black tracking-tight text-gray-950 max-[375px]:text-sm">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-                    <span className="rounded-full bg-[#ff6a00] px-1.5 py-0.5 text-[8px] font-black uppercase text-white">B2B</span>
+                    <h2 className="truncate text-sm font-black tracking-tight text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+                    <span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-700">B2B</span>
                   </div>
-                  <p className="mt-0.5 line-clamp-1 text-[11px] font-semibold text-emerald-700 max-[375px]:text-[10px]">
+                  <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-gray-500 max-[375px]:text-[10px]">
                 {t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}
               </p>
                 </div>
             </div>
-              <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-100 bg-white px-2.5 py-1.5 text-[11px] font-black text-emerald-700 shadow-sm">
+              <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-black text-emerald-700 active:scale-95">
               {t('home.viewAll', 'Voir tout')}
                 <ChevronRight className="h-3 w-3" />
             </Link>
@@ -2075,21 +2074,16 @@ const loadDiscountProducts = async () => {
               {wholesaleProducts.slice(0, 4).map((product) => {
                 const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                 return (
-                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
+                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white">
                     <div className="min-h-0 flex-1">
                       <ProductCard p={product} productLink={buildHomeProductLink(product)} />
                     </div>
-                    <div className="border-t border-neutral-100 bg-white px-2 py-2 max-[375px]:px-1.5">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase text-white">
-                          <Tag className="h-2.5 w-2.5 shrink-0" />
-                          <span className="truncate">Prix de gros</span>
+                    <div className="flex items-center justify-between gap-1.5 border-t border-gray-100 px-2 py-1.5 max-[375px]:px-1.5">
+                      <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-bold text-emerald-700">
+                        <Tag className="h-3 w-3 shrink-0" />
+                        <span className="truncate">Prix de gros</span>
                       </span>
-                        <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-black text-emerald-700">x{minQty}+</span>
-                      </div>
-                      <p className="mt-1 text-[10px] font-semibold leading-snug text-gray-600">
-                        Minimum <span className="font-black text-emerald-800">{minQty}</span> unités, achat en quantité
-                      </p>
+                      <span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700">x{minQty}+</span>
                     </div>
                   </div>
                 );
@@ -2104,28 +2098,27 @@ const loadDiscountProducts = async () => {
         </section>
 
         {/* Installment section — always reserve space to prevent scroll jump */}
-        <section ref={installmentSectionRef} className="isolate overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
-          <div className="relative px-3 pb-3 pt-3 max-[375px]:px-2.5">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-neutral-100" />
-            <div className="relative mb-3 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-[0_10px_22px_rgba(2,132,199,0.22)]">
-                  <Clock className="h-4 w-4" />
+        <section ref={installmentSectionRef} className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+          <div className="px-3 pb-3 pt-3 max-[375px]:px-2.5">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-600 text-white">
+                  <Wallet className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h2 className="line-clamp-1 text-[15px] font-black tracking-tight text-gray-950 max-[375px]:text-sm">
-                {t('home.installmentProducts', 'Produits disponibles en paiement par tranche')}
+                    <h2 className="line-clamp-1 text-sm font-black tracking-tight text-gray-900">
+                {t('home.installmentProducts', 'Paiement par tranche')}
               </h2>
-                    <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[8px] font-black uppercase text-white">Flex</span>
+                    <span className="shrink-0 rounded bg-sky-50 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-sky-700">Flex</span>
                   </div>
-                  <p className="mt-0.5 line-clamp-1 text-[11px] font-semibold text-sky-700 max-[375px]:text-[10px]">
+                  <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-gray-500 max-[375px]:text-[10px]">
                 {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
               </p>
                 </div>
             </div>
-              <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-100 bg-white px-2.5 py-1.5 text-[11px] font-black text-sky-700 shadow-sm">
-              Voir tout
+              <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-sky-50 px-2.5 py-1.5 text-[11px] font-black text-sky-700 active:scale-95">
+              {t('home.viewAll', 'Voir tout')}
                 <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
@@ -2146,21 +2139,18 @@ const loadDiscountProducts = async () => {
               {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
                 .slice(0, 4)
                 .map((product) => (
-                  <div key={`installment-mobile-${product._id}`} className="overflow-hidden rounded-xl border border-sky-100 bg-white p-1 shadow-[0_8px_18px_rgba(15,23,42,0.06)] max-[375px]:p-0.5">
-                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                    <div className="mx-1 mb-1 rounded-2xl border border-neutral-100 bg-white px-2 py-1.5 max-[375px]:mx-0.5">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-sky-600 px-2 py-0.5 text-[9px] font-black uppercase text-white">
-                          <Clock className="h-2.5 w-2.5 shrink-0" />
-                          <span className="truncate">Paiement fractionné</span>
-                        </span>
-                        {product?.installmentDuration ? (
-                          <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-black text-sky-700">{product.installmentDuration}j</span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-[10px] font-semibold leading-snug text-gray-600">
-                        Dès <span className="font-black text-sky-800">{formatPrice(product?.installmentMinAmount || product?.price || 0)}</span>
-                      </p>
+                  <div key={`installment-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white">
+                    <div className="min-h-0 flex-1">
+                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                    </div>
+                    <div className="flex items-center justify-between gap-1.5 border-t border-gray-100 px-2 py-1.5 max-[375px]:px-1.5">
+                      <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-bold text-sky-700">
+                        <Wallet className="h-3 w-3 shrink-0" />
+                        <span className="truncate">Dès {formatPrice(product?.installmentMinAmount || product?.price || 0)}</span>
+                      </span>
+                      {product?.installmentDuration ? (
+                        <span className="shrink-0 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-black text-sky-700">{product.installmentDuration}j</span>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -2855,22 +2845,22 @@ const loadDiscountProducts = async () => {
 
         <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
           {shouldLoadSecondarySections && (
-          <section className="overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+          <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
             {/* Header */}
-            <div className="relative flex items-center justify-between overflow-hidden border-b border-neutral-100 bg-white px-5 py-4 text-gray-950">
+            <div className="relative flex items-center justify-between overflow-hidden border-b border-gray-100 bg-white px-5 py-4 text-gray-900">
               <div className="flex items-center gap-3">
-                <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-600 text-white">
                   <ShoppingBag className="h-5 w-5" />
                 </div>
-                <div className="relative">
+                <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-black tracking-tight text-gray-950">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">B2B</span>
+                    <h2 className="text-lg font-black tracking-tight text-gray-900">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+                    <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">B2B</span>
                   </div>
-                  <p className="text-xs font-semibold text-gray-500">{t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}</p>
+                  <p className="text-xs font-medium text-gray-500">{t('home.wholesaleSubtitle', 'Prix adaptés aux achats en quantité.')}</p>
                 </div>
               </div>
-              <Link to="/products?wholesaleOnly=true" className="group relative flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-black text-gray-700 transition hover:bg-neutral-50">
+              <Link to="/products?wholesaleOnly=true" className="group flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 transition hover:bg-emerald-100">
                 {t('home.viewAll', 'Voir tout')}
                 <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
@@ -2898,7 +2888,7 @@ const loadDiscountProducts = async () => {
                     <Link
                       key={`wholesale-dsk-${product._id}`}
                       to={buildHomeProductLink(product)}
-                      className="group relative flex flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+                      className="group relative flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
                     >
                       {/* Image */}
                       <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
@@ -2909,13 +2899,13 @@ const loadDiscountProducts = async () => {
                           loading="lazy"
                         />
                         {/* Wholesale badge */}
-                        <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                        <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
                           <Tag className="h-3 w-3" />
                           GROS
                         </span>
                         {/* Tier price badge */}
                         {tierPrice && tierPrice !== product.price && (
-                          <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+                          <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
                             Dès {formatPrice(tierPrice)}/u
                           </span>
                         )}
@@ -2932,7 +2922,7 @@ const loadDiscountProducts = async () => {
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                             <ShoppingBag className="h-2.5 w-2.5" />
                             Min. {minQty} u.
                           </span>
@@ -2954,27 +2944,27 @@ const loadDiscountProducts = async () => {
           )}
 
           {shouldLoadSecondarySections && (
-          <section className="overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+          <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
             {/* Header */}
-            <div className="relative flex items-center justify-between overflow-hidden border-b border-neutral-100 bg-white px-5 py-4 text-gray-950">
+            <div className="relative flex items-center justify-between overflow-hidden border-b border-gray-100 bg-white px-5 py-4 text-gray-900">
               <div className="flex items-center gap-3">
-                <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
-                  <Clock className="h-5 w-5" />
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-sky-600 text-white">
+                  <Wallet className="h-5 w-5" />
                 </div>
-                <div className="relative">
+                <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-black tracking-tight text-gray-950">
+                    <h2 className="text-lg font-black tracking-tight text-gray-900">
                     {t('home.installmentProducts', 'Paiement par tranche')}
                   </h2>
-                    <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-black uppercase text-sky-700">Flex</span>
+                    <span className="rounded bg-sky-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-sky-700">Flex</span>
                   </div>
-                  <p className="text-xs font-semibold text-gray-500">
+                  <p className="text-xs font-medium text-gray-500">
                     {t('home.installmentSubtitle', 'Payez progressivement avec plus de flexibilité.')}
                   </p>
                 </div>
               </div>
-              <Link to="/products?installmentOnly=true" className="group relative flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-black text-gray-700 transition hover:bg-neutral-50">
-                Voir tout
+              <Link to="/products?installmentOnly=true" className="group flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition hover:bg-sky-100">
+                {t('home.viewAll', 'Voir tout')}
                 <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
@@ -3003,7 +2993,7 @@ const loadDiscountProducts = async () => {
                       <Link
                         key={`installment-dsk-${product._id}`}
                         to={buildHomeProductLink(product)}
-                        className="group relative flex flex-col overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
+                        className="group relative flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
                       >
                         {/* Image */}
                         <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
@@ -3014,12 +3004,12 @@ const loadDiscountProducts = async () => {
                             loading="lazy"
                           />
                           {/* Installment badge */}
-                          <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md">
+                          <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
                             <Clock className="h-3 w-3" />
                             {duration > 0 ? `${duration}J` : 'TRANCHE'}
                           </span>
                           {minAmount > 0 && (
-                            <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white">
+                            <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white">
                               Dès {formatPrice(minAmount)}
                             </span>
                           )}
@@ -3036,7 +3026,7 @@ const loadDiscountProducts = async () => {
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                            <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
                               <Clock className="h-2.5 w-2.5" />
                               {duration > 0 ? `${duration} jours` : 'Tranches dispo.'}
                             </span>

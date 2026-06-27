@@ -797,10 +797,21 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
   if (resolutionType === 'refund_full' && nextStatus === 'RESOLVED_CLIENT') {
     try {
       const order = await Order.findById(dispute.orderId)
-        .select('totalAmount paidAmount customer paymentSource items')
+        .select('totalAmount paidAmount customer paymentSource paymentType installmentPlan items')
         .lean();
-      if (order && order.paymentSource === 'wallet' && order.totalAmount > 0) {
-        const refundAmount = order.paidAmount || order.totalAmount;
+      const installmentWalletAmount =
+        String(order?.paymentType || '').toLowerCase() === 'installment'
+          ? (order?.installmentPlan?.schedule || []).reduce(
+              (sum, entry) =>
+                entry?.status === 'paid' && entry?.transactionProof?.paymentMethod === 'wallet'
+                  ? sum + Number(entry?.transactionProof?.amount || entry?.amount || 0)
+                  : sum,
+              0
+            )
+          : 0;
+      const refundAmount = installmentWalletAmount ||
+        (order?.paymentSource === 'wallet' ? Number(order?.paidAmount || order?.totalAmount || 0) : 0);
+      if (order && refundAmount > 0) {
         const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
         await refundToWallet({
           userId: dispute.clientId,

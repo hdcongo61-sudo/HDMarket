@@ -25,7 +25,7 @@ export default function ShopBottomActions({
         <button
           type="button"
           onClick={onMessage}
-          className={`${btnBase} bg-gray-100 text-[#FF6A00] hover:bg-gray-200 dark:bg-neutral-800`}
+          className={`${btnBase} bg-gray-100 text-[var(--shop-color)] hover:bg-gray-200 dark:bg-neutral-800`}
         >
           <MessageCircle size={15} />
           <span className="truncate">{t('shop_profile.message', 'Message')}</span>
@@ -55,7 +55,7 @@ export default function ShopBottomActions({
         <button
           type="button"
           onClick={onPrimaryAction}
-          className={`${btnBase} bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-[0_16px_28px_-18px_rgba(255,106,0,0.9)]`}
+          className={`${btnBase} bg-[var(--shop-color)] text-[var(--shop-color-contrast)] shadow-lg hover:brightness-95`}
         >
           <Store size={15} />
           <span className="truncate">{t('shop_profile.view_products', 'Produits')}</span>

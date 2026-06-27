@@ -299,6 +299,49 @@ export const getBoostPricePreview = asyncHandler(async (req, res) => {
   });
 });
 
+export const listBoostPricingPublic = asyncHandler(async (_req, res) => {
+  const pricingItems = await BoostPricing.find({ isActive: true })
+    .select('type city basePrice priceType multiplier updatedAt')
+    .sort({ type: 1, city: 1, updatedAt: -1 })
+    .lean();
+
+  const boostTypes = [...new Set(pricingItems.map((item) => item.type).filter(Boolean))];
+  const campaignEntries = await Promise.all(
+    boostTypes.map(async (boostType) => [
+      boostType,
+      await getActiveSeasonalCampaign({ boostType })
+    ])
+  );
+  const campaignByType = new Map(campaignEntries);
+
+  return res.json({
+    items: pricingItems.map((item) => {
+      const campaign = campaignByType.get(item.type) || null;
+      const basePrice = Number(item.basePrice || 0);
+      const multiplier = Number(item.multiplier || 1);
+      const seasonalMultiplier = Number(campaign?.multiplier || 1);
+      return {
+        id: item._id,
+        type: item.type,
+        city: item.city || null,
+        basePrice,
+        priceType: item.priceType,
+        multiplier,
+        seasonalMultiplier,
+        effectiveUnitPrice: Number((basePrice * multiplier * seasonalMultiplier).toFixed(2)),
+        campaign: campaign
+          ? {
+              name: campaign.name,
+              endDate: campaign.endDate,
+              multiplier: seasonalMultiplier
+            }
+          : null,
+        updatedAt: item.updatedAt
+      };
+    })
+  });
+});
+
 export const createBoostRequest = asyncHandler(async (req, res) => {
   const sellerId = req.user?.id || req.user?._id;
   const seller = await ensureSellerEligible(sellerId);

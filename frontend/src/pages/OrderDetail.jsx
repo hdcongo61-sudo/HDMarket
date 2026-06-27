@@ -23,7 +23,8 @@ import {
   Info,
   CreditCard,
   Receipt,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -160,16 +161,24 @@ const formatOrderTimestamp = (value) =>
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim() : '');
+const isEnabledFlag = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
+  return fallback;
+};
 const resolveOrderPaymentMode = (order) => {
   const paymentSource = String(order?.paymentSource || '').trim().toLowerCase();
   const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
+  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
     paymentSource === 'wallet' ||
     ['WALLET', 'HDMARKET_WALLET', 'PORTEFEUILLE_HDMARKET'].includes(explicitPaymentMode)
   ) {
     return 'WALLET';
   }
-  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (explicitPaymentMode === 'FULL_PAYMENT') return 'FULL_PAYMENT';
   if (explicitPaymentMode && explicitPaymentMode !== 'STANDARD') return explicitPaymentMode;
   if (!explicitPaymentMode && String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL') return 'FULL_PAYMENT';
@@ -352,11 +361,14 @@ export default function OrderDetail() {
   const { user } = React.useContext(AuthContext);
   const { addItem } = React.useContext(CartContext);
   const externalLinkProps = useDesktopExternalLink();
-  const { isFeatureEnabled } = useAppSettings();
+  const { isFeatureEnabled, getRuntimeValue } = useAppSettings();
   const { showToast } = useToast();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
+  const walletFeatureEnabled =
+    isEnabledFlag(getRuntimeValue('enable_digital_wallet', false), false) &&
+    isEnabledFlag(getRuntimeValue('enable_wallet_payment', false), false);
   const queryClient = useQueryClient();
   const { rapid3GActive, offlineBannerText, rapid3GBannerText, shouldUseOfflineSnapshot } =
     useNetworkProfile();
@@ -374,6 +386,16 @@ export default function OrderDetail() {
   const [proofPreview, setProofPreview] = useState(null);
   const [queuedDeliveryActionCount, setQueuedDeliveryActionCount] = useState(0);
   const [deliveryQueueSyncing, setDeliveryQueueSyncing] = useState(false);
+  const walletEnabledPhones = String(getRuntimeValue('wallet_enabled_shops', '') || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const orderSellerPhone = String(
+    order?.items?.[0]?.snapshot?.shopPhone || order?.items?.[0]?.product?.user?.phone || ''
+  ).trim();
+  const installmentWalletEnabled =
+    walletFeatureEnabled &&
+    (walletEnabledPhones.length === 0 || walletEnabledPhones.includes(orderSellerPhone));
   const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
     if (!url) return '';
@@ -637,25 +659,28 @@ export default function OrderDetail() {
     };
     const cleanPayerName = String(currentProof.payerName || '').trim();
     const cleanTransactionCode = String(currentProof.transactionCode || '').replace(/\D/g, '');
+    const paymentMethod = currentProof.paymentMethod === 'wallet' ? 'wallet' : 'mobile_money';
     const amount = Number(entry?.amount || 0);
 
-    if (!cleanPayerName) {
+    if (paymentMethod === 'mobile_money' && !cleanPayerName) {
       appAlert('Le nom de l’expéditeur est requis.');
       return;
     }
-    if (cleanTransactionCode.length !== 10) {
+    if (paymentMethod === 'mobile_money' && cleanTransactionCode.length !== 10) {
       appAlert('L’ID de transaction doit contenir exactement 10 chiffres.');
       return;
     }
-    try {
-      const verification = await verifyTransactionCodeAvailability(cleanTransactionCode);
-      if (!verification.available) {
-        appAlert(verification.message || 'Ce code de transaction est déjà utilisé.');
+    if (paymentMethod === 'mobile_money') {
+      try {
+        const verification = await verifyTransactionCodeAvailability(cleanTransactionCode);
+        if (!verification.available) {
+          appAlert(verification.message || 'Ce code de transaction est déjà utilisé.');
+          return;
+        }
+      } catch (error) {
+        appAlert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
         return;
       }
-    } catch (error) {
-      appAlert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
-      return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       appAlert('Montant de tranche invalide.');
@@ -666,8 +691,9 @@ export default function OrderDetail() {
       const { data } = await api.post(
         `/orders/${order._id}/installment/payments/${index}/proof`,
         {
-          payerName: cleanPayerName,
-          transactionCode: cleanTransactionCode,
+          paymentMethod,
+          payerName: paymentMethod === 'wallet' ? user?.name || '' : cleanPayerName,
+          transactionCode: paymentMethod === 'wallet' ? '' : cleanTransactionCode,
           amount
         }
       );
@@ -677,7 +703,11 @@ export default function OrderDetail() {
         delete next[index];
         return next;
       });
-      appAlert('Preuve transactionnelle transmise au vendeur. En attente de validation.');
+      appAlert(
+        paymentMethod === 'wallet'
+          ? 'Tranche payée avec le portefeuille HDMarket.'
+          : 'Preuve transactionnelle transmise au vendeur. En attente de validation.'
+      );
       await invalidateOrderQueries();
     } catch (err) {
       appAlert(err.response?.data?.message || 'Impossible de transmettre la preuve.');
@@ -1786,7 +1816,8 @@ export default function OrderDetail() {
                       transactionCode:
                         proofDraftState?.transactionCode ??
                         transactionProof?.transactionCode ??
-                        ''
+                        '',
+                      paymentMethod: proofDraftState?.paymentMethod || 'mobile_money'
                     };
                     return (
                       <div key={`${order._id}-installment-${index}`} className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
@@ -1834,46 +1865,82 @@ export default function OrderDetail() {
                         )}
                         {canUploadProof && (
                           <div className="space-y-3">
-                            <div>
-                              <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
-                                Nom de l’expéditeur
-                              </label>
-                              <input
-                                type="text"
-                                value={String(proofDraft.payerName ?? '')}
-                                onChange={(event) =>
-                                  handleInstallmentProofFieldChange(index, 'payerName', event.target.value)
-                                }
-                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
-                                placeholder="Nom affiché dans le transfert"
-                              />
-                            </div>
-                            <div className="rounded-xl border border-neutral-100 bg-neutral-50/50 p-3 overflow-hidden">
-                              <p className="text-xs font-bold uppercase text-neutral-800 mb-2">
-                                Exemple: où trouver l'ID dans le SMS
-                              </p>
-                              <img
-                                src="/images/transaction-id-sms-example-checkout.png"
-                                alt="Exemple de SMS Mobile Money montrant l'ID de la transaction"
-                                className="w-full max-w-sm mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
-                                ID transaction (10 chiffres)
-                              </label>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={10}
-                                value={String(proofDraft.transactionCode ?? '')}
-                                onChange={(event) =>
-                                  handleInstallmentProofFieldChange(index, 'transactionCode', event.target.value)
-                                }
-                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
-                                placeholder="Ex: 7232173826"
-                              />
-                            </div>
+                            {installmentWalletEnabled && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleInstallmentProofFieldChange(index, 'paymentMethod', 'mobile_money')}
+                                  className={`rounded-xl border p-3 text-left text-xs font-bold ${
+                                    proofDraft.paymentMethod === 'mobile_money'
+                                      ? 'border-[#FF6A00] bg-orange-50 text-orange-800'
+                                      : 'border-gray-200 bg-white text-gray-600'
+                                  }`}
+                                >
+                                  <CreditCard size={16} className="mb-1.5" />
+                                  Mobile Money
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInstallmentProofFieldChange(index, 'paymentMethod', 'wallet')}
+                                  className={`rounded-xl border p-3 text-left text-xs font-bold ${
+                                    proofDraft.paymentMethod === 'wallet'
+                                      ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                                      : 'border-gray-200 bg-white text-gray-600'
+                                  }`}
+                                >
+                                  <Wallet size={16} className="mb-1.5" />
+                                  Portefeuille
+                                </button>
+                              </div>
+                            )}
+                            {proofDraft.paymentMethod === 'wallet' ? (
+                              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
+                                {formatCurrency(entry?.amount || 0)} seront débités et validés automatiquement.
+                              </div>
+                            ) : (
+                              <>
+                                <div>
+                                  <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
+                                    Nom de l’expéditeur
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={String(proofDraft.payerName ?? '')}
+                                    onChange={(event) =>
+                                      handleInstallmentProofFieldChange(index, 'payerName', event.target.value)
+                                    }
+                                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
+                                    placeholder="Nom affiché dans le transfert"
+                                  />
+                                </div>
+                                <div className="rounded-xl border border-neutral-100 bg-neutral-50/50 p-3 overflow-hidden">
+                                  <p className="text-xs font-bold uppercase text-neutral-800 mb-2">
+                                    Exemple: où trouver l'ID dans le SMS
+                                  </p>
+                                  <img
+                                    src="/images/transaction-id-sms-example-checkout.png"
+                                    alt="Exemple de SMS Mobile Money montrant l'ID de la transaction"
+                                    className="w-full max-w-sm mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
+                                    ID transaction (10 chiffres)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={10}
+                                    value={String(proofDraft.transactionCode ?? '')}
+                                    onChange={(event) =>
+                                      handleInstallmentProofFieldChange(index, 'transactionCode', event.target.value)
+                                    }
+                                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
+                                    placeholder="Ex: 7232173826"
+                                  />
+                                </div>
+                              </>
+                            )}
                             <div>
                               <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
                                 Montant de la tranche
@@ -1890,12 +1957,21 @@ export default function OrderDetail() {
                               onClick={() => handleInstallmentProofUpload(index, entry)}
                               disabled={
                                 installmentUploadIndex === index ||
-                                !String(proofDraft.payerName || '').trim() ||
-                                String(proofDraft.transactionCode || '').replace(/\D/g, '').length !== 10
+                                (proofDraft.paymentMethod !== 'wallet' &&
+                                  (!String(proofDraft.payerName || '').trim() ||
+                                    String(proofDraft.transactionCode || '').replace(/\D/g, '').length !== 10))
                               }
-                              className="inline-flex items-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
+                              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-60 ${
+                                proofDraft.paymentMethod === 'wallet'
+                                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                                  : 'bg-neutral-600 hover:bg-neutral-700'
+                              }`}
                             >
-                              {installmentUploadIndex === index ? 'Envoi...' : 'Envoyer la preuve transactionnelle'}
+                              {installmentUploadIndex === index
+                                ? 'Traitement...'
+                                : proofDraft.paymentMethod === 'wallet'
+                                  ? 'Payer avec le portefeuille'
+                                  : 'Envoyer la preuve transactionnelle'}
                             </button>
                           </div>
                         )}

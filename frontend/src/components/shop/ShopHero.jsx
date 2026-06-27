@@ -48,7 +48,13 @@ export default function ShopHero({
             />
           </>
         ) : (
-          <div className="h-full w-full bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.85),transparent_28%),linear-gradient(135deg,#ff6a00_0%,#ff8a2a_42%,#fff0df_100%)] dark:bg-[linear-gradient(135deg,#2b1405_0%,#7c2d12_52%,#171717_100%)]" />
+          <div
+            className="h-full w-full dark:opacity-80"
+            style={{
+              background:
+                'radial-gradient(circle at 18% 18%, rgba(255,255,255,0.82), transparent 28%), linear-gradient(135deg, var(--shop-color) 0%, color-mix(in srgb, var(--shop-color) 72%, white) 56%, color-mix(in srgb, var(--shop-color) 18%, white) 100%)'
+            }}
+          />
         )}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
         <div className="absolute left-4 top-4 flex items-center gap-2">
@@ -59,7 +65,7 @@ export default function ShopHero({
             </span>
           )}
           {hasActivePromo && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF6A00] px-3 py-1.5 text-[11px] font-black text-white shadow-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--shop-color)] px-3 py-1.5 text-[11px] font-black text-[var(--shop-color-contrast)] shadow-sm">
               <Sparkles size={13} />
               {formatCount(shop?.activePromoCountNow)} promo(s)
             </span>
@@ -71,7 +77,7 @@ export default function ShopHero({
               {shop?.shopLogo ? (
                 <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-white text-2xl font-black text-[#FF6A00] dark:bg-neutral-900">
+                <div className="flex h-full w-full items-center justify-center bg-white text-2xl font-black text-[var(--shop-color)] dark:bg-neutral-900">
                   {String(shop?.shopName || 'B').charAt(0).toUpperCase()}
                 </div>
               )}
@@ -116,7 +122,7 @@ export default function ShopHero({
               Livraison offerte
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-black text-[#FF6A00] ring-1 ring-gray-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-black text-[var(--shop-color)] ring-1 ring-gray-200">
               <Store size={12} />
               Retrait boutique
             </span>
@@ -134,7 +140,7 @@ export default function ShopHero({
         <div className="mt-4 grid grid-cols-4 overflow-hidden rounded border border-gray-100 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-900">
           {stats.map((item) => (
             <div key={item.label} className="flex flex-col items-center gap-0.5 border-r border-gray-100 px-1 py-3 last:border-r-0 dark:border-neutral-800">
-              <span className="text-lg font-black text-[#FF6A00]">{item.value}</span>
+              <span className="text-lg font-black text-[var(--shop-color)]">{item.value}</span>
               <span className="text-center text-[10px] font-semibold leading-tight text-gray-500 dark:text-slate-400">{item.label}</span>
             </div>
           ))}

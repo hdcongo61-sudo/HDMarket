@@ -5,6 +5,7 @@ import { upload } from '../utils/upload.js';
 import {
   createBoostRequest,
   getBoostPricePreview,
+  listBoostPricingPublic,
   listMyBoostRequests,
   trackBoostClick,
   trackBoostImpressions
@@ -12,6 +13,7 @@ import {
 
 const router = express.Router();
 
+router.get('/pricing', listBoostPricingPublic);
 router.get(
   '/pricing/preview',
   protect,

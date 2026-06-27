@@ -34,7 +34,7 @@ export default function ShopTopHeader({
         className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-gray-100 px-3 text-left text-sm text-gray-500 transition active:scale-[0.99] dark:bg-neutral-800 dark:text-neutral-300"
         aria-label={t('shop_profile.search_in_shop', 'Rechercher dans la boutique')}
       >
-        <Search size={16} className="shrink-0 text-[#FF6A00]" />
+        <Search size={16} className="shrink-0 text-[var(--shop-color)]" />
         <span className="min-w-0 flex-1 truncate">
           {title || t('shop_profile.public_shop', 'Boutique publique')}
         </span>

@@ -101,6 +101,7 @@ export default function OrderCheckout() {
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.STANDARD);
+  const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState('mobile_money');
   const [guarantor, setGuarantor] = useState({
     fullName: '',
     phone: '',
@@ -355,7 +356,9 @@ export default function OrderCheckout() {
         ? 'Aucun acompte ni code transaction requis. Le paiement est traité automatiquement.'
         : 'Un acompte de 25% est requis pour confirmer votre commande.';
   const paymentCommitmentMessage = isInstallmentPayment
-    ? `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
+    ? installmentPaymentMethod === 'wallet'
+      ? `${formatCurrency(summaryPaidAmount)} seront débités de votre portefeuille pour activer l’échéancier.`
+      : `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
     : isFullPaymentSelected
       ? `Paiement intégral demandé: ${formatCurrency(summaryPaidAmount)}. La livraison est offerte et verrouillée.`
       : isWalletPayment
@@ -364,6 +367,23 @@ export default function OrderCheckout() {
           ? 'Merci de payer l’acompte indiqué pour chaque vendeur avant validation.'
           : `Merci de payer exactement ${formatCurrency(depositAmount)} avant validation.`;
   const showFullPaymentOption = fullPaymentPromotionEnabled && fullPaymentFreeDeliveryEnabled;
+  const walletPaymentEnabled = normalizeBoolean(
+    getRuntimeValue('enable_wallet_payment', false),
+    false
+  );
+  const digitalWalletEnabled = normalizeBoolean(
+    getRuntimeValue('enable_digital_wallet', false),
+    false
+  );
+  const walletEnabledShopsStr = String(getRuntimeValue('wallet_enabled_shops', '') || '').trim();
+  const walletEnabledPhones = walletEnabledShopsStr
+    ? walletEnabledShopsStr.split(',').map((value) => value.trim()).filter(Boolean)
+    : null;
+  const walletEligible = walletPaymentEnabled && digitalWalletEnabled && (
+    walletEnabledPhones === null ||
+    walletEnabledPhones.length === 0 ||
+    sellerGroups.every((group) => walletEnabledPhones.includes(String(group.sellerPhone || '').trim()))
+  );
 
   const paymentModeCards = useMemo(() => {
     const baseCards = [
@@ -425,20 +445,6 @@ export default function OrderCheckout() {
     }
 
     // Wallet payment — Proposal 6 (full payment, per-shop eligibility)
-    const walletPaymentEnabled = normalizeBoolean(
-      getRuntimeValue('enable_wallet_payment', false),
-      false
-    );
-    const walletEnabledShopsStr = String(getRuntimeValue('wallet_enabled_shops', '') || '').trim();
-    const walletEnabledPhones = walletEnabledShopsStr
-      ? walletEnabledShopsStr.split(',').map((s) => s.trim()).filter(Boolean)
-      : null; // null = all shops allowed
-    const walletEligible = walletPaymentEnabled && (
-      walletEnabledPhones === null ||
-      walletEnabledPhones.length === 0 ||
-      sellerGroups.every((g) => walletEnabledPhones.includes(String(g.sellerPhone || '').trim()))
-    );
-
     if (walletEligible) {
       baseCards.push({
         id: PAYMENT_MODES.WALLET,
@@ -475,7 +481,8 @@ export default function OrderCheckout() {
     isInstallmentProductEligible,
     remainingAmount,
     showFullPaymentOption,
-    sellerGroups
+    sellerGroups,
+    walletEligible
   ]);
 
   useEffect(() => {
@@ -724,31 +731,35 @@ export default function OrderCheckout() {
         setError('Le premier paiement ne peut pas dépasser le total de la commande.');
         return;
       }
-      if (!paymentEntry?.payerName?.trim() || !paymentEntry?.transactionCode?.trim()) {
-        setError('Le nom du payeur et le code de transaction sont requis.');
-        return;
-      }
-      const cleanTransactionCode = String(paymentEntry.transactionCode).replace(/\D/g, '');
-      if (cleanTransactionCode.length !== 10) {
-        setError('Le code de transaction doit contenir exactement 10 chiffres.');
-        return;
-      }
-      try {
-        const installmentCodeVerification = await verifyTransactionCodeAvailability(cleanTransactionCode);
-        if (!installmentCodeVerification.available) {
+      const installmentUsesWallet = installmentPaymentMethod === 'wallet';
+      let cleanTransactionCode = '';
+      if (!installmentUsesWallet) {
+        if (!paymentEntry?.payerName?.trim() || !paymentEntry?.transactionCode?.trim()) {
+          setError('Le nom du payeur et le code de transaction sont requis.');
+          return;
+        }
+        cleanTransactionCode = String(paymentEntry.transactionCode).replace(/\D/g, '');
+        if (cleanTransactionCode.length !== 10) {
+          setError('Le code de transaction doit contenir exactement 10 chiffres.');
+          return;
+        }
+        try {
+          const installmentCodeVerification = await verifyTransactionCodeAvailability(cleanTransactionCode);
+          if (!installmentCodeVerification.available) {
+            const message =
+              installmentCodeVerification.message || 'Ce code de transaction est déjà utilisé.';
+            setError(message);
+            showToast(message, { variant: 'error' });
+            return;
+          }
+        } catch (verificationError) {
           const message =
-            installmentCodeVerification.message || 'Ce code de transaction est déjà utilisé.';
+            verificationError?.response?.data?.message ||
+            'Impossible de vérifier le code de transaction.';
           setError(message);
           showToast(message, { variant: 'error' });
           return;
         }
-      } catch (verificationError) {
-        const message =
-          verificationError?.response?.data?.message ||
-          'Impossible de vérifier le code de transaction.';
-        setError(message);
-        showToast(message, { variant: 'error' });
-        return;
       }
       if (
         installmentRequiresGuarantor &&
@@ -768,7 +779,8 @@ export default function OrderCheckout() {
             quantity: Number(items[0]?.quantity || 1),
             selectedAttributes: items[0]?.selectedAttributes || [],
             firstPaymentAmount: Number(firstAmount),
-            payerName: paymentEntry.payerName.trim(),
+            paymentMethod: installmentPaymentMethod,
+            payerName: installmentUsesWallet ? user?.name || '' : paymentEntry.payerName.trim(),
             transactionCode: cleanTransactionCode,
             guarantor,
             deliveryMode,
@@ -778,7 +790,12 @@ export default function OrderCheckout() {
         const createdOrderId = extractFirstOrderId(data);
         setOrderConfirmed(true);
         await clearCart();
-        showToast('Commande en tranche créée. En attente de validation vendeur.', { variant: 'success' });
+        showToast(
+          installmentUsesWallet
+            ? 'Premier paiement débité du portefeuille. En attente de validation vendeur.'
+            : 'Commande en tranche créée. En attente de validation vendeur.',
+          { variant: 'success' }
+        );
         if (createdOrderId) {
           navigate(`/order/detail/${createdOrderId}`);
         } else {
@@ -789,7 +806,8 @@ export default function OrderCheckout() {
           const reconciliation = await reconcileCheckoutAfterTimeout({
             transactionCodes: [cleanTransactionCode],
             expectedCount: 1,
-            paymentType: 'installment'
+            paymentType: 'installment',
+            paymentSource: installmentUsesWallet ? 'wallet' : 'mobile_money'
           });
           if (reconciliation.confirmed) {
             setOrderConfirmed(true);
@@ -1668,6 +1686,42 @@ export default function OrderCheckout() {
               </div>
             )}
 
+            {isInstallmentPayment && walletEligible && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <p className="text-[11px] font-black uppercase tracking-wide text-[#ff6a00]">
+                  Payer le premier versement avec
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setInstallmentPaymentMethod('mobile_money')}
+                    className={`rounded-2xl border px-3 py-3 text-left transition ${
+                      installmentPaymentMethod === 'mobile_money'
+                        ? 'border-[#ff6a00] bg-orange-50 text-orange-900 ring-1 ring-orange-100'
+                        : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    <CreditCard size={18} />
+                    <p className="mt-2 text-sm font-black">Mobile Money</p>
+                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">Code transaction requis</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInstallmentPaymentMethod('wallet')}
+                    className={`rounded-2xl border px-3 py-3 text-left transition ${
+                      installmentPaymentMethod === 'wallet'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-100'
+                        : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    <Wallet size={18} />
+                    <p className="mt-2 text-sm font-black">Portefeuille HDMarket</p>
+                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">Débit et validation automatiques</p>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {sellerGroups.map((group) => {
               const payment = payments[group.sellerId] || {};
               const promoState = getSellerPromoState(group.sellerId);
@@ -1687,6 +1741,8 @@ export default function OrderCheckout() {
               const groupRemaining = isWalletPayment
                 ? 0
                 : Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
+              const installmentUsesWallet =
+                isInstallmentPayment && installmentPaymentMethod === 'wallet';
               return (
                 <div
                   key={group.sellerId}
@@ -1728,7 +1784,7 @@ export default function OrderCheckout() {
                   
                   <div className="space-y-4">
                     {/* Payer name + transaction code — not needed for wallet */}
-                    {paymentMode !== PAYMENT_MODES.WALLET && (
+                    {paymentMode !== PAYMENT_MODES.WALLET && !installmentUsesWallet && (
                       <>
                         <div>
                           <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">
@@ -1781,13 +1837,15 @@ export default function OrderCheckout() {
                     )}
 
                     {/* Wallet payment info */}
-                    {paymentMode === PAYMENT_MODES.WALLET && (
+                    {(paymentMode === PAYMENT_MODES.WALLET || installmentUsesWallet) && (
                       <div className="space-y-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                         <p className="text-sm font-black text-emerald-800">
                           Paiement par portefeuille HDMarket
                         </p>
                         <p className="text-xs font-semibold text-emerald-700">
-                          Aucun acompte ni code transaction requis ici. Le paiement est traité côté HDMarket.
+                          {installmentUsesWallet
+                            ? `${formatCurrency(groupDeposit)} seront débités automatiquement pour le premier versement.`
+                            : 'Aucun acompte ni code transaction requis ici. Le paiement est traité côté HDMarket.'}
                         </p>
                       </div>
                     )}
@@ -1975,12 +2033,12 @@ export default function OrderCheckout() {
               {loading ? (
                 <>
                   <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
-                  {checkoutStatus || (isWalletPayment ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...')}
+                  {checkoutStatus || ((isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...')}
                 </>
               ) : (
                 <>
                   <Lock size={22} />
-                  {isWalletPayment ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
+                  {(isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
                 </>
               )}
             </button>
@@ -1991,7 +2049,7 @@ export default function OrderCheckout() {
         <div className="mx-auto flex max-w-7xl items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-              {isWalletPayment ? 'Paiement portefeuille' : summaryPrimaryPaymentLabel}
+              {(isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Paiement portefeuille' : summaryPrimaryPaymentLabel}
             </p>
             <p className="truncate text-2xl font-black text-[#ff6a00]">
               {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}

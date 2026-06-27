@@ -53,7 +53,7 @@ const getPromoPercentForPrice = ({ promo, price }) => {
 
 const loadShopByIdentifier = async (
   identifier,
-  projection = 'shopName shopAddress shopLogo shopBanner name createdAt shopVerified followersCount slug accountType phone shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked'
+  projection = 'shopName shopAddress shopLogo shopBanner shopBannerMobile shopColor name createdAt shopVerified followersCount slug accountType phone shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked'
 ) => {
   const query = buildIdentifierQuery(identifier);
   if (!Object.keys(query).length) return null;
@@ -313,7 +313,7 @@ export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
 
 export const getShopProfile = asyncHandler(async (req, res) => {
   const shop = await loadShopByIdentifier(req.params.id, [
-    'name shopName phone accountType createdAt shopLogo shopBanner shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked followersCount slug'
+    'name shopName phone accountType createdAt shopLogo shopBanner shopBannerMobile shopColor shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked followersCount slug'
   ].join(' '));
   if (!shop || shop.accountType !== 'shop') {
     return res.status(404).json({ message: 'Boutique introuvable.' });
@@ -487,6 +487,8 @@ export const getShopProfile = asyncHandler(async (req, res) => {
       productCount: totalProducts,
       shopLogo: shop.shopLogo || null,
       shopBanner: shop.shopBanner || null,
+      shopBannerMobile: shop.shopBannerMobile || null,
+      shopColor: shop.shopColor || '#FF6A00',
       shopAddress: shop.shopAddress || null,
       shopLocationAddress: publicShopLocationAddress,
       shopVerified: Boolean(shop.shopVerified),

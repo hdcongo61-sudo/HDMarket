@@ -102,6 +102,7 @@ export function buildSession(user, decoded = {}, token = '') {
     shopLogo: safeString(user.shopLogo),
     shopBanner: safeString(user.shopBanner),
     shopBannerMobile: safeString(user.shopBannerMobile),
+    shopColor: safeString(user.shopColor, '#FF6A00'),
     shopDescription: safeString(user.shopDescription),
     shopVerified: toBool(user.shopVerified),
     followersCount: Math.max(0, Number(user.followersCount) || 0),

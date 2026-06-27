@@ -33,13 +33,13 @@ export default function ShopReviewsSection({
   return (
     <section className="overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800" id="reviews">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+        <h2 className="border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
           {t('shop_profile.reviews', 'Avis clients')}
         </h2>
         <button
           type="button"
           onClick={() => setShowCommentsModal(true)}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded bg-gray-100 px-3 text-[11px] font-bold text-[#FF6A00] transition hover:bg-gray-200 dark:bg-neutral-800"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded bg-gray-100 px-3 text-[11px] font-bold text-[var(--shop-color)] transition hover:bg-gray-200 dark:bg-neutral-800"
         >
           <span>{t('shop_profile.view_all', 'Voir tout')}</span>
           <ExternalLink size={13} />
@@ -50,7 +50,7 @@ export default function ShopReviewsSection({
       {ratingCount > 0 && (
         <div className="mt-4 flex items-center gap-4 border-b border-gray-100 pb-4 dark:border-neutral-800">
           <div className="text-center">
-            <p className="text-4xl font-black text-[#FF6A00]">{formatRatingLabel(ratingAverage)}</p>
+            <p className="text-4xl font-black text-[var(--shop-color)]">{formatRatingLabel(ratingAverage)}</p>
             <div className="mt-1 flex items-center justify-center gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
@@ -58,7 +58,7 @@ export default function ShopReviewsSection({
                   size={13}
                   className={
                     star <= Math.round(ratingAverage)
-                      ? 'fill-[#FF6A00] text-[#FF6A00]'
+                      ? 'fill-[var(--shop-color)] text-[var(--shop-color)]'
                       : 'text-gray-200 dark:text-neutral-700'
                   }
                 />
@@ -77,9 +77,9 @@ export default function ShopReviewsSection({
               return (
                 <div key={bar} className="flex items-center gap-2 text-[11px] text-gray-500">
                   <span className="w-3 text-right">{bar}</span>
-                  <Star size={10} className="fill-[#FF6A00] text-[#FF6A00]" />
+                  <Star size={10} className="fill-[var(--shop-color)] text-[var(--shop-color)]" />
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
-                    <div className="h-full rounded-full bg-[#FF6A00]" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-[var(--shop-color)]" style={{ width: `${pct}%` }} />
                   </div>
                   <span className="w-8">{pct}%</span>
                 </div>
@@ -116,7 +116,7 @@ export default function ShopReviewsSection({
                   size={26}
                   className={
                     value <= Number(reviewForm.rating)
-                      ? 'fill-[#FF6A00] text-[#FF6A00]'
+                      ? 'fill-[var(--shop-color)] text-[var(--shop-color)]'
                       : 'text-gray-300 dark:text-neutral-700'
                   }
                 />
@@ -127,7 +127,7 @@ export default function ShopReviewsSection({
             value={reviewForm.comment}
             onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
             rows={4}
-            className="mt-3 w-full rounded border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#FF6A00] focus:outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
+            className="mt-3 w-full rounded border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[var(--shop-color)] focus:outline-none dark:border-neutral-800 dark:bg-neutral-950 dark:text-white"
             placeholder={t('shop_profile.comment_placeholder', 'Partagez votre expérience...')}
           />
           {reviewError && (
@@ -136,7 +136,7 @@ export default function ShopReviewsSection({
           <button
             type="submit"
             disabled={reviewPending || !user}
-            className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[#FF6A00] text-sm font-black text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[var(--shop-color)] text-sm font-black text-[var(--shop-color-contrast)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {reviewPending
               ? t('shop_profile.sending', 'Envoi...')

@@ -22,6 +22,7 @@ export default function Footer() {
   ];
 
   const serviceLinks = [
+    { to: '/plans', label: t('nav.plans', 'Plans & tarifs') },
     { to: '/help', label: t('footer.help', 'Aide et service client') },
     { to: '/shops/free-delivery', label: t('footer.freeDelivery', 'Livraison offerte') },
     { to: '/top-deals', label: t('footer.deals', 'Bons plans') }

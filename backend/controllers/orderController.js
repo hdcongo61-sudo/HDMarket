@@ -144,6 +144,20 @@ const WALLET_ESCROW_RELEASE_STATUSES = new Set([
   'completed'
 ]);
 
+const getWalletPaidAmountForOrder = (order) => {
+  if (String(order?.paymentType || '').toLowerCase() === 'installment') {
+    return (order?.installmentPlan?.schedule || []).reduce(
+      (sum, entry) =>
+        entry?.status === 'paid' && entry?.transactionProof?.paymentMethod === 'wallet'
+          ? sum + Number(entry?.transactionProof?.amount || entry?.amount || 0)
+          : sum,
+      0
+    );
+  }
+  if (order?.paymentSource !== 'wallet') return 0;
+  return Number(order?.paidAmount || order?.totalAmount || 0);
+};
+
 const getOrderSellerIds = (order) =>
   Array.from(
     new Set(
@@ -2123,8 +2137,8 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   // ── Wallet refund on cancellation (seller) ─────────────
-  if (status === 'cancelled' && order.paymentSource === 'wallet' && previousStatus !== 'cancelled') {
-    const refundAmount = order.paidAmount || order.totalAmount || 0;
+  if (status === 'cancelled' && previousStatus !== 'cancelled') {
+    const refundAmount = getWalletPaidAmountForOrder(order);
     if (refundAmount > 0) {
       try {
         const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
@@ -2894,8 +2908,8 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   await order.save();
 
   // ── Wallet refund on cancellation (buyer) ──────────────
-  if (status === 'cancelled' && order.paymentSource === 'wallet' && previousStatus !== 'cancelled') {
-    const refundAmount = order.paidAmount || order.totalAmount || 0;
+  if (status === 'cancelled' && previousStatus !== 'cancelled') {
+    const refundAmount = getWalletPaidAmountForOrder(order);
     if (refundAmount > 0) {
       try {
         const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
@@ -4552,6 +4566,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   order.cancelledBy = actorId;
   order.cancellationReason = reason.trim();
   const paidAmount = Number(order.paidAmount || 0);
+  const walletPaidAmount = getWalletPaidAmountForOrder(order);
   const refundAmount = issueRefund ? paidAmount : 0;
   if (issueRefund) {
     order.refundStatus = refundAmount > 0 ? 'pending' : 'none';
@@ -4561,24 +4576,24 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   }
 
   await order.save();
-  if (order.paymentSource === 'wallet' && paidAmount > 0) {
+  if (walletPaidAmount > 0) {
     try {
       const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
       await refundToWallet({
         userId: order.customer,
-        amount: paidAmount,
+        amount: walletPaidAmount,
         orderId: String(order._id),
         processedBy: actorId,
         note: `Remboursement — commande ${String(order._id).slice(-6)} annulée par le vendeur.`
       });
       await reverseSellerCredit({
         userId: sellerId,
-        amount: paidAmount,
+        amount: walletPaidAmount,
         orderId: String(order._id),
         processedBy: actorId
       });
       order.refundStatus = 'completed';
-      order.refundAmount = paidAmount;
+      order.refundAmount = walletPaidAmount;
       order.refundedAt = new Date();
       await order.save();
     } catch (err) {

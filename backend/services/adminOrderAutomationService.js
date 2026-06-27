@@ -278,12 +278,16 @@ const sendOrderReminderNotification = async ({
 
     const isAdminReminder = reminderType === 'escalation';
     const type = isAdminReminder ? 'admin_broadcast' : 'order_reminder';
+    // Admin escalations are backoffice-only: deep-link straight to the stuck order
+    // in the admin orders screen so the reminder is actionable, not a dead-end.
+    const adminOrderLink = `/admin/orders?orderId=${encodeURIComponent(String(order._id))}`;
 
     const result = await createNotification({
       userId: recipientId,
       actorId: resolvedActor,
       type,
       priority,
+      ...(isAdminReminder ? { deepLink: adminOrderLink, actionLink: adminOrderLink } : {}),
       metadata: {
         orderId: String(order._id),
         reminderType,
@@ -294,7 +298,8 @@ const sendOrderReminderNotification = async ({
         delaySeverity: order.delaySeverity || 'none',
         delayDays: Number(order.delayDays || 0),
         title,
-        message
+        message,
+        ...(isAdminReminder ? { deepLink: adminOrderLink } : {})
       },
       allowSelf: true
     });

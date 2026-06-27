@@ -35,10 +35,41 @@ import { getOrderAllowedActions } from '../services/orderStatusFlowService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
 import { notifyBuyerDeliveryDistanceWarning } from '../utils/deliveryDistanceWarning.js';
+import { getRuntimeConfig } from '../services/configService.js';
+import {
+  creditSellerWalletSale,
+  getOrCreateWallet,
+  purchaseFromWallet,
+  refundToWallet,
+  reverseSellerCredit
+} from '../services/walletService.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 const normalizeDeliveryMode = (value) =>
   String(value || '').trim().toUpperCase() === 'DELIVERY' ? 'DELIVERY' : 'PICKUP';
+
+const ensureInstallmentWalletEnabled = async (sellerId) => {
+  const [walletEnabled, walletPaymentEnabled, enabledShopsRaw] = await Promise.all([
+    getRuntimeConfig('enable_digital_wallet', { fallback: false }),
+    getRuntimeConfig('enable_wallet_payment', { fallback: false }),
+    getRuntimeConfig('wallet_enabled_shops', { fallback: '' })
+  ]);
+  if (!walletEnabled || !walletPaymentEnabled) {
+    throw Object.assign(new Error('Le paiement par portefeuille est désactivé.'), { status: 403 });
+  }
+
+  const enabledPhones = String(enabledShopsRaw || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (!enabledPhones.length) return;
+  const seller = await User.findById(sellerId).select('phone').lean();
+  if (!seller || !enabledPhones.includes(String(seller.phone || '').trim())) {
+    throw Object.assign(new Error('Cette boutique n’accepte pas encore les paiements portefeuille.'), {
+      status: 403
+    });
+  }
+};
 
 const resolveCheckoutAddress = async ({ deliveryMode, shippingAddress = {}, customer }) => {
   const phone =
@@ -352,6 +383,78 @@ const emitInstallmentOrderUpdate = ({ order, updatedBy, updatedAt = new Date() }
   });
 };
 
+const settleWalletInstallmentEntry = async ({ order, index, actorId, now = new Date() }) => {
+  const schedule = Array.isArray(order.installmentPlan?.schedule)
+    ? order.installmentPlan.schedule
+    : [];
+  const current = schedule[index];
+  if (!current) throw Object.assign(new Error('Tranche introuvable.'), { status: 404 });
+
+  const baseAmount = Number(current.amount || 0);
+  const penalty = calculateInstallmentPenalty({ order, scheduleEntry: current, now });
+  let penaltyForwardedToIndex = -1;
+
+  current.status = 'paid';
+  current.validatedBy = actorId;
+  current.validatedAt = now;
+  current.paidAt = now;
+  current.penaltyAmount = penalty;
+  if (penalty > 0) {
+    penaltyForwardedToIndex = forwardPenaltyToNextInstallment({
+      schedule,
+      fromIndex: index,
+      penalty,
+      now
+    });
+  }
+
+  order.installmentPlan.amountPaid = roundMoney(
+    Math.min(
+      Number(order.installmentPlan.totalAmount || 0),
+      Number(order.installmentPlan.amountPaid || 0) + roundMoney(baseAmount)
+    )
+  );
+  order.installmentPlan.totalPenaltyAccrued = roundMoney(
+    Number(order.installmentPlan.totalPenaltyAccrued || 0) + penalty
+  );
+  order.installmentPlan.remainingAmount = getRemainingScheduleAmount(schedule);
+  order.installmentPlan.nextDueDate = getNextDueDate(schedule);
+  order.installmentPlan.overdueCount = schedule.filter((entry) => entry?.status === 'overdue').length;
+  order.paidAmount = Number(order.installmentPlan.amountPaid || 0);
+  order.remainingAmount = Number(order.installmentPlan.remainingAmount || 0);
+  order.paymentMode = 'INSTALLMENT';
+  order.paymentStatus = order.remainingAmount <= 0 ? 'PAID_FULL' : 'PARTIAL';
+  order.markModified('installmentPlan');
+
+  const lifecycleStatus = deriveInstallmentOrderStatus(schedule);
+  if (lifecycleStatus === 'completed') {
+    order.status = 'completed';
+    order.completedAt = order.completedAt || now;
+    order.paymentCompletedAt = order.paymentCompletedAt || now;
+    order.installmentSaleStatus = order.installmentSaleStatus || 'confirmed';
+  } else if (lifecycleStatus === 'overdue_installment') {
+    order.status = 'overdue_installment';
+    order.confirmedAt = order.confirmedAt || now;
+  } else {
+    order.status = 'installment_active';
+    order.confirmedAt = order.confirmedAt || now;
+  }
+
+  await order.save();
+  if (lifecycleStatus === 'completed') {
+    await Promise.allSettled(
+      (order.items || []).map(async (item) => {
+        if (!item?.product) return;
+        const salesCount = await calculateProductSalesCount(item.product);
+        await Product.updateOne({ _id: item.product }, { $set: { salesCount } });
+      })
+    );
+    await scheduleOrderReviewReminder(order._id).catch(() => null);
+  }
+
+  return { baseAmount, penalty, penaltyForwardedToIndex, lifecycleStatus };
+};
+
 export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const {
@@ -360,29 +463,35 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
     firstPaymentAmount,
     payerName,
     transactionCode,
+    paymentMethod: rawPaymentMethod,
     selectedAttributes,
     deliveryMode: rawDeliveryMode,
     shippingAddress
   } = req.body;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
   const guarantor = parseGuarantorPayload(req.body);
+  const paymentMethod = String(rawPaymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
+    ? 'wallet'
+    : 'mobile_money';
   const cleanPayerName = String(payerName || '').trim();
   const cleanTransactionCode = normalizeTransactionCode(transactionCode);
 
   if (!ensureObjectId(productId)) {
     return res.status(400).json({ message: 'Produit invalide.' });
   }
-  if (!cleanPayerName || cleanTransactionCode.length !== 10) {
+  if (paymentMethod === 'mobile_money' && (!cleanPayerName || cleanTransactionCode.length !== 10)) {
     return res.status(400).json({ message: 'Le nom du payeur et un ID transaction valide sont requis.' });
   }
-  const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
-  if (transactionCodeAlreadyUsed) {
-    return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
+  if (paymentMethod === 'mobile_money') {
+    const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
+    if (transactionCodeAlreadyUsed) {
+      return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
+    }
   }
 
   const [customer, product, verifiedProductIds] = await Promise.all([
     User.findById(userId).select('name email phone address city commune restrictions'),
-    Product.findById(productId).populate('user', 'shopName name slug accountType shopAddress city commune'),
+    Product.findById(productId).populate('user', 'shopName name slug accountType shopAddress phone city commune'),
     getVerifiedProductIds()
   ]);
   const verifiedProductSet = new Set(verifiedProductIds.map((id) => String(id)));
@@ -429,6 +538,14 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Le premier paiement ne peut pas dépasser le total de la commande.' });
   }
 
+  if (paymentMethod === 'wallet') {
+    await ensureInstallmentWalletEnabled(product.user?._id);
+    const wallet = await getOrCreateWallet(userId);
+    if (Number(wallet?.availableBalance || 0) < firstPayment) {
+      return res.status(400).json({ message: 'Solde portefeuille insuffisant pour le premier paiement.' });
+    }
+  }
+
   if (product.installmentRequireGuarantor) {
     const missingGuarantor =
       !guarantor?.fullName || !guarantor?.phone || !guarantor?.relation || !guarantor?.address;
@@ -460,14 +577,18 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       {
         dueDate: now,
         amount: Number(firstPayment.toFixed(2)),
-        status: 'proof_uploaded',
+        status: paymentMethod === 'wallet' ? 'paid' : 'proof_uploaded',
         transactionProof: {
-          senderName: cleanPayerName,
-          transactionCode: cleanTransactionCode,
+          senderName: paymentMethod === 'wallet' ? customer.name || 'Portefeuille HDMarket' : cleanPayerName,
+          transactionCode: paymentMethod === 'wallet' ? '' : cleanTransactionCode,
+          paymentMethod,
           amount: Number(firstPayment.toFixed(2)),
           submittedAt: now,
           submittedBy: customer._id
         },
+        validatedBy: paymentMethod === 'wallet' ? customer._id : null,
+        validatedAt: paymentMethod === 'wallet' ? now : null,
+        paidAt: paymentMethod === 'wallet' ? now : null,
         penaltyAmount: 0
       },
       ...futureSchedule
@@ -487,6 +608,7 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
         shopName: product.user?.shopName || product.user?.name || '',
         shopId: product.user?._id || null,
         shopAddress: product.user?.shopAddress || '',
+        shopPhone: product.user?.phone || '',
         shopCity: product.user?.city || '',
         shopCommune: product.user?.commune || '',
         wholesaleEnabled: Boolean(product.wholesaleEnabled),
@@ -512,22 +634,23 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       status: 'pending_installment',
       paymentType: 'installment',
       paymentMode: 'INSTALLMENT',
+      paymentSource: paymentMethod,
       paymentStatus: 'PENDING',
       deliveryMode,
       deliveryAddress: shipping.deliveryAddress,
       deliveryCity: shipping.deliveryCity,
       shippingAddressSnapshot: shipping.snapshot,
       totalAmount,
-      paidAmount: 0,
-      remainingAmount: totalAmount,
-      paymentName: cleanPayerName,
-      paymentTransactionCode: cleanTransactionCode,
+      paidAmount: paymentMethod === 'wallet' ? firstPayment : 0,
+      remainingAmount: paymentMethod === 'wallet' ? remainingAfterFirstPayment : totalAmount,
+      paymentName: paymentMethod === 'wallet' ? customer.name || 'Portefeuille HDMarket' : cleanPayerName,
+      paymentTransactionCode: paymentMethod === 'wallet' ? '' : cleanTransactionCode,
       deliveryCode: await generateDeliveryCode(),
       installmentPlan: {
         totalAmount,
-        amountPaid: 0,
-        remainingAmount: totalAmount,
-        nextDueDate: null,
+        amountPaid: paymentMethod === 'wallet' ? firstPayment : 0,
+        remainingAmount: paymentMethod === 'wallet' ? remainingAfterFirstPayment : totalAmount,
+        nextDueDate: paymentMethod === 'wallet' ? getNextDueDate(schedule) : null,
         firstPaymentMinAmount: Number(product.installmentMinAmount || 0),
         schedule,
         eligibilityScore,
@@ -545,6 +668,63 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
         }
       }
     });
+
+    if (paymentMethod === 'wallet') {
+      let walletPayment = null;
+      let sellerCredited = false;
+      try {
+        walletPayment = await purchaseFromWallet({
+          userId,
+          amount: firstPayment,
+          orderId: String(createdOrder._id),
+          reference: `installment:${String(createdOrder._id)}:0`,
+          purpose: 'installment_payment',
+          note: `Premier paiement de la commande ${String(createdOrder._id).slice(-6)}`,
+          metadata: { scheduleIndex: 0 }
+        });
+        const sellerId = String(product.user?._id || '');
+        if (sellerId) {
+          await creditSellerWalletSale({
+            userId: sellerId,
+            amount: firstPayment,
+            orderId: String(createdOrder._id),
+            buyerId: userId,
+            reference: 'installment-payment',
+            transactionKey: `${String(createdOrder._id)}:installment:0`
+          });
+          sellerCredited = true;
+        }
+        createdOrder.installmentPlan.schedule[0].transactionProof.transactionCode =
+          `WALLET-${String(walletPayment?.transactionId || '').slice(-12)}`;
+        createdOrder.installmentPlan.schedule[0].transactionProof.walletTransactionId =
+          String(walletPayment?.transactionId || '');
+        createdOrder.paymentTransactionCode =
+          createdOrder.installmentPlan.schedule[0].transactionProof.transactionCode;
+        createdOrder.paymentStatus = 'PARTIAL';
+        createdOrder.markModified('installmentPlan');
+        await createdOrder.save();
+      } catch (walletError) {
+        if (sellerCredited) {
+          await reverseSellerCredit({
+            userId: product.user?._id,
+            amount: firstPayment,
+            orderId: String(createdOrder._id),
+            processedBy: userId
+          }).catch(() => {});
+        }
+        if (walletPayment) {
+          await refundToWallet({
+            userId,
+            amount: firstPayment,
+            orderId: `${String(createdOrder._id)}:checkout-failed`,
+            processedBy: userId,
+            note: 'Remboursement automatique après échec du paiement par tranche.'
+          }).catch(() => {});
+        }
+        await Order.deleteOne({ _id: createdOrder._id }).catch(() => {});
+        throw walletError;
+      }
+    }
 
     await Cart.updateOne(
       { user: customer._id },
@@ -565,8 +745,12 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       type: 'installment_sale_confirmation_required',
       metadata: {
         orderId: createdOrder._id,
-        payerName: cleanPayerName || customer.name || '',
-        transactionCode: cleanTransactionCode,
+        payerName: paymentMethod === 'wallet' ? customer.name || '' : cleanPayerName || customer.name || '',
+        transactionCode:
+          paymentMethod === 'wallet'
+            ? createdOrder.paymentTransactionCode
+            : cleanTransactionCode,
+        paymentMethod,
         firstPaymentAmount: firstPayment,
         totalAmount
       }
@@ -602,7 +786,10 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
 export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const { id, scheduleIndex } = req.params;
-  const { payerName, transactionCode, amount } = req.body;
+  const { payerName, transactionCode, amount, paymentMethod: rawPaymentMethod } = req.body;
+  const paymentMethod = String(rawPaymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
+    ? 'wallet'
+    : 'mobile_money';
   const cleanPayerName = String(payerName || '').trim();
   const cleanTransactionCode = normalizeTransactionCode(transactionCode);
   const submittedAmount = Number(amount || 0);
@@ -614,12 +801,18 @@ export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
   if (!Number.isInteger(index) || index < 0) {
     return res.status(400).json({ message: 'Index de tranche invalide.' });
   }
-  if (!cleanPayerName || cleanTransactionCode.length !== 10 || !Number.isFinite(submittedAmount) || submittedAmount <= 0) {
+  if (
+    !Number.isFinite(submittedAmount) ||
+    submittedAmount <= 0 ||
+    (paymentMethod === 'mobile_money' && (!cleanPayerName || cleanTransactionCode.length !== 10))
+  ) {
     return res.status(400).json({ message: 'Nom, ID transaction (10 chiffres) et montant valides sont requis.' });
   }
-  const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
-  if (transactionCodeAlreadyUsed) {
-    return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
+  if (paymentMethod === 'mobile_money') {
+    const transactionCodeAlreadyUsed = await isTransactionCodeAlreadyUsed(cleanTransactionCode);
+    if (transactionCodeAlreadyUsed) {
+      return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
+    }
   }
 
   const order = await Order.findOne({
@@ -668,9 +861,99 @@ export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
     });
   }
 
+  if (paymentMethod === 'wallet') {
+    const sellerId = resolveItemShopId(order.items?.[0]);
+    await ensureInstallmentWalletEnabled(sellerId);
+    const wallet = await getOrCreateWallet(userId);
+    if (Number(wallet?.availableBalance || 0) < normalizedAmount) {
+      return res.status(400).json({ message: 'Solde portefeuille insuffisant pour cette tranche.' });
+    }
+
+    let walletPayment = null;
+    let sellerCredited = false;
+    let settlementCommitted = false;
+    try {
+      walletPayment = await purchaseFromWallet({
+        userId,
+        amount: normalizedAmount,
+        orderId: String(order._id),
+        reference: `installment:${String(order._id)}:${index}`,
+        purpose: 'installment_payment',
+        note: `Paiement de la tranche ${index + 1} — commande ${String(order._id).slice(-6)}`,
+        metadata: { scheduleIndex: index }
+      });
+      if (sellerId) {
+        await creditSellerWalletSale({
+          userId: sellerId,
+          amount: normalizedAmount,
+          orderId: String(order._id),
+          buyerId: userId,
+          reference: 'installment-payment',
+          transactionKey: `${String(order._id)}:installment:${index}`
+        });
+        sellerCredited = true;
+      }
+      schedule[index].transactionProof = {
+        senderName: req.user?.name || 'Portefeuille HDMarket',
+        transactionCode: `WALLET-${String(walletPayment?.transactionId || '').slice(-12)}`,
+        paymentMethod: 'wallet',
+        walletTransactionId: String(walletPayment?.transactionId || ''),
+        amount: normalizedAmount,
+        submittedAt: new Date(),
+        submittedBy: userId
+      };
+      const settlement = await settleWalletInstallmentEntry({
+        order,
+        index,
+        actorId: userId
+      });
+      settlementCommitted = true;
+      emitInstallmentOrderUpdate({ order, updatedBy: userId, updatedAt: order.updatedAt || new Date() });
+
+      if (sellerId) {
+        await createNotification({
+          userId: sellerId,
+          actorId: userId,
+          productId: order.items?.[0]?.product || null,
+          type: 'installment_payment_validated',
+          metadata: {
+            orderId: order._id,
+            scheduleIndex: index,
+            amount: normalizedAmount,
+            paymentMethod: 'wallet',
+            penalty: settlement.penalty
+          }
+        }).catch(() => {});
+      }
+      const populated = await baseOrderQuery().findById(order._id);
+      await ensureOrderProductSlugs([populated]);
+      return res.json(buildOrderResponse(populated));
+    } catch (walletError) {
+      if (!settlementCommitted && sellerCredited && sellerId) {
+        await reverseSellerCredit({
+          userId: sellerId,
+          amount: normalizedAmount,
+          orderId: String(order._id),
+          processedBy: userId
+        }).catch(() => {});
+      }
+      if (!settlementCommitted && walletPayment) {
+        await refundToWallet({
+          userId,
+          amount: normalizedAmount,
+          orderId: `${String(order._id)}:installment:${index}:failed`,
+          processedBy: userId,
+          note: 'Remboursement automatique après échec du paiement de tranche.'
+        }).catch(() => {});
+      }
+      throw walletError;
+    }
+  }
+
   schedule[index].transactionProof = {
     senderName: cleanPayerName,
     transactionCode: cleanTransactionCode,
+    paymentMethod: 'mobile_money',
     amount: normalizedAmount,
     submittedAt: new Date(),
     submittedBy: userId
@@ -728,6 +1011,28 @@ export const sellerConfirmInstallmentSale = asyncHandler(async (req, res) => {
   }
 
   if (!approve) {
+    const walletPaidAmount = (order.installmentPlan?.schedule || []).reduce(
+      (sum, entry) =>
+        entry?.status === 'paid' && entry?.transactionProof?.paymentMethod === 'wallet'
+          ? sum + Number(entry?.transactionProof?.amount || entry?.amount || 0)
+          : sum,
+      0
+    );
+    if (walletPaidAmount > 0) {
+      await refundToWallet({
+        userId: order.customer,
+        amount: walletPaidAmount,
+        orderId: String(order._id),
+        processedBy: userId,
+        note: 'Remboursement des tranches portefeuille après refus de la vente.'
+      });
+      await reverseSellerCredit({
+        userId,
+        amount: walletPaidAmount,
+        orderId: String(order._id),
+        processedBy: userId
+      });
+    }
     order.status = 'cancelled';
     order.cancelledAt = new Date();
     order.cancelledBy = userId;

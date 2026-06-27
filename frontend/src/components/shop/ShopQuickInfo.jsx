@@ -4,7 +4,7 @@ export default function ShopQuickInfo({ openingSummary, trustQuickInfo, t }) {
   return (
     <section className="overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="min-w-0 flex-1 truncate border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+        <h2 className="min-w-0 flex-1 truncate border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
           {t('shop_profile.trust_badges', 'Confiance & vérification')}
         </h2>
         <span
@@ -30,7 +30,7 @@ export default function ShopQuickInfo({ openingSummary, trustQuickInfo, t }) {
             className="rounded border border-gray-100 bg-gray-50 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-900"
           >
             <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
-              <span className="text-[#FF6A00] dark:text-orange-300">{item.icon}</span>
+              <span className="text-[var(--shop-color)]">{item.icon}</span>
               <span className="truncate">{item.label}</span>
             </p>
             <p className="mt-2 line-clamp-2 text-[12px] font-black leading-tight text-gray-900 dark:text-white">{item.value}</p>

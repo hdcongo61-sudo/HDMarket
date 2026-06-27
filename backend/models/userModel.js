@@ -75,6 +75,13 @@ const userSchema = new mongoose.Schema(
     shopLogo: { type: String },
     shopBanner: { type: String },
     shopBannerMobile: { type: String },
+    shopColor: {
+      type: String,
+      default: '#FF6A00',
+      trim: true,
+      uppercase: true,
+      match: [/^#[0-9A-F]{6}$/, 'La couleur de la boutique doit être au format hexadécimal.']
+    },
     shopVerified: { type: Boolean, default: false },
     shopVerificationSnapshot: {
       verified: { type: Boolean, default: false },

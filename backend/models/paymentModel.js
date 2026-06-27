@@ -203,7 +203,10 @@ const paymentSchema = new mongoose.Schema(
     promoDiscountValue: { type: Number, min: 0, max: 100, default: 0 },
     validatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     validatedAt: { type: Date, default: null },
-    submittedAt: { type: Date, default: Date.now }
+    submittedAt: { type: Date, default: Date.now },
+    // Stale listing-fee moderation reminders (paid annonce awaiting admin treatment).
+    moderationReminderLastSentAt: { type: Date, default: null },
+    moderationReminderCount: { type: Number, default: 0 }
   },
   { timestamps: true }
 );

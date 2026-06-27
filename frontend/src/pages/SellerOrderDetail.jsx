@@ -121,13 +121,13 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
 const resolveOrderPaymentMode = (order) => {
   const paymentSource = String(order?.paymentSource || '').trim().toLowerCase();
   const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
+  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
     paymentSource === 'wallet' ||
     ['WALLET', 'HDMARKET_WALLET', 'PORTEFEUILLE_HDMARKET'].includes(explicitPaymentMode)
   ) {
     return 'WALLET';
   }
-  if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
     explicitPaymentMode === 'FULL_PAYMENT' ||
     (!explicitPaymentMode && String(order?.paymentStatus || '').toUpperCase() === 'PAID_FULL')

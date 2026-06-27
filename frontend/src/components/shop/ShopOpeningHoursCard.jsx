@@ -9,7 +9,7 @@ export default function ShopOpeningHoursCard({ openingSummary, isCertifiedShop, 
     <div className="min-w-0 space-y-3 overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+          <p className="border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
             {t('shop_profile.opening_hours', "Horaires d'ouverture")}
           </p>
           <p className="mt-1 truncate pl-2.5 text-xs font-semibold text-gray-500 dark:text-neutral-400">

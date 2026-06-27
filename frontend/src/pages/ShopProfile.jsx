@@ -58,6 +58,18 @@ const formatPercentLabel = (value) => {
   return `${Math.round(parsed)}%`;
 };
 
+const normalizeShopColor = (value) =>
+  /^#[0-9A-F]{6}$/i.test(String(value || '').trim())
+    ? String(value).trim().toUpperCase()
+    : '#FF6A00';
+
+const getReadableTextColor = (hexColor) => {
+  const hex = normalizeShopColor(hexColor).slice(1);
+  const [red, green, blue] = [0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+  return luminance >= 150 ? '#111827' : '#FFFFFF';
+};
+
 const haversineDistanceKm = (from, to) => {
   if (!from || !to) return null;
   const toRad = (value) => (value * Math.PI) / 180;
@@ -184,6 +196,8 @@ export default function ShopProfile() {
   });
 
   const shop = shopQuery.data?.shop || null;
+  const shopColor = normalizeShopColor(shop?.shopColor);
+  const shopColorContrast = getReadableTextColor(shopColor);
   const products = useMemo(
     () => (Array.isArray(shopQuery.data?.products) ? shopQuery.data.products : []),
     [shopQuery.data?.products]
@@ -994,6 +1008,10 @@ export default function ShopProfile() {
       className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#f5f5f5] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
         isMobile ? 'pb-36' : 'pb-12'
       }`}
+      style={{
+        '--shop-color': shopColor,
+        '--shop-color-contrast': shopColorContrast
+      }}
     >
       <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-clip px-0 py-0 sm:px-6 sm:py-5 lg:px-8">
         <ShopTopHeader

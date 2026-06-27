@@ -9,6 +9,7 @@ import {
   runInstallmentProofValidationSlaSweep,
   runInstallmentReminderSweep
 } from '../services/orderReliabilityAutomationService.js';
+import { runStaleListingReminderSweep } from '../services/listingModerationReminderService.js';
 
 let WorkerClass = null;
 let orderAutomationWorker = null;
@@ -110,6 +111,13 @@ export const initOrderAutomationWorker = async () => {
         return runInstallmentProofValidationSlaSweep({
           limit: Number(data?.limit || 200),
           actorId: data?.actorId || null
+        });
+      }
+
+      if (name === 'listing-moderation-reminders') {
+        return runStaleListingReminderSweep({
+          limit: Number(data?.limit || 200),
+          source: data?.source || 'schedule'
         });
       }
 

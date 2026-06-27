@@ -36,7 +36,7 @@ export const protect = async (req, res, next) => {
       'isActive isBlocked blockedReason isLocked lockReason sessionsInvalidatedAt ' +
       'canReadFeedback canVerifyPayments canManageBoosts canManageComplaints ' +
       'canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter ' +
-      'shopName shopAddress shopLogo shopBanner shopBannerMobile shopDescription shopVerified ' +
+      'shopName shopAddress shopLogo shopBanner shopBannerMobile shopColor shopDescription shopVerified ' +
       'followersCount followingShops freeDeliveryEnabled freeDeliveryNote ' +
       'shopBoosted shopBoostScore shopBoostedBy shopBoostedAt shopBoostStartDate shopBoostEndDate ' +
       'shopLocation shopLocationVerified shopLocationAccuracy shopLocationUpdatedAt ' +

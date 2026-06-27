@@ -147,6 +147,11 @@ export const ensureOrderAutomationSchedules = async () => {
     { source: 'schedule' },
     { jobId: 'schedule:installment-proof-sla', repeat: { every: every60m } }
   );
+  await queue.add(
+    'listing-moderation-reminders',
+    { source: 'schedule' },
+    { jobId: 'schedule:listing-moderation-reminders', repeat: { every: every60m } }
+  );
 
   return true;
 };
