@@ -371,7 +371,7 @@ const fetchProducts = useCallback(async () => {
           </section>
         )}
 
-        <section className="hd-products-toolbar sticky top-20 z-20 flex flex-col gap-3 rounded-2xl px-3 py-3 md:flex-row md:items-center md:justify-between sm:px-4">
+        <section className="hd-products-toolbar flex flex-col gap-3 rounded-2xl px-3 py-3 sm:px-4 md:sticky md:top-20 md:z-20 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 flex-wrap">
             <span>
               {items.length} résultat{items.length > 1 ? 's' : ''} affiché{items.length > 1 ? 's' : ''}

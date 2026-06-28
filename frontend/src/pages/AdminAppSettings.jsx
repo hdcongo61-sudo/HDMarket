@@ -165,6 +165,11 @@ export default function AdminAppSettings() {
   const [splashSaving, setSplashSaving] = useState(false);
   const [splashError, setSplashError] = useState('');
   const [splashSuccess, setSplashSuccess] = useState('');
+  const [bootSplashEnabled, setBootSplashEnabled] = useState(true);
+  const [bootSplashDurationSeconds, setBootSplashDurationSeconds] = useState(2.4);
+  const [bootSplashSaving, setBootSplashSaving] = useState(false);
+  const [bootSplashError, setBootSplashError] = useState('');
+  const [bootSplashSuccess, setBootSplashSuccess] = useState('');
 
   // Network settings state
   const [networks, setNetworks] = useState([]);
@@ -212,6 +217,8 @@ export default function AdminAppSettings() {
           setSplashImagePreview(splashRes.data.splashImage || '');
           setSplashDurationSeconds(Math.min(30, Math.max(1, Number(splashRes.data.splashDurationSeconds) || 3)));
           setSplashEnabled(splashRes.data.splashEnabled !== false);
+          setBootSplashEnabled(splashRes.data.bootSplashEnabled !== false);
+          setBootSplashDurationSeconds(Math.min(10, Math.max(1, Number(splashRes.data.bootSplashDurationSeconds) || 2.4)));
         }
         setNetworks(Array.isArray(networksRes?.data) ? networksRes.data : []);
       } catch (err) {
@@ -442,6 +449,31 @@ export default function AdminAppSettings() {
       setSplashSaving(false);
     }
   }, [splashImageFile, splashDurationSeconds, splashEnabled, showToast]);
+
+  const saveBootSplash = useCallback(async () => {
+    const duration = Math.min(10, Math.max(1, Number(bootSplashDurationSeconds) || 2.4));
+    setBootSplashSaving(true);
+    setBootSplashError('');
+    setBootSplashSuccess('');
+    try {
+      const payload = new FormData();
+      payload.append('bootSplashEnabled', String(bootSplashEnabled));
+      payload.append('bootSplashDurationSeconds', String(duration));
+      const { data } = await api.put('/admin/splash', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (data?.bootSplashEnabled !== undefined) setBootSplashEnabled(data.bootSplashEnabled);
+      if (data?.bootSplashDurationSeconds != null) setBootSplashDurationSeconds(data.bootSplashDurationSeconds);
+      setBootSplashSuccess('Splash animé mis à jour.');
+      showToast('Splash animé mis à jour.', { variant: 'success' });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Impossible de mettre à jour le splash animé.';
+      setBootSplashError(msg);
+      showToast(msg, { variant: 'error' });
+    } finally {
+      setBootSplashSaving(false);
+    }
+  }, [bootSplashEnabled, bootSplashDurationSeconds, showToast]);
 
   const saveHeroBanner = useCallback(async () => {
     if (!heroBannerFile) {
@@ -999,6 +1031,58 @@ export default function AdminAppSettings() {
               className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {splashSaving ? 'Mise à jour…' : 'Enregistrer l’écran de démarrage'}
+            </button>
+          </div>
+
+          {/* Animated launch splash (BootSplash) */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6A00] text-white">
+                <Monitor size={20} />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-gray-900">Splash animé (lancement)</h2>
+                <p className="text-sm font-medium text-gray-500">
+                  Animation de marque HD Market affichée au démarrage de l’app. Indépendante de l’écran de démarrage ci-dessus.
+                </p>
+              </div>
+            </div>
+            {bootSplashError && <p className="mb-2 text-sm font-semibold text-red-600">{bootSplashError}</p>}
+            {bootSplashSuccess && <p className="mb-2 text-sm font-semibold text-emerald-600">{bootSplashSuccess}</p>}
+            <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <input
+                type="checkbox"
+                checked={bootSplashEnabled}
+                onChange={(e) => setBootSplashEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-[#FF6A00] focus:ring-[#FF6A00]"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Activer le splash animé au lancement de l’app
+              </span>
+            </label>
+            <div className="mb-5 max-w-xs">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Durée (secondes)</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                step={0.1}
+                value={bootSplashDurationSeconds}
+                onChange={(e) =>
+                  setBootSplashDurationSeconds(Math.min(10, Math.max(1, Number(e.target.value) || 2.4)))
+                }
+                disabled={!bootSplashEnabled}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100 disabled:opacity-50"
+              />
+              <p className="mt-1 text-xs text-gray-400">Durée minimale d’affichage avant le fondu de sortie (1–10 s).</p>
+            </div>
+            <button
+              type="button"
+              onClick={saveBootSplash}
+              disabled={bootSplashSaving}
+              className="w-full rounded-lg bg-[#FF6A00] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {bootSplashSaving ? 'Mise à jour…' : 'Enregistrer le splash animé'}
             </button>
           </div>
 

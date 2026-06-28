@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle, Upload, X, Plus } from 'lucide-react';
+import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle, Upload, X, Plus, Video } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import { isValidSocialVideoUrl } from '../utils/socialVideo';
 
 const isCloudinaryUrl = (url = '') =>
   typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
@@ -30,7 +31,8 @@ export default function EditProduct() {
     category: '',
     discount: 0,
     condition: 'used',
-    images: []
+    images: [],
+    socialVideoUrl: ''
   });
   const [error, setError] = useState('');
   const [newImages, setNewImages] = useState([]);
@@ -69,7 +71,8 @@ export default function EditProduct() {
           category: categoryMeta?.value || data.category || '',
           discount: data.discount ?? 0,
           condition: data.condition || 'used',
-          images: data.images || []
+          images: data.images || [],
+          socialVideoUrl: data.socialVideoUrl || ''
         });
         setError('');
       } catch (e) {
@@ -98,6 +101,11 @@ export default function EditProduct() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    if (form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl)) {
+      showToast('Le lien vidéo doit être un lien Facebook ou TikTok valide.', { variant: 'error' });
+      setSaving(false);
+      return;
+    }
     try {
       const payload = new FormData();
       payload.append('title', form.title);
@@ -105,6 +113,7 @@ export default function EditProduct() {
       payload.append('category', form.category);
       payload.append('discount', String(form.discount));
       payload.append('condition', form.condition);
+      payload.append('socialVideoUrl', form.socialVideoUrl || '');
       removedImages.forEach((src) => payload.append('removeImages', src));
       newImages.forEach((file) => payload.append('images', file));
       await api.put(`/products/${slug}`, payload, {
@@ -241,6 +250,27 @@ export default function EditProduct() {
                 onChange={(e) => onChange('description', e.target.value)}
                 required
               />
+            </div>
+
+            {/* Vidéo Facebook / TikTok */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <Video className="w-4 h-4 text-neutral-500" />
+                <span>Vidéo Facebook / TikTok</span>
+              </label>
+              <input
+                type="url"
+                inputMode="url"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
+                placeholder="https://www.tiktok.com/@compte/video/123…  ·  https://www.facebook.com/…"
+                value={form.socialVideoUrl}
+                onChange={(e) => onChange('socialVideoUrl', e.target.value)}
+              />
+              {form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl) && (
+                <p className="text-xs font-medium text-red-600">
+                  Lien non reconnu. Utilisez un lien Facebook ou TikTok valide.
+                </p>
+              )}
             </div>
 
             {/* Catégorie et Condition */}

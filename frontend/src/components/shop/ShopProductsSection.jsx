@@ -70,8 +70,8 @@ export default function ShopProductsSection({
         </div>
       </div>
 
-      {/* ── Sticky Tab Bar ── */}
-      <div className="sticky top-[4.55rem] z-20 mt-3 border-b border-gray-100 bg-white/96 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/96">
+      {/* ── Product filters ── */}
+      <div className="mt-3 border-b border-gray-100 bg-white/96 backdrop-blur-xl md:sticky md:top-[4.55rem] md:z-20 dark:border-neutral-800 dark:bg-neutral-950/96">
         {/* Product Feed Tabs */}
         <div className="overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max gap-1.5">

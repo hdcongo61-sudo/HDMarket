@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import api, { abortPendingRequests } from './services/api';
 import Navbar from './components/Navbar';
 import SplashScreen from './components/SplashScreen';
+import BootSplash from './components/BootSplash';
 import AppLoader from './components/AppLoader';
 import NetworkStatusBanner from './components/NetworkStatusBanner';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -266,6 +267,22 @@ function SellerOrdersEntryRedirect() {
 
 const isShopProfileRoute = (path) => /^\/shop\/[^/]+$/.test(path || '');
 
+// Animated launch splash (BootSplash) preference, cached locally so a disabled
+// splash never flashes on the next launch before the config fetch resolves.
+const BOOT_SPLASH_PREF_KEY = 'hd_boot_splash_pref';
+const readBootSplashPref = () => {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(BOOT_SPLASH_PREF_KEY) || '{}');
+    const durationMs = Number(raw.durationMs);
+    return {
+      enabled: raw.enabled !== false,
+      durationMs: durationMs > 0 ? durationMs : 2400
+    };
+  } catch {
+    return { enabled: true, durationMs: 2400 };
+  }
+};
+
 function AppContent() {
   const location = useLocation();
   const { pathname } = location;
@@ -274,6 +291,8 @@ function AppContent() {
   const shopLoad = useShopProfileLoad();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
+  const bootSplashPrefRef = useRef(readBootSplashPref());
+  const [showBootSplash, setShowBootSplash] = useState(bootSplashPrefRef.current.enabled);
   const [bootLoading, setBootLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
   const [loaderTimedOut, setLoaderTimedOut] = useState(false);
@@ -283,12 +302,29 @@ function AppContent() {
   const showShopProfileLoader = isShopRoute && shopLoad?.isShopProfileLoading;
 
   useEffect(() => {
-    if (pathname !== '/') return;
+    // Fetched once on mount (not just on '/') so the launch-splash toggle applies
+    // on every route. The promo splash still only shows on '/' (see showSplash).
     api
       .get('/settings/splash')
-      .then((res) => setSplashConfig(res.data || null))
+      .then((res) => {
+        const data = res.data || null;
+        setSplashConfig(data);
+        if (data) {
+          const enabled = data.bootSplashEnabled !== false;
+          const durationMs = Math.round((Number(data.bootSplashDurationSeconds) || 2.4) * 1000);
+          try {
+            window.localStorage.setItem(
+              BOOT_SPLASH_PREF_KEY,
+              JSON.stringify({ enabled, durationMs })
+            );
+          } catch {
+            /* ignore quota/availability errors */
+          }
+          if (!enabled) setShowBootSplash(false);
+        }
+      })
       .catch(() => setSplashConfig(null));
-  }, [pathname]);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -346,6 +382,12 @@ function AppContent() {
     splashConfig?.splashEnabled !== false &&
     splashConfig?.splashImage &&
     !splashDismissed;
+
+  // The admin promo splash takes precedence over the branded launch splash, so
+  // the two never stack into a double splash.
+  useEffect(() => {
+    if (showSplash) setShowBootSplash(false);
+  }, [showSplash]);
 
   const showLoader = !showSplash && (bootLoading || routeLoading || showShopProfileLoader);
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
@@ -496,6 +538,12 @@ function AppContent() {
 
   return (
     <>
+      {showBootSplash && (
+        <BootSplash
+          minDuration={bootSplashPrefRef.current.durationMs}
+          onDone={() => setShowBootSplash(false)}
+        />
+      )}
       <PendingActionHandler />
       <AppLoader
         visible={showLoader}

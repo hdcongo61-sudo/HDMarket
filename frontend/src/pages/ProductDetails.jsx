@@ -36,6 +36,7 @@ import CartContext from "../context/CartContext";
 import FavoriteContext from "../context/FavoriteContext";
 import api, { getApiErrorMessage, isApiPossiblyCommittedError } from "../services/api";
 import { buildWhatsappLink } from "../utils/whatsapp";
+import { parseSocialVideo } from "../utils/socialVideo";
 import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/links";
 import { recordProductView } from "../utils/recentViews";
 import { setPendingAction } from "../utils/pendingAction";
@@ -1720,6 +1721,7 @@ export default function ProductDetails() {
     }
     return items;
   }, [product?.images, product?.video]);
+  const socialVideo = useMemo(() => parseSocialVideo(product?.socialVideoUrl), [product?.socialVideoUrl]);
   const shopGalleryImages = useMemo(() => {
     const pool = [];
     shopGalleryProducts.forEach((shopProduct) => {
@@ -1991,6 +1993,55 @@ export default function ProductDetails() {
     );
   }
 
+  // Facebook / TikTok video embed — shown on both mobile and desktop renders.
+  const renderSocialVideoSection = ({ rounded = 'rounded-2xl' } = {}) => {
+    if (!socialVideo) return null;
+    const providerLabel = socialVideo.provider === 'tiktok' ? 'TikTok' : 'Facebook';
+    return (
+      <div className={`overflow-hidden ${rounded} border border-gray-200 bg-white shadow-sm`}>
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <h2 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900">
+            Vidéo {providerLabel}
+          </h2>
+          <a
+            href={socialVideo.originalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 rounded bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-600 hover:bg-gray-200"
+          >
+            Ouvrir
+          </a>
+        </div>
+        {socialVideo.embeddable ? (
+          <div className={socialVideo.provider === 'tiktok' ? 'bg-black' : 'bg-black p-1.5'}>
+            <iframe
+              src={socialVideo.embedUrl}
+              title={`Vidéo ${providerLabel}`}
+              loading="lazy"
+              allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
+              allowFullScreen
+              scrolling="no"
+              className={
+                socialVideo.provider === 'tiktok'
+                  ? 'mx-auto block h-[70vh] max-h-[720px] w-full max-w-[420px] border-0'
+                  : 'aspect-video w-full rounded-xl border-0'
+              }
+            />
+          </div>
+        ) : (
+          <a
+            href={socialVideo.originalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="m-4 flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm font-semibold text-[#FF6A00] hover:bg-gray-100"
+          >
+            Regarder la vidéo {providerLabel}
+          </a>
+        )}
+      </div>
+    );
+  };
+
   // === MOBILE — TAOBAO DESIGN SYSTEM ===
   const renderMobileProductDetails = () => (
     <motion.div
@@ -2224,6 +2275,15 @@ export default function ProductDetails() {
           )}
         </div>
       </section>
+
+      {socialVideo && (
+        <>
+          <div className="h-2 bg-[#f5f5f5]" />
+          <section className="bg-[#f5f5f5] px-3 py-3">
+            {renderSocialVideoSection({ rounded: 'rounded-xl' })}
+          </section>
+        </>
+      )}
 
       {/* ── DIVIDER ── */}
       <div className="h-2 bg-[#f5f5f5]" />
@@ -3121,6 +3181,7 @@ export default function ProductDetails() {
                 </div>
               </div>
             )}
+            {renderSocialVideoSection({ rounded: 'rounded-[28px]' })}
           </div>
 
           {/* 📋 INFORMATIONS PRODUIT ENHANCED - STICKY */}

@@ -48,6 +48,7 @@ const productSchema = new mongoose.Schema(
     priceBeforeDiscount: { type: Number, min: 0 },
     images: [{ type: String }],
     video: { type: String },
+    socialVideoUrl: { type: String, trim: true, default: '' },
     pdf: { type: String },
     category: { type: String, required: true },
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },

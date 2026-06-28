@@ -213,7 +213,7 @@ export default function Favorites() {
       ) : hasFavorites ? (
         <>
           {/* Filters — Category & Price */}
-          <div className="hd-products-toolbar sticky top-20 z-20 flex flex-wrap items-center gap-3 rounded-2xl p-3 shadow-sm sm:p-4">
+          <div className="hd-products-toolbar flex flex-wrap items-center gap-3 rounded-2xl p-3 shadow-sm sm:p-4 md:sticky md:top-20 md:z-20">
             <div className="flex items-center gap-2 text-sm font-black text-gray-800">
               <Filter className="w-4 h-4 text-[#FF6A00]" />
               Filtres

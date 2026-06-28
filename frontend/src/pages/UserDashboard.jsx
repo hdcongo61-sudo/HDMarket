@@ -1611,9 +1611,9 @@ export default function UserDashboard() {
           </div>
         )}
 
-        {/* ── TAOBAO STATUS TABS (horizontal scroll, sticky) ── */}
+        {/* ── TAOBAO STATUS TABS (horizontal scroll) ── */}
         {!loading && items.length > 0 && (
-          <div className="sticky top-[52px] z-20 bg-white border-b border-gray-100">
+          <div className="border-b border-gray-100 bg-white md:sticky md:top-[52px] md:z-20">
             <div className="flex overflow-x-auto px-4 gap-2 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {Object.entries(STATUS_LABELS).map(([key, label]) => {
                 const isActive = statusFilter === key && selectedStatuses.length === 0;

@@ -349,7 +349,7 @@ export default function VerifiedShops() {
 
   return (
     <div className="hd-products-flow min-h-screen bg-[#f6f2ec] text-gray-900">
-      <header className="verified-shops-header sticky top-0 z-40 border-b border-gray-200/70 bg-[#fff7ee]/95 backdrop-blur-xl transition-[visibility] duration-150">
+      <header className="verified-shops-header border-b border-gray-200/70 bg-[#fff7ee]/95 backdrop-blur-xl transition-[visibility] duration-150 md:sticky md:top-0 md:z-40">
         <div className="mx-auto max-w-5xl px-3 py-3 sm:px-5">
           <nav className="flex items-center gap-5 overflow-x-auto pb-2 hide-scrollbar">
             {['Suivies', 'Recommandées', 'Nouveautés', 'Top local', 'Certifiées'].map((tab, index) => (

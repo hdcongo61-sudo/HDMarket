@@ -719,6 +719,51 @@ const applyBlockedUsersToFilter = (baseFilter = {}, blockedSet) => {
   return filterCopy;
 };
 
+// Accepts a Facebook or TikTok video link. Returns the normalized URL, '' when
+// empty (clears the field), or null when the URL is present but unsupported.
+const SOCIAL_VIDEO_HOSTS = /(^|\.)(facebook\.com|fb\.watch|fb\.com|tiktok\.com)$/i;
+const TIKTOK_SHORT_HOSTS = /(^|\.)(vm|vt)\.tiktok\.com$/i;
+
+// Follow a TikTok short link (vm./vt.tiktok.com) to its canonical
+// /@user/video/<id> form so the video can be embedded inline rather than just
+// linked out. Falls back to the original link on any failure.
+const resolveTikTokShortLink = async (url) => {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(url, { method: 'GET', redirect: 'follow', signal: controller.signal });
+    clearTimeout(timer);
+    const finalUrl = res?.url ? new URL(res.url) : null;
+    if (
+      finalUrl &&
+      /(^|\.)tiktok\.com$/i.test(finalUrl.hostname) &&
+      /\/video\/\d+/.test(finalUrl.pathname)
+    ) {
+      return `${finalUrl.origin}${finalUrl.pathname}`;
+    }
+  } catch {
+    // Ignore network/timeout errors and keep the original short link.
+  }
+  return url;
+};
+
+const normalizeSocialVideoUrl = async (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+  if (!SOCIAL_VIDEO_HOSTS.test(parsed.hostname)) return null;
+  if (TIKTOK_SHORT_HOSTS.test(parsed.hostname)) {
+    return resolveTikTokShortLink(parsed.toString());
+  }
+  return parsed.toString();
+};
+
 export const createProduct = asyncHandler(async (req, res) => {
   const {
     title,
@@ -747,10 +792,16 @@ export const createProduct = asyncHandler(async (req, res) => {
     deliveryFee,
     deliveryFeeEnabled,
     attributes,
-    physical
+    physical,
+    socialVideoUrl
   } = req.body;
   if (!title || !description || !price)
     return res.status(400).json({ message: 'Missing fields' });
+
+  const normalizedSocialVideoUrl = await normalizeSocialVideoUrl(socialVideoUrl);
+  if (normalizedSocialVideoUrl === null) {
+    return res.status(400).json({ message: 'Lien vidéo invalide. Utilisez un lien Facebook ou TikTok.' });
+  }
 
   const creationRequestId = getMutationRequestId(req);
   if (creationRequestId) {
@@ -1004,6 +1055,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       priceBeforeDiscount,
       images,
       video: videoUrl,
+      socialVideoUrl: normalizedSocialVideoUrl,
       pdf: pdfUrl,
       creationRequestId,
       user: req.user.id,
@@ -2686,10 +2738,19 @@ export const updateProduct = asyncHandler(async (req, res) => {
     deliveryFee,
     deliveryFeeEnabled,
     attributes,
-    physical
+    physical,
+    socialVideoUrl
   } = req.body;
   if (title) product.title = title;
   if (description) product.description = description;
+
+  if (socialVideoUrl !== undefined) {
+    const normalizedSocialVideoUrl = await normalizeSocialVideoUrl(socialVideoUrl);
+    if (normalizedSocialVideoUrl === null) {
+      return res.status(400).json({ message: 'Lien vidéo invalide. Utilisez un lien Facebook ou TikTok.' });
+    }
+    product.socialVideoUrl = normalizedSocialVideoUrl;
+  }
 
   let nextBasePrice = Number(product.priceBeforeDiscount ?? product.price ?? 0);
   const hasPricePayload = price !== undefined;

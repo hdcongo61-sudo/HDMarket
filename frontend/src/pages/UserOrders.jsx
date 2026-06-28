@@ -1808,7 +1808,7 @@ export default function UserOrders() {
           />
         </div>
 
-        <div className="sticky top-[76px] z-20 mb-4 sm:static sm:z-auto sm:mb-6">
+        <div className="mb-4 sm:mb-6">
           <OrderFilterRail
             tabs={STATUS_TABS}
             activeKey={activeStatus}

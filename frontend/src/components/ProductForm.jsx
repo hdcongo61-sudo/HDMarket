@@ -11,6 +11,7 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
 import { appAlert } from '../utils/appDialog';
 import { normalizeProductAttributes } from '../utils/productAttributes';
+import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
 
@@ -130,7 +131,8 @@ export default function ProductForm(props) {
     deliveryAvailable: true,
     pickupAvailable: true,
     deliveryFeeEnabled: true,
-    deliveryFee: ''
+    deliveryFee: '',
+    socialVideoUrl: ''
   });
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1134,6 +1136,11 @@ export default function ProductForm(props) {
     setWholesaleError('');
     setWarrantyError('');
 
+    if (form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl)) {
+      await appAlert('Le lien vidéo doit être un lien Facebook ou TikTok valide.');
+      return;
+    }
+
     if (form.installmentEnabled) {
       if (!isBoutiqueOwner) {
         setInstallmentError('Seules les boutiques peuvent activer le paiement par tranche.');
@@ -1527,7 +1534,8 @@ export default function ProductForm(props) {
       deliveryFee:
         initialValues.deliveryFee !== undefined && initialValues.deliveryFee !== null
           ? initialValues.deliveryFee
-          : ''
+          : '',
+      socialVideoUrl: initialValues.socialVideoUrl || ''
     });
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
     setExistingPdf(initialValues.pdf || null);
@@ -2990,6 +2998,31 @@ export default function ProductForm(props) {
             </p>
           </div>
         )}
+
+        <div className={sectionShellClass}>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Vidéo Facebook / TikTok</h2>
+              <p className="text-sm text-gray-500">
+                Collez le lien d’une vidéo Facebook ou TikTok. Elle sera intégrée et lisible sur la page du produit.
+              </p>
+            </div>
+            <Video className="mt-1 h-5 w-5 text-neutral-500" />
+          </div>
+          <input
+            type="url"
+            inputMode="url"
+            value={form.socialVideoUrl}
+            onChange={(e) => setForm((prev) => ({ ...prev, socialVideoUrl: e.target.value }))}
+            placeholder="https://www.tiktok.com/@compte/video/123…  ·  https://www.facebook.com/…"
+            className={inputClass}
+          />
+          {form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl) && (
+            <p className="mt-2 text-xs font-medium text-red-600">
+              Lien non reconnu. Utilisez un lien Facebook ou TikTok valide.
+            </p>
+          )}
+        </div>
 
         {canUploadPdf && (
           <div className={sectionShellClass}>
