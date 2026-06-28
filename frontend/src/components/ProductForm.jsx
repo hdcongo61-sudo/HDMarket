@@ -3269,6 +3269,7 @@ export default function ProductForm(props) {
                       ratingCount: 0
                     }}
                     hideMobileDiscountBadge={false}
+                    disableProductNavigation
                   />
                 </div>
               </div>

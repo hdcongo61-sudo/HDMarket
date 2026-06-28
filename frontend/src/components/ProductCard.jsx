@@ -19,6 +19,22 @@ import useNetworkProfile from '../hooks/useNetworkProfile';
 import { trackEvent } from '../services/analytics';
 import { getProductCardImageUrl, getProductCardSrcSet } from '../utils/productImageUrl';
 
+function ProductDetailLink({ disabled = false, children, onClick, to, target, rel, ...props }) {
+  if (disabled) {
+    return (
+      <div {...props} aria-disabled="true">
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <Link to={to} target={target} rel={rel} onClick={onClick} {...props}>
+      {children}
+    </Link>
+  );
+}
+
 /**
  * 🎨 PRODUCT CARD PREMIUM HDMarket
  * Design aligné avec la page d'accueil premium
@@ -36,7 +52,8 @@ function ProductCard({
   shopProfileCompact = false,
   categoryListing = false,
   commerceFeed = false,
-  viewMode = 'grid'
+  viewMode = 'grid',
+  disableProductNavigation = false
 }) {
   const { user } = useContext(AuthContext);
   const { formatPrice, getRuntimeValue } = useAppSettings();
@@ -635,7 +652,8 @@ function ProductCard({
             isListCard ? 'flex-row' : 'flex-col'
           }`}
         >
-          <Link
+          <ProductDetailLink
+            disabled={disableProductNavigation}
             to={resolvedProductLink}
             {...externalLinkProps}
             onClick={(event) => {
@@ -718,11 +736,12 @@ function ProductCard({
                 <span className="truncate">{productCity}</span>
               </span>
             ) : null}
-          </Link>
+          </ProductDetailLink>
 
           <div className={`flex flex-1 flex-col gap-2 ${bodyPadding}`}>
             {useCommerceMobileCard ? (
-              <Link
+              <ProductDetailLink
+                disabled={disableProductNavigation}
                 to={resolvedProductLink}
                 {...externalLinkProps}
                 onClick={() => {
@@ -736,9 +755,10 @@ function ProductCard({
                   <span className="mr-1 font-black italic text-rose-600">{mobilePromoLabel}</span>
                 ) : null}
                 <span>{p.title}</span>
-              </Link>
+              </ProductDetailLink>
             ) : (
-              <Link
+              <ProductDetailLink
+                disabled={disableProductNavigation}
                 to={resolvedProductLink}
                 {...externalLinkProps}
                 onClick={() => {
@@ -749,7 +769,7 @@ function ProductCard({
                 className={`font-semibold leading-tight text-neutral-950 transition hover:text-neutral-700 dark:text-neutral-50 ${titleClass}`}
               >
                 {p.title}
-              </Link>
+              </ProductDetailLink>
             )}
 
             <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard ? '-mt-0.5' : ''}`}>
@@ -812,7 +832,8 @@ function ProductCard({
             ) : null}
 
             <div className={`mt-auto grid-cols-[1fr_auto] items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800 ${useCommerceMobileCard ? 'hidden' : 'grid'}`}>
-              <Link
+              <ProductDetailLink
+                disabled={disableProductNavigation}
                 to={resolvedProductLink}
                 {...externalLinkProps}
                 onClick={() => {
@@ -825,7 +846,7 @@ function ProductCard({
                 }`}
               >
                 Voir
-              </Link>
+              </ProductDetailLink>
               {!isOwner ? (
                 <button
                   type="button"
@@ -874,7 +895,8 @@ function ProductCard({
       onMouseLeave={handleMouseLeave}
     >
       {/* 🖼️ SECTION IMAGE AVEC CAROUSEL */}
-      <Link
+      <ProductDetailLink
+        disabled={disableProductNavigation}
         to={resolvedProductLink}
         {...externalLinkProps}
         onClick={(event) => {
@@ -1214,7 +1236,7 @@ function ProductCard({
             </div>
           </div>
         )}
-      </Link>
+      </ProductDetailLink>
 
       {/* 📦 INFOS PRODUIT TAOBAO STYLE */}
       <div

@@ -62,10 +62,11 @@ import useIsMobile from "../hooks/useIsMobile";
 import useNetworkProfile from "../hooks/useNetworkProfile";
 import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Pagination } from "swiper/modules";
+import { Pagination, Zoom } from "swiper/modules";
 import { motion, AnimatePresence } from "framer-motion";
 import "swiper/css";
 import "swiper/css/pagination";
+import "swiper/css/zoom";
 import { appAlert, appConfirm } from "../utils/appDialog";
 import SelectedAttributesList from "../components/orders/SelectedAttributesList";
 
@@ -124,6 +125,7 @@ export default function ProductDetails() {
   const pendingFocusCommentIdRef = useRef('');
   const commentHighlightTimerRef = useRef(null);
   const mobileGallerySwiperRef = useRef(null);
+  const modalSwiperRef = useRef(null);
   const isMobileView = useIsMobile();
   const externalLinkProps = useDesktopExternalLink();
   const isAdminUser = user?.role === 'admin' || user?.role === 'founder';
@@ -1839,6 +1841,15 @@ export default function ProductDetails() {
     if (swiper.activeIndex === selectedImage) return;
     swiper.slideTo(selectedImage);
   }, [selectedImage]);
+
+  // Keep the fullscreen viewer's swiper in sync when arrows/thumbnails change the
+  // active image (the swiper reports back via onSlideChange).
+  useEffect(() => {
+    const swiper = modalSwiperRef.current;
+    if (!isImageModalOpen || !swiper || typeof swiper.slideTo !== 'function') return;
+    if (swiper.activeIndex === selectedImage) return;
+    swiper.slideTo(selectedImage, 0);
+  }, [selectedImage, isImageModalOpen]);
 
   const renderWholesaleSection = ({ compact = false } = {}) => {
     if (!wholesaleEnabled) return null;
@@ -4561,104 +4572,135 @@ export default function ProductDetails() {
         onClose={closeImageModal}
         size="full"
         mobileSheet={false}
+        fullscreen
         ariaLabel="Image produit"
-        backdropClassName="!bg-black/95 backdrop-blur-sm"
-        panelClassName="sm:max-w-5xl border-black/40 bg-black/95 text-white"
+        backdropClassName="!bg-black backdrop-blur-sm"
+        panelClassName="!border-0 !bg-black text-white"
       >
-          <div className="relative w-full">
-            <div
-              className="max-h-[85vh] overflow-hidden rounded-2xl bg-black shadow-lg"
-            >
-              {isDisplayedVideo ? (
-                <video
-                  src={displayedVideoSrc}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  poster={galleryImages.find((g) => g.type === 'image')?.src}
-                  className="mx-auto block max-h-[85vh] w-auto max-w-full"
-                />
+          <div className="relative flex h-full w-full flex-col bg-black">
+            {/* Top bar: page counter + actions */}
+            <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between p-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:p-4">
+              {galleryImages.length > 1 ? (
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[13px] font-bold tabular-nums text-white backdrop-blur-md">
+                  {safeSelectedImage + 1} / {galleryImages.length}
+                </span>
               ) : (
-                <img
-                  src={displayedImage}
-                  alt={product?.title || 'Produit'}
-                  className="mx-auto block max-h-[85vh] w-auto max-w-full object-contain"
-                />
+                <span />
               )}
-            </div>
-            <div className="absolute right-4 top-4 flex gap-2 z-10">
-              {user && (
+              <div className="flex gap-2">
+                {user && !isDisplayedVideo && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReportModal({ isOpen: true, type: 'photo', commentId: null, photoUrl: displayedImage });
+                    }}
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90"
+                    title="Signaler cette photo"
+                  >
+                    <Flag size={18} />
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setReportModal({ isOpen: true, type: 'photo', commentId: null, photoUrl: displayedImage });
-                  }}
-                  className="rounded-full bg-white/95 backdrop-blur-md w-10 h-10 flex items-center justify-center text-neutral-800 shadow-md hover:bg-white transition-all duration-200 active:scale-90 border border-gray-200"
-                  title="Signaler cette photo"
+                  onClick={closeImageModal}
+                  aria-label="Fermer"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90"
                 >
-                  <Flag size={18} />
+                  <X size={20} />
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={closeImageModal}
-                className="rounded-full bg-white/95 backdrop-blur-md w-10 h-10 flex items-center justify-center text-gray-700 shadow-md hover:bg-white transition-all duration-200 active:scale-90 border border-gray-200"
-              >
-                <X size={20} />
-              </button>
+              </div>
             </div>
+
+            {/* Zoomable, swipeable viewer (pinch + double-tap to zoom) */}
+            <Swiper
+              modules={[Zoom]}
+              zoom={{ maxRatio: 3, minRatio: 1, toggle: true }}
+              initialSlide={safeSelectedImage}
+              spaceBetween={24}
+              onSwiper={(s) => {
+                modalSwiperRef.current = s;
+              }}
+              onSlideChange={(s) => setSelectedImage(s.activeIndex)}
+              className="h-full w-full [&_.swiper-slide]:flex [&_.swiper-slide]:items-center [&_.swiper-slide]:justify-center"
+            >
+              {galleryImages.map((item, index) => (
+                <SwiperSlide key={`modal-slide-${item.src || index}`}>
+                  {item.type === 'video' ? (
+                    <video
+                      src={item.src}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      poster={galleryImages.find((g) => g.type === 'image')?.src}
+                      className="max-h-full w-auto max-w-full"
+                    />
+                  ) : (
+                    <div className="swiper-zoom-container h-full w-full">
+                      <img
+                        src={item.src}
+                        alt={`${product?.title || 'Produit'} ${index + 1}`}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  )}
+                </SwiperSlide>
+              ))}
+            </Swiper>
+
+            {/* Desktop navigation arrows (mobile uses swipe) */}
             {galleryImages.length > 1 && (
               <>
                 <button
                   type="button"
                   onClick={handleModalPrev}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/95 backdrop-blur-md w-10 h-10 flex items-center justify-center text-gray-700 shadow-md hover:bg-white transition-all duration-200 active:scale-90 z-10 border border-gray-200"
+                  aria-label="Image précédente"
+                  className="absolute left-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 sm:flex"
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={22} />
                 </button>
                 <button
                   type="button"
                   onClick={handleModalNext}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/95 backdrop-blur-md w-10 h-10 flex items-center justify-center text-gray-700 shadow-md hover:bg-white transition-all duration-200 active:scale-90 z-10 border border-gray-200"
+                  aria-label="Image suivante"
+                  className="absolute right-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 sm:flex"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={22} />
                 </button>
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                  <span>{selectedImage + 1} / {galleryImages.length}</span>
-                </div>
               </>
             )}
 
+            {/* Bottom thumbnail rail */}
             {galleryImages.length > 1 && (
-              <div className="mt-4 flex justify-center">
-                <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/45 px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
+                <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl bg-white/10 px-2.5 py-2 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {galleryImages.map((item, index) => (
                     <button
                       key={`modal-thumb-${item.src || index}`}
                       type="button"
                       onClick={() => setSelectedImage(index)}
-                      className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border transition relative ${selectedImage === index
-                        ? 'border-white ring-2 ring-white/50'
-                        : 'border-white/20 hover:border-white/50'
-                        }`}
+                      className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border transition ${
+                        safeSelectedImage === index
+                          ? 'border-[#FF6A00] ring-2 ring-[#FF6A00]/50'
+                          : 'border-white/20 opacity-60 hover:opacity-100'
+                      }`}
                     >
                       {item.type === 'video' ? (
                         <>
                           <img
                             src={galleryImages.find((g) => g.type === 'image')?.src || ''}
                             alt="Vidéo miniature"
-                            className="h-full w-full object-contain"
+                            className="h-full w-full object-cover"
                           />
                           <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3" /></svg>
                           </span>
                         </>
                       ) : (
                         <img
                           src={item.src}
                           alt={`${product?.title || 'Produit'} miniature ${index + 1}`}
-                          className="h-full w-full object-contain"
+                          className="h-full w-full object-cover"
                         />
                       )}
                     </button>
