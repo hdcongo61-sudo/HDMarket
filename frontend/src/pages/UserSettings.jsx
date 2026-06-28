@@ -52,8 +52,8 @@ const NotifToggle = React.memo(({ label, checked, onChange }) => (
 ));
 
 // ── Settings card with an accent icon chip + heading ──
-const SectionCard = ({ icon: Icon, title, subtitle, action, children }) => (
-  <section className="ui-card rounded-2xl p-4">
+const SectionCard = ({ id, icon: Icon, title, subtitle, action, children }) => (
+  <section id={id} className="ui-card scroll-mt-28 rounded-2xl p-4">
     <div className="flex items-center gap-2.5">
       {Icon && (
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00]/10 text-[#FF6A00]">
@@ -129,6 +129,17 @@ export default function UserSettings() {
   useEffect(() => {
     refreshSettings();
   }, [refreshSettings]);
+
+  useEffect(() => {
+    if (location.hash !== '#notifications') return undefined;
+    const timeoutId = window.setTimeout(() => {
+      document.getElementById('notifications')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 120);
+    return () => window.clearTimeout(timeoutId);
+  }, [location.hash]);
 
   // Load notification preferences
   useEffect(() => {
@@ -416,6 +427,7 @@ export default function UserSettings() {
 
         {/* ── Notification Preferences ── */}
         <SectionCard
+          id="notifications"
           icon={Bell}
           title={t('settings.notifications', 'Notifications')}
           subtitle={t('settings.notifDescription', 'Choisissez les notifications que vous souhaitez recevoir.')}

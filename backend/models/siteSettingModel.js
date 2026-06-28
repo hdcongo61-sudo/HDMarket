@@ -7,6 +7,8 @@ const siteSettingSchema = new mongoose.Schema(
     appLogo: { type: String, default: '' },
     appLogoDesktop: { type: String, default: '' },
     appLogoMobile: { type: String, default: '' },
+    appIcon: { type: String, default: '' },
+    appFavicon: { type: String, default: '' },
     promoBanner: { type: String, default: '' },
     promoBannerMobile: { type: String, default: '' },
     promoBannerLink: { type: String, default: '' },

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock, AppWindow, Monitor, Globe } from 'lucide-react';
 import api, { clearCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { appConfirm } from '../utils/appDialog';
@@ -11,6 +11,57 @@ const formatDateInput = (value) => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toISOString().slice(0, 10);
 };
+
+function LogoUploadTile({
+  icon,
+  label,
+  hint,
+  fileHint,
+  preview,
+  previewClassName,
+  error,
+  success,
+  saving,
+  canSave,
+  onChange,
+  onSave
+}) {
+  return (
+    <div className="flex flex-col rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+      <p className="flex items-center gap-2 text-sm font-black text-gray-900">
+        {icon} {label}
+      </p>
+      <p className="mt-0.5 mb-3 text-[11px] font-medium leading-snug text-gray-500">{hint}</p>
+      {error && <p className="mb-2 text-xs font-semibold text-red-600">{error}</p>}
+      {success && <p className="mb-2 text-xs font-semibold text-emerald-600">{success}</p>}
+      <label className="group relative flex flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-white p-5 text-center transition-colors hover:border-[#FF6A00]/50 hover:bg-orange-50/40">
+        {preview ? (
+          <>
+            <img src={preview} alt={label} className={previewClassName} />
+            <span className="text-[11px] font-semibold text-gray-400">Aperçu actuel · cliquez pour changer</span>
+          </>
+        ) : (
+          <>
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-gray-100 text-gray-400 transition-colors group-hover:bg-orange-100 group-hover:text-[#FF6A00]">
+              <Upload className="h-5 w-5" />
+            </span>
+            <span className="text-xs font-bold text-gray-700">Cliquez pour uploader</span>
+          </>
+        )}
+        <span className="text-[10px] text-gray-400">{fileHint}</span>
+        <input type="file" accept="image/*" onChange={onChange} className="hidden" />
+      </label>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saving || !canSave}
+        className="mt-3 w-full rounded-lg bg-[#FF6A00] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {saving ? 'Mise à jour…' : 'Enregistrer'}
+      </button>
+    </div>
+  );
+}
 
 function NetworkEditForm({ network, onSave, onCancel }) {
   const [name, setName] = useState(network.name);
@@ -73,6 +124,16 @@ export default function AdminAppSettings() {
   const [appLogoMobileSaving, setAppLogoMobileSaving] = useState(false);
   const [appLogoMobileError, setAppLogoMobileError] = useState('');
   const [appLogoMobileSuccess, setAppLogoMobileSuccess] = useState('');
+  const [appIconFile, setAppIconFile] = useState(null);
+  const [appIconPreview, setAppIconPreview] = useState('');
+  const [appIconSaving, setAppIconSaving] = useState(false);
+  const [appIconError, setAppIconError] = useState('');
+  const [appIconSuccess, setAppIconSuccess] = useState('');
+  const [appFaviconFile, setAppFaviconFile] = useState(null);
+  const [appFaviconPreview, setAppFaviconPreview] = useState('');
+  const [appFaviconSaving, setAppFaviconSaving] = useState(false);
+  const [appFaviconError, setAppFaviconError] = useState('');
+  const [appFaviconSuccess, setAppFaviconSuccess] = useState('');
 
   const [heroBannerFile, setHeroBannerFile] = useState(null);
   const [heroBannerPreview, setHeroBannerPreview] = useState('');
@@ -139,6 +200,8 @@ export default function AdminAppSettings() {
         setHeroBannerPreview(heroRes?.data?.heroBanner || '');
         setAppLogoDesktopPreview(logoRes?.data?.appLogoDesktop || '');
         setAppLogoMobilePreview(logoRes?.data?.appLogoMobile || '');
+        setAppIconPreview(logoRes?.data?.appIcon || '');
+        setAppFaviconPreview(logoRes?.data?.appFavicon || '');
         setPromoBannerPreview(promoRes?.data?.promoBanner || '');
         setPromoBannerMobilePreview(promoRes?.data?.promoBannerMobile || '');
         setPromoBannerLink(promoRes?.data?.promoBannerLink || '');
@@ -232,6 +295,8 @@ export default function AdminAppSettings() {
         heroBannerPreview,
         appLogoDesktopPreview,
         appLogoMobilePreview,
+        appIconPreview,
+        appFaviconPreview,
         promoBannerPreview,
         promoBannerMobilePreview,
         splashImagePreview
@@ -246,6 +311,8 @@ export default function AdminAppSettings() {
     heroBannerPreview,
     appLogoDesktopPreview,
     appLogoMobilePreview,
+    appIconPreview,
+    appFaviconPreview,
     promoBannerPreview,
     promoBannerMobilePreview,
     splashImagePreview
@@ -270,6 +337,28 @@ export default function AdminAppSettings() {
     if (file) {
       if (appLogoMobilePreview?.startsWith?.('blob:')) URL.revokeObjectURL(appLogoMobilePreview);
       setAppLogoMobilePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const onAppIconChange = (e) => {
+    const file = e.target.files?.[0] ?? null;
+    setAppIconFile(file);
+    setAppIconError('');
+    setAppIconSuccess('');
+    if (file) {
+      if (appIconPreview?.startsWith?.('blob:')) URL.revokeObjectURL(appIconPreview);
+      setAppIconPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const onAppFaviconChange = (e) => {
+    const file = e.target.files?.[0] ?? null;
+    setAppFaviconFile(file);
+    setAppFaviconError('');
+    setAppFaviconSuccess('');
+    if (file) {
+      if (appFaviconPreview?.startsWith?.('blob:')) URL.revokeObjectURL(appFaviconPreview);
+      setAppFaviconPreview(URL.createObjectURL(file));
     }
   };
 
@@ -486,6 +575,66 @@ export default function AdminAppSettings() {
     }
   }, [appLogoMobileFile, appLogoMobilePreview, emitAppLogoUpdated, showToast]);
 
+  const saveAppIcon = useCallback(async () => {
+    if (!appIconFile) {
+      setAppIconError('Veuillez sélectionner une icône.');
+      return;
+    }
+    setAppIconSaving(true);
+    setAppIconError('');
+    setAppIconSuccess('');
+    try {
+      const payload = new FormData();
+      payload.append('appIcon', appIconFile);
+      const { data } = await api.put('/admin/app-logo/icon', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const nextIcon = data?.appIcon ?? appIconPreview;
+      setAppIconPreview(nextIcon);
+      setAppIconFile(null);
+      clearCache('/settings/app-logo').catch(() => {});
+      emitAppLogoUpdated({ appIcon: nextIcon });
+      setAppIconSuccess('Icône mise à jour avec succès.');
+      showToast('Icône mise à jour.', { variant: 'success' });
+    } catch (err) {
+      const msg = err.response?.data?.message || "Impossible d'enregistrer l'icône.";
+      setAppIconError(msg);
+      showToast(msg, { variant: 'error' });
+    } finally {
+      setAppIconSaving(false);
+    }
+  }, [appIconFile, appIconPreview, emitAppLogoUpdated, showToast]);
+
+  const saveAppFavicon = useCallback(async () => {
+    if (!appFaviconFile) {
+      setAppFaviconError('Veuillez sélectionner un favicon.');
+      return;
+    }
+    setAppFaviconSaving(true);
+    setAppFaviconError('');
+    setAppFaviconSuccess('');
+    try {
+      const payload = new FormData();
+      payload.append('appFavicon', appFaviconFile);
+      const { data } = await api.put('/admin/app-logo/favicon', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const nextFavicon = data?.appFavicon ?? appFaviconPreview;
+      setAppFaviconPreview(nextFavicon);
+      setAppFaviconFile(null);
+      clearCache('/settings/app-logo').catch(() => {});
+      emitAppLogoUpdated({ appFavicon: nextFavicon });
+      setAppFaviconSuccess('Favicon mis à jour avec succès.');
+      showToast('Favicon mis à jour.', { variant: 'success' });
+    } catch (err) {
+      const msg = err.response?.data?.message || "Impossible d'enregistrer le favicon.";
+      setAppFaviconError(msg);
+      showToast(msg, { variant: 'error' });
+    } finally {
+      setAppFaviconSaving(false);
+    }
+  }, [appFaviconFile, appFaviconPreview, emitAppLogoUpdated, showToast]);
+
   const addProhibitedWord = useCallback(
     async (event) => {
       event.preventDefault();
@@ -529,10 +678,10 @@ export default function AdminAppSettings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20">
+      <div className="min-h-screen bg-[#f5f5f5]">
         <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#FF6A00]" />
             <p className="mt-4 text-sm font-medium text-gray-600">Chargement des paramètres…</p>
           </div>
         </div>
@@ -541,117 +690,111 @@ export default function AdminAppSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20">
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200/60">
+    <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-5 sm:px-6 lg:px-8">
+        <header className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-600 to-neutral-600 shadow-lg">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-[#FFB000] to-[#FF6A00] shadow-sm">
               <Image size={24} className="text-white" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-neutral-900 to-neutral-900 bg-clip-text text-transparent">
-                App Settings
+              <h1 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
+                Paramètres de l’application
               </h1>
-              <p className="text-sm text-gray-600 mt-0.5">
-                Logo, bannière HERO et bannière publicitaire
+              <p className="mt-0.5 text-sm font-medium text-gray-500">
+                Identité visuelle, bannières et configuration
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to="/admin/settings/categories"
-              className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm font-semibold text-neutral-700 shadow-sm hover:bg-neutral-100 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
             >
               <Layout size={16} />
-              Gérer les catégories
+              Catégories
             </Link>
             <Link
               to="/admin"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:border-neutral-300 hover:text-neutral-700 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
             >
               <ArrowLeft size={16} />
-              Retour au tableau de bord
+              Retour
             </Link>
           </div>
         </header>
 
         <section className="space-y-8">
-          {/* App Logo */}
-          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-                <Layout size={20} className="text-amber-600" />
+          {/* App Logos & Icon */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6A00] text-white">
+                <Sparkles size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Logos de l’application</h2>
-                <p className="text-sm text-gray-500">
-                  Utilisés dans la barre de navigation (desktop et mobile).
+                <h2 className="text-base font-black text-gray-900">Identité visuelle</h2>
+                <p className="text-sm font-medium text-gray-500">
+                  Logos, icône de l’application et favicon du navigateur.
                 </p>
               </div>
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
-                <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <Layout size={16} /> Logo desktop
-                </p>
-                {appLogoDesktopError && <p className="text-sm text-red-600">{appLogoDesktopError}</p>}
-                {appLogoDesktopSuccess && <p className="text-sm text-emerald-600">{appLogoDesktopSuccess}</p>}
-                <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl bg-white p-6 cursor-pointer hover:bg-gray-50 transition-colors">
-                  {appLogoDesktopPreview ? (
-                    <div className="text-center w-full">
-                      <img src={appLogoDesktopPreview} alt="Logo desktop" className="h-16 w-auto max-w-full object-contain mx-auto mb-2" />
-                      <p className="text-xs text-gray-500">Logo actuel</p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">Aucun logo défini.</p>
-                  )}
-                  <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
-                    <Upload size={20} className="text-gray-400" />
-                    <span className="text-xs text-neutral-600 font-medium">Cliquez pour uploader</span>
-                    <span className="text-xs text-gray-400">PNG, JPG, WEBP — format horizontal</span>
-                    <input type="file" accept="image/*" onChange={onAppLogoDesktopChange} className="hidden" />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={saveAppLogoDesktop}
-                  disabled={appLogoDesktopSaving || !appLogoDesktopFile}
-                  className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {appLogoDesktopSaving ? 'Mise à jour…' : 'Enregistrer le logo desktop'}
-                </button>
-              </div>
-              <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
-                <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <Smartphone size={16} /> Logo mobile
-                </p>
-                {appLogoMobileError && <p className="text-sm text-red-600">{appLogoMobileError}</p>}
-                {appLogoMobileSuccess && <p className="text-sm text-emerald-600">{appLogoMobileSuccess}</p>}
-                <div className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-xl bg-white p-6 cursor-pointer hover:bg-gray-50 transition-colors">
-                  {appLogoMobilePreview ? (
-                    <div className="text-center w-full">
-                      <img src={appLogoMobilePreview} alt="Logo mobile" className="h-16 w-16 rounded-xl object-contain mx-auto mb-2 border border-gray-200" />
-                      <p className="text-xs text-gray-500">Logo actuel</p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">Aucun logo défini.</p>
-                  )}
-                  <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
-                    <Upload size={20} className="text-gray-400" />
-                    <span className="text-xs text-neutral-600 font-medium">Cliquez pour uploader</span>
-                    <span className="text-xs text-gray-400">PNG, JPG, WEBP — format carré</span>
-                    <input type="file" accept="image/*" onChange={onAppLogoMobileChange} className="hidden" />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={saveAppLogoMobile}
-                  disabled={appLogoMobileSaving || !appLogoMobileFile}
-                  className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {appLogoMobileSaving ? 'Mise à jour…' : 'Enregistrer le logo mobile'}
-                </button>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <LogoUploadTile
+                icon={<Monitor className="h-4 w-4 text-[#FF6A00]" />}
+                label="Logo desktop"
+                hint="Barre de navigation (web) — format horizontal."
+                fileHint="PNG, JPG, WEBP — horizontal"
+                preview={appLogoDesktopPreview}
+                previewClassName="h-12 w-auto max-w-full object-contain"
+                error={appLogoDesktopError}
+                success={appLogoDesktopSuccess}
+                saving={appLogoDesktopSaving}
+                canSave={Boolean(appLogoDesktopFile)}
+                onChange={onAppLogoDesktopChange}
+                onSave={saveAppLogoDesktop}
+              />
+              <LogoUploadTile
+                icon={<Smartphone className="h-4 w-4 text-[#FF6A00]" />}
+                label="Logo mobile"
+                hint="En-tête sur mobile — format carré."
+                fileHint="PNG, JPG, WEBP — carré"
+                preview={appLogoMobilePreview}
+                previewClassName="h-14 w-14 rounded-xl border border-gray-200 bg-white object-contain"
+                error={appLogoMobileError}
+                success={appLogoMobileSuccess}
+                saving={appLogoMobileSaving}
+                canSave={Boolean(appLogoMobileFile)}
+                onChange={onAppLogoMobileChange}
+                onSave={saveAppLogoMobile}
+              />
+              <LogoUploadTile
+                icon={<AppWindow className="h-4 w-4 text-[#FF6A00]" />}
+                label="Icône de l’application"
+                hint="Icône PWA & écran d’accueil (iOS/Android)."
+                fileHint="PNG carré — 512×512 recommandé"
+                preview={appIconPreview}
+                previewClassName="h-14 w-14 rounded-2xl border border-gray-200 object-cover shadow-sm"
+                error={appIconError}
+                success={appIconSuccess}
+                saving={appIconSaving}
+                canSave={Boolean(appIconFile)}
+                onChange={onAppIconChange}
+                onSave={saveAppIcon}
+              />
+              <LogoUploadTile
+                icon={<Globe className="h-4 w-4 text-[#FF6A00]" />}
+                label="Favicon"
+                hint="Petite icône de l’onglet du navigateur."
+                fileHint="PNG carré — 32×32 ou 48×48"
+                preview={appFaviconPreview}
+                previewClassName="h-10 w-10 rounded-lg border border-gray-200 object-cover"
+                error={appFaviconError}
+                success={appFaviconSuccess}
+                saving={appFaviconSaving}
+                canSave={Boolean(appFaviconFile)}
+                onChange={onAppFaviconChange}
+                onSave={saveAppFavicon}
+              />
             </div>
           </div>
 

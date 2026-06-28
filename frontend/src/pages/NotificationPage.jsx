@@ -848,11 +848,15 @@ export default function NotificationPage() {
                               onDelete={() => handleDelete(alert._id)}
                               markReadPending={markingIds.has(String(alert._id))}
                               deletePending={deletingIds.has(String(alert._id))}
-                              onNavigateAction={async (to) => {
+                              onNavigateAction={(to) => {
                                 const notificationId = String(alert?._id || '');
                                 if (!notificationId || !to) return;
-                                await api.post(`/users/notifications/${notificationId}/click`).catch(() => {});
-                                if (isUnread) await handleMarkRead([notificationId]);
+
+                                // Clicking a notification must never wait for analytics or
+                                // read-state persistence before opening its destination.
+                                void api.post(`/users/notifications/${notificationId}/click`).catch(() => {});
+                                if (isUnread) void handleMarkRead([notificationId]);
+
                                 if (/^https?:\/\//i.test(String(to || ''))) {
                                   window.location.assign(to);
                                 } else {

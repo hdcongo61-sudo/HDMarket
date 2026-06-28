@@ -16,6 +16,7 @@ import { useAppSettings } from './context/AppSettingsContext';
 import AuthContext from './context/AuthContext';
 import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfileLoadContext';
 import { hasAnyPermission } from './utils/permissions';
+import { applyAppBranding } from './utils/appIcon';
 import { queryClient } from './lib/queryClient';
 
 const Home = lazy(() => import('./pages/Home'));
@@ -288,6 +289,32 @@ function AppContent() {
       .then((res) => setSplashConfig(res.data || null))
       .catch(() => setSplashConfig(null));
   }, [pathname]);
+
+  useEffect(() => {
+    let active = true;
+    const branding = { icon: '', favicon: '' };
+    const onLogoUpdate = (event) => {
+      const { appIcon, appFavicon } = event?.detail || {};
+      if (!appIcon && !appFavicon) return;
+      if (appIcon) branding.icon = appIcon;
+      if (appFavicon) branding.favicon = appFavicon;
+      applyAppBranding(branding);
+    };
+    window.addEventListener('hdmarket:app-logo-updated', onLogoUpdate);
+    api
+      .get('/settings/app-logo')
+      .then((res) => {
+        if (!active) return;
+        branding.icon = res?.data?.appIcon || '';
+        branding.favicon = res?.data?.appFavicon || '';
+        if (branding.icon || branding.favicon) applyAppBranding(branding);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      window.removeEventListener('hdmarket:app-logo-updated', onLogoUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setBootLoading(false), 120);

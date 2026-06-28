@@ -85,7 +85,7 @@ import {
   createChatTemplate,
   sendSupportMessage
 } from '../controllers/chatController.js';
-import { updateAppLogoDesktop, updateAppLogoMobile, updateHeroBanner, updatePromoBanner, updateSplash } from '../controllers/siteSettingController.js';
+import { updateAppFavicon, updateAppIcon, updateAppLogoDesktop, updateAppLogoMobile, updateHeroBanner, updatePromoBanner, updateSplash } from '../controllers/siteSettingController.js';
 import {
   listDeliveryGuysAdmin,
   createDeliveryGuyAdmin,
@@ -476,6 +476,8 @@ router.post('/categories/:id/restore', validate(schemas.idParam, 'params'), admi
 router.put('/hero-banner', upload.single('heroBanner'), adminMutationIdempotency, updateHeroBanner);
 router.put('/app-logo/desktop', upload.single('appLogoDesktop'), adminMutationIdempotency, updateAppLogoDesktop);
 router.put('/app-logo/mobile', upload.single('appLogoMobile'), adminMutationIdempotency, updateAppLogoMobile);
+router.put('/app-logo/icon', upload.single('appIcon'), adminMutationIdempotency, updateAppIcon);
+router.put('/app-logo/favicon', upload.single('appFavicon'), adminMutationIdempotency, updateAppFavicon);
 router.put(
   '/promo-banner',
   upload.fields([

@@ -459,6 +459,7 @@ export default function Profile() {
   );
   const [profileImageEditorApplying, setProfileImageEditorApplying] = useState(false);
   const [profileImageEditorPreparing, setProfileImageEditorPreparing] = useState(false);
+  const [profileImageUploadProgress, setProfileImageUploadProgress] = useState(null);
   const profileImageEditorPointerRef = useRef({
     active: false,
     pointerId: null,
@@ -1585,9 +1586,20 @@ export default function Profile() {
         payload.append('profileImage', profileImageFile);
       }
 
+      if (profileImageFile) setProfileImageUploadProgress(0);
       const { data } = await api.put('/users/profile', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: profileImageFile
+          ? (event) => {
+              const total = Number(event.total || 0);
+              const loaded = Number(event.loaded || 0);
+              setProfileImageUploadProgress(
+                total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : 0
+              );
+            }
+          : undefined
       });
+      if (profileImageFile) setProfileImageUploadProgress(100);
       updateUser(data);
       setFeedback('Profil mis à jour avec succès !');
       showToast('Profil mis à jour avec succès !', { variant: 'success' });
@@ -1626,6 +1638,7 @@ export default function Profile() {
       setError(message);
       showToast(message, { variant: 'error' });
     } finally {
+      setProfileImageUploadProgress(null);
       setLoading(false);
     }
   };
@@ -1878,17 +1891,27 @@ export default function Profile() {
                     <span>Photo de profil</span>
                   </label>
                   <div className="flex flex-wrap items-center gap-4">
-                    {profileImagePreview ? (
-                      <img
-                        src={profileImagePreview}
-                        alt={form.name || 'Profil'}
-                        className="h-16 w-16 rounded-xl object-cover ring-1 ring-gray-200"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-200 text-lg font-semibold text-gray-500">
-                        {String(form.name || 'U').charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <div className="relative h-16 w-16 shrink-0">
+                      {profileImagePreview ? (
+                        <img
+                          src={profileImagePreview}
+                          alt={form.name || 'Profil'}
+                          className="h-16 w-16 rounded-xl object-cover ring-1 ring-gray-200"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-200 text-lg font-semibold text-gray-500">
+                          {String(form.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      {profileImageUploadProgress !== null && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-black/65 text-white backdrop-blur-[1px]">
+                          <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                          <span className="mt-1 text-[10px] font-black">
+                            {profileImageUploadProgress > 0 ? `${profileImageUploadProgress}%` : '…'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                         <Upload className="h-4 w-4" />
@@ -1926,6 +1949,20 @@ export default function Profile() {
                     <p className="w-full text-xs text-gray-500">
                       Vous pouvez recadrer en carré, zoomer, déplacer, pivoter ou retourner l’image.
                     </p>
+                    {profileImageUploadProgress !== null && (
+                      <div className="w-full rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5" role="status" aria-live="polite">
+                        <div className="flex items-center justify-between gap-3 text-xs font-semibold text-sky-800">
+                          <span>Téléversement de la photo de profil…</span>
+                          <span>{profileImageUploadProgress}%</span>
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-sky-100">
+                          <div
+                            className="h-full rounded-full bg-sky-600 transition-[width] duration-200"
+                            style={{ width: `${Math.max(4, profileImageUploadProgress)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {/* Informations de base */}
@@ -2804,7 +2841,11 @@ export default function Profile() {
                   {loading ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Enregistrement...</span>
+                      <span>
+                        {profileImageUploadProgress !== null
+                          ? `Téléversement de la photo ${profileImageUploadProgress}%`
+                          : 'Enregistrement...'}
+                      </span>
                     </>
                   ) : (
                     <>
@@ -3847,7 +3888,7 @@ export default function Profile() {
               <p className="text-sm text-gray-500">Choisissez les types de notifications que vous souhaitez recevoir.</p>
             </div>
             <Link
-              to="/notifications"
+              to="/settings/preferences#notifications"
               className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors"
             >
               <Bell className="w-4 h-4" />

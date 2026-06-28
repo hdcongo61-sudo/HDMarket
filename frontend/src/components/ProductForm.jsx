@@ -190,7 +190,8 @@ export default function ProductForm(props) {
   // New: natural image dimensions (reliable source of truth for crop math)
   const imgNaturalSizeRef = useRef({ w: 0, h: 0 });
 
-  const CROP_MIN_ZOOM = 0.3;
+  // Relative to the scale that fills the frame: 1 = fitted, 0.1 = 10%.
+  const CROP_MIN_ZOOM = 0.1;
   const CROP_MAX_ZOOM = 5;
   const ASPECT_PRESETS = { '1:1': 1, '4:5': 4 / 5, '3:4': 3 / 4, '4:3': 4 / 3, '16:9': 16 / 9 };
   // Product cards display the image as a square (ui-media-frame-square), so the
@@ -339,13 +340,20 @@ export default function ProductForm(props) {
     return Math.max(frame.w / nw, frame.h / nh);
   };
 
-  // Clamp position so image covers the entire crop frame (no empty space)
+  // Keep the image reachable inside the frame. When zoomed below the fitted
+  // size, allow it to move freely across the available empty space.
   const clampImagePos = (pos, scale, frame, nw, nh) => {
     const sw = nw * scale;
     const sh = nh * scale;
+    const clampAxis = (value, frameStart, frameSize, imageSize) => {
+      if (imageSize <= frameSize) {
+        return Math.min(frameStart + frameSize - imageSize, Math.max(frameStart, value));
+      }
+      return Math.min(frameStart, Math.max(frameStart + frameSize - imageSize, value));
+    };
     return {
-      x: Math.min(frame.x, Math.max(frame.x + frame.w - sw, pos.x)),
-      y: Math.min(frame.y, Math.max(frame.y + frame.h - sh, pos.y))
+      x: clampAxis(pos.x, frame.x, frame.w, sw),
+      y: clampAxis(pos.y, frame.y, frame.h, sh)
     };
   };
 
@@ -390,7 +398,9 @@ export default function ProductForm(props) {
     const ch = container.clientHeight;
     const frame = computeCropFrame(cw, ch, aspect);
     const minScale = computeMinScale(frame, nw, nh);
-    const clampedScale = Math.max(minScale, Math.min(CROP_MAX_ZOOM, newScale));
+    const lowestScale = minScale * CROP_MIN_ZOOM;
+    const highestScale = Math.max(CROP_MAX_ZOOM, minScale * 5);
+    const clampedScale = Math.max(lowestScale, Math.min(highestScale, newScale));
     const ratio = clampedScale / currentScale;
     const rawPos = {
       x: pivotX - (pivotX - currentPos.x) * ratio,
@@ -480,8 +490,11 @@ export default function ProductForm(props) {
     const container = cropContainerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const frame = computeCropFrame(container.clientWidth, container.clientHeight, cropAspect);
+    const step = computeMinScale(frame, nw, nh) * 0.12;
     doZoom(
-      imageScale + (e.deltaY < 0 ? 0.12 : -0.12),
+      imageScale + (e.deltaY < 0 ? step : -step),
       e.clientX - rect.left, e.clientY - rect.top,
       imageScale, imagePosition, cropAspect
     );
@@ -490,7 +503,10 @@ export default function ProductForm(props) {
   const handleZoomChange = (delta) => {
     const container = cropContainerRef.current;
     if (!container) return;
-    doZoom(imageScale + delta, container.clientWidth / 2, container.clientHeight / 2, imageScale, imagePosition, cropAspect);
+    const { w: nw, h: nh } = imgNaturalSizeRef.current;
+    const frame = computeCropFrame(container.clientWidth, container.clientHeight, cropAspect);
+    const fittedScale = computeMinScale(frame, nw, nh);
+    doZoom(imageScale + (fittedScale * delta), container.clientWidth / 2, container.clientHeight / 2, imageScale, imagePosition, cropAspect);
   };
 
   const handleZoomInput = (e) => {
@@ -515,17 +531,24 @@ export default function ProductForm(props) {
   };
 
   const applyCropAspectPreset = (preset) => {
-    const container = cropContainerRef.current;
-    if (!container) return;
-    const { w: nw, h: nh } = imgNaturalSizeRef.current;
-    const cw = container.clientWidth;
-    const ch = container.clientHeight;
-    const newFrame = computeCropFrame(cw, ch, preset);
-    const minScale = computeMinScale(newFrame, nw, nh);
-    const newScale = Math.max(minScale, imageScale);
     setCropAspect(preset);
-    setImageScale(newScale);
-    setImagePosition(clampImagePos(imagePosition, newScale, newFrame, nw, nh));
+
+    // The canvas dimensions change with the selected format. Measure them after
+    // React has applied the new ratio, then fit the image to the actual frame.
+    window.requestAnimationFrame(() => {
+      const container = cropContainerRef.current;
+      if (!container) return;
+      const { w: nw, h: nh } = imgNaturalSizeRef.current;
+      const newFrame = computeCropFrame(container.clientWidth, container.clientHeight, preset);
+      const minScale = computeMinScale(newFrame, nw, nh);
+      const scaledW = nw * minScale;
+      const scaledH = nh * minScale;
+      setImageScale(minScale);
+      setImagePosition({
+        x: newFrame.x + (newFrame.w - scaledW) / 2,
+        y: newFrame.y + (newFrame.h - scaledH) / 2
+      });
+    });
   };
 
   // Extract the image region visible inside the crop frame
@@ -536,24 +559,33 @@ export default function ProductForm(props) {
     const { w: nw, h: nh } = imgNaturalSizeRef.current;
     const frame = computeCropFrame(container.clientWidth, container.clientHeight, cropAspect);
 
-    // Map crop-frame corners to natural-image coordinates
-    const natX = Math.max(0, (frame.x - imagePosition.x) / imageScale);
-    const natY = Math.max(0, (frame.y - imagePosition.y) / imageScale);
-    const natW = Math.min(nw - natX, frame.w / imageScale);
-    const natH = Math.min(nh - natY, frame.h / imageScale);
-    if (natW <= 0 || natH <= 0) return null;
-
+    // Export exactly what is visible, including the background revealed when
+    // the user zooms below the fitted size.
+    const maxOutputSide = 2400;
+    const exportScale = Math.min(
+      1 / imageScale,
+      maxOutputSide / frame.w,
+      maxOutputSide / frame.h
+    );
     const outCanvas = document.createElement('canvas');
-    outCanvas.width = Math.round(natW);
-    outCanvas.height = Math.round(natH);
+    outCanvas.width = Math.max(1, Math.round(frame.w * exportScale));
+    outCanvas.height = Math.max(1, Math.round(frame.h * exportScale));
     const ctx = outCanvas.getContext('2d');
 
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, outCanvas.width, outCanvas.height);
         // Bake the live brightness/contrast/saturation adjustments into the export.
         if (filterCss && filterCss !== 'none') ctx.filter = filterCss;
-        ctx.drawImage(img, Math.round(natX), Math.round(natY), Math.round(natW), Math.round(natH), 0, 0, Math.round(natW), Math.round(natH));
+        ctx.drawImage(
+          img,
+          (imagePosition.x - frame.x) * exportScale,
+          (imagePosition.y - frame.y) * exportScale,
+          nw * imageScale * exportScale,
+          nh * imageScale * exportScale
+        );
         ctx.filter = 'none';
         outCanvas.toBlob((blob) => {
           resolve(new File([blob], croppingImage.file.name, { type: croppingImage.file.type, lastModified: Date.now() }));
@@ -3278,6 +3310,8 @@ export default function ProductForm(props) {
         const frame = computeCropFrame(cw, ch, cropAspect);
         const minScale = computeMinScale(frame, nw, nh);
         const zoomPct = nw > 0 ? Math.round((imageScale / minScale) * 100) : 100;
+        const sliderMinScale = minScale * CROP_MIN_ZOOM;
+        const sliderMaxScale = Math.max(CROP_MAX_ZOOM, minScale * 5);
         return (
           <BaseModal
             isOpen={Boolean(croppingImage)}
@@ -3313,12 +3347,12 @@ export default function ProductForm(props) {
               <div className="flex-shrink-0 flex items-center gap-2 overflow-x-auto bg-[#111] px-4 py-2.5 border-b border-white/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
                 <span className="flex-shrink-0 text-[10px] font-black uppercase tracking-wide text-white/40">Format</span>
                 {[
+                  { key: null, label: 'Libre', hint: 'Format original' },
                   { key: '1:1', label: 'Carré', hint: 'Fiche produit' },
                   { key: '4:5', label: 'Portrait', hint: '' },
                   { key: '4:3', label: 'Paysage', hint: '' },
                   { key: '3:4', label: '3:4', hint: '' },
                   { key: '16:9', label: '16:9', hint: '' },
-                  { key: null, label: 'Libre', hint: '' },
                 ].map(({ key, label }) => (
                   <button key={label} type="button" onClick={() => applyCropAspectPreset(key)}
                     className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all touch-manipulation ${
@@ -3348,7 +3382,9 @@ export default function ProductForm(props) {
                   onTouchEnd={handleCropTouchEnd}
                   onTouchCancel={handleCropTouchEnd}
                   style={{
-                    aspectRatio: cropAspect ? String(ASPECT_PRESETS[cropAspect]) : '1 / 1',
+                    aspectRatio: cropAspect
+                      ? String(ASPECT_PRESETS[cropAspect])
+                      : (nw > 0 && nh > 0 ? `${nw} / ${nh}` : '1 / 1'),
                     maxHeight: isMobile ? '55vh' : '480px',
                     touchAction: 'none',
                     backgroundColor: '#000'
@@ -3470,7 +3506,7 @@ export default function ProductForm(props) {
                         aria-label="Zoom arrière">
                         <ZoomOut className="w-4 h-4" />
                       </button>
-                      <input type="range" min={minScale} max={CROP_MAX_ZOOM} step={0.01} value={imageScale}
+                      <input type="range" min={sliderMinScale} max={sliderMaxScale} step={0.001} value={imageScale}
                         onChange={handleZoomInput}
                         className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20"
                         style={{ accentColor: '#FF6A00' }} />

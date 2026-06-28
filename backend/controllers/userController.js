@@ -2353,7 +2353,7 @@ export const addFavorite = asyncHandler(async (req, res) => {
   }
 
   const product = await Product.findOne({ _id: productId, status: { $ne: 'disabled' } }).select(
-    '_id user title'
+    '_id user title slug'
   );
   if (!product) {
     return res.status(404).json({ message: 'Produit introuvable ou désactivé.' });
@@ -2383,8 +2383,17 @@ export const addFavorite = asyncHandler(async (req, res) => {
         actorId: req.user.id,
         productId: product._id,
         type: 'favorite',
+        priority: 'HIGH',
+        pushEnabled: true,
+        channels: ['IN_APP', 'PUSH'],
+        deepLink: `/product/${product.slug || product._id}`,
+        actionLink: `/product/${product.slug || product._id}`,
+        entityType: 'product',
+        entityId: String(product._id),
         metadata: {
-          productTitle: product.title || ''
+          productTitle: product.title || '',
+          productSlug: product.slug || '',
+          deepLink: `/product/${product.slug || product._id}`
         }
       });
     }

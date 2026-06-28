@@ -49,7 +49,9 @@ export const getAppLogo = asyncHandler(async (req, res) => {
   res.set('Expires', '0');
   res.json({
     appLogoDesktop: settings?.appLogoDesktop || legacyLogo,
-    appLogoMobile: settings?.appLogoMobile || legacyLogo
+    appLogoMobile: settings?.appLogoMobile || legacyLogo,
+    appIcon: settings?.appIcon || '',
+    appFavicon: settings?.appFavicon || ''
   });
 });
 
@@ -185,6 +187,8 @@ export const updateHeroBanner = asyncHandler(async (req, res) => {
 
 export const updateAppLogoDesktop = createAppLogoUpdater('appLogoDesktop', 'desktop');
 export const updateAppLogoMobile = createAppLogoUpdater('appLogoMobile', 'mobile');
+export const updateAppIcon = createAppLogoUpdater('appIcon', 'icon');
+export const updateAppFavicon = createAppLogoUpdater('appFavicon', 'favicon');
 
 export const updatePromoBanner = asyncHandler(async (req, res) => {
   const promoBannerFile = req.files?.promoBanner?.[0] || req.file || null;

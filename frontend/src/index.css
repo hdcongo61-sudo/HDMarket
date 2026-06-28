@@ -3061,3 +3061,23 @@ input[type="radio"] {
 .hd-products-flow a:active {
   transform: scale(0.98);
 }
+
+/* Form fields stay text-first: decorative icons inside field containers are hidden.
+   Action icons in buttons and icons attached to checkboxes/radios remain unchanged. */
+:where(div, label):has(
+    > input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='file']):not([type='range']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']),
+    > select,
+    > textarea
+  )
+  > svg {
+  display: none !important;
+}
+
+:where(div, label):has(
+    > input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='file']):not([type='range']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']),
+    > select,
+    > textarea
+  )
+  > :where(input, select, textarea) {
+  padding-left: 1rem !important;
+}
