@@ -165,8 +165,10 @@ export default function AdminAppSettings() {
   const [splashSaving, setSplashSaving] = useState(false);
   const [splashError, setSplashError] = useState('');
   const [splashSuccess, setSplashSuccess] = useState('');
-  const [bootSplashEnabled, setBootSplashEnabled] = useState(true);
-  const [bootSplashDurationSeconds, setBootSplashDurationSeconds] = useState(2.4);
+  const [bootSplashDesktopEnabled, setBootSplashDesktopEnabled] = useState(true);
+  const [bootSplashDesktopDuration, setBootSplashDesktopDuration] = useState(2.4);
+  const [bootSplashMobileEnabled, setBootSplashMobileEnabled] = useState(true);
+  const [bootSplashMobileDuration, setBootSplashMobileDuration] = useState(2.4);
   const [bootSplashSaving, setBootSplashSaving] = useState(false);
   const [bootSplashError, setBootSplashError] = useState('');
   const [bootSplashSuccess, setBootSplashSuccess] = useState('');
@@ -217,8 +219,11 @@ export default function AdminAppSettings() {
           setSplashImagePreview(splashRes.data.splashImage || '');
           setSplashDurationSeconds(Math.min(30, Math.max(1, Number(splashRes.data.splashDurationSeconds) || 3)));
           setSplashEnabled(splashRes.data.splashEnabled !== false);
-          setBootSplashEnabled(splashRes.data.bootSplashEnabled !== false);
-          setBootSplashDurationSeconds(Math.min(10, Math.max(1, Number(splashRes.data.bootSplashDurationSeconds) || 2.4)));
+          const clampBoot = (v) => Math.min(10, Math.max(1, Number(v) || 2.4));
+          setBootSplashDesktopEnabled(splashRes.data.bootSplashDesktopEnabled !== false);
+          setBootSplashDesktopDuration(clampBoot(splashRes.data.bootSplashDesktopDurationSeconds));
+          setBootSplashMobileEnabled(splashRes.data.bootSplashMobileEnabled !== false);
+          setBootSplashMobileDuration(clampBoot(splashRes.data.bootSplashMobileDurationSeconds));
         }
         setNetworks(Array.isArray(networksRes?.data) ? networksRes.data : []);
       } catch (err) {
@@ -451,19 +456,23 @@ export default function AdminAppSettings() {
   }, [splashImageFile, splashDurationSeconds, splashEnabled, showToast]);
 
   const saveBootSplash = useCallback(async () => {
-    const duration = Math.min(10, Math.max(1, Number(bootSplashDurationSeconds) || 2.4));
+    const clamp = (v) => Math.min(10, Math.max(1, Number(v) || 2.4));
     setBootSplashSaving(true);
     setBootSplashError('');
     setBootSplashSuccess('');
     try {
       const payload = new FormData();
-      payload.append('bootSplashEnabled', String(bootSplashEnabled));
-      payload.append('bootSplashDurationSeconds', String(duration));
+      payload.append('bootSplashDesktopEnabled', String(bootSplashDesktopEnabled));
+      payload.append('bootSplashDesktopDurationSeconds', String(clamp(bootSplashDesktopDuration)));
+      payload.append('bootSplashMobileEnabled', String(bootSplashMobileEnabled));
+      payload.append('bootSplashMobileDurationSeconds', String(clamp(bootSplashMobileDuration)));
       const { data } = await api.put('/admin/splash', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      if (data?.bootSplashEnabled !== undefined) setBootSplashEnabled(data.bootSplashEnabled);
-      if (data?.bootSplashDurationSeconds != null) setBootSplashDurationSeconds(data.bootSplashDurationSeconds);
+      if (data?.bootSplashDesktopEnabled !== undefined) setBootSplashDesktopEnabled(data.bootSplashDesktopEnabled);
+      if (data?.bootSplashDesktopDurationSeconds != null) setBootSplashDesktopDuration(data.bootSplashDesktopDurationSeconds);
+      if (data?.bootSplashMobileEnabled !== undefined) setBootSplashMobileEnabled(data.bootSplashMobileEnabled);
+      if (data?.bootSplashMobileDurationSeconds != null) setBootSplashMobileDuration(data.bootSplashMobileDurationSeconds);
       setBootSplashSuccess('Splash animé mis à jour.');
       showToast('Splash animé mis à jour.', { variant: 'success' });
     } catch (err) {
@@ -473,7 +482,7 @@ export default function AdminAppSettings() {
     } finally {
       setBootSplashSaving(false);
     }
-  }, [bootSplashEnabled, bootSplashDurationSeconds, showToast]);
+  }, [bootSplashDesktopEnabled, bootSplashDesktopDuration, bootSplashMobileEnabled, bootSplashMobileDuration, showToast]);
 
   const saveHeroBanner = useCallback(async () => {
     if (!heroBannerFile) {
@@ -1049,32 +1058,55 @@ export default function AdminAppSettings() {
             </div>
             {bootSplashError && <p className="mb-2 text-sm font-semibold text-red-600">{bootSplashError}</p>}
             {bootSplashSuccess && <p className="mb-2 text-sm font-semibold text-emerald-600">{bootSplashSuccess}</p>}
-            <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <input
-                type="checkbox"
-                checked={bootSplashEnabled}
-                onChange={(e) => setBootSplashEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-[#FF6A00] focus:ring-[#FF6A00]"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                Activer le splash animé au lancement de l’app
-              </span>
-            </label>
-            <div className="mb-5 max-w-xs">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Durée (secondes)</label>
-              <input
-                type="number"
-                min={1}
-                max={10}
-                step={0.1}
-                value={bootSplashDurationSeconds}
-                onChange={(e) =>
-                  setBootSplashDurationSeconds(Math.min(10, Math.max(1, Number(e.target.value) || 2.4)))
+            <div className="mb-5 grid gap-4 sm:grid-cols-2">
+              {[
+                {
+                  key: 'desktop',
+                  label: 'Desktop',
+                  icon: <Monitor className="h-4 w-4 text-[#FF6A00]" />,
+                  enabled: bootSplashDesktopEnabled,
+                  setEnabled: setBootSplashDesktopEnabled,
+                  duration: bootSplashDesktopDuration,
+                  setDuration: setBootSplashDesktopDuration
+                },
+                {
+                  key: 'mobile',
+                  label: 'Mobile',
+                  icon: <Smartphone className="h-4 w-4 text-[#FF6A00]" />,
+                  enabled: bootSplashMobileEnabled,
+                  setEnabled: setBootSplashMobileEnabled,
+                  duration: bootSplashMobileDuration,
+                  setDuration: setBootSplashMobileDuration
                 }
-                disabled={!bootSplashEnabled}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100 disabled:opacity-50"
-              />
-              <p className="mt-1 text-xs text-gray-400">Durée minimale d’affichage avant le fondu de sortie (1–10 s).</p>
+              ].map((p) => (
+                <div key={p.key} className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  <p className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900">
+                    {p.icon} {p.label}
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={p.enabled}
+                      onChange={(e) => p.setEnabled(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-[#FF6A00] focus:ring-[#FF6A00]"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Activer au lancement</span>
+                  </label>
+                  <div className="mt-3">
+                    <label className="mb-1 block text-xs font-medium text-gray-500">Durée (secondes)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      step={0.1}
+                      value={p.duration}
+                      onChange={(e) => p.setDuration(Math.min(10, Math.max(1, Number(e.target.value) || 2.4)))}
+                      disabled={!p.enabled}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100 disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
             <button
               type="button"

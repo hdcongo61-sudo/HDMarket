@@ -17,9 +17,12 @@ const siteSettingSchema = new mongoose.Schema(
     splashImage: { type: String, default: '' },
     splashDurationSeconds: { type: Number, default: 3, min: 1, max: 30 },
     splashEnabled: { type: Boolean, default: true },
-    // Animated branded launch splash (BootSplash), independent of the promo splash above.
-    bootSplashEnabled: { type: Boolean, default: true },
-    bootSplashDurationSeconds: { type: Number, default: 2.4, min: 1, max: 10 },
+    // Animated branded launch splash (BootSplash), configured independently per
+    // platform (desktop vs mobile), independent of the promo splash above.
+    bootSplashDesktopEnabled: { type: Boolean, default: true },
+    bootSplashDesktopDurationSeconds: { type: Number, default: 2.4, min: 1, max: 10 },
+    bootSplashMobileEnabled: { type: Boolean, default: true },
+    bootSplashMobileDurationSeconds: { type: Number, default: 2.4, min: 1, max: 10 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   { timestamps: true }

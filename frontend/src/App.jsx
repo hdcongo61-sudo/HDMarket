@@ -267,19 +267,32 @@ function SellerOrdersEntryRedirect() {
 
 const isShopProfileRoute = (path) => /^\/shop\/[^/]+$/.test(path || '');
 
-// Animated launch splash (BootSplash) preference, cached locally so a disabled
-// splash never flashes on the next launch before the config fetch resolves.
+// Animated launch splash (BootSplash) preferences, configured independently per
+// platform and cached locally so a disabled splash never flashes on the next
+// launch before the config fetch resolves.
 const BOOT_SPLASH_PREF_KEY = 'hd_boot_splash_pref';
+// Matches useIsMobile's default breakpoint so the synchronous (pre-render)
+// platform choice is consistent with the rest of the app.
+const isMobileViewport = () => {
+  try {
+    return window.matchMedia('(max-width: 767px)').matches;
+  } catch {
+    return false;
+  }
+};
 const readBootSplashPref = () => {
+  const fallback = { enabled: true, durationMs: 2400 };
   try {
     const raw = JSON.parse(window.localStorage.getItem(BOOT_SPLASH_PREF_KEY) || '{}');
-    const durationMs = Number(raw.durationMs);
+    const platform = isMobileViewport() ? raw.mobile : raw.desktop;
+    if (!platform) return fallback;
+    const durationMs = Number(platform.durationMs);
     return {
-      enabled: raw.enabled !== false,
+      enabled: platform.enabled !== false,
       durationMs: durationMs > 0 ? durationMs : 2400
     };
   } catch {
-    return { enabled: true, durationMs: 2400 };
+    return fallback;
   }
 };
 
@@ -310,17 +323,24 @@ function AppContent() {
         const data = res.data || null;
         setSplashConfig(data);
         if (data) {
-          const enabled = data.bootSplashEnabled !== false;
-          const durationMs = Math.round((Number(data.bootSplashDurationSeconds) || 2.4) * 1000);
+          const toMs = (s) => Math.round((Number(s) || 2.4) * 1000);
+          const pref = {
+            desktop: {
+              enabled: data.bootSplashDesktopEnabled !== false,
+              durationMs: toMs(data.bootSplashDesktopDurationSeconds)
+            },
+            mobile: {
+              enabled: data.bootSplashMobileEnabled !== false,
+              durationMs: toMs(data.bootSplashMobileDurationSeconds)
+            }
+          };
           try {
-            window.localStorage.setItem(
-              BOOT_SPLASH_PREF_KEY,
-              JSON.stringify({ enabled, durationMs })
-            );
+            window.localStorage.setItem(BOOT_SPLASH_PREF_KEY, JSON.stringify(pref));
           } catch {
             /* ignore quota/availability errors */
           }
-          if (!enabled) setShowBootSplash(false);
+          const current = isMobileViewport() ? pref.mobile : pref.desktop;
+          if (!current.enabled) setShowBootSplash(false);
         }
       })
       .catch(() => setSplashConfig(null));

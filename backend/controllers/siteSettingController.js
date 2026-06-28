@@ -71,14 +71,15 @@ export const getSplash = asyncHandler(async (req, res) => {
   const duration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
   // Default to true when not set (backward compatible)
   const splashEnabled = settings?.splashEnabled !== false;
-  const bootSplashEnabled = settings?.bootSplashEnabled !== false;
-  const bootSplashDurationSeconds = Math.min(10, Math.max(1, Number(settings?.bootSplashDurationSeconds) || 2.4));
+  const clampBootDuration = (value) => Math.min(10, Math.max(1, Number(value) || 2.4));
   res.json({
     splashImage: settings?.splashImage || null,
     splashDurationSeconds: duration,
     splashEnabled,
-    bootSplashEnabled,
-    bootSplashDurationSeconds
+    bootSplashDesktopEnabled: settings?.bootSplashDesktopEnabled !== false,
+    bootSplashDesktopDurationSeconds: clampBootDuration(settings?.bootSplashDesktopDurationSeconds),
+    bootSplashMobileEnabled: settings?.bootSplashMobileEnabled !== false,
+    bootSplashMobileDurationSeconds: clampBootDuration(settings?.bootSplashMobileDurationSeconds)
   });
 });
 
@@ -89,21 +90,28 @@ export const updateSplash = asyncHandler(async (req, res) => {
       ? Math.min(30, Math.max(1, Math.round(Number(durationRaw)) || 3))
       : undefined;
   const splashEnabledRaw = req.body?.splashEnabled;
-  const bootSplashEnabledRaw = req.body?.bootSplashEnabled;
-  const bootSplashDurationRaw = req.body?.bootSplashDurationSeconds;
+  const toBool = (value) => value === true || value === 'true';
+  const clampBootDuration = (value) => Math.min(10, Math.max(1, Number(value) || 2.4));
+  const bootFields = [
+    ['bootSplashDesktopEnabled', 'bool'],
+    ['bootSplashDesktopDurationSeconds', 'duration'],
+    ['bootSplashMobileEnabled', 'bool'],
+    ['bootSplashMobileDurationSeconds', 'duration']
+  ];
 
   const updates = { updatedBy: req.user.id };
   if (duration !== undefined) {
     updates.splashDurationSeconds = duration;
   }
   if (splashEnabledRaw !== undefined) {
-    updates.splashEnabled = splashEnabledRaw === true || splashEnabledRaw === 'true';
+    updates.splashEnabled = toBool(splashEnabledRaw);
   }
-  if (bootSplashEnabledRaw !== undefined) {
-    updates.bootSplashEnabled = bootSplashEnabledRaw === true || bootSplashEnabledRaw === 'true';
-  }
-  if (bootSplashDurationRaw !== undefined && bootSplashDurationRaw !== '') {
-    updates.bootSplashDurationSeconds = Math.min(10, Math.max(1, Number(bootSplashDurationRaw) || 2.4));
+  let hasBootUpdate = false;
+  for (const [key, kind] of bootFields) {
+    const raw = req.body?.[key];
+    if (raw === undefined || raw === '') continue;
+    updates[key] = kind === 'bool' ? toBool(raw) : clampBootDuration(raw);
+    hasBootUpdate = true;
   }
 
   if (req.file) {
@@ -124,10 +132,7 @@ export const updateSplash = asyncHandler(async (req, res) => {
     updates.splashImage = uploaded.secure_url || uploaded.url;
   }
 
-  const hasOtherUpdate =
-    splashEnabledRaw !== undefined ||
-    bootSplashEnabledRaw !== undefined ||
-    (bootSplashDurationRaw !== undefined && bootSplashDurationRaw !== '');
+  const hasOtherUpdate = splashEnabledRaw !== undefined || hasBootUpdate;
   if (!req.file && duration === undefined && !hasOtherUpdate) {
     return res.status(400).json({ message: 'Veuillez fournir une image, une durée (secondes) ou activer/désactiver l’écran de démarrage.' });
   }
@@ -140,14 +145,14 @@ export const updateSplash = asyncHandler(async (req, res) => {
 
   const finalDuration = Math.min(30, Math.max(1, Number(settings?.splashDurationSeconds) || 3));
   const splashEnabled = settings?.splashEnabled !== false;
-  const bootSplashEnabled = settings?.bootSplashEnabled !== false;
-  const bootSplashDurationSeconds = Math.min(10, Math.max(1, Number(settings?.bootSplashDurationSeconds) || 2.4));
   res.json({
     splashImage: settings?.splashImage || null,
     splashDurationSeconds: finalDuration,
     splashEnabled,
-    bootSplashEnabled,
-    bootSplashDurationSeconds
+    bootSplashDesktopEnabled: settings?.bootSplashDesktopEnabled !== false,
+    bootSplashDesktopDurationSeconds: clampBootDuration(settings?.bootSplashDesktopDurationSeconds),
+    bootSplashMobileEnabled: settings?.bootSplashMobileEnabled !== false,
+    bootSplashMobileDurationSeconds: clampBootDuration(settings?.bootSplashMobileDurationSeconds)
   });
 });
 
