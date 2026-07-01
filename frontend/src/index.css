@@ -247,25 +247,25 @@ select:disabled {
 .dark :where(.bg-white) {
   background-color: #111827;
 }
-.dark :where(.bg-gray-50, .bg-slate-50, .bg-gray-100) {
+.dark :where(.bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-neutral-50, .bg-neutral-100, .bg-stone-50, .bg-stone-100, .bg-zinc-50, .bg-zinc-100) {
   background-color: #0f172a;
 }
-.dark :where(.border-gray-100, .border-gray-200, .border-slate-100, .border-slate-200) {
+.dark :where(.border-gray-100, .border-gray-200, .border-slate-100, .border-slate-200, .border-neutral-100, .border-neutral-200, .border-stone-100, .border-stone-200, .border-zinc-100, .border-zinc-200) {
   border-color: #334155;
 }
-.dark :where(.text-gray-900, .text-slate-900) {
+.dark :where(.text-gray-900, .text-slate-900, .text-gray-950, .text-slate-950, .text-neutral-900, .text-neutral-950, .text-stone-900, .text-stone-950, .text-zinc-900, .text-zinc-950, .text-black) {
   color: #f8fafc;
 }
-.dark :where(.text-gray-800, .text-slate-800) {
+.dark :where(.text-gray-800, .text-slate-800, .text-neutral-800, .text-stone-800, .text-zinc-800) {
   color: #f1f5f9;
 }
-.dark :where(.text-gray-700, .text-slate-700) {
+.dark :where(.text-gray-700, .text-slate-700, .text-neutral-700, .text-stone-700, .text-zinc-700) {
   color: #e2e8f0;
 }
-.dark :where(.text-gray-600, .text-slate-600) {
+.dark :where(.text-gray-600, .text-slate-600, .text-neutral-600, .text-stone-600, .text-zinc-600) {
   color: #cbd5e1;
 }
-.dark :where(.text-gray-500, .text-slate-500) {
+.dark :where(.text-gray-500, .text-slate-500, .text-neutral-500, .text-stone-500, .text-zinc-500) {
   color: #94a3b8;
 }
 /* Colored utility fallbacks for legacy cards/buttons without dark:* classes */

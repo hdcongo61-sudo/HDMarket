@@ -216,6 +216,9 @@ const notificationMeta = (alert, t) => {
   if (type.startsWith('installment_')) {
     return { title: explicitTitle || t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardList className="h-4 w-4" />, tone: 'payment' };
   }
+  if (type.startsWith('sponsorship_')) {
+    return { title: explicitTitle || t('notifications.sponsorship', 'Paiement par un proche'), icon: <CreditCard className="h-4 w-4" />, tone: 'payment' };
+  }
   return { title: explicitTitle || t('notifications.notification', 'Notification'), icon: <Bell className="h-4 w-4" />, tone: 'system' };
 };
 

@@ -17,7 +17,8 @@ import {
   Truck,
   Store,
   MapPin,
-  Wallet
+  Wallet,
+  Users
 } from 'lucide-react';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -48,7 +49,8 @@ const PAYMENT_MODES = Object.freeze({
   STANDARD: 'standard',
   INSTALLMENT: 'installment',
   FULL_PAYMENT: 'full_payment',
-  WALLET: 'wallet'
+  WALLET: 'wallet',
+  SPONSOR: 'sponsor'
 });
 
 const getOrderId = (value) => {
@@ -102,6 +104,10 @@ export default function OrderCheckout() {
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.STANDARD);
   const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState('mobile_money');
+  const [sponsorPhone, setSponsorPhone] = useState('');
+  const [sponsorMessage, setSponsorMessage] = useState('');
+  const [sponsorResolved, setSponsorResolved] = useState(null); // { found, name }
+  const [sponsorResolving, setSponsorResolving] = useState(false);
   const [guarantor, setGuarantor] = useState({
     fullName: '',
     phone: '',
@@ -140,7 +146,36 @@ export default function OrderCheckout() {
     fullPaymentPromotionEnabled &&
     fullPaymentFreeDeliveryEnabled;
   const isWalletPayment = paymentMode === PAYMENT_MODES.WALLET;
-  const isStandardPayment = !isInstallmentPayment && !isFullPaymentSelected && !isWalletPayment;
+  const isSponsorPayment = paymentMode === PAYMENT_MODES.SPONSOR;
+  const isStandardPayment =
+    !isInstallmentPayment && !isFullPaymentSelected && !isWalletPayment && !isSponsorPayment;
+  const payForOtherEnabled = normalizeBoolean(getRuntimeValue('enable_pay_for_other', false), false);
+
+  // Resolve the entered payer phone → confirm which HDMarket user it belongs to.
+  useEffect(() => {
+    if (!isSponsorPayment) return undefined;
+    const phone = String(sponsorPhone || '').trim();
+    if (phone.length < 5) {
+      setSponsorResolved(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setSponsorResolving(true);
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get('/orders/sponsor/resolve', { params: { phone } });
+        if (!cancelled) setSponsorResolved(data?.found ? { found: true, name: data.name } : { found: false });
+      } catch {
+        if (!cancelled) setSponsorResolved({ found: false });
+      } finally {
+        if (!cancelled) setSponsorResolving(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isSponsorPayment, sponsorPhone]);
 
   const items = cart.items || [];
   const hasPickupOnlyProducts = useMemo(
@@ -467,6 +502,28 @@ export default function OrderCheckout() {
       });
     }
 
+    if (payForOtherEnabled) {
+      baseCards.push({
+        id: PAYMENT_MODES.SPONSOR,
+        title: 'Un proche paie',
+        subtitle: 'Demandez à un proche de régler votre commande.',
+        eyebrow: 'Proche',
+        icon: Users,
+        amountLabel: 'À payer maintenant',
+        amount: 0,
+        amountDisplay: 'Aucun',
+        remainingLabel: 'Réglé par',
+        remaining: 0,
+        remainingDisplay: 'Le proche',
+        tone: 'installment',
+        bullets: [
+          'Il reçoit une notification',
+          'Il approuve puis paie',
+          'Livraison à votre adresse'
+        ]
+      });
+    }
+
     return baseCards;
   }, [
     checkoutTotalWithDelivery,
@@ -482,7 +539,8 @@ export default function OrderCheckout() {
     remainingAmount,
     showFullPaymentOption,
     sellerGroups,
-    walletEligible
+    walletEligible,
+    payForOtherEnabled
   ]);
 
   useEffect(() => {
@@ -714,6 +772,46 @@ export default function OrderCheckout() {
         setError('Renseignez le numéro de téléphone pour la livraison.');
         return;
       }
+    }
+    if (isSponsorPayment) {
+      const phone = String(sponsorPhone || '').trim();
+      if (phone.length < 5) {
+        setError('Renseignez le numéro du proche qui réglera la commande.');
+        return;
+      }
+      if (sponsorResolved && sponsorResolved.found === false) {
+        setError('Aucun utilisateur HDMarket ne correspond à ce numéro.');
+        return;
+      }
+      setLoading(true);
+      setError('');
+      setCheckoutStatus('Envoi de la demande...');
+      try {
+        const { data } = await api.post(
+          '/orders/checkout',
+          {
+            paymentMode: 'STANDARD',
+            deliveryMode,
+            shippingAddress,
+            sponsorship: { payerPhone: phone, message: sponsorMessage.trim() }
+          },
+          { silentGlobalError: true }
+        );
+        setOrderConfirmed(true);
+        await clearCart();
+        setCheckoutStatus('');
+        const payerName = data?.sponsorship?.payer?.name || 'votre proche';
+        showToast(`Demande envoyée à ${payerName}. En attente de son paiement.`, { variant: 'success' });
+        navigate('/sponsorships');
+      } catch (err) {
+        const message = err.response?.data?.message || 'Impossible d’envoyer la demande.';
+        setError(message);
+        setCheckoutStatus('');
+        showToast(message, { variant: 'error' });
+      } finally {
+        setLoading(false);
+      }
+      return;
     }
     if (isInstallmentPayment) {
       if (!isInstallmentProductEligible || !installmentProduct) {
@@ -1287,7 +1385,6 @@ export default function OrderCheckout() {
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="space-y-2">
-            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Confirmer votre commande</h1>
             <p className="max-w-2xl text-sm font-semibold leading-6 text-slate-600">{paymentModeDescription}</p>
           </div>
           <div className="hidden rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 text-right lg:block">
@@ -1784,7 +1881,7 @@ export default function OrderCheckout() {
                   
                   <div className="space-y-4">
                     {/* Payer name + transaction code — not needed for wallet */}
-                    {paymentMode !== PAYMENT_MODES.WALLET && !installmentUsesWallet && (
+                    {paymentMode !== PAYMENT_MODES.WALLET && !installmentUsesWallet && !isSponsorPayment && (
                       <>
                         <div>
                           <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">
@@ -1846,6 +1943,57 @@ export default function OrderCheckout() {
                           {installmentUsesWallet
                             ? `${formatCurrency(groupDeposit)} seront débités automatiquement pour le premier versement.`
                             : 'Aucun acompte ni code transaction requis ici. Le paiement est traité côté HDMarket.'}
+                        </p>
+                      </div>
+                    )}
+
+                    {isSponsorPayment && group.sellerId === sellerGroups[0]?.sellerId && (
+                      <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="flex items-center gap-2">
+                          <Users size={18} className="text-amber-700" />
+                          <p className="text-sm font-black text-amber-900">Un proche règle votre commande</p>
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-amber-800">
+                            Numéro du proche
+                          </label>
+                          <input
+                            type="tel"
+                            inputMode="tel"
+                            value={sponsorPhone}
+                            onChange={(e) => setSponsorPhone(e.target.value)}
+                            placeholder="Ex: 06 000 00 00"
+                            className="min-h-[48px] w-full rounded-2xl border border-amber-200 bg-white px-4 text-sm font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+                          />
+                          {sponsorResolving && (
+                            <p className="mt-1.5 text-xs font-semibold text-amber-700">Recherche…</p>
+                          )}
+                          {!sponsorResolving && sponsorResolved?.found && (
+                            <p className="mt-1.5 text-xs font-black text-emerald-700">
+                              ✓ {sponsorResolved.name} recevra la demande.
+                            </p>
+                          )}
+                          {!sponsorResolving && sponsorResolved && sponsorResolved.found === false && (
+                            <p className="mt-1.5 text-xs font-black text-rose-600">
+                              Aucun utilisateur HDMarket pour ce numéro.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-amber-800">
+                            Message (optionnel)
+                          </label>
+                          <textarea
+                            rows={2}
+                            maxLength={280}
+                            value={sponsorMessage}
+                            onChange={(e) => setSponsorMessage(e.target.value)}
+                            placeholder="Un petit mot pour votre proche…"
+                            className="w-full rounded-2xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+                          />
+                        </div>
+                        <p className="text-xs font-semibold text-amber-700">
+                          Aucun paiement maintenant. Votre proche approuve puis règle. La livraison reste à votre adresse.
                         </p>
                       </div>
                     )}
@@ -2028,7 +2176,11 @@ export default function OrderCheckout() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-[#ff6a00] px-8 py-5 text-lg font-black text-white shadow-[0_14px_32px_rgba(255,106,0,0.28)] transition hover:bg-[#f05f00] active:scale-[0.98] disabled:opacity-60 sm:text-xl"
+              className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-black text-white transition active:scale-[0.98] disabled:opacity-60 sm:text-xl ${
+                (isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet'))
+                  ? 'bg-emerald-600 shadow-[0_14px_32px_rgba(16,185,129,0.28)] hover:bg-emerald-700'
+                  : 'bg-[#ff6a00] shadow-[0_14px_32px_rgba(255,106,0,0.28)] hover:bg-[#f05f00]'
+              }`}
             >
               {loading ? (
                 <>
@@ -2038,7 +2190,7 @@ export default function OrderCheckout() {
               ) : (
                 <>
                   <Lock size={22} />
-                  {(isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
+                  {isSponsorPayment ? 'Envoyer la demande au proche' : (isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
                 </>
               )}
             </button>
@@ -2059,7 +2211,11 @@ export default function OrderCheckout() {
             type="submit"
             form="order-checkout-form"
             disabled={loading}
-            className="inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#ff6a00] px-7 text-lg font-black text-white shadow-[0_14px_28px_rgba(255,106,0,0.30)] active:scale-[0.97] disabled:opacity-60"
+            className={`inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl px-7 text-lg font-black text-white active:scale-[0.97] disabled:opacity-60 ${
+              (isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet'))
+                ? 'bg-emerald-600 shadow-[0_14px_28px_rgba(16,185,129,0.30)]'
+                : 'bg-[#ff6a00] shadow-[0_14px_28px_rgba(255,106,0,0.30)]'
+            }`}
           >
             {loading ? (
               <div className="h-6 w-6 rounded-full border-[3px] border-white border-t-transparent animate-spin" />

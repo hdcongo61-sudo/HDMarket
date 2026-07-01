@@ -7,6 +7,7 @@ import Comment from '../models/commentModel.js';
 import Rating from '../models/ratingModel.js';
 import User from '../models/userModel.js';
 import Order from '../models/orderModel.js';
+import Payment from '../models/paymentModel.js';
 import City from '../models/cityModel.js';
 import ProhibitedWord from '../models/prohibitedWordModel.js';
 import ProductAuditLog from '../models/productAuditLogModel.js';
@@ -38,6 +39,7 @@ import {
 import { getSellerResponseStats } from '../utils/sellerResponseStats.js';
 import {
   hasVerifiedPaymentForProduct,
+  invalidateVerifiedProductCache,
   withVerifiedPublicProductFilter
 } from '../utils/publicProductVisibility.js';
 import {
@@ -1139,11 +1141,46 @@ export const createProduct = asyncHandler(async (req, res) => {
     const promoDiscount = Number(commission?.discountAmount || 0);
     const promoWaived = Boolean(commission?.isWaived);
 
+    // Build the verified LISTING_FEE payment that marks the product as publicly
+    // visible (public listings/detail require a Payment with status 'verified').
+    const buildListingPaymentPayload = ({ walletTransactionId = '' } = {}) => ({
+      buyer: req.user.id,
+      seller: req.user.id,
+      user: req.user.id,
+      product: product._id,
+      payerName: req.user.name || 'Portefeuille HDMarket',
+      transactionNumber: `wallet-${Date.now()}`,
+      transactionId: `wallet-${product._id}-${Date.now()}`,
+      amount: dueAmount,
+      expectedAmount: dueAmount,
+      amountPaid: dueAmount,
+      currency: 'XAF',
+      commissionBaseAmount: Number(commission?.baseAmount || 0),
+      commissionDiscountAmount: Number(commission?.discountAmount || 0),
+      commissionDueAmount: dueAmount,
+      waivedByPromo: Boolean(promoWaived && promoCode),
+      promoCodeValue: promoCode || '',
+      promoDiscountType: promoPreview?.promo?.discountType || null,
+      promoDiscountValue: Number(promoPreview?.promo?.discountValue || 0),
+      operator: 'HDMARKET_WALLET',
+      paymentType: 'LISTING_FEE',
+      verificationMethod: 'WALLET',
+      paymentMethod: 'wallet',
+      status: 'verified',
+      verifiedBy: req.user.id,
+      verifiedAt: new Date(),
+      walletTransactionId: walletTransactionId || '',
+      metadata: walletTransactionId ? { walletTransactionId } : {}
+    });
+
     if (dueAmount <= 0) {
       // Commission waived by promo or zero — auto-approve without payment
       product.status = 'approved';
       product.validationDate = new Date();
+      const payment = await Payment.create(buildListingPaymentPayload());
+      product.payment = payment._id;
       await product.save();
+      invalidateVerifiedProductCache();
 
       // Consume the promo code if one was used
       if (promoCode && promoPreview?.valid) {
@@ -1173,7 +1210,12 @@ export const createProduct = asyncHandler(async (req, res) => {
         });
         product.status = 'approved';
         product.validationDate = new Date();
+        const payment = await Payment.create(
+          buildListingPaymentPayload({ walletTransactionId: String(walletPayment?.transactionId || '') })
+        );
+        product.payment = payment._id;
         await product.save();
+        invalidateVerifiedProductCache();
 
         // Attach wallet transaction reference to product metadata
         await Product.updateOne(

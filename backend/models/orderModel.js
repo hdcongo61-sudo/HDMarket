@@ -380,12 +380,34 @@ const orderSchema = new mongoose.Schema(
     adminRiskScore: { type: Number, default: 0, min: 0, max: 100 },
     statusStuckSince: { type: Date, default: Date.now },
     adminNotes: { type: [orderAdminNoteSchema], default: [] },
-    timeline: { type: [orderTimelineEventSchema], default: [] }
+    timeline: { type: [orderTimelineEventSchema], default: [] },
+
+    // "Ask a friend to pay" — buyer designates another user to pay for this order.
+    sponsoredPayment: {
+      isSponsored: { type: Boolean, default: false },
+      requestGroupId: { type: String, trim: true, default: '', index: true },
+      requester: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      payer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      payerPhone: { type: String, trim: true, default: '' },
+      message: { type: String, trim: true, default: '' },
+      status: {
+        type: String,
+        enum: ['pending', 'accepted', 'declined', 'expired', 'cancelled', 'self_paid'],
+        default: 'pending'
+      },
+      attemptCount: { type: Number, default: 1, min: 1 },
+      requestedAt: { type: Date, default: null },
+      respondedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+      paidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
+    }
   },
   { timestamps: true }
 );
 
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ 'sponsoredPayment.payer': 1, 'sponsoredPayment.status': 1, createdAt: -1 });
+orderSchema.index({ 'sponsoredPayment.requester': 1, 'sponsoredPayment.status': 1, createdAt: -1 });
 orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ customer: 1, isDraft: 1, createdAt: -1 });
 orderSchema.index({ paymentType: 1, status: 1, createdAt: -1 });

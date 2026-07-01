@@ -7,7 +7,7 @@ import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet, Pencil } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet, Pencil, Users } from "lucide-react";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
@@ -203,6 +203,17 @@ const fullPaymentBannerText =
       'Payez le montant total au checkout et profitez de la livraison offerte.'
     ) || ''
   ).trim() || 'Payez le montant total au checkout et profitez de la livraison offerte.';
+const payForOtherEnabled = normalizeSettingBoolean(getRuntimeValue('enable_pay_for_other', false), false);
+const showPayForOtherBanner =
+  payForOtherEnabled &&
+  normalizeSettingBoolean(getRuntimeValue('show_pay_for_other_home_banner', true), true);
+const payForOtherBannerText =
+  String(
+    getRuntimeValue(
+      'pay_for_other_banner_text',
+      'Un proche peut régler votre commande — proposez-le au moment du paiement.'
+    ) || ''
+  ).trim() || 'Un proche peut régler votre commande — proposez-le au moment du paiement.';
 const primaryPageLimit = compactProductsPageSize || 12;
 const secondarySectionLimit = compactSecondaryLimit || 6;
 const WalletHomeCallout = ({ compact = false } = {}) => {
@@ -1300,6 +1311,32 @@ const loadDiscountProducts = async () => {
                     </span>
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white shadow-sm">
+                    Voir
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ) : null}
+            {showPayForOtherBanner ? (
+              <Link
+                to="/cart"
+                {...externalLinkProps}
+                className="group block border-t border-gray-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.18)]">
+                    <Users className="h-[22px] w-[22px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#FF6A00] ring-1 ring-orange-100">
+                      <Sparkles className="h-3 w-3" />
+                      Paiement par un proche
+                    </span>
+                    <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
+                      {payForOtherBannerText}
+                    </span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FF6A00] px-3 py-2 text-[11px] font-black text-white shadow-sm">
                     Voir
                     <ChevronRight className="h-3.5 w-3.5" />
                   </span>

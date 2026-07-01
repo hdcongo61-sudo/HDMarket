@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } 
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, Wallet, ArrowRight } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -1579,6 +1579,31 @@ export default function ProductForm(props) {
     };
   }, [payWithWallet, promoCode, form.price, isEditing]);
 
+  // Live preview of the installment plan shown inside the "vente en tranche" card.
+  const installmentPlanPreview = useMemo(() => {
+    if (!form.installmentEnabled) return null;
+    const price = Number(form.price) || 0;
+    const firstPayment = Number(form.installmentMinAmount) || 0;
+    const remaining = Math.max(0, price - firstPayment);
+    let days = Number(form.installmentDuration) || 0;
+    if (!days && form.installmentStartDate && form.installmentEndDate) {
+      const start = new Date(form.installmentStartDate);
+      const end = new Date(form.installmentEndDate);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end > start) {
+        days = Math.round((end - start) / (1000 * 60 * 60 * 24));
+      }
+    }
+    if (!price && !firstPayment && !days) return null;
+    return { price, firstPayment, remaining, days };
+  }, [
+    form.installmentEnabled,
+    form.price,
+    form.installmentMinAmount,
+    form.installmentDuration,
+    form.installmentStartDate,
+    form.installmentEndDate
+  ]);
+
   const headerTitle = isEditing ? 'Modifier une annonce' : 'Publier une annonce';
   const headerSubtitle = isEditing
     ? 'Mettez à jour les informations de votre produit'
@@ -1657,6 +1682,49 @@ export default function ProductForm(props) {
       />
     </button>
   );
+  // Unified, branded header used by every section of the form. Collapsible
+  // sections fold on mobile (chevron); static sections always render expanded.
+  const renderSectionHeader = ({ id, icon: Icon, title, subtitle, collapsible = true, accent = 'orange' }) => {
+    const badgeClass = accent === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-[#FFF1E6] text-[#FF6A00]';
+    const badge = (
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${badgeClass}`}>
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+    );
+
+    if (collapsible && isMobile) {
+      const expanded = expandedSections[id];
+      return (
+        <button
+          type="button"
+          onClick={() => toggleSection(id)}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gray-50 px-3 py-3 text-left transition active:bg-gray-100"
+          aria-expanded={expanded}
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            {badge}
+            <span className="min-w-0">
+              <span className="block text-[15px] font-black text-gray-900">{title}</span>
+              {subtitle && <span className="mt-0.5 block truncate text-xs text-gray-500">{subtitle}</span>}
+            </span>
+          </span>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </span>
+        </button>
+      );
+    }
+
+    return (
+      <div className="mb-4 flex items-center gap-3">
+        {badge}
+        <div className="min-w-0">
+          <h2 className="text-base font-black text-gray-900 sm:text-lg">{title}</h2>
+          {subtitle && <p className="text-xs text-gray-500 sm:text-sm">{subtitle}</p>}
+        </div>
+      </div>
+    );
+  };
   const sectionShellClass =
     'hd-form-card rounded-2xl p-4 sm:p-5';
   const innerPanelClass = 'rounded-2xl border border-gray-200 bg-gray-100/45 p-4';
@@ -1735,31 +1803,12 @@ export default function ProductForm(props) {
       >
         {/* Section Informations de base */}
         <div className={sectionShellClass}>
-          {isMobile ? (
-              <button
-                type="button"
-                onClick={() => toggleSection('info')}
-                className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
-                aria-expanded={expandedSections.info}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-neutral-600" />
-                  </div>
-                  <h2 className="text-[17px] font-semibold text-gray-900">Informations du produit</h2>
-                </div>
-                <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
-                  {expandedSections.info ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </span>
-              </button>
-            ) : (
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
-                  <p className="text-sm text-gray-500">Les détails qui aident l'acheteur à décider vite.</p>
-                </div>
-              </div>
-            )}
+          {renderSectionHeader({
+            id: 'info',
+            icon: FileText,
+            title: 'Informations du produit',
+            subtitle: "Les détails qui aident l'acheteur à décider vite."
+          })}
           {(!isMobile || expandedSections.info) && (
                 <div className="space-y-4 pt-1">
           {/* Titre */}
@@ -2067,29 +2116,12 @@ export default function ProductForm(props) {
 
         {/* Section Commercialisation */}
         <div className={sectionShellClass}>
-          {isMobile ? (
-            <button
-              type="button"
-              onClick={() => toggleSection('commercialisation')}
-              className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
-              aria-expanded={expandedSections.commercialisation}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-lg bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
-                  <Megaphone className="w-4 h-4 text-[#FF6A00]" />
-                </div>
-                <h2 className="text-[17px] font-semibold text-gray-900">Commercialisation</h2>
-              </div>
-              <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
-                {expandedSections.commercialisation ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </span>
-            </button>
-          ) : (
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Commercialisation</h2>
-              <p className="text-sm text-gray-500">Outils de vente optionnels — activez seulement ce dont vous avez besoin.</p>
-            </div>
-          )}
+          {renderSectionHeader({
+            id: 'commercialisation',
+            icon: Megaphone,
+            title: 'Commercialisation',
+            subtitle: 'Outils de vente optionnels — activez seulement ce dont vous avez besoin.'
+          })}
 
           {(!isMobile || expandedSections.commercialisation) && (
             <div className="space-y-4 pt-1">
@@ -2123,105 +2155,199 @@ export default function ProductForm(props) {
             )}
 
             {form.installmentEnabled && (
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Premier paiement minimum
+              <div className="space-y-3">
+                {/* Live plan preview */}
+                {installmentPlanPreview && (
+                  <div className="rounded-xl border border-[#FF6A00]/30 bg-white p-3">
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+                      <Wallet className="h-3.5 w-3.5" />
+                      Aperçu de l'échéancier
+                    </div>
+                    <div className="mt-2.5 flex items-stretch gap-2">
+                      <div className="flex-1 rounded-lg bg-gray-50 px-3 py-2">
+                        <p className="text-[11px] font-semibold text-gray-500">Premier versement</p>
+                        <p className="mt-0.5 text-sm font-black text-gray-900">
+                          {installmentPlanPreview.firstPayment > 0
+                            ? formatPriceWithStoredSettings(installmentPlanPreview.firstPayment)
+                            : '—'}
+                        </p>
+                      </div>
+                      <div className="flex items-center text-gray-300">
+                        <ArrowRight className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 rounded-lg bg-gray-50 px-3 py-2">
+                        <p className="text-[11px] font-semibold text-gray-500">Solde restant</p>
+                        <p className="mt-0.5 text-sm font-black text-gray-900">
+                          {installmentPlanPreview.remaining > 0
+                            ? formatPriceWithStoredSettings(installmentPlanPreview.remaining)
+                            : '—'}
+                        </p>
+                      </div>
+                    </div>
+                    {installmentPlanPreview.days > 0 && (
+                      <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
+                        <Clock className="h-3.5 w-3.5 text-[#FF6A00]" />
+                        Solde à régler sur {installmentPlanPreview.days} jour
+                        {installmentPlanPreview.days > 1 ? 's' : ''}.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Group: amount & duration */}
+                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="mb-3 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-[#FF6A00]" />
+                    <p className="text-xs font-black uppercase tracking-wide text-gray-700">Montant &amp; durée</p>
+                  </div>
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-gray-700">Premier paiement minimum</label>
+                      <input
+                        type="number"
+                        min="1"
+                        inputMode="numeric"
+                        value={form.installmentMinAmount}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, installmentMinAmount: e.target.value }))
+                        }
+                        className={inputClass}
+                        placeholder="Ex: 30000"
+                      />
+                      <p className="text-[11px] text-gray-400">Acompte requis à la commande (≤ prix du produit).</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-gray-700">Durée (jours)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        inputMode="numeric"
+                        value={form.installmentDuration}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, installmentDuration: e.target.value }))
+                        }
+                        className={inputClass}
+                        placeholder="Ex: 30"
+                      />
+                      <p className="text-[11px] text-gray-400">Doit correspondre à l'écart des dates ci-dessous.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Group: schedule window */}
+                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-[#FF6A00]" />
+                    <p className="text-xs font-black uppercase tracking-wide text-gray-700">Période de l'échéancier</p>
+                  </div>
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-gray-700">Date de début</label>
+                      <input
+                        type="date"
+                        value={form.installmentStartDate}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, installmentStartDate: e.target.value }))
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-gray-700">Date de fin</label>
+                      <input
+                        type="date"
+                        value={form.installmentEndDate}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, installmentEndDate: e.target.value }))
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Group: late rules & guarantees */}
+                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="mb-3 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-[#FF6A00]" />
+                    <p className="text-xs font-black uppercase tracking-wide text-gray-700">Règles &amp; garanties</p>
+                  </div>
+                  <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                        <Percent className="h-3.5 w-3.5 text-gray-400" />
+                        Pénalité de retard (%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        inputMode="numeric"
+                        value={form.installmentLatePenaltyRate}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, installmentLatePenaltyRate: e.target.value }))
+                        }
+                        className={inputClass}
+                        placeholder="Ex: 5"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                        <AlertCircle className="h-3.5 w-3.5 text-gray-400" />
+                        Impayés max avant suspension
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="12"
+                        inputMode="numeric"
+                        value={form.installmentMaxMissedPayments}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, installmentMaxMissedPayments: e.target.value }))
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <label
+                    className={`mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-3 transition-colors ${
+                      form.installmentRequireGuarantor
+                        ? 'border-[#FF6A00]/40 bg-[#FFF7ED]'
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          form.installmentRequireGuarantor ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        <Users className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-gray-800">Exiger un garant</span>
+                        <span className="block text-[11px] text-gray-500">
+                          L'acheteur devra fournir les informations d'un garant.
+                        </span>
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.installmentRequireGuarantor)}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, installmentRequireGuarantor: e.target.checked }))
+                      }
+                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-[#FF6A00] focus:ring-[#FF6A00]"
+                    />
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.installmentMinAmount}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, installmentMinAmount: e.target.value }))
-                    }
-                    className={inputClass}
-                    placeholder="Ex: 30000"
-                  />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Durée (jours)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.installmentDuration}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, installmentDuration: e.target.value }))
-                    }
-                    className={inputClass}
-                    placeholder="Ex: 30"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Date de début</label>
-                  <input
-                    type="date"
-                    value={form.installmentStartDate}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, installmentStartDate: e.target.value }))
-                    }
-                    className={inputClass}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Date de fin</label>
-                  <input
-                    type="date"
-                    value={form.installmentEndDate}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, installmentEndDate: e.target.value }))
-                    }
-                    className={inputClass}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Pénalité retard (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={form.installmentLatePenaltyRate}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, installmentLatePenaltyRate: e.target.value }))
-                    }
-                    className={inputClass}
-                    placeholder="Ex: 5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Impayés max avant suspension
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="12"
-                    value={form.installmentMaxMissedPayments}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, installmentMaxMissedPayments: e.target.value }))
-                    }
-                    className={inputClass}
-                  />
-                </div>
-                <label className="flex min-w-0 items-start gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-700 sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(form.installmentRequireGuarantor)}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, installmentRequireGuarantor: e.target.checked }))
-                    }
-                    className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
-                  />
-                  <span className="min-w-0">Exiger les informations d'un garant</span>
-                </label>
               </div>
             )}
 
             {installmentError && (
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {installmentError}
+              <p className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{installmentError}</span>
               </p>
             )}
           </div>
@@ -2268,7 +2394,7 @@ export default function ProductForm(props) {
                         min="2"
                         value={tier?.minQty ?? ''}
                         onChange={(e) => updateWholesaleTier(index, 'minQty', e.target.value)}
-                        className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        className={inputClass}
                         placeholder="Ex: 10"
                       />
                     </div>
@@ -2279,7 +2405,7 @@ export default function ProductForm(props) {
                         min="1"
                         value={tier?.unitPrice ?? ''}
                         onChange={(e) => updateWholesaleTier(index, 'unitPrice', e.target.value)}
-                        className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        className={inputClass}
                         placeholder="Ex: 9500"
                       />
                     </div>
@@ -2289,7 +2415,7 @@ export default function ProductForm(props) {
                         type="text"
                         value={tier?.label ?? ''}
                         onChange={(e) => updateWholesaleTier(index, 'label', e.target.value)}
-                        className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                        className={inputClass}
                         placeholder="Ex: 10-49"
                       />
                     </div>
@@ -2316,8 +2442,11 @@ export default function ProductForm(props) {
                 </button>
 
                 {normalizedWholesalePreviewTiers.length > 0 && (
-                  <div className="rounded-xl border border-gray-200 bg-white p-3">
-                    <p className="text-xs font-semibold text-gray-800 mb-2">Aperçu des prix appliqués</p>
+                  <div className="rounded-xl border border-[#FF6A00]/30 bg-white p-3">
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+                      <Boxes className="h-3.5 w-3.5" />
+                      Aperçu des prix appliqués
+                    </div>
                     <div className="space-y-1.5 text-xs text-gray-700">
                       {Number.isFinite(wholesalePreviewBasePrice) &&
                         wholesalePreviewBasePrice > 0 &&
@@ -2362,29 +2491,12 @@ export default function ProductForm(props) {
         </div>
 
         <div className={sectionShellClass}>
-          {isMobile ? (
-            <button
-              type="button"
-              onClick={() => toggleSection('options')}
-              className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
-              aria-expanded={expandedSections.options}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                  <Package className="w-4 h-4 text-neutral-600" />
-                </div>
-                <h2 className="text-[17px] font-semibold text-gray-900">Options & dimensions</h2>
-              </div>
-              <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
-                {expandedSections.options ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </span>
-            </button>
-          ) : (
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Options & dimensions</h2>
-              <p className="text-sm text-gray-500">Ajoutez seulement les options utiles à la commande.</p>
-            </div>
-          )}
+          {renderSectionHeader({
+            id: 'options',
+            icon: Package,
+            title: 'Options & dimensions',
+            subtitle: 'Ajoutez seulement les options utiles à la commande.'
+          })}
 
           {(!isMobile || expandedSections.options) && (
             <div className="space-y-4 pt-1">
@@ -2625,29 +2737,12 @@ export default function ProductForm(props) {
 
         {/* Section Images */}
         <div className={sectionShellClass}>
-          {isMobile ? (
-            <button
-              type="button"
-              onClick={() => toggleSection('images')}
-              className="flex w-full items-center justify-between rounded-2xl bg-neutral-50 px-3 py-3.5 text-left transition active:bg-neutral-100"
-              aria-expanded={expandedSections.images}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                  <Camera className="w-4 h-4 text-neutral-600" />
-                </div>
-                <h2 className="text-[17px] font-semibold text-gray-900">Photos du produit</h2>
-              </div>
-              <span className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-400">
-                {expandedSections.images ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </span>
-            </button>
-          ) : (
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Photos du produit</h2>
-              <p className="text-sm text-gray-500">Des images nettes chargent plus vite et vendent mieux.</p>
-            </div>
-          )}
+          {renderSectionHeader({
+            id: 'images',
+            icon: Camera,
+            title: 'Photos du produit',
+            subtitle: 'Des images nettes chargent plus vite et vendent mieux.'
+          })}
 
           {/* Image upload content - shown on desktop always, on mobile when expanded */}
           {(!isMobile || expandedSections.images) && (
@@ -2808,15 +2903,12 @@ export default function ProductForm(props) {
 
         {canUploadVideo ? (
           <div className={sectionShellClass}>
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Vidéo de présentation</h2>
-                <p className="text-sm text-gray-500">
-                  Ajoutez une courte vidéo (MP4, MOV, WEBM). Taille maximale {MAX_VIDEO_SIZE_MB} Mo.
-                </p>
-              </div>
-              <Video className="mt-1 h-5 w-5 text-neutral-500" />
-            </div>
+            {renderSectionHeader({
+              icon: Video,
+              collapsible: false,
+              title: 'Vidéo de présentation',
+              subtitle: `Ajoutez une courte vidéo (MP4, MOV, WEBM). Taille maximale ${MAX_VIDEO_SIZE_MB} Mo.`
+            })}
             <input
               id="product-form-video-input"
               type="file"
@@ -3000,15 +3092,12 @@ export default function ProductForm(props) {
         )}
 
         <div className={sectionShellClass}>
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Vidéo Facebook / TikTok</h2>
-              <p className="text-sm text-gray-500">
-                Collez le lien d’une vidéo Facebook ou TikTok. Elle sera intégrée et lisible sur la page du produit.
-              </p>
-            </div>
-            <Video className="mt-1 h-5 w-5 text-neutral-500" />
-          </div>
+          {renderSectionHeader({
+            icon: Video,
+            collapsible: false,
+            title: 'Vidéo Facebook / TikTok',
+            subtitle: 'Collez le lien d’une vidéo Facebook ou TikTok. Elle sera intégrée et lisible sur la page du produit.'
+          })}
           <input
             type="url"
             inputMode="url"
@@ -3026,15 +3115,12 @@ export default function ProductForm(props) {
 
         {canUploadPdf && (
           <div className={sectionShellClass}>
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Fiche produit (PDF)</h2>
-                <p className="text-sm text-gray-500">
-                  Ajoutez un document PDF si le produit a une fiche technique. Taille maximale {MAX_PDF_SIZE_MB} Mo.
-                </p>
-              </div>
-              <FileText className="mt-1 h-5 w-5 text-neutral-500" />
-            </div>
+            {renderSectionHeader({
+              icon: FileText,
+              collapsible: false,
+              title: 'Fiche produit (PDF)',
+              subtitle: `Ajoutez un document PDF si le produit a une fiche technique. Taille maximale ${MAX_PDF_SIZE_MB} Mo.`
+            })}
             {existingPdf && !pdfFile && !removePdf && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                 <div>
@@ -3099,13 +3185,13 @@ export default function ProductForm(props) {
 
         {!isEditing && (
           <div className={sectionShellClass}>
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Validation de l'annonce</h2>
-                <p className="text-sm text-gray-500">Résumé des frais avant publication.</p>
-              </div>
-              <AlertCircle className="mt-1 h-5 w-5 text-amber-600" />
-            </div>
+            {renderSectionHeader({
+              icon: ShieldCheck,
+              collapsible: false,
+              accent: 'amber',
+              title: "Validation de l'annonce",
+              subtitle: 'Résumé des frais avant publication.'
+            })}
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-start space-x-3">

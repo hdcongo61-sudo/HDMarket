@@ -313,6 +313,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
+  const [payForOtherStats, setPayForOtherStats] = useState(null);
   const [founderMini, setFounderMini] = useState(null);
   const [founderMiniLoading, setFounderMiniLoading] = useState(false);
   const [founderMiniError, setFounderMiniError] = useState('');
@@ -467,6 +468,12 @@ export default function AdminDashboard() {
       setStatsError(e.response?.data?.message || e.message || 'Erreur lors du chargement des statistiques.');
     } finally {
       setStatsLoading(false);
+    }
+    try {
+      const { data } = await api.get('/orders/admin/pay-for-other-stats');
+      setPayForOtherStats(data);
+    } catch {
+      setPayForOtherStats(null);
     }
   }, []);
 
@@ -1692,6 +1699,18 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div className="space-y-5">
+            {payForOtherStats && payForOtherStats.totalRequests > 0 ? (
+              <div className="grid grid-cols-2 gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 md:grid-cols-4">
+                <div className="col-span-2 flex items-center gap-2 md:col-span-4">
+                  <Users size={18} className="text-amber-700" />
+                  <p className="text-sm font-black text-amber-900">Paiement par un proche</p>
+                </div>
+                <SectionStatCard label="Demandes" value={formatNumber(payForOtherStats.totalRequests)} variant="orange" />
+                <SectionStatCard label="Réglées" value={formatNumber(payForOtherStats.byStatus?.accepted)} variant="green" />
+                <SectionStatCard label="Taux d'acceptation" value={`${payForOtherStats.acceptanceRate || 0}%`} variant="blue" />
+                <SectionStatCard label="Total payé" value={formatNumber(payForOtherStats.totalPaidOnBehalf)} variant="purple" />
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
                 title="Utilisateurs en ligne"

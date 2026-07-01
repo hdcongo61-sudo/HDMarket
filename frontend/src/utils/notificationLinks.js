@@ -478,6 +478,10 @@ export const resolveNotificationLink = (alert, user = null) => {
   const walletPath = buildWalletPath(alert, user);
   if (walletPath) return walletPath;
 
+  if (type.startsWith('sponsorship_')) {
+    return '/sponsorships';
+  }
+
   if (type === 'order_message') {
     if (deepLink && deepLink.includes('/orders/messages')) return deepLink;
     return buildOrderPath(alert, user);

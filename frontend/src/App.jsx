@@ -25,6 +25,7 @@ const Discover = lazy(() => import('./pages/Discover'));
 const Explorer = lazy(() => import('./pages/Explorer'));
 const FlashSales = lazy(() => import('./pages/FlashSales'));
 const Wallet = lazy(() => import('./pages/Wallet'));
+const Sponsorships = lazy(() => import('./pages/Sponsorships'));
 const SellerAnalyticsV2 = lazy(() => import('./pages/SellerAnalyticsV2'));
 const SellerPromoCodes = lazy(() => import('./pages/SellerPromoCodes'));
 const Login = lazy(() => import('./pages/Login'));
@@ -943,6 +944,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <OrdersEntryRedirect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sponsorships"
+            element={
+              <ProtectedRoute>
+                <Sponsorships />
               </ProtectedRoute>
             }
           />

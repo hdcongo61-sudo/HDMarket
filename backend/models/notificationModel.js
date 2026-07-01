@@ -96,7 +96,11 @@ const notificationSchema = new mongoose.Schema(
       'back_in_stock',
       'abandoned_cart',
       'seller_new_product',
-      'weekly_digest'
+      'weekly_digest',
+      'sponsorship_request',
+      'sponsorship_accepted',
+      'sponsorship_declined',
+      'sponsorship_expired'
     ],
       required: true
     },

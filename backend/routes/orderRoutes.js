@@ -18,6 +18,14 @@ import {
   adminSendOrderReminder,
   adminUpdateOrder,
   userCheckoutOrder,
+  resolveSponsorPayer,
+  respondSponsorship,
+  retrySponsorship,
+  paySelfSponsorship,
+  listIncomingSponsorships,
+  listSentSponsorships,
+  cancelSponsorship,
+  adminPayForOtherStats,
   userListOrders,
   userOrdersSummary,
   getUserOrder,
@@ -98,6 +106,7 @@ adminRouter.use(requireRole(['admin', 'manager']));
 adminRouter.use(requireAnyPermission(['manage_orders']));
 
 adminRouter.get('/stats', adminOrderStats);
+adminRouter.get('/pay-for-other-stats', adminPayForOtherStats);
 adminRouter.get('/command-center', adminOrderCommandCenter);
 adminRouter.get('/alerts', adminOrderAlerts);
 adminRouter.get('/seller-performance', adminSellerPerformance);
@@ -134,6 +143,29 @@ router.post(
   '/wallet-checkout',
   idempotencyMiddleware(),
   walletCheckoutOrder
+);
+// "Ask a friend to pay" (sponsored payment)
+router.get('/sponsor/resolve', resolveSponsorPayer);
+router.get('/sponsor/incoming', listIncomingSponsorships);
+router.get('/sponsor/sent', listSentSponsorships);
+router.post(
+  '/sponsor/:groupId/respond',
+  validate(schemas.sponsorshipRespond),
+  idempotencyMiddleware(),
+  respondSponsorship
+);
+router.post('/sponsor/:groupId/cancel', idempotencyMiddleware(), cancelSponsorship);
+router.post(
+  '/sponsor/:groupId/retry',
+  validate(schemas.sponsorshipRetry),
+  idempotencyMiddleware(),
+  retrySponsorship
+);
+router.post(
+  '/sponsor/:groupId/pay-self',
+  validate(schemas.sponsorshipPaySelf),
+  idempotencyMiddleware(),
+  paySelfSponsorship
 );
 router.get('/installment/eligibility', getInstallmentEligibility);
 router.post(

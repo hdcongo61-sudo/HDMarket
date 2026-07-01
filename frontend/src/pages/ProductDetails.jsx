@@ -29,7 +29,8 @@ import {
   Search,
   Video,
   Zap,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ExternalLink
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -2008,20 +2009,16 @@ export default function ProductDetails() {
   const renderSocialVideoSection = ({ rounded = 'rounded-2xl' } = {}) => {
     if (!socialVideo) return null;
     const providerLabel = socialVideo.provider === 'tiktok' ? 'TikTok' : 'Facebook';
+    const brandClass = socialVideo.provider === 'tiktok' ? 'bg-black' : 'bg-[#1877F2]';
     return (
       <div className={`overflow-hidden ${rounded} border border-gray-200 bg-white shadow-sm`}>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <h2 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900">
             Vidéo {providerLabel}
           </h2>
-          <a
-            href={socialVideo.originalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1 rounded bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-600 hover:bg-gray-200"
-          >
-            Ouvrir
-          </a>
+          <span className={`inline-flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white ${brandClass}`}>
+            <Video size={11} /> {providerLabel}
+          </span>
         </div>
         {socialVideo.embeddable ? (
           <div className={socialVideo.provider === 'tiktok' ? 'bg-black' : 'bg-black p-1.5'}>
@@ -2040,15 +2037,33 @@ export default function ProductDetails() {
             />
           </div>
         ) : (
-          <a
-            href={socialVideo.originalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="m-4 flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm font-semibold text-[#FF6A00] hover:bg-gray-100"
-          >
-            Regarder la vidéo {providerLabel}
-          </a>
+          <div className="flex flex-col items-center justify-center gap-2 bg-gray-50 px-4 py-8 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#FF6A00] shadow-sm">
+              <Video size={22} />
+            </span>
+            <p className="text-sm font-semibold text-gray-700">Aperçu indisponible ici</p>
+            <p className="text-xs text-gray-500">Ouvrez la vidéo {providerLabel} via le lien ci-dessous.</p>
+          </div>
         )}
+
+        {/* Direct link — kept pinned below the player so it stays visible while watching or after rewatching */}
+        <a
+          href={socialVideo.originalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 border-t border-gray-100 bg-gray-50 px-4 py-3 transition hover:bg-gray-100"
+        >
+          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${brandClass}`}>
+            <ExternalLink size={16} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-black text-gray-900">Ouvrir sur {providerLabel}</span>
+            <span className="block truncate text-[11px] text-gray-500">{socialVideo.originalUrl}</span>
+          </span>
+          <span className="shrink-0 rounded bg-white px-2 py-1 text-[11px] font-black text-[#FF6A00] shadow-sm">
+            Ouvrir
+          </span>
+        </a>
       </div>
     );
   };

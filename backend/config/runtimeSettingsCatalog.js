@@ -77,6 +77,37 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     isPublic: true,
     maxLength: 180
   },
+  enable_pay_for_other: {
+    category: 'checkout',
+    description: 'Permet à un acheteur de demander à un proche (par numéro) de régler sa commande au checkout.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  pay_for_other_request_ttl_hours: {
+    category: 'checkout',
+    description: 'Durée (en heures) avant expiration automatique d’une demande de paiement par un proche.',
+    valueType: 'number',
+    defaultValue: 48,
+    isPublic: true,
+    min: 1,
+    max: 336
+  },
+  show_pay_for_other_home_banner: {
+    category: 'ui',
+    description: 'Affiche un mini bandeau homepage encourageant à faire régler sa commande par un proche.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  pay_for_other_banner_text: {
+    category: 'ui',
+    description: 'Texte du mini bandeau homepage pour le paiement par un proche.',
+    valueType: 'string',
+    defaultValue: 'Un proche peut régler votre commande — proposez-le au moment du paiement.',
+    isPublic: true,
+    maxLength: 180
+  },
   enable_rapid_3g_mode: {
     category: 'ui',
     description: 'Active les optimisations de chargement pour connexions 3G lentes et mode économie de données.',

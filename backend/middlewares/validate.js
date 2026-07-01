@@ -135,7 +135,9 @@ export const schemas = {
       Joi.string().allow('', null),
       physicalSchema
     ).optional(),
-    socialVideoUrl: Joi.string().max(500).allow('', null).optional()
+    socialVideoUrl: Joi.string().max(500).allow('', null).optional(),
+    payWithWallet: Joi.boolean().truthy('true').falsy('false').optional(),
+    promoCode: Joi.string().max(60).allow('', null).optional()
   }).or('category', 'categoryId', 'subcategoryId'),
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
@@ -620,9 +622,47 @@ export const schemas = {
           .required()
           .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
         promoCode: Joi.string().trim().uppercase().min(3).max(40).allow('', null)
+      }),
+      // "Ask a friend to pay" — buyer sends the order to a chosen payer; no payment captured now.
+      Joi.object({
+        deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
+        paymentMode: Joi.string().valid('STANDARD', 'FULL_PAYMENT').default('STANDARD'),
+        checkoutPromotionApplied: Joi.boolean().default(false),
+        shippingAddress: Joi.object({
+          cityId: Joi.string().hex().length(24).allow('', null),
+          communeId: Joi.string().hex().length(24).allow('', null),
+          addressLine: Joi.string().max(250).allow('', null),
+          phone: Joi.string().trim().min(5).max(30).allow('', null)
+        }).allow(null),
+        promoCode: Joi.string().trim().uppercase().min(3).max(40).allow('', null),
+        sponsorship: Joi.object({
+          payerPhone: Joi.string().trim().min(5).max(30).required(),
+          message: Joi.string().trim().max(280).allow('', null)
+        }).required()
       })
     )
     .required(),
+  sponsorshipRespond: Joi.object({
+    action: Joi.string().valid('accept', 'decline').required(),
+    paymentMode: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    payerName: Joi.string().min(2).max(120).allow('', null),
+    transactionCode: Joi.string()
+      .pattern(/^\d{10}$/)
+      .allow('', null)
+      .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
+  }),
+  sponsorshipRetry: Joi.object({
+    payerPhone: Joi.string().trim().min(5).max(30).required(),
+    message: Joi.string().trim().max(280).allow('', null)
+  }),
+  sponsorshipPaySelf: Joi.object({
+    paymentMode: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    payerName: Joi.string().min(2).max(120).allow('', null),
+    transactionCode: Joi.string()
+      .pattern(/^\d{10}$/)
+      .allow('', null)
+      .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
+  }),
 	  installmentCheckout: Joi.object({
 	    productId: Joi.string().hex().length(24).required(),
 	    quantity: Joi.number().integer().min(1).default(1),
