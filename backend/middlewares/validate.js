@@ -134,7 +134,8 @@ export const schemas = {
     physical: Joi.alternatives().try(
       Joi.string().allow('', null),
       physicalSchema
-    ).optional()
+    ).optional(),
+    socialVideoUrl: Joi.string().max(500).allow('', null).optional()
   }).or('category', 'categoryId', 'subcategoryId'),
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
@@ -183,7 +184,8 @@ export const schemas = {
     ),
     removeImages: Joi.array().items(Joi.string().max(500)).max(3).single(),
     removeVideo: Joi.boolean().truthy('true').falsy('false'),
-    removePdf: Joi.boolean().truthy('true').falsy('false')
+    removePdf: Joi.boolean().truthy('true').falsy('false'),
+    socialVideoUrl: Joi.string().max(500).allow('', null)
   }),
   commentCreate: Joi.object({
     productId: Joi.string().hex().length(24).optional(),

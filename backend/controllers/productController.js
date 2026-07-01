@@ -2119,38 +2119,15 @@ export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
   await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
 
-  const productIds = itemsRaw.map((item) => item._id);
-  const [commentStats, ratingStats] = productIds.length
-    ? await Promise.all([
-        Comment.aggregate([
-          { $match: { product: { $in: productIds } } },
-          { $group: { _id: '$product', count: { $sum: 1 } } }
-        ]),
-        Rating.aggregate([
-          { $match: { product: { $in: productIds } } },
-          { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
-        ])
-      ])
-    : [[], []];
-
-  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
-  const ratingMap = new Map(
-    ratingStats.map((stat) => [
-      String(stat._id),
-      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
-    ])
-  );
-
-  const items = itemsRaw.map((item) => {
-    const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
-    return {
-      ...withCategoryCompatibility(item),
-      commentCount: commentMap.get(String(item._id)) || 0,
-      ratingAverage: rating.average,
-      ratingCount: rating.count,
-      installmentAvailable: true
-    };
-  });
+  // Use the denormalized rating/comment counters stored on the product (same as
+  // /home/feed) instead of re-aggregating Comment/Rating on every request.
+  const items = itemsRaw.map((item) => ({
+    ...withCategoryCompatibility(item),
+    commentCount: Number(item.commentCount || 0),
+    ratingAverage: Number(item.ratingAverage || 0),
+    ratingCount: Number(item.ratingCount || 0),
+    installmentAvailable: true
+  }));
 
   res.json({
     items,
@@ -2210,38 +2187,15 @@ export const getPublicWholesaleProducts = asyncHandler(async (req, res) => {
   await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
   await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
 
-  const productIds = itemsRaw.map((item) => item._id);
-  const [commentStats, ratingStats] = productIds.length
-    ? await Promise.all([
-        Comment.aggregate([
-          { $match: { product: { $in: productIds } } },
-          { $group: { _id: '$product', count: { $sum: 1 } } }
-        ]),
-        Rating.aggregate([
-          { $match: { product: { $in: productIds } } },
-          { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
-        ])
-      ])
-    : [[], []];
-
-  const commentMap = new Map(commentStats.map((stat) => [String(stat._id), stat.count]));
-  const ratingMap = new Map(
-    ratingStats.map((stat) => [
-      String(stat._id),
-      { average: Number(stat.average?.toFixed(2) ?? 0), count: stat.count }
-    ])
-  );
-
-  const items = itemsRaw.map((item) => {
-    const rating = ratingMap.get(String(item._id)) || { average: 0, count: 0 };
-    return {
-      ...withCategoryCompatibility(item),
-      commentCount: commentMap.get(String(item._id)) || 0,
-      ratingAverage: rating.average,
-      ratingCount: rating.count,
-      wholesaleAvailable: Boolean(item?.wholesaleEnabled)
-    };
-  });
+  // Use the denormalized rating/comment counters stored on the product (same as
+  // /home/feed) instead of re-aggregating Comment/Rating on every request.
+  const items = itemsRaw.map((item) => ({
+    ...withCategoryCompatibility(item),
+    commentCount: Number(item.commentCount || 0),
+    ratingAverage: Number(item.ratingAverage || 0),
+    ratingCount: Number(item.ratingCount || 0),
+    wholesaleAvailable: Boolean(item?.wholesaleEnabled)
+  }));
 
   res.json({
     items,

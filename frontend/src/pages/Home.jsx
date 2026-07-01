@@ -860,8 +860,11 @@ const loadDiscountProducts = async () => {
 
   useEffect(() => {
     if (!shouldLoadInstallment) return;
+    // The /home/feed response already provides installment products; only fall
+    // back to the dedicated (heavier) endpoint when the feed hasn't loaded.
+    if (homeFeedLoaded) return;
     loadInstallmentProducts();
-  }, [shouldLoadInstallment, loadInstallmentProducts]);
+  }, [shouldLoadInstallment, homeFeedLoaded, loadInstallmentProducts]);
 
   const loadTopSales = async () => {
     setTopSalesLoading(true);
