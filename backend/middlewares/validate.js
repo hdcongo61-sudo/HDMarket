@@ -39,6 +39,23 @@ const physicalSchema = Joi.object({
     unit: Joi.string().valid('cm').allow('', null)
   }).optional()
 });
+const transactionCodeSchema = Joi.string()
+  .pattern(/^\d{10}$/)
+  .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' });
+
+// Keys shared by every orderCheckout alternative (single-payment, per-seller, sponsored).
+const checkoutBaseKeys = {
+  deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
+  paymentMode: Joi.string().valid('STANDARD', 'FULL_PAYMENT').default('STANDARD'),
+  checkoutPromotionApplied: Joi.boolean().default(false),
+  shippingAddress: Joi.object({
+    cityId: Joi.string().hex().length(24).allow('', null),
+    communeId: Joi.string().hex().length(24).allow('', null),
+    addressLine: Joi.string().max(250).allow('', null),
+    phone: Joi.string().trim().min(5).max(30).allow('', null)
+  }).allow(null)
+};
+
 const selectedAttributeSchema = Joi.object({
   name: Joi.string().min(1).max(60).required(),
   value: Joi.alternatives().try(Joi.string().max(120), Joi.number()).required()
@@ -582,24 +599,13 @@ export const schemas = {
   orderCheckout: Joi.alternatives()
     .try(
       Joi.object({
-        deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
-        paymentMode: Joi.string().valid('STANDARD', 'FULL_PAYMENT').default('STANDARD'),
-        checkoutPromotionApplied: Joi.boolean().default(false),
-        shippingAddress: Joi.object({
-          cityId: Joi.string().hex().length(24).allow('', null),
-          communeId: Joi.string().hex().length(24).allow('', null),
-          addressLine: Joi.string().max(250).allow('', null),
-          phone: Joi.string().trim().min(5).max(30).allow('', null)
-        }).allow(null),
+        ...checkoutBaseKeys,
         payments: Joi.array()
           .items(
             Joi.object({
               sellerId: Joi.string().hex().length(24).required(),
               payerName: Joi.string().min(2).max(120).required(),
-              transactionCode: Joi.string()
-                .pattern(/^\d{10}$/)
-                .required()
-                .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
+              transactionCode: transactionCodeSchema.required(),
               promoCode: Joi.string().trim().uppercase().min(3).max(40).allow('', null)
             })
           )
@@ -607,33 +613,14 @@ export const schemas = {
           .required()
       }),
       Joi.object({
-        deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
-        paymentMode: Joi.string().valid('STANDARD', 'FULL_PAYMENT').default('STANDARD'),
-        checkoutPromotionApplied: Joi.boolean().default(false),
-        shippingAddress: Joi.object({
-          cityId: Joi.string().hex().length(24).allow('', null),
-          communeId: Joi.string().hex().length(24).allow('', null),
-          addressLine: Joi.string().max(250).allow('', null),
-          phone: Joi.string().trim().min(5).max(30).allow('', null)
-        }).allow(null),
+        ...checkoutBaseKeys,
         payerName: Joi.string().min(2).max(120).required(),
-        transactionCode: Joi.string()
-          .pattern(/^\d{10}$/)
-          .required()
-          .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' }),
+        transactionCode: transactionCodeSchema.required(),
         promoCode: Joi.string().trim().uppercase().min(3).max(40).allow('', null)
       }),
       // "Ask a friend to pay" — buyer sends the order to a chosen payer; no payment captured now.
       Joi.object({
-        deliveryMode: Joi.string().valid('PICKUP', 'DELIVERY').default('PICKUP'),
-        paymentMode: Joi.string().valid('STANDARD', 'FULL_PAYMENT').default('STANDARD'),
-        checkoutPromotionApplied: Joi.boolean().default(false),
-        shippingAddress: Joi.object({
-          cityId: Joi.string().hex().length(24).allow('', null),
-          communeId: Joi.string().hex().length(24).allow('', null),
-          addressLine: Joi.string().max(250).allow('', null),
-          phone: Joi.string().trim().min(5).max(30).allow('', null)
-        }).allow(null),
+        ...checkoutBaseKeys,
         promoCode: Joi.string().trim().uppercase().min(3).max(40).allow('', null),
         sponsorship: Joi.object({
           payerPhone: Joi.string().trim().min(5).max(30).required(),
@@ -645,11 +632,9 @@ export const schemas = {
   sponsorshipRespond: Joi.object({
     action: Joi.string().valid('accept', 'decline').required(),
     paymentMode: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    paymentOption: Joi.string().valid('deposit', 'full').default('deposit'),
     payerName: Joi.string().min(2).max(120).allow('', null),
-    transactionCode: Joi.string()
-      .pattern(/^\d{10}$/)
-      .allow('', null)
-      .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
+    transactionCode: transactionCodeSchema.allow('', null)
   }),
   sponsorshipRetry: Joi.object({
     payerPhone: Joi.string().trim().min(5).max(30).required(),
@@ -657,11 +642,9 @@ export const schemas = {
   }),
   sponsorshipPaySelf: Joi.object({
     paymentMode: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    paymentOption: Joi.string().valid('deposit', 'full').default('deposit'),
     payerName: Joi.string().min(2).max(120).allow('', null),
-    transactionCode: Joi.string()
-      .pattern(/^\d{10}$/)
-      .allow('', null)
-      .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' })
+    transactionCode: transactionCodeSchema.allow('', null)
   }),
 	  installmentCheckout: Joi.object({
 	    productId: Joi.string().hex().length(24).required(),

@@ -93,6 +93,15 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 1,
     max: 336
   },
+  pay_for_other_payment_instructions: {
+    category: 'checkout',
+    description: 'Instructions Mobile Money affichées au proche qui règle une commande (numéro de dépôt, opérateur…).',
+    valueType: 'string',
+    defaultValue:
+      'Effectuez le dépôt Mobile Money du montant indiqué, puis saisissez le code de transaction (10 chiffres) reçu par SMS.',
+    isPublic: true,
+    maxLength: 300
+  },
   show_pay_for_other_home_banner: {
     category: 'ui',
     description: 'Affiche un mini bandeau homepage encourageant à faire régler sa commande par un proche.',

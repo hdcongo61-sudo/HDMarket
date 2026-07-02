@@ -42,6 +42,7 @@ import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { getPickupShopAddress, isPickupOrder } from '../utils/pickupAddress';
+import { getSponsorshipStatusMeta } from '../utils/sponsorship';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
@@ -1293,27 +1294,19 @@ export default function OrderDetail() {
         <div className="mx-auto max-w-5xl px-4 pt-4">
           <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-sm">
             <p className="font-black text-amber-900">
-              {order.sponsoredPayment.status === 'pending'
-                ? 'En attente du paiement par un proche'
-                : order.sponsoredPayment.status === 'accepted'
-                  ? 'Réglée par un proche'
-                  : order.sponsoredPayment.status === 'self_paid'
-                    ? 'Réglée par vous-même'
-                    : order.sponsoredPayment.status === 'declined'
-                      ? 'Demande de paiement refusée'
-                      : order.sponsoredPayment.status === 'expired'
-                        ? 'Demande de paiement expirée'
-                        : 'Demande de paiement annulée'}
+              {getSponsorshipStatusMeta(order.sponsoredPayment.status).title}
             </p>
             <p className="mt-0.5 text-xs font-semibold text-amber-700">
-              {order.sponsoredPayment.status === 'pending'
-                ? 'Votre proche a reçu une notification pour régler cette commande.'
-                : order.sponsoredPayment.status === 'accepted'
-                  ? 'Le paiement a été effectué par le proche désigné.'
-                  : order.sponsoredPayment.status === 'self_paid'
-                    ? 'Vous avez réglé cette commande vous-même.'
-                    : 'Gérez cette commande depuis « Paiement par un proche » : payez vous-même ou réessayez.'}
+              {getSponsorshipStatusMeta(order.sponsoredPayment.status).hint}
             </p>
+            {['pending', 'declined', 'expired'].includes(order.sponsoredPayment.status) && (
+              <Link
+                to="/sponsorships"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-black text-amber-900 underline underline-offset-2"
+              >
+                Gérer la demande →
+              </Link>
+            )}
           </section>
         </div>
       )}

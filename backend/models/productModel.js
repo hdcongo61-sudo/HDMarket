@@ -64,6 +64,9 @@ const productSchema = new mongoose.Schema(
     status: { type: String, enum: ['pending', 'approved', 'rejected', 'disabled'], default: 'pending' },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
+    // Listing fee settled without a Payment row (waived by promo / zero commission).
+    // Grants public visibility alongside verified LISTING_FEE payments.
+    listingFeeSettled: { type: Boolean, default: false, index: true },
     country: { type: String, default: 'République du Congo' },
     city: { type: String, default: 'Brazzaville', trim: true },
     validationDate: { type: Date, default: null, index: true },

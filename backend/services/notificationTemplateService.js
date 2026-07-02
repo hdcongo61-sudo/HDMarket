@@ -248,6 +248,37 @@ const TEMPLATES = {
     actionLabel: 'Voir la commande'
   }),
 
+  // === SPONSORED PAYMENT ("pay for me") ===
+  sponsorship_request: ({ metadata, actorName }) => {
+    const amount = formatAmount(metadata.totalAmount);
+    const requester = metadata.requesterName || actorName;
+    return {
+      title: 'Demande de paiement',
+      message: `${requester} vous demande de régler sa commande${amount ? ` de ${amount}` : ''}. Approuvez ou refusez la demande.`,
+      actionLabel: 'Voir la demande'
+    };
+  },
+  sponsorship_accepted: ({ metadata, actorName }) => {
+    const amount = formatAmount(metadata.totalAmount);
+    return {
+      title: 'Commande réglée par un proche',
+      message: `${metadata.payerName || actorName} a réglé votre commande${amount ? ` de ${amount}` : ''}. Elle est maintenant en cours de traitement.`,
+      actionLabel: 'Voir mes demandes'
+    };
+  },
+  sponsorship_declined: ({ metadata, actorName }) => ({
+    title: metadata.cancelledByRequester ? 'Demande annulée' : 'Demande refusée',
+    message: metadata.cancelledByRequester
+      ? `${actorName} a annulé sa demande de paiement.`
+      : `${actorName} a refusé de régler votre commande. Vous pouvez la payer vous-même ou solliciter un autre proche.`,
+    actionLabel: 'Voir mes demandes'
+  }),
+  sponsorship_expired: () => ({
+    title: 'Demande expirée',
+    message: 'Votre demande de paiement par un proche a expiré. Vous pouvez payer vous-même ou solliciter un autre proche.',
+    actionLabel: 'Voir mes demandes'
+  }),
+
   // === PRODUCT / SHOP ===
   product_approved: ({ snapshot }) => ({
     title: 'Annonce approuvée ✅',

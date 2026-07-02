@@ -73,6 +73,7 @@ import { protect, admin } from './middlewares/authMiddleware.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
 import { processInstallmentReminders } from './utils/installmentReminder.js';
 import { expireBoostRequests } from './utils/boostService.js';
+import { expireStaleSponsorships } from './controllers/orderController.js';
 import { startCacheSnapshotScheduler } from './utils/cache.js';
 import { ensureDefaultSettingsBootstrap } from './controllers/settingsController.js';
 import { initRedis, closeRedis } from './config/redisClient.js';
@@ -701,6 +702,19 @@ httpServer.listen(port, () => {
 
   setTimeout(runBoostExpiration, 10 * 60 * 1000);
   setInterval(runBoostExpiration, BOOST_EXPIRATION_INTERVAL);
+
+  // Expire "pay for me" sponsorship requests past their TTL and notify requesters.
+  const SPONSORSHIP_EXPIRATION_INTERVAL = 15 * 60 * 1000; // 15 minutes
+  const runSponsorshipExpiration = async () => {
+    try {
+      await expireStaleSponsorships();
+    } catch (error) {
+      console.error('Error running sponsorship expiration scheduler:', error);
+    }
+  };
+
+  setTimeout(runSponsorshipExpiration, 3 * 60 * 1000);
+  setInterval(runSponsorshipExpiration, SPONSORSHIP_EXPIRATION_INTERVAL);
 });
 
 const gracefulShutdown = async () => {

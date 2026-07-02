@@ -38,8 +38,8 @@ import {
 } from '../utils/wholesaleUtils.js';
 import { getSellerResponseStats } from '../utils/sellerResponseStats.js';
 import {
-  hasVerifiedPaymentForProduct,
   invalidateVerifiedProductCache,
+  isListingFeeSettledForProduct,
   withVerifiedPublicProductFilter
 } from '../utils/publicProductVisibility.js';
 import {
@@ -1141,9 +1141,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     const promoDiscount = Number(commission?.discountAmount || 0);
     const promoWaived = Boolean(commission?.isWaived);
 
-    // Build the verified LISTING_FEE payment that marks the product as publicly
-    // visible (public listings/detail require a Payment with status 'verified').
-    const buildListingPaymentPayload = ({ walletTransactionId = '' } = {}) => ({
+    // Build the verified LISTING_FEE payment recording the wallet transaction
+    // (public listings/detail require a verified Payment or listingFeeSettled).
+    const buildListingPaymentPayload = ({ walletTransactionId }) => ({
       buyer: req.user.id,
       seller: req.user.id,
       user: req.user.id,
@@ -1174,11 +1174,11 @@ export const createProduct = asyncHandler(async (req, res) => {
     });
 
     if (dueAmount <= 0) {
-      // Commission waived by promo or zero — auto-approve without payment
+      // Commission waived by promo or zero — auto-approve; the listingFeeSettled
+      // flag grants public visibility without a placeholder Payment row.
       product.status = 'approved';
       product.validationDate = new Date();
-      const payment = await Payment.create(buildListingPaymentPayload());
-      product.payment = payment._id;
+      product.listingFeeSettled = true;
       await product.save();
       invalidateVerifiedProductCache();
 
@@ -2325,8 +2325,8 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
   const productDoc = await Product.findOne(query).populate('user', SHOP_SELECT_FIELDS);
   await ensureProductSlug(productDoc);
-  const hasVerifiedPayment = await hasVerifiedPaymentForProduct(productDoc?.payment);
-  if (!productDoc || productDoc.status !== 'approved' || !hasVerifiedPayment) {
+  const listingFeeSettled = await isListingFeeSettledForProduct(productDoc);
+  if (!productDoc || productDoc.status !== 'approved' || !listingFeeSettled) {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
 
@@ -2378,9 +2378,11 @@ export const registerPublicProductView = asyncHandler(async (req, res) => {
     ...buildIdentifierQuery(req.params.id),
     status: 'approved'
   };
-  const product = await Product.findOne(query).select('_id payment viewsCount uniqueViewsCount lastViewedAt');
-  const hasVerifiedPayment = await hasVerifiedPaymentForProduct(product?.payment);
-  if (!product || !hasVerifiedPayment) {
+  const product = await Product.findOne(query).select(
+    '_id payment listingFeeSettled viewsCount uniqueViewsCount lastViewedAt'
+  );
+  const listingFeeSettled = await isListingFeeSettledForProduct(product);
+  if (!product || !listingFeeSettled) {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
 

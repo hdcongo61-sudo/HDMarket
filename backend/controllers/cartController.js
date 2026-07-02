@@ -7,7 +7,7 @@ import { getWholesalePricing, normalizeWholesaleTiers } from '../utils/wholesale
 import { invalidateUserCache } from '../utils/cache.js';
 import {
   getVerifiedProductIds,
-  hasVerifiedPaymentForProduct
+  isListingFeeSettledForProduct
 } from '../utils/publicProductVisibility.js';
 import {
   buildSelectedAttributesSelectionKey,
@@ -201,9 +201,9 @@ export const addItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Quantity must be greater than zero' });
   }
 
-  const product = await Product.findById(productId).select('status payment attributes');
-  const hasVerifiedPayment = await hasVerifiedPaymentForProduct(product?.payment);
-  if (!product || product.status !== 'approved' || !hasVerifiedPayment) {
+  const product = await Product.findById(productId).select('status payment listingFeeSettled attributes');
+  const listingFeeSettled = await isListingFeeSettledForProduct(product);
+  if (!product || product.status !== 'approved' || !listingFeeSettled) {
     return res.status(404).json({ message: 'Product unavailable' });
   }
 

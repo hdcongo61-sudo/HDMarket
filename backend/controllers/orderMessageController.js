@@ -9,6 +9,7 @@ import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import { HIDE_PENDING_SPONSORED } from '../utils/sellerOrderVisibility.js';
 import {
   emitOrderConversationRead,
   emitOrderMessageCreated,
@@ -115,7 +116,7 @@ const buildOrderVisibilityQueryForUser = async ({ req, includeMessagePermission 
   return {
     $or: [
       { customer: userId },
-      { 'items.snapshot.shopId': { $in: sellerIds } }
+      { 'items.snapshot.shopId': { $in: sellerIds }, ...HIDE_PENDING_SPONSORED }
     ]
   };
 };

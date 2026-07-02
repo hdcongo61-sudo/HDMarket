@@ -33,7 +33,8 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
-  ChevronRight
+  ChevronRight,
+  Users
 } from 'lucide-react';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -1786,6 +1787,13 @@ export default function UserOrders() {
                 {t('orders.subtitle', 'Suivi livraison et paiement')}
               </p>
             </div>
+            <Link
+              to="/sponsorships"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-2 text-xs font-bold text-gray-500 transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200 sm:gap-2 sm:px-3"
+            >
+              <Users className="h-3.5 w-3.5" />
+              {t('orders.sponsorships', 'Proche')}
+            </Link>
             <Link
               to="/stats"
               className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-2 text-xs font-bold text-gray-500 transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200 sm:gap-2 sm:px-3"

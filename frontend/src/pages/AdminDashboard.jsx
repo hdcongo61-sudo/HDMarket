@@ -460,6 +460,7 @@ export default function AdminDashboard() {
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
+    const payForOtherPromise = api.get('/orders/admin/pay-for-other-stats');
     try {
       const { data } = await api.get('/admin/stats');
       setStats(data);
@@ -470,7 +471,7 @@ export default function AdminDashboard() {
       setStatsLoading(false);
     }
     try {
-      const { data } = await api.get('/orders/admin/pay-for-other-stats');
+      const { data } = await payForOtherPromise;
       setPayForOtherStats(data);
     } catch {
       setPayForOtherStats(null);

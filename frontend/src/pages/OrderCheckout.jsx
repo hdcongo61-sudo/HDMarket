@@ -146,6 +146,7 @@ export default function OrderCheckout() {
     fullPaymentPromotionEnabled &&
     fullPaymentFreeDeliveryEnabled;
   const isWalletPayment = paymentMode === PAYMENT_MODES.WALLET;
+  const paysWithWallet = isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet');
   const isSponsorPayment = paymentMode === PAYMENT_MODES.SPONSOR;
   const isStandardPayment =
     !isInstallmentPayment && !isFullPaymentSelected && !isWalletPayment && !isSponsorPayment;
@@ -2177,7 +2178,7 @@ export default function OrderCheckout() {
               type="submit"
               disabled={loading}
               className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-black text-white transition active:scale-[0.98] disabled:opacity-60 sm:text-xl ${
-                (isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet'))
+                paysWithWallet
                   ? 'bg-emerald-600 shadow-[0_14px_32px_rgba(16,185,129,0.28)] hover:bg-emerald-700'
                   : 'bg-[#ff6a00] shadow-[0_14px_32px_rgba(255,106,0,0.28)] hover:bg-[#f05f00]'
               }`}
@@ -2185,12 +2186,12 @@ export default function OrderCheckout() {
               {loading ? (
                 <>
                   <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
-                  {checkoutStatus || ((isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...')}
+                  {checkoutStatus || (paysWithWallet ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...')}
                 </>
               ) : (
                 <>
                   <Lock size={22} />
-                  {isSponsorPayment ? 'Envoyer la demande au proche' : (isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
+                  {isSponsorPayment ? 'Envoyer la demande au proche' : paysWithWallet ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
                 </>
               )}
             </button>
@@ -2201,7 +2202,7 @@ export default function OrderCheckout() {
         <div className="mx-auto flex max-w-7xl items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-              {(isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet')) ? 'Paiement portefeuille' : summaryPrimaryPaymentLabel}
+              {paysWithWallet ? 'Paiement portefeuille' : summaryPrimaryPaymentLabel}
             </p>
             <p className="truncate text-2xl font-black text-[#ff6a00]">
               {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}
@@ -2212,7 +2213,7 @@ export default function OrderCheckout() {
             form="order-checkout-form"
             disabled={loading}
             className={`inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl px-7 text-lg font-black text-white active:scale-[0.97] disabled:opacity-60 ${
-              (isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet'))
+              paysWithWallet
                 ? 'bg-emerald-600 shadow-[0_14px_28px_rgba(16,185,129,0.30)]'
                 : 'bg-[#ff6a00] shadow-[0_14px_28px_rgba(255,106,0,0.30)]'
             }`}

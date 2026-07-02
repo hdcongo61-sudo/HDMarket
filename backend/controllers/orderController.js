@@ -25,6 +25,7 @@ import { DELIVERY_FEE_SOURCE, resolveDeliveryPricing } from '../utils/deliveryPr
 import { getWholesalePricing } from '../utils/wholesaleUtils.js';
 import {
   findUsedTransactionCodes,
+  isTransactionCodeValid,
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
@@ -44,6 +45,7 @@ import {
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { buildPhoneCandidates } from '../utils/firebaseVerification.js';
 import { safeAsync } from '../utils/safeAsync.js';
+import { HIDE_PENDING_SPONSORED } from '../utils/sellerOrderVisibility.js';
 import { applyDeliveryFeeToOrder } from '../services/orderDeliveryFeeService.js';
 import {
   cancelOrderReviewReminder,
@@ -1373,25 +1375,18 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     if (!payForOtherEnabled) {
       return res.status(403).json({ message: 'Le paiement par un proche est désactivé.' });
     }
-    const phoneCandidates = buildPhoneCandidates(requestedPayerPhone);
-    sponsorPayer = await User.findOne({ phone: { $in: phoneCandidates } }).select(
-      '_id name shopName phone isBlocked'
-    );
-    if (!sponsorPayer) {
-      return res.status(404).json({
-        message: 'Aucun utilisateur HDMarket ne correspond à ce numéro.',
-        code: 'sponsor_not_found'
-      });
+    try {
+      [sponsorPayer, sponsorExpiresAt] = await Promise.all([
+        resolveEligibleSponsorPayer(requestedPayerPhone, userId),
+        computeSponsorExpiry()
+      ]);
+    } catch (error) {
+      if (error?.status) {
+        return res.status(error.status).json({ message: error.message, code: error.code });
+      }
+      throw error;
     }
-    if (String(sponsorPayer._id) === String(userId)) {
-      return res.status(400).json({ message: 'Vous ne pouvez pas vous désigner vous-même.' });
-    }
-    if (sponsorPayer.isBlocked) {
-      return res.status(400).json({ message: 'Ce compte ne peut pas régler de commande pour le moment.' });
-    }
-    const ttlHours = Number(await getRuntimeConfig('pay_for_other_request_ttl_hours', { fallback: 48 })) || 48;
     sponsorRequestGroupId = new mongoose.Types.ObjectId().toString();
-    sponsorExpiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
   }
 
   const cart = await Cart.findOne({ user: userId }).lean();
@@ -1698,9 +1693,10 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     throw error;
   }
 
+  const responseOrders = createdOrders.map(buildOrderResponse);
+
   // Sponsored checkout: notify the designated payer only; sellers stay unaware until payment.
   if (isSponsored) {
-    const responseOrders = createdOrders.map(buildOrderResponse);
     const sponsoredTotal = createdOrders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
     res.status(201).json({
       sponsorship: {
@@ -1740,7 +1736,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     return;
   }
 
-  const responseOrders = createdOrders.map(buildOrderResponse);
   if (responseOrders.length === 1) {
     res.status(201).json(responseOrders[0]);
   } else {
@@ -2040,6 +2035,36 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
 
 const MAX_SPONSOR_ATTEMPTS = 2;
 
+// Resolve and vet a designated payer by phone. Returns the user document or
+// throws { status, message, code }. Shared by checkout, resolve and retry flows.
+const resolveEligibleSponsorPayer = async (phone, requesterId) => {
+  const candidates = buildPhoneCandidates(String(phone || '').trim());
+  const payer = await User.findOne({ phone: { $in: candidates } }).select(
+    '_id name shopName phone isBlocked'
+  );
+  if (!payer) {
+    throw Object.assign(new Error('Aucun utilisateur HDMarket ne correspond à ce numéro.'), {
+      status: 404,
+      code: 'sponsor_not_found'
+    });
+  }
+  if (String(payer._id) === String(requesterId)) {
+    throw Object.assign(new Error('Vous ne pouvez pas vous désigner vous-même.'), { status: 400 });
+  }
+  if (payer.isBlocked) {
+    throw Object.assign(new Error('Ce compte ne peut pas régler de commande pour le moment.'), {
+      status: 400
+    });
+  }
+  return payer;
+};
+
+const computeSponsorExpiry = async () => {
+  const ttlHours =
+    Number(await getRuntimeConfig('pay_for_other_request_ttl_hours', { fallback: 48 })) || 48;
+  return new Date(Date.now() + ttlHours * 60 * 60 * 1000);
+};
+
 // Revert a declined/expired order back to an actionable state before re-payment/retry.
 const reviveSponsoredOrder = (order) => {
   if (order.status === 'cancelled') order.status = 'pending';
@@ -2056,6 +2081,7 @@ const captureGroupPayment = async ({
   payerUserId,
   payerUser,
   paymentMode,
+  paymentOption = 'deposit',
   payerName,
   transactionCode,
   sponsoredStatus
@@ -2075,41 +2101,44 @@ const captureGroupPayment = async ({
       });
     }
     await purchaseFromWallet({ userId: payerUserId, amount: total, reference: `sponsor-${groupId}` });
-    for (const order of orders) {
-      const sellerId = String(order.items?.[0]?.snapshot?.shopId || '');
-      const sellerCredit = Math.max(0, Number(order.totalAmount || 0) - Number(order.deliveryFeeTotal || 0));
-      reviveSponsoredOrder(order);
-      order.status = 'paid';
-      order.paymentStatus = 'PAID_FULL';
-      order.paymentSource = 'wallet';
-      order.paymentCompletedAt = now;
-      order.paidAmount = Number(order.totalAmount || 0);
-      order.remainingAmount = 0;
-      order.paymentName = payerUser?.name || payerUser?.shopName || 'Portefeuille HDMarket';
-      order.sponsoredPayment.status = sponsoredStatus;
-      order.sponsoredPayment.respondedAt = now;
-      order.sponsoredPayment.paidBy = payerUserId;
-      await order.save();
-      if (sellerId && sellerId !== 'unknown' && sellerCredit > 0) {
-        await safeAsync(
-          () =>
-            creditSellerWalletSale({
-              userId: sellerId,
-              amount: sellerCredit,
-              orderId: String(order._id),
-              buyerId: order.customer,
-              reference: `sponsor-${groupId}`
-            }),
-          { label: 'sponsor_credit_seller' }
-        );
-      }
-    }
+    await Promise.all(
+      orders.map((order) => {
+        const sellerId = String(order.items?.[0]?.snapshot?.shopId || '');
+        const sellerCredit = Math.max(0, Number(order.totalAmount || 0) - Number(order.deliveryFeeTotal || 0));
+        reviveSponsoredOrder(order);
+        order.status = 'paid';
+        order.paymentStatus = 'PAID_FULL';
+        order.paymentSource = 'wallet';
+        order.paymentCompletedAt = now;
+        order.paidAmount = Number(order.totalAmount || 0);
+        order.remainingAmount = 0;
+        order.paymentName = payerUser?.name || payerUser?.shopName || 'Portefeuille HDMarket';
+        order.sponsoredPayment.status = sponsoredStatus;
+        order.sponsoredPayment.respondedAt = now;
+        order.sponsoredPayment.paidBy = payerUserId;
+        if (sellerId && sellerId !== 'unknown' && sellerCredit > 0) {
+          void safeAsync(
+            () =>
+              creditSellerWalletSale({
+                userId: sellerId,
+                amount: sellerCredit,
+                orderId: String(order._id),
+                buyerId: order.customer,
+                reference: `sponsor-${groupId}`
+              }),
+            { label: 'sponsor_credit_seller' }
+          );
+        }
+        return order.save();
+      })
+    );
     return;
   }
-  // mobile money — payer supplies a transaction code (deposit); seller verifies later.
+  // mobile money — payer supplies a transaction code (25% deposit or full payment,
+  // per paymentOption); the seller verifies the code later.
   const name = String(payerName || '').trim();
   const code = normalizeTransactionCode(transactionCode);
-  if (!name || !/^\d{10}$/.test(code)) {
+  if (!name || !isTransactionCodeValid(code)) {
     throw Object.assign(new Error('Nom du payeur et code de transaction (10 chiffres) requis.'), {
       status: 400
     });
@@ -2123,11 +2152,58 @@ const captureGroupPayment = async ({
     order.paymentName = name;
     order.paymentTransactionCode = code;
     order.paymentSource = 'mobile_money';
+    if (paymentOption === 'full') {
+      order.status = 'paid';
+      order.paymentStatus = 'PAID_FULL';
+      order.paymentCompletedAt = now;
+      order.paidAmount = Number(order.totalAmount || 0);
+      order.remainingAmount = 0;
+    }
     order.sponsoredPayment.status = sponsoredStatus;
     order.sponsoredPayment.respondedAt = now;
     order.sponsoredPayment.paidBy = payerUserId;
-    await order.save();
   }
+  await Promise.all(orders.map((order) => order.save()));
+};
+
+// Restriction check + payment capture + seller notifications, shared by the
+// designated-payer accept flow and the requester pay-self flow. Writes the
+// error response and returns null on failure; returns the payer on success.
+const settleSponsorshipGroup = async (
+  res,
+  {
+    orders,
+    userId,
+    paymentMode,
+    paymentOption,
+    payerName,
+    transactionCode,
+    sponsoredStatus,
+    defaultPayerNameToSelf = false
+  }
+) => {
+  const payer = await User.findById(userId).select('name shopName restrictions');
+  if (isRestricted(payer, 'canOrder')) {
+    res.status(403).json({ message: getRestrictionMessage('canOrder'), restrictionType: 'canOrder' });
+    return null;
+  }
+  try {
+    await captureGroupPayment({
+      orders,
+      payerUserId: userId,
+      payerUser: payer,
+      paymentMode,
+      paymentOption,
+      payerName: payerName || (defaultPayerNameToSelf ? payer?.name || payer?.shopName : ''),
+      transactionCode,
+      sponsoredStatus
+    });
+  } catch (error) {
+    res.status(error.status || 400).json({ message: error.message, code: error.code });
+    return null;
+  }
+  notifySellersSponsoredPaid(orders, userId);
+  return payer;
 };
 
 // Notify each seller that a (now-paid) sponsored order is ready for them.
@@ -2162,40 +2238,51 @@ const summarizeSponsorshipGroup = (orders = []) => {
     status: sp.status || 'pending',
     message: sp.message || '',
     attemptCount: Number(sp.attemptCount || 1),
+    maxAttempts: MAX_SPONSOR_ATTEMPTS,
     canRetry: ['declined', 'expired'].includes(sp.status) && Number(sp.attemptCount || 1) < MAX_SPONSOR_ATTEMPTS,
     requestedAt: sp.requestedAt || first?.createdAt || null,
     respondedAt: sp.respondedAt || null,
     expiresAt: sp.expiresAt || null,
     orderCount: orders.length,
     totalAmount: orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
+    // 25% acompte recorded at checkout — what a mobile-money "deposit" payment covers.
+    depositAmount: orders.reduce((sum, order) => sum + Number(order.paidAmount || 0), 0),
+    productTitles: orders
+      .flatMap((order) => (order.items || []).map((item) => item?.snapshot?.title).filter(Boolean))
+      .slice(0, 3),
     requester: sp.requester
       ? { id: sp.requester._id || sp.requester, name: sp.requester.name || sp.requester.shopName || '' }
       : null,
     payer: sp.payer
       ? { id: sp.payer._id || sp.payer, name: sp.payer.name || sp.payer.shopName || '' }
-      : null,
-    orders: orders.map(buildOrderResponse)
+      : null
   };
 };
 
-// Lazily expire pending sponsorship requests whose TTL has elapsed and notify the requester.
-const expireStaleSponsorships = async (filter = {}) => {
+// Expire pending sponsorship requests whose TTL has elapsed and notify the requester.
+// Runs on an interval from server.js; also invoked with a group filter when a payer
+// responds to an already-expired request.
+export const expireStaleSponsorships = async (filter = {}) => {
   const now = new Date();
-  const stale = await Order.find({
+  const staleFilter = {
     'sponsoredPayment.isSponsored': true,
     'sponsoredPayment.status': 'pending',
     'sponsoredPayment.expiresAt': { $lt: now },
     ...filter
-  }).select('_id sponsoredPayment customer');
+  };
+  const stale = await Order.find(staleFilter).select('_id sponsoredPayment customer').lean();
   if (!stale.length) return;
+  await Order.updateMany(staleFilter, {
+    $set: {
+      'sponsoredPayment.status': 'expired',
+      'sponsoredPayment.respondedAt': now,
+      status: 'cancelled',
+      cancelledAt: now,
+      cancellationReason: 'Demande de paiement par un proche expirée.'
+    }
+  });
   const groups = new Map();
   for (const order of stale) {
-    order.sponsoredPayment.status = 'expired';
-    order.sponsoredPayment.respondedAt = now;
-    order.status = 'cancelled';
-    order.cancelledAt = now;
-    order.cancellationReason = 'Demande de paiement par un proche expirée.';
-    await order.save();
     const gid = order.sponsoredPayment.requestGroupId;
     if (gid && !groups.has(gid)) groups.set(gid, order);
   }
@@ -2220,71 +2307,63 @@ export const resolveSponsorPayer = asyncHandler(async (req, res) => {
   if (!enabled) return res.status(403).json({ message: 'Fonctionnalité désactivée.' });
   const phone = String(req.query?.phone || '').trim();
   if (!phone) return res.status(400).json({ found: false, message: 'Numéro requis.' });
-  const candidates = buildPhoneCandidates(phone);
-  const user = await User.findOne({ phone: { $in: candidates } }).select('_id name shopName isBlocked');
-  if (!user || user.isBlocked || String(user._id) === String(req.user?.id || req.user?._id)) {
-    return res.json({ found: false });
+  try {
+    const user = await resolveEligibleSponsorPayer(phone, req.user?.id || req.user?._id);
+    return res.json({ found: true, userId: user._id, name: user.name || user.shopName || 'Utilisateur' });
+  } catch (error) {
+    if (error?.status) return res.json({ found: false });
+    throw error;
   }
-  return res.json({ found: true, userId: user._id, name: user.name || user.shopName || 'Utilisateur' });
 });
 
-// GET /orders/sponsor/incoming — pending requests where I am the designated payer.
-export const listIncomingSponsorships = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.user?._id;
-  await expireStaleSponsorships({ 'sponsoredPayment.payer': userId });
-  const orders = await baseOrderQuery()
-    .find({ 'sponsoredPayment.isSponsored': true, 'sponsoredPayment.payer': userId })
-    .sort({ createdAt: -1 })
-    .limit(120);
-  const groups = new Map();
-  for (const order of orders) {
-    const gid = order.sponsoredPayment?.requestGroupId || String(order._id);
-    if (!groups.has(gid)) groups.set(gid, []);
-    groups.get(gid).push(order);
-  }
-  res.json({ requests: Array.from(groups.values()).map(summarizeSponsorshipGroup) });
-});
+// GET /orders/sponsor/incoming|sent — grouped requests where I am the payer|requester.
+// Summaries only need the sponsorship block and totals, not the full populated orders.
+const makeSponsorshipList = (roleField) =>
+  asyncHandler(async (req, res) => {
+    const userId = req.user?.id || req.user?._id;
+    const orders = await Order.find({ 'sponsoredPayment.isSponsored': true, [roleField]: userId })
+      .select('sponsoredPayment totalAmount paidAmount items.snapshot.title createdAt')
+      .populate('sponsoredPayment.requester sponsoredPayment.payer', 'name shopName')
+      .sort({ createdAt: -1 })
+      .limit(120)
+      .lean();
+    const groups = new Map();
+    for (const order of orders) {
+      const gid = order.sponsoredPayment?.requestGroupId || String(order._id);
+      if (!groups.has(gid)) groups.set(gid, []);
+      groups.get(gid).push(order);
+    }
+    res.json({ requests: Array.from(groups.values()).map(summarizeSponsorshipGroup) });
+  });
 
-// GET /orders/sponsor/sent — requests I have sent to others.
-export const listSentSponsorships = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.user?._id;
-  await expireStaleSponsorships({ 'sponsoredPayment.requester': userId });
-  const orders = await baseOrderQuery()
-    .find({ 'sponsoredPayment.isSponsored': true, 'sponsoredPayment.requester': userId })
-    .sort({ createdAt: -1 })
-    .limit(120);
-  const groups = new Map();
-  for (const order of orders) {
-    const gid = order.sponsoredPayment?.requestGroupId || String(order._id);
-    if (!groups.has(gid)) groups.set(gid, []);
-    groups.get(gid).push(order);
-  }
-  res.json({ requests: Array.from(groups.values()).map(summarizeSponsorshipGroup) });
-});
+export const listIncomingSponsorships = makeSponsorshipList('sponsoredPayment.payer');
+export const listSentSponsorships = makeSponsorshipList('sponsoredPayment.requester');
 
 // POST /orders/sponsor/:groupId/cancel — requester cancels a still-pending request.
 export const cancelSponsorship = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const groupId = String(req.params?.groupId || '').trim();
-  const orders = await Order.find({
+  const groupFilter = {
     'sponsoredPayment.requestGroupId': groupId,
     'sponsoredPayment.requester': userId,
     'sponsoredPayment.status': 'pending'
-  });
+  };
+  const orders = await Order.find(groupFilter).select('sponsoredPayment').lean();
   if (!orders.length) {
     return res.status(404).json({ message: 'Demande introuvable ou déjà traitée.' });
   }
   const now = new Date();
   const payerId = orders[0].sponsoredPayment?.payer;
-  for (const order of orders) {
-    order.sponsoredPayment.status = 'cancelled';
-    order.sponsoredPayment.respondedAt = now;
-    order.status = 'cancelled';
-    order.cancelledAt = now;
-    order.cancelledBy = userId;
-    order.cancellationReason = 'Demande de paiement par un proche annulée.';
-    await order.save();
-  }
+  await Order.updateMany(groupFilter, {
+    $set: {
+      'sponsoredPayment.status': 'cancelled',
+      'sponsoredPayment.respondedAt': now,
+      status: 'cancelled',
+      cancelledAt: now,
+      cancelledBy: userId,
+      cancellationReason: 'Demande de paiement par un proche annulée.'
+    }
+  });
   if (payerId) {
     void safeAsync(
       () =>
@@ -2304,13 +2383,14 @@ export const cancelSponsorship = asyncHandler(async (req, res) => {
 export const respondSponsorship = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const groupId = String(req.params?.groupId || '').trim();
-  const { action, paymentMode = 'mobile_money', payerName, transactionCode } = req.body || {};
+  const { action, paymentMode = 'mobile_money', paymentOption = 'deposit', payerName, transactionCode } = req.body || {};
 
-  const orders = await Order.find({
+  const groupFilter = {
     'sponsoredPayment.requestGroupId': groupId,
     'sponsoredPayment.payer': userId,
     'sponsoredPayment.status': 'pending'
-  });
+  };
+  const orders = await Order.find(groupFilter);
   if (!orders.length) {
     return res.status(404).json({ message: 'Demande introuvable ou déjà traitée.' });
   }
@@ -2323,15 +2403,16 @@ export const respondSponsorship = asyncHandler(async (req, res) => {
   const now = new Date();
 
   if (action === 'decline') {
-    for (const order of orders) {
-      order.sponsoredPayment.status = 'declined';
-      order.sponsoredPayment.respondedAt = now;
-      order.status = 'cancelled';
-      order.cancelledAt = now;
-      order.cancelledBy = userId;
-      order.cancellationReason = 'Paiement par un proche refusé.';
-      await order.save();
-    }
+    await Order.updateMany(groupFilter, {
+      $set: {
+        'sponsoredPayment.status': 'declined',
+        'sponsoredPayment.respondedAt': now,
+        status: 'cancelled',
+        cancelledAt: now,
+        cancelledBy: userId,
+        cancellationReason: 'Paiement par un proche refusé.'
+      }
+    });
     void safeAsync(
       () =>
         createNotification({
@@ -2346,27 +2427,18 @@ export const respondSponsorship = asyncHandler(async (req, res) => {
   }
 
   // action === 'accept' — capture payment across the group.
-  const payer = await User.findById(userId).select('name shopName restrictions');
-  if (isRestricted(payer, 'canOrder')) {
-    return res.status(403).json({ message: getRestrictionMessage('canOrder'), restrictionType: 'canOrder' });
-  }
+  const payer = await settleSponsorshipGroup(res, {
+    orders,
+    userId,
+    paymentMode,
+    paymentOption,
+    payerName,
+    transactionCode,
+    sponsoredStatus: 'accepted'
+  });
+  if (!payer) return;
 
-  try {
-    await captureGroupPayment({
-      orders,
-      payerUserId: userId,
-      payerUser: payer,
-      paymentMode,
-      payerName,
-      transactionCode,
-      sponsoredStatus: 'accepted'
-    });
-  } catch (error) {
-    return res.status(error.status || 400).json({ message: error.message, code: error.code });
-  }
-
-  // Notify sellers (now that the order is paid) and the requester.
-  notifySellersSponsoredPaid(orders, userId);
+  // Notify the requester (sellers are notified by the settle helper).
   void safeAsync(
     () =>
       createNotification({
@@ -2409,21 +2481,21 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
   }
 
   const phone = String(payerPhone || '').trim();
-  const candidates = buildPhoneCandidates(phone);
-  const payer = await User.findOne({ phone: { $in: candidates } }).select('_id name shopName phone isBlocked');
-  if (!payer) {
-    return res.status(404).json({ message: 'Aucun utilisateur HDMarket ne correspond à ce numéro.', code: 'sponsor_not_found' });
-  }
-  if (String(payer._id) === String(userId)) {
-    return res.status(400).json({ message: 'Vous ne pouvez pas vous désigner vous-même.' });
-  }
-  if (payer.isBlocked) {
-    return res.status(400).json({ message: 'Ce compte ne peut pas régler de commande pour le moment.' });
+  let payer;
+  let expiresAt;
+  try {
+    [payer, expiresAt] = await Promise.all([
+      resolveEligibleSponsorPayer(phone, userId),
+      computeSponsorExpiry()
+    ]);
+  } catch (error) {
+    if (error?.status) {
+      return res.status(error.status).json({ message: error.message, code: error.code });
+    }
+    throw error;
   }
 
-  const ttlHours = Number(await getRuntimeConfig('pay_for_other_request_ttl_hours', { fallback: 48 })) || 48;
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
   for (const order of orders) {
     reviveSponsoredOrder(order);
     order.sponsoredPayment.status = 'pending';
@@ -2435,8 +2507,8 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
     order.sponsoredPayment.expiresAt = expiresAt;
     order.sponsoredPayment.attemptCount = attempts + 1;
     order.sponsoredPayment.paidBy = null;
-    await order.save();
   }
+  await Promise.all(orders.map((order) => order.save()));
 
   const total = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
   void safeAsync(
@@ -2472,7 +2544,7 @@ export const retrySponsorship = asyncHandler(async (req, res) => {
 export const paySelfSponsorship = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const groupId = String(req.params?.groupId || '').trim();
-  const { paymentMode = 'mobile_money', payerName, transactionCode } = req.body || {};
+  const { paymentMode = 'mobile_money', paymentOption = 'deposit', payerName, transactionCode } = req.body || {};
 
   const orders = await Order.find({
     'sponsoredPayment.requestGroupId': groupId,
@@ -2482,49 +2554,38 @@ export const paySelfSponsorship = asyncHandler(async (req, res) => {
   if (!orders.length) {
     return res.status(404).json({ message: 'Commande introuvable ou déjà réglée.' });
   }
-  const buyer = await User.findById(userId).select('name shopName restrictions');
-  if (isRestricted(buyer, 'canOrder')) {
-    return res.status(403).json({ message: getRestrictionMessage('canOrder'), restrictionType: 'canOrder' });
-  }
-
-  try {
-    await captureGroupPayment({
-      orders,
-      payerUserId: userId,
-      payerUser: buyer,
-      paymentMode,
-      payerName: payerName || buyer?.name || buyer?.shopName,
-      transactionCode,
-      sponsoredStatus: 'self_paid'
-    });
-  } catch (error) {
-    return res.status(error.status || 400).json({ message: error.message, code: error.code });
-  }
-
-  notifySellersSponsoredPaid(orders, userId);
+  const buyer = await settleSponsorshipGroup(res, {
+    orders,
+    userId,
+    paymentMode,
+    paymentOption,
+    payerName,
+    transactionCode,
+    sponsoredStatus: 'self_paid',
+    defaultPayerNameToSelf: true
+  });
+  if (!buyer) return;
   res.json({ message: 'Commande réglée.', requestGroupId: groupId, status: 'self_paid' });
 });
 
 // GET /admin/orders/pay-for-other-stats — platform statistics for the feature.
 export const adminPayForOtherStats = asyncHandler(async (req, res) => {
-  const [byStatus] = await Promise.all([
-    Order.aggregate([
-      { $match: { 'sponsoredPayment.isSponsored': true } },
-      {
-        $group: {
-          _id: '$sponsoredPayment.requestGroupId',
-          status: { $first: '$sponsoredPayment.status' },
-          amount: { $sum: '$totalAmount' }
-        }
-      },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          amount: { $sum: '$amount' }
-        }
+  const byStatus = await Order.aggregate([
+    { $match: { 'sponsoredPayment.isSponsored': true } },
+    {
+      $group: {
+        _id: '$sponsoredPayment.requestGroupId',
+        status: { $first: '$sponsoredPayment.status' },
+        amount: { $sum: '$totalAmount' }
       }
-    ])
+    },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+        amount: { $sum: '$amount' }
+      }
+    }
   ]);
   const stats = { pending: 0, accepted: 0, declined: 0, expired: 0, cancelled: 0 };
   let totalPaid = 0;
@@ -3787,8 +3848,7 @@ export const sellerListOrders = asyncHandler(async (req, res) => {
   const filter = {
     'items.snapshot.shopId': buildSellerIdMatch(sellerId),
     isDraft: false,
-    // Hide sponsored orders still awaiting the designated payer.
-    $nor: [{ 'sponsoredPayment.isSponsored': true, 'sponsoredPayment.status': 'pending' }]
+    ...HIDE_PENDING_SPONSORED
   };
   applyOrderStatusFilter(filter, { status, statusGroup, role: 'seller' });
 
@@ -3846,7 +3906,7 @@ export const sellerOrdersSummary = asyncHandler(async (req, res) => {
   const access = await resolveSellerAccess(req, 'view_shop_orders');
   const baseFilter = {
     'items.snapshot.shopId': buildSellerIdMatch(access.sellerId),
-    $nor: [{ 'sponsoredPayment.isSponsored': true, 'sponsoredPayment.status': 'pending' }]
+    ...HIDE_PENDING_SPONSORED
   };
   const summary = await buildOrderSummary({ baseFilter, role: 'seller' });
   res.json(summary);
@@ -3862,7 +3922,7 @@ export const sellerGetOrder = asyncHandler(async (req, res) => {
   }
 
   // First try: user is a seller of items in this order
-  let order = await baseOrderQuery().findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false });
+  let order = await baseOrderQuery().findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false, ...HIDE_PENDING_SPONSORED });
 
   // Fallback: user is the customer (e.g., shop user bought from another shop, routed to seller link)
   if (!order && !isAssistant) {
@@ -3920,7 +3980,7 @@ export const sellerUpdateOrderDeliveryFee = asyncHandler(async (req, res) => {
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false, ...HIDE_PENDING_SPONSORED });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -3995,7 +4055,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), isDraft: false, ...HIDE_PENDING_SPONSORED });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -4395,7 +4455,8 @@ export const sellerSendClientConfirmationReminder = asyncHandler(async (req, res
   const order = await Order.findOne({
     _id: id,
     'items.snapshot.shopId': buildSellerIdMatch(sellerId),
-    isDraft: false
+    isDraft: false,
+    ...HIDE_PENDING_SPONSORED
   }).lean();
 
   if (!order) {
@@ -4493,7 +4554,7 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId) });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), ...HIDE_PENDING_SPONSORED });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -5155,7 +5216,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
-  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId) });
+  const order = await Order.findOne({ _id: id, 'items.snapshot.shopId': buildSellerIdMatch(sellerId), ...HIDE_PENDING_SPONSORED });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }

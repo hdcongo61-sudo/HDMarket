@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Payment from '../models/paymentModel.js';
+import Product from '../models/productModel.js';
 
 const VERIFIED_PRODUCT_CACHE_TTL_MS = Math.max(
   15_000,
@@ -35,9 +36,12 @@ export const getVerifiedProductIds = async ({ forceRefresh = false } = {}) => {
     return inFlightPromise;
   }
 
-  inFlightPromise = Payment.distinct('product', { status: 'verified' })
-    .then((productIds) => {
-      const normalized = normalizeObjectIds(productIds);
+  inFlightPromise = Promise.all([
+    Payment.distinct('product', { status: 'verified' }),
+    Product.distinct('_id', { listingFeeSettled: true })
+  ])
+    .then(([paidIds, settledIds]) => {
+      const normalized = normalizeObjectIds([...paidIds, ...settledIds]);
       cachedVerifiedProductIds = normalized;
       cachedAtMs = Date.now();
       return normalized;
@@ -66,4 +70,13 @@ export const hasVerifiedPaymentForProduct = async (paymentId) => {
   }
   const found = await Payment.exists({ _id: paymentId, status: 'verified' });
   return Boolean(found);
+};
+
+// Listing fee settled for this product doc — via a verified Payment or the
+// listingFeeSettled flag (waived/zero commission). Doc must include the
+// `payment` and `listingFeeSettled` fields.
+export const isListingFeeSettledForProduct = async (product) => {
+  if (!product) return false;
+  if (product.listingFeeSettled) return true;
+  return hasVerifiedPaymentForProduct(product.payment);
 };
