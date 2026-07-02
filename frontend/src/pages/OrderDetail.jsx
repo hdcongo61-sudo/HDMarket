@@ -18,7 +18,6 @@ import {
   Sparkles,
   X,
   ArrowLeft,
-  TrendingUp,
   AlertCircle,
   Info,
   CreditCard,
@@ -32,6 +31,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { buildProgressSteps, resolveProgressStepIndex, riseIn } from '../utils/orderProgress';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
@@ -39,7 +39,6 @@ import EditAddressModal from '../components/EditAddressModal';
 import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
-import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import InstallmentReminder from '../components/orders/InstallmentReminder';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
@@ -134,74 +133,6 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
   delivered: 'Livrée',
   cancelled: 'Annulée'
 };
-
-const CLASSIC_ORDER_FLOW = [
-  { id: 'pending_payment', label: 'Paiement en attente', description: 'Votre commande est enregistrée.', icon: Clock, color: 'gray' },
-  { id: 'paid', label: 'Payée', description: 'Paiement soumis. En attente de confirmation.', icon: CreditCard, color: 'emerald' },
-  { id: 'ready_for_delivery', label: 'Prête à livrer', description: 'Préparation terminée.', icon: Package, color: 'amber' },
-  { id: 'out_for_delivery', label: 'En cours de livraison', description: 'Le colis est en route.', icon: Truck, color: 'blue' },
-  { id: 'delivered', label: 'Livrée', description: 'Livraison signalée.', icon: CheckCircle, color: 'emerald' },
-  { id: 'delivery_proof_submitted', label: 'Preuve soumise', description: 'Le vendeur a soumis les preuves de livraison.', icon: Receipt, color: 'blue' },
-  { id: 'confirmed_by_client', label: 'Confirmée par vous', description: 'Vous avez confirmé la réception.', icon: CheckCircle, color: 'emerald' },
-  { id: 'completed', label: 'Commande terminée', description: 'Livraison clôturée.', icon: CheckCircle, color: 'emerald' },
-  { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
-];
-
-const INSTALLMENT_ORDER_FLOW = [
-  { id: 'pending_installment', label: 'Validation de vente', description: 'Le vendeur doit confirmer la preuve de vente.', icon: Clock, color: 'violet' },
-  { id: 'installment_active', label: 'Plan actif', description: 'Les tranches sont en cours de paiement.', icon: CreditCard, color: 'indigo' },
-  { id: 'overdue_installment', label: 'En retard', description: 'Au moins une tranche est en retard.', icon: AlertCircle, color: 'rose' },
-  { id: 'completed', label: 'Paiement terminé', description: 'Toutes les tranches ont été validées.', icon: CheckCircle, color: 'emerald' },
-  { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
-];
-
-// Hero progress rail: the order's life compressed to its 5 real stops.
-const buildProgressSteps = ({ isInstallment, isPickup }) =>
-  isInstallment
-    ? ['Commandée', 'Validation', 'Tranches', 'Terminée']
-    : ['Commandée', 'Payée', 'Préparation', isPickup ? 'Retrait' : 'Livraison', 'Terminée'];
-
-const CLASSIC_STEP_INDEX = {
-  pending: 0,
-  pending_payment: 0,
-  paid: 1,
-  confirmed: 2,
-  ready_for_delivery: 2,
-  ready_for_pickup: 2,
-  out_for_delivery: 3,
-  delivering: 3,
-  picked_up_confirmed: 3,
-  delivered: 3,
-  delivery_proof_submitted: 3,
-  confirmed_by_client: 4,
-  completed: 4
-};
-
-const INSTALLMENT_STEP_INDEX = {
-  pending: 0,
-  pending_installment: 1,
-  installment_active: 2,
-  overdue_installment: 2,
-  completed: 3
-};
-
-const resolveProgressStepIndex = ({ status, isInstallment }) => {
-  const map = isInstallment ? INSTALLMENT_STEP_INDEX : CLASSIC_STEP_INDEX;
-  if (status in map) return map[status];
-  // Installment orders can surface classic delivery statuses once paid.
-  if (isInstallment && status in CLASSIC_STEP_INDEX) return INSTALLMENT_STEP_INDEX.installment_active;
-  return 0;
-};
-
-// One orchestrated page-load sequence; each block rises in with a small stagger.
-const riseIn = (reduceMotion, delay = 0) =>
-  reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 16 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.38, ease: 'easeOut', delay }
-      };
 
 const formatOrderTimestamp = (value) =>
   value
@@ -353,61 +284,6 @@ const getPrimaryActionClassName = (intent = 'primary') => {
     default:
       return 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100';
   }
-};
-
-const OrderProgress = ({ status, paymentType }) => {
-  const flow = paymentType === 'installment' ? INSTALLMENT_ORDER_FLOW : CLASSIC_ORDER_FLOW;
-  const currentIndexRaw = flow.findIndex((step) => step.id === status);
-  const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
-  const colorClasses = {
-    gray: 'bg-gray-600',
-    amber: 'bg-amber-600',
-    blue: 'bg-neutral-600',
-    emerald: 'bg-emerald-600',
-    violet: 'bg-neutral-600',
-    indigo: 'bg-neutral-600',
-    rose: 'bg-neutral-600'
-  };
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 rounded-lg bg-neutral-600">
-          <TrendingUp className="w-4 h-4 text-white" />
-        </div>
-        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Suivi de commande</h3>
-      </div>
-      <div className="relative">
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200">
-          <div
-            className="absolute top-0 left-0 w-full bg-neutral-600 transition-all duration-500"
-            style={{ height: `${(currentIndex / (flow.length - 1)) * 100}%` }}
-          />
-        </div>
-        <div className="space-y-6 relative">
-          {flow.filter((s) => s.id !== 'cancelled').map((step, index) => {
-            const Icon = step.icon;
-            const reached = currentIndex >= index;
-            const isCurrent = currentIndex === index;
-            return (
-              <div key={step.id} className="flex items-start gap-4 relative">
-                <div
-                  className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${
-                    reached ? `${colorClasses[step.color] || 'bg-gray-600'} border-transparent text-white` : 'border-gray-300 text-gray-400 bg-white'
-                  }`}
-                >
-                  <Icon size={16} />
-                </div>
-                <div className="flex-1 pt-1">
-                  <p className={`text-sm font-bold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>{step.label}</p>
-                  <p className={`text-xs ${reached ? 'text-gray-600' : 'text-gray-400'}`}>{step.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 export default function OrderDetail() {
@@ -2222,19 +2098,7 @@ export default function OrderDetail() {
               </div>
             )}
 
-            {effectiveOrderStatus !== 'cancelled' && (
-              isInstallmentOrder ? (
-                <OrderProgress status={effectiveOrderStatus} paymentType="installment" />
-              ) : (
-                <AnimatedOrderTimeline
-                  status={effectiveOrderStatus}
-                  paymentType={order.paymentType}
-                  deliveryMode={order.deliveryMode}
-                />
-              )
-            )}
-
-            {/* 📍 Carte de suivi (Proposal 5) */}
+            {/* 📍 Carte de suivi — includes its own "Suivi de la commande" history below the map */}
             {!hideDeliveryDetails && effectiveOrderStatus !== 'cancelled' && trackingData && (
               <OrderTrackingMap trackingData={trackingData} />
             )}

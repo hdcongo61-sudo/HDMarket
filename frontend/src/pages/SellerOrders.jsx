@@ -36,6 +36,9 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
 import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
+import OrderMiniRail from '../components/orders/OrderMiniRail';
+import { motion, useReducedMotion } from 'framer-motion';
+import { riseIn } from '../utils/orderProgress';
 import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import StatusBadge from '../components/orders/StatusBadge';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
@@ -495,9 +498,12 @@ const OrderProgress = ({ status }) => {
 };
 
 // Compact order summary card - links to seller order detail page
-const SellerOrderSummaryCard = ({ order, assistantShop }) => {
+const MotionLink = motion.create(Link);
+
+const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
   const { t } = useAppSettings();
   const { user } = useContext(AuthContext);
+  const reduceMotion = useReducedMotion();
   const orderItems = getOrderItems(order);
   const totalAmount = getOrderTotal(order);
   const uiState = getOrderUiState(order, 'seller');
@@ -522,11 +528,12 @@ const SellerOrderSummaryCard = ({ order, assistantShop }) => {
     String(order.customer._id) === String(user?._id || user?.id);
 
   return (
-    <Link
+    <MotionLink
+      {...riseIn(reduceMotion, Math.min(index, 6) * 0.06)}
       to={`/seller/orders/detail/${order._id}`}
       className="group block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_12px_28px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-2xl sm:shadow-[0_16px_38px_rgba(117,75,36,0.10)]"
     >
-      <div className="flex items-center justify-between gap-2 border-b border-orange-50 bg-[#fff8ef] px-3 py-2.5 dark:border-orange-900/30 dark:bg-neutral-900/70 sm:gap-3 sm:px-4 sm:py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900/70 sm:gap-3 sm:px-4 sm:py-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-100 text-[#FF6A00]">
             <User className="w-3.5 h-3.5" />
@@ -541,18 +548,13 @@ const SellerOrderSummaryCard = ({ order, assistantShop }) => {
         </div>
         <StatusBadge status={statusBadgeKey} />
       </div>
-      <div className="px-3 pt-2.5 sm:px-4 sm:pt-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-bold text-gray-500">{uiState.nextStep}</p>
-          <span className="shrink-0 text-[11px] font-black text-[#FF6A00]">{uiState.progress}%</span>
-        </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-[#FF6A00]'}`}
-            style={{ width: `${uiState.progress}%` }}
-          />
-        </div>
-      </div>
+      <OrderMiniRail
+        label={uiState.nextStep}
+        progress={uiState.progress}
+        urgent={uiState.isUrgent}
+        stops={isInstallmentOrder ? 4 : 5}
+        className="px-3 pt-2.5 sm:px-4 sm:pt-3"
+      />
       <div className="flex gap-3 p-3 sm:p-4">
         {firstItem?.snapshot?.image ? (
           <div className="h-[76px] w-[76px] flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100 sm:h-24 sm:w-24 sm:rounded-xl">
@@ -628,7 +630,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop }) => {
           </p>
         )}
       </div>
-    </Link>
+    </MotionLink>
   );
 };
 
@@ -1993,8 +1995,8 @@ export default function SellerOrders() {
         ) : (
           <>
             <div className="space-y-3 sm:space-y-6">
-              {orders.map((order) => (
-                <SellerOrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} />
+              {orders.map((order, index) => (
+                <SellerOrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} index={index} />
               ))}
             </div>
 

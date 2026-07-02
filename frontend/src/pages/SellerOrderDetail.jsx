@@ -12,7 +12,6 @@ import {
   X,
   AlertCircle,
   ArrowLeft,
-  TrendingUp,
   DollarSign,
   Phone,
   Mail,
@@ -24,8 +23,14 @@ import {
   ShieldCheck,
   ClipboardList,
   Loader2,
-  Send
+  Send,
+  Copy,
+  Check,
+  MessageCircle
 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { buildProgressSteps, resolveProgressStepIndex, riseIn } from '../utils/orderProgress';
+import { sanitizePhoneNumber } from '../utils/whatsapp';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
@@ -33,7 +38,6 @@ import OrderChat from '../components/OrderChat';
 import DeliveryProofUpload from '../components/DeliveryProofUpload';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
-import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import InstallmentReminder from '../components/orders/InstallmentReminder';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
@@ -292,26 +296,6 @@ const getPrimaryActionClassName = (intent = 'primary') => {
   }
 };
 
-const CLASSIC_ORDER_FLOW = [
-  { id: 'pending_payment', label: 'Paiement en attente', description: 'En attente de confirmation du paiement.', icon: Clock, color: 'gray' },
-  { id: 'paid', label: 'Payée', description: 'Paiement soumis par le client. En attente de confirmation.', icon: CreditCard, color: 'emerald' },
-  { id: 'confirmed', label: 'Commande confirmée', description: 'Commande acceptée par le vendeur.', icon: Package, color: 'amber' },
-  { id: 'ready_for_delivery', label: 'Prête à livrer', description: 'Préparation terminée, prête pour expédition.', icon: Package, color: 'amber' },
-  { id: 'out_for_delivery', label: 'En cours de livraison', description: 'Colis pris en charge par le livreur.', icon: Truck, color: 'blue' },
-  { id: 'delivery_proof_submitted', label: 'Preuve soumise', description: 'Preuve de livraison envoyée. En attente de confirmation client.', icon: ClipboardList, color: 'indigo' },
-  { id: 'confirmed_by_client', label: 'Confirmée par le client', description: 'Le client a confirmé la réception.', icon: CheckCircle, color: 'emerald' },
-  { id: 'completed', label: 'Commande terminée', description: 'Livraison clôturée avec succès.', icon: CheckCircle, color: 'emerald' },
-  { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
-];
-
-const INSTALLMENT_ORDER_FLOW = [
-  { id: 'pending_installment', label: 'Validation de vente', description: 'Confirmez la preuve de vente du client.', icon: Clock, color: 'violet' },
-  { id: 'installment_active', label: 'Plan actif', description: 'Les tranches sont en cours de validation.', icon: CreditCard, color: 'indigo' },
-  { id: 'overdue_installment', label: 'Retard', description: 'Une ou plusieurs tranches sont en retard.', icon: AlertCircle, color: 'rose' },
-  { id: 'completed', label: 'Paiement terminé', description: 'Toutes les tranches sont validées.', icon: CheckCircle, color: 'emerald' },
-  { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
-];
-
 const formatOrderTimestamp = (value) =>
   value
     ? new Date(value).toLocaleString('fr-FR', {
@@ -357,79 +341,6 @@ const getScheduleStatusClassName = (status) => {
   }
 };
 
-const OrderProgress = ({ status, paymentType }) => {
-  const flow = paymentType === 'installment' ? INSTALLMENT_ORDER_FLOW : CLASSIC_ORDER_FLOW;
-  const currentIndexRaw = flow.findIndex((step) => step.id === status);
-  const currentIndex = currentIndexRaw >= 0 ? currentIndexRaw : 0;
-  const colorClasses = {
-    gray: 'bg-gray-600',
-    amber: 'bg-amber-600',
-    blue: 'bg-neutral-600',
-    emerald: 'bg-emerald-600',
-    red: 'bg-red-600',
-    violet: 'bg-neutral-600',
-    indigo: 'bg-neutral-600',
-    rose: 'bg-neutral-600'
-  };
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 rounded-lg bg-neutral-600">
-          <TrendingUp className="w-4 h-4 text-white" />
-        </div>
-        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Suivi de commande</h3>
-      </div>
-      <div className="relative">
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200">
-          <div className="absolute top-0 left-0 w-full bg-neutral-600 transition-all duration-500" style={{ height: `${(currentIndex / (flow.length - 1)) * 100}%` }} />
-        </div>
-        <div className="space-y-6 relative">
-          {flow.filter((s) => s.id !== 'cancelled').map((step, index) => {
-            const Icon = step.icon;
-            const reached = currentIndex >= index;
-            const isCurrent = currentIndex === index;
-            const stepColor = colorClasses[step.color] || colorClasses.gray;
-            return (
-              <div key={step.id} className="flex items-start gap-4 relative">
-                <div
-                  className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                    reached
-                      ? `${stepColor} border-transparent text-white shadow-lg scale-110`
-                      : 'border-gray-300 text-gray-400 bg-white'
-                  }`}
-                >
-                  <Icon size={16} />
-                  {isCurrent && (
-                    <div className={`absolute inset-0 rounded-full ${stepColor} animate-ping opacity-75`} />
-                  )}
-                </div>
-                <div className="flex-1 pt-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className={`text-sm font-bold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>
-                      {step.label}
-                    </p>
-                    {isCurrent && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${stepColor} text-white`}>
-                        En cours
-                      </span>
-                    )}
-                    {!isCurrent && reached && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-700">
-                        Terminé
-                      </span>
-                    )}
-                  </div>
-                  <p className={`text-xs ${reached ? 'text-gray-600' : 'text-gray-400'}`}>{step.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function SellerOrderDetail() {
   const { orderId } = useParams();
   const { showToast } = useToast();
@@ -441,7 +352,20 @@ export default function SellerOrderDetail() {
 
   const [order, setOrder] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [copiedKey, setCopiedKey] = useState('');
+  const reduceMotion = useReducedMotion();
   const [statusUpdatingId, setStatusUpdatingId] = useState('');
+
+  const copyToClipboard = async (text, key) => {
+    try {
+      await navigator.clipboard.writeText(String(text));
+      setCopiedKey(key);
+      showToast('Copié.', { variant: 'success' });
+      setTimeout(() => setCopiedKey(''), 2000);
+    } catch {
+      showToast('Impossible de copier.', { variant: 'error' });
+    }
+  };
   const [statusUpdateFeedback, setStatusUpdateFeedback] = useState({ id: '', message: '', tone: 'error' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -1193,7 +1117,10 @@ export default function SellerOrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
-        <div className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]">
+        <motion.div
+          {...riseIn(reduceMotion, 0)}
+          className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]"
+        >
           <div className="relative overflow-hidden bg-gradient-to-br from-[#ff6a00] via-[#ff3d13] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1203,20 +1130,114 @@ export default function SellerOrderDetail() {
                 </div>
                 <div>
                   <p className="text-xs font-black uppercase tracking-wide text-white/78">Commande vendeur</p>
-                  <h3 className="text-2xl font-black tracking-tight">#{order._id.slice(-6)}</h3>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(order._id.slice(-6).toUpperCase(), 'orderId')}
+                    className="group inline-flex items-center gap-2"
+                    title="Copier le numéro de commande"
+                  >
+                    <h3 className="text-2xl font-black tracking-tight">#{order._id.slice(-6)}</h3>
+                    {copiedKey === 'orderId' ? (
+                      <Check className="h-4 w-4 text-white" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-white/60 transition group-hover:text-white" />
+                    )}
+                  </button>
                   <p className="mt-1 text-xs font-semibold text-white/78">
                     {formatOrderTimestamp(order.createdAt) || 'Date non disponible'}
                   </p>
                 </div>
               </div>
-              <span className="rounded-full bg-white px-3 py-2 text-xs font-black uppercase text-gray-500 shadow-sm">
-                {STATUS_LABELS[displayStatusLabel] || displayStatusLabel}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white px-3 py-2 text-xs font-black uppercase text-gray-500 shadow-sm">
+                  {STATUS_LABELS[displayStatusLabel] || displayStatusLabel}
+                </span>
+                {sanitizePhoneNumber(orderContactPhone) ? (
+                  <a
+                    href={`https://wa.me/${sanitizePhoneNumber(orderContactPhone)}?text=${encodeURIComponent(
+                      `Bonjour ${order.customer?.name || ''}, concernant votre commande HDMarket n°${String(order._id).slice(-6).toUpperCase()}.`.trim()
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-[38px] items-center gap-2 rounded-full bg-black/18 px-3 text-xs font-black text-white ring-1 ring-white/20 transition hover:bg-black/25 active:scale-95"
+                    title="Écrire au client sur WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    WhatsApp
+                  </a>
+                ) : null}
+              </div>
             </div>
           </div>
 
+          {(() => {
+            const cancelled = order.status === 'cancelled';
+            const railStatus = getSellerTimelineStatus(order, installmentWorkflow?.workflowStatus);
+            const steps = buildProgressSteps({
+              isInstallment: isInstallmentOrder,
+              isPickup: isPickupOrder
+            });
+            const stepIndex = cancelled
+              ? 0
+              : resolveProgressStepIndex({ status: railStatus, isInstallment: isInstallmentOrder });
+            const fillPct = cancelled ? 100 : (stepIndex / (steps.length - 1)) * 100;
+            return (
+              <div className="bg-white px-5 pb-3 pt-4 dark:bg-neutral-950 sm:px-7">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-wide text-gray-500">Suivi</p>
+                  <p className={`text-[11px] font-black ${cancelled ? 'text-rose-600' : 'text-[#FF6A00]'}`}>
+                    {cancelled ? 'Commande annulée' : `Étape ${stepIndex + 1}/${steps.length}`}
+                  </p>
+                </div>
+                <div className="relative h-1.5 rounded-full bg-gray-100 dark:bg-neutral-800">
+                  <motion.div
+                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-gradient-to-r from-[#FFB000] to-[#FF6A00]'}`}
+                    initial={reduceMotion ? { width: `${fillPct}%` } : { width: 0 }}
+                    animate={{ width: `${fillPct}%` }}
+                    transition={{ duration: reduceMotion ? 0 : 0.9, ease: 'easeOut', delay: reduceMotion ? 0 : 0.3 }}
+                  />
+                  <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-between">
+                    {steps.map((step, index) => {
+                      const done = !cancelled && index <= stepIndex;
+                      const current = !cancelled && index === stepIndex;
+                      return (
+                        <motion.span
+                          key={step}
+                          initial={reduceMotion ? false : { scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ duration: 0.25, delay: reduceMotion ? 0 : 0.3 + index * 0.12 }}
+                          className={`h-3 w-3 rounded-full border-2 border-white dark:border-neutral-950 ${
+                            cancelled
+                              ? 'bg-rose-300'
+                              : done
+                                ? 'bg-[#FF6A00]'
+                                : 'bg-gray-200 dark:bg-neutral-700'
+                          } ${current && !reduceMotion ? 'animate-pulse' : ''}`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-between">
+                  {steps.map((step, index) => (
+                    <span
+                      key={step}
+                      className={`w-0 flex-1 text-[9px] font-black uppercase tracking-wide sm:text-[10px] ${
+                        index === 0 ? 'text-left' : index === steps.length - 1 ? 'text-right' : 'text-center'
+                      } ${
+                        !cancelled && index === stepIndex ? 'text-gray-900 dark:text-white' : 'text-gray-400'
+                      }`}
+                    >
+                      {step}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="space-y-4 bg-gray-50 p-3 sm:p-5">
-            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+            <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
@@ -1270,9 +1291,9 @@ export default function SellerOrderDetail() {
                   </div>
                 ))}
               </div>
-            </section>
+            </motion.section>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <motion.div {...riseIn(reduceMotion, 0.16)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {order.deliveryCode && (
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-neutral-500" /> Code de livraison</h4>
@@ -1290,7 +1311,7 @@ export default function SellerOrderDetail() {
                   {order.customer?.email && <p className="text-xs text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3" />{order.customer.email}</p>}
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             <div>
               <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2">
@@ -2236,14 +2257,6 @@ export default function SellerOrderDetail() {
               </div>
             )}
 
-            {order.status !== 'cancelled' && (
-              <AnimatedOrderTimeline
-                status={getSellerTimelineStatus(order, installmentWorkflow?.workflowStatus)}
-                paymentType={order.paymentType}
-                deliveryMode={order.deliveryMode}
-              />
-            )}
-
             <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 text-xs text-gray-600">
               {statusTimelineEntries.map((entry) => {
                 const EntryIcon = entry.icon;
@@ -2256,7 +2269,7 @@ export default function SellerOrderDetail() {
               })}
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <BaseModal

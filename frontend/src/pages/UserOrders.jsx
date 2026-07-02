@@ -43,6 +43,9 @@ import EditAddressModal from '../components/EditAddressModal';
 import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
+import OrderMiniRail from '../components/orders/OrderMiniRail';
+import { motion, useReducedMotion } from 'framer-motion';
+import { riseIn } from '../utils/orderProgress';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
 import { OrderCommandCenter, OrderFilterRail } from '../components/orders/OrderCommandCenter';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
@@ -816,8 +819,11 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
 };
 
 // Compact order summary card - links to order detail page (reference-style layout)
-const OrderSummaryCard = ({ order, assistantShop }) => {
+const MotionLink = motion.create(Link);
+
+const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
   const { t } = useAppSettings();
+  const reduceMotion = useReducedMotion();
   const pickupOrder = isPickupOrder(order);
   const orderItems = getOrderItems(order);
   const totalAmount = getOrderTotal(order);
@@ -844,12 +850,13 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
     String(firstItem.snapshot.shopId) === String(assistantShop._id);
 
   return (
-    <Link
+    <MotionLink
+      {...riseIn(reduceMotion, Math.min(index, 6) * 0.06)}
       to={`/orders/detail/${order._id}`}
       className="group block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_12px_28px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-2xl sm:shadow-[0_16px_38px_rgba(117,75,36,0.10)]"
     >
       {/* Seller + Status header */}
-      <div className="flex items-center justify-between gap-2 border-b border-orange-50 bg-[#fff8ef] px-3 py-2.5 dark:border-orange-900/30 dark:bg-neutral-900/70 sm:gap-3 sm:px-4 sm:py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900/70 sm:gap-3 sm:px-4 sm:py-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-100 text-[#FF6A00]">
             <Store className="w-3.5 h-3.5" />
@@ -864,18 +871,13 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
         </div>
         <StatusBadge status={statusBadgeKey} />
       </div>
-      <div className="px-3 pt-2.5 sm:px-4 sm:pt-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-bold text-gray-500">{uiState.nextStep}</p>
-          <span className="shrink-0 text-[11px] font-black text-[#FF6A00]">{uiState.progress}%</span>
-        </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${uiState.isUrgent ? 'bg-red-500' : 'bg-[#FF6A00]'}`}
-            style={{ width: `${uiState.progress}%` }}
-          />
-        </div>
-      </div>
+      <OrderMiniRail
+        label={uiState.nextStep}
+        progress={uiState.progress}
+        urgent={uiState.isUrgent}
+        stops={isInstallmentOrder ? 4 : 5}
+        className="px-3 pt-2.5 sm:px-4 sm:pt-3"
+      />
       {/* Product summary */}
       <div className="flex gap-3 p-3 sm:p-4">
         {firstItem?.snapshot?.image ? (
@@ -958,7 +960,7 @@ const OrderSummaryCard = ({ order, assistantShop }) => {
           </p>
         )}
       </div>
-    </Link>
+    </MotionLink>
   );
 };
 
@@ -1975,8 +1977,8 @@ export default function UserOrders() {
             {/* Card View - Summary cards linking to order detail */}
             {(viewMode === 'card' || isMobile) && (
             <div className={`space-y-3 sm:space-y-6 ${isMobile ? 'pb-4' : ''}`}>
-              {orders.map((order) => (
-                <OrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} />
+              {orders.map((order, index) => (
+                <OrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} index={index} />
               ))}
             </div>
             )}

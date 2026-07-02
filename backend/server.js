@@ -539,9 +539,33 @@ io.on('connection', (socket) => {
   });
 });
 
-const port = process.env.PORT || 5010;
+// If the requested port is taken (stale dev server, another app), fall back to
+// the next ports instead of crashing with EADDRINUSE. The startup callback
+// stays registered across retries, so schedulers/keep-alive still run once bound.
+const basePort = Number(process.env.PORT) || 5010;
+const MAX_PORT_ATTEMPTS = 10;
+let portAttempts = 0;
+let port = basePort;
+
+httpServer.on('error', (error) => {
+  if (error?.code === 'EADDRINUSE' && portAttempts < MAX_PORT_ATTEMPTS) {
+    portAttempts += 1;
+    port = basePort + portAttempts;
+    console.warn(`⚠️  Port ${port - 1} already in use — retrying on port ${port}...`);
+    setTimeout(() => httpServer.listen(port), 250);
+    return;
+  }
+  throw error;
+});
+
 httpServer.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  if (port !== basePort) {
+    console.warn(
+      `⚠️  Port ${basePort} was unavailable — the API is on port ${port}. ` +
+        'Update the frontend API base URL (or free the original port) if requests fail.'
+    );
+  }
   const keepAliveEnabled = String(process.env.RENDER_KEEP_ALIVE_ENABLED || 'false') === 'true';
   const keepAliveIntervalMs = Number(process.env.RENDER_KEEP_ALIVE_INTERVAL_MS || 10 * 60 * 1000);
   const keepAliveBaseUrl = String(
