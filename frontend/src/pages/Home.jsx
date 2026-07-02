@@ -1321,7 +1321,7 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/cart"
                 {...externalLinkProps}
-                className="group block border-t border-gray-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99]"
+                className="group block border-t border-gray-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:border-neutral-800 dark:from-amber-950/40 dark:via-neutral-950 dark:to-orange-950/30"
               >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.18)]">

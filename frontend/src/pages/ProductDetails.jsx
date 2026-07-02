@@ -3182,7 +3182,7 @@ export default function ProductDetails() {
             </div>
             {product.video && (
               <div className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_18px_42px_rgba(117,75,36,0.09)]">
-                <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-[#fff2e6] via-white to-orange-50 px-5 py-4">
+                <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-[#fff2e6] via-white to-orange-50 px-5 py-4 dark:from-neutral-900 dark:via-neutral-900 dark:to-orange-950/30">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)]">
                       <Video className="h-6 w-6" />
@@ -3192,7 +3192,7 @@ export default function ProductDetails() {
                       <p className="text-sm font-semibold text-stone-500">Un aperçu concret du produit, sans quitter la fiche.</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[#9A4A00] ring-1 ring-orange-100">
+                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[#9A4A00] ring-1 ring-orange-100 dark:text-orange-300 dark:ring-orange-900/40">
                     Aperçu
                   </span>
                 </div>

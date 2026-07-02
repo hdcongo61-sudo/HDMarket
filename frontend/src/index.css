@@ -337,6 +337,27 @@ select:disabled {
 .dark :where(.text-rose-600, .text-rose-700, .text-rose-800, .text-rose-900) { color: #fda4af; }
 .dark :where(.text-red-600, .text-red-700, .text-red-800, .text-red-900) { color: #fca5a5; }
 
+/* Accessibility: white text on the flat brand-orange fill (#FF6A00) was ~2.9:1.
+   Darken the solid fill to #E85D00 (≥3.5:1 with white) app-wide; text-[#FF6A00]
+   and the hd-flow gradients keep the brighter brand hue. Being unlayered, these
+   beat the layered Tailwind utilities — including their hover variants, which is
+   why every hover shade used with this fill is re-declared here. */
+.bg-\[\#FF6A00\],
+.bg-\[\#ff6a00\],
+.active\:bg-\[\#FF6A00\]:active,
+.hover\:bg-\[\#ff6a00\]:hover {
+  background-color: #e85d00;
+}
+.hover\:bg-\[\#f05f00\]:hover,
+.hover\:bg-\[\#f45f00\]:hover,
+.hover\:bg-\[\#e85f00\]:hover,
+.hover\:bg-\[\#e05e00\]:hover,
+.hover\:bg-\[\#ef6200\]:hover,
+.hover\:bg-\[\#e55f00\]:hover,
+.hover\:bg-\[\#bf4d00\]:hover {
+  background-color: #d65a00;
+}
+
 /* Accessibility: visible keyboard focus ring across interactive controls */
 :where(button, [role="button"], a, input, select, textarea):focus-visible {
   outline: 2px solid var(--hd-orange);

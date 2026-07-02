@@ -24,8 +24,14 @@ import {
   CreditCard,
   Receipt,
   ChevronRight,
-  Wallet
+  Wallet,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+  MessageCircle
 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { buildProductPath } from '../utils/links';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import CancellationTimer from '../components/CancellationTimer';
@@ -148,6 +154,54 @@ const INSTALLMENT_ORDER_FLOW = [
   { id: 'completed', label: 'Paiement terminé', description: 'Toutes les tranches ont été validées.', icon: CheckCircle, color: 'emerald' },
   { id: 'cancelled', label: 'Commande annulée', description: 'Cette commande a été annulée.', icon: X, color: 'red' }
 ];
+
+// Hero progress rail: the order's life compressed to its 5 real stops.
+const buildProgressSteps = ({ isInstallment, isPickup }) =>
+  isInstallment
+    ? ['Commandée', 'Validation', 'Tranches', 'Terminée']
+    : ['Commandée', 'Payée', 'Préparation', isPickup ? 'Retrait' : 'Livraison', 'Terminée'];
+
+const CLASSIC_STEP_INDEX = {
+  pending: 0,
+  pending_payment: 0,
+  paid: 1,
+  confirmed: 2,
+  ready_for_delivery: 2,
+  ready_for_pickup: 2,
+  out_for_delivery: 3,
+  delivering: 3,
+  picked_up_confirmed: 3,
+  delivered: 3,
+  delivery_proof_submitted: 3,
+  confirmed_by_client: 4,
+  completed: 4
+};
+
+const INSTALLMENT_STEP_INDEX = {
+  pending: 0,
+  pending_installment: 1,
+  installment_active: 2,
+  overdue_installment: 2,
+  completed: 3
+};
+
+const resolveProgressStepIndex = ({ status, isInstallment }) => {
+  const map = isInstallment ? INSTALLMENT_STEP_INDEX : CLASSIC_STEP_INDEX;
+  if (status in map) return map[status];
+  // Installment orders can surface classic delivery statuses once paid.
+  if (isInstallment && status in CLASSIC_STEP_INDEX) return INSTALLMENT_STEP_INDEX.installment_active;
+  return 0;
+};
+
+// One orchestrated page-load sequence; each block rises in with a small stagger.
+const riseIn = (reduceMotion, delay = 0) =>
+  reduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 16 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.38, ease: 'easeOut', delay }
+      };
 
 const formatOrderTimestamp = (value) =>
   value
@@ -387,6 +441,29 @@ export default function OrderDetail() {
   const [proofPreview, setProofPreview] = useState(null);
   const [queuedDeliveryActionCount, setQueuedDeliveryActionCount] = useState(0);
   const [deliveryQueueSyncing, setDeliveryQueueSyncing] = useState(false);
+  const [deliveryCodeRevealed, setDeliveryCodeRevealed] = useState(false);
+  const [copiedKey, setCopiedKey] = useState('');
+  const reduceMotion = useReducedMotion();
+
+  const copyToClipboard = async (text, key) => {
+    try {
+      await navigator.clipboard.writeText(String(text));
+      setCopiedKey(key);
+      showToast('Copié.', { variant: 'success' });
+      setTimeout(() => setCopiedKey(''), 2000);
+    } catch {
+      showToast('Impossible de copier. Notez le code manuellement.', { variant: 'error' });
+    }
+  };
+
+  const shareOrderOnWhatsApp = () => {
+    if (!order) return;
+    const statusLabel = STATUS_LABELS[order.status] || order.status;
+    const message = encodeURIComponent(
+      `Ma commande HDMarket n°${String(order._id).slice(-6).toUpperCase()} — ${statusLabel}. Suivi : ${window.location.href}`
+    );
+    window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener');
+  };
   const walletEnabledPhones = String(getRuntimeValue('wallet_enabled_shops', '') || '')
     .split(',')
     .map((value) => value.trim())
@@ -1338,7 +1415,10 @@ export default function OrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
-        <div className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]">
+        <motion.div
+          {...riseIn(reduceMotion, 0)}
+          className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]"
+        >
           <div className="relative overflow-hidden bg-gradient-to-br from-[#ff6a00] via-[#ff3d13] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1348,7 +1428,19 @@ export default function OrderDetail() {
                 </div>
                 <div>
                   <p className="text-xs font-black uppercase tracking-wide text-white/78">Commande HDMarket</p>
-                  <h3 className="text-2xl font-black tracking-tight">#{order._id.slice(-6)}</h3>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(order._id.slice(-6).toUpperCase(), 'orderId')}
+                    className="group inline-flex items-center gap-2"
+                    title="Copier le numéro de commande"
+                  >
+                    <h3 className="text-2xl font-black tracking-tight">#{order._id.slice(-6)}</h3>
+                    {copiedKey === 'orderId' ? (
+                      <Check className="h-4 w-4 text-white" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-white/60 transition group-hover:text-white" />
+                    )}
+                  </button>
                   <p className="mt-1 text-xs font-semibold text-white/78">
                     {formatOrderTimestamp(order.createdAt) || 'Date non disponible'}
                   </p>
@@ -1358,6 +1450,10 @@ export default function OrderDetail() {
                 <span className="rounded-full bg-white px-3 py-2 text-xs font-black uppercase text-gray-500 shadow-sm">
                   {STATUS_LABELS[effectiveOrderStatus] || effectiveOrderStatus}
                 </span>
+                <button type="button" onClick={shareOrderOnWhatsApp} className="inline-flex min-h-[38px] items-center gap-2 rounded-full bg-black/18 px-3 text-xs font-black text-white ring-1 ring-white/20 transition hover:bg-black/25 active:scale-95" title="Partager le suivi sur WhatsApp">
+                  <MessageCircle className="w-4 h-4" />
+                  Partager
+                </button>
                 <button type="button" onClick={() => openOrderPdf(order)} className="inline-flex min-h-[38px] items-center gap-2 rounded-full bg-black/18 px-3 text-xs font-black text-white ring-1 ring-white/20 transition hover:bg-black/25 active:scale-95" title="Télécharger le bon de commande">
                   <Download className="w-4 h-4" />
                   Bon
@@ -1365,6 +1461,114 @@ export default function OrderDetail() {
               </div>
             </div>
           </div>
+
+          {(() => {
+            const cancelled = effectiveOrderStatus === 'cancelled';
+            const steps = buildProgressSteps({ isInstallment: isInstallmentOrder, isPickup: pickupOrder });
+            const stepIndex = cancelled
+              ? 0
+              : resolveProgressStepIndex({ status: effectiveOrderStatus, isInstallment: isInstallmentOrder });
+            const fillPct = cancelled ? 100 : (stepIndex / (steps.length - 1)) * 100;
+            return (
+              <div className="bg-white px-5 pb-3 pt-4 dark:bg-neutral-950 sm:px-7">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-wide text-gray-500">Suivi</p>
+                  <p className={`text-[11px] font-black ${cancelled ? 'text-rose-600' : 'text-[#FF6A00]'}`}>
+                    {cancelled ? 'Commande annulée' : `Étape ${stepIndex + 1}/${steps.length}`}
+                  </p>
+                </div>
+                <div className="relative h-1.5 rounded-full bg-gray-100 dark:bg-neutral-800">
+                  <motion.div
+                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-gradient-to-r from-[#FFB000] to-[#FF6A00]'}`}
+                    initial={reduceMotion ? { width: `${fillPct}%` } : { width: 0 }}
+                    animate={{ width: `${fillPct}%` }}
+                    transition={{ duration: reduceMotion ? 0 : 0.9, ease: 'easeOut', delay: reduceMotion ? 0 : 0.3 }}
+                  />
+                  <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-between">
+                    {steps.map((step, index) => {
+                      const done = !cancelled && index <= stepIndex;
+                      const current = !cancelled && index === stepIndex;
+                      return (
+                        <motion.span
+                          key={step}
+                          initial={reduceMotion ? false : { scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ duration: 0.25, delay: reduceMotion ? 0 : 0.3 + index * 0.12 }}
+                          className={`h-3 w-3 rounded-full border-2 border-white dark:border-neutral-950 ${
+                            cancelled
+                              ? 'bg-rose-300'
+                              : done
+                                ? 'bg-[#FF6A00]'
+                                : 'bg-gray-200 dark:bg-neutral-700'
+                          } ${current && !reduceMotion ? 'animate-pulse' : ''}`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-between">
+                  {steps.map((step, index) => (
+                    <span
+                      key={step}
+                      className={`w-0 flex-1 text-[9px] font-black uppercase tracking-wide sm:text-[10px] ${
+                        index === 0 ? 'text-left' : index === steps.length - 1 ? 'text-right' : 'text-center'
+                      } ${
+                        !cancelled && index === stepIndex ? 'text-gray-900 dark:text-white' : 'text-gray-400'
+                      }`}
+                    >
+                      {step}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {order.deliveryCode && !hideDeliveryDetails && (
+            <div className="relative border-t-2 border-dashed border-gray-200 bg-white px-5 pb-5 pt-4 dark:border-neutral-800 dark:bg-neutral-950 sm:px-7">
+              <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
+              <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#FF6A00]" /> Code de livraison
+                  </p>
+                  <motion.p
+                    animate={reduceMotion ? {} : { scale: deliveryCodeRevealed ? [1, 1.06, 1] : 1 }}
+                    transition={{ duration: 0.3 }}
+                    className={`mt-1 font-mono text-3xl font-black tracking-[0.25em] text-neutral-950 transition-all duration-300 sm:text-4xl ${
+                      deliveryCodeRevealed ? '' : 'select-none blur-md'
+                    }`}
+                  >
+                    {order.deliveryCode}
+                  </motion.p>
+                  <p className="mt-1 text-[11px] font-semibold text-gray-500">
+                    {deliveryCodeRevealed
+                      ? 'Présentez ce code au livreur à la réception.'
+                      : 'Masqué par sécurité — affichez-le devant le livreur.'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryCodeRevealed((prev) => !prev)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition active:scale-95 dark:bg-neutral-800 dark:text-neutral-200"
+                    title={deliveryCodeRevealed ? 'Masquer le code' : 'Afficher le code'}
+                  >
+                    {deliveryCodeRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(order.deliveryCode, 'deliveryCode')}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#FF6A00] text-white transition active:scale-95"
+                    title="Copier le code"
+                  >
+                    {copiedKey === 'deliveryCode' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4 bg-gray-50 p-3 sm:p-5">
             {order.cancellationWindow?.isActive && effectiveOrderStatus !== 'cancelled' && (
@@ -1387,7 +1591,7 @@ export default function OrderDetail() {
               </div>
             )}
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+            <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
@@ -1442,19 +1646,10 @@ export default function OrderDetail() {
                   </div>
                 ))}
               </div>
-            </section>
+            </motion.section>
 
             {!hideDeliveryDetails && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {order.deliveryCode && (
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
-                  <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><ShieldCheck className="w-4 h-4 text-[#FF6A00]" /> Code de livraison</h4>
-                  <div className="rounded-2xl border border-gray-200 bg-gray-100 p-5">
-                    <p className="mb-2 text-center text-xs font-black uppercase text-gray-500">Présentez ce code au livreur</p>
-                    <div className="text-center font-mono text-4xl font-black tracking-wider text-neutral-950">{order.deliveryCode}</div>
-                  </div>
-                </div>
-              )}
+            <motion.div {...riseIn(reduceMotion, 0.16)} className="grid grid-cols-1 gap-4">
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
@@ -1520,7 +1715,7 @@ export default function OrderDetail() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
             )}
 
             {!hideDeliveryDetails && order.trackingNote && (
@@ -1661,7 +1856,7 @@ export default function OrderDetail() {
               </div>
             )}
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+            <motion.section {...riseIn(reduceMotion, 0.22)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCard className="w-4 h-4 text-[#FF6A00]" /> Paiement</h4>
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3">
@@ -1777,7 +1972,7 @@ export default function OrderDetail() {
                   </>
                 )}
               </div>
-            </section>
+            </motion.section>
 
             {isInstallmentOrder && (
               <InstallmentReminder
@@ -2117,7 +2312,7 @@ export default function OrderDetail() {
               })}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {aiRecommendationsEnabled && (
           <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_12px_30px_rgba(117,75,36,0.07)] sm:mt-8 sm:p-4">
