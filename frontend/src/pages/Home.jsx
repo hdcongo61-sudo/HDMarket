@@ -7,7 +7,9 @@ import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet, Pencil, Users } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet, Pencil, Users, Eye, EyeOff } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
 import { buildProductPath, buildShopPath } from "../utils/links";
 import AuthContext from "../context/AuthContext";
@@ -62,6 +64,247 @@ const buildImageReportContext = (product, deepLink = '') => {
     shopName: seller?.shopName || seller?.name || '',
     deepLink: deepLink || buildProductPath(product)
   };
+};
+
+// Scroll-triggered entrance shared by home sections.
+const scrollReveal = (reduceMotion) =>
+  reduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 18 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, margin: '-40px' },
+        transition: { duration: 0.4, ease: 'easeOut' }
+      };
+
+// Eased count-up for the wallet balance reveal.
+const useCountUp = (target, active, reduceMotion) => {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!active) return undefined;
+    const to = Number(target) || 0;
+    if (reduceMotion) {
+      setValue(to);
+      return undefined;
+    }
+    let frame;
+    const start = performance.now();
+    const duration = 900;
+    const tick = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(to * eased));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, active, reduceMotion]);
+  return value;
+};
+
+// The wallet section as an honest bank card: real balance (masked by default)
+// for signed-in users, an activation pitch for guests. Module-level so its
+// fetch/state survive Home re-renders.
+const WALLET_BENEFIT_ROTATION_MS = 3500;
+
+const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
+  const reduceMotion = useReducedMotion();
+  const [balance, setBalance] = useState(null); // null = loading, number = ready
+  const [balanceVisible, setBalanceVisible] = useState(false);
+  const [benefitIndex, setBenefitIndex] = useState(0);
+
+  useEffect(() => {
+    if (!user || !walletEnabled) return undefined;
+    let cancelled = false;
+    api
+      .get('/wallet')
+      .then(({ data }) => {
+        if (!cancelled) setBalance(Number(data?.availableBalance || 0));
+      })
+      .catch(() => {
+        if (!cancelled) setBalance(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, walletEnabled]);
+
+  const animatedBalance = useCountUp(balance ?? 0, balanceVisible && balance !== null, reduceMotion);
+
+  const benefits = [
+    {
+      icon: Zap,
+      label: t('home.walletFastTitle', 'Paiement plus rapide'),
+      text: t('home.walletFastText', 'Validez vos achats en 1 clic, sans refaire un dépôt à chaque commande.')
+    },
+    {
+      icon: Shield,
+      label: t('home.walletProtectedTitle', 'Argent mieux suivi'),
+      text: t('home.walletProtectedText', 'Chaque dépôt, achat et retrait reste visible dans votre historique.')
+    },
+    {
+      icon: RefreshCcw,
+      label: t('home.walletRefundTitle', 'Remboursement facilité'),
+      text: t('home.walletRefundText', 'En cas d’annulation éligible, le remboursement revient sur votre solde.')
+    },
+    {
+      icon: Sparkles,
+      label: t('home.walletListingTitle', 'Annonces validées auto'),
+      text: t('home.walletListingText', 'Payez les frais de publication depuis le solde, votre annonce part sans attente.')
+    }
+  ];
+
+  // Auto-rotate the benefit spotlight; static list under reduced motion.
+  useEffect(() => {
+    if (reduceMotion || !walletEnabled) return undefined;
+    const timer = setInterval(
+      () => setBenefitIndex((prev) => (prev + 1) % benefits.length),
+      WALLET_BENEFIT_ROTATION_MS
+    );
+    return () => clearInterval(timer);
+  }, [reduceMotion, walletEnabled, benefits.length]);
+
+  if (!walletEnabled) return null;
+
+  const activeBenefit = benefits[benefitIndex % benefits.length];
+  const ActiveBenefitIcon = activeBenefit.icon;
+
+  return (
+    <motion.section
+      {...scrollReveal(reduceMotion)}
+      className={`hd-wallet-callout relative w-full overflow-hidden rounded-2xl bg-[#06281f] text-white shadow-[0_14px_34px_rgba(6,40,31,0.18)] ${compact ? 'p-4' : 'p-5'}`}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(255,106,0,0.16),transparent_30%),linear-gradient(135deg,rgba(6,40,31,0.96),rgba(11,80,58,0.9))]" />
+      <div className="hd-wallet-shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+
+      <div className="relative">
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/90">
+            <Wallet className="h-3.5 w-3.5 shrink-0 text-emerald-200" />
+            <span className="truncate">{t('home.walletBadge', 'Portefeuille HDMarket')}</span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-white/10 px-2 py-1 text-[9px] font-black uppercase text-emerald-100 ring-1 ring-white/15">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            {t('home.walletSecure', 'Sécurisé')}
+          </span>
+        </div>
+
+        {user ? (
+          <div className="mt-4">
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-100/70">
+                {t('home.walletBalancePreview', 'Solde disponible')}
+              </p>
+              <button
+                type="button"
+                onClick={() => setBalanceVisible((prev) => !prev)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-emerald-100 transition active:scale-95"
+                title={balanceVisible ? 'Masquer le solde' : 'Afficher le solde'}
+              >
+                {balanceVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+            <p className={`mt-1 font-black tracking-tight ${compact ? 'text-2xl' : 'text-3xl'}`}>
+              {balance === null ? (
+                <span className="inline-block h-7 w-32 animate-pulse rounded bg-white/15 align-middle" />
+              ) : balanceVisible ? (
+                formatPriceWithStoredSettings(animatedBalance)
+              ) : (
+                '••••••'
+              )}
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <h2 className={`font-black leading-tight tracking-tight ${compact ? 'text-lg' : 'text-xl'}`}>
+              {t('home.walletTitle', 'Payez plus vite, gardez le contrôle de votre argent.')}
+            </h2>
+            <p className="mt-1.5 text-[12px] font-medium leading-5 text-emerald-50/80">
+              {t('home.walletGuestPitch', 'Rechargez une fois, payez en 1 clic et recevez vos remboursements sur votre solde.')}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center gap-2">
+          <Link
+            to={user ? '/wallet' : '/login'}
+            className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded bg-white px-3 py-2.5 text-[12px] font-black text-[#06281f] transition hover:bg-emerald-50 active:scale-[0.98] sm:flex-none sm:px-4 sm:text-[13px]"
+          >
+            <span className="truncate">
+              {user ? t('home.walletOpen', 'Ouvrir mon portefeuille') : t('home.walletStart', 'Activer mon portefeuille')}
+            </span>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+          </Link>
+        </div>
+
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/60">
+            {t('home.walletBenefitsTitle', 'Les bienfaits du portefeuille')}
+          </p>
+          {reduceMotion ? (
+            <div className="mt-2.5 space-y-2">
+              {benefits.map(({ icon: Icon, label, text }) => (
+                <div key={label} className="flex items-start gap-2.5">
+                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-400/15 text-emerald-300">
+                    <Icon className="h-3 w-3" />
+                  </span>
+                  <p className="text-[11px] leading-4 text-emerald-50/85">
+                    <span className="font-black text-white">{label}</span>
+                    {' — '}
+                    {text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className={`relative mt-2.5 overflow-hidden ${compact ? 'min-h-[58px]' : 'min-h-[52px]'}`}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeBenefit.label}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -14 }}
+                    transition={{ duration: 0.32, ease: 'easeOut' }}
+                    className="flex items-start gap-2.5"
+                  >
+                    <motion.span
+                      initial={{ scale: 0.6, rotate: -8 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ duration: 0.32, ease: 'easeOut' }}
+                      className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gradient-to-br from-emerald-400 to-emerald-200 text-[#06281f] shadow-[0_8px_18px_rgba(16,185,129,0.28)]"
+                    >
+                      <ActiveBenefitIcon className="h-3.5 w-3.5" />
+                    </motion.span>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-black leading-4 text-white">{activeBenefit.label}</p>
+                      <p className="mt-0.5 text-[11px] font-medium leading-4 text-emerald-50/80">{activeBenefit.text}</p>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5">
+                {benefits.map((benefit, index) => (
+                  <button
+                    key={benefit.label}
+                    type="button"
+                    onClick={() => setBenefitIndex(index)}
+                    aria-label={benefit.label}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      index === benefitIndex % benefits.length
+                        ? 'w-5 bg-emerald-300'
+                        : 'w-1.5 bg-white/25 hover:bg-white/40'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </motion.section>
+  );
 };
 
 /**
@@ -214,148 +457,10 @@ const payForOtherBannerText =
       'Un proche peut régler votre commande — proposez-le au moment du paiement.'
     ) || ''
   ).trim() || 'Un proche peut régler votre commande — proposez-le au moment du paiement.';
+const walletFeatureEnabled = normalizeSettingBoolean(getRuntimeValue('enable_digital_wallet', false), false);
+const reduceMotionHome = useReducedMotion();
 const primaryPageLimit = compactProductsPageSize || 12;
 const secondarySectionLimit = compactSecondaryLimit || 6;
-const WalletHomeCallout = ({ compact = false } = {}) => {
-  const walletPath = user ? '/wallet' : '/login';
-  const benefits = [
-    {
-      icon: Zap,
-      label: t('home.walletFastTitle', 'Paiement plus rapide'),
-      text: t('home.walletFastText', 'Validez vos achats sans refaire un dépôt à chaque commande.'),
-      stat: t('home.walletFastStat', '1 clic'),
-      tone: 'from-orange-400 to-amber-300',
-      glow: 'shadow-[0_10px_24px_rgba(255,106,0,0.22)]'
-    },
-    {
-      icon: Shield,
-      label: t('home.walletProtectedTitle', 'Argent mieux suivi'),
-      text: t('home.walletProtectedText', 'Chaque dépôt, achat et retrait reste visible dans votre historique.'),
-      stat: t('home.walletProtectedStat', 'Historique clair'),
-      tone: 'from-emerald-300 to-cyan-200',
-      glow: 'shadow-[0_10px_24px_rgba(16,185,129,0.2)]'
-    },
-    {
-      icon: RefreshCcw,
-      label: t('home.walletRefundTitle', 'Remboursement facilité'),
-      text: t('home.walletRefundText', 'En cas d’annulation éligible, le remboursement revient dans le portefeuille.'),
-      stat: t('home.walletRefundStat', 'Retour suivi'),
-      tone: 'from-sky-300 to-indigo-200',
-      glow: 'shadow-[0_10px_24px_rgba(56,189,248,0.18)]'
-    }
-  ];
-
-  return (
-    <section className={`hd-wallet-callout relative w-full overflow-hidden rounded-2xl border border-emerald-100 bg-[#06281f] text-white shadow-[0_14px_34px_rgba(6,40,31,0.18)] ${compact ? 'p-3' : 'p-4'}`}>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.16),transparent_25%),radial-gradient(circle_at_86%_12%,rgba(255,106,0,0.2),transparent_24%),linear-gradient(135deg,rgba(6,40,31,0.95),rgba(11,80,58,0.92))]" />
-      <div className="hd-wallet-shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/18 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent" />
-      <div className={`relative grid gap-3 ${compact ? 'grid-cols-[minmax(0,1fr)_104px] items-center max-[380px]:grid-cols-1' : 'lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center'}`}>
-        <div className="min-w-0">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-50 backdrop-blur">
-              <Wallet className="h-3 w-3 shrink-0 text-emerald-200" />
-              <span className="truncate">{t('home.walletBadge', 'Portefeuille HDMarket')}</span>
-            </div>
-            <Link
-              to={walletPath}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black text-white ring-1 ring-white/15 transition hover:bg-white/16 active:scale-[0.98]"
-            >
-              {t('home.walletMiniLink', 'Mon portefeuille')}
-              <ChevronRight className="h-3 w-3" />
-            </Link>
-          </div>
-          <h2 className={`${compact ? 'text-lg' : 'text-xl lg:text-2xl'} font-black leading-tight tracking-tight text-white`}>
-            {t('home.walletTitle', 'Payez plus vite, gardez le contrôle de votre argent.')}
-          </h2>
-          <p className={`mt-1.5 max-w-2xl ${compact ? 'text-[12px] leading-5' : 'text-[13px] leading-5'} font-medium text-emerald-50/82`}>
-            {t('home.walletSubtitle', 'Rechargez une fois votre portefeuille HDMarket, commandez plus facilement, suivez vos mouvements et recevez les remboursements éligibles directement sur votre solde.')}
-          </p>
-          <p className="mt-1 inline-flex rounded-full border border-white/12 bg-white/10 px-2.5 py-1 text-[10px] font-black text-emerald-50 sm:text-[11px]">
-            {t('home.walletListingAutoValidation', 'Faites valider vos annonces automatiquement.')}
-          </p>
-          <div className={`mt-3 grid gap-2.5 ${compact ? 'grid-cols-3 max-[420px]:grid-cols-1' : 'sm:grid-cols-3'}`}>
-            {benefits.map(({ icon: Icon, label, text, stat, tone, glow }, index) => (
-              <div
-                key={label}
-                className={`hd-wallet-benefit group relative overflow-hidden rounded-xl border border-white/12 bg-white/[0.09] p-2.5 backdrop-blur ${compact ? 'min-h-[92px]' : 'min-h-[132px]'}`}
-                style={{ '--wallet-benefit-delay': `${index * 0.55}s` }}
-              >
-                <div className={`pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-gradient-to-br ${tone} opacity-20 blur-xl transition group-hover:opacity-35`} />
-                <div className="relative flex items-start justify-between gap-2">
-                  <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tone} text-[#06281f] ${glow}`}>
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="hd-wallet-stat-chip relative inline-flex max-w-[94px] shrink-0 items-center gap-1.5 overflow-hidden rounded-full border border-white/14 bg-[#061f19]/72 px-2 py-1 text-[9px] font-black uppercase leading-none text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur">
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br ${tone} shadow-[0_0_10px_rgba(255,255,255,0.45)]`} />
-                    <span className="min-w-0 truncate">{stat}</span>
-                  </span>
-                </div>
-                <div className="relative mt-2">
-                  <p className="text-[12px] font-black leading-4 text-white">{label}</p>
-                  {!compact ? <p className="mt-1 text-[11px] font-semibold leading-4 text-emerald-50/76">{text}</p> : null}
-                </div>
-                <div className="relative mt-2 h-1 overflow-hidden rounded-full bg-white/10">
-                  <div className={`hd-wallet-benefit-rail h-full w-7/12 rounded-full bg-gradient-to-r ${tone}`} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <Link
-              to={walletPath}
-              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-white px-3 py-2 text-[12px] font-black text-[#06281f] shadow-[0_10px_22px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-emerald-50 active:scale-[0.98] sm:flex-none sm:gap-2 sm:px-3.5 sm:text-[13px]"
-            >
-              <span className="truncate">{user ? t('home.walletOpen', 'Ouvrir mon portefeuille') : t('home.walletStart', 'Activer mon portefeuille')}</span>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-            </Link>
-            <span className="inline-flex min-w-0 shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2 py-1.5 text-[9px] font-black text-emerald-50 sm:gap-1.5 sm:px-2.5 sm:text-[10px]">
-              <RefreshCcw className="h-3 w-3 shrink-0" />
-              <span className="max-w-[108px] truncate sm:max-w-none">{t('home.walletRefundBadge', 'Remboursements suivis')}</span>
-            </span>
-          </div>
-        </div>
-
-        <div className={`relative ${compact ? 'min-h-[118px] max-[380px]:hidden' : 'min-h-[164px]'}`}>
-          <div className="hd-wallet-float absolute left-1/2 top-1/2 w-[min(100%,252px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/15 bg-white p-3 text-slate-950 shadow-[0_18px_44px_rgba(0,0,0,0.26)]">
-            <div className="flex items-center justify-between">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-[#ff6a00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.22)]">
-                <Wallet className="h-[18px] w-[18px]" />
-              </span>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700">
-                Sécurisé
-              </span>
-            </div>
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-slate-100 bg-slate-50 px-2 py-1 text-[8.5px] font-black uppercase tracking-wide text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:text-[10px]">
-              <span className="h-1 w-3 rounded-full bg-gradient-to-r from-emerald-500 to-[#ff6a00]" />
-              <span>{t('home.walletBalancePreview', 'Solde disponible')}</span>
-            </div>
-            <p className="mt-0.5 text-base font-black tracking-tight text-slate-950 sm:text-xl">125 000 F</p>
-            <div className="mt-3 overflow-hidden rounded-full bg-slate-100 p-1">
-              <div className="hd-wallet-rail h-1.5 w-1/2 rounded-full bg-gradient-to-r from-[#ff6a00] via-emerald-500 to-[#ff6a00]" />
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-1.5 text-[9px] font-black sm:text-[10px]">
-              <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-xl border border-emerald-100 bg-emerald-50 px-1.5 py-1.5 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.55)]" />
-                <span className="truncate">Dépôt prêt</span>
-              </span>
-              <span className="inline-flex min-w-0 items-center justify-center gap-1 rounded-xl border border-gray-200 bg-gray-100 px-1.5 py-1.5 text-gray-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ff6a00] shadow-[0_0_8px_rgba(255,106,0,0.45)]" />
-                <span className="truncate">Retour</span>
-              </span>
-            </div>
-          </div>
-          <span className="hd-wallet-pop absolute bottom-0 right-1.5 rounded-2xl bg-white px-2.5 py-1.5 text-[10px] font-black text-emerald-700 shadow-[0_10px_20px_rgba(0,0,0,0.16)] sm:right-3">
-            + Remboursement
-          </span>
-          <span className="hd-wallet-pop absolute bottom-7 left-3 rounded-2xl bg-[#ff6a00] px-2.5 py-1.5 text-[10px] font-black text-white shadow-[0_10px_20px_rgba(255,106,0,0.22)] [animation-delay:0.8s]">
-            Paye vite
-          </span>
-        </div>
-      </div>
-    </section>
-  );
-};
 const homeSnapshotKey = useMemo(
   () =>
     [
@@ -1346,7 +1451,7 @@ const loadDiscountProducts = async () => {
           </section>
         ) : null}
 
-        <WalletHomeCallout compact />
+        <WalletHomeCallout compact user={user} t={t} walletEnabled={walletFeatureEnabled} />
 
         <section className="-mx-2.5 overflow-hidden rounded-b-[30px] bg-[#ff3d13] text-white shadow-[0_16px_34px_rgba(255,106,0,0.2)] max-[375px]:-mx-2">
           <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
@@ -1676,7 +1781,7 @@ const loadDiscountProducts = async () => {
 
         {/* ⚡ Flash Sales — Countdown Deals (Proposal 2) */}
         {!activeFlashSalesLoading && activeFlashSales.length > 0 && (
-          <section className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50/40 to-orange-50/40 p-3">
+          <motion.section {...scrollReveal(reduceMotionHome)} className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50/40 to-orange-50/40 p-3">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500">
@@ -1695,7 +1800,7 @@ const loadDiscountProducts = async () => {
                 <FlashSaleCard key={fs._id} flashSale={fs} compact />
               ))}
             </div>
-          </section>
+          </motion.section>
         )}
 
         {/* Boutiques en promo cette semaine */}
@@ -2075,7 +2180,7 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Wholesale section — always reserve space to prevent scroll jump */}
-        <section className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+        <motion.section {...scrollReveal(reduceMotionHome)} className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
           <div className="px-3 pb-3 pt-3 max-[375px]:px-2.5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -2135,10 +2240,10 @@ const loadDiscountProducts = async () => {
             </p>
           )}
           </div>
-        </section>
+        </motion.section>
 
         {/* Installment section — always reserve space to prevent scroll jump */}
-        <section ref={installmentSectionRef} className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
+        <motion.section {...scrollReveal(reduceMotionHome)} ref={installmentSectionRef} className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
           <div className="px-3 pb-3 pt-3 max-[375px]:px-2.5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -2199,7 +2304,7 @@ const loadDiscountProducts = async () => {
             <p className="text-xs text-gray-500">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
           )}
           </div>
-        </section>
+        </motion.section>
 
         {/* All Products Grid */}
         <section>
@@ -2422,7 +2527,7 @@ const loadDiscountProducts = async () => {
             ) : null}
           </section>
         ) : null}
-        <WalletHomeCallout />
+        <WalletHomeCallout user={user} t={t} walletEnabled={walletFeatureEnabled} />
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
           <Link

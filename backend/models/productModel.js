@@ -177,7 +177,11 @@ const assignConfirmationNumber = async (doc) => {
 };
 
 productSchema.pre('validate', async function (next) {
-  if (!this.slug || this.isModified('title')) {
+  // Never regenerate the slug on documents loaded with a projection that
+  // excludes it — "unselected" is not "missing", and regenerating here would
+  // overwrite the real slug on save.
+  const slugKnown = this.isNew || typeof this.isSelected !== 'function' || this.isSelected('slug');
+  if ((slugKnown && !this.slug) || this.isModified('title')) {
     try {
       const source = this.title || String(this._id);
       this.slug = await generateUniqueSlug(this.constructor, source, this._id, 'slug');

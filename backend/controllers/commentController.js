@@ -56,7 +56,9 @@ const buildProductCommentsDeepLink = ({ product, commentId = '' }) => {
 const loadProductForComments = async (
   identifier,
   fallbackId = null,
-  projection = '_id status'
+  // slug + title MUST be selected: ensureDocumentSlug below regenerates (and
+  // persists) the slug when it can't see one on the document.
+  projection = '_id status slug title'
 ) => {
   const query = buildIdentifierQuery(identifier);
   let product = await Product.findOne(query).select(projection);
@@ -69,7 +71,7 @@ const loadProductForComments = async (
 };
 
 export const getCommentsForProduct = asyncHandler(async (req, res) => {
-  const product = await loadProductForComments(req.params.id, null, '_id status');
+  const product = await loadProductForComments(req.params.id, null, '_id status slug title');
   if (!product || product.status !== 'approved') {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }

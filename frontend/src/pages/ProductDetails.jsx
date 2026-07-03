@@ -163,12 +163,19 @@ export default function ProductDetails() {
   }, [authContextValue, navigate]);
 
   const handleBackNavigation = useCallback(() => {
-    if (previewBackPath) {
-      navigate(previewBackPath, { replace: true });
+    // Prefer real history: when the user came from the preview, it IS the
+    // previous entry, and popping keeps the rest of the stack (Home…) intact.
+    // Replacing with previewBackPath here used to duplicate the preview entry,
+    // turning the preview's own back button into a no-op.
+    const routerIndex = window.history.state?.idx;
+    const hasSpaHistory = typeof routerIndex === 'number' ? routerIndex > 0 : window.history.length > 1;
+    if (hasSpaHistory) {
+      navigate(-1);
       return;
     }
-    if (window.history.length > 1) {
-      navigate(-1);
+    // Deep link / new tab: no SPA history — fall back to the preview, then products.
+    if (previewBackPath) {
+      navigate(previewBackPath, { replace: true });
       return;
     }
     navigate('/products');

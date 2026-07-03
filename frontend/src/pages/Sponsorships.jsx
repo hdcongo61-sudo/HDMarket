@@ -159,7 +159,9 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
           type="button"
           disabled={busy}
           onClick={submit}
-          className="inline-flex flex-1 items-center justify-center rounded-lg bg-[#FF6A00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
+          className={`inline-flex flex-1 items-center justify-center rounded-lg px-3 py-2.5 text-sm font-black text-white disabled:opacity-60 ${
+            method === 'wallet' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#FF6A00]'
+          }`}
         >
           {busy ? 'Traitement…' : `Payer ${formatCurrency(amountToPay)}`}
         </button>

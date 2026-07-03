@@ -35,6 +35,19 @@ export const generateUniqueSlug = async (Model, baseValue, excludeId = null, slu
 export const ensureDocumentSlug = async ({ document, sourceValue, slugField = 'slug' }) => {
   if (!document) return null;
   if (document[slugField]) return document[slugField];
+  // A blank slug can mean "excluded by the query projection", not "missing in
+  // the DB". Writing in that case overwrites the real slug (with a Date.now()
+  // placeholder when the title is also unselected) — so check the DB first.
+  if (typeof document.isSelected === 'function' && !document.isSelected(slugField)) {
+    const fresh = await document.constructor
+      .findById(document._id)
+      .select(slugField)
+      .lean();
+    if (fresh?.[slugField]) {
+      document[slugField] = fresh[slugField];
+      return fresh[slugField];
+    }
+  }
   const value = typeof sourceValue === 'function' ? sourceValue(document) : sourceValue;
   const slug = await generateUniqueSlug(document.constructor, value, document._id, slugField);
   document[slugField] = slug;
