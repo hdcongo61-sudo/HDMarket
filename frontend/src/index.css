@@ -337,6 +337,17 @@ select:disabled {
 .dark :where(.text-rose-600, .text-rose-700, .text-rose-800, .text-rose-900) { color: #fda4af; }
 .dark :where(.text-red-600, .text-red-700, .text-red-800, .text-red-900) { color: #fca5a5; }
 
+/* Desktop full-width pages: page containers are centered max-w-2xl…7xl columns.
+   From lg up, let them span the whole viewport (they keep their own px-* padding).
+   Modal/overlay panels are untouched — they size with prefixed classes
+   (sm:max-w-*), which are distinct class names. Being unlayered, this beats the
+   layered Tailwind utilities of the same name. */
+@media (min-width: 1024px) {
+  :where(.max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl) {
+    max-width: 100%;
+  }
+}
+
 /* Accessibility: white text on the flat brand-orange fill (#FF6A00) was ~2.9:1.
    Darken the solid fill to #E85D00 (≥3.5:1 with white) app-wide; text-[#FF6A00]
    and the hd-flow gradients keep the brighter brand hue. Being unlayered, these
