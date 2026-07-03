@@ -25,7 +25,11 @@ const productAttributeSchema = Joi.object({
   type: Joi.string().valid('select', 'text', 'number').required(),
   options: Joi.array().items(Joi.string().max(80)).optional(),
   required: Joi.boolean().optional(),
-  defaultValue: Joi.alternatives().try(Joi.string().max(120), Joi.number()).allow('', null)
+  defaultValue: Joi.alternatives().try(Joi.string().max(120), Joi.number()).allow('', null),
+  optionPrices: Joi.object()
+    .pattern(Joi.string().max(80), Joi.number().positive().max(1_000_000_000))
+    .optional()
+    .allow(null)
 });
 const physicalSchema = Joi.object({
   weight: Joi.object({

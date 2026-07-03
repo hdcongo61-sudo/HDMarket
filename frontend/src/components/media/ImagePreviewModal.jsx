@@ -1,18 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
   Download,
   Flag,
+  Heart,
   MoreHorizontal,
-  RotateCcw,
   Share2,
   X,
   ZoomIn,
   ZoomOut
 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import BaseModal from '../modals/BaseModal';
 import { useToast } from '../../context/ToastContext';
+import AuthContext from '../../context/AuthContext';
+import FavoriteContext from '../../context/FavoriteContext';
 import api from '../../services/api';
 import { trackEvent, trackRealtimeMonitoringEvent } from '../../services/analytics';
 
@@ -75,9 +78,15 @@ export default function ImagePreviewModal({
   initialIndex = 0,
   title = '',
   onReport,
-  reportContext = null
+  reportContext = null,
+  product = null
 }) {
   const { showToast } = useToast();
+  const reduceMotion = useReducedMotion();
+  const { user } = useContext(AuthContext) || {};
+  const { toggleFavorite, isFavorite } = useContext(FavoriteContext) || {};
+  const [favoritePending, setFavoritePending] = useState(false);
+  const [heartPulse, setHeartPulse] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -118,6 +127,44 @@ export default function ImagePreviewModal({
     return autoHighQualityImages;
   }, [safeHighResInput, safeImages, autoHighQualityImages]);
   const canNavigate = safeImages.length > 1;
+
+  // The quick-look can favorite the product it previews. Callers may pass the
+  // full product; otherwise fall back to the report context (Home/shop grids
+  // already provide productId/title/slug there).
+  const favoriteProduct = useMemo(() => {
+    if (product?._id) return product;
+    if (reportContext?.contextType !== 'product' || !reportContext?.productId) return null;
+    return {
+      _id: reportContext.productId,
+      title: reportContext.productTitle || title || 'Produit',
+      slug: reportContext.productSlug || '',
+      images: safeImages
+    };
+  }, [product, reportContext, title, safeImages]);
+  const favoriteActive = Boolean(
+    favoriteProduct && typeof isFavorite === 'function' && isFavorite(favoriteProduct._id)
+  );
+
+  const handleFavoriteToggle = useCallback(async () => {
+    if (!favoriteProduct || typeof toggleFavorite !== 'function' || favoritePending) return;
+    if (!user) {
+      showToast('Connectez-vous pour enregistrer vos favoris.', { variant: 'error' });
+      return;
+    }
+    setFavoritePending(true);
+    setHeartPulse((pulse) => pulse + 1);
+    try {
+      const added = await toggleFavorite(favoriteProduct);
+      sendPreviewAnalytics(
+        added ? 'image_preview_favorite_add' : 'image_preview_favorite_remove',
+        reportContext
+      );
+    } catch {
+      showToast('Impossible de mettre à jour vos favoris.', { variant: 'error' });
+    } finally {
+      setFavoritePending(false);
+    }
+  }, [favoriteProduct, toggleFavorite, favoritePending, user, showToast, reportContext]);
   const canNativeReport = useMemo(() => {
     if (typeof onReport === 'function') return true;
     const contextType = reportContext?.contextType === 'shop' ? 'shop' : 'product';
@@ -595,70 +642,77 @@ export default function ImagePreviewModal({
           ) : null}
 
           <div className="rounded-2xl border border-white/10 bg-white/12 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-white">{title || 'Image produit'}</p>
-                <p className="text-xs font-semibold text-white/58">Double tap pour zoomer · pincez pour agrandir</p>
+                <p className="truncate text-xs font-semibold text-white/58">
+                  {scale > 1
+                    ? 'Déplacez l’image avec un doigt'
+                    : 'Double tap pour zoomer · pincez pour agrandir'}
+                </p>
               </div>
-              <span className="shrink-0 rounded-full bg-[#FF6A00] px-3 py-1 text-xs font-black text-white">
-                {zoomPercent}%
-              </span>
-            </div>
-
-            <div className="grid grid-cols-[44px_minmax(0,1fr)_44px_44px] items-center gap-2">
-              <button
-                type="button"
-                onClick={zoomOut}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-gray-100 active:scale-95 disabled:opacity-50"
-                aria-label="Zoom arrière"
-                disabled={scale <= ZOOM_MIN}
-              >
-                <ZoomOut className="h-5 w-5" />
-              </button>
-              <input
-                type="range"
-                min={ZOOM_MIN}
-                max={ZOOM_MAX}
-                step="0.1"
-                value={scale}
-                onChange={(event) => applyScale(Number(event.target.value))}
-                className="h-2 w-full accent-[#FF6A00]"
-                aria-label="Niveau de zoom"
-              />
-              <button
-                type="button"
-                onClick={zoomIn}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-gray-100 active:scale-95 disabled:opacity-50"
-                aria-label="Zoom avant"
-                disabled={scale >= ZOOM_MAX}
-              >
-                <ZoomIn className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => resetTransform()}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/14 text-white ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
-                aria-label="Réinitialiser zoom"
-              >
-                <RotateCcw className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
               {hdEnabled ? (
-                <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-100 ring-1 ring-emerald-400/20">
-                  HD actif
-                </span>
-              ) : (
-                <span className="rounded-full bg-white/12 px-3 py-1 text-xs font-bold text-white/80 ring-1 ring-white/10">
-                  Chargement optimisé
-                </span>
-              )}
-              {scale > 1 ? (
-                <span className="rounded-full bg-gray-1000/16 px-3 py-1 text-xs font-bold text-orange-100 ring-1 ring-orange-400/20">
-                  Déplacez l’image avec un doigt
+                <span className="shrink-0 rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-100 ring-1 ring-emerald-400/20">
+                  HD
                 </span>
               ) : null}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {favoriteProduct ? (
+                <button
+                  type="button"
+                  onClick={handleFavoriteToggle}
+                  disabled={favoritePending}
+                  className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:cursor-wait ${
+                    favoriteActive
+                      ? 'bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.35)]'
+                      : 'bg-white/14 text-white ring-1 ring-white/10 hover:bg-white/20'
+                  } ${favoritePending ? 'opacity-70' : ''}`}
+                  aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  aria-pressed={favoriteActive}
+                >
+                  <motion.span
+                    key={heartPulse}
+                    initial={reduceMotion || heartPulse === 0 ? false : { scale: 0.5 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                    className="inline-flex"
+                  >
+                    <Heart className="h-5 w-5" fill={favoriteActive ? 'currentColor' : 'none'} />
+                  </motion.span>
+                </button>
+              ) : null}
+
+              <div className="flex flex-1 items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={zoomOut}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-gray-100 active:scale-95 disabled:opacity-50"
+                  aria-label="Zoom arrière"
+                  disabled={scale <= ZOOM_MIN}
+                >
+                  <ZoomOut className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => resetTransform()}
+                  className="inline-flex h-11 min-w-[72px] items-center justify-center rounded-full bg-[#FF6A00] px-3 text-xs font-black tabular-nums text-white transition active:scale-95"
+                  aria-label="Réinitialiser le zoom"
+                  title="Réinitialiser le zoom"
+                >
+                  {zoomPercent}%
+                </button>
+                <button
+                  type="button"
+                  onClick={zoomIn}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm transition hover:bg-gray-100 active:scale-95 disabled:opacity-50"
+                  aria-label="Zoom avant"
+                  disabled={scale >= ZOOM_MAX}
+                >
+                  <ZoomIn className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

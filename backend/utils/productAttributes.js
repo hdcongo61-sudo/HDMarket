@@ -59,6 +59,22 @@ const normalizeAttributeDefaultValue = ({ type, value }) => {
   return raw;
 };
 
+// Optional per-option unit prices for select attributes (e.g. size → price).
+// Keys are stored lowercase and must match a declared option.
+const normalizeOptionPrices = (input, options = []) => {
+  const parsed = parseMaybeJson(input);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const allowed = new Set(options.map((option) => option.toLowerCase()));
+  const normalized = {};
+  Object.entries(parsed).forEach(([key, raw]) => {
+    const optionKey = toTrimmedString(key).toLowerCase();
+    const price = Number(raw);
+    if (!allowed.has(optionKey) || !Number.isFinite(price) || price <= 0) return;
+    normalized[optionKey] = Math.round(price * 100) / 100;
+  });
+  return Object.keys(normalized).length ? normalized : null;
+};
+
 export const normalizeProductAttributes = (input) => {
   const parsed = parseMaybeJson(input);
   const list = Array.isArray(parsed) ? parsed : [];
@@ -69,6 +85,7 @@ export const normalizeProductAttributes = (input) => {
       const name = toTrimmedString(entry.name || entry.label || entry.key || `Option ${index + 1}`);
       if (!name) return null;
       const options = type === 'select' ? normalizeOptionList(entry.options) : [];
+      const optionPrices = type === 'select' ? normalizeOptionPrices(entry.optionPrices, options) : null;
       const defaultValue = normalizeAttributeDefaultValue({
         type,
         value: entry.defaultValue
@@ -79,7 +96,8 @@ export const normalizeProductAttributes = (input) => {
         type,
         options,
         required: normalizeBoolean(entry.required, false),
-        defaultValue
+        defaultValue,
+        ...(optionPrices ? { optionPrices } : {})
       };
     })
     .filter(Boolean);
@@ -141,6 +159,35 @@ export const normalizeSelectedAttributes = (input) => {
       return { name, value };
     })
     .filter(Boolean);
+};
+
+// Resolve the unit price for a given selection: a selected (or defaulted)
+// option that defines a price replaces the base price. When several priced
+// attributes are selected, the last one in attribute order wins.
+export const resolveSelectedAttributesPrice = ({
+  productAttributes = [],
+  selectedAttributes = [],
+  basePrice = 0
+}) => {
+  const attributes = normalizeProductAttributes(productAttributes);
+  const selected = normalizeSelectedAttributes(selectedAttributes);
+  const selectedByName = new Map(
+    selected.map((entry) => [entry.name.toLowerCase(), entry.value.toLowerCase()])
+  );
+  let unitPrice = Number(basePrice) || 0;
+  let applied = false;
+  for (const attribute of attributes) {
+    if (attribute.type !== 'select' || !attribute.optionPrices) continue;
+    let value = selectedByName.get(attribute.name.toLowerCase()) || '';
+    if (!value && attribute.defaultValue) value = attribute.defaultValue.toLowerCase();
+    if (!value) continue;
+    const optionPrice = attribute.optionPrices[value];
+    if (Number.isFinite(optionPrice) && optionPrice > 0) {
+      unitPrice = optionPrice;
+      applied = true;
+    }
+  }
+  return { unitPrice, applied };
 };
 
 export const buildSelectedAttributesSelectionKey = (selectedAttributes = []) =>

@@ -1559,6 +1559,7 @@ const loadDiscountProducts = async () => {
                   {heroProducts.slice(0, 4).map((product, idx) => (
                     <div key={`hero-thumb-${product._id || idx}`} className="overflow-hidden rounded-xl bg-gray-100">
                       <PreviewableImage
+                        product={product}
                         src={resolveProductPrimaryImage(product)}
                         images={resolveProductImageSet(product)}
                         alt={product.title || 'Produit'}
@@ -1580,6 +1581,7 @@ const loadDiscountProducts = async () => {
                 >
                   <div className="aspect-[1.18/1] overflow-hidden bg-gray-100">
                     <PreviewableImage
+                      product={product}
                       src={resolveProductPrimaryImage(product)}
                       images={resolveProductImageSet(product)}
                       alt={product.title || 'Produit'}
@@ -1739,6 +1741,7 @@ const loadDiscountProducts = async () => {
                 >
                   <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                     <PreviewableImage
+                      product={product}
                       src={resolveProductPrimaryImage(product)}
                       images={resolveProductImageSet(product)}
                       alt={product.title}
@@ -1880,6 +1883,7 @@ const loadDiscountProducts = async () => {
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                       <PreviewableImage
+                        product={product}
                         src={resolveProductPrimaryImage(product)}
                         images={resolveProductImageSet(product)}
                         alt={product.title}
@@ -1929,6 +1933,7 @@ const loadDiscountProducts = async () => {
                 >
                   <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                     <PreviewableImage
+                      product={product}
                       src={resolveProductPrimaryImage(product)}
                       images={resolveProductImageSet(product)}
                       alt={product.title}
@@ -2105,6 +2110,7 @@ const loadDiscountProducts = async () => {
                     >
                       <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                         <PreviewableImage
+                          product={product}
                           src={resolveProductPrimaryImage(product)}
                           images={resolveProductImageSet(product)}
                           alt={product.title}
@@ -2651,6 +2657,7 @@ const loadDiscountProducts = async () => {
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                       <PreviewableImage
+                        product={product}
                         src={resolveProductPrimaryImage(product)}
                         images={resolveProductImageSet(product)}
                         alt={product.title}
@@ -2725,6 +2732,7 @@ const loadDiscountProducts = async () => {
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100">
                       <PreviewableImage
+                        product={product}
                         src={resolveProductPrimaryImage(product)}
                         images={resolveProductImageSet(product)}
                         alt={product.title}
@@ -2774,6 +2782,7 @@ const loadDiscountProducts = async () => {
                 >
                   <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100">
                     <PreviewableImage
+                      product={product}
                       src={resolveProductPrimaryImage(product)}
                       images={resolveProductImageSet(product)}
                       alt={product.title}
@@ -2899,6 +2908,7 @@ const loadDiscountProducts = async () => {
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                       <PreviewableImage
+                        product={product}
                         src={resolveProductPrimaryImage(product)}
                         images={resolveProductImageSet(product)}
                         alt={product.title}

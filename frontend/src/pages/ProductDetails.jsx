@@ -48,6 +48,7 @@ import {
   getDefaultSelectedAttributes,
   normalizeProductAttributes,
   normalizeSelectedAttributes,
+  resolveSelectedAttributesPrice,
   validateSelectedAttributes
 } from "../utils/productAttributes";
 import { resolveUserProfileImage } from "../utils/userAvatar";
@@ -1453,7 +1454,15 @@ export default function ProductDetails() {
   // 🎨 CALCULS ET FORMATAGES
   const hasDiscount = product?.discount > 0;
   const originalPrice = hasDiscount ? product?.priceBeforeDiscount : product?.price;
-  const finalPrice = Number(product?.price || 0);
+  // A selected variant (e.g. size) with its own price replaces the base price.
+  const variantPricing = resolveSelectedAttributesPrice({
+    productAttributes: productOptionDefinitions,
+    selectedAttributes: normalizedSelectedAttributes,
+    basePrice: product?.price || 0
+  });
+  const finalPrice = variantPricing.applied
+    ? Number(variantPricing.unitPrice || 0)
+    : Number(product?.price || 0);
   const normalizedQuantity = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
   const discountPercentage = product?.discount || 0;
   const wholesaleTiers = useMemo(() => {
@@ -1475,12 +1484,13 @@ export default function ProductDetails() {
   }, [product?.wholesaleTiers]);
   const wholesaleEnabled = Boolean(product?.wholesaleEnabled) && wholesaleTiers.length > 0;
   const activeWholesaleTier = useMemo(() => {
-    if (!wholesaleEnabled) return null;
+    // Wholesale tiers quote the base price — skip them for variant prices.
+    if (!wholesaleEnabled || variantPricing.applied) return null;
     return wholesaleTiers.reduce((active, tier) => {
       if (normalizedQuantity >= tier.minQty) return tier;
       return active;
     }, null);
-  }, [wholesaleEnabled, wholesaleTiers, normalizedQuantity]);
+  }, [wholesaleEnabled, wholesaleTiers, normalizedQuantity, variantPricing.applied]);
   const appliedUnitPrice = activeWholesaleTier?.unitPrice || finalPrice;
   const computedLineTotal = Number((appliedUnitPrice * normalizedQuantity).toFixed(2));
   const wholesaleSavingsAmount = Math.max(
@@ -2378,6 +2388,7 @@ export default function ProductDetails() {
                         {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
                           const active = selectedValue.toLowerCase() === String(option).toLowerCase();
                           const swatch = isColor ? resolveSwatchColor(option) : '';
+                          const optionPrice = attribute.optionPrices?.[String(option).trim().toLowerCase()];
                           return (
                             <button key={`${attribute.name}-${option}`} type="button"
                               onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
@@ -2391,6 +2402,11 @@ export default function ProductDetails() {
                                 />
                               )}
                               {option}
+                              {Number.isFinite(optionPrice) && optionPrice > 0 ? (
+                                <span className={`text-[11px] font-black ${active ? 'text-[#FF6A00]' : 'text-gray-500'}`}>
+                                  {formatPriceWithStoredSettings(optionPrice)}
+                                </span>
+                              ) : null}
                             </button>
                           );
                         })}
@@ -4350,6 +4366,7 @@ export default function ProductDetails() {
                   {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
                     const active = selectedValue.toLowerCase() === String(option).toLowerCase();
                     const swatch = isColorAttribute(attribute) ? resolveSwatchColor(option) : '';
+                    const optionPrice = attribute.optionPrices?.[String(option).trim().toLowerCase()];
                     return (
                       <button
                         key={`${attribute.name}-${option}`}
@@ -4373,6 +4390,11 @@ export default function ProductDetails() {
                           />
                         )}
                         {option}
+                        {Number.isFinite(optionPrice) && optionPrice > 0 ? (
+                          <span className={`text-[11px] font-black ${active ? 'text-white/80' : 'text-slate-500'}`}>
+                            {formatPriceWithStoredSettings(optionPrice)}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}

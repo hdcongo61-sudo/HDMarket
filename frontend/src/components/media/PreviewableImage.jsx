@@ -29,6 +29,7 @@ export default function PreviewableImage({
   showHint = true,
   onReport,
   reportContext,
+  product,
   fetchPriority,
   fetchpriority,
   ...imgProps
@@ -163,6 +164,7 @@ export default function PreviewableImage({
         title={alt}
         onReport={onReport}
         reportContext={reportContext}
+        product={product}
       />
     </>
   );

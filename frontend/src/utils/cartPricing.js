@@ -1,4 +1,7 @@
-import { buildSelectedAttributesSelectionKey } from './productAttributes';
+import {
+  buildSelectedAttributesSelectionKey,
+  resolveSelectedAttributesPrice
+} from './productAttributes';
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -40,8 +43,24 @@ export const buildCartItemMutationKey = ({
     selectionKey || buildSelectedAttributesSelectionKey(selectedAttributes)
   ).trim()}`;
 
-export const getOptimisticCartLinePricing = (product = {}, quantity = 1) => {
+export const getOptimisticCartLinePricing = (product = {}, quantity = 1, selectedAttributes = []) => {
   const qty = Math.max(1, normalizeQuantity(quantity, 1));
+  // Variant price (e.g. size) replaces the base price and skips wholesale tiers.
+  const variant = resolveSelectedAttributesPrice({
+    productAttributes: product?.attributes,
+    selectedAttributes,
+    basePrice: product?.price
+  });
+  if (variant.applied) {
+    const unitPrice = roundCurrency(variant.unitPrice);
+    return {
+      quantity: qty,
+      unitPrice,
+      lineTotal: roundCurrency(unitPrice * qty),
+      variantPriceApplied: true,
+      wholesale: { applied: false, tier: null, savingsAmount: 0, savingsPercent: 0 }
+    };
+  }
   const baseUnitPrice = roundCurrency(product?.price);
   const tiers = product?.wholesaleEnabled ? normalizeWholesaleTiers(product?.wholesaleTiers) : [];
   let activeTier = null;
@@ -82,7 +101,7 @@ export const recalculateCart = (cart = {}) => {
   const items = (Array.isArray(cart?.items) ? cart.items : [])
     .filter((item) => item?.product)
     .map((item) => {
-      const pricing = getOptimisticCartLinePricing(item.product, item.quantity);
+      const pricing = getOptimisticCartLinePricing(item.product, item.quantity, item.selectedAttributes);
       return {
         ...item,
         quantity: pricing.quantity,

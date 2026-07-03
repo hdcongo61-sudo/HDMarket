@@ -12,6 +12,7 @@ import {
 import {
   buildSelectedAttributesSelectionKey,
   normalizeSelectedAttributes,
+  resolveSelectedAttributesPrice,
   validateSelectedAttributesForProduct
 } from '../utils/productAttributes.js';
 
@@ -105,7 +106,21 @@ const formatCart = (cart) => {
     .filter((item) => item.product)
     .map((item) => {
       const product = item.product;
-      const pricing = getWholesalePricing(product, item.quantity);
+      // Variant price (e.g. size) replaces the base price and skips wholesale.
+      const variant = resolveSelectedAttributesPrice({
+        productAttributes: product.attributes,
+        selectedAttributes: item.selectedAttributes,
+        basePrice: product.price
+      });
+      const pricing = variant.applied
+        ? {
+            unitPrice: variant.unitPrice,
+            lineTotal: Number((variant.unitPrice * Number(item.quantity || 1)).toFixed(2)),
+            tierApplied: null,
+            savingsAmount: 0,
+            savingsPercent: 0
+          }
+        : getWholesalePricing(product, item.quantity);
       const unitPrice = Number(pricing.unitPrice || 0);
       const lineTotal = Number(pricing.lineTotal || 0);
       const seller =
@@ -160,6 +175,7 @@ const formatCart = (cart) => {
         },
         quantity: item.quantity,
         unitPrice,
+        variantPriceApplied: Boolean(variant.applied),
         wholesale: {
           applied: Boolean(pricing.tierApplied),
           tier: pricing.tierApplied,

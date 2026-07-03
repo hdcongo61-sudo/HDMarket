@@ -53,7 +53,10 @@ import {
   scheduleOrderReviewReminder
 } from '../services/orderReviewReminderService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
-import { validateSelectedAttributesForProduct } from '../utils/productAttributes.js';
+import {
+  resolveSelectedAttributesPrice,
+  validateSelectedAttributesForProduct
+} from '../utils/productAttributes.js';
 import { dispatchSideEffect } from '../utils/dispatchSideEffect.js';
 import {
   buildDeliveryDistanceWarningPayload,
@@ -640,7 +643,20 @@ const isPickupOnlyProduct = (product = {}) =>
 
 const buildOrderItemFromProduct = (product, quantity = 1, selectedAttributes = []) => {
   const qty = Math.max(1, Number(quantity) || 1);
-  const pricing = getWholesalePricing(product, qty);
+  // A selected variant (e.g. size) with its own price replaces the base price
+  // and takes precedence over wholesale tiers (tiers are quotes on the base).
+  const variant = resolveSelectedAttributesPrice({
+    productAttributes: product.attributes,
+    selectedAttributes,
+    basePrice: product.price
+  });
+  const pricing = variant.applied
+    ? {
+        unitPrice: variant.unitPrice,
+        lineTotal: Number((variant.unitPrice * qty).toFixed(2)),
+        tierApplied: null
+      }
+    : getWholesalePricing(product, qty);
   const unitPrice = Number(pricing.unitPrice || 0);
   const lineTotal = Number(pricing.lineTotal || 0);
   const tier = pricing.tierApplied || null;
@@ -661,6 +677,7 @@ const buildOrderItemFromProduct = (product, quantity = 1, selectedAttributes = [
       shopAddress: product.user?.shopAddress || '',
       shopCity: product.user?.city || '',
       shopCommune: product.user?.commune || '',
+      variantPriceApplied: Boolean(variant.applied),
       wholesaleEnabled: Boolean(product.wholesaleEnabled),
       wholesaleApplied: Boolean(tier),
       wholesaleTierMinQty: Number(tier?.minQty || 0),

@@ -880,6 +880,7 @@ function ProductCard({
           initialIndex={previewImageIndex}
           title={p.title || 'Produit'}
           reportContext={imageReportContext}
+          product={p}
         />
       </>
     );
@@ -1420,6 +1421,7 @@ function ProductCard({
         initialIndex={previewImageIndex}
         title={p.title || 'Produit'}
         reportContext={imageReportContext}
+        product={p}
       />
     </>
   );

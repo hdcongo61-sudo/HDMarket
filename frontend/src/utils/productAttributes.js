@@ -1,5 +1,19 @@
 const toTrimmedString = (value) => String(value == null ? '' : value).trim();
 
+// Optional per-option unit prices (e.g. size → price), keys lowercased.
+const normalizeOptionPrices = (input, options = []) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const allowed = new Set(options.map((option) => option.toLowerCase()));
+  const normalized = {};
+  Object.entries(input).forEach(([key, raw]) => {
+    const optionKey = toTrimmedString(key).toLowerCase();
+    const price = Number(raw);
+    if (!allowed.has(optionKey) || !Number.isFinite(price) || price <= 0) return;
+    normalized[optionKey] = Math.round(price * 100) / 100;
+  });
+  return Object.keys(normalized).length ? normalized : null;
+};
+
 export const normalizeProductAttributes = (input) => {
   const list = Array.isArray(input) ? input : [];
   return list
@@ -13,16 +27,46 @@ export const normalizeProductAttributes = (input) => {
       const options = Array.isArray(entry.options)
         ? entry.options.map((option) => toTrimmedString(option)).filter(Boolean)
         : [];
+      const optionPrices = type === 'select' ? normalizeOptionPrices(entry.optionPrices, options) : null;
       return {
         key: toTrimmedString(entry.key) || name.toLowerCase().replace(/\s+/g, '_'),
         name,
         type,
         options,
         required: Boolean(entry.required),
-        defaultValue: toTrimmedString(entry.defaultValue)
+        defaultValue: toTrimmedString(entry.defaultValue),
+        ...(optionPrices ? { optionPrices } : {})
       };
     })
     .filter(Boolean);
+};
+
+// Mirror of the backend rule: a selected (or defaulted) option with a defined
+// price replaces the base price; last priced attribute in order wins.
+export const resolveSelectedAttributesPrice = ({
+  productAttributes = [],
+  selectedAttributes = [],
+  basePrice = 0
+}) => {
+  const attributes = normalizeProductAttributes(productAttributes);
+  const selected = normalizeSelectedAttributes(selectedAttributes);
+  const selectedByName = new Map(
+    selected.map((entry) => [entry.name.toLowerCase(), entry.value.toLowerCase()])
+  );
+  let unitPrice = Number(basePrice) || 0;
+  let applied = false;
+  attributes.forEach((attribute) => {
+    if (attribute.type !== 'select' || !attribute.optionPrices) return;
+    let value = selectedByName.get(attribute.name.toLowerCase()) || '';
+    if (!value && attribute.defaultValue) value = attribute.defaultValue.toLowerCase();
+    if (!value) return;
+    const optionPrice = attribute.optionPrices[value];
+    if (Number.isFinite(optionPrice) && optionPrice > 0) {
+      unitPrice = optionPrice;
+      applied = true;
+    }
+  });
+  return { unitPrice, applied };
 };
 
 export const normalizeSelectedAttributes = (input) => {

@@ -1071,8 +1071,38 @@ export default function ProductForm(props) {
       const current = attributes[attributeIndex];
       if (!current) return prev;
       const options = Array.isArray(current.options) ? [...current.options] : [];
+      const previousKey = String(options[optionIndex] || '').trim().toLowerCase();
       options[optionIndex] = value;
-      attributes[attributeIndex] = { ...current, options };
+      // Keep any per-option price attached to the renamed option.
+      let optionPrices = current.optionPrices;
+      const nextKey = String(value || '').trim().toLowerCase();
+      if (optionPrices && previousKey && previousKey !== nextKey && optionPrices[previousKey] != null) {
+        optionPrices = { ...optionPrices, [nextKey]: optionPrices[previousKey] };
+        delete optionPrices[previousKey];
+      }
+      attributes[attributeIndex] = { ...current, options, optionPrices };
+      return { ...prev, attributes };
+    });
+  };
+
+  const updateProductAttributeOptionPrice = (attributeIndex, optionLabel, rawValue) => {
+    setForm((prev) => {
+      const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
+      const current = attributes[attributeIndex];
+      if (!current) return prev;
+      const key = String(optionLabel || '').trim().toLowerCase();
+      if (!key) return prev;
+      const optionPrices = { ...(current.optionPrices || {}) };
+      const price = Number(rawValue);
+      if (rawValue === '' || !Number.isFinite(price) || price <= 0) {
+        delete optionPrices[key];
+      } else {
+        optionPrices[key] = price;
+      }
+      attributes[attributeIndex] = {
+        ...current,
+        optionPrices: Object.keys(optionPrices).length ? optionPrices : undefined
+      };
       return { ...prev, attributes };
     });
   };
@@ -1083,8 +1113,19 @@ export default function ProductForm(props) {
       const current = attributes[attributeIndex];
       if (!current) return prev;
       const options = Array.isArray(current.options) ? [...current.options] : [];
+      const removedKey = String(options[optionIndex] || '').trim().toLowerCase();
       options.splice(optionIndex, 1);
-      attributes[attributeIndex] = { ...current, options: options.length ? options : [''] };
+      let optionPrices = current.optionPrices;
+      if (optionPrices && removedKey && optionPrices[removedKey] != null) {
+        optionPrices = { ...optionPrices };
+        delete optionPrices[removedKey];
+        if (!Object.keys(optionPrices).length) optionPrices = undefined;
+      }
+      attributes[attributeIndex] = {
+        ...current,
+        options: options.length ? options : [''],
+        optionPrices
+      };
       return { ...prev, attributes };
     });
   };
@@ -2613,7 +2654,9 @@ export default function ProductForm(props) {
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="text-xs font-medium text-gray-700">Choix disponibles</p>
-                                  <p className="text-[11px] text-gray-500">Ajoutez autant d'options que nécessaire.</p>
+                                  <p className="text-[11px] text-gray-500">
+                                    Ajoutez autant d'options que nécessaire. Un prix propre à l'option (ex: par taille) remplace le prix principal — laissez vide sinon.
+                                  </p>
                                 </div>
                                 <button
                                   type="button"
@@ -2633,6 +2676,17 @@ export default function ProductForm(props) {
                                       onChange={(e) => updateProductAttributeOption(index, optionIndex, e.target.value)}
                                       className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                                       placeholder={`Option ${optionIndex + 1}`}
+                                    />
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      inputMode="numeric"
+                                      value={attribute?.optionPrices?.[String(option || '').trim().toLowerCase()] ?? ''}
+                                      onChange={(e) => updateProductAttributeOptionPrice(index, option, e.target.value)}
+                                      disabled={!String(option || '').trim()}
+                                      className="w-28 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent disabled:opacity-50"
+                                      placeholder="Prix"
+                                      title="Prix pour cette option (optionnel)"
                                     />
                                     <button
                                       type="button"

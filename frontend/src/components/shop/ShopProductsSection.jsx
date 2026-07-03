@@ -189,6 +189,7 @@ export default function ShopProductsSection({
               >
                 <div className="relative aspect-square overflow-hidden rounded bg-neutral-100 dark:bg-neutral-900">
                   <PreviewableImage
+                    product={product}
                     src={product.images?.[0] || product.image || ''}
                     images={
                       Array.isArray(product.images) && product.images.length

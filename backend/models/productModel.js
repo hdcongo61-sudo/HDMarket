@@ -9,7 +9,11 @@ const productAttributeSchema = new mongoose.Schema(
     type: { type: String, enum: ['select', 'text', 'number'], default: 'select' },
     options: { type: [String], default: [] },
     required: { type: Boolean, default: false },
-    defaultValue: { type: String, trim: true, default: '' }
+    defaultValue: { type: String, trim: true, default: '' },
+    // Optional unit price per option (lowercased option label → price), so a
+    // size/variant can carry its own price. Plain object: labels may contain
+    // characters a mongoose Map would reject.
+    optionPrices: { type: mongoose.Schema.Types.Mixed, default: undefined }
   },
   { _id: false }
 );
