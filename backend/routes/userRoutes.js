@@ -19,6 +19,8 @@ import {
   updateNotificationPreferences,
   markNotificationsRead,
   deleteNotification,
+  updateNotificationState,
+  bulkDeleteNotifications,
   trackNotificationClick,
   getFavorites,
   addFavorite,
@@ -124,6 +126,8 @@ router.get(
 );
 router.get('/notifications/stream', streamNotifications);
 router.patch('/notifications/read', markNotificationsRead);
+router.patch('/notifications/:id/state', validate(schemas.idParam, 'params'), updateNotificationState);
+router.post('/notifications/bulk-delete', bulkDeleteNotifications);
 router.post('/notifications/:id/click', validate(schemas.idParam, 'params'), trackNotificationClick);
 router.get('/notification-preferences', getNotificationPreferences);
 router.patch(

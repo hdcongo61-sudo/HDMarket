@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { initErrorTracking } from './utils/errorTracking.js';
+
 import express from 'express';
 import morgan from 'morgan';
 import helmet from 'helmet';
@@ -164,6 +166,8 @@ if (engagementEnabled) {
 //   });
 // };
 // logCloudinaryEnv();
+
+initErrorTracking();
 
 const app = express();
 app.set('trust proxy', 1);

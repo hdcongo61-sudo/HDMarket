@@ -2429,16 +2429,23 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
   const actorId = req.user.id;
   const trimmedMessage = message.trim();
   const trimmedTitle = title && typeof title === 'string' ? title.trim() : 'HDMarketCG';
+  const recipients = users.filter((u) => String(u._id) !== actorId);
+  // Batch to bound concurrent DB/push writes instead of firing thousands at once.
+  const BROADCAST_BATCH_SIZE = 200;
   let sent = 0;
-  for (const u of users) {
-    if (String(u._id) === actorId) continue;
-    createNotification({
-      userId: u._id,
-      actorId,
-      type: 'admin_broadcast',
-      metadata: { message: trimmedMessage, title: trimmedTitle }
-    });
-    if (created) sent++;
+  for (let i = 0; i < recipients.length; i += BROADCAST_BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BROADCAST_BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map((u) =>
+        createNotification({
+          userId: u._id,
+          actorId,
+          type: 'admin_broadcast',
+          metadata: { message: trimmedMessage, title: trimmedTitle }
+        })
+      )
+    );
+    sent += results.filter(Boolean).length;
   }
   res.json({
     success: true,
@@ -2804,12 +2811,18 @@ export const getSellerReceivedOrders = asyncHandler(async (req, res) => {
           ? {
               id: (item.product._id || item.product).toString(),
               title: item.product.title || item?.snapshot?.title || 'Produit',
-              image: item.product.images?.[0] || item?.snapshot?.image || null,
-              price: Number(item.product.price || item?.unitPrice || 0)
+              image: item?.snapshot?.image || item.product.images?.[0] || null,
+              price: Number(item?.unitPrice ?? item?.snapshot?.price ?? item.product.price ?? 0)
             }
           : null,
         quantity: item.quantity,
-        price: Number(item.unitPrice || item.price || 0)
+        price: Number(item?.unitPrice ?? item?.snapshot?.price ?? item?.price ?? 0),
+        lineTotal: Number(
+          item?.lineTotal ??
+            Number(item?.unitPrice ?? item?.snapshot?.price ?? item?.price ?? 0) *
+              Number(item?.quantity || 1)
+        ),
+        selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : []
       })),
     totalAmount: order.totalAmount,
     address: order.deliveryAddress || order.address || null

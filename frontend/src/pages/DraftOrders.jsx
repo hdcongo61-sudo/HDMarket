@@ -16,6 +16,7 @@ import {
 import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert, appConfirm } from '../utils/appDialog';
+import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -202,8 +203,16 @@ export default function DraftOrders() {
                                 {item.snapshot?.title || item.product?.title}
                               </Link>
                               <p className="text-xs text-gray-600 font-medium mb-1">Quantité: x{item.quantity}</p>
+                              <SelectedAttributesList
+                                selectedAttributes={item.selectedAttributes}
+                                compact
+                                className="mb-1"
+                              />
+                              <p className="text-xs font-semibold text-gray-500">
+                                {formatCurrency(item.unitPrice ?? item.snapshot?.price ?? item.product?.price ?? 0)} / unité
+                              </p>
                               <p className="text-sm font-black text-neutral-600">
-                                {formatCurrency((item.snapshot?.price || item.product?.price || 0) * (item.quantity || 1))}
+                                {formatCurrency(item.lineTotal ?? (item.unitPrice ?? item.snapshot?.price ?? item.product?.price ?? 0) * (item.quantity || 1))}
                               </p>
                             </div>
                           </div>

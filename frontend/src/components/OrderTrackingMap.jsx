@@ -11,9 +11,11 @@ import { MapPin, Navigation, Package, Home, Store } from 'lucide-react';
  */
 
 export default function OrderTrackingMap({ trackingData }) {
-  if (!trackingData) return null;
-
-  const { checkpoints = [], currentPosition, mapCenter, courierName, status } = trackingData;
+  // Hooks must run every render regardless of trackingData — calling them
+  // after an early return made this component's hook count vary between
+  // renders (React throws/corrupts state when trackingData arrives async).
+  const checkpoints = trackingData?.checkpoints || [];
+  const mapCenter = trackingData?.mapCenter;
 
   // Filter checkpoints with coordinates for map markers
   const mapCheckpoints = useMemo(
@@ -27,6 +29,10 @@ export default function OrderTrackingMap({ trackingData }) {
     const lng = mapCenter?.lng || 15.2429;
     return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.02},${lat - 0.02},${lng + 0.02},${lat + 0.02}&layer=mapnik&marker=${lat},${lng}`;
   }, [mapCenter]);
+
+  if (!trackingData) return null;
+
+  const { currentPosition, courierName, status } = trackingData;
 
   return (
     <div className="space-y-4">

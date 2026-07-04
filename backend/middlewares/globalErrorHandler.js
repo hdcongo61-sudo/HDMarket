@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import ErrorLog from '../models/errorLogModel.js';
+import { captureServerError } from '../utils/errorTracking.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const ENABLE_DB_ERROR_LOGS = String(process.env.ENABLE_DB_ERROR_LOGS || 'true') !== 'false';
@@ -142,6 +143,11 @@ export const globalErrorHandler = (err, req, res, _next) => {
   const mapped = toClientError(err || {});
 
   void persistCriticalError({ requestId, req, mapped, err });
+  // Real-time alerting alongside the durable ErrorLog record above — same
+  // 500-only threshold, so the two stay in sync. No-op unless SENTRY_DSN is set.
+  if (mapped.status >= 500) {
+    captureServerError(err, { requestId, method: req.method, path: req.originalUrl, code: mapped.code });
+  }
 
   if (res.headersSent || res.writableEnded) {
     return;

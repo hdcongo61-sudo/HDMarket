@@ -1681,11 +1681,15 @@ const resolveNotificationTitle = (notification, fallback = 'Notification') => {
 
 export const getNotifications = asyncHandler(async (req, res) => {
   const [notifications, userDoc] = await Promise.all([
-    Notification.find({ user: req.user.id })
-      .sort({ createdAt: -1 })
+    Notification.find({
+      user: req.user.id,
+      deletedAt: null,
+      $or: [{ snoozedUntil: null }, { snoozedUntil: { $lte: new Date() } }]
+    })
+      .sort({ pinnedAt: -1, receivedAt: -1, createdAt: -1 })
       .limit(50)
       .select(
-        'actor product shop type metadata display snapshot priority audience channels deepLink actionLink actionRequired actionType actionStatus actionDueAt validationType entityType entityId readAt clickedAt clickCount createdAt updatedAt'
+        'actor product shop type metadata display snapshot priority audience channels deepLink actionLink actionRequired actionType actionStatus actionDueAt validationType entityType entityId readAt receivedAt pinnedAt snoozedUntil clickedAt clickCount createdAt updatedAt'
       )
       .populate('actor', 'name email profileImage shopLogo shopName accountType role')
       .populate('product', 'title slug status images')
@@ -1725,7 +1729,8 @@ export const getNotifications = asyncHandler(async (req, res) => {
           _id: productId,
           slug: productObject?.slug || snapshot.productSlug || '',
           title: productObject?.title || snapshot.productTitle || '',
-          status: productObject?.status || ''
+          status: productObject?.status || '',
+          image: Array.isArray(productObject?.images) ? productObject.images[0] || '' : ''
         }
       : null;
     const metadata = notification.metadata || {};
@@ -2124,6 +2129,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
       message,
       actionLabel: notification.display?.actionLabel || metadata.actionLabel || '',
       createdAt: notification.createdAt,
+      receivedAt: notification.receivedAt || notification.createdAt,
+      pinnedAt: notification.pinnedAt || null,
+      snoozedUntil: notification.snoozedUntil || null,
       updatedAt: notification.updatedAt,
       readAt: notification.readAt,
       clickedAt: notification.clickedAt || metadata.lastClickedAt || null,
@@ -2233,10 +2241,11 @@ export const updateNotificationPreferences = asyncHandler(async (req, res) => {
 });
 
 export const deleteNotification = asyncHandler(async (req, res) => {
-  const deleted = await Notification.findOneAndDelete({
+  const deleted = await Notification.findOneAndUpdate({
     _id: req.params.id,
-    user: req.user.id
-  });
+    user: req.user.id,
+    deletedAt: null
+  }, { $set: { deletedAt: new Date() } }, { new: true });
   if (!deleted) {
     return res.status(404).json({ message: 'Notification introuvable.' });
   }
@@ -2245,6 +2254,37 @@ export const deleteNotification = asyncHandler(async (req, res) => {
   }
   await invalidateUserCache(req.user.id, ['notifications']);
   res.json({ success: true });
+});
+
+export const updateNotificationState = asyncHandler(async (req, res) => {
+  const notification = await Notification.findOne({ _id: req.params.id, user: req.user.id });
+  if (!notification) return res.status(404).json({ message: 'Notification introuvable.' });
+  const action = String(req.body?.action || '').trim().toLowerCase();
+  if (action === 'pin') notification.pinnedAt = new Date();
+  else if (action === 'unpin') notification.pinnedAt = null;
+  else if (action === 'unsnooze') notification.snoozedUntil = null;
+  else if (action === 'restore') notification.deletedAt = null;
+  else if (action === 'snooze') {
+    const until = new Date(req.body?.until || Date.now() + 60 * 60 * 1000);
+    if (Number.isNaN(until.getTime()) || until <= new Date()) {
+      return res.status(400).json({ message: 'Date de rappel invalide.' });
+    }
+    notification.snoozedUntil = until;
+  } else return res.status(400).json({ message: 'Action invalide.' });
+  await notification.save();
+  await invalidateUserCache(req.user.id, ['notifications']);
+  res.json({ success: true, pinnedAt: notification.pinnedAt, snoozedUntil: notification.snoozedUntil });
+});
+
+export const bulkDeleteNotifications = asyncHandler(async (req, res) => {
+  const ids = Array.isArray(req.body?.notificationIds) ? req.body.notificationIds : [];
+  const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id)).slice(0, 100);
+  if (!validIds.length) return res.status(400).json({ message: 'Sélection vide.' });
+  const unread = await Notification.countDocuments({ _id: { $in: validIds }, user: req.user.id, readAt: null });
+  const result = await Notification.updateMany({ _id: { $in: validIds }, user: req.user.id, deletedAt: null }, { $set: { deletedAt: new Date() } });
+  if (unread > 0) await decrementUnreadCount(req.user.id, unread).catch(() => syncUnreadCount(req.user.id));
+  await invalidateUserCache(req.user.id, ['notifications']);
+  res.json({ success: true, deleted: result.modifiedCount });
 });
 
 export const trackNotificationClick = asyncHandler(async (req, res) => {

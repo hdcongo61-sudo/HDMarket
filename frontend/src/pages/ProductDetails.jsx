@@ -2790,7 +2790,7 @@ export default function ProductDetails() {
           <div className="h-2 bg-[#f5f5f5]" />
           <section className="bg-white px-4 py-4">
             <BundleDeal bundleData={bundleData}
-              onAddAll={async (items) => { for (const item of items) await addToCart(item._id, 1); }} />
+              onAddAll={async (items) => { for (const item of items) await addItem(item._id, 1); }} />
           </section>
         </>
       )}
@@ -5128,7 +5128,7 @@ function RelatedProducts({ relatedProducts, product }) {
           >
             <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
               <img
-                src={thumbImageUrl(relatedProduct.images?.[0]) || "https://via.placeholder.com/300x300"}
+                src={relatedProduct.images?.[0] || "https://via.placeholder.com/300x300"}
                 alt={relatedProduct.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />

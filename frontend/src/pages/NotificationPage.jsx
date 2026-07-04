@@ -10,10 +10,13 @@ import {
   Gavel,
   MessageSquare,
   Package,
+  Search,
   ShieldAlert,
   Sparkles,
   Store,
-  Truck
+  Trash2,
+  Truck,
+  VolumeX
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
@@ -80,45 +83,6 @@ const SYSTEM_TYPES = new Set([
   'payment_validated',
   'installment_overdue_warning'
 ]);
-
-const TYPE_PRIORITY = Object.freeze({
-  dispute_deadline_near: 110,
-  validation_required: 108,
-  account_restriction: 105,
-  order_cancelled: 100,
-  installment_overdue_warning: 98,
-  dispute_created: 95,
-  payment_pending: 92,
-  payment_proof_submitted: 92,
-  payment_validated: 90,
-  order_placed: 86,
-  order_received: 88,
-  order_accepted: 87,
-  order_rejected: 89,
-  order_created: 84,
-  order_reminder: 82,
-  order_delivering: 80,
-  order_delivered: 78,
-  delivery_assigned: 80,
-  delivery_in_progress: 79,
-  delivery_completed: 78,
-  delivery_request_created: 79,
-  delivery_request_accepted: 81,
-  delivery_request_rejected: 83,
-  delivery_request_assigned: 80,
-  delivery_request_in_progress: 79,
-  delivery_request_delivered: 78,
-  dispute_seller_responded: 76,
-  dispute_under_review: 75,
-  dispute_resolved: 74,
-  admin_broadcast: 70,
-  product_boosted: 68,
-  boost_expired: 69,
-  promo_expired: 66,
-  installment_sale_confirmation_required: 65,
-  installment_payment_submitted: 64,
-  installment_payment_validated: 62
-});
 
 const getRelativeTime = (value, t, language = 'fr') => {
   if (!value) return '';
@@ -359,15 +323,6 @@ const getNotificationActions = (alert, user, t) => {
   return Array.from(dedup.values());
 };
 
-const getPriorityScore = (alert) => {
-  const createdAt = new Date(alert?.createdAt || Date.now()).getTime();
-  const ageHours = Math.max(0, (Date.now() - createdAt) / (1000 * 60 * 60));
-  const recencyBoost = Math.max(0, 24 - ageHours);
-  const base = TYPE_PRIORITY[alert?.type] || 55;
-  const unreadBoost = alert?.isNew ? 26 : 0;
-  return base + unreadBoost + recencyBoost;
-};
-
 const applyFilter = (alert, filterKey) => {
   if (filterKey === 'all') return true;
   if (filterKey === 'unread') return Boolean(alert?.isNew);
@@ -395,6 +350,10 @@ export default function NotificationPage() {
   const unreadCount = Number(effectiveCounts?.unreadCount || 0);
 
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [undoDelete, setUndoDelete] = useState(null);
   const [visibleCount, setVisibleCount] = useState(20);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const [markingAll, setMarkingAll] = useState(false);
@@ -457,18 +416,27 @@ export default function NotificationPage() {
     { enabled: Boolean(user) }
   );
 
-  const prioritizedAlerts = useMemo(() => {
+  const chronologicallySortedAlerts = useMemo(() => {
     return [...alerts].sort((a, b) => {
-      const scoreDiff = getPriorityScore(b) - getPriorityScore(a);
-      if (scoreDiff !== 0) return scoreDiff;
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      const pinDiff = Number(Boolean(b.pinnedAt)) - Number(Boolean(a.pinnedAt));
+      if (pinDiff !== 0) return pinDiff;
+      const receivedDiff =
+        new Date(b.receivedAt || b.createdAt || 0).getTime() -
+        new Date(a.receivedAt || a.createdAt || 0).getTime();
+      if (receivedDiff !== 0) return receivedDiff;
+      return String(b._id || '').localeCompare(String(a._id || ''));
     });
   }, [alerts]);
 
-  const filteredAlerts = useMemo(
-    () => prioritizedAlerts.filter((alert) => applyFilter(alert, activeFilter)),
-    [prioritizedAlerts, activeFilter]
-  );
+  const filteredAlerts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return chronologicallySortedAlerts.filter((alert) => {
+      if (!applyFilter(alert, activeFilter)) return false;
+      if (!query) return true;
+      return [alert?.title, alert?.message, alert?.actor?.name, alert?.user?.name, alert?.product?.title]
+        .some((value) => String(value || '').toLowerCase().includes(query));
+    });
+  }, [chronologicallySortedAlerts, activeFilter, searchQuery]);
 
   useEffect(() => {
     setVisibleCount(20);
@@ -496,7 +464,7 @@ export default function NotificationPage() {
   const groupedAlerts = useMemo(() => {
     const buckets = { Today: [], Yesterday: [], Earlier: [] };
     visibleAlerts.forEach((alert) => {
-      const bucket = getDateBucket(alert?.createdAt);
+      const bucket = getDateBucket(alert?.receivedAt || alert?.createdAt);
       buckets[bucket].push(alert);
     });
     return buckets;
@@ -591,10 +559,12 @@ export default function NotificationPage() {
     setActionError('');
     setDeletingIds((prev) => new Set([...prev, notificationIdStr]));
     let previousState = null;
+    let deletedAlert = null;
     updateCounts((prev) => {
       previousState = prev;
       const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
       const deleted = previousAlerts.find((alert) => String(alert?._id) === notificationIdStr);
+      deletedAlert = deleted || null;
       const wasUnread = Boolean(deleted?.isNew);
       return {
         ...prev,
@@ -617,6 +587,7 @@ export default function NotificationPage() {
       });
       await clearCache('/users/notifications');
       triggerNotificationsRefresh({ type: 'delete', notificationId: notificationIdStr, refetch: false });
+      if (deletedAlert) setUndoDelete(deletedAlert);
     } catch (requestError) {
       if (previousState) updateCounts(previousState);
       setActionError(
@@ -631,6 +602,18 @@ export default function NotificationPage() {
         return next;
       });
     }
+  };
+
+  const restoreLastDeleted = async () => {
+    if (!undoDelete?._id) return;
+    const restored = undoDelete;
+    setUndoDelete(null);
+    await api.patch(`/users/notifications/${restored._id}/state`, { action: 'restore' });
+    updateCounts((prev) => ({
+      ...prev,
+      alerts: [restored, ...(prev?.alerts || [])],
+      unreadCount: Number(prev?.unreadCount || 0) + (restored.isNew ? 1 : 0)
+    }));
   };
 
   const handleMarkAllRead = async () => {
@@ -656,6 +639,45 @@ export default function NotificationPage() {
     } finally {
       setMarkingAll(false);
     }
+  };
+
+  const handleNotificationState = async (alert, action, extra = {}) => {
+    await api.patch(`/users/notifications/${alert._id}/state`, { action, ...extra });
+    updateCounts((prev) => ({
+      ...prev,
+      alerts: (prev?.alerts || [])
+        .map((item) => String(item._id) === String(alert._id)
+          ? { ...item, pinnedAt: action === 'pin' ? new Date().toISOString() : action === 'unpin' ? null : item.pinnedAt }
+          : item)
+        .filter((item) => action !== 'snooze' || String(item._id) !== String(alert._id))
+    }));
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const removed = alerts.filter((alert) => ids.includes(String(alert._id)));
+    updateCounts((prev) => ({ ...prev, alerts: (prev?.alerts || []).filter((alert) => !ids.includes(String(alert._id))) }));
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+    try {
+      await api.post('/users/notifications/bulk-delete', { notificationIds: ids });
+      triggerNotificationsRefresh({ type: 'bulkDelete', refetch: false });
+    } catch (requestError) {
+      updateCounts((prev) => ({ ...prev, alerts: [...removed, ...(prev?.alerts || [])] }));
+      setActionError(requestError?.response?.data?.message || 'Suppression impossible.');
+    }
+  };
+
+  const muteActiveCategory = async () => {
+    if (activeFilter === 'all' || activeFilter === 'unread') return;
+    const supported = new Set(Object.keys(effectiveCounts?.preferences || {}));
+    const types = [...new Set(alerts.filter((alert) => applyFilter(alert, activeFilter)).map((alert) => alert.type).filter((type) => type && supported.has(type)))];
+    if (!types.length) return;
+    const payload = Object.fromEntries(types.map((type) => [type, false]));
+    await api.patch('/users/notification-preferences', payload);
+    updateCounts((prev) => ({ ...prev, preferences: { ...(prev?.preferences || {}), ...payload } }));
+    setActionError(`Notifications « ${activeFilter} » désactivées.`);
   };
 
   if (!user) {
@@ -763,6 +785,24 @@ export default function NotificationPage() {
               })}
             </div>
           </div>
+          <div className="mt-2 flex items-center gap-2">
+            <label className="flex min-h-[42px] min-w-0 flex-1 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 shadow-sm">
+              <Search className="h-4 w-4 text-gray-400" />
+              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Rechercher une notification" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+            </label>
+            <button type="button" onClick={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} className="min-h-[42px] rounded-2xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-700">
+              {selectionMode ? 'Annuler' : 'Sélectionner'}
+            </button>
+            {!['all', 'unread'].includes(activeFilter) && (
+              <button type="button" onClick={muteActiveCategory} title="Désactiver cette catégorie" className="grid h-[42px] w-[42px] place-items-center rounded-2xl border border-gray-200 bg-white text-gray-500"><VolumeX className="h-4 w-4" /></button>
+            )}
+          </div>
+          {selectionMode && selectedIds.size > 0 && (
+            <div className="mt-2 flex items-center justify-between rounded-2xl bg-neutral-950 px-3 py-2 text-white">
+              <span className="text-xs font-bold">{selectedIds.size} sélectionnée(s)</span>
+              <button type="button" onClick={handleBulkDelete} className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-xs font-black"><Trash2 className="h-3.5 w-3.5" /> Supprimer</button>
+            </div>
+          )}
         </header>
 
         <section className="relative px-3 pb-10" {...bind}>
@@ -832,7 +872,7 @@ export default function NotificationPage() {
                               key={alert._id}
                               alert={alert}
                               meta={meta}
-                              timeLabel={getRelativeTime(alert?.createdAt, t, language)}
+                              timeLabel={getRelativeTime(alert?.receivedAt || alert?.createdAt, t, language)}
                               isUnread={isUnread}
                               isExpanded={isExpanded}
                               actions={actions}
@@ -851,6 +891,16 @@ export default function NotificationPage() {
                               onDelete={() => handleDelete(alert._id)}
                               markReadPending={markingIds.has(String(alert._id))}
                               deletePending={deletingIds.has(String(alert._id))}
+                              selectionMode={selectionMode}
+                              isSelected={selectedIds.has(String(alert._id))}
+                              onToggleSelected={() => setSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                const id = String(alert._id);
+                                if (next.has(id)) next.delete(id); else next.add(id);
+                                return next;
+                              })}
+                              onPin={(shouldPin) => handleNotificationState(alert, shouldPin ? 'pin' : 'unpin')}
+                              onSnooze={() => handleNotificationState(alert, 'snooze', { until: new Date(Date.now() + 60 * 60 * 1000).toISOString() })}
                               onNavigateAction={(to) => {
                                 const notificationId = String(alert?._id || '');
                                 if (!notificationId || !to) return;
@@ -898,6 +948,12 @@ export default function NotificationPage() {
           )}
         </section>
       </div>
+      {undoDelete && (
+        <div className="fixed inset-x-4 bottom-5 z-50 mx-auto flex max-w-md items-center justify-between rounded-2xl bg-neutral-950 px-4 py-3 text-white shadow-2xl">
+          <span className="text-sm font-bold">Notification supprimée</span>
+          <button type="button" onClick={restoreLastDeleted} className="rounded-xl bg-white/15 px-3 py-2 text-xs font-black text-orange-300">Annuler</button>
+        </div>
+      )}
     </main>
   );
 }

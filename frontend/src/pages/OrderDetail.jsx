@@ -146,6 +146,19 @@ const formatOrderTimestamp = (value) =>
     : null;
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
+
+const DeliveryProofImage = ({ src, alt, className = '' }) => {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span className={`flex flex-col items-center justify-center gap-1 bg-slate-50 px-3 text-center text-xs font-semibold text-slate-600 ${className}`}>
+        Aperçu indisponible
+        <a href={src} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="text-[#ff6a00] underline">Ouvrir la photo</a>
+      </span>
+    );
+  }
+  return <img src={src} alt={alt} className={className} loading="eager" onError={() => setFailed(true)} />;
+};
 const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim() : '');
 const isEnabledFlag = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
@@ -334,10 +347,99 @@ export default function OrderDetail() {
 
   const shareOrderOnWhatsApp = () => {
     if (!order) return;
-    const statusLabel = STATUS_LABELS[order.status] || order.status;
-    const message = encodeURIComponent(
-      `Ma commande HDMarket n°${String(order._id).slice(-6).toUpperCase()} — ${statusLabel}. Suivi : ${window.location.href}`
+    const effectiveStatus = getEffectiveOrderStatus(order);
+    const statusLabel = STATUS_LABELS[effectiveStatus] || effectiveStatus || 'Non renseigné';
+    const items = order.items?.length
+      ? order.items
+      : order.productSnapshot
+        ? [{ snapshot: order.productSnapshot, quantity: 1 }]
+        : [];
+    const itemsSubtotal = items.reduce((sum, item) => {
+      const unitPrice = Number(item.unitPrice ?? item.snapshot?.price ?? 0);
+      return sum + Number(item.lineTotal ?? unitPrice * Number(item.quantity || 1));
+    }, 0);
+    const total = Number(order.totalAmount ?? itemsSubtotal + Number(order.deliveryFeeTotal || 0));
+    const paid = Number(order.paidAmount || 0);
+    const remaining = Number(order.remainingAmount ?? Math.max(0, total - paid));
+    const pickup = isPickupOrder(order);
+    const pickupAddress = pickup ? getPickupShopAddress(order) : null;
+    const deliveryAddress = pickup
+      ? pickupAddress?.addressLine || 'Adresse boutique non renseignée'
+      : order.deliveryAddress || order.shippingAddressSnapshot?.addressLine || 'Adresse non renseignée';
+    const deliveryCity = pickup
+      ? pickupAddress?.cityLine || ''
+      : order.deliveryCity || order.shippingAddressSnapshot?.cityName || '';
+    const customerName = order.customer?.name || order.customerName || user?.name || 'Client HDMarket';
+    const customerPhone =
+      order.shippingAddressSnapshot?.phone || order.customer?.phone || order.customerPhone || user?.phone || '';
+    const sellerLines = Array.from(
+      new Map(
+        items
+          .map((item) => {
+            const name = item.snapshot?.shopName || item.product?.user?.shopName || item.product?.user?.name || '';
+            const phone = item.snapshot?.shopPhone || item.product?.user?.phone || '';
+            return name || phone ? [`${name}|${phone}`, `• ${name || 'Vendeur'}${phone ? ` — ${phone}` : ''}`] : null;
+          })
+          .filter(Boolean)
+      ).values()
     );
+    const itemLines = items.flatMap((item, index) => {
+      const quantity = Number(item.quantity || 1);
+      const unitPrice = Number(item.unitPrice ?? item.snapshot?.price ?? 0);
+      const lineTotal = Number(item.lineTotal ?? unitPrice * quantity);
+      const options = (Array.isArray(item.selectedAttributes) ? item.selectedAttributes : [])
+        .map((entry) => `${entry?.name || 'Option'}: ${entry?.value || '—'}`)
+        .join(', ');
+      return [
+        `${index + 1}. *${item.snapshot?.title || item.product?.title || 'Produit'}*`,
+        ...(options ? [`   Choix : ${options}`] : []),
+        `   Quantité : ${quantity}`,
+        `   Prix unitaire : ${formatCurrency(unitPrice)}`,
+        `   Total ligne : ${formatCurrency(lineTotal)}`
+      ];
+    });
+    const installmentLines = order.paymentType === 'installment'
+      ? [
+          '',
+          '*Paiement en tranches*',
+          `• Progression : ${Number(order.installmentPlan?.progressPercent || 0)}%`,
+          `• Échéances : ${Array.isArray(order.installmentPlan?.schedule) ? order.installmentPlan.schedule.length : 0}`
+        ]
+      : [];
+    const deliveryPerson = order.deliveryGuy
+      ? `${order.deliveryGuy.fullName || order.deliveryGuy.name || 'Livreur'}${order.deliveryGuy.phone ? ` — ${order.deliveryGuy.phone}` : ''}`
+      : '';
+    const lines = [
+      '*DÉTAIL DE LA COMMANDE HDMARKET*',
+      `• Référence : #${String(order.orderNumber || order._id).slice(-8).toUpperCase()}`,
+      `• Date : ${formatOrderTimestamp(order.createdAt) || 'Non disponible'}`,
+      `• Statut : ${statusLabel}`,
+      `• Mode de paiement : ${getPaymentModeLabel(resolveOrderPaymentMode(order))}`,
+      '',
+      '*Articles*',
+      ...itemLines,
+      '',
+      '*Montants*',
+      `• Sous-total : ${formatCurrency(itemsSubtotal)}`,
+      `• Livraison : ${Number(order.deliveryFeeTotal || 0) > 0 ? formatCurrency(order.deliveryFeeTotal) : 'Gratuite / incluse'}`,
+      `• Total : ${formatCurrency(total)}`,
+      `• Montant payé : ${formatCurrency(paid)}`,
+      `• Reste à payer : ${formatCurrency(remaining)}`,
+      ...installmentLines,
+      '',
+      '*Client*',
+      `• Nom : ${customerName}`,
+      ...(customerPhone ? [`• Téléphone : ${customerPhone}`] : []),
+      '',
+      '*Réception*',
+      `• Mode : ${pickup ? 'Retrait en boutique' : 'Livraison'}`,
+      `• Adresse : ${deliveryAddress}${deliveryCity ? `, ${deliveryCity}` : ''}`,
+      ...(deliveryPerson ? [`• Livreur : ${deliveryPerson}`] : []),
+      ...(sellerLines.length ? ['', '*Vendeur(s)*', ...sellerLines] : []),
+      '',
+      `*Suivi de la commande* : ${window.location.href}`
+    ];
+    const message = encodeURIComponent(lines.join('\n'));
     window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener');
   };
   const walletEnabledPhones = String(getRuntimeValue('wallet_enabled_shops', '') || '')
@@ -352,13 +454,15 @@ export default function OrderDetail() {
     (walletEnabledPhones.length === 0 || walletEnabledPhones.includes(orderSellerPhone));
   const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
-    if (!url) return '';
-    if (/^https?:\/\//i.test(url)) return url;
-    if (/^data:/i.test(url)) return url;
-    if (/^blob:/i.test(url)) return url;
+    const value = String(url || '').trim();
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value)) return value;
+    if (/^data:/i.test(value)) return value;
+    if (/^blob:/i.test(value)) return value;
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    const host = apiBase.replace(/\/api\/?$/, '');
-    return `${host}/${String(url).replace(/^\/+/, '')}`;
+    let host = apiBase.replace(/\/api(?:\/v\d+)?\/?$/i, '');
+    try { host = new URL(apiBase, window.location.origin).origin; } catch { /* keep configured host */ }
+    return `${host}/${value.replace(/^\/+/, '')}`;
   }, []);
   const openProofPreview = useCallback(
     (url, label = 'Preuve') => {
@@ -1234,6 +1338,11 @@ export default function OrderDetail() {
     { key: 'cancelled', label: 'Annulée', icon: X, time: order.cancelledAt }
   ].filter((entry) => Boolean(entry.time));
   const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
+  const deliveryProofSources = (Array.isArray(order.deliveryProofImages) ? order.deliveryProofImages : [])
+    .map((proof) => typeof proof === 'string' ? proof : proof?.url || proof?.path || proof?.secure_url || proof?.location || '')
+    .map(normalizeFileUrl)
+    .filter(Boolean);
+  const hasDeliveryEvidence = deliveryProofSources.length > 0 || Boolean(String(order.clientSignatureImage || '').trim());
 
   return (
     <div className="hd-order-flow min-h-screen bg-[#f6f3ee] text-slate-950 dark:bg-neutral-950">
@@ -1601,7 +1710,7 @@ export default function OrderDetail() {
               </div>
             )}
 
-            {!hideDeliveryDetails && (order.deliveryStatus === 'submitted' ||
+            {(hasDeliveryEvidence || order.deliveryStatus === 'submitted' ||
               order.deliveryStatus === 'verified' ||
               order.status === 'delivery_proof_submitted') && (
               <div className="space-y-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_12px_30px_rgba(16,185,129,0.08)]">
@@ -1628,7 +1737,7 @@ export default function OrderDetail() {
                     Note vendeur: <span className="font-medium">{order.deliveryNote}</span>
                   </p>
                 )}
-                {(order.deliveryProofImages || []).length > 0 && (
+                {deliveryProofSources.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 rounded-lg bg-sky-50">
@@ -1637,9 +1746,7 @@ export default function OrderDetail() {
                       <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Photos de livraison</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {(order.deliveryProofImages || []).map((proof, index) => {
-                        const src = normalizeFileUrl(proof?.url || proof?.path || '');
-                        if (!src) return null;
+                      {deliveryProofSources.map((src, index) => {
                         return (
                           <button
                             key={`proof-image-${index}`}
@@ -1647,11 +1754,10 @@ export default function OrderDetail() {
                             onClick={() => openProofPreview(src, `Photo ${index + 1}`)}
                             className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-white ring-1 ring-sky-100 transition hover:ring-sky-300 hover:shadow-md"
                           >
-                            <img
+                            <DeliveryProofImage
                               src={src}
                               alt={`Photo de livraison ${index + 1}`}
                               className="h-full w-full object-contain bg-slate-50 p-2"
-                              loading="lazy"
                             />
                             <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 px-2 py-1 text-[10px] font-semibold text-white group-hover:bg-black/70 transition">
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>

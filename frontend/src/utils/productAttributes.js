@@ -146,6 +146,20 @@ export const getHighestProductPrice = ({ productAttributes = [], basePrice = 0 }
   return highest;
 };
 
+// Product cards advertise the lowest available photo/variant price. The base
+// price is used only when no photo-linked option has its own valid price.
+export const getLowestProductPrice = ({ productAttributes = [], basePrice = 0 }) => {
+  const optionPrices = [];
+  normalizeProductAttributes(productAttributes).forEach((attribute) => {
+    if (!attribute.optionImages) return;
+    Object.keys(attribute.optionImages).forEach((optionKey) => {
+      const price = Number(attribute.optionPrices?.[optionKey]);
+      if (Number.isFinite(price) && price > 0) optionPrices.push(price);
+    });
+  });
+  return optionPrices.length ? Math.min(...optionPrices) : Number(basePrice) || 0;
+};
+
 export const normalizeSelectedAttributes = (input) => {
   const list = Array.isArray(input) ? input : [];
   const seen = new Set();

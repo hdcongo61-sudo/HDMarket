@@ -536,6 +536,11 @@ export const getBuyerOrderReviewPageData = async ({ orderId, userId }) => {
     items: (Array.isArray(order.items) ? order.items : []).map((item) => ({
       _id: String(item._id || ''),
       quantity: Number(item.quantity || 1),
+      unitPrice: Number(item.unitPrice ?? item.snapshot?.price ?? 0),
+      lineTotal: Number(
+        item.lineTotal ??
+          Number(item.unitPrice ?? item.snapshot?.price ?? 0) * Number(item.quantity || 1)
+      ),
       productId: String(item.product?._id || item.product || ''),
       title: item.snapshot?.title || item.product?.title || 'Produit',
       image:

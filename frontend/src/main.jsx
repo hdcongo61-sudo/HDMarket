@@ -12,7 +12,10 @@ import { AlertDialogProvider } from './context/AlertDialogContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
 import { queryClient } from './lib/queryClient';
 import { registerServiceWorker, unregisterServiceWorker } from './utils/serviceWorker';
+import { initErrorTracking } from './utils/errorTracking';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
+
+initErrorTracking();
 
 const root = createRoot(document.getElementById('root'));
 root.render(

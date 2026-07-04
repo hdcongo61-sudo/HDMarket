@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, ChevronDown, ExternalLink, Loader2, MoreHorizontal, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, ExternalLink, Loader2, MoreHorizontal, Pin, Trash2 } from 'lucide-react';
 import SwipeActions from './SwipeActions';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { resolveUserProfileImage } from '../../utils/userAvatar';
@@ -34,7 +34,12 @@ export default function NotificationItem({
   onDelete,
   onNavigateAction,
   markReadPending = false,
-  deletePending = false
+  deletePending = false,
+  selectionMode = false,
+  isSelected = false,
+  onToggleSelected,
+  onPin,
+  onSnooze
 }) {
   const { t } = useAppSettings();
   const longPressTimer = useRef(null);
@@ -73,6 +78,9 @@ export default function NotificationItem({
     if (reminderType === 'escalation') return 'Escalade admin';
     return 'Rappel';
   }, [alert?.metadata?.reminderType, alert?.type]);
+  const deadline = alert?.actionDueAt ? new Date(alert.actionDueAt) : null;
+  const deadlineValid = deadline && !Number.isNaN(deadline.getTime());
+  const deadlineOverdue = deadlineValid && deadline.getTime() < Date.now();
 
   const visibleActions = useMemo(() => {
     if (!Array.isArray(actions) || !actions.length) return [];
@@ -137,52 +145,60 @@ export default function NotificationItem({
               onPointerDown={startLongPress}
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
-              className={`group relative flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3.5 text-left shadow-[0_10px_26px_rgba(117,75,36,0.07)] transition-all hover:scale-[1.002] ${
+              className={`group relative flex w-full items-start gap-3.5 overflow-hidden rounded-[22px] border px-4 py-4 text-left transition-all duration-200 sm:gap-4 sm:px-5 ${
                 isActionsOpen
                   ? 'border-red-200 bg-white/25 backdrop-blur-sm'
                   : isUnread
-                    ? 'border-gray-200 bg-white'
-                    : 'border-gray-200/80 bg-white/88'
+                    ? 'border-orange-200/80 bg-gradient-to-br from-orange-50/80 via-white to-white shadow-[0_14px_34px_rgba(255,106,0,0.10)]'
+                    : 'border-gray-200/80 bg-white shadow-[0_10px_28px_rgba(23,23,23,0.055)] hover:border-gray-300 hover:shadow-[0_14px_34px_rgba(23,23,23,0.08)]'
               }`}
             >
+              {selectionMode && (
+                <button
+                  type="button"
+                  aria-label={isSelected ? 'Désélectionner' : 'Sélectionner'}
+                  onClick={(event) => { event.stopPropagation(); onToggleSelected?.(); }}
+                  className={`absolute right-3 top-3 z-10 h-5 w-5 rounded-md border-2 ${isSelected ? 'border-[#ff6a00] bg-[#ff6a00]' : 'border-gray-300 bg-white'}`}
+                >
+                  {isSelected && <CheckCircle2 className="h-4 w-4 text-white" />}
+                </button>
+              )}
               {isUnread ? (
-                <span className="absolute left-0 top-5 h-9 w-1 rounded-r-full bg-[#ff6a00]" />
+                <span className="absolute inset-y-5 left-0 w-1 rounded-r-full bg-[#ff6a00]" />
               ) : null}
-              <div className="relative mt-0.5 flex-shrink-0">
+              <div className="relative flex-shrink-0">
                 {actorAvatar ? (
                   <img
                     src={actorAvatar}
                     alt={alert?.actor?.name || alert?.user?.name || 'Utilisateur'}
-                    className="h-11 w-11 rounded-[17px] object-cover ring-2 ring-orange-50"
+                    className="h-12 w-12 rounded-2xl object-cover ring-1 ring-black/5"
                   />
                 ) : avatarLetter ? (
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[17px] border border-gray-200 bg-gray-100 text-sm font-black text-[#ff6a00] dark:text-neutral-200">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-orange-100 bg-orange-50 text-sm font-black text-[#ff6a00] dark:text-neutral-200">
                     {avatarLetter}
                   </div>
                 ) : (
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-[17px] border ${toneClass(meta?.tone)}`}>
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${toneClass(meta?.tone)}`}>
                     {meta.icon}
                   </div>
                 )}
                 {isUnread && (
-                  <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#ff6a00]" />
+                  <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-[3px] border-white bg-[#ff6a00]" />
                 )}
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex items-start gap-2">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-1 text-[14px] font-black leading-tight text-neutral-950 dark:text-neutral-100">
+                    <p className="line-clamp-1 text-[15px] font-black leading-tight tracking-[-0.01em] text-neutral-950 dark:text-neutral-100">
                       {meta.title}
                     </p>
-                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
-                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${toneClass(meta?.tone)}`}>
-                        {String(alert?.type || 'info').replaceAll('_', ' ')}
-                      </span>
+                    <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                       {actorName ? (
-                        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-black text-neutral-600 ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
+                        <span className="inline-flex max-w-full items-center gap-1 text-[11px] font-bold text-neutral-500 dark:text-neutral-400">
                           <span className="truncate">{actorName}</span>
-                          <span className="text-neutral-400">· {actorRole}</span>
+                          <span className="text-neutral-300">•</span>
+                          <span>{actorRole}</span>
                         </span>
                       ) : null}
                       {reminderLabel ? (
@@ -190,21 +206,24 @@ export default function NotificationItem({
                           {reminderLabel}
                         </span>
                       ) : null}
-                      <span className="text-[11px] font-bold text-neutral-400 dark:text-neutral-500">
-                        {timeLabel}
-                      </span>
                     </div>
                   </div>
-                  {isUnread && (
-                    <span className="rounded-full bg-[#ff6a00] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
-                      {t('notifications.newBadge', 'New')}
-                    </span>
-                  )}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {isUnread && <span className="h-2 w-2 rounded-full bg-[#ff6a00]" aria-label={t('notifications.newBadge', 'New')} />}
+                    <span className="whitespace-nowrap text-[11px] font-bold text-neutral-400 dark:text-neutral-500">{timeLabel}</span>
+                  </div>
                 </div>
 
-                <p className="mt-2 text-[13px] font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
+                <p className="mt-2.5 text-[13px] font-medium leading-[1.55] text-neutral-600 dark:text-neutral-300 sm:text-sm">
                   {isExpanded ? alert.message : previewText(alert.message)}
                 </p>
+                {(alert?.product?.image || alert?.pinnedAt || deadlineValid) && (
+                  <div className="mt-3 flex items-center gap-2">
+                    {alert?.product?.image && <img src={alert.product.image} alt="" className="h-10 w-10 rounded-xl object-cover ring-1 ring-gray-200" />}
+                    {alert?.pinnedAt && <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black text-[#ff6a00]"><Pin className="h-3 w-3" /> Épinglée</span>}
+                    {deadlineValid && <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${deadlineOverdue ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{deadlineOverdue ? <AlertTriangle className="h-3 w-3" /> : <Clock3 className="h-3 w-3" />}{deadlineOverdue ? 'Échéance dépassée' : deadline.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+                  </div>
+                )}
 
                 <AnimatePresence initial={false}>
                   {(isExpanded || visibleActions.length > 0) && (
@@ -234,7 +253,7 @@ export default function NotificationItem({
                                   }}
                                   className={`inline-flex min-h-[40px] w-full max-w-full items-center justify-center gap-2 rounded-2xl px-3.5 py-2 text-xs font-black transition duration-200 disabled:cursor-wait disabled:opacity-70 ${
                                     isPrimary
-                                      ? 'bg-neutral-950 text-white shadow-[0_12px_26px_rgba(23,23,23,0.2)] hover:bg-neutral-800'
+                                      ? 'bg-[#ff6a00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.24)] hover:bg-[#e95f00]'
                                       : 'border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-100 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-900'
                                   }`}
                                 >
@@ -265,7 +284,7 @@ export default function NotificationItem({
                                 event.stopPropagation();
                                 onMarkRead?.();
                               }}
-                              className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-3.5 py-2 text-xs font-black text-emerald-700 transition duration-200 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60"
+                              className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-neutral-600 transition duration-200 hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60"
                             >
                               {markReadPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                               {markReadPending ? t('common.loading', 'Chargement...') : t('notifications.markAsRead', 'Marquer comme lu')}
@@ -293,7 +312,7 @@ export default function NotificationItem({
               </div>
 
               <div
-                className={`flex flex-shrink-0 items-center gap-1 pt-0.5 text-neutral-400 transition-opacity duration-150 dark:text-neutral-500 ${
+                className={`flex flex-shrink-0 items-center gap-0.5 pt-0.5 text-neutral-300 transition-opacity duration-150 dark:text-neutral-500 ${
                   isActionsOpen ? 'pointer-events-none opacity-0' : 'opacity-100'
                 }`}
               >
@@ -336,6 +355,20 @@ export default function NotificationItem({
                   {t('notifications.markAsRead', 'Marquer comme lu')}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => { onPin?.(!alert?.pinnedAt); setMenuOpen(false); }}
+                className="inline-flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-gray-700 hover:bg-orange-50"
+              >
+                <Pin className="h-4 w-4" /> {alert?.pinnedAt ? 'Désépingler' : 'Épingler'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { onSnooze?.(); setMenuOpen(false); }}
+                className="inline-flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-gray-700 hover:bg-amber-50"
+              >
+                <Clock3 className="h-4 w-4" /> Rappeler dans 1 heure
+              </button>
               <button
                 type="button"
                 onClick={() => {

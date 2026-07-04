@@ -566,6 +566,9 @@ export const createNotification = async ({
     let previousNotificationSnapshot = null;
 
     if (notification) {
+      // Receiving a grouped/deduplicated event should move it to the top.
+      // Reading or clicking only changes updatedAt and must not reorder it.
+      notification.receivedAt = new Date();
       previousNotificationSnapshot = {
         actionRequired: Boolean(notification.actionRequired),
         actionStatus: String(notification.actionStatus || 'DONE').toUpperCase(),

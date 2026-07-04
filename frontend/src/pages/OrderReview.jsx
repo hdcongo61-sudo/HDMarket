@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, MessageSquare, ShieldOff, Star } from 'lucide-react';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const ReviewActionButton = ({ onClick, disabled, variant = 'secondary', children }) => {
   const tone =
@@ -239,6 +240,9 @@ export default function OrderReview() {
                       <p className="line-clamp-2 text-sm font-bold">{item.title}</p>
                       <p className={`mt-1 text-xs ${active ? 'text-white/80' : 'text-gray-500'}`}>
                         {item.shopName} · Qté {item.quantity}
+                      </p>
+                      <p className={`mt-1 text-xs font-semibold ${active ? 'text-white' : 'text-[#FF6A00]'}`}>
+                        {formatPriceWithStoredSettings(item.unitPrice || 0)} / unité
                       </p>
                       {Array.isArray(item.selectedAttributes) && item.selectedAttributes.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-1.5">

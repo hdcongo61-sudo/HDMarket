@@ -1126,9 +1126,14 @@ export default function OrderCheckout() {
       }
     } catch (err) {
       if (isApiPossiblyCommittedError(err)) {
+        // Same codes just submitted in the request body above, re-derived here
+        // since the request payload isn't kept around after the call.
+        const submittedTransactionCodes = sellerGroups.map(
+          (group) => payments[group.sellerId]?.transactionCode || ''
+        );
         const reconciliation = await reconcileCheckoutAfterTimeout({
-          transactionCodes: normalizedTransactionCodes,
-          expectedCount: sellerGroups.length || normalizedTransactionCodes.length || 1
+          transactionCodes: submittedTransactionCodes,
+          expectedCount: sellerGroups.length || submittedTransactionCodes.length || 1
         });
         if (reconciliation.confirmed) {
           setOrderConfirmed(true);
@@ -1415,11 +1420,11 @@ export default function OrderCheckout() {
             </span>
           </div>
           <div className="max-h-none divide-y divide-slate-100 lg:max-h-[42vh] lg:overflow-y-auto">
-            {items.map(({ product, quantity, lineTotal, selectedAttributes, selectionKey }) => (
+            {items.map(({ product, quantity, unitPrice, lineTotal, selectedAttributes, selectionKey, variantImage }) => (
               <div key={`${product._id}-${selectionKey || 'default'}`} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 p-4 sm:grid-cols-[76px_minmax(0,1fr)_auto] sm:p-5">
                 <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-[76px] sm:w-[76px]">
                   <img
-                    src={product.images?.[0] || 'https://via.placeholder.com/80'}
+                    src={variantImage || product.images?.[0] || 'https://via.placeholder.com/80'}
                     alt={product.title}
                     className="h-full w-full object-cover"
                   />
@@ -1440,6 +1445,9 @@ export default function OrderCheckout() {
                   </p>
                   <p className="mt-2 text-base font-black text-[#ff6a00] sm:hidden">
                     {formatCurrency(lineTotal)}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                    {formatCurrency(unitPrice)} / unité
                   </p>
                 </div>
                 <div className="hidden text-right sm:block">

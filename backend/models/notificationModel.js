@@ -221,6 +221,10 @@ const notificationSchema = new mongoose.Schema(
       }
     },
     readAt: { type: Date, default: null },
+    receivedAt: { type: Date, default: Date.now, index: true },
+    pinnedAt: { type: Date, default: null, index: true },
+    snoozedUntil: { type: Date, default: null, index: true },
+    deletedAt: { type: Date, default: null, index: true },
     clickedAt: { type: Date, default: null },
     clickCount: { type: Number, default: 0, min: 0 },
     expiresAt: { type: Date, default: null }
@@ -231,6 +235,7 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ user: 1, createdAt: -1 });
+notificationSchema.index({ user: 1, receivedAt: -1, createdAt: -1 });
 notificationSchema.index({ user: 1, readAt: 1, createdAt: -1 });
 notificationSchema.index({ user: 1, type: 1, groupingKey: 1, createdAt: -1 });
 notificationSchema.index({ priority: 1, createdAt: -1 });

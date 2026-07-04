@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "seed:admin": "node ./seed/seedAdmin.js",
     "seed:settings": "node ./seed/seedSettings.js",
     "normalize:phones": "node ./scripts/normalizePhones.js",
@@ -14,6 +17,7 @@
     "backfill:product-stats": "node ./scripts/backfillProductStats.js"
   },
   "dependencies": {
+    "@sentry/node": "^8.55.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.8.0",
@@ -41,6 +45,9 @@
     "twilio": "^4.23.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "eslint": "^9.39.4",
+    "globals": "^15.15.0",
+    "nodemon": "^3.1.10",
+    "vitest": "^3.2.6"
   }
 }

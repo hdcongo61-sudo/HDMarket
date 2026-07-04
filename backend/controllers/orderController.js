@@ -457,7 +457,7 @@ const baseOrderQuery = () =>
     .populate('customer', 'name email phone address city commune')
     .populate({
       path: 'items.product',
-      select: 'title price images status user slug category categoryId subcategoryId',
+      select: 'title price images attributes status user slug category categoryId subcategoryId',
       populate: { path: 'user', select: 'name shopName phone shopAddress city commune' }
     })
     .populate({
@@ -854,19 +854,39 @@ const buildOrderResponse = (order) => {
   return {
     ...obj,
     items: Array.isArray(obj.items)
-      ? obj.items.map((item) => ({
-          ...item,
-          selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : [],
-          snapshot: {
-            ...(item.snapshot || {}),
-            shopAddress:
-              item?.snapshot?.shopAddress || item?.product?.user?.shopAddress || '',
-            shopCity:
-              item?.snapshot?.shopCity || item?.product?.user?.city || '',
-            shopCommune:
-              item?.snapshot?.shopCommune || item?.product?.user?.commune || ''
-          }
-        }))
+      ? obj.items.map((item) => {
+          const selectedAttributes = Array.isArray(item.selectedAttributes)
+            ? item.selectedAttributes
+            : [];
+          const storedUnitPrice = Number(item?.unitPrice ?? item?.snapshot?.price ?? item?.product?.price ?? 0);
+          const quantity = Math.max(1, Number(item?.quantity || 1));
+          const selectedImage = resolveSelectedAttributesImage({
+            productAttributes: item?.product?.attributes,
+            selectedAttributes,
+            images: item?.product?.images
+          }).image;
+          return {
+            ...item,
+            unitPrice: storedUnitPrice,
+            lineTotal: Number(item?.lineTotal ?? storedUnitPrice * quantity),
+            selectedAttributes,
+            snapshot: {
+              ...(item.snapshot || {}),
+              price: storedUnitPrice,
+              image:
+                item?.snapshot?.image ||
+                selectedImage ||
+                (Array.isArray(item?.product?.images) ? item.product.images[0] : '') ||
+                '',
+              shopAddress:
+                item?.snapshot?.shopAddress || item?.product?.user?.shopAddress || '',
+              shopCity:
+                item?.snapshot?.shopCity || item?.product?.user?.city || '',
+              shopCommune:
+                item?.snapshot?.shopCommune || item?.product?.user?.commune || ''
+            }
+          };
+        })
       : [],
     customer: obj.customer
       ? {
@@ -1169,28 +1189,21 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
       }
     }
 
-    const qty = Math.max(1, Number(item.quantity || 1));
-    const price = Number(product.price || 0);
-    const lineTotal = price * qty;
-    totalAmount += lineTotal;
-
-    orderItems.push({
-      product: product._id,
-      quantity: qty,
-      unitPrice: price,
-      lineTotal,
-      snapshot: {
-        title: product.title,
-        price,
-        image: Array.isArray(product.images) ? product.images[0] || '' : '',
-        shopName: product.shopName || '',
-        shopId: product.user || product.shopId,
-        shopAddress: product.shopAddress || '',
-        shopCity: product.city || '',
-        shopCommune: product.commune || '',
-        slug: product.slug || ''
-      }
+    const selectedAttributesValidation = validateSelectedAttributesForProduct({
+      productAttributes: product.attributes,
+      selectedAttributes: item.selectedAttributes
     });
+    if (!selectedAttributesValidation.valid) {
+      return res.status(400).json({ message: selectedAttributesValidation.message });
+    }
+
+    const orderItem = buildOrderItemFromProduct(
+      product,
+      item.quantity,
+      selectedAttributesValidation.selectedAttributes
+    );
+    totalAmount += Number(orderItem.lineTotal || 0);
+    orderItems.push(orderItem);
   }
 
   // ── Apply promo codes per shop ──────────────────────────
@@ -5368,7 +5381,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
           actorId,
           type: 'admin_broadcast',
           metadata: {
-            message: `Remboursement demandé pour la commande #${String(order._id).slice(-6)}: ${formatCurrency(refundAmount)}.`,
+            message: `Remboursement demandé pour la commande #${String(order._id).slice(-6)}: ${formatSmsAmount(refundAmount)} FCFA.`,
             orderId: order._id,
             refundRequested: true,
             refundAmount

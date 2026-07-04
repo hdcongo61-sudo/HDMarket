@@ -412,13 +412,15 @@ export default function SellerOrderDetail() {
   const deliveryFeeUpdatedAt = order?.deliveryFeeUpdatedAt ? new Date(order.deliveryFeeUpdatedAt) : null;
 
   const normalizeFileUrl = useCallback((url) => {
-    if (!url) return '';
-    if (/^https?:\/\//i.test(url)) return url;
-    if (/^data:/i.test(url)) return url;
-    if (/^blob:/i.test(url)) return url;
+    const value = String(url || '').trim();
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value)) return value;
+    if (/^data:/i.test(value)) return value;
+    if (/^blob:/i.test(value)) return value;
     const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-    const host = apiBase.replace(/\/api\/?$/, '');
-    return `${host}/${String(url).replace(/^\/+/, '')}`;
+    let host = apiBase.replace(/\/api(?:\/v\d+)?\/?$/i, '');
+    try { host = new URL(apiBase, window.location.origin).origin; } catch { /* keep configured host */ }
+    return `${host}/${value.replace(/^\/+/, '')}`;
   }, []);
 
   const openProofPreview = useCallback(
@@ -981,6 +983,10 @@ export default function SellerOrderDetail() {
   const canRequestProof = canRequestDeliveryProof || canRequestPickupProof;
   const canShowDeliveryProofForm = canRequestProof && showDeliveryProofForm;
   const sellerCity = String(user?.city || '').trim();
+  const buyerCity = String(order.deliveryCity || '').trim();
+  // Same rule as the buyer-side page: default to offering a refund when
+  // cancelling a cross-city order.
+  const cityMismatch = Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
   const platformDeliveryEnabled =
     ['true', '1', 'yes', 'on'].includes(
       String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
@@ -1611,7 +1617,7 @@ export default function SellerOrderDetail() {
               />
             )}
 
-            {!isInstallmentOrder && ['submitted', 'verified'].includes(String(order.deliveryStatus || '').toLowerCase()) && !platformDeliveryAutoConfirmed && ((Array.isArray(order.deliveryProofImages) && order.deliveryProofImages.length > 0) || order.clientSignatureImage) && (
+            {!isInstallmentOrder && ((Array.isArray(order.deliveryProofImages) && order.deliveryProofImages.length > 0) || order.clientSignatureImage) && (
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)] space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-emerald-50">
@@ -1634,7 +1640,8 @@ export default function SellerOrderDetail() {
                     </p>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {(order.deliveryProofImages || []).map((proof, index) => {
-                        const src = normalizeFileUrl(proof?.url || proof?.path || '');
+                        const rawSource = typeof proof === 'string' ? proof : proof?.url || proof?.path || proof?.secure_url || proof?.location || '';
+                        const src = normalizeFileUrl(rawSource);
                         if (!src) return null;
                         return (
                           <button
