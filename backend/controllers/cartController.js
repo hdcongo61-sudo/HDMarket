@@ -12,6 +12,7 @@ import {
 import {
   buildSelectedAttributesSelectionKey,
   normalizeSelectedAttributes,
+  resolveSelectedAttributesImage,
   resolveSelectedAttributesPrice,
   validateSelectedAttributesForProduct
 } from '../utils/productAttributes.js';
@@ -176,6 +177,12 @@ const formatCart = (cart) => {
         quantity: item.quantity,
         unitPrice,
         variantPriceApplied: Boolean(variant.applied),
+        variantImage:
+          resolveSelectedAttributesImage({
+            productAttributes: product.attributes,
+            selectedAttributes: item.selectedAttributes,
+            images: product.images
+          }).image || null,
         wholesale: {
           applied: Boolean(pricing.tierApplied),
           tier: pricing.tierApplied,

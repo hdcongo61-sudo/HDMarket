@@ -141,6 +141,11 @@ export default function ProductForm(props) {
   const [existingImages, setExistingImages] = useState([]);
   const [removedImages, setRemovedImages] = useState([]);
   const [imageError, setImageError] = useState('');
+  // Image-first variants (Taobao style): each photo can carry an option label
+  // and its price, edited right below the image. Keyed by the combined image
+  // index ([existing…, new…]); serialized into one select attribute at submit.
+  const [imageVariantName, setImageVariantName] = useState('Couleur');
+  const [imageVariants, setImageVariants] = useState({});
   const { user } = useContext(AuthContext);
   const isBoutiqueOwner = user?.accountType === 'shop';
   const canUploadVideo = Boolean(user?.shopVerified && user?.accountType === 'shop');
@@ -701,6 +706,8 @@ export default function ProductForm(props) {
     const newPreviews = imagePreviews.filter((_, i) => i !== index);
     setFiles(newFiles);
     setImagePreviews(newPreviews);
+    // Option→image links use the combined [existing…, new…] index space.
+    shiftAttributeOptionImages(existingImages.length + index);
     if (newFiles.length < maxImagesLimit) setImageError('');
   };
 
@@ -709,6 +716,7 @@ export default function ProductForm(props) {
     if (!target) return;
     setExistingImages(existingImages.filter((_, i) => i !== index));
     setRemovedImages((prev) => [...prev, target]);
+    shiftAttributeOptionImages(index);
     if (existingImages.length - 1 + files.length < maxImagesLimit) setImageError('');
   };
 
@@ -1073,38 +1081,125 @@ export default function ProductForm(props) {
       const options = Array.isArray(current.options) ? [...current.options] : [];
       const previousKey = String(options[optionIndex] || '').trim().toLowerCase();
       options[optionIndex] = value;
-      // Keep any per-option price attached to the renamed option.
-      let optionPrices = current.optionPrices;
+      // Keep any per-option price/image attached to the renamed option.
       const nextKey = String(value || '').trim().toLowerCase();
-      if (optionPrices && previousKey && previousKey !== nextKey && optionPrices[previousKey] != null) {
-        optionPrices = { ...optionPrices, [nextKey]: optionPrices[previousKey] };
-        delete optionPrices[previousKey];
-      }
-      attributes[attributeIndex] = { ...current, options, optionPrices };
+      const migrateKey = (map) => {
+        if (!map || !previousKey || previousKey === nextKey || map[previousKey] == null) return map;
+        const next = { ...map, [nextKey]: map[previousKey] };
+        delete next[previousKey];
+        return next;
+      };
+      attributes[attributeIndex] = {
+        ...current,
+        options,
+        optionPrices: migrateKey(current.optionPrices),
+        optionImages: migrateKey(current.optionImages)
+      };
       return { ...prev, attributes };
     });
   };
 
-  const updateProductAttributeOptionPrice = (attributeIndex, optionLabel, rawValue) => {
-    setForm((prev) => {
-      const attributes = Array.isArray(prev.attributes) ? [...prev.attributes] : [];
-      const current = attributes[attributeIndex];
-      if (!current) return prev;
-      const key = String(optionLabel || '').trim().toLowerCase();
-      if (!key) return prev;
-      const optionPrices = { ...(current.optionPrices || {}) };
-      const price = Number(rawValue);
-      if (rawValue === '' || !Number.isFinite(price) || price <= 0) {
-        delete optionPrices[key];
-      } else {
-        optionPrices[key] = price;
+  const updateImageVariant = (combinedIndex, field, value) => {
+    setImageVariants((prev) => {
+      const current = prev[combinedIndex] || { label: '', price: '' };
+      const entry = { ...current, [field]: value };
+      const next = { ...prev, [combinedIndex]: entry };
+      if (!String(entry.label || '').trim() && String(entry.price ?? '') === '') {
+        delete next[combinedIndex];
       }
-      attributes[attributeIndex] = {
-        ...current,
-        optionPrices: Object.keys(optionPrices).length ? optionPrices : undefined
-      };
+      return next;
+    });
+  };
+
+  // Keep option→image links valid when an image is removed: drop links to the
+  // removed slot and shift the ones after it.
+  const shiftAttributeOptionImages = (removedIndex) => {
+    setImageVariants((prev) => {
+      const next = {};
+      Object.entries(prev).forEach(([key, entry]) => {
+        const index = Number(key);
+        if (!Number.isInteger(index) || index === removedIndex) return;
+        next[index > removedIndex ? index - 1 : index] = entry;
+      });
+      return next;
+    });
+    setForm((prev) => {
+      const attributes = (Array.isArray(prev.attributes) ? prev.attributes : []).map((attribute) => {
+        if (!attribute?.optionImages) return attribute;
+        const optionImages = {};
+        Object.entries(attribute.optionImages).forEach(([key, value]) => {
+          const index = Number(value);
+          if (!Number.isInteger(index) || index === removedIndex) return;
+          optionImages[key] = index > removedIndex ? index - 1 : index;
+        });
+        return {
+          ...attribute,
+          optionImages: Object.keys(optionImages).length ? optionImages : undefined
+        };
+      });
       return { ...prev, attributes };
     });
+  };
+
+  // Serialize the per-photo variants into one select attribute (options in
+  // photo order; a variant price requires the buyer to choose, so the
+  // attribute becomes required as soon as any price is set).
+  const buildImageVariantAttribute = () => {
+    const entries = Object.entries(imageVariants)
+      .map(([key, entry]) => ({
+        index: Number(key),
+        label: String(entry?.label || '').trim(),
+        price: Number(entry?.price)
+      }))
+      .filter((entry) => Number.isInteger(entry.index) && entry.index >= 0 && entry.label)
+      .sort((a, b) => a.index - b.index);
+    if (!entries.length) return null;
+    const seen = new Set();
+    const options = [];
+    const optionPrices = {};
+    const optionImages = {};
+    entries.forEach((entry) => {
+      const key = entry.label.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push(entry.label);
+      optionImages[key] = entry.index;
+      if (Number.isFinite(entry.price) && entry.price > 0) optionPrices[key] = entry.price;
+    });
+    return {
+      name: String(imageVariantName || '').trim() || 'Variante',
+      type: 'select',
+      options,
+      required: Object.keys(optionPrices).length > 0,
+      defaultValue: '',
+      ...(Object.keys(optionPrices).length ? { optionPrices } : {}),
+      optionImages
+    };
+  };
+
+  // Option + price fields rendered below each photo (Taobao-style variants).
+  const renderImageVariantFields = (combinedIndex) => {
+    const entry = imageVariants[combinedIndex] || {};
+    return (
+      <div className="space-y-1 border-t border-gray-200 bg-white p-2">
+        <input
+          type="text"
+          value={entry.label || ''}
+          onChange={(e) => updateImageVariant(combinedIndex, 'label', e.target.value)}
+          placeholder={`${String(imageVariantName || '').trim() || 'Option'} (ex: Rouge)`}
+          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#FF6A00] focus:outline-none"
+        />
+        <input
+          type="number"
+          min="0"
+          inputMode="numeric"
+          value={entry.price ?? ''}
+          onChange={(e) => updateImageVariant(combinedIndex, 'price', e.target.value)}
+          placeholder="Prix (optionnel)"
+          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#FF6A00] focus:outline-none"
+        />
+      </div>
+    );
   };
 
   const removeProductAttributeOption = (attributeIndex, optionIndex) => {
@@ -1115,16 +1210,17 @@ export default function ProductForm(props) {
       const options = Array.isArray(current.options) ? [...current.options] : [];
       const removedKey = String(options[optionIndex] || '').trim().toLowerCase();
       options.splice(optionIndex, 1);
-      let optionPrices = current.optionPrices;
-      if (optionPrices && removedKey && optionPrices[removedKey] != null) {
-        optionPrices = { ...optionPrices };
-        delete optionPrices[removedKey];
-        if (!Object.keys(optionPrices).length) optionPrices = undefined;
-      }
+      const dropKey = (map) => {
+        if (!map || !removedKey || map[removedKey] == null) return map;
+        const next = { ...map };
+        delete next[removedKey];
+        return Object.keys(next).length ? next : undefined;
+      };
       attributes[attributeIndex] = {
         ...current,
         options: options.length ? options : [''],
-        optionPrices
+        optionPrices: dropKey(current.optionPrices),
+        optionImages: dropKey(current.optionImages)
       };
       return { ...prev, attributes };
     });
@@ -1292,7 +1388,17 @@ export default function ProductForm(props) {
       setUploadProgress(0);
     }
     try {
-      const normalizedAttributes = normalizeProductAttributes(form.attributes);
+      const imageVariantAttribute = buildImageVariantAttribute();
+      const normalizedAttributes = normalizeProductAttributes([
+        ...(imageVariantAttribute ? [imageVariantAttribute] : []),
+        // Prices and image links belong to the photo variants only; the
+        // generic attribute editor carries price-neutral choices.
+        ...(Array.isArray(form.attributes) ? form.attributes : []).map((attribute) =>
+          attribute && typeof attribute === 'object'
+            ? { ...attribute, optionImages: undefined, optionPrices: undefined }
+            : attribute
+        )
+      ]);
       const physicalPayload = {
         weight: {
           value: form.physical?.weight?.value,
@@ -1492,7 +1598,32 @@ export default function ProductForm(props) {
       setExistingPdf(null);
       setRemovePdf(false);
       setRemovedImages([]);
+      setImageVariants({});
+      setImageVariantName('Couleur');
       return;
+    }
+    // The photo-linked attribute is edited under the image cards; explode it
+    // back into per-image entries and keep the rest in the generic editor.
+    const hydratedAttributes = normalizeProductAttributes(initialValues.attributes);
+    const imageLinkedAttribute = hydratedAttributes.find(
+      (attribute) => attribute.optionImages && Object.keys(attribute.optionImages).length
+    );
+    if (imageLinkedAttribute) {
+      const hydratedVariants = {};
+      imageLinkedAttribute.options.forEach((option) => {
+        const key = option.toLowerCase();
+        const index = imageLinkedAttribute.optionImages[key];
+        if (!Number.isInteger(index)) return;
+        hydratedVariants[index] = {
+          label: option,
+          price: imageLinkedAttribute.optionPrices?.[key] ?? ''
+        };
+      });
+      setImageVariants(hydratedVariants);
+      setImageVariantName(imageLinkedAttribute.name || 'Couleur');
+    } else {
+      setImageVariants({});
+      setImageVariantName('Couleur');
     }
     setForm({
       title: initialValues.title || '',
@@ -1548,15 +1679,17 @@ export default function ProductForm(props) {
           ? initialValues.warrantyPeriodValue
           : '',
       warrantyPeriodUnit: initialValues.warrantyPeriodUnit || 'months',
-      attributes: normalizeProductAttributes(initialValues.attributes).map((attribute) => ({
-        ...attribute,
-        options:
-          attribute.type === 'select'
-            ? Array.isArray(attribute.options) && attribute.options.length
-              ? attribute.options
-              : ['']
-            : []
-      })),
+      attributes: hydratedAttributes
+        .filter((attribute) => attribute !== imageLinkedAttribute)
+        .map((attribute) => ({
+          ...attribute,
+          options:
+            attribute.type === 'select'
+              ? Array.isArray(attribute.options) && attribute.options.length
+                ? attribute.options
+                : ['']
+              : []
+        })),
       physical: {
         weight: {
           value: initialValues.physical?.weight?.value ?? '',
@@ -2546,7 +2679,7 @@ export default function ProductForm(props) {
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Attributs acheteur</p>
                     <p className="text-xs text-gray-500">
-                      Ajoutez des options comme couleur, taille, matière ou poids. Elles seront demandées à l'acheteur et sauvegardées dans la commande.
+                      Choix sans impact sur le prix (ex: taille, matière). Pour des prix différents par variante, renseignez le prix sous chaque photo, dans la section Photos.
                     </p>
                   </div>
                   <button
@@ -2655,7 +2788,7 @@ export default function ProductForm(props) {
                                 <div>
                                   <p className="text-xs font-medium text-gray-700">Choix disponibles</p>
                                   <p className="text-[11px] text-gray-500">
-                                    Ajoutez autant d'options que nécessaire. Un prix propre à l'option (ex: par taille) remplace le prix principal — laissez vide sinon.
+                                    Ajoutez autant d'options que nécessaire.
                                   </p>
                                 </div>
                                 <button
@@ -2676,17 +2809,6 @@ export default function ProductForm(props) {
                                       onChange={(e) => updateProductAttributeOption(index, optionIndex, e.target.value)}
                                       className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                                       placeholder={`Option ${optionIndex + 1}`}
-                                    />
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      inputMode="numeric"
-                                      value={attribute?.optionPrices?.[String(option || '').trim().toLowerCase()] ?? ''}
-                                      onChange={(e) => updateProductAttributeOptionPrice(index, option, e.target.value)}
-                                      disabled={!String(option || '').trim()}
-                                      className="w-28 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent disabled:opacity-50"
-                                      placeholder="Prix"
-                                      title="Prix pour cette option (optionnel)"
                                     />
                                     <button
                                       type="button"
@@ -2794,8 +2916,8 @@ export default function ProductForm(props) {
           {renderSectionHeader({
             id: 'images',
             icon: Camera,
-            title: 'Photos du produit',
-            subtitle: 'Des images nettes chargent plus vite et vendent mieux.'
+            title: 'Photos & variantes',
+            subtitle: 'Chaque photo peut devenir une variante : option et prix sous l’image.'
           })}
 
           {/* Image upload content - shown on desktop always, on mobile when expanded */}
@@ -2836,25 +2958,44 @@ export default function ProductForm(props) {
                   </p>
                 )}
 
+                {existingImages.length + imagePreviews.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                    <span className="shrink-0 text-xs font-semibold text-gray-600">Nom du choix</span>
+                    <input
+                      type="text"
+                      value={imageVariantName}
+                      onChange={(e) => setImageVariantName(e.target.value)}
+                      className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#FF6A00] focus:outline-none"
+                      placeholder="Ex: Couleur, Modèle, Dimension"
+                    />
+                    <span className="w-full text-[11px] text-gray-500 sm:w-auto">
+                      Renseignez l'option et son prix sous chaque photo — l'acheteur choisira par photo.
+                    </span>
+                  </div>
+                )}
+
                 {existingImages.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs text-gray-500">Images actuelles ({existingImages.length})</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {existingImages.map((src, index) => (
-                        <div key={`${src}-${index}`} className="relative group rounded-lg border-2 border-gray-200 overflow-hidden aspect-square bg-gray-100">
-                          <img
-                            src={thumbImageUrl(src)}
-                            alt={`Image existante ${index + 1}`}
-                            className="w-full h-full object-contain"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeExistingImage(index)}
-                            className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label="Supprimer l'image"
-                          >
-                            <X size={12} />
-                          </button>
+                        <div key={`${src}-${index}`} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100">
+                          <div className="relative aspect-square">
+                            <img
+                              src={thumbImageUrl(src)}
+                              alt={`Image existante ${index + 1}`}
+                              className="w-full h-full object-contain"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeExistingImage(index)}
+                              className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                              aria-label="Supprimer l'image"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                          {renderImageVariantFields(index)}
                         </div>
                       ))}
                     </div>
@@ -2944,6 +3085,7 @@ export default function ProductForm(props) {
                                 Laisser tel quel
                               </button>
                             </div>
+                            {renderImageVariantFields(existingImages.length + index)}
                           </div>
                         );
                       })}

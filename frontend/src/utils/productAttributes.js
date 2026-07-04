@@ -14,6 +14,20 @@ const normalizeOptionPrices = (input, options = []) => {
   return Object.keys(normalized).length ? normalized : null;
 };
 
+// Optional per-option image link (lowercased option label → product image index).
+const normalizeOptionImages = (input, options = []) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const allowed = new Set(options.map((option) => option.toLowerCase()));
+  const normalized = {};
+  Object.entries(input).forEach(([key, raw]) => {
+    const optionKey = toTrimmedString(key).toLowerCase();
+    const index = Number(raw);
+    if (!allowed.has(optionKey) || !Number.isInteger(index) || index < 0 || index > 29) return;
+    normalized[optionKey] = index;
+  });
+  return Object.keys(normalized).length ? normalized : null;
+};
+
 export const normalizeProductAttributes = (input) => {
   const list = Array.isArray(input) ? input : [];
   return list
@@ -28,6 +42,7 @@ export const normalizeProductAttributes = (input) => {
         ? entry.options.map((option) => toTrimmedString(option)).filter(Boolean)
         : [];
       const optionPrices = type === 'select' ? normalizeOptionPrices(entry.optionPrices, options) : null;
+      const optionImages = type === 'select' ? normalizeOptionImages(entry.optionImages, options) : null;
       return {
         key: toTrimmedString(entry.key) || name.toLowerCase().replace(/\s+/g, '_'),
         name,
@@ -35,10 +50,41 @@ export const normalizeProductAttributes = (input) => {
         options,
         required: Boolean(entry.required),
         defaultValue: toTrimmedString(entry.defaultValue),
-        ...(optionPrices ? { optionPrices } : {})
+        ...(optionPrices ? { optionPrices } : {}),
+        ...(optionImages ? { optionImages } : {})
       };
     })
     .filter(Boolean);
+};
+
+// Mirror of the backend rule: the image linked to the current selection.
+export const resolveSelectedAttributesImage = ({
+  productAttributes = [],
+  selectedAttributes = [],
+  images = []
+}) => {
+  const attributes = normalizeProductAttributes(productAttributes);
+  const selected = normalizeSelectedAttributes(selectedAttributes);
+  const list = Array.isArray(images) ? images : [];
+  const selectedByName = new Map(
+    selected.map((entry) => [entry.name.toLowerCase(), entry.value.toLowerCase()])
+  );
+  let imageIndex = -1;
+  attributes.forEach((attribute) => {
+    if (attribute.type !== 'select' || !attribute.optionImages) return;
+    let value = selectedByName.get(attribute.name.toLowerCase()) || '';
+    if (!value && attribute.defaultValue) value = attribute.defaultValue.toLowerCase();
+    if (!value) return;
+    const candidate = attribute.optionImages[value];
+    if (Number.isInteger(candidate) && candidate >= 0 && candidate < list.length) {
+      imageIndex = candidate;
+    }
+  });
+  return {
+    applied: imageIndex >= 0,
+    imageIndex,
+    image: imageIndex >= 0 ? list[imageIndex] : null
+  };
 };
 
 // Mirror of the backend rule: a selected (or defaulted) option with a defined

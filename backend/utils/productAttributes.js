@@ -75,6 +75,22 @@ const normalizeOptionPrices = (input, options = []) => {
   return Object.keys(normalized).length ? normalized : null;
 };
 
+// Optional per-option image link: lowercased option label → index into
+// product.images (index-based because at creation time uploads have no URL yet).
+const normalizeOptionImages = (input, options = []) => {
+  const parsed = parseMaybeJson(input);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const allowed = new Set(options.map((option) => option.toLowerCase()));
+  const normalized = {};
+  Object.entries(parsed).forEach(([key, raw]) => {
+    const optionKey = toTrimmedString(key).toLowerCase();
+    const index = Number(raw);
+    if (!allowed.has(optionKey) || !Number.isInteger(index) || index < 0 || index > 29) return;
+    normalized[optionKey] = index;
+  });
+  return Object.keys(normalized).length ? normalized : null;
+};
+
 export const normalizeProductAttributes = (input) => {
   const parsed = parseMaybeJson(input);
   const list = Array.isArray(parsed) ? parsed : [];
@@ -86,6 +102,7 @@ export const normalizeProductAttributes = (input) => {
       if (!name) return null;
       const options = type === 'select' ? normalizeOptionList(entry.options) : [];
       const optionPrices = type === 'select' ? normalizeOptionPrices(entry.optionPrices, options) : null;
+      const optionImages = type === 'select' ? normalizeOptionImages(entry.optionImages, options) : null;
       const defaultValue = normalizeAttributeDefaultValue({
         type,
         value: entry.defaultValue
@@ -97,7 +114,8 @@ export const normalizeProductAttributes = (input) => {
         options,
         required: normalizeBoolean(entry.required, false),
         defaultValue,
-        ...(optionPrices ? { optionPrices } : {})
+        ...(optionPrices ? { optionPrices } : {}),
+        ...(optionImages ? { optionImages } : {})
       };
     })
     .filter(Boolean);
@@ -159,6 +177,37 @@ export const normalizeSelectedAttributes = (input) => {
       return { name, value };
     })
     .filter(Boolean);
+};
+
+// Resolve the image linked to the current selection (e.g. the red photo when
+// "Rouge" is selected). Last matching attribute in order wins.
+export const resolveSelectedAttributesImage = ({
+  productAttributes = [],
+  selectedAttributes = [],
+  images = []
+}) => {
+  const attributes = normalizeProductAttributes(productAttributes);
+  const selected = normalizeSelectedAttributes(selectedAttributes);
+  const list = Array.isArray(images) ? images : [];
+  const selectedByName = new Map(
+    selected.map((entry) => [entry.name.toLowerCase(), entry.value.toLowerCase()])
+  );
+  let imageIndex = -1;
+  for (const attribute of attributes) {
+    if (attribute.type !== 'select' || !attribute.optionImages) continue;
+    let value = selectedByName.get(attribute.name.toLowerCase()) || '';
+    if (!value && attribute.defaultValue) value = attribute.defaultValue.toLowerCase();
+    if (!value) continue;
+    const candidate = attribute.optionImages[value];
+    if (Number.isInteger(candidate) && candidate >= 0 && candidate < list.length) {
+      imageIndex = candidate;
+    }
+  }
+  return {
+    applied: imageIndex >= 0,
+    imageIndex,
+    image: imageIndex >= 0 ? list[imageIndex] : null
+  };
 };
 
 // Resolve the unit price for a given selection: a selected (or defaulted)

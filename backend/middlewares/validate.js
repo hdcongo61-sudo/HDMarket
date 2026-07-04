@@ -29,6 +29,10 @@ const productAttributeSchema = Joi.object({
   optionPrices: Joi.object()
     .pattern(Joi.string().max(80), Joi.number().positive().max(1_000_000_000))
     .optional()
+    .allow(null),
+  optionImages: Joi.object()
+    .pattern(Joi.string().max(80), Joi.number().integer().min(0).max(29))
+    .optional()
     .allow(null)
 });
 const physicalSchema = Joi.object({

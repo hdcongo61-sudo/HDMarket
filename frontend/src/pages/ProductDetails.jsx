@@ -48,6 +48,7 @@ import {
   getDefaultSelectedAttributes,
   normalizeProductAttributes,
   normalizeSelectedAttributes,
+  resolveSelectedAttributesImage,
   resolveSelectedAttributesPrice,
   validateSelectedAttributes
 } from "../utils/productAttributes";
@@ -320,6 +321,23 @@ export default function ProductDetails() {
     setSelectedAttributes(defaultSelectedAttributes);
     setSelectionError("");
   }, [defaultSelectedAttributes, product?._id]);
+
+  // Jump the gallery to the photo linked to the selected option (e.g. the red
+  // photo when "Rouge" is picked). Gallery indexes the deduplicated image list.
+  useEffect(() => {
+    const images = Array.isArray(product?.images) ? product.images : [];
+    const variantImage = resolveSelectedAttributesImage({
+      productAttributes: productOptionDefinitions,
+      selectedAttributes: normalizedSelectedAttributes,
+      images
+    });
+    if (!variantImage.applied || !variantImage.image) return;
+    const unique = Array.from(
+      new Set(images.map((value) => String(value || '').trim()).filter(Boolean))
+    ).slice(0, 10);
+    const galleryIndex = unique.indexOf(String(variantImage.image).trim());
+    if (galleryIndex >= 0) setSelectedImage(galleryIndex);
+  }, [normalizedSelectedAttributes, productOptionDefinitions, product?.images]);
 
   const handleAttributeValueChange = useCallback((attribute, value) => {
     setSelectionError("");
@@ -2383,7 +2401,48 @@ export default function ProductDetails() {
                         <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">À choisir</span>
                       ) : null}
                     </p>
-                    {attribute.type === 'select' ? (
+                    {attribute.type === 'select' && attribute.optionImages ? (
+                      /* Variantes par photo (style Taobao) : une tuile image par option */
+                      <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
+                        {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
+                          const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                          const optionKey = String(option).trim().toLowerCase();
+                          const optionPrice = attribute.optionPrices?.[optionKey];
+                          const optionImageIdx = attribute.optionImages?.[optionKey];
+                          const optionThumb = Number.isInteger(optionImageIdx)
+                            ? product?.images?.[optionImageIdx] || ''
+                            : '';
+                          return (
+                            <button key={`${attribute.name}-${option}`} type="button"
+                              onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
+                              className={`overflow-hidden rounded-lg border-2 text-left transition-all active:scale-[0.97] ${active
+                                ? 'border-[#FF6A00] ring-1 ring-orange-200'
+                                : 'border-gray-200'}`}
+                              aria-pressed={active}>
+                              <div className="aspect-square bg-gray-100">
+                                {optionThumb ? (
+                                  <img src={optionThumb} alt={option} className="h-full w-full object-cover" loading="lazy" />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-xl font-black text-gray-300">
+                                    {String(option).charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <div className={`px-1.5 py-1 ${active ? 'bg-[#fff0e4]' : 'bg-white'}`}>
+                                <p className={`truncate text-[11px] font-bold ${active ? 'text-[#FF6A00]' : 'text-gray-700'}`}>
+                                  {option}
+                                </p>
+                                {Number.isFinite(optionPrice) && optionPrice > 0 ? (
+                                  <p className="truncate text-[11px] font-black text-[#FF6A00]">
+                                    {formatPriceWithStoredSettings(optionPrice)}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : attribute.type === 'select' ? (
                       <div className="flex flex-wrap gap-2">
                         {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
                           const active = selectedValue.toLowerCase() === String(option).toLowerCase();
@@ -4361,7 +4420,52 @@ export default function ProductDetails() {
                 )}
               </div>
 
-              {attribute.type === 'select' ? (
+              {attribute.type === 'select' && attribute.optionImages ? (
+                <div className="grid grid-cols-4 gap-2 lg:grid-cols-6">
+                  {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
+                    const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                    const optionKey = String(option).trim().toLowerCase();
+                    const optionPrice = attribute.optionPrices?.[optionKey];
+                    const optionImageIdx = attribute.optionImages?.[optionKey];
+                    const optionThumb = Number.isInteger(optionImageIdx)
+                      ? product?.images?.[optionImageIdx] || ''
+                      : '';
+                    return (
+                      <button
+                        key={`${attribute.name}-${option}`}
+                        type="button"
+                        onClick={() =>
+                          handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)
+                        }
+                        className={`overflow-hidden rounded-xl border-2 text-left transition-all duration-200 active:scale-[0.98] ${
+                          active ? 'border-slate-900 ring-1 ring-slate-300' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                        aria-pressed={active}
+                      >
+                        <div className="aspect-square bg-slate-100">
+                          {optionThumb ? (
+                            <img src={optionThumb} alt={option} className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xl font-black text-slate-300">
+                              {String(option).charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className={`px-1.5 py-1 ${active ? 'bg-slate-900' : 'bg-white'}`}>
+                          <p className={`truncate text-[11px] font-bold ${active ? 'text-white' : 'text-slate-700'}`}>
+                            {option}
+                          </p>
+                          {Number.isFinite(optionPrice) && optionPrice > 0 ? (
+                            <p className={`truncate text-[11px] font-black ${active ? 'text-orange-300' : 'text-[#FF6A00]'}`}>
+                              {formatPriceWithStoredSettings(optionPrice)}
+                            </p>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : attribute.type === 'select' ? (
                 <div className="flex flex-wrap gap-2">
                   {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
                     const active = selectedValue.toLowerCase() === String(option).toLowerCase();

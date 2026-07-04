@@ -13,7 +13,10 @@ const productAttributeSchema = new mongoose.Schema(
     // Optional unit price per option (lowercased option label → price), so a
     // size/variant can carry its own price. Plain object: labels may contain
     // characters a mongoose Map would reject.
-    optionPrices: { type: mongoose.Schema.Types.Mixed, default: undefined }
+    optionPrices: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    // Optional image link per option (lowercased option label → index into
+    // product.images), so a color/variant shows its own photo.
+    optionImages: { type: mongoose.Schema.Types.Mixed, default: undefined }
   },
   { _id: false }
 );

@@ -54,6 +54,7 @@ import {
 } from '../services/orderReviewReminderService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 import {
+  resolveSelectedAttributesImage,
   resolveSelectedAttributesPrice,
   validateSelectedAttributesForProduct
 } from '../utils/productAttributes.js';
@@ -660,6 +661,11 @@ const buildOrderItemFromProduct = (product, quantity = 1, selectedAttributes = [
   const unitPrice = Number(pricing.unitPrice || 0);
   const lineTotal = Number(pricing.lineTotal || 0);
   const tier = pricing.tierApplied || null;
+  const variantImage = resolveSelectedAttributesImage({
+    productAttributes: product.attributes,
+    selectedAttributes,
+    images: product.images
+  });
 
   return {
     product: product._id,
@@ -671,7 +677,7 @@ const buildOrderItemFromProduct = (product, quantity = 1, selectedAttributes = [
       title: product.title,
       price: unitPrice,
       basePrice: Number(product.price || 0),
-      image: Array.isArray(product.images) ? product.images[0] : null,
+      image: variantImage.image || (Array.isArray(product.images) ? product.images[0] : null),
       shopName: product.user?.shopName || product.user?.name || '',
       shopId: product.user?._id || product.user || null,
       shopAddress: product.user?.shopAddress || '',

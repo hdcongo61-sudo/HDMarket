@@ -453,7 +453,7 @@ export default function Cart() {
                         className="block relative overflow-hidden rounded-xl aspect-square bg-gray-100 transition-all duration-300"
                       >
                         <img
-                          src={product.images?.[0] || 'https://via.placeholder.com/300'}
+                          src={item.variantImage || product.images?.[0] || 'https://via.placeholder.com/300'}
                           alt={product.title}
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           loading="lazy"
