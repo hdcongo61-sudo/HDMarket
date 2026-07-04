@@ -48,6 +48,7 @@ import {
   getDefaultSelectedAttributes,
   normalizeProductAttributes,
   normalizeSelectedAttributes,
+  resolveProductImagePrice,
   resolveSelectedAttributesImage,
   resolveSelectedAttributesPrice,
   validateSelectedAttributes
@@ -1478,9 +1479,18 @@ export default function ProductDetails() {
     selectedAttributes: normalizedSelectedAttributes,
     basePrice: product?.price || 0
   });
-  const finalPrice = variantPricing.applied
-    ? Number(variantPricing.unitPrice || 0)
-    : Number(product?.price || 0);
+  const displayedPhotoPricing = resolveProductImagePrice({
+    productAttributes: productOptionDefinitions,
+    imageIndex:
+      selectedImage >= 0 && selectedImage < (Array.isArray(product?.images) ? product.images.length : 0)
+        ? selectedImage
+        : -1
+  });
+  const finalPrice = displayedPhotoPricing.applied
+    ? Number(displayedPhotoPricing.unitPrice || 0)
+    : variantPricing.applied
+      ? Number(variantPricing.unitPrice || 0)
+      : Number(product?.price || 0);
   const normalizedQuantity = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
   const discountPercentage = product?.discount || 0;
   const wholesaleTiers = useMemo(() => {
@@ -1751,9 +1761,8 @@ export default function ProductDetails() {
     const cleaned = base
       .map((value) => String(value || '').trim())
       .filter(Boolean);
-    const unique = Array.from(new Set(cleaned)).slice(0, 10);
     // Images first, then video at the end if present
-    const items = unique.map((src) => ({ type: 'image', src: squareImageUrl(src) }));
+    const items = cleaned.slice(0, 10).map((src) => ({ type: 'image', src: squareImageUrl(src) }));
     if (product?.video && String(product.video).trim()) {
       items.push({ type: 'video', src: String(product.video).trim() });
     }

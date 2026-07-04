@@ -43,6 +43,7 @@ import {
   withVerifiedPublicProductFilter
 } from '../utils/publicProductVisibility.js';
 import {
+  getHighestProductPrice,
   normalizeProductAttributes,
   normalizeProductPhysical
 } from '../utils/productAttributes.js';
@@ -845,6 +846,11 @@ export const createProduct = asyncHandler(async (req, res) => {
     priceBeforeDiscount = priceValue;
     finalPrice = Number((priceValue * (1 - discountValue / 100)).toFixed(2));
   }
+  const normalizedAttributes = normalizeProductAttributes(attributes);
+  const highestListingPrice = getHighestProductPrice({
+    productAttributes: normalizedAttributes,
+    basePrice: finalPrice
+  });
 
   const resolvedCondition = (condition || 'used').toString().toLowerCase();
   const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
@@ -894,7 +900,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     installmentLatePenaltyRate,
     installmentMaxMissedPayments,
     installmentRequireGuarantor,
-    price: finalPrice,
+    price: highestListingPrice,
     isShop
   });
   if (!installmentConfig.valid) {
@@ -940,7 +946,6 @@ export const createProduct = asyncHandler(async (req, res) => {
   if (!warrantyConfig.valid) {
     return res.status(400).json({ message: warrantyConfig.message });
   }
-  const normalizedAttributes = normalizeProductAttributes(attributes);
   const normalizedPhysical = normalizeProductPhysical(physical);
 
   const categorySelection = await resolveCategorySelection({
@@ -1124,7 +1129,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       promoPreview = await previewPromoForSeller({
         code: promoCode,
         sellerId: req.user.id,
-        productPrice: product.price,
+        productPrice: highestListingPrice,
         commissionRate
       });
       if (!promoPreview.valid) {
@@ -1136,7 +1141,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     }
 
     const commission = promoPreview?.commission ||
-      calculateCommissionBreakdown({ productPrice: product.price, commissionRate });
+      calculateCommissionBreakdown({ productPrice: highestListingPrice, commissionRate });
     const dueAmount = Number(commission?.dueAmount || 0);
     const promoDiscount = Number(commission?.discountAmount || 0);
     const promoWaived = Boolean(commission?.isWaived);
@@ -1187,7 +1192,7 @@ export const createProduct = asyncHandler(async (req, res) => {
         await consumePromoCodeForSeller({
           code: promoCode,
           sellerId: req.user.id,
-          productPrice: product.price,
+          productPrice: highestListingPrice,
           commissionRate,
           productId: String(product._id)
         }).catch(() => {});
@@ -1228,7 +1233,7 @@ export const createProduct = asyncHandler(async (req, res) => {
           await consumePromoCodeForSeller({
             code: promoCode,
             sellerId: req.user.id,
-            productPrice: product.price,
+            productPrice: highestListingPrice,
             commissionRate,
             productId: String(product._id)
           }).catch(() => {});

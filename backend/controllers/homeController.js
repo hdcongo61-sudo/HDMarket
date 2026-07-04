@@ -9,7 +9,7 @@ import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibilit
 const SHOP_SELECT_FIELDS =
   'name shopName shopAddress shopLogo city country shopVerified isBlocked slug followersCount createdAt freeDeliveryEnabled';
 const PRODUCT_SELECT_FIELDS =
-  'title price priceBeforeDiscount discount images user slug category condition city createdAt salesCount favoritesCount viewsCount ratingAverage ratingCount commentCount installmentEnabled installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers wholesaleMinQty promoSavedAmount boosted boostScore';
+  'title price priceBeforeDiscount discount images attributes user slug category condition city createdAt salesCount favoritesCount viewsCount ratingAverage ratingCount commentCount installmentEnabled installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers wholesaleMinQty promoSavedAmount boosted boostScore';
 
 const clampLimit = (value, fallback = 8, max = 20) =>
   Math.max(1, Math.min(Number(value) || fallback, max));

@@ -18,6 +18,7 @@ import ImagePreviewModal from './media/ImagePreviewModal';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { trackEvent } from '../services/analytics';
 import { getProductCardImageUrl, getProductCardSrcSet } from '../utils/productImageUrl';
+import { resolveProductImagePrice } from '../utils/productAttributes';
 
 function ProductDetailLink({ disabled = false, children, onClick, to, target, rel, ...props }) {
   if (disabled) {
@@ -343,8 +344,17 @@ function ProductCard({
       (p?.deliveryAvailable !== false &&
         (p?.deliveryFeeEnabled === false || Number(p?.deliveryFee || 0) <= 0))
   );
-  const discountedPrice = formatPrice(hasDiscount ? p.priceAfterDiscount || p.price : p.price);
-  const originalPrice = hasDiscount && p.priceBeforeDiscount
+  const currentImagePricing = resolveProductImagePrice({
+    productAttributes: p.attributes,
+    imageIndex: currentImageIndex
+  });
+  const displayedCardPrice = currentImagePricing.applied
+    ? currentImagePricing.unitPrice
+    : hasDiscount
+      ? p.priceAfterDiscount || p.price
+      : p.price;
+  const discountedPrice = formatPrice(displayedCardPrice);
+  const originalPrice = hasDiscount && !currentImagePricing.applied && p.priceBeforeDiscount
     ? formatPrice(p.priceBeforeDiscount)
     : null;
   

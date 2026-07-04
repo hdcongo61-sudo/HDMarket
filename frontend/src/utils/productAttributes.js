@@ -115,6 +115,37 @@ export const resolveSelectedAttributesPrice = ({
   return { unitPrice, applied };
 };
 
+// Resolve the price attached to a gallery image. Photo-linked variants store
+// their image indexes in optionImages and their prices in optionPrices.
+export const resolveProductImagePrice = ({ productAttributes = [], imageIndex = -1 }) => {
+  if (!Number.isInteger(imageIndex) || imageIndex < 0) return { unitPrice: 0, applied: false };
+  const attributes = normalizeProductAttributes(productAttributes);
+  let unitPrice = 0;
+  let applied = false;
+  attributes.forEach((attribute) => {
+    if (attribute.type !== 'select' || !attribute.optionImages || !attribute.optionPrices) return;
+    Object.entries(attribute.optionImages).forEach(([optionKey, linkedIndex]) => {
+      const price = Number(attribute.optionPrices?.[optionKey]);
+      if (linkedIndex === imageIndex && Number.isFinite(price) && price > 0) {
+        unitPrice = price;
+        applied = true;
+      }
+    });
+  });
+  return { unitPrice, applied };
+};
+
+export const getHighestProductPrice = ({ productAttributes = [], basePrice = 0 }) => {
+  let highest = Number(basePrice) || 0;
+  normalizeProductAttributes(productAttributes).forEach((attribute) => {
+    Object.values(attribute.optionPrices || {}).forEach((rawPrice) => {
+      const price = Number(rawPrice);
+      if (Number.isFinite(price) && price > highest) highest = price;
+    });
+  });
+  return highest;
+};
+
 export const normalizeSelectedAttributes = (input) => {
   const list = Array.isArray(input) ? input : [];
   const seen = new Set();

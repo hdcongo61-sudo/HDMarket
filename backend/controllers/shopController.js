@@ -336,7 +336,7 @@ export const getShopProfile = asyncHandler(async (req, res) => {
     Product.countDocuments(publicProductFilter),
     Product.find(publicProductFilter)
       .select(
-        '_id title price images category condition city createdAt slug salesCount favoritesCount whatsappClicks views discount priceBeforeDiscount certified installmentEnabled installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers'
+        '_id title price images attributes category condition city createdAt slug salesCount favoritesCount whatsappClicks views discount priceBeforeDiscount certified installmentEnabled installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers'
       )
       .sort('-createdAt')
       .skip(skip)

@@ -12,6 +12,7 @@ import { dispatchSideEffect } from '../utils/dispatchSideEffect.js';
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getHighestProductPrice } from '../utils/productAttributes.js';
 import { purchaseFromWallet, refundToWallet } from '../services/walletService.js';
 import {
   isTransactionCodeAlreadyUsed,
@@ -55,13 +56,17 @@ export const createPayment = asyncHandler(async (req, res) => {
   const commissionRate = Number.isFinite(configuredCommissionRate)
     ? configuredCommissionRate
     : 3;
+  const highestListingPrice = getHighestProductPrice({
+    productAttributes: product.attributes,
+    basePrice: product.price
+  });
 
   let promoPreview = null;
   if (normalizedPromo) {
     promoPreview = await previewPromoForSeller({
       code: normalizedPromo,
       sellerId,
-      productPrice: product.price,
+      productPrice: highestListingPrice,
       commissionRate
     });
     if (!promoPreview.valid) {
@@ -74,7 +79,7 @@ export const createPayment = asyncHandler(async (req, res) => {
 
   let commission =
     promoPreview?.commission ||
-    calculateCommissionBreakdown({ productPrice: product.price, commissionRate });
+    calculateCommissionBreakdown({ productPrice: highestListingPrice, commissionRate });
   let received = +(+(amount || 0)).toFixed(2);
 
   const normalizedTransaction = normalizeTransactionCode(transactionNumber);

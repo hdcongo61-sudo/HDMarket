@@ -1567,8 +1567,15 @@ export default function ProductForm(props) {
     }
   };
 
+  const getHighestListingPrice = () => {
+    const imagePrices = Object.values(imageVariants)
+      .map((entry) => Number(entry?.price))
+      .filter((price) => Number.isFinite(price) && price > 0);
+    return Math.max(Number(form.price) || 0, ...imagePrices);
+  };
+
   const calculateCommission = () => {
-    const price = parseFloat(form.price) || 0;
+    const price = getHighestListingPrice();
     return Math.round((price * commissionRatePercent) / 100);
   };
 
@@ -1731,7 +1738,7 @@ export default function ProductForm(props) {
       try {
         const { data } = await api.post('/products/promo-preview', {
           code: promoCode.trim(),
-          price: Number(form.price || 0)
+          price: getHighestListingPrice()
         });
         if (!cancelled) {
           setPromoPreview(data);
@@ -1751,12 +1758,12 @@ export default function ProductForm(props) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [payWithWallet, promoCode, form.price, isEditing]);
+  }, [payWithWallet, promoCode, form.price, imageVariants, isEditing]);
 
   // Live preview of the installment plan shown inside the "vente en tranche" card.
   const installmentPlanPreview = useMemo(() => {
     if (!form.installmentEnabled) return null;
-    const price = Number(form.price) || 0;
+    const price = getHighestListingPrice();
     const firstPayment = Number(form.installmentMinAmount) || 0;
     const remaining = Math.max(0, price - firstPayment);
     let days = Number(form.installmentDuration) || 0;

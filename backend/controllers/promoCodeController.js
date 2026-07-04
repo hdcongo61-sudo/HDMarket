@@ -12,6 +12,7 @@ import {
 } from '../utils/promoCodeUtils.js';
 import { findPromoCodeByCode, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getHighestProductPrice } from '../utils/productAttributes.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -410,7 +411,7 @@ export const validatePromoCodeForSeller = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Produit invalide.' });
   }
 
-  const product = await Product.findById(productId).select('_id user price title');
+  const product = await Product.findById(productId).select('_id user price title attributes');
   if (!product) {
     return res.status(404).json({ message: 'Produit introuvable.' });
   }
@@ -432,7 +433,10 @@ export const validatePromoCodeForSeller = asyncHandler(async (req, res) => {
     previewPromoForSeller({
       code,
       sellerId: userId,
-      productPrice: product.price,
+      productPrice: getHighestProductPrice({
+        productAttributes: product.attributes,
+        basePrice: product.price
+      }),
       commissionRate
     }),
     calculateSellerPromoEligibilityScore(userId)

@@ -121,6 +121,17 @@ export const normalizeProductAttributes = (input) => {
     .filter(Boolean);
 };
 
+export const getHighestProductPrice = ({ productAttributes = [], basePrice = 0 }) => {
+  let highest = Number(basePrice) || 0;
+  normalizeProductAttributes(productAttributes).forEach((attribute) => {
+    Object.values(attribute.optionPrices || {}).forEach((rawPrice) => {
+      const price = Number(rawPrice);
+      if (Number.isFinite(price) && price > highest) highest = price;
+    });
+  });
+  return highest;
+};
+
 const normalizeWeight = (value = {}) => {
   if (!value || typeof value !== 'object') return null;
   const rawValue = Number(value.value);
