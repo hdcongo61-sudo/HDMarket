@@ -110,8 +110,7 @@ export const getOrderAllowedActions = (order = {}, options = {}) => {
   if (
     status === 'delivery_proof_submitted' &&
     hasValidDeliveryEvidence(order) &&
-    !platformDeliveryOrder &&
-    !pickupOrder
+    !platformDeliveryOrder
   ) {
     pushAction(actions.buyer, buildAction('confirm_delivery', 'completed'));
   }
@@ -137,7 +136,9 @@ export const getOrderAllowedActions = (order = {}, options = {}) => {
     } else if (status === 'confirmed') {
       pushAction(actions.seller, buildAction('mark_ready_for_pickup', 'ready_for_pickup'));
     } else if (status === 'ready_for_pickup') {
-      pushAction(actions.seller, buildAction('submit_pickup_proof', 'picked_up_confirmed'));
+      pushAction(actions.seller, buildAction('submit_pickup_proof', 'delivery_proof_submitted'));
+    } else if (status === 'delivery_proof_submitted') {
+      pushAction(actions.seller, buildAction('wait_client_confirmation', null));
     }
   } else {
     if (['pending', 'pending_payment', 'paid'].includes(status)) {
@@ -293,7 +294,7 @@ export const assertSellerCanSubmitDeliveryProof = ({ order, deliveryProofResubmi
     toStatus(order?.paymentType) !== 'installment' &&
     !(
       pickupOrder
-        ? ['paid', 'confirmed', 'ready_for_pickup', 'picked_up_confirmed']
+        ? ['paid', 'confirmed', 'ready_for_pickup', 'delivery_proof_submitted', 'picked_up_confirmed']
         : [
             'paid',
             'confirmed',

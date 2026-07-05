@@ -1107,6 +1107,10 @@ export default function SellerOrders() {
   const [statusUpdateError, setStatusUpdateError] = useState({ id: '', message: '', tone: 'error' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState(null);
+  const cancelOrder = useMemo(
+    () => orders.find((entry) => String(entry?._id) === String(cancelOrderId || '')) || null,
+    [orders, cancelOrderId]
+  );
   const [cancelReason, setCancelReason] = useState('');
   const [queuedStatusActionCount, setQueuedStatusActionCount] = useState(0);
   const [statusQueueSyncing, setStatusQueueSyncing] = useState(false);
@@ -1124,6 +1128,7 @@ export default function SellerOrders() {
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
   const { status: statusParam } = useParams();
   const [activeStatus, setActiveStatus] = useState(() => normalizeStatusFilter(statusParam));
+  const previousActiveStatusRef = useRef(activeStatus);
   const [initialLoadingDone, setInitialLoadingDone] = useState(false);
 
   useEffect(() => {
@@ -1317,6 +1322,8 @@ export default function SellerOrders() {
   }, [initialLoadingDone, sellerOrdersListQuery.data]);
 
   useEffect(() => {
+    if (previousActiveStatusRef.current === activeStatus) return;
+    previousActiveStatusRef.current = activeStatus;
     setOrders([]);
     setMeta({ total: 0, totalPages: 1 });
     setPage(1);
@@ -1746,6 +1753,10 @@ export default function SellerOrders() {
 
   const handleCancelOrder = async () => {
     if (!cancelOrderId) return;
+    if (Number(cancelOrder?.paidAmount || 0) > 0) {
+      showToast('Ouvrez le détail de la commande pour effectuer le remboursement intégral avant annulation.', { variant: 'info' });
+      return;
+    }
     
     // Validate reason before submitting
     const trimmedReason = cancelReason.trim();
@@ -1914,6 +1925,13 @@ export default function SellerOrders() {
                 <div className="p-3 rounded-2xl bg-[#FF6A00]">
                   <CreditCard className="w-5 h-5 text-white" />
                 </div>
+
+                {Number(cancelOrder?.paidAmount || 0) > 0 && (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900">
+                    Cette commande est payée. Le remboursement intégral de <strong>{formatCurrency(cancelOrder.paidAmount)}</strong> doit être envoyé en une seule fois.
+                    <Link to={`/seller/orders/detail/${cancelOrderId}`} onClick={closeCancelModal} className="mt-2 inline-flex rounded-lg bg-[#ff6a00] px-3 py-2 font-black text-white">Ouvrir le détail et rembourser</Link>
+                  </div>
+                )}
                 <span className="text-2xl font-bold text-gray-900">
                   {installmentAnalytics.totalInstallmentSales}
                 </span>
@@ -2059,7 +2077,8 @@ export default function SellerOrders() {
                     disabled={
                       cancelOrderMutation.isReliablePending ||
                       !cancelReason.trim() ||
-                      cancelReason.trim().length < 5
+                      cancelReason.trim().length < 5 ||
+                      Number(cancelOrder?.paidAmount || 0) > 0
                     }
                     className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-700 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >

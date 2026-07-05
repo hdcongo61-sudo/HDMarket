@@ -16,7 +16,8 @@ const collectDistinctCodes = async (codes) => {
     conversionCodes,
     boostCodes,
     orderPaymentCodes,
-    installmentCodes
+    installmentCodes,
+    refundCodes
   ] =
     await Promise.all([
       Payment.distinct('transactionNumber', { transactionNumber: { $in: codes } }),
@@ -26,7 +27,8 @@ const collectDistinctCodes = async (codes) => {
       Order.distinct('paymentTransactionCode', { paymentTransactionCode: { $in: codes } }),
       Order.distinct('installmentPlan.schedule.transactionProof.transactionCode', {
         'installmentPlan.schedule.transactionProof.transactionCode': { $in: codes }
-      })
+      }),
+      Order.distinct('refundTransactionNumber', { refundTransactionNumber: { $in: codes } })
     ]);
 
   return [
@@ -35,7 +37,8 @@ const collectDistinctCodes = async (codes) => {
     ...(Array.isArray(conversionCodes) ? conversionCodes : []),
     ...(Array.isArray(boostCodes) ? boostCodes : []),
     ...(Array.isArray(orderPaymentCodes) ? orderPaymentCodes : []),
-    ...(Array.isArray(installmentCodes) ? installmentCodes : [])
+    ...(Array.isArray(installmentCodes) ? installmentCodes : []),
+    ...(Array.isArray(refundCodes) ? refundCodes : [])
   ];
 };
 

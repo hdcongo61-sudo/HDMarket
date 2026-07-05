@@ -172,7 +172,11 @@ router.post(
   '/shop-conversion-requests',
   upload.fields([
     { name: 'shopLogo', maxCount: 1 },
-    { name: 'paymentProof', maxCount: 1 }
+    { name: 'paymentProof', maxCount: 1 },
+    { name: 'shopPaper', maxCount: 1 },
+    { name: 'shopInvoice', maxCount: 1 },
+    { name: 'insidePhoto', maxCount: 1 },
+    { name: 'outsidePhoto', maxCount: 1 }
   ]),
   createShopConversionRequest
 );

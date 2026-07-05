@@ -690,17 +690,32 @@ export default function WalletPage() {
                   const amountPrefix = isCredit ? '+' : isDebit ? '-' : '';
                   const displayAmount = Number(txn.displayAmount || Math.abs(Number(txn.signedAmount || 0)) || txn.amount || 0);
                   const pendingContext = getPendingTransactionContext(txn);
+                  const purchasedProducts = txn.type === 'purchase' && Array.isArray(txn?.metadata?.products)
+                    ? txn.metadata.products.filter((product) => product?.image || product?.title)
+                    : [];
                   return (
                     <div key={txn._id} className="rounded-2xl border border-slate-100 bg-white p-2.5 transition hover:border-gray-200 hover:bg-gray-100/30 sm:p-4">
                       <div className="flex items-start gap-2.5 sm:gap-3">
-                        <div className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl sm:h-10 sm:w-10 ${isPending ? 'bg-amber-50' : chipClass}`}>
-                          <Icon size={15} className={isPending ? 'text-amber-500' : colorClass} />
-                        </div>
+                        {purchasedProducts[0]?.image ? (
+                          <div className="relative h-11 w-11 shrink-0 sm:h-12 sm:w-12">
+                            <img src={purchasedProducts[0].image} alt={purchasedProducts[0].title || 'Produit acheté'} className="h-full w-full rounded-2xl border border-slate-100 object-cover" loading="lazy" />
+                            {purchasedProducts.length > 1 && <span className="absolute -bottom-1 -right-1 rounded-full bg-slate-950 px-1.5 py-0.5 text-[9px] font-black text-white">+{purchasedProducts.length - 1}</span>}
+                          </div>
+                        ) : (
+                          <div className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl sm:h-10 sm:w-10 ${isPending ? 'bg-amber-50' : chipClass}`}>
+                            <Icon size={15} className={isPending ? 'text-amber-500' : colorClass} />
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="truncate text-[13px] font-black text-slate-900 sm:text-sm">{label}</p>
                               {txn.note && <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">{txn.note}</p>}
+                              {purchasedProducts.length > 0 && (
+                                <p className="mt-1 line-clamp-2 text-[11px] font-bold text-slate-600">
+                                  {purchasedProducts.map((product) => `${product.title}${Number(product.quantity || 1) > 1 ? ` ×${product.quantity}` : ''}`).join(' · ')}
+                                </p>
+                              )}
                             </div>
                             <div className="shrink-0 text-right">
                               <p className={`max-w-[116px] break-words text-right text-[13px] font-black leading-tight sm:max-w-none sm:text-sm ${colorClass}`}>{amountPrefix}{formatPrice(displayAmount)}</p>

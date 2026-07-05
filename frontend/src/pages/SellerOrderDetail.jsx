@@ -369,7 +369,10 @@ export default function SellerOrderDetail() {
   const [statusUpdateFeedback, setStatusUpdateFeedback] = useState({ id: '', message: '', tone: 'error' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [cancelIssueRefund, setCancelIssueRefund] = useState(false);
+  const [cancelRefundMethod, setCancelRefundMethod] = useState('wallet');
+  const [cancelRefundSenderName, setCancelRefundSenderName] = useState('');
+  const [cancelRefundTransactionNumber, setCancelRefundTransactionNumber] = useState('');
+  const [cancelRefundProof, setCancelRefundProof] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showDeliveryProofForm, setShowDeliveryProofForm] = useState(false);
   const [saleConfirmationLoading, setSaleConfirmationLoading] = useState(false);
@@ -660,22 +663,35 @@ export default function SellerOrderDetail() {
     if (cancelLoading && !force) return;
     setCancelModalOpen(false);
     setCancelReason('');
-    setCancelIssueRefund(false);
+    setCancelRefundMethod('wallet');
+    setCancelRefundSenderName('');
+    setCancelRefundTransactionNumber('');
+    setCancelRefundProof(null);
   };
 
   const handleCancelOrder = async () => {
     if (!order || !cancelReason.trim() || cancelReason.trim().length < 5) return;
     setCancelLoading(true);
     try {
-      const issueRefund = Boolean(cancelIssueRefund && Number(order.paidAmount || 0) > 0);
-      const { data } = await api.post(`/orders/seller/${order._id}/cancel`, {
-        reason: cancelReason.trim(),
-        issueRefund
-      });
+      const mustRefund = Number(order.paidAmount || 0) > 0;
+      if (mustRefund && cancelRefundMethod === 'mobile_money' && (!cancelRefundSenderName.trim() || cancelRefundTransactionNumber.length !== 10 || !cancelRefundProof)) {
+        showToast('Complétez le nom, le code à 10 chiffres et la preuve du remboursement.', { variant: 'error' });
+        return;
+      }
+      const payload = new FormData();
+      payload.append('reason', cancelReason.trim());
+      payload.append('issueRefund', String(mustRefund));
+      if (mustRefund) payload.append('refundMethod', cancelRefundMethod);
+      if (cancelRefundMethod === 'mobile_money') {
+        payload.append('refundSenderName', cancelRefundSenderName.trim());
+        payload.append('refundTransactionNumber', cancelRefundTransactionNumber);
+        payload.append('refundProof', cancelRefundProof);
+      }
+      const { data } = await api.post(`/orders/seller/${order._id}/cancel`, payload, { headers: { 'Content-Type': 'multipart/form-data' } });
       applyOrderToSellerCaches(data);
       showToast(
-        issueRefund
-          ? 'Commande annulée. Le client est notifié et le remboursement est demandé.'
+        mustRefund
+          ? 'Commande annulée. Le remboursement intégral a été enregistré.'
           : 'Commande annulée. Le client a été notifié.',
         { variant: 'success' }
       );
@@ -2261,6 +2277,23 @@ export default function SellerOrderDetail() {
                     <p className="text-sm text-red-800 font-medium">{order.cancellationReason}</p>
                   </div>
                 )}
+                {Number(order.refundAmount || 0) > 0 && (
+                  <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-4 text-sm text-emerald-900">
+                    <p className="font-bold">Remboursement intégral: {formatCurrency(order.refundAmount)}</p>
+                    <p>Mode: {order.refundMethod === 'wallet' ? 'Portefeuille HDMarket' : 'Mobile Money'}</p>
+                    {order.refundSenderName && <p>Expéditeur: {order.refundSenderName}</p>}
+                    {order.refundTransactionNumber && <p>ID transaction: {order.refundTransactionNumber}</p>}
+                    {order.refundProof && /^https?:\/\//i.test(order.refundProof) && (
+                      <a href={order.refundProof} target="_blank" rel="noreferrer" className="block">
+                        <img
+                          src={order.refundProof}
+                          alt="Preuve du remboursement"
+                          className="max-h-56 w-full rounded-xl border border-emerald-200 object-contain"
+                        />
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2354,35 +2387,38 @@ export default function SellerOrderDetail() {
             />
             {cancelReason.length > 0 && cancelReason.length < 5 && <p className="mt-1 text-xs text-red-600">Minimum 5 caractères.</p>}
           </div>
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={cancelIssueRefund}
-                disabled={Number(order?.paidAmount || 0) <= 0}
-                onChange={(e) => setCancelIssueRefund(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500 disabled:opacity-50"
-              />
-              <span className="text-xs text-neutral-900">
-                Demander le remboursement de l'acheteur
-                {Number(order?.paidAmount || 0) > 0 ? (
-                  <>
-                    {' '}
-                    (<span className="font-semibold">{formatCurrency(order?.paidAmount || 0)}</span>)
-                  </>
-                ) : (
-                  ' (aucun paiement reçu)'
-                )}
-              </span>
-            </label>
-          </div>
+          {Number(order?.paidAmount || 0) > 0 && (
+            <div className="space-y-3 rounded-xl border border-orange-200 bg-orange-50 p-3">
+              <div>
+                <p className="text-xs font-black text-orange-900">Remboursement intégral obligatoire</p>
+                <p className="mt-1 text-sm font-black text-[#ff6a00]">{formatCurrency(order.paidAmount)} — en une seule fois</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {['wallet', 'mobile_money'].map((method) => (
+                  <button key={method} type="button" onClick={() => setCancelRefundMethod(method)} className={`rounded-xl border px-3 py-2 text-xs font-black ${cancelRefundMethod === method ? 'border-[#ff6a00] bg-white text-[#ff6a00]' : 'border-orange-100 text-gray-600'}`}>
+                    {method === 'wallet' ? 'Portefeuille' : 'Mobile Money'}
+                  </button>
+                ))}
+              </div>
+              {cancelRefundMethod === 'mobile_money' && (
+                <div className="space-y-2">
+                  <input value={cancelRefundSenderName} onChange={(e) => setCancelRefundSenderName(e.target.value)} placeholder="Nom de l’expéditeur" className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm" />
+                  <input value={cancelRefundTransactionNumber} onChange={(e) => setCancelRefundTransactionNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="Code transaction (10 chiffres)" className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm" />
+                  <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-orange-300 bg-white px-3 py-3 text-xs font-black text-orange-700">
+                    {cancelRefundProof ? cancelRefundProof.name : 'Ajouter la preuve du remboursement'}
+                    <input type="file" accept="image/*" onChange={(e) => setCancelRefundProof(e.target.files?.[0] || null)} className="hidden" />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
         </ModalBody>
         <ModalFooter>
           <div className="flex gap-3">
             <button type="button" onClick={closeCancelModal} disabled={cancelLoading} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
               Annuler
             </button>
-            <button type="button" onClick={handleCancelOrder} disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="button" onClick={handleCancelOrder} disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5 || (Number(order?.paidAmount || 0) > 0 && cancelRefundMethod === 'mobile_money' && (!cancelRefundSenderName.trim() || cancelRefundTransactionNumber.length !== 10 || !cancelRefundProof))} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
               {cancelLoading ? 'Annulation...' : 'Confirmer l\'annulation'}
             </button>
           </div>

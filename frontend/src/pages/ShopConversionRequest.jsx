@@ -114,6 +114,20 @@ export default function ShopConversionRequest() {
   const [shopLogoPreview, setShopLogoPreview] = useState('');
   const [paymentProofFile, setPaymentProofFile] = useState(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState('');
+  const [verificationFiles, setVerificationFiles] = useState({
+    shopPaper: null,
+    shopInvoice: null,
+    insidePhoto: null,
+    outsidePhoto: null
+  });
+  const [verificationPreviews, setVerificationPreviews] = useState({});
+
+  const verificationRequirements = [
+    { key: 'shopPaper', label: 'Papier officiel de la boutique', hint: 'Registre, RCCM ou document officiel' },
+    { key: 'shopInvoice', label: 'Facture au nom de la boutique', hint: 'Le nom de la boutique doit être lisible' },
+    { key: 'insidePhoto', label: 'Photo intérieure', hint: 'Montrez clairement l’intérieur de la boutique' },
+    { key: 'outsidePhoto', label: 'Photo extérieure', hint: 'Montrez la façade et l’enseigne' }
+  ];
 
   // Check if user is not a shop
   useEffect(() => {
@@ -188,6 +202,29 @@ export default function ShopConversionRequest() {
     setPaymentProofPreview('');
   };
 
+  const handleVerificationFileChange = async (key, event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Chaque justificatif doit être une image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Chaque image doit faire moins de 5 Mo.');
+      return;
+    }
+    const preview = await readFileAsDataURL(file);
+    setVerificationFiles((prev) => ({ ...prev, [key]: file }));
+    setVerificationPreviews((prev) => ({ ...prev, [key]: preview }));
+    setError('');
+  };
+
+  const removeVerificationFile = (key) => {
+    setVerificationFiles((prev) => ({ ...prev, [key]: null }));
+    setVerificationPreviews((prev) => ({ ...prev, [key]: '' }));
+  };
+
   const handleTransactionNumberChange = (e) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 10);
     setForm((prev) => ({ ...prev, transactionNumber: value }));
@@ -202,13 +239,15 @@ export default function ShopConversionRequest() {
       return;
     }
 
-    // Validation
-    if (!form.shopName.trim()) {
-      setError('Le nom de la boutique est requis.');
-      return;
-    }
-    if (!form.shopAddress.trim()) {
-      setError("L'adresse de la boutique est requise.");
+    const missingInformation = [
+      ...(!form.shopName.trim() ? ['nom de la boutique'] : []),
+      ...(!form.shopAddress.trim() ? ['adresse de la boutique'] : []),
+      ...verificationRequirements
+        .filter((requirement) => !verificationFiles[requirement.key])
+        .map((requirement) => requirement.label.toLowerCase())
+    ];
+    if (missingInformation.length) {
+      setError(`Informations incomplètes. Veuillez ajouter : ${missingInformation.join(', ')}.`);
       return;
     }
     if (paymentMethod === 'wallet') {
@@ -272,6 +311,7 @@ export default function ShopConversionRequest() {
       if (paymentMethod === 'mobile_money') {
         payload.append('paymentProof', paymentProofFile);
       }
+      verificationRequirements.forEach(({ key }) => payload.append(key, verificationFiles[key]));
 
       const { data } = await api.post('/users/shop-conversion-requests', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -296,6 +336,8 @@ export default function ShopConversionRequest() {
       setShopLogoPreview('');
       setPaymentProofFile(null);
       setPaymentProofPreview('');
+      setVerificationFiles({ shopPaper: null, shopInvoice: null, insidePhoto: null, outsidePhoto: null });
+      setVerificationPreviews({});
       api.get('/wallet').then(({ data: walletData }) => setWalletInfo(walletData || null)).catch(() => {});
       await loadRequests();
     } catch (err) {
@@ -730,13 +772,13 @@ export default function ShopConversionRequest() {
                   </p>
                 </div>
 
-                {/* Preuve de boutique */}
+                {/* Preuve du paiement Mobile Money */}
                 <div>
                   <label className="mb-2 block text-sm font-black text-gray-800">
-                    Preuve de boutique <span className="text-red-500">*</span>
+                    Preuve de paiement <span className="text-red-500">*</span>
                   </label>
                   <p className="mb-3 text-xs font-semibold leading-5 text-gray-600">
-                    Joignez une preuve d’existence de votre boutique : papier de la boutique, photo de la boutique, ou une facture portant le nom de la boutique.
+                    Ajoutez la capture du SMS ou du reçu confirmant votre paiement Mobile Money.
                   </p>
                   {paymentProofPreview ? (
                     <div className="relative inline-block">
@@ -760,7 +802,7 @@ export default function ShopConversionRequest() {
                         Cliquez pour ajouter une preuve
                       </span>
                       <span className="mt-1 text-center text-xs font-semibold text-gray-500">
-                        Papier de la boutique, photo ou facture avec le nom de la boutique
+                        Capture du reçu ou du SMS de paiement
                       </span>
                       <input
                         type="file"
@@ -775,6 +817,41 @@ export default function ShopConversionRequest() {
                   </>
                 )}
               </div>
+
+              <section className="rounded-2xl border border-orange-200 bg-orange-50/50 p-4 sm:p-5">
+                <div className="mb-4">
+                  <h3 className="text-base font-black text-gray-900">Justificatifs obligatoires (4 images)</h3>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-gray-600">
+                    La demande ne peut pas être envoyée tant que les quatre éléments ne sont pas complets et lisibles.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {verificationRequirements.map((requirement, index) => {
+                    const preview = verificationPreviews[requirement.key];
+                    return (
+                      <div key={requirement.key} className={`overflow-hidden rounded-2xl border bg-white ${preview ? 'border-emerald-200' : 'border-orange-200'}`}>
+                        {preview ? (
+                          <div className="relative">
+                            <img src={preview} alt={requirement.label} className="h-36 w-full object-cover" />
+                            <button type="button" onClick={() => removeVerificationFile(requirement.key)} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-red-600 text-white shadow"><X size={15} /></button>
+                            <span className="absolute bottom-2 left-2 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-black text-white">Ajoutée</span>
+                          </div>
+                        ) : (
+                          <label className="flex h-36 cursor-pointer flex-col items-center justify-center px-4 text-center hover:bg-orange-50">
+                            <Upload className="mb-2 text-[#ff6a00]" size={24} />
+                            <span className="text-xs font-black text-gray-800">Ajouter l’image {index + 1}/4</span>
+                            <input type="file" accept="image/*" onChange={(event) => handleVerificationFileChange(requirement.key, event)} className="hidden" />
+                          </label>
+                        )}
+                        <div className="p-3">
+                          <p className="text-sm font-black text-gray-900">{requirement.label} <span className="text-red-500">*</span></p>
+                          <p className="mt-1 text-[11px] font-semibold text-gray-500">{requirement.hint}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
 
               {/* Submit Button */}
               <button

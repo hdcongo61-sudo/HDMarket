@@ -195,6 +195,40 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     });
   }
 
+  const verificationFileDefinitions = [
+    ['shopPaper', 'papier officiel de la boutique'],
+    ['shopInvoice', 'facture portant le nom de la boutique'],
+    ['insidePhoto', 'photo intérieure de la boutique'],
+    ['outsidePhoto', 'photo extérieure de la boutique']
+  ];
+  const missingVerificationFiles = verificationFileDefinitions
+    .filter(([key]) => !req.files?.[key]?.[0])
+    .map(([, label]) => label);
+  if (missingVerificationFiles.length) {
+    return res.status(400).json({
+      message: `Informations incomplètes. Ajoutez les 4 justificatifs requis : ${missingVerificationFiles.join(', ')}.`
+    });
+  }
+
+  const verificationDocuments = {};
+  try {
+    const uploads = await Promise.all(
+      verificationFileDefinitions.map(async ([key]) => {
+        const uploaded = await uploadToCloudinary({
+          buffer: req.files[key][0].buffer,
+          resourceType: 'image',
+          folder: `shop-conversions/verification/${key}`,
+          options: { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+        });
+        return [key, uploaded.secure_url || uploaded.url || ''];
+      })
+    );
+    uploads.forEach(([key, url]) => { verificationDocuments[key] = url; });
+  } catch (error) {
+    console.error('Shop verification upload error:', error);
+    return res.status(500).json({ message: 'Erreur lors de l’envoi des justificatifs de la boutique.' });
+  }
+
   // Handle logo upload
   let shopLogoUrl = '';
   const logoFile = req.files?.shopLogo?.[0] || req.file || null;
@@ -245,6 +279,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     shopAddress: shopAddress.trim(),
     shopLogo: shopLogoUrl,
     shopDescription: (shopDescription || '').trim(),
+    verificationDocuments,
     paymentProof: paymentProofUrl,
     paymentAmount: amount,
     paymentMethod,
@@ -400,6 +435,15 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
 
   if (request.status !== 'pending') {
     return res.status(400).json({ message: 'Cette demande a déjà été traitée.' });
+  }
+  const requiredDocumentKeys = ['shopPaper', 'shopInvoice', 'insidePhoto', 'outsidePhoto'];
+  const missingDocuments = requiredDocumentKeys.filter(
+    (key) => !String(request.verificationDocuments?.[key] || '').trim()
+  );
+  if (missingDocuments.length) {
+    return res.status(400).json({
+      message: 'Demande incomplète : les quatre justificatifs de la boutique sont obligatoires avant approbation.'
+    });
   }
 
   const conversionState = await assertShopConversionOpen();

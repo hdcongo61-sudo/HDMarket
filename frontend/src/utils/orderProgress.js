@@ -14,7 +14,7 @@ const CLASSIC_STEP_INDEX = {
   ready_for_pickup: 2,
   out_for_delivery: 3,
   delivering: 3,
-  picked_up_confirmed: 3,
+  picked_up_confirmed: 4,
   delivered: 3,
   delivery_proof_submitted: 3,
   confirmed_by_client: 4,

@@ -96,6 +96,7 @@ import {
 } from '../controllers/orderMessageController.js';
 import { chatUpload } from '../utils/chatUpload.js';
 import { deliveryProofUpload } from '../utils/deliveryProofUpload.js';
+import { upload } from '../utils/upload.js';
 
 const router = express.Router();
 
@@ -296,6 +297,7 @@ router.patch(
 );
 router.post(
   '/seller/:id/cancel',
+  upload.single('refundProof'),
   idempotencyMiddleware(),
   validate(schemas.idParam, 'params'),
   validate(schemas.sellerCancelOrder),

@@ -7,6 +7,12 @@ const shopConversionRequestSchema = new mongoose.Schema(
     shopAddress: { type: String, required: true, trim: true },
     shopLogo: { type: String, default: '' },
     shopDescription: { type: String, trim: true, default: '' },
+    verificationDocuments: {
+      shopPaper: { type: String, required: true },
+      shopInvoice: { type: String, required: true },
+      insidePhoto: { type: String, required: true },
+      outsidePhoto: { type: String, required: true }
+    },
     paymentProof: { type: String, required: true },
     paymentAmount: { type: Number, required: true, default: 50000 },
     paymentMethod: {

@@ -13,6 +13,7 @@
 
 import Wallet from '../models/walletModel.js';
 import User from '../models/userModel.js';
+import Order from '../models/orderModel.js';
 import { createNotification } from '../utils/notificationService.js';
 
 // ─── HELPERS ──────────────────────────────────────────────
@@ -807,6 +808,32 @@ export const getWalletTransactions = async (
   const total = filteredTxns.length;
   const skip = (page - 1) * limit;
   const items = filteredTxns.slice(skip, skip + limit);
+  const orderIds = [...new Set(items
+    .filter((txn) => txn.type === 'purchase')
+    .map((txn) => String(txn?.metadata?.orderId || '').trim())
+    .filter((id) => id && /^[a-f\d]{24}$/i.test(id)))];
+  if (orderIds.length) {
+    const orders = await Order.find({ _id: { $in: orderIds }, customer: userId })
+      .select('_id items')
+      .lean();
+    const productsByOrder = new Map(orders.map((order) => [String(order._id),
+      (order.items || []).map((item) => ({
+        productId: String(item.product || ''),
+        title: item.snapshot?.title || 'Produit',
+        image: item.snapshot?.image || '',
+        quantity: Number(item.quantity || 1),
+        unitPrice: Number(item.unitPrice ?? item.snapshot?.price ?? 0),
+        selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : []
+      }))
+    ]));
+    items.forEach((txn) => {
+      const orderId = String(txn?.metadata?.orderId || '');
+      if (!Array.isArray(txn?.metadata?.products) || !txn.metadata.products.length) {
+        const products = productsByOrder.get(orderId);
+        if (products?.length) txn.metadata = { ...(txn.metadata || {}), products };
+      }
+    });
+  }
 
   return { items, total, page, pages: Math.ceil(total / limit) };
 };

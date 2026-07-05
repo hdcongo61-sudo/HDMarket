@@ -274,14 +274,16 @@ const getBuyerPrimaryActionMeta = (order = {}) => {
         intent: 'danger',
         label: 'Annuler la commande'
       };
-    case 'confirm_delivery':
+    case 'confirm_delivery': {
+      const pickupOrder = isPickupOrder(order);
       return {
         key: actionKey,
         mode: 'confirm_delivery',
         nextStatus: nextStatus || null,
         intent: 'success',
-        label: 'Confirmer la livraison'
+        label: pickupOrder ? 'Confirmer le retrait' : 'Confirmer la livraison'
       };
+    }
     default:
       return null;
   }
@@ -1291,7 +1293,7 @@ export default function OrderDetail() {
   const deliveryConfirmationDone = order.deliveryStatus === 'verified' || platformDeliveryAutoConfirmed;
   const buyerPrimaryAction = getBuyerPrimaryActionMeta(order);
   const visibleBuyerPrimaryAction =
-    hideDeliveryDetails && buyerPrimaryAction?.mode === 'confirm_delivery' ? null : buyerPrimaryAction;
+    hideDeliveryDetails && !pickupOrder && buyerPrimaryAction?.mode === 'confirm_delivery' ? null : buyerPrimaryAction;
   const handlePrimaryBuyerAction = async () => {
     if (!visibleBuyerPrimaryAction || visibleBuyerPrimaryAction.mode === 'none') return;
     if (visibleBuyerPrimaryAction.mode === 'cancel') {
@@ -1721,7 +1723,9 @@ export default function OrderDetail() {
                   Statut:{' '}
                   <span className="font-semibold">
                     {pickupOrder
-                      ? 'Retrait confirmé par le vendeur'
+                      ? deliveryConfirmationDone
+                        ? 'Retrait confirmé par le client'
+                        : 'Preuve soumise par le vendeur (en attente de votre confirmation)'
                       : deliveryConfirmationDone
                       ? 'Livraison confirmée'
                       : 'Soumise par le vendeur (en attente de votre confirmation)'}
@@ -1807,7 +1811,7 @@ export default function OrderDetail() {
                         >
                           {confirmDeliveryMutation.isReliablePending
                             ? 'Confirmation en cours...'
-                            : 'Confirmer la livraison'}
+                            : pickupOrder ? 'Confirmer le retrait' : 'Confirmer la livraison'}
                         </button>
                       ) : null}
                       <Link
@@ -2201,6 +2205,31 @@ export default function OrderDetail() {
                 </div>
                 {order.cancellationReason && <p className="text-sm text-red-700">Raison: {order.cancellationReason}</p>}
                 {order.cancelledAt && <p className="text-xs text-red-600">Annulée le {formatOrderTimestamp(order.cancelledAt)}</p>}
+                {Number(order.refundAmount || 0) > 0 && (
+                  <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-3 text-sm text-emerald-900">
+                    <p className="font-bold">Remboursement intégral: {formatCurrency(order.refundAmount)}</p>
+                    <p>
+                      Mode: {order.refundMethod === 'wallet' ? 'Portefeuille HDMarket' : 'Mobile Money'}
+                    </p>
+                    {order.refundMethod === 'wallet' ? (
+                      <p className="text-xs font-semibold text-emerald-700">Le montant a été crédité dans votre portefeuille.</p>
+                    ) : (
+                      <>
+                        {order.refundSenderName && <p>Expéditeur: {order.refundSenderName}</p>}
+                        {order.refundTransactionNumber && <p>ID transaction: {order.refundTransactionNumber}</p>}
+                        {order.refundProof && /^https?:\/\//i.test(order.refundProof) && (
+                          <a href={order.refundProof} target="_blank" rel="noreferrer" className="block">
+                            <img
+                              src={order.refundProof}
+                              alt="Preuve du remboursement"
+                              className="max-h-56 w-full rounded-xl border border-emerald-200 object-contain"
+                            />
+                          </a>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

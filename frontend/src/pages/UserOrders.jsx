@@ -996,6 +996,7 @@ export default function UserOrders() {
   const isMobile = useIsMobile(768);
   const [assistantShop, setAssistantShop] = useState(null); // { _id, shopName } if user is an assistant
   const [activeStatus, setActiveStatus] = useState(() => normalizeStatusFilter(statusParam));
+  const previousActiveStatusRef = useRef(activeStatus);
   const [initialLoadingDone, setInitialLoadingDone] = useState(false);
 
   useEffect(() => {
@@ -1330,6 +1331,8 @@ export default function UserOrders() {
   }, [initialLoadingDone, ordersListQuery.data]);
 
   useEffect(() => {
+    if (previousActiveStatusRef.current === activeStatus) return;
+    previousActiveStatusRef.current = activeStatus;
     setOrders([]);
     setMeta({ total: 0, totalPages: 1 });
     setPage(1);

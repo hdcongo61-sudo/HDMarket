@@ -2800,6 +2800,29 @@ export default function AdminUsers() {
                     </div>
                   </div>
 
+                  <div className="rounded-xl bg-orange-50 p-4 space-y-3">
+                    <h4 className="flex items-center gap-2 font-semibold text-gray-900">
+                      <FileImage size={18} className="text-[#ff6a00]" />
+                      Justificatifs de la boutique (4 requis)
+                    </h4>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {[
+                        ['shopPaper', 'Papier officiel'],
+                        ['shopInvoice', 'Facture au nom de la boutique'],
+                        ['insidePhoto', 'Intérieur de la boutique'],
+                        ['outsidePhoto', 'Extérieur de la boutique']
+                      ].map(([key, label]) => {
+                        const url = conversionModal.request.verificationDocuments?.[key];
+                        return (
+                          <a key={key} href={url || undefined} target={url ? '_blank' : undefined} rel="noreferrer" className={`overflow-hidden rounded-xl border bg-white ${url ? 'border-emerald-200' : 'border-red-200'}`}>
+                            {url ? <img src={url} alt={label} className="h-32 w-full object-cover" /> : <div className="grid h-32 place-items-center text-xs font-bold text-red-600">Document manquant</div>}
+                            <p className="p-2 text-xs font-black text-gray-800">{label}</p>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Payment Information */}
                   <div className="bg-neutral-50 rounded-xl p-4 space-y-3">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">

@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
+import fs from 'fs/promises';
 import Order from '../models/orderModel.js';
 import DeliveryLog from '../models/deliveryLogModel.js';
 import OrderMessage from '../models/orderMessageModel.js';
@@ -40,7 +41,8 @@ import {
   assertSellerCanSubmitDeliveryProof,
   assertSellerStatusTransition,
   getOrderAllowedActions,
-  isPlatformDeliveryOrder
+  isPlatformDeliveryOrder,
+  isPickupOrder as isPickupOrderFlow
 } from '../services/orderStatusFlowService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import { buildPhoneCandidates } from '../utils/firebaseVerification.js';
@@ -59,6 +61,7 @@ import {
   validateSelectedAttributesForProduct
 } from '../utils/productAttributes.js';
 import { dispatchSideEffect } from '../utils/dispatchSideEffect.js';
+import { isCloudinaryConfigured, uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import {
   buildDeliveryDistanceWarningPayload,
   notifyBuyerDeliveryDistanceWarning
@@ -559,15 +562,41 @@ const getRequestIp = (req) =>
     .split(',')[0]
     .trim();
 
-const normalizeDeliveryProofFiles = (files = []) =>
-  (Array.isArray(files) ? files : []).slice(0, 5).map((file) => ({
-    url: `uploads/delivery-proofs/${file.filename}`,
-    path: `uploads/delivery-proofs/${file.filename}`,
-    originalName: file.originalname || '',
-    mimeType: file.mimetype || '',
-    size: Number(file.size || 0),
-    uploadedAt: new Date()
+const normalizeDeliveryProofFiles = async (files = []) => {
+  const selectedFiles = (Array.isArray(files) ? files : []).slice(0, 5);
+  if (!isCloudinaryConfigured()) {
+    return selectedFiles.map((file) => ({
+      url: `uploads/delivery-proofs/${file.filename}`,
+      path: `uploads/delivery-proofs/${file.filename}`,
+      originalName: file.originalname || '',
+      mimeType: file.mimetype || '',
+      size: Number(file.size || 0),
+      uploadedAt: new Date()
+    }));
+  }
+
+  return Promise.all(selectedFiles.map(async (file, index) => {
+    const buffer = file.buffer || (file.path ? await fs.readFile(file.path) : null);
+    if (!buffer) throw new Error(`Fichier de preuve ${index + 1} illisible.`);
+    const uploaded = await uploadToCloudinary({
+      buffer,
+      resourceType: 'image',
+      folder: 'orders/delivery-proofs',
+      options: { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+    });
+    const url = uploaded.secure_url || uploaded.url || '';
+    if (!url) throw new Error(`Upload de la preuve ${index + 1} incomplet.`);
+    if (file.path) await fs.unlink(file.path).catch(() => {});
+    return {
+      url,
+      path: url,
+      originalName: file.originalname || '',
+      mimeType: file.mimetype || '',
+      size: Number(file.size || 0),
+      uploadedAt: new Date()
+    };
   }));
+};
 
 const hasValidDeliveryEvidence = (order) =>
   Array.isArray(order?.deliveryProofImages) &&
@@ -934,6 +963,11 @@ const buildOrderResponse = (order) => {
     refundAmount: Number(obj.refundAmount || 0),
     refundRequestedBy: obj.refundRequestedBy || null,
     refundRequestedAt: obj.refundRequestedAt || null,
+    refundMethod: obj.refundMethod || '',
+    refundProof: obj.refundProof || '',
+    refundTransactionNumber: obj.refundTransactionNumber || '',
+    refundSenderName: obj.refundSenderName || '',
+    refundedAt: obj.refundedAt || null,
     deliveryCode: obj.deliveryCode || null,
     deliveryProofImages: Array.isArray(obj.deliveryProofImages) ? obj.deliveryProofImages : [],
     clientSignatureImage: obj.clientSignatureImage || '',
@@ -1265,7 +1299,17 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   await purchaseFromWallet({
     userId,
     amount: finalAmount,
-    reference: 'wallet-checkout'
+    reference: 'wallet-checkout',
+    metadata: {
+      products: orderItems.map((item) => ({
+        productId: String(item.product?._id || item.product || ''),
+        title: item.snapshot?.title || 'Produit',
+        image: item.snapshot?.image || '',
+        quantity: Number(item.quantity || 1),
+        unitPrice: Number(item.unitPrice ?? item.snapshot?.price ?? 0),
+        selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : []
+      }))
+    }
   });
 
   // Create order(s) — one per shop
@@ -3659,21 +3703,21 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
 
   const cancellationNotifications =
     status === 'cancelled' && previousStatus !== 'cancelled'
-      ? [
-          {
-            userId: order.customer,
-            actorId: userId,
-            type: 'order_cancelled',
-            metadata: {
-              orderId: order._id,
-              deliveryAddress: order.deliveryAddress,
-              deliveryCity: order.deliveryCity,
-              status: 'cancelled',
-              cancelledBy: 'user'
-            },
-            allowSelf: true
+      ? Array.from(
+          new Set((order.items || []).map((item) => String(resolveItemShopId(item) || '')).filter(Boolean))
+        ).map((sellerId) => ({
+          userId: sellerId,
+          actorId: userId,
+          type: 'order_cancelled',
+          metadata: {
+            orderId: order._id,
+            customerId: order.customer,
+            deliveryAddress: order.deliveryAddress,
+            deliveryCity: order.deliveryCity,
+            status: 'cancelled',
+            cancelledBy: 'buyer'
           }
-        ]
+        }))
       : [];
 
   void dispatchSideEffect(
@@ -4121,7 +4165,13 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Signature trop volumineuse.' });
   }
 
-  const proofImages = normalizeDeliveryProofFiles(req.files);
+  let proofImages;
+  try {
+    proofImages = await normalizeDeliveryProofFiles(req.files);
+  } catch (error) {
+    console.error('Delivery proof upload error:', error);
+    return res.status(500).json({ message: 'Impossible d’enregistrer toutes les photos de preuve. Réessayez.' });
+  }
   const effectiveMin = Math.min(minimumProofImages, maxProofPhotos);
   if (proofImages.length < effectiveMin) {
     return res.status(400).json({
@@ -4142,14 +4192,12 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   order.deliveryDate = now;
   order.deliverySubmittedBy = actorId;
   order.deliverySubmittedAt = now;
-  order.deliveryStatus = isPlatformDeliveryOrderFlow || isPickupOrder ? 'verified' : 'submitted';
+  order.deliveryStatus = isPlatformDeliveryOrderFlow ? 'verified' : 'submitted';
   order.deliveryProofAttemptCount = Number(order.deliveryProofAttemptCount || 0) + 1;
-  order.status = isPickupOrder
-    ? 'picked_up_confirmed'
-    : isPlatformDeliveryOrderFlow
+  order.status = isPlatformDeliveryOrderFlow
     ? 'delivered'
     : 'delivery_proof_submitted';
-  if (isPlatformDeliveryOrderFlow || isPickupOrder) {
+  if (isPlatformDeliveryOrderFlow) {
     order.clientDeliveryConfirmedAt = order.clientDeliveryConfirmedAt || now;
   }
   if (isPickupOrder && !order.readyForPickupAt) {
@@ -4161,7 +4209,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   if (!order.shippedAt) {
     order.shippedAt = now;
   }
-  if (!order.deliveredAt) {
+  if (!isPickupOrder && !order.deliveredAt) {
     order.deliveredAt = now;
   }
   await order.save();
@@ -4207,9 +4255,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
       orderId: order._id,
       deliveryAddress: order.deliveryAddress,
       deliveryCity: order.deliveryCity,
-      status: isPickupOrder
-        ? 'picked_up_confirmed'
-        : isPlatformDeliveryOrderFlow
+      status: isPlatformDeliveryOrderFlow
         ? 'delivered'
         : 'delivery_proof_submitted',
       deliveredAt: order.deliveredAt,
@@ -4248,7 +4294,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   });
   res.json({
     message: isPickupOrder
-      ? 'Preuve de retrait enregistrée. Retrait confirmé.'
+      ? 'Preuve de retrait enregistrée. En attente de confirmation du client.'
       : isPlatformDeliveryOrderFlow
       ? 'Preuve de livraison enregistrée. Livraison validée automatiquement (plateforme).'
       : 'Preuve de livraison soumise. En attente de confirmation client.',
@@ -4274,6 +4320,7 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Commande en litige, confirmation impossible.' });
   }
   const isPlatformDeliveryOrderFlow = isPlatformDeliveryOrder(order);
+  const isPickupOrderConfirmation = isPickupOrderFlow(order);
   if (isPlatformDeliveryOrderFlow) {
     const now = new Date();
     if (order.deliveryStatus !== 'verified') {
@@ -4399,7 +4446,9 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   }
 
   res.json({
-    message: 'Livraison confirmée. La commande est terminée.',
+    message: isPickupOrderConfirmation
+      ? 'Retrait confirmé. La commande est terminée.'
+      : 'Livraison confirmée. La commande est terminée.',
     order: buildOrderResponse(order)
   });
 
@@ -5246,7 +5295,8 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const access = await resolveSellerAccess(req, 'reject_orders');
   const { actorId, sellerId } = access;
-  const { reason, issueRefund = false } = req.body;
+  const { reason } = req.body;
+  const refundMethod = String(req.body?.refundMethod || '').trim().toLowerCase();
 
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
@@ -5270,45 +5320,78 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'La raison de l\'annulation est requise (minimum 5 caractères).' });
   }
 
+  const paidAmount = Number(order.paidAmount || 0);
+  const refundAmount = Math.max(0, paidAmount);
+  let refundProofUrl = '';
+  let refundTransactionNumber = '';
+  let refundSenderName = '';
+
+  if (refundAmount > 0) {
+    if (!['wallet', 'mobile_money'].includes(refundMethod)) {
+      return res.status(400).json({ message: 'Choisissez le mode de remboursement : portefeuille ou Mobile Money.' });
+    }
+    if (refundMethod === 'mobile_money') {
+      refundTransactionNumber = normalizeTransactionCode(req.body?.refundTransactionNumber);
+      refundSenderName = String(req.body?.refundSenderName || '').trim();
+      if (!refundSenderName) return res.status(400).json({ message: 'Le nom de l’expéditeur du remboursement est requis.' });
+      if (refundTransactionNumber.length !== 10) {
+        return res.status(400).json({ message: 'Le code du remboursement doit contenir exactement 10 chiffres.' });
+      }
+      if (await isTransactionCodeAlreadyUsed(refundTransactionNumber)) {
+        return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
+      }
+      if (!req.file?.buffer) return res.status(400).json({ message: 'La preuve du remboursement Mobile Money est obligatoire.' });
+      try {
+        const uploaded = await uploadToCloudinary({
+          buffer: req.file.buffer,
+          resourceType: 'image',
+          folder: 'orders/refund-proofs',
+          options: { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
+        });
+        refundProofUrl = uploaded.secure_url || uploaded.url || '';
+      } catch (error) {
+        return res.status(500).json({ message: 'Impossible d’enregistrer la preuve de remboursement.' });
+      }
+    } else {
+      try {
+        const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
+        await refundToWallet({
+          userId: order.customer,
+          amount: refundAmount,
+          orderId: String(order._id),
+          processedBy: actorId,
+          note: `Remboursement intégral — commande ${String(order._id).slice(-6)} annulée par le vendeur.`
+        });
+        await reverseSellerCredit({
+          userId: sellerId,
+          amount: refundAmount,
+          orderId: String(order._id),
+          processedBy: actorId
+        });
+        refundProofUrl = 'wallet-refund';
+      } catch (error) {
+        return res.status(400).json({ message: error.message || 'Remboursement portefeuille impossible.' });
+      }
+    }
+  }
+
   order.status = 'cancelled';
   order.cancelledAt = new Date();
   order.cancelledBy = actorId;
   order.cancellationReason = reason.trim();
-  const paidAmount = Number(order.paidAmount || 0);
-  const walletPaidAmount = getWalletPaidAmountForOrder(order);
-  const refundAmount = issueRefund ? paidAmount : 0;
-  if (issueRefund) {
-    order.refundStatus = refundAmount > 0 ? 'pending' : 'none';
+  if (refundAmount > 0) {
+    order.refundStatus = refundMethod === 'wallet' ? 'processed' : 'pending';
     order.refundAmount = refundAmount;
     order.refundRequestedBy = actorId;
     order.refundRequestedAt = new Date();
+    order.refundMethod = refundMethod;
+    order.refundProof = refundProofUrl;
+    order.refundTransactionNumber = refundTransactionNumber;
+    order.refundSenderName = refundSenderName;
+    order.refundedAt = new Date();
   }
 
   await order.save();
-  if (walletPaidAmount > 0) {
-    try {
-      const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
-      await refundToWallet({
-        userId: order.customer,
-        amount: walletPaidAmount,
-        orderId: String(order._id),
-        processedBy: actorId,
-        note: `Remboursement — commande ${String(order._id).slice(-6)} annulée par le vendeur.`
-      });
-      await reverseSellerCredit({
-        userId: sellerId,
-        amount: walletPaidAmount,
-        orderId: String(order._id),
-        processedBy: actorId
-      });
-      order.refundStatus = 'completed';
-      order.refundAmount = walletPaidAmount;
-      order.refundedAt = new Date();
-      await order.save();
-    } catch (err) {
-      console.error('[sellerCancelOrder] Wallet refund failed:', err?.message || err);
-    }
-  }
   await syncReviewReminderForOrderLifecycle(order);
   const populated = await baseOrderQuery().findById(order._id);
   await ensureOrderProductSlugs([populated]);
@@ -5332,7 +5415,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
     order,
     metadata: {
       reason: order.cancellationReason,
-      issueRefund: Boolean(issueRefund),
+      issueRefund: refundAmount > 0,
       refundAmount
     }
   });
@@ -5362,13 +5445,14 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       status: 'cancelled',
       cancelledBy: 'seller',
       reason: order.cancellationReason,
-      refundRequested: Boolean(issueRefund),
+      refundRequested: refundAmount > 0,
+      refundMethod,
       refundAmount
     },
     allowSelf: true
   });
 
-  if (issueRefund && refundAmount > 0) {
+  if (refundAmount > 0 && refundMethod === 'mobile_money') {
     const adminRecipients = await User.find({
       $or: [{ role: 'admin' }, { role: 'manager' }, { canVerifyPayments: true }]
     })
@@ -5399,8 +5483,8 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       const total = formatSmsAmount(order.totalAmount);
       const reasonText = order.cancellationReason ? ` Raison: ${order.cancellationReason}` : '';
       const refundText =
-        issueRefund && refundAmount > 0
-          ? ` Remboursement demandé: ${formatSmsAmount(refundAmount)} FCFA.`
+        refundAmount > 0
+          ? ` Remboursement intégral envoyé: ${formatSmsAmount(refundAmount)} FCFA (${refundMethod === 'wallet' ? 'portefeuille' : 'Mobile Money'}).`
           : '';
       const orderId = order._id ? String(order._id).slice(-6) : '';
       const message = `HDMarket : Votre commande ${orderId} a été annulée par le vendeur.${reasonText}${refundText} ${itemsSummary ? `| ${itemsSummary}` : ''} | Total: ${total} FCFA`;

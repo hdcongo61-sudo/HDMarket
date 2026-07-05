@@ -678,7 +678,9 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
           : ' Remboursement demandé.'
         : '';
       title = 'Commande annulée';
-      body = `${yourOrderSubject} a été annulée par le vendeur.${reason}${refundText}`;
+      body = metadata.cancelledBy === 'buyer'
+        ? `${actorName} a annulé ${orderSubject}.${reason}${refundText}`
+        : `${yourOrderSubject} a été annulée par le vendeur.${reason}${refundText}`;
       break;
     }
     case 'delivery_distance_warning': {

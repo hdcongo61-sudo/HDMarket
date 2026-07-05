@@ -840,7 +840,10 @@ export const schemas = {
       'string.min': 'La raison de l\'annulation doit contenir au moins 5 caractères.',
       'any.required': 'La raison de l\'annulation est requise.'
     }),
-    issueRefund: Joi.boolean().default(false)
+    issueRefund: Joi.boolean().truthy('true').falsy('false').default(false),
+    refundMethod: Joi.string().valid('wallet', 'mobile_money', '').allow(null),
+    refundTransactionNumber: Joi.string().trim().allow('', null),
+    refundSenderName: Joi.string().trim().max(120).allow('', null)
   }),
   sellerDeliveryFeeUpdate: Joi.object({
     deliveryFeeTotal: Joi.number().min(0).required()
