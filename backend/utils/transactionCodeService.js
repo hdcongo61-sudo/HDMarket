@@ -16,6 +16,7 @@ const collectDistinctCodes = async (codes) => {
     conversionCodes,
     boostCodes,
     orderPaymentCodes,
+    orderDraftPaymentCodes,
     installmentCodes,
     refundCodes
   ] =
@@ -25,6 +26,10 @@ const collectDistinctCodes = async (codes) => {
       ShopConversionRequest.distinct('transactionNumber', { transactionNumber: { $in: codes } }),
       BoostRequest.distinct('paymentTransactionId', { paymentTransactionId: { $in: codes } }),
       Order.distinct('paymentTransactionCode', { paymentTransactionCode: { $in: codes } }),
+      Order.distinct('draftPayments.transactionCode', {
+        isDraft: { $ne: true },
+        'draftPayments.transactionCode': { $in: codes }
+      }),
       Order.distinct('installmentPlan.schedule.transactionProof.transactionCode', {
         'installmentPlan.schedule.transactionProof.transactionCode': { $in: codes }
       }),
@@ -37,6 +42,7 @@ const collectDistinctCodes = async (codes) => {
     ...(Array.isArray(conversionCodes) ? conversionCodes : []),
     ...(Array.isArray(boostCodes) ? boostCodes : []),
     ...(Array.isArray(orderPaymentCodes) ? orderPaymentCodes : []),
+    ...(Array.isArray(orderDraftPaymentCodes) ? orderDraftPaymentCodes : []),
     ...(Array.isArray(installmentCodes) ? installmentCodes : []),
     ...(Array.isArray(refundCodes) ? refundCodes : [])
   ];

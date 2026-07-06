@@ -64,6 +64,7 @@ import {
   getOrderItemCount,
   getOrderTotal,
   getOrderUiState,
+  isOrderFulfilmentComplete,
   isOrderGroupKey,
   normalizeOrderSummaryStats,
   patchOrderSummaryStatusCounters
@@ -251,7 +252,7 @@ const getEffectiveOrderStatus = (order) => {
     paid: 'confirmed',
     ready_for_delivery: 'confirmed',
     out_for_delivery: 'delivering',
-    delivery_proof_submitted: 'delivered',
+    delivery_proof_submitted: 'delivery_proof_submitted',
     confirmed_by_client: 'delivered'
   };
   return map[order.status] || order.status || 'pending';
@@ -798,7 +799,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
           unreadCount={orderUnreadCounts[order._id] || 0}
         />
 
-        {effectiveStatus === 'delivered' && orderItems.length > 0 && (
+        {isOrderFulfilmentComplete(order) && orderItems.length > 0 && (
           <button
             type="button"
             onClick={() => onReorder(order)}
@@ -838,7 +839,15 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
       : order.installmentSaleStatus || '';
   const effectiveStatus = getEffectiveOrderStatus(order);
   const pickupCardStatus = getPickupCardStatus(order);
-  const statusBadgeKey = pickupCardStatus || effectiveStatus;
+  const installmentFulfilmentBadge =
+    isInstallmentOrder && order.status === 'completed' && pickupOrder
+      ? ['delivered', 'picked_up_confirmed'].includes(installmentSaleStatus)
+        ? 'picked_up_confirmed'
+        : installmentSaleStatus === 'ready_for_pickup'
+          ? 'ready_for_pickup'
+          : 'confirmed'
+      : null;
+  const statusBadgeKey = installmentFulfilmentBadge || pickupCardStatus || effectiveStatus;
   const fullPaymentBadgeStatus = getFullPaymentBadgeStatus(order);
   const installmentProgress =
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;

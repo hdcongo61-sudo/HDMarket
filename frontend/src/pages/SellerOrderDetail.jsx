@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useContext, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -39,6 +39,7 @@ import DeliveryProofUpload from '../components/DeliveryProofUpload';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
 import InstallmentReminder from '../components/orders/InstallmentReminder';
+import InstallmentOrderTracking from '../components/orders/InstallmentOrderTracking';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
@@ -226,16 +227,19 @@ const getPrimaryActionMeta = (order) => {
     case 'mark_ready_for_delivery':
       return { ...base, label: 'Passer: Prête à livrer' };
     case 'start_delivery':
-      return { ...base, label: 'Passer: En livraison' };
+      return {
+        ...base,
+        label: resolvePickupOrder(order) ? 'Commande prête à récupérer' : 'Passer: En livraison'
+      };
     case 'mark_ready_for_pickup':
       return { ...base, label: 'Passer: Prête au retrait' };
     case 'submit_delivery_proof':
       return {
         ...base,
-        mode: 'proof_delivery',
+        mode: resolvePickupOrder(order) ? 'proof_pickup' : 'proof_delivery',
         nextStatus: null,
         intent: 'success',
-        label: 'Preuve livraison'
+        label: resolvePickupOrder(order) ? 'Preuve de retrait' : 'Preuve livraison'
       };
     case 'submit_pickup_proof':
       return {
@@ -375,6 +379,7 @@ export default function SellerOrderDetail() {
   const [cancelRefundProof, setCancelRefundProof] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showDeliveryProofForm, setShowDeliveryProofForm] = useState(false);
+  const deliveryProofFormRef = useRef(null);
   const [saleConfirmationLoading, setSaleConfirmationLoading] = useState(false);
   const [paymentValidationLoadingIndex, setPaymentValidationLoadingIndex] = useState(-1);
   const [requestPlatformDeliveryLoading, setRequestPlatformDeliveryLoading] = useState(false);
@@ -841,16 +846,20 @@ export default function SellerOrderDetail() {
       ? getInstallmentWorkflow(order)?.workflowStatus || order.status
       : order.status;
     const installmentSaleStatus = order.installmentSaleStatus || '';
+    const serverProofAction = String(order?.nextAction?.seller?.key || '');
     const canRequestDeliveryProof =
-      ((!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
+      (serverProofAction === 'submit_delivery_proof' ||
+        (!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
         (isInstallmentOrder &&
           installmentWorkflowStatus === 'completed' &&
-          (installmentSaleStatus || 'confirmed') === 'delivering')) &&
+          (installmentSaleStatus || 'confirmed') === (resolvePickupOrder(order) ? 'ready_for_pickup' : 'delivering'))) &&
       !['submitted', 'verified'].includes(order.deliveryStatus);
     const canRequestPickupProof =
-      !isInstallmentOrder &&
-      resolvePickupOrder(order) &&
-      ['confirmed', 'ready_for_pickup'].includes(order.status) &&
+      (serverProofAction === 'submit_pickup_proof' ||
+        (resolvePickupOrder(order) &&
+          (isInstallmentOrder
+            ? installmentWorkflowStatus === 'completed' && installmentSaleStatus === 'ready_for_pickup'
+            : ['confirmed', 'ready_for_pickup'].includes(order.status)))) &&
       !['submitted', 'verified'].includes(order.deliveryStatus);
 
     if (!(canRequestDeliveryProof || canRequestPickupProof) && showDeliveryProofForm) {
@@ -950,8 +959,17 @@ export default function SellerOrderDetail() {
     );
     return hasSubmittedPayment ? 'paid' : 'pending_payment';
   })();
+  const installmentWorkflowStatus = installmentWorkflow?.workflowStatus || order.status;
   const displayStatusLabel = isInstallmentOrder
-    ? installmentWorkflow?.workflowStatus || order.status
+    ? installmentWorkflowStatus === 'completed'
+      ? isPickupOrder
+        ? ['delivered', 'picked_up_confirmed'].includes(installmentSaleStatus)
+          ? 'picked_up_confirmed'
+          : installmentSaleStatus === 'ready_for_pickup'
+            ? 'ready_for_pickup'
+            : 'confirmed'
+        : installmentSaleStatus || 'confirmed'
+      : installmentWorkflowStatus
     : pickupStatusLabel || order.status;
   const StatusIcon = STATUS_ICONS[displayStatusLabel] || STATUS_ICONS[order.status] || Clock;
   const statusStyle =
@@ -985,16 +1003,20 @@ export default function SellerOrderDetail() {
     };
     return map[order.status] || order.status;
   })();
+  const serverProofAction = String(order?.nextAction?.seller?.key || '');
   const canRequestDeliveryProof =
-    ((!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
+    (serverProofAction === 'submit_delivery_proof' ||
+      (!isInstallmentOrder && ['delivering', 'out_for_delivery'].includes(order.status)) ||
       (isInstallmentOrder &&
         (installmentWorkflow?.workflowStatus || order.status) === 'completed' &&
-        (installmentSaleStatus || 'confirmed') === 'delivering')) &&
+        (installmentSaleStatus || 'confirmed') === (isPickupOrder ? 'ready_for_pickup' : 'delivering'))) &&
     !['submitted', 'verified'].includes(order.deliveryStatus);
   const canRequestPickupProof =
-    !isInstallmentOrder &&
-    isPickupOrder &&
-    ['confirmed', 'ready_for_pickup'].includes(order.status) &&
+    (serverProofAction === 'submit_pickup_proof' ||
+      (isPickupOrder &&
+        (isInstallmentOrder
+          ? (installmentWorkflow?.workflowStatus || order.status) === 'completed' && installmentSaleStatus === 'ready_for_pickup'
+          : ['confirmed', 'ready_for_pickup'].includes(order.status)))) &&
     !['submitted', 'verified'].includes(order.deliveryStatus);
   const canRequestProof = canRequestDeliveryProof || canRequestPickupProof;
   const canShowDeliveryProofForm = canRequestProof && showDeliveryProofForm;
@@ -1046,6 +1068,17 @@ export default function SellerOrderDetail() {
   const cancellationBlockedByStatus = ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status);
   const canCancelOrder = !cancellationBlockedByStatus && order.status !== 'cancelled' && !order.cancellationWindow?.isActive;
   const sellerPrimaryAction = getPrimaryActionMeta(order);
+  const toggleDeliveryProofForm = () => {
+    if (showDeliveryProofForm) {
+      setShowDeliveryProofForm(false);
+      return;
+    }
+    setShowDeliveryProofForm(true);
+    window.setTimeout(() => {
+      deliveryProofFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      deliveryProofFormRef.current?.focus({ preventScroll: true });
+    }, 50);
+  };
   const handlePrimarySellerAction = async () => {
     if (!sellerPrimaryAction || sellerPrimaryAction.disabled) return;
     if (sellerPrimaryAction.mode === 'status' && sellerPrimaryAction.nextStatus) {
@@ -1057,7 +1090,7 @@ export default function SellerOrderDetail() {
       return;
     }
     if (sellerPrimaryAction.mode === 'proof_delivery' || sellerPrimaryAction.mode === 'proof_pickup') {
-      setShowDeliveryProofForm((prev) => !prev);
+      toggleDeliveryProofForm();
     }
   };
   const statusTimelineEntries = [
@@ -1192,7 +1225,8 @@ export default function SellerOrderDetail() {
             </div>
           </div>
 
-          {(() => {
+          {isInstallmentOrder && <InstallmentOrderTracking order={order} isPickup={isPickupOrder} />}
+          {!isInstallmentOrder && (() => {
             const cancelled = order.status === 'cancelled';
             const railStatus = getSellerTimelineStatus(order, installmentWorkflow?.workflowStatus);
             const steps = buildProgressSteps({
@@ -1610,7 +1644,8 @@ export default function SellerOrderDetail() {
             )}
 
             {canShowDeliveryProofForm && (
-              <DeliveryProofUpload
+              <div ref={deliveryProofFormRef} tabIndex={-1} className="scroll-mt-24 outline-none">
+                <DeliveryProofUpload
                 orderId={order._id}
                 initialProofs={order.deliveryProofImages || []}
                 mode={canRequestPickupProof ? 'pickup' : 'delivery'}
@@ -1630,7 +1665,8 @@ export default function SellerOrderDetail() {
                     loadOrder();
                   }
                 }}
-              />
+                />
+              </div>
             )}
 
             {!isInstallmentOrder && ((Array.isArray(order.deliveryProofImages) && order.deliveryProofImages.length > 0) || order.clientSignatureImage) && (
@@ -1916,7 +1952,8 @@ export default function SellerOrderDetail() {
                     }
                     className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
                   >
-                    <Truck size={12} /> En livraison
+                    {isPickupOrder ? <Store size={12} /> : <Truck size={12} />}
+                    {isPickupOrder ? 'Prêt à récupérer' : 'En livraison'}
                   </button>
                   <button
                     type="button"
@@ -1935,11 +1972,11 @@ export default function SellerOrderDetail() {
                   >
                     {order.deliveryStatus === 'submitted' ? (
                       <>
-                        <CheckCircle size={12} /> Livrée
+                        <CheckCircle size={12} /> {isPickupOrder ? 'Récupéré' : 'Livrée'}
                       </>
                     ) : (
                       <>
-                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Livrer'}
+                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : isPickupOrder ? 'Preuve de retrait' : 'Livrer'}
                       </>
                     )}
                   </button>
@@ -1957,7 +1994,9 @@ export default function SellerOrderDetail() {
                 </div>
                 {installmentSaleStatus === 'delivering' && order.deliveryStatus !== 'submitted' && (
                   <p className="text-xs text-amber-700">
-                    Cliquez sur "Livrer" pour soumettre la preuve de livraison.
+                    {isPickupOrder
+                      ? 'Ajoutez la preuve de retrait avant de confirmer que la commande a été récupérée.'
+                      : 'Cliquez sur "Livrer" pour soumettre la preuve de livraison.'}
                   </p>
                 )}
                 {statusUpdateFeedback.id === order._id && (

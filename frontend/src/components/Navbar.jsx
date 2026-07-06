@@ -245,6 +245,7 @@ export default function Navbar() {
   const [appLogos, setAppLogos] = useState({ desktop: "", mobile: "" });
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [activeCategoryGroupId, setActiveCategoryGroupId] = useState(null);
   const shopMenuCloseRef = useRef(null);
   const categoryMenuCloseRef = useRef(null);
   const orderUnreadSocketRef = useRef(null);
@@ -337,7 +338,7 @@ export default function Navbar() {
       try {
         const { data } = await api.get('/orders/summary', { skipCache: true, headers: { 'x-skip-cache': '1' } });
         if (!cancelled) {
-          setActiveOrders(Number(data?.activeCount || data?.urgentCount || 0));
+          setActiveOrders(Number(data?.incompleteCount ?? 0));
         }
       } catch (error) {
         if (!cancelled) {
@@ -348,10 +349,14 @@ export default function Navbar() {
 
     fetchOrders();
     intervalId = setInterval(fetchOrders, 60000);
+    window.addEventListener('hdmarket:orders-refresh', fetchOrders);
+    window.addEventListener('focus', fetchOrders);
 
     return () => {
       cancelled = true;
       if (intervalId) clearInterval(intervalId);
+      window.removeEventListener('hdmarket:orders-refresh', fetchOrders);
+      window.removeEventListener('focus', fetchOrders);
     };
   }, [user]);
 
@@ -368,7 +373,7 @@ export default function Navbar() {
       try {
         const { data } = await api.get('/orders/seller/summary', { skipCache: true, headers: { 'x-skip-cache': '1' } });
         if (!cancelled) {
-          setSellerOrders(Number(data?.activeCount || data?.urgentCount || 0));
+          setSellerOrders(Number(data?.byGroup?.new || 0));
         }
       } catch (error) {
         if (!cancelled) {
@@ -379,10 +384,16 @@ export default function Navbar() {
 
     fetchSellerOrders();
     intervalId = setInterval(fetchSellerOrders, 60000);
+    window.addEventListener('hdmarket:orders-refresh', fetchSellerOrders);
+    window.addEventListener('hdmarket:notifications-refresh', fetchSellerOrders);
+    window.addEventListener('focus', fetchSellerOrders);
 
     return () => {
       cancelled = true;
       if (intervalId) clearInterval(intervalId);
+      window.removeEventListener('hdmarket:orders-refresh', fetchSellerOrders);
+      window.removeEventListener('hdmarket:notifications-refresh', fetchSellerOrders);
+      window.removeEventListener('focus', fetchSellerOrders);
     };
   }, [user, isAdminLike]);
 
@@ -3501,83 +3512,119 @@ export default function Navbar() {
                     className={`transition-transform duration-200 ${isCategoryMenuOpen ? "rotate-180" : ""}`}
                   />
                 </button>
-                
-                {/* MEGA MENU CATÉGORIES */}
-                {isCategoryMenuOpen && (
-                  <div 
-                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-[860px] overflow-hidden rounded-2xl"
-                    onMouseEnter={handleCategoryMenuOpen}
-                    onMouseLeave={handleCategoryMenuDelayedClose}
-                  >
-                    <div className="p-5">
-                      <div className="mb-5 rounded-2xl bg-gradient-to-br from-[#ff4f1f] via-[#ff6a00] to-[#ff922e] p-4 text-white shadow-[0_14px_32px_rgba(255,106,0,0.16)]">
-                        <p className="text-xs font-black uppercase tracking-wide text-white/78">
-                          {t('nav.categories', 'Catégories')}
-                        </p>
-                        <h3 className="mt-1 text-xl font-black tracking-tight text-white">
-                          Explorer les univers HDMarket
-                        </h3>
-                        <p className="mt-1 max-w-2xl text-sm font-semibold text-white/84">
-                          Accédez vite aux familles les plus utiles, puis affinez par sous-catégorie.
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        {categoryGroups.map((group) => {
-                          const Icon = group.icon;
-                          return (
-                            <div key={group.id} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                              <Link
-                                to={`/categories/${group.options?.[0]?.value || ''}`}
-                                onClick={() => setIsCategoryMenuOpen(false)}
-                                className="mb-3 flex items-center gap-2 rounded-2xl p-1 transition hover:bg-gray-100"
-                              >
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
-                                  {Icon && <Icon className="w-5 h-5" />}
-                                </span>
-                                <h3 className="text-sm font-black text-gray-900">
-                                  {group.label}
-                                </h3>
-                              </Link>
-                              <ul className="flex flex-wrap gap-1.5">
-                                {group.options.slice(0, 5).map((option) => (
-                                  <li key={option.value}>
+
+                {/* MEGA MENU CATÉGORIES — rail of univers + live subcategory panel */}
+                {isCategoryMenuOpen && (() => {
+                  const activeGroup =
+                    categoryGroups.find((group) => group.id === activeCategoryGroupId) || categoryGroups[0];
+                  return (
+                    <div
+                      className="hd-menu-panel glass-fade-in absolute left-0 z-50 mt-0 flex max-h-[440px] w-[760px] overflow-hidden rounded-2xl"
+                      onMouseEnter={handleCategoryMenuOpen}
+                      onMouseLeave={handleCategoryMenuDelayedClose}
+                    >
+                      {categoryGroups.length === 0 ? (
+                        <div className="p-6 text-sm font-semibold text-gray-500">Chargement des catégories…</div>
+                      ) : (
+                        <>
+                          {/* Left rail — the univers, always visible so switching is instant. Scrolls
+                              internally so a long category list never stretches the right panel. */}
+                          <div className="w-[260px] shrink-0 overflow-y-auto border-r border-gray-100 bg-gray-50/70 py-3 dark:border-gray-700 dark:bg-gray-900/40">
+                            <p className="px-4 pb-2 text-[11px] font-black uppercase tracking-wide text-gray-400">
+                              Univers
+                            </p>
+                            <ul>
+                              {categoryGroups.map((group) => {
+                                const Icon = group.icon;
+                                const isActive = group.id === (activeGroup?.id);
+                                return (
+                                  <li key={group.id}>
                                     <Link
-                                      to={`/categories/${option.value}`}
-                                      className="block rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-black text-gray-500 transition hover:bg-orange-100"
+                                      to={`/categories/${group.options?.[0]?.value || ''}`}
+                                      onMouseEnter={() => setActiveCategoryGroupId(group.id)}
+                                      onFocus={() => setActiveCategoryGroupId(group.id)}
                                       onClick={() => setIsCategoryMenuOpen(false)}
+                                      className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold transition ${
+                                        isActive
+                                          ? 'bg-white text-[#FF6A00] shadow-[inset_3px_0_0_0_#FF6A00] dark:bg-gray-800'
+                                          : 'text-gray-700 hover:bg-white/70 dark:text-gray-200 dark:hover:bg-gray-800/60'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                                          isActive
+                                            ? 'bg-orange-50 text-[#FF6A00]'
+                                            : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                                        }`}
+                                      >
+                                        {Icon && <Icon className="w-4 h-4" />}
+                                      </span>
+                                      <span className="flex-1 truncate">{group.label}</span>
+                                      <ChevronRight
+                                        size={14}
+                                        className={isActive ? 'text-[#FF6A00]' : 'text-gray-300 dark:text-gray-600'}
+                                      />
+                                    </Link>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+
+                          {/* Right panel — subcategories of the hovered/active univers. Sits at its
+                              natural height (not stretched to match the rail) so a short list
+                              doesn't leave a hollow gap above the CTA. */}
+                          <div className="flex-1 overflow-y-auto p-5">
+                            {activeGroup && (
+                              <>
+                                <div className="mb-3 flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                                      {activeGroup.label}
+                                    </h3>
+                                    {activeGroup.description ? (
+                                      <p className="mt-0.5 max-w-md text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                        {activeGroup.description}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                  <Link
+                                    to={`/categories/${activeGroup.options?.[0]?.value || ''}`}
+                                    onClick={() => setIsCategoryMenuOpen(false)}
+                                    className="shrink-0 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-black text-gray-600 transition hover:border-[#FF6A00] hover:text-[#FF6A00] dark:border-gray-700 dark:text-gray-300"
+                                  >
+                                    Tout voir
+                                  </Link>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                                  {activeGroup.options.map((option) => (
+                                    <Link
+                                      key={option.value}
+                                      to={`/categories/${option.value}`}
+                                      onClick={() => setIsCategoryMenuOpen(false)}
+                                      className="truncate rounded-lg px-2 py-1.5 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 hover:text-[#FF6A00] dark:text-gray-300 dark:hover:bg-gray-800"
                                     >
                                       {option.label}
                                     </Link>
-                                  </li>
-                                ))}
-                                {group.options.length > 5 ? (
-                                  <li>
-                                    <Link
-                                      to={`/categories/${group.options?.[0]?.value || ''}`}
-                                      className="block rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-black text-gray-600 transition hover:border-gray-200 hover:text-[#FF6A00]"
-                                      onClick={() => setIsCategoryMenuOpen(false)}
-                                    >
-                                      +{group.options.length - 5}
-                                    </Link>
-                                  </li>
-                                ) : null}
-                              </ul>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                            <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
+                              <Link
+                                to="/products"
+                                className="hd-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black"
+                                onClick={() => setIsCategoryMenuOpen(false)}
+                              >
+                                {t('nav.viewAllCategories', 'Voir toutes les catégories →')}
+                              </Link>
                             </div>
-                          );
-                        })}
-                      </div>
-                      <div className="mt-5 border-t border-gray-200 pt-4">
-                        <Link
-                          to="/products"
-                          className="hd-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black"
-                          onClick={() => setIsCategoryMenuOpen(false)}
-                        >
-                          {t('nav.viewAllCategories', 'Voir toutes les catégories →')}
-                        </Link>
-                      </div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Boutiques with Enhanced Dropdown */}

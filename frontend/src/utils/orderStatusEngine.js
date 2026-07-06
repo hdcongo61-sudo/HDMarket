@@ -108,7 +108,7 @@ export const getOrderDisplayStatus = (order) => {
     picked_up_confirmed: 'completed',
     ready_for_delivery: 'confirmed',
     out_for_delivery: 'delivering',
-    delivery_proof_submitted: 'delivered',
+    delivery_proof_submitted: 'delivery_proof_submitted',
     confirmed_by_client: 'completed'
   };
   return normalized[rawStatus] || rawStatus;
@@ -118,10 +118,30 @@ export const getOrderProgress = (order) => {
   const status = getOrderDisplayStatus(order);
   if (['cancelled', 'dispute_opened'].includes(status)) return 0;
   if (['completed', 'delivered'].includes(status)) return 100;
+  if (status === 'delivery_proof_submitted') return 85;
   if (['delivering', 'pickup_ready'].includes(status)) return 75;
   if (['confirmed', 'ready_for_delivery'].includes(status)) return 50;
   if (['payment_due', 'pending', 'pending_installment'].includes(status)) return 20;
   return 35;
+};
+
+export const isOrderFulfilmentComplete = (order) => {
+  const status = String(order?.status || '').toLowerCase();
+  const saleStatus = String(order?.installmentSaleStatus || '').toLowerCase();
+  const isInstallment = String(order?.paymentType || '').toLowerCase() === 'installment';
+  const finalStatus = isInstallment
+    ? ['delivered', 'picked_up_confirmed'].includes(saleStatus)
+    : ['completed', 'confirmed_by_client', 'picked_up_confirmed', 'delivered'].includes(status);
+  const proofImages = Array.isArray(order?.deliveryProofImages) ? order.deliveryProofImages : [];
+  const hasProof =
+    proofImages.length > 0 &&
+    Boolean(String(order?.clientSignatureImage || '').trim()) &&
+    Boolean(order?.deliveryDate || order?.deliverySubmittedAt);
+  const buyerConfirmed =
+    Boolean(order?.clientDeliveryConfirmedAt) ||
+    String(order?.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
+
+  return finalStatus && hasProof && buyerConfirmed && String(order?.deliveryStatus || '').toLowerCase() === 'verified';
 };
 
 export const getOrderPaymentState = (order) => {
@@ -168,13 +188,32 @@ export const getOrderPaymentState = (order) => {
 };
 
 export const getOrderDeliveryState = (order) => {
-  const status = String(order?.status || '').toLowerCase();
+  const rawStatus = String(order?.status || '').toLowerCase();
+  const installmentFulfilmentStarted =
+    String(order?.paymentType || '').toLowerCase() === 'installment' && rawStatus === 'completed';
+  const status = installmentFulfilmentStarted
+    ? String(order?.installmentSaleStatus || 'confirmed').toLowerCase()
+    : rawStatus;
   const pickup = String(order?.deliveryMode || '').toLowerCase() === 'pickup' || Boolean(order?.pickup);
   if (status === 'cancelled') return { mode: pickup ? 'pickup' : 'delivery', label: 'Annulée', active: false };
+  if (
+    installmentFulfilmentStarted &&
+    ['submitted', 'verified'].includes(String(order?.deliveryStatus || '').toLowerCase()) &&
+    status !== 'delivered'
+  ) {
+    return {
+      mode: pickup ? 'pickup' : 'delivery',
+      label: pickup ? 'Preuve de retrait soumise' : 'Preuve de livraison soumise',
+      active: true
+    };
+  }
   if (pickup) {
     if (['ready_for_pickup'].includes(status)) return { mode: 'pickup', label: 'Prête au retrait', active: true };
-    if (['picked_up_confirmed', 'completed', 'confirmed_by_client'].includes(status)) {
+    if (['picked_up_confirmed', 'completed', 'confirmed_by_client', 'delivered'].includes(status)) {
       return { mode: 'pickup', label: 'Retrait confirmé', active: false };
+    }
+    if (installmentFulfilmentStarted && status === 'delivering') {
+      return { mode: 'pickup', label: 'Prête à récupérer', active: true };
     }
     return { mode: 'pickup', label: 'Retrait en préparation', active: true };
   }
@@ -193,6 +232,32 @@ export const getOrderPrimaryAction = (order, role = 'buyer') => {
 
   if (status === 'cancelled') {
     return { key: 'view', label: 'Voir le détail', tone: 'neutral' };
+  }
+
+  if (payment.type === 'installment' && status === 'completed') {
+    const saleStatus = String(order?.installmentSaleStatus || 'confirmed').toLowerCase();
+    if (role === 'seller') {
+      if (saleStatus === 'confirmed') {
+        return {
+          key: 'start_fulfilment',
+          label: delivery.mode === 'pickup' ? 'Préparer le retrait' : 'Démarrer la livraison',
+          tone: 'primary'
+        };
+      }
+      if (saleStatus === 'delivering') {
+        return {
+          key: 'submit_proof',
+          label: delivery.mode === 'pickup' ? 'Ajouter la preuve de retrait' : 'Ajouter la preuve de livraison',
+          tone: 'primary'
+        };
+      }
+    }
+    if (saleStatus === 'delivered') return { key: 'review', label: 'Voir / noter', tone: 'neutral' };
+    return {
+      key: 'track_fulfilment',
+      label: delivery.mode === 'pickup' ? 'Suivre le retrait' : 'Suivre la livraison',
+      tone: 'neutral'
+    };
   }
 
   if (role === 'seller') {
@@ -246,6 +311,8 @@ export const getOrderUiState = (order, role = 'buyer') => {
     nextStep:
       role === 'seller'
         ? primaryAction.label
+        : payment.type === 'installment' && String(order?.status || '').toLowerCase() !== 'completed'
+          ? `Suivi des tranches — ${Math.max(0, Math.min(100, Number(payment.progress) || 0))}%`
         : payment.needsAction
           ? 'Paiement requis pour continuer'
           : delivery.label

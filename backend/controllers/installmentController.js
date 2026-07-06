@@ -743,6 +743,12 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
       actorId: customer._id,
       productId: product._id,
       type: 'installment_sale_confirmation_required',
+      priority: 'HIGH',
+      pushEnabled: true,
+      channels: ['IN_APP', 'PUSH'],
+      deepLink: `/seller/orders/detail/${createdOrder._id}`,
+      entityType: 'order',
+      entityId: String(createdOrder._id),
       metadata: {
         orderId: createdOrder._id,
         payerName: paymentMethod === 'wallet' ? customer.name || '' : cleanPayerName || customer.name || '',

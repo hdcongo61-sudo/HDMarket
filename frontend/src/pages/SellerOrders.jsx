@@ -519,7 +519,17 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const fullPaymentBadgeStatus = getFullPaymentBadgeStatus(order);
   const pickupCardStatus = getPickupCardStatus(order);
-  const statusBadgeKey = pickupCardStatus || order.status;
+  const installmentFulfilmentBadge =
+    isInstallmentOrder && order.status === 'completed'
+      ? resolvePickupOrder(order)
+        ? ['delivered', 'picked_up_confirmed'].includes(installmentSaleStatus)
+          ? 'picked_up_confirmed'
+          : installmentSaleStatus === 'ready_for_pickup'
+            ? 'ready_for_pickup'
+            : 'confirmed'
+        : installmentSaleStatus || 'confirmed'
+      : null;
+  const statusBadgeKey = installmentFulfilmentBadge || pickupCardStatus || order.status;
   const firstItem = orderItems[0];
   const productTitle = firstItem?.snapshot?.title || t('orders.product', 'Produit');
   const itemCount = getOrderItemCount(order);

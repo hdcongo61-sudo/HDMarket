@@ -318,6 +318,31 @@ const buildOrderSummary = async ({ baseFilter, role = 'buyer' }) => {
                 0
               ]
             }
+          },
+          incompleteCount: {
+            $sum: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ['$status', 'cancelled'] },
+                    {
+                      $and: [
+                        { $ne: ['$paymentType', 'installment'] },
+                        { $in: ['$status', ['picked_up_confirmed', 'confirmed_by_client', 'delivered', 'completed']] }
+                      ]
+                    },
+                    {
+                      $and: [
+                        { $eq: ['$paymentType', 'installment'] },
+                        { $in: ['$installmentSaleStatus', ['picked_up_confirmed', 'delivered']] }
+                      ]
+                    }
+                  ]
+                },
+                0,
+                1
+              ]
+            }
           }
         }
       }
@@ -344,6 +369,7 @@ const buildOrderSummary = async ({ baseFilter, role = 'buyer' }) => {
     paymentPending: Number(row.paymentPending || 0),
     urgentCount: Number(row.urgentCount || 0),
     activeCount: Number(row.activeCount || 0),
+    incompleteCount: Number(row.incompleteCount || 0),
     byStatus,
     byGroup
   };
@@ -1378,6 +1404,12 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
         userId: sellerId,
         actorId: userId,
         type: 'order_received',
+        priority: 'HIGH',
+        pushEnabled: true,
+        channels: ['IN_APP', 'PUSH'],
+        deepLink: `/seller/orders/detail/${order._id}`,
+        entityType: 'order',
+        entityId: String(order._id),
         metadata: {
           orderId: order._id,
           itemCount: order.items?.length || 1,
@@ -1826,26 +1858,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     new Set(orderPayloads.map((entry) => String(entry.sellerId || '')).filter(Boolean))
   );
   const checkoutNotifications = [
-    ...createdOrders.map((order, index) => {
-      const { sellerId, items } = orderPayloads[index];
-      const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
-      const totalAmount = Number(order.totalAmount || 0);
-      const productId = items[0]?.product || null;
-      return {
-        userId: sellerId,
-        actorId: userId,
-        productId,
-        type: 'order_received',
-        metadata: {
-          orderId: order._id,
-          itemCount,
-          totalAmount,
-          paymentMode: order.paymentMode,
-          deliveryFeeWaived: Boolean(order.deliveryFeeWaived),
-          deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
-        }
-      };
-    }),
     ...createdOrders.map((order) => ({
       userId: customer._id,
       actorId: userId,
@@ -1920,6 +1932,38 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     context: `order_created:${order._id}`
   }));
 
+  // Seller pushes must not depend on the optional side-effect worker. The order
+  // is already committed, so dispatch the actionable alert immediately.
+  createdOrders.forEach((order, index) => {
+    const { sellerId, items } = orderPayloads[index];
+    const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+    void safeAsync(
+      () =>
+        createNotification({
+          userId: sellerId,
+          actorId: userId,
+          productId: items[0]?.product || null,
+          type: 'order_received',
+          priority: 'HIGH',
+          pushEnabled: true,
+          channels: ['IN_APP', 'PUSH'],
+          deepLink: `/seller/orders/detail/${order._id}`,
+          entityType: 'order',
+          entityId: String(order._id),
+          metadata: {
+            orderId: order._id,
+            itemCount,
+            totalAmount: Number(order.totalAmount || 0),
+            paymentMode: order.paymentMode,
+            deliveryFeeWaived: Boolean(order.deliveryFeeWaived),
+            deliveryFeeLocked: Boolean(order.deliveryFeeLocked),
+            event: 'order_placed'
+          }
+        }),
+      { label: 'checkout_notify_seller_immediately' }
+    );
+  });
+
   // Post-checkout side effects are best-effort and should never delay or fail the checkout response.
   void dispatchSideEffect(
     'checkout',
@@ -1940,33 +1984,6 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
         await ensureOrderProductSlugs(populated);
       },
       { label: 'checkout_post_response_populate_and_slug_orders' }
-    );
-
-    await safeAsync(
-      async () =>
-        Promise.all(
-          createdOrders.map((order, index) => {
-            const { sellerId, items } = orderPayloads[index];
-            const itemCount = items.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
-            const totalAmount = Number(order.totalAmount || 0);
-            const productId = items[0]?.product || null;
-            return createNotification({
-              userId: sellerId,
-              actorId: userId,
-              productId,
-              type: 'order_received',
-              metadata: {
-                orderId: order._id,
-                itemCount,
-                totalAmount,
-                paymentMode: order.paymentMode,
-                deliveryFeeWaived: Boolean(order.deliveryFeeWaived),
-                deliveryFeeLocked: Boolean(order.deliveryFeeLocked)
-              }
-            });
-          })
-        ),
-      { label: 'checkout_notify_sellers' }
     );
 
     await safeAsync(
@@ -3907,10 +3924,16 @@ export const userSkipCancellationWindow = asyncHandler(async (req, res) => {
       userId: sellerId,
       actorId: userId,
       type: 'order_cancellation_window_skipped',
+      pushEnabled: true,
+      channels: ['IN_APP', 'PUSH'],
+      deepLink: `/seller/orders/detail/${order._id}`,
+      entityType: 'order',
+      entityId: String(order._id),
       metadata: {
         title: 'Délai d’annulation levé',
         message: 'Le client a autorisé le traitement immédiat de la commande.',
-        orderId: String(order._id)
+        orderId: String(order._id),
+        event: 'processing_authorized'
       },
       allowSelf: false,
       priority: 'HIGH'
@@ -4194,6 +4217,11 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   order.deliverySubmittedAt = now;
   order.deliveryStatus = isPlatformDeliveryOrderFlow ? 'verified' : 'submitted';
   order.deliveryProofAttemptCount = Number(order.deliveryProofAttemptCount || 0) + 1;
+  if (order.paymentType === 'installment') {
+    order.installmentSaleStatus = isPlatformDeliveryOrderFlow
+      ? isPickupOrder ? 'picked_up_confirmed' : 'delivered'
+      : 'delivery_proof_submitted';
+  }
   order.status = isPlatformDeliveryOrderFlow
     ? 'delivered'
     : 'delivery_proof_submitted';
@@ -4406,6 +4434,9 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
 
   const previousStatus = order.status;
   order.status = 'completed';
+  if (order.paymentType === 'installment') {
+    order.installmentSaleStatus = isPickupOrderConfirmation ? 'picked_up_confirmed' : 'delivered';
+  }
   order.clientDeliveryConfirmedAt = order.clientDeliveryConfirmedAt || now;
   if (!order.completedAt) {
     order.completedAt = now;
@@ -4673,6 +4704,9 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
       }
       if (status === 'delivering' && !order.shippedAt) {
         order.shippedAt = saleStatusChangedAt;
+      }
+      if (status === 'ready_for_pickup' && !order.readyForPickupAt) {
+        order.readyForPickupAt = saleStatusChangedAt;
       }
       if (status === 'delivered' && !order.deliveredAt) {
         order.deliveredAt = order.deliveryDate || saleStatusChangedAt;

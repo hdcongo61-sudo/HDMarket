@@ -633,7 +633,7 @@ export default function VerifiedShops() {
                         </span>
                         <span className="inline-flex items-center gap-1.5">
                           <ShoppingCart className="h-4 w-4 text-gray-700" />
-                          {formatCount(shop.productCount || 0)}
+                          {formatCount(shop.productCount || 0)} annonce{Number(shop.productCount || 0) > 1 ? 's' : ''}
                         </span>
                         <span className="inline-flex items-center gap-1.5">
                           <Eye className="h-4 w-4 text-gray-500" />

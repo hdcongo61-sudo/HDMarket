@@ -32,6 +32,7 @@ const SELLER_ALLOWED_STATUSES = new Set([
 
 const SELLER_ALLOWED_INSTALLMENT_SALE_STATUSES = new Set([
   'confirmed',
+  'ready_for_pickup',
   'delivering',
   'delivered',
   'cancelled'
@@ -117,15 +118,24 @@ export const getOrderAllowedActions = (order = {}, options = {}) => {
 
   if (installmentOrder) {
     const allSettled = hasAllInstallmentsSettled(order);
-    if (!allSettled || status !== 'completed') {
+    const saleStatus = toStatus(order.installmentSaleStatus || 'confirmed');
+    if (allSettled && saleStatus === 'delivery_proof_submitted') {
+      pushAction(actions.seller, buildAction('wait_client_confirmation', null));
+    } else if (!allSettled || status !== 'completed') {
       if (status === 'pending_installment') {
         pushAction(actions.seller, buildAction('confirm_installment_sale', 'installment_active'));
       }
       pushAction(actions.seller, buildAction('wait_installment_settlement', null));
     } else {
-      const saleStatus = toStatus(order.installmentSaleStatus || 'confirmed');
       if (!saleStatus || saleStatus === 'confirmed') {
-        pushAction(actions.seller, buildAction('start_delivery', 'delivering'));
+        pushAction(
+          actions.seller,
+          pickupOrder
+            ? buildAction('mark_ready_for_pickup', 'ready_for_pickup')
+            : buildAction('start_delivery', 'delivering')
+        );
+      } else if (pickupOrder && saleStatus === 'ready_for_pickup') {
+        pushAction(actions.seller, buildAction('submit_pickup_proof', null));
       } else if (saleStatus === 'delivering') {
         pushAction(actions.seller, buildAction('submit_delivery_proof', 'delivered'));
       }
@@ -202,7 +212,10 @@ export const assertSellerStatusTransition = ({ order, nextStatus }) => {
     }
 
     const previousSaleStatus = toStatus(order?.installmentSaleStatus || 'confirmed');
-    if (status === 'delivering' && previousSaleStatus !== 'confirmed') {
+    if (status === 'ready_for_pickup' && (!isPickupOrder(order) || previousSaleStatus !== 'confirmed')) {
+      throwTransitionError('La commande doit être en préparation avant de passer au retrait.');
+    }
+    if (status === 'delivering' && (isPickupOrder(order) || previousSaleStatus !== 'confirmed')) {
       throwTransitionError('La vente doit être confirmée avant de passer en livraison.');
     }
     if (status === 'delivered' && previousSaleStatus !== 'delivering') {
@@ -288,6 +301,17 @@ export const assertSellerCanSubmitDeliveryProof = ({ order, deliveryProofResubmi
   }
   if (toStatus(order?.paymentType) === 'installment' && !hasAllInstallmentsSettled(order)) {
     throwTransitionError('La livraison est disponible uniquement après paiement complet de toutes les tranches.');
+  }
+  if (toStatus(order?.paymentType) === 'installment') {
+    const saleStatus = toStatus(order?.installmentSaleStatus || 'confirmed');
+    const expectedStatus = pickupOrder ? 'ready_for_pickup' : 'delivering';
+    if (saleStatus !== expectedStatus) {
+      throwTransitionError(
+        pickupOrder
+          ? 'La commande doit être prête à récupérer avant la preuve de retrait.'
+          : 'La commande doit être en livraison avant la preuve de livraison.'
+      );
+    }
   }
 
   if (

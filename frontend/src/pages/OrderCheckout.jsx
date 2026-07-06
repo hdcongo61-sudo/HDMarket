@@ -8,6 +8,7 @@ import {
   CreditCard,
   ShieldCheck,
   CheckCircle,
+  Check,
   ClipboardList,
   ArrowLeft,
   ShoppingBag,
@@ -494,7 +495,7 @@ export default function OrderCheckout() {
         remainingLabel: 'Code à saisir',
         remaining: 0,
         remainingDisplay: 'Aucun',
-        tone: 'success',
+        tone: 'wallet',
         bullets: [
           'Aucun code transaction',
           'Aucun acompte frontend',
@@ -516,7 +517,7 @@ export default function OrderCheckout() {
         remainingLabel: 'Réglé par',
         remaining: 0,
         remainingDisplay: 'Le proche',
-        tone: 'installment',
+        tone: 'sponsor',
         bullets: [
           'Il reçoit une notification',
           'Il approuve puis paie',
@@ -1675,37 +1676,63 @@ export default function OrderCheckout() {
                   {paymentModeCards.map((option) => {
                     const selected = paymentMode === option.id;
                     const Icon = option.icon;
-                    const isSuccess = option.tone === 'success';
-                    const isInstallment = option.tone === 'installment';
-                    const toneClasses = isSuccess
-                      ? {
-                          card: selected
-                            ? 'border-emerald-500 bg-emerald-50 shadow-[0_14px_30px_rgba(16,185,129,0.16)] ring-2 ring-emerald-100'
-                            : 'border-slate-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/35',
-                          icon: selected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700',
-                          badge: selected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700',
-                          amount: 'text-emerald-700',
-                          chip: 'bg-white text-emerald-700 ring-emerald-100'
-                        }
-                      : isInstallment
-                        ? {
-                            card: selected
-                              ? 'border-amber-500 bg-amber-50 shadow-[0_14px_30px_rgba(245,158,11,0.16)] ring-2 ring-amber-100'
-                              : 'border-slate-200 bg-white hover:border-amber-200 hover:bg-amber-50/35',
-                            icon: selected ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700',
-                            badge: selected ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700',
-                            amount: 'text-amber-700',
-                            chip: 'bg-white text-amber-700 ring-amber-100'
-                          }
-                        : {
-                            card: selected
-                              ? 'border-[#ff6a00] bg-gray-100 shadow-[0_14px_30px_rgba(255,106,0,0.16)] ring-2 ring-gray-200'
-                              : 'border-slate-200 bg-white hover:border-gray-200 hover:bg-gray-100/35',
-                            icon: selected ? 'bg-[#ff6a00] text-white' : 'bg-gray-100 text-[#ff6a00]',
-                            badge: selected ? 'bg-[#ff6a00] text-white' : 'bg-gray-100 text-gray-500',
-                            amount: 'text-gray-950',
-                            chip: 'bg-white text-gray-500 ring-gray-200'
-                          };
+                    // Every card carries its mode's tint permanently (not just on hover), so all
+                    // options read as visually distinct at rest. Selecting one deepens that same
+                    // tint and adds a solid check badge — the selected card looks like a natural
+                    // "more saturated" version of itself, not just the odd one out.
+                    const TONE_CLASSES = {
+                      success: {
+                        card: selected
+                          ? 'border-emerald-500 bg-emerald-100 shadow-[0_14px_30px_rgba(16,185,129,0.18)] ring-2 ring-emerald-200'
+                          : 'border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:bg-emerald-100/70',
+                        icon: selected ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-700 ring-1 ring-emerald-200',
+                        badge: selected ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-700 ring-1 ring-emerald-200',
+                        amount: 'text-emerald-700',
+                        chip: 'bg-white text-emerald-700 ring-emerald-100',
+                        checkBadge: 'bg-emerald-600'
+                      },
+                      installment: {
+                        card: selected
+                          ? 'border-amber-500 bg-amber-100 shadow-[0_14px_30px_rgba(245,158,11,0.18)] ring-2 ring-amber-200'
+                          : 'border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100/70',
+                        icon: selected ? 'bg-amber-500 text-white' : 'bg-white text-amber-700 ring-1 ring-amber-200',
+                        badge: selected ? 'bg-amber-500 text-white' : 'bg-white text-amber-700 ring-1 ring-amber-200',
+                        amount: 'text-amber-700',
+                        chip: 'bg-white text-amber-700 ring-amber-100',
+                        checkBadge: 'bg-amber-500'
+                      },
+                      wallet: {
+                        card: selected
+                          ? 'border-sky-500 bg-sky-100 shadow-[0_14px_30px_rgba(14,165,233,0.18)] ring-2 ring-sky-200'
+                          : 'border-sky-200 bg-sky-50 hover:border-sky-300 hover:bg-sky-100/70',
+                        icon: selected ? 'bg-sky-600 text-white' : 'bg-white text-sky-700 ring-1 ring-sky-200',
+                        badge: selected ? 'bg-sky-600 text-white' : 'bg-white text-sky-700 ring-1 ring-sky-200',
+                        amount: 'text-sky-700',
+                        chip: 'bg-white text-sky-700 ring-sky-100',
+                        checkBadge: 'bg-sky-600'
+                      },
+                      sponsor: {
+                        card: selected
+                          ? 'border-violet-500 bg-violet-100 shadow-[0_14px_30px_rgba(139,92,246,0.18)] ring-2 ring-violet-200'
+                          : 'border-violet-200 bg-violet-50 hover:border-violet-300 hover:bg-violet-100/70',
+                        icon: selected ? 'bg-violet-600 text-white' : 'bg-white text-violet-700 ring-1 ring-violet-200',
+                        badge: selected ? 'bg-violet-600 text-white' : 'bg-white text-violet-700 ring-1 ring-violet-200',
+                        amount: 'text-violet-700',
+                        chip: 'bg-white text-violet-700 ring-violet-100',
+                        checkBadge: 'bg-violet-600'
+                      },
+                      neutral: {
+                        card: selected
+                          ? 'border-[#ff6a00] bg-orange-100 shadow-[0_14px_30px_rgba(255,106,0,0.18)] ring-2 ring-orange-200'
+                          : 'border-orange-200 bg-orange-50 hover:border-orange-300 hover:bg-orange-100/70',
+                        icon: selected ? 'bg-[#ff6a00] text-white' : 'bg-white text-[#ff6a00] ring-1 ring-orange-200',
+                        badge: selected ? 'bg-[#ff6a00] text-white' : 'bg-white text-[#ff6a00] ring-1 ring-orange-200',
+                        amount: 'text-[#b45309]',
+                        chip: 'bg-white text-[#b45309] ring-orange-100',
+                        checkBadge: 'bg-[#ff6a00]'
+                      }
+                    };
+                    const toneClasses = TONE_CLASSES[option.tone] || TONE_CLASSES.neutral;
 
                     return (
                       <button
@@ -1716,7 +1743,10 @@ export default function OrderCheckout() {
                         aria-pressed={selected}
                       >
                         {selected && (
-                          <span className="absolute right-0 top-0 rounded-bl-2xl bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white">
+                          <span
+                            className={`absolute right-3 top-3 inline-flex items-center gap-1 rounded-full py-1 pl-1 pr-2.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ${toneClasses.checkBadge}`}
+                          >
+                            <Check size={13} strokeWidth={3} className="rounded-full bg-white/25 p-0.5" />
                             Sélectionné
                           </span>
                         )}

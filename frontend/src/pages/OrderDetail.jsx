@@ -40,6 +40,7 @@ import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
 import InstallmentReminder from '../components/orders/InstallmentReminder';
+import InstallmentOrderTracking from '../components/orders/InstallmentOrderTracking';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import BaseModal from '../components/modals/BaseModal';
@@ -53,6 +54,7 @@ import { useToast } from '../context/ToastContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 import useReliableMutation from '../hooks/useReliableMutation';
 import { getInstallmentWorkflow } from '../utils/installmentTracking';
+import { isOrderFulfilmentComplete } from '../utils/orderStatusEngine';
 import useBuyerOrderDetailQuery from '../hooks/useBuyerOrderDetailQuery';
 import useBuyerOrderStatusMutation from '../hooks/useBuyerOrderStatusMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
@@ -171,6 +173,7 @@ const isEnabledFlag = (value, fallback = false) => {
 const resolveOrderPaymentMode = (order) => {
   const paymentSource = String(order?.paymentSource || '').trim().toLowerCase();
   const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
+  if (order?.sponsoredPayment?.isSponsored) return 'SPONSOR';
   if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
     paymentSource === 'wallet' ||
@@ -195,10 +198,24 @@ const getPaymentModeLabel = (mode) => {
       return 'Paiement par tranche';
     case 'FULL_PAYMENT':
       return 'Paiement intégral';
+    case 'SPONSOR':
+      return 'Paiement par un proche';
     default:
       return 'Paiement classique';
   }
 };
+
+// One consistent color per payment mode across checkout and order detail, so a
+// user learns "orange = classique, emerald = intégral, amber = tranche, bleu =
+// portefeuille, violet = proche" once and recognizes it everywhere.
+const PAYMENT_MODE_BADGE_CLASSES = {
+  STANDARD: 'border-orange-200 bg-orange-50 text-[#B45309] dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300',
+  FULL_PAYMENT: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
+  INSTALLMENT: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
+  WALLET: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300',
+  SPONSOR: 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-300'
+};
+const getPaymentModeBadgeClasses = (mode) => PAYMENT_MODE_BADGE_CLASSES[mode] || PAYMENT_MODE_BADGE_CLASSES.STANDARD;
 
 const getEffectiveOrderStatus = (order) => {
   if (!order) return 'pending';
@@ -1233,6 +1250,17 @@ export default function OrderDetail() {
   const effectiveOrderStatus = isInstallmentOrder
     ? installmentWorkflow?.workflowStatus || order.status
     : getEffectiveOrderStatus(order);
+  const pickupOrder = isPickupOrder(order);
+  const displayOrderStatus =
+    isInstallmentOrder && effectiveOrderStatus === 'completed'
+      ? pickupOrder
+        ? ['delivered', 'picked_up_confirmed'].includes(installmentSaleStatus)
+          ? 'picked_up_confirmed'
+          : installmentSaleStatus === 'ready_for_pickup'
+            ? 'ready_for_pickup'
+            : 'confirmed'
+        : installmentSaleStatus || 'confirmed'
+      : effectiveOrderStatus;
   const showPayment = Boolean(
     isInstallmentOrder ||
       paidAmount ||
@@ -1242,7 +1270,6 @@ export default function OrderDetail() {
   const createdBySelf = order.createdBy?._id && order.customer?._id ? order.createdBy._id === order.customer._id : false;
   const createdByLabel = createdBySelf ? 'Vous' : order.createdBy?.name || order.createdBy?.email || 'Admin HDMarket';
   const StatusIcon = STATUS_ICONS[effectiveOrderStatus] || Clock;
-  const pickupOrder = isPickupOrder(order);
   const pickupShopAddress = pickupOrder ? getPickupShopAddress(order) : null;
   const normalizedBuyerAccountType = String(
     order?.customer?.accountType || user?.accountType || ''
@@ -1352,7 +1379,7 @@ export default function OrderDetail() {
         title={`Commande #${order._id.slice(-6)}`}
         subtitle="Détail client"
         backTo="/orders"
-        right={<StatusBadge status={effectiveOrderStatus} compact />}
+        right={<StatusBadge status={displayOrderStatus} compact />}
       />
       {order.sponsoredPayment?.isSponsored && (
         <div className="mx-auto max-w-5xl px-4 pt-4">
@@ -1449,7 +1476,8 @@ export default function OrderDetail() {
             </div>
           </div>
 
-          {(() => {
+          {isInstallmentOrder && <InstallmentOrderTracking order={order} isPickup={pickupOrder} />}
+          {!isInstallmentOrder && (() => {
             const cancelled = effectiveOrderStatus === 'cancelled';
             const steps = buildProgressSteps({ isInstallment: isInstallmentOrder, isPickup: pickupOrder });
             const stepIndex = cancelled
@@ -1854,7 +1882,11 @@ export default function OrderDetail() {
                       </span>
                     )}
                   </div>
-                  <span className="text-sm font-black text-slate-950">{paymentModeLabel}</span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${getPaymentModeBadgeClasses(orderPaymentMode)}`}
+                  >
+                    {paymentModeLabel}
+                  </span>
                 </div>
                 {showDeliveryFeeRow && (
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1980,7 +2012,7 @@ export default function OrderDetail() {
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
                   <span className="font-semibold">
-                    {saleConfirmationConfirmed ? 'Confirmée par le vendeur' : 'En attente de confirmation vendeur'}
+                    {saleConfirmationConfirmed ? 'Confirmée par vous' : 'En attente de confirmation vendeur'}
                   </span>
                 </p>
                 {installmentPlan?.guarantor?.required && (
@@ -2290,7 +2322,7 @@ export default function OrderDetail() {
 
             <div className="space-y-3">
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
-              {['delivered', 'completed', 'confirmed_by_client'].includes(effectiveOrderStatus) &&
+              {isOrderFulfilmentComplete(order) &&
                 order.items?.length > 0 && (
                 <button type="button" onClick={handleReorder} disabled={reordering} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FF6A00] px-6 py-3 font-black text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] disabled:opacity-50">
                   {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}

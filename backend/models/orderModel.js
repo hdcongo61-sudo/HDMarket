@@ -244,7 +244,16 @@ const orderSchema = new mongoose.Schema(
     },
     installmentSaleStatus: {
       type: String,
-      enum: ['', 'confirmed', 'delivering', 'delivered', 'cancelled'],
+      enum: [
+        '',
+        'confirmed',
+        'ready_for_pickup',
+        'delivering',
+        'delivery_proof_submitted',
+        'delivered',
+        'picked_up_confirmed',
+        'cancelled'
+      ],
       default: ''
     },
     itemsSubtotal: { type: Number, default: 0, min: 0 },
