@@ -512,7 +512,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
   const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
   const installmentPaid = Number(installmentPlan?.amountPaid || 0);
   const installmentSaleStatus =
-    isInstallmentOrder && order.status === 'completed'
+    isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status)
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
   const installmentProgress =
@@ -520,7 +520,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
   const fullPaymentBadgeStatus = getFullPaymentBadgeStatus(order);
   const pickupCardStatus = getPickupCardStatus(order);
   const installmentFulfilmentBadge =
-    isInstallmentOrder && order.status === 'completed'
+    isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status)
       ? resolvePickupOrder(order)
         ? ['delivered', 'picked_up_confirmed'].includes(installmentSaleStatus)
           ? 'picked_up_confirmed'
@@ -605,7 +605,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
                   style={{ width: `${installmentProgress}%` }}
                 />
               </div>
-              {order.status === 'completed' && (
+              {['installment_paid', 'completed'].includes(order.status) && (
                 <p className="text-[11px] text-gray-500">
                   {t('orders.saleStatus', 'Statut vente')}: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || t('orders.confirmedFeminine', 'Confirmée')}
                 </p>

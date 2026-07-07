@@ -79,6 +79,7 @@ const ORDER_STATUS = [
   'pending',
   'pending_installment',
   'installment_active',
+  'installment_paid',
   'overdue_installment',
   'dispute_opened',
   'confirmed',
@@ -97,7 +98,7 @@ const ORDER_STATUS_GROUPS = {
     pickup: ['ready_for_pickup', 'picked_up_confirmed'],
     delivery: ['out_for_delivery', 'delivering', 'delivery_proof_submitted'],
     proof: ['delivery_proof_submitted'],
-    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'installment_paid', 'completed'],
     completed: ['confirmed_by_client', 'delivered', 'completed'],
     cancelled: ['cancelled']
   },
@@ -108,7 +109,7 @@ const ORDER_STATUS_GROUPS = {
     pickup: ['ready_for_pickup', 'picked_up_confirmed'],
     proof: ['delivery_proof_submitted'],
     payment: ['pending_payment', 'paid', 'pending_installment', 'installment_active', 'overdue_installment'],
-    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'installment_paid', 'completed'],
     late: ['overdue_installment'],
     completed: ['picked_up_confirmed', 'confirmed_by_client', 'delivered', 'completed'],
     cancelled: ['cancelled'],
@@ -130,7 +131,7 @@ const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } 
         {
           $or: [
             { status },
-            { paymentType: 'installment', status: 'completed', installmentSaleStatus: status }
+            { paymentType: 'installment', status: { $in: ['installment_paid', 'completed'] }, installmentSaleStatus: status }
           ]
         }
       ];
@@ -153,6 +154,15 @@ const WALLET_ESCROW_RELEASE_STATUSES = new Set([
   'confirmed_by_client',
   'completed'
 ]);
+
+const isOrderFulfilmentFinal = (order) =>
+  ['delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(
+    String(order?.status || '').toLowerCase()
+  ) ||
+  (String(order?.paymentType || '').toLowerCase() === 'installment' &&
+    ['delivered', 'picked_up_confirmed'].includes(
+      String(order?.installmentSaleStatus || '').toLowerCase()
+    ));
 
 const getWalletPaidAmountForOrder = (order) => {
   if (String(order?.paymentType || '').toLowerCase() === 'installment') {
@@ -311,7 +321,7 @@ const buildOrderSummary = async ({ baseFilter, role = 'buyer' }) => {
                 {
                   $in: [
                     '$status',
-                    ['pending_payment', 'paid', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'pending', 'confirmed', 'delivering', 'installment_active']
+                    ['pending_payment', 'paid', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'pending', 'confirmed', 'delivering', 'installment_active', 'installment_paid']
                   ]
                 },
                 1,
@@ -2792,7 +2802,7 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
     // Prevent cancelling already delivered orders
     if (
       status === 'cancelled' &&
-      ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)
+      (order.status === 'delivery_proof_submitted' || isOrderFulfilmentFinal(order))
     ) {
       return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
     }
@@ -3633,7 +3643,7 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
   // Prevent cancelling already delivered orders
   if (
     status === 'cancelled' &&
-    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)
+    (order.status === 'delivery_proof_submitted' || isOrderFulfilmentFinal(order))
   ) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
   }
@@ -5342,7 +5352,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   }
 
   // Prevent cancelling already delivered or cancelled orders
-  if (['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)) {
+  if (order.status === 'delivery_proof_submitted' || isOrderFulfilmentFinal(order)) {
     return res.status(400).json({ message: 'Impossible d\'annuler une commande déjà livrée.' });
   }
   if (order.status === 'cancelled') {

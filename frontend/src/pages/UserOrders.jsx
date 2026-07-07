@@ -244,7 +244,7 @@ const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const getEffectiveOrderStatus = (order) => {
   if (!order) return 'pending';
-  if (order.paymentType === 'installment' && order.status === 'completed') {
+  if (order.paymentType === 'installment' && ['installment_paid', 'completed'].includes(order.status)) {
     return order.installmentSaleStatus || 'confirmed';
   }
   const map = {
@@ -834,13 +834,13 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
   const installmentTotal = Number(installmentPlan?.totalAmount ?? totalAmount);
   const installmentPaid = Number(installmentPlan?.amountPaid || 0);
   const installmentSaleStatus =
-    isInstallmentOrder && order.status === 'completed'
+    isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status)
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
   const effectiveStatus = getEffectiveOrderStatus(order);
   const pickupCardStatus = getPickupCardStatus(order);
   const installmentFulfilmentBadge =
-    isInstallmentOrder && order.status === 'completed' && pickupOrder
+    isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status) && pickupOrder
       ? ['delivered', 'picked_up_confirmed'].includes(installmentSaleStatus)
         ? 'picked_up_confirmed'
         : installmentSaleStatus === 'ready_for_pickup'
@@ -933,7 +933,7 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
                   {t('orders.nextDueDate', 'Prochaine échéance')}: {new Date(installmentPlan.nextDueDate).toLocaleDateString('fr-FR')}
                 </p>
               )}
-              {order.status === 'completed' && (
+              {['installment_paid', 'completed'].includes(order.status) && (
                 <p className="text-[11px] text-gray-500">
                   {t('orders.saleStatus', 'Statut vente')}: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || t('orders.confirmedFeminine', 'Confirmée')}
                 </p>

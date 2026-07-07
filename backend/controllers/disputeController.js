@@ -368,7 +368,7 @@ export const createDispute = asyncHandler(async (req, res) => {
   if (String(order.customer) !== String(userId)) {
     return res.status(403).json({ message: 'Cette commande ne vous appartient pas.' });
   }
-  if (!['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'].includes(order.status)) {
+  if (!['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)) {
     return res.status(400).json({ message: 'Le litige est possible uniquement après livraison.' });
   }
 

@@ -935,7 +935,7 @@ export default function SellerOrderDetail() {
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const saleConfirmationConfirmed = Boolean(installmentWorkflow?.saleConfirmed);
   const installmentSaleStatus =
-    isInstallmentOrder && order.status === 'completed'
+    isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status)
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
   const showPayment = Boolean(
@@ -1065,7 +1065,9 @@ export default function SellerOrderDetail() {
     !isPickupOrder &&
     !['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'DELIVERED'].includes(platformDeliveryStatus) &&
     !['cancelled', 'completed'].includes(order.status);
-  const cancellationBlockedByStatus = ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status);
+  const cancellationBlockedByStatus =
+    ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status) ||
+    (isInstallmentOrder && ['delivery_proof_submitted', 'delivered', 'picked_up_confirmed'].includes(installmentSaleStatus));
   const canCancelOrder = !cancellationBlockedByStatus && order.status !== 'cancelled' && !order.cancellationWindow?.isActive;
   const sellerPrimaryAction = getPrimaryActionMeta(order);
   const toggleDeliveryProofForm = () => {
@@ -1543,7 +1545,7 @@ export default function SellerOrderDetail() {
                             </span>
                           </p>
                         </div>
-                        {order.status === 'completed' && (
+                        {['installment_paid', 'completed'].includes(order.status) && (
                           <div className="pt-2 border-t border-gray-200">
                             <p className="text-xs text-gray-600 mb-1">Statut de vente</p>
                             <span

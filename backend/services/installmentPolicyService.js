@@ -72,7 +72,7 @@ export const getNextDueDate = (schedule = []) => {
 
 export const deriveInstallmentOrderStatus = (schedule = []) => {
   const hasOpenInstallments = schedule.some((entry) => !isScheduleEntrySettled(entry));
-  if (!hasOpenInstallments) return 'completed';
+  if (!hasOpenInstallments) return 'installment_paid';
   const hasOverdueInstallments = schedule.some((entry) => String(entry?.status || '') === 'overdue');
   return hasOverdueInstallments ? 'overdue_installment' : 'installment_active';
 };

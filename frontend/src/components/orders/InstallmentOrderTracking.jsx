@@ -15,7 +15,10 @@ const ProgressBar = ({ value, locked = false }) => (
 export default function InstallmentOrderTracking({ order, isPickup = false }) {
   const schedule = Array.isArray(order?.installmentPlan?.schedule) ? order.installmentPlan.schedule : [];
   const paidCount = schedule.filter((entry) => ['paid', 'waived'].includes(String(entry?.status || ''))).length;
-  const paymentComplete = schedule.length > 0 && paidCount === schedule.length && String(order?.status || '') === 'completed';
+  const paymentComplete =
+    schedule.length > 0 &&
+    paidCount === schedule.length &&
+    ['installment_paid', 'completed'].includes(String(order?.status || ''));
   const paymentPercent = schedule.length ? Math.round((paidCount / schedule.length) * 100) : Number(order?.installmentProgress?.percent || 0);
   const saleStatus = String(order?.installmentSaleStatus || 'confirmed').toLowerCase();
   const proofSubmitted = ['submitted', 'verified'].includes(String(order?.deliveryStatus || '').toLowerCase());

@@ -121,7 +121,7 @@ export const getOrderAllowedActions = (order = {}, options = {}) => {
     const saleStatus = toStatus(order.installmentSaleStatus || 'confirmed');
     if (allSettled && saleStatus === 'delivery_proof_submitted') {
       pushAction(actions.seller, buildAction('wait_client_confirmation', null));
-    } else if (!allSettled || status !== 'completed') {
+    } else if (!allSettled || !['installment_paid', 'completed'].includes(status)) {
       if (status === 'pending_installment') {
         pushAction(actions.seller, buildAction('confirm_installment_sale', 'installment_active'));
       }
@@ -201,7 +201,7 @@ export const assertSellerStatusTransition = ({ order, nextStatus }) => {
   }
 
   if (toStatus(order?.paymentType) === 'installment') {
-    if (currentStatus !== 'completed' || !hasAllInstallmentsSettled(order)) {
+    if (!['installment_paid', 'completed'].includes(currentStatus) || !hasAllInstallmentsSettled(order)) {
       throwTransitionError(
         'Le statut de vente de la commande tranche peut être mis à jour uniquement après paiement complet des tranches.'
       );
@@ -294,7 +294,7 @@ export const assertSellerCanSubmitDeliveryProof = ({ order, deliveryProofResubmi
     throwTransitionError('Impossible de soumettre une preuve pour une commande annulée.');
   }
 
-  if (toStatus(order?.paymentType) === 'installment' && status !== 'completed') {
+  if (toStatus(order?.paymentType) === 'installment' && !['installment_paid', 'completed'].includes(status)) {
     throwTransitionError(
       'La preuve de livraison est disponible après la complétion du paiement en tranches.'
     );

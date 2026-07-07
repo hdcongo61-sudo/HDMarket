@@ -178,6 +178,7 @@ const orderSchema = new mongoose.Schema(
         'pending',
         'pending_installment',
         'installment_active',
+        'installment_paid',
         'overdue_installment',
         'dispute_opened',
         'confirmed',

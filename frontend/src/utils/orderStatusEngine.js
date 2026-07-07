@@ -7,7 +7,7 @@ const ORDER_GROUP_STATUS_MAP = {
     pickup: ['ready_for_pickup', 'picked_up_confirmed'],
     delivery: ['out_for_delivery', 'delivering', 'delivery_proof_submitted'],
     proof: ['delivery_proof_submitted'],
-    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'installment_paid', 'completed'],
     wallet: [],
     completed: ['confirmed_by_client', 'delivered', 'completed'],
     cancelled: ['cancelled']
@@ -20,7 +20,7 @@ const ORDER_GROUP_STATUS_MAP = {
     pickup: ['ready_for_pickup', 'picked_up_confirmed'],
     proof: ['delivery_proof_submitted'],
     payment: ['pending_payment', 'paid', 'pending_installment', 'installment_active', 'overdue_installment'],
-    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'completed'],
+    installments: ['pending_installment', 'installment_active', 'overdue_installment', 'installment_paid', 'completed'],
     wallet: [],
     late: ['overdue_installment'],
     completed: ['picked_up_confirmed', 'confirmed_by_client', 'delivered', 'completed'],
@@ -98,7 +98,7 @@ export const getOrderItemCount = (order) =>
 
 export const getOrderDisplayStatus = (order) => {
   const rawStatus = String(order?.status || 'pending').toLowerCase();
-  if (String(order?.paymentType || '') === 'installment' && rawStatus === 'completed') {
+  if (String(order?.paymentType || '') === 'installment' && ['installment_paid', 'completed'].includes(rawStatus)) {
     return String(order?.installmentSaleStatus || 'confirmed').toLowerCase();
   }
   const normalized = {
@@ -115,11 +115,27 @@ export const getOrderDisplayStatus = (order) => {
 };
 
 export const getOrderProgress = (order) => {
+  if (String(order?.paymentType || '').toLowerCase() === 'installment') {
+    const schedule = Array.isArray(order?.installmentPlan?.schedule) ? order.installmentPlan.schedule : [];
+    const allSettled =
+      schedule.length > 0 &&
+      schedule.every((entry) => ['paid', 'waived'].includes(String(entry?.status || '').toLowerCase()));
+    if (!allSettled) {
+      const total = Number(order?.installmentPlan?.totalAmount || order?.totalAmount || 0);
+      const paid = Number(order?.installmentPlan?.amountPaid || order?.paidAmount || 0);
+      return total > 0 ? Math.max(0, Math.min(100, Math.round((paid / total) * 100))) : 0;
+    }
+    const saleStatus = String(order?.installmentSaleStatus || 'confirmed').toLowerCase();
+    if (['delivered', 'picked_up_confirmed'].includes(saleStatus)) return 100;
+    if (saleStatus === 'delivery_proof_submitted') return 67;
+    if (['delivering', 'ready_for_pickup'].includes(saleStatus)) return 33;
+    return 0;
+  }
   const status = getOrderDisplayStatus(order);
   if (['cancelled', 'dispute_opened'].includes(status)) return 0;
-  if (['completed', 'delivered'].includes(status)) return 100;
+  if (['completed', 'delivered', 'picked_up_confirmed', 'confirmed_by_client'].includes(status)) return 100;
   if (status === 'delivery_proof_submitted') return 85;
-  if (['delivering', 'pickup_ready'].includes(status)) return 75;
+  if (['delivering', 'pickup_ready', 'ready_for_pickup', 'out_for_delivery'].includes(status)) return 75;
   if (['confirmed', 'ready_for_delivery'].includes(status)) return 50;
   if (['payment_due', 'pending', 'pending_installment'].includes(status)) return 20;
   return 35;
@@ -234,7 +250,7 @@ export const getOrderPrimaryAction = (order, role = 'buyer') => {
     return { key: 'view', label: 'Voir le détail', tone: 'neutral' };
   }
 
-  if (payment.type === 'installment' && status === 'completed') {
+  if (payment.type === 'installment' && ['installment_paid', 'completed'].includes(status)) {
     const saleStatus = String(order?.installmentSaleStatus || 'confirmed').toLowerCase();
     if (role === 'seller') {
       if (saleStatus === 'confirmed') {

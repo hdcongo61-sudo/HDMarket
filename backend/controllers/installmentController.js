@@ -286,7 +286,7 @@ const calculateInstallmentEligibilityScore = async (customerId) => {
                 {
                   $and: [
                     { $eq: ['$paymentType', 'installment'] },
-                    { $eq: ['$status', 'completed'] }
+                    { $in: ['$status', ['installment_paid', 'completed']] }
                   ]
                 },
                 1,
@@ -427,9 +427,8 @@ const settleWalletInstallmentEntry = async ({ order, index, actorId, now = new D
   order.markModified('installmentPlan');
 
   const lifecycleStatus = deriveInstallmentOrderStatus(schedule);
-  if (lifecycleStatus === 'completed') {
-    order.status = 'completed';
-    order.completedAt = order.completedAt || now;
+  if (lifecycleStatus === 'installment_paid') {
+    order.status = 'installment_paid';
     order.paymentCompletedAt = order.paymentCompletedAt || now;
     order.installmentSaleStatus = order.installmentSaleStatus || 'confirmed';
   } else if (lifecycleStatus === 'overdue_installment') {
@@ -441,7 +440,7 @@ const settleWalletInstallmentEntry = async ({ order, index, actorId, now = new D
   }
 
   await order.save();
-  if (lifecycleStatus === 'completed') {
+  if (lifecycleStatus === 'installment_paid') {
     await Promise.allSettled(
       (order.items || []).map(async (item) => {
         if (!item?.product) return;
@@ -1213,11 +1212,8 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
 
   const lifecycleStatus = deriveInstallmentOrderStatus(schedule);
 
-  if (lifecycleStatus === 'completed') {
-    order.status = 'completed';
-    if (!order.completedAt) {
-      order.completedAt = now;
-    }
+  if (lifecycleStatus === 'installment_paid') {
+    order.status = 'installment_paid';
     if (!order.installmentSaleStatus) {
       order.installmentSaleStatus = 'confirmed';
     }
@@ -1268,7 +1264,7 @@ export const sellerValidateInstallmentPayment = asyncHandler(async (req, res) =>
     allowSelf: true
   });
 
-  if (order.status === 'completed') {
+  if (order.status === 'installment_paid') {
     await createNotification({
       userId: order.customer,
       actorId: userId,
@@ -1322,7 +1318,7 @@ export const sellerInstallmentAnalytics = asyncHandler(async (req, res) => {
         },
         completedOrders: {
           $sum: {
-            $cond: [{ $eq: ['$status', 'completed'] }, 1, 0]
+            $cond: [{ $in: ['$status', ['installment_paid', 'completed']] }, 1, 0]
           }
         }
       }

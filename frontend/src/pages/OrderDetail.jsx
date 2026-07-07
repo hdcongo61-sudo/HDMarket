@@ -1244,7 +1244,7 @@ export default function OrderDetail() {
     installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
   const saleConfirmationConfirmed = Boolean(installmentWorkflow?.saleConfirmed);
   const installmentSaleStatus =
-    isInstallmentOrder && order.status === 'completed'
+    isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status)
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
   const effectiveOrderStatus = isInstallmentOrder
@@ -1867,6 +1867,14 @@ export default function OrderDetail() {
                     )}
                   </div>
                 )}
+                {deliveryConfirmationDone && (
+                  <Link
+                    to={`/reclamations?orderId=${order._id}`}
+                    className="inline-flex rounded-full border border-red-100 bg-red-50 px-4 py-2.5 text-xs font-black text-red-700 hover:bg-red-100"
+                  >
+                    Signaler un problème / Ouvrir un litige
+                  </Link>
+                )}
               </div>
             )}
 
@@ -1969,7 +1977,7 @@ export default function OrderDetail() {
                             </span>
                           </p>
                         </div>
-                        {order.status === 'completed' && (
+                        {['installment_paid', 'completed'].includes(order.status) && (
                           <div className="pt-2 border-t border-gray-200 text-xs text-gray-600">
                             <p>
                               Statut de vente:{' '}
