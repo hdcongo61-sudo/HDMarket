@@ -92,14 +92,13 @@ const getPaymentSortTimestamp = (payment) => {
   }
   return 0;
 };
+// Statuts de la file annonces uniquement — les vues portefeuille sont un espace à part,
+// accessible via le sélecteur du header (toujours visible).
 const paymentFilterOptions = [
   { value: 'waiting', label: 'En attente' },
   { value: 'verified', label: 'Validés' },
   { value: 'rejected', label: 'Rejetés' },
-  { value: 'disabled_products', label: 'Annonces désactivées' },
-  { value: 'wallet_overview', label: 'Statistiques portefeuille' },
-  { value: 'wallet_deposits', label: 'Dépôts portefeuille' },
-  { value: 'wallet_withdrawals', label: 'Retraits portefeuille' }
+  { value: 'disabled_products', label: 'Annonces désactivées' }
 ];
 
 const walletDepositStatusOptions = [
@@ -109,25 +108,25 @@ const walletDepositStatusOptions = [
 ];
 
 const metricToneClasses = {
-  neutral: 'border-slate-200 bg-white text-slate-700',
-  amber: 'border-amber-200 bg-amber-50 text-amber-700',
-  green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  red: 'border-red-200 bg-red-50 text-red-700',
-  blue: 'border-sky-200 bg-sky-50 text-sky-700',
-  indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-  orange: 'border-gray-200 bg-gray-100 text-orange-700'
+  neutral: 'bg-gray-100 text-gray-600',
+  amber: 'bg-amber-50 text-amber-600',
+  green: 'bg-emerald-50 text-emerald-600',
+  red: 'bg-red-50 text-red-600',
+  blue: 'bg-sky-50 text-sky-600',
+  indigo: 'bg-indigo-50 text-indigo-600',
+  orange: 'bg-[#FFF0E4] text-[#FF6A00]'
 };
 
 const DashboardCard = ({ label, value, hint, icon: Icon, tone = 'neutral' }) => (
-  <article className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+  <article className="rounded-2xl border border-gray-100 bg-white p-4">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{label}</p>
-        <p className="mt-1 truncate text-2xl font-black tracking-tight text-slate-950">{value}</p>
-        {hint ? <p className="mt-1 text-xs font-semibold text-slate-500">{hint}</p> : null}
+        <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">{label}</p>
+        <p className="mt-1.5 truncate text-2xl font-black leading-none tracking-tight text-slate-950">{value}</p>
+        {hint ? <p className="mt-1.5 text-xs font-semibold text-gray-500">{hint}</p> : null}
       </div>
       {Icon ? (
-        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${metricToneClasses[tone] || metricToneClasses.neutral}`}>
+        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${metricToneClasses[tone] || metricToneClasses.neutral}`}>
           <Icon className="h-5 w-5" />
         </span>
       ) : null}
@@ -138,9 +137,9 @@ const DashboardCard = ({ label, value, hint, icon: Icon, tone = 'neutral' }) => 
 const SectionHeader = ({ eyebrow, title, description, action }) => (
   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div>
-      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{eyebrow}</p> : null}
+      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">{eyebrow}</p> : null}
       <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950">{title}</h2>
-      {description ? <p className="mt-1 text-xs font-semibold text-slate-500">{description}</p> : null}
+      {description ? <p className="mt-1 text-xs font-semibold text-gray-500">{description}</p> : null}
     </div>
     {action}
   </div>
@@ -678,16 +677,18 @@ export default function AdminPayments() {
   return (
     <div className="min-h-screen bg-slate-50/70">
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
-      <header className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <header className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
         <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#FF6A00]">
               <CreditCard className="h-6 w-6" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-wide text-orange-600">Finance operations</p>
+              <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+                Finances
+              </p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
-                {isManager ? 'Gestionnaire — Paiements' : 'Administration — Paiements'}
+                {isManager ? 'Gestionnaire — Paiements' : 'Paiements'}
               </h1>
               <p className="mt-1 max-w-2xl text-sm font-semibold text-slate-500">
                 Pilotez les validations, le portefeuille HDMarket, les preuves de paiement et les flux ecommerce.
@@ -698,19 +699,50 @@ export default function AdminPayments() {
             <button
               type="button"
               onClick={() => Promise.allSettled([loadStats(), loadPayments(), isWalletAdminPanel ? loadWalletStats() : Promise.resolve()])}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-gray-50 active:scale-[0.97]"
             >
               <RefreshCw className="h-4 w-4" />
               Actualiser
             </button>
             <Link
               to="/admin"
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-800"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-gray-50 active:scale-[0.97]"
             >
               <ArrowLeft className="h-4 w-4" />
               Tableau de bord
             </Link>
+            <Link
+              to="/admin/payment-verification"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#FF6A00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              File de vérification
+            </Link>
           </div>
+        </div>
+        {/* Sélecteur d'espace — toujours visible, y compris en mode portefeuille
+            (avant, entrer dans le portefeuille cachait tout retour vers la file annonces) */}
+        <div className="flex gap-1.5 border-t border-gray-100 px-5 py-3">
+          <button
+            type="button"
+            onClick={() => setFilter('waiting')}
+            className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition active:scale-[0.98] ${!isWalletAdminPanel
+              ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+              : 'text-slate-600 hover:bg-gray-100'}`}
+          >
+            <CreditCard className="h-4 w-4" />
+            Paiements annonces
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('wallet_overview')}
+            className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition active:scale-[0.98] ${isWalletAdminPanel
+              ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+              : 'text-slate-600 hover:bg-gray-100'}`}
+          >
+            <Wallet className="h-4 w-4" />
+            Portefeuille HDMarket
+          </button>
         </div>
       </header>
 
@@ -800,42 +832,40 @@ export default function AdminPayments() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 w-full md:w-auto">
-            {isMobileView ? (
-              <div className="-mx-1 flex flex-wrap gap-2 pb-1">
-                {paymentFilterOptions.map((option) => (
+            {/* Statuts uniquement — les vues portefeuille ont leur propre espace via le
+                sélecteur du header, plus de mélange statut/espace dans un même menu. */}
+            <div className="-mx-1 flex flex-wrap gap-2 pb-1">
+              {paymentFilterOptions.map((option) => {
+                const chipCount =
+                  option.value === 'waiting'
+                    ? Number(paymentSummary.waiting || 0)
+                    : option.value === 'verified'
+                      ? Number(paymentSummary.verified || 0)
+                      : option.value === 'rejected'
+                        ? Number(paymentSummary.rejected || 0)
+                        : 0;
+                const active = filter === option.value;
+                return (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setFilter(option.value)}
-                    className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${
-                      filter === option.value
-                        ? 'bg-neutral-600 text-white shadow'
-                        : 'border border-gray-200 bg-white text-gray-600'
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition active:scale-[0.97] ${
+                      active
+                        ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                        : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                     }`}
                   >
                     {option.label}
+                    {chipCount > 0 ? (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                        {chipCount > 99 ? '99+' : chipCount}
+                      </span>
+                    ) : null}
                   </button>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <label htmlFor="payments-status-filter" className="text-sm text-gray-600">
-                  Vue&nbsp;:
-                </label>
-                <select
-                  id="payments-status-filter"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="rounded border px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
-                >
-                  {paymentFilterOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                );
+              })}
+            </div>
             {!isWalletAdminPanel && (
               <>
                 <div className="w-full sm:w-64">
@@ -1363,7 +1393,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_overview')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_overview'
-                    ? 'bg-neutral-900 text-white'
+                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1374,7 +1404,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_deposits')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_deposits'
-                    ? 'bg-neutral-900 text-white'
+                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1385,7 +1415,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_withdrawals')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_withdrawals'
-                    ? 'bg-neutral-900 text-white'
+                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1507,7 +1537,7 @@ export default function AdminPayments() {
                 onClick={() => setWalletDepositStatus(option.value)}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                   walletDepositStatus === option.value
-                    ? 'bg-neutral-900 text-white'
+                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >

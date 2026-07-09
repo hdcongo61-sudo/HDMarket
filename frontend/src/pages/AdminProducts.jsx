@@ -145,48 +145,37 @@ const buildHistoryDetails = (details = {}) => {
   return lines;
 };
 
-const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => {
-  const iconColors = highlight
-    ? 'from-neutral-500 to-neutral-600'
-    : 'from-gray-400 to-gray-500';
-  
-  return (
-    <div className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
-      highlight
-        ? 'border-neutral-200/60 bg-gradient-to-br from-neutral-50/50 via-white to-neutral-50/30 shadow-md hover:shadow-lg'
-        : 'border-gray-200/60 dark:border-slate-700 bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-900 dark:to-slate-950 shadow-sm hover:shadow-md hover:border-neutral-200/40'
-    }`}>
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${highlight ? 'text-neutral-700' : 'text-gray-600 dark:text-slate-300'}`}>
-              {title}
-            </p>
-            <p className={`text-3xl font-bold mb-1 ${highlight ? 'bg-gradient-to-r from-neutral-600 to-neutral-600 bg-clip-text text-transparent' : 'text-gray-900 dark:text-slate-100'}`}>
-              {value}
-            </p>
-            {helper && (
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1.5 flex items-center gap-1">
-                {trend && (
-                  <TrendingUp size={12} className={trend > 0 ? 'text-green-500' : 'text-red-500'} />
-                )}
-                {helper}
-              </p>
+const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => (
+  <div className={`rounded-2xl border p-5 ${
+    highlight
+      ? 'border-orange-200 bg-[#FFF7F0] dark:border-orange-900/40 dark:bg-orange-950/20'
+      : 'border-gray-100 bg-white dark:border-slate-700 dark:bg-slate-900'
+  }`}>
+    <div className="flex items-start justify-between">
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-slate-400">
+          {title}
+        </p>
+        <p className={`mt-2 text-3xl font-black leading-none ${highlight ? 'text-[#FF6A00]' : 'text-gray-900 dark:text-slate-100'}`}>
+          {value}
+        </p>
+        {helper && (
+          <p className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-slate-400">
+            {trend && (
+              <TrendingUp size={12} className={trend > 0 ? 'text-emerald-500' : 'text-red-500'} />
             )}
-          </div>
-          {Icon && (
-            <div className={`ml-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${iconColors} text-white shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md`}>
-              <Icon size={22} strokeWidth={2.5} />
-            </div>
-          )}
-        </div>
+            {helper}
+          </p>
+        )}
       </div>
-      {highlight && (
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/0 via-neutral-500/0 to-neutral-500/0 transition-opacity duration-300 group-hover:from-neutral-500/5 group-hover:via-neutral-500/5 group-hover:to-neutral-500/5" />
+      {Icon && (
+        <span className="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+          <Icon size={20} strokeWidth={2.2} />
+        </span>
       )}
     </div>
-  );
-};
+  </div>
+);
 
 export default function AdminProducts() {
   const { categoryGroups } = useCategories();
@@ -518,40 +507,48 @@ export default function AdminProducts() {
   const topCategories = stats?.topCategories || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-neutral-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 border-b border-gray-200/60 pb-6 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-600 to-neutral-600 shadow-lg">
-                <Package size={24} className="text-white" strokeWidth={2.5} />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-neutral-900 to-neutral-900 bg-clip-text text-transparent dark:from-slate-100 dark:via-slate-200 dark:to-slate-300">
-                  Gestion des produits
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-slate-300 mt-1">
-                  Visualisez les annonces, filtrez-les et certifiez celles qui respectent la charte HDMarket.
-                </p>
-              </div>
+    <div className="min-h-screen bg-[#f5f5f5] dark:bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6 sm:px-6 lg:px-8">
+        <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 dark:border-slate-700 dark:bg-slate-900 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#FF6A00]">
+              <Package size={24} strokeWidth={2.2} />
+            </div>
+            <div>
+              <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+                Catalogue
+              </p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-gray-900 dark:text-slate-100 sm:text-3xl">
+                Gestion des produits
+              </h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-slate-300">
+                Visualisez les annonces, filtrez-les et certifiez celles qui respectent la charte HDMarket.
+              </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <Link
               to="/admin"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-slate-200 shadow-sm transition-all duration-200 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-neutral-300 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.97] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
             >
               <ArrowLeft size={16} />
-              Retour au tableau
+              Tableau de bord
             </Link>
             <button
               type="button"
               onClick={fetchProducts}
-              className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-100 hover:border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 transition hover:bg-gray-50 active:scale-[0.97] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
             >
-              <RefreshCcw size={16} className="transition-transform duration-300 hover:rotate-180" />
+              <RefreshCcw size={16} />
               Actualiser
             </button>
+            <Link
+              to="/admin/product-boosts"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#FF6A00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
+            >
+              <Sparkles size={16} />
+              Boosts
+            </Link>
           </div>
         </header>
 
@@ -583,153 +580,60 @@ export default function AdminProducts() {
           />
         </section>
 
-        {isAdminUser && (
-          <section className="rounded-2xl border border-neutral-100 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-neutral-50 flex items-center justify-center text-neutral-600">
-                <Users size={18} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wide">
-                  Accès gestion des produits
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  Autorisez un utilisateur à gérer et certifier les produits.
-                </p>
-              </div>
-            </div>
-
-            {managerMessage && (
-              <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800">
-                <AlertCircle size={16} />
-                {managerMessage}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                type="text"
-                placeholder="Rechercher un utilisateur (nom, email, téléphone)..."
-                value={userSearchQuery}
-                onChange={(e) => setUserSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                className="flex-1 rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={handleSearchUsers}
-                disabled={searchingUsers || !userSearchQuery.trim()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
-              >
-                <Search size={14} />
-                Rechercher
-              </button>
-            </div>
-
-            {foundUsers.length > 0 && (
-              <div className="space-y-2">
-                {foundUsers.map((userItem) => {
-                  const id = userItem._id || userItem.id;
-                  const isManagerUser = managerIds.has(String(id));
-                  const isBusy = managerBusyId === String(id);
-                  return (
-                    <div
-                      key={id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{userItem.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                          {userItem.email} · {userItem.phone}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleManager(String(id))}
-                        disabled={isBusy}
-                        className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-70 ${
-                          isManagerUser
-                            ? 'bg-red-600 text-white hover:bg-red-700'
-                            : 'bg-neutral-600 text-white hover:bg-neutral-700'
-                        }`}
-                      >
-                        {isBusy ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : isManagerUser ? (
-                          <UserMinus size={14} />
-                        ) : (
-                          <UserPlus size={14} />
-                        )}
-                        {isBusy ? 'Traitement...' : isManagerUser ? 'Retirer' : 'Ajouter'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="border-t border-gray-100 dark:border-slate-700 pt-4">
-              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">
-                Gestionnaires actuels ({managers.length})
-              </p>
-              {loadingManagers ? (
-                <p className="text-sm text-gray-500 dark:text-slate-400">Chargement…</p>
-              ) : managers.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-slate-400">Aucun gestionnaire pour le moment.</p>
-              ) : (
-                <div className="space-y-2">
-                  {managers.map((manager) => (
-                    <div
-                      key={manager.id || manager._id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{manager.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                          {manager.email} · {manager.phone}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleManager(String(manager.id || manager._id))}
-                        disabled={managerBusyId === String(manager.id || manager._id)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-70"
-                      >
-                        {managerBusyId === String(manager.id || manager._id) ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <UserMinus size={14} />
-                        )}
-                        {managerBusyId === String(manager.id || manager._id) ? 'Traitement...' : 'Retirer'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        <section className="rounded-2xl border border-gray-200/60 dark:border-slate-700 bg-gradient-to-br from-white to-neutral-50/20 dark:from-slate-900 dark:to-slate-950 p-6 shadow-sm">
+        <section className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
-                  <Filter size={20} className="text-neutral-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+                  <Filter size={20} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Filtres rapides</h2>
+                  <h2 className="text-lg font-black tracking-tight text-gray-900 dark:text-slate-100">Filtres rapides</h2>
                   <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Recherchez et filtrez les produits</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={resetFilters}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shadow-sm transition-all duration-200 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-neutral-300 hover:text-neutral-700"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-600 transition hover:bg-gray-50 active:scale-[0.97] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
               >
                 <X size={14} />
                 Réinitialiser
               </button>
+            </div>
+            {/* Statuts en chips avec compteurs — un statut se choisit d'un tap, pas dans un menu */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: '', title: 'Tous', count: totalProducts },
+                { value: 'pending', title: 'En attente', count: Number(stats?.statusCounts?.pending || 0) },
+                { value: 'approved', title: 'Validés', count: Number(stats?.statusCounts?.approved || 0) },
+                { value: 'rejected', title: 'Rejetés', count: Number(stats?.statusCounts?.rejected || 0) },
+                { value: 'disabled', title: 'Désactivés', count: Number(stats?.statusCounts?.disabled || 0) }
+              ].map((option) => {
+                const active = statusFilter === option.value;
+                return (
+                  <button
+                    key={option.value || 'all'}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(option.value);
+                      setPage(1);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition active:scale-[0.97] ${
+                      active
+                        ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                        : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                    }`}
+                  >
+                    {option.title}
+                    {Number(option.count) > 0 ? (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                        {Number(option.count) > 999 ? '999+' : Number(option.count)}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
             <div className="flex flex-col gap-4">
               <div className="relative">
@@ -741,24 +645,10 @@ export default function AdminProducts() {
                     setPage(1);
                   }}
                   placeholder="Rechercher par titre ou description..."
-                  className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 pl-11 text-sm shadow-sm transition-all duration-200 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-100"
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-4 py-3 pl-11 text-sm transition focus:border-[#FF6A00] focus:bg-white focus:outline-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-                >
-                  <option value="">Tous les statuts</option>
-                  <option value="pending">En attente</option>
-                  <option value="approved">Validés</option>
-                  <option value="rejected">Rejetés</option>
-                  <option value="disabled">Désactivés</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 <select
                   value={certifiedFilter}
                   onChange={(e) => {
@@ -889,7 +779,7 @@ export default function AdminProducts() {
                             setDetailMessage('');
                             setDetailError('');
                           }}
-                          className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-600 hover:text-neutral-500"
+                          className="inline-flex items-center gap-2 rounded-full bg-[#FFF0E4] px-3 py-1 text-xs font-black text-[#FF6A00] transition hover:bg-orange-100"
                         >
                           Détails
                           <ChevronRight className="w-3 h-3" />
@@ -952,6 +842,133 @@ export default function AdminProducts() {
             </p>
           )}
         </section>
+
+        {isAdminUser && (
+          <section className="rounded-2xl border border-neutral-100 bg-white dark:bg-slate-900 p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-neutral-50 flex items-center justify-center text-neutral-600">
+                <Users size={18} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wide">
+                  Accès gestion des produits
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  Autorisez un utilisateur à gérer et certifier les produits.
+                </p>
+              </div>
+            </div>
+
+            {managerMessage && (
+              <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-800">
+                <AlertCircle size={16} />
+                {managerMessage}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                placeholder="Rechercher un utilisateur (nom, email, téléphone)..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                className="flex-1 rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={handleSearchUsers}
+                disabled={searchingUsers || !userSearchQuery.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-2 text-sm font-black text-white transition hover:bg-[#f05f00] disabled:opacity-60"
+              >
+                <Search size={14} />
+                Rechercher
+              </button>
+            </div>
+
+            {foundUsers.length > 0 && (
+              <div className="space-y-2">
+                {foundUsers.map((userItem) => {
+                  const id = userItem._id || userItem.id;
+                  const isManagerUser = managerIds.has(String(id));
+                  const isBusy = managerBusyId === String(id);
+                  return (
+                    <div
+                      key={id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{userItem.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                          {userItem.email} · {userItem.phone}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleManager(String(id))}
+                        disabled={isBusy}
+                        className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-70 ${
+                          isManagerUser
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-[#FF6A00] text-white hover:bg-[#f05f00]'
+                        }`}
+                      >
+                        {isBusy ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : isManagerUser ? (
+                          <UserMinus size={14} />
+                        ) : (
+                          <UserPlus size={14} />
+                        )}
+                        {isBusy ? 'Traitement...' : isManagerUser ? 'Retirer' : 'Ajouter'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="border-t border-gray-100 dark:border-slate-700 pt-4">
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">
+                Gestionnaires actuels ({managers.length})
+              </p>
+              {loadingManagers ? (
+                <p className="text-sm text-gray-500 dark:text-slate-400">Chargement…</p>
+              ) : managers.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-slate-400">Aucun gestionnaire pour le moment.</p>
+              ) : (
+                <div className="space-y-2">
+                  {managers.map((manager) => (
+                    <div
+                      key={manager.id || manager._id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{manager.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                          {manager.email} · {manager.phone}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleManager(String(manager.id || manager._id))}
+                        disabled={managerBusyId === String(manager.id || manager._id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-70"
+                      >
+                        {managerBusyId === String(manager.id || manager._id) ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <UserMinus size={14} />
+                        )}
+                        {managerBusyId === String(manager.id || manager._id) ? 'Traitement...' : 'Retirer'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {topCategories.length > 0 && (
           <section className="rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm">
@@ -1097,7 +1114,7 @@ export default function AdminProducts() {
                         type="button"
                         onClick={handleCertificationToggle}
                         disabled={detailBusy}
-                        className="min-h-[44px] w-full rounded-xl bg-neutral-600 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-500 disabled:opacity-60"
+                        className="min-h-[44px] w-full rounded-xl bg-[#FF6A00] px-4 py-2 text-xs font-black text-white transition hover:bg-[#f05f00] disabled:opacity-60"
                       >
                         {selectedProduct.certified ? 'Retirer la certification' : 'Certifier ce produit'}
                       </button>

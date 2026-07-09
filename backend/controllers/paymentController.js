@@ -318,12 +318,13 @@ export const createPayment = asyncHandler(async (req, res) => {
                 productSlug,
                 productTitle,
                 amount: received,
+                paymentType: 'LISTING_FEE',
                 paymentMethod: 'wallet',
                 operator: 'HDMARKET_WALLET',
                 status: 'verified',
                 autoApproved: true,
                 deepLink: paymentAdminLink,
-                message: `Paiement Portefeuille HDMarket reçu pour l'annonce${productTitle ? ` "${productTitle}"` : ''}. L'annonce a été validée automatiquement.`
+                message: `${req.user.name || 'Un utilisateur'} a payé${received ? ` ${Number(received).toLocaleString('fr-FR')} FCFA` : ''} pour faire valider son annonce${productTitle ? ` "${productTitle}"` : ''}. Paiement portefeuille vérifié automatiquement.`
               }
             });
           });
@@ -340,6 +341,7 @@ export const createPayment = asyncHandler(async (req, res) => {
     productId: product._id,
     productTitle: product.title || '',
     amount: received,
+    paymentType: 'LISTING_FEE',
     commissionBaseAmount: Number(commission.baseAmount || 0),
     commissionDiscountAmount: Number(commission.discountAmount || 0),
     commissionDueAmount: Number(commission.dueAmount || 0),

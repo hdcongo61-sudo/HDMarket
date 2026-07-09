@@ -22,8 +22,8 @@ const VIEW_MODE_STORAGE_KEY = 'hdmarket:category-product-view-mode';
 
 export default function CategoryProducts() {
   const { categoryId } = useParams();
-  const { getCategoryMeta, categoryGroups } = useCategories();
-  const categoryMeta = useMemo(() => getCategoryMeta(categoryId), [categoryId]);
+  const { getCategoryMeta, categoryGroups, loading: categoriesLoading } = useCategories();
+  const categoryMeta = useMemo(() => getCategoryMeta(categoryId), [categoryId, getCategoryMeta]);
   const group = categoryMeta?.group ?? null;
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -283,6 +283,21 @@ export default function CategoryProducts() {
       </div>
     );
   };
+
+  if (categoriesLoading && !categoryMeta) {
+    return (
+      <div className="hd-products-flow">
+        <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 md:px-8 md:pb-16">
+          <div className="hd-products-hero rounded-2xl border border-neutral-200 p-4 text-white shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-white/78">Catégories</p>
+            <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">Chargement de la catégorie…</h1>
+            <p className="mt-1 text-sm text-white/82">Nous préparons les produits disponibles.</p>
+          </div>
+          <ProductCardSkeleton count={10} viewMode="masonry" />
+        </div>
+      </div>
+    );
+  }
 
   if (!categoryMeta) {
     return (

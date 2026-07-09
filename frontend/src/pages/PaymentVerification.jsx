@@ -340,7 +340,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
     <div className="min-h-screen bg-neutral-50 px-3 py-4 text-neutral-950 dark:bg-neutral-950 dark:text-white sm:px-4 sm:py-6">
       <div className="mx-auto max-w-7xl space-y-4">
         <AdminCommandHero
-          eyebrow="Commerce operations"
+          eyebrow="Finances"
           title="Vérification des paiements"
           subtitle="Une seule page pour traiter les preuves de paiement, suivre l’historique et gérer les vérificateurs autorisés."
           meta="Les validations manuelles restent traçables et synchronisées avec le centre de commande."
@@ -365,7 +365,14 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                   tone: activePanel === 'verifiers' ? 'emerald' : 'neutral',
                   onClick: () => changePanel('verifiers')
                 }
-              : null
+              : null,
+            {
+              label: 'Centre paiements',
+              description: 'Statistiques, portefeuille, historique',
+              icon: CreditCard,
+              tone: 'orange',
+              to: '/admin/payments'
+            }
           ].filter(Boolean)}
         />
 
@@ -531,7 +538,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                               type="button"
                               onClick={() => handleVerify(payment._id)}
                               disabled={isRowLoading}
-                              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-4 text-sm font-bold text-white transition hover:bg-black active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
+                              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60"
                             >
                               {isVerifyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                               Valider

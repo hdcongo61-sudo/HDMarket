@@ -12,7 +12,6 @@ import {
   MessageSquare,
   SlidersHorizontal,
   FileText,
-  BarChart3,
   CheckCircle,
   Sparkles,
   ChevronLeft,
@@ -410,8 +409,8 @@ export default function AdminLayout() {
             <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
               {!sidebarCollapsed ? (
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="relative h-9 w-9 rounded-xl bg-slate-900 flex shrink-0 items-center justify-center shadow-sm">
-                    <BarChart3 size={18} className="text-white" />
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00] shadow-[0_8px_18px_rgba(255,106,0,0.28)]">
+                    <span className="text-sm font-black tracking-tight text-white">HD</span>
                     {offlineQueueTotal > 0 ? (
                       <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-violet-500 px-1 py-0.5 text-[10px] font-semibold text-white">
                         {offlineQueueTotal > 99 ? '99+' : offlineQueueTotal}
@@ -419,7 +418,7 @@ export default function AdminLayout() {
                     ) : null}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</p>
+                    <p className="truncate text-sm font-black text-slate-900 dark:text-white">HDMarket · {roleLabel}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-300">{visibleItems.length} menus</p>
                   </div>
                 </div>

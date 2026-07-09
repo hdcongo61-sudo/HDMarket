@@ -148,7 +148,8 @@ export const deposit = async ({ userId, amount, reference = '', processedBy = nu
     pushEnabled: true,
     metadata: {
       amount,
-      message: `Votre portefeuille a été crédité de ${formatXAF(amount)}.`,
+      title: 'Dépôt validé',
+      message: `Votre dépôt de ${formatXAF(amount)} a été validé. Votre portefeuille a été crédité.`,
       walletBalance: wallet.balance
     },
     entityType: 'payment',
@@ -240,11 +241,12 @@ export const processWithdrawal = async ({ walletId, transactionId, approved = tr
       actorId: processedBy || wallet.user,
       type: 'payment_validated',
       allowSelf: true,
-      priority: 'HIGH',
-      metadata: {
-        amount: txn.amount,
-        message: `Votre demande de retrait de ${formatXAF(txn.amount)} a été refusée. Le montant a été remboursé sur votre portefeuille.${note ? ` Motif: ${note}` : ''}`
-      },
+    priority: 'HIGH',
+    metadata: {
+      amount: txn.amount,
+      title: 'Retrait refusé',
+      message: `Votre demande de retrait de ${formatXAF(txn.amount)} a été refusée. Le montant est à nouveau disponible dans votre portefeuille.${note ? ` Motif : ${note}` : ''}`
+    },
       entityType: 'payment',
       deepLink: '/wallet',
       actionLink: '/wallet'
@@ -280,6 +282,7 @@ export const processWithdrawal = async ({ walletId, transactionId, approved = tr
     priority: 'HIGH',
     metadata: {
       amount: txn.amount,
+      title: 'Retrait validé',
       message: `Votre retrait de ${formatXAF(txn.amount)} a été validé. Les fonds seront transférés sur votre compte Mobile Money.`
     },
     entityType: 'payment',
@@ -376,6 +379,7 @@ export const refundToWallet = async ({ userId, amount, orderId = '', processedBy
     pushEnabled: true,
     metadata: {
       amount,
+      title: 'Remboursement reçu',
       message: `Un remboursement de ${formatXAF(amount)} a été crédité sur votre portefeuille.`
     },
     entityType: 'payment',
@@ -455,6 +459,7 @@ export const creditSellerWalletSale = async ({
     pushEnabled: true,
     metadata: {
       amount,
+      title: 'Paiement commande reçu',
       message: `Vous avez reçu ${formatXAF(amount)} via Portefeuille HDMarket. Les fonds seront disponibles après confirmation de la commande.`,
       walletBalance: wallet.balance,
       pendingBalance: wallet.pendingBalance,
@@ -559,6 +564,7 @@ export const releaseSellerWalletSale = async ({ userId, orderId = '', processedB
     pushEnabled: true,
     metadata: {
       amount: releaseAmount,
+      title: 'Fonds disponibles',
       message: `${formatXAF(releaseAmount)} sont maintenant disponibles dans votre portefeuille HDMarket.`,
       walletBalance: wallet.balance,
       pendingBalance: wallet.pendingBalance,
@@ -1104,7 +1110,9 @@ export const submitDepositRequest = async ({
               walletId: String(wallet._id),
               transactionId: String(lastTxn._id),
               proofUrls,
-              message: `Nouveau dépôt ${PAYMENT_METHOD_LABELS[paymentMethod] || ''} de ${formatXAF(amount)} en attente.`
+              role: 'wallet_deposit_request',
+              title: 'Dépôt portefeuille à vérifier',
+              message: `Un utilisateur a soumis un dépôt portefeuille ${PAYMENT_METHOD_LABELS[paymentMethod] || ''} de ${formatXAF(amount)}. Vérifiez la preuve avant de créditer le solde.`
             },
             entityType: 'payment',
             entityId: String(lastTxn._id),
@@ -1206,6 +1214,7 @@ export const approveDeposit = async ({ walletId, transactionId, processedBy, not
     pushEnabled: true,
     metadata: {
       amount: txn.amount,
+      title: 'Dépôt validé',
       message: `Votre dépôt de ${formatXAF(txn.amount)} a été validé. Votre portefeuille a été crédité.`,
       walletBalance: wallet.balance
     },
@@ -1264,7 +1273,8 @@ export const rejectDeposit = async ({ walletId, transactionId, processedBy, note
     pushEnabled: true,
     metadata: {
       amount: txn.amount,
-      message: `Votre demande de dépôt de ${formatXAF(txn.amount)} a été refusée.${note ? ` Motif: ${note}` : ''}`,
+      title: 'Dépôt refusé',
+      message: `Votre demande de dépôt de ${formatXAF(txn.amount)} a été refusée.${note ? ` Motif : ${note}` : ''}`,
       walletBalance: wallet.balance
     },
     entityType: 'payment',

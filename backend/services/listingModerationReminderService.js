@@ -95,6 +95,7 @@ export const runStaleListingReminderSweep = async ({ limit = 200, source = 'sche
       productSlug: product.slug || '',
       productTitle,
       amount: Number(payment.amount || 0),
+      paymentType: 'LISTING_FEE',
       operator: payment.operator || '',
       payerName: payment.payerName || '',
       reminder: true,
@@ -103,7 +104,7 @@ export const runStaleListingReminderSweep = async ({ limit = 200, source = 'sche
       deepLink: PAYMENT_VERIFICATION_LINK,
       message: `Rappel : l'annonce${
         productTitle ? ` "${productTitle}"` : ''
-      } est payée depuis ${ageHours}h et attend toujours une vérification.`
+      } est payée depuis ${ageHours}h et attend toujours une vérification. Vérifiez le paiement et validez ou refusez l'annonce.`
     };
 
     const recipients = moderators.filter((moderator) => String(moderator._id) !== String(sellerId));

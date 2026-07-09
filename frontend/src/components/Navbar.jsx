@@ -139,6 +139,10 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const isCourierRoute = location.pathname.startsWith('/delivery') || location.pathname.startsWith('/courier');
+  // Product pages ship their own fixed bottom CTA bar (Ajouter/Acheter) ; the global
+  // tab bar (z-50) was rendered on top of it and interceptait les taps.
+  const isProductDetailRoute =
+    location.pathname.startsWith('/product/') || location.pathname.startsWith('/product-preview/');
   const { user, logout } = useContext(AuthContext);
   const { categoryGroups } = useCategories();
   const { theme, setTheme, t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
@@ -245,9 +249,11 @@ export default function Navbar() {
   const [appLogos, setAppLogos] = useState({ desktop: "", mobile: "" });
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [activeCategoryGroupId, setActiveCategoryGroupId] = useState(null);
   const shopMenuCloseRef = useRef(null);
   const categoryMenuCloseRef = useRef(null);
+  const moreMenuCloseRef = useRef(null);
   const orderUnreadSocketRef = useRef(null);
   const [isMobileLayout, setIsMobileLayout] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth < 1024
@@ -513,6 +519,26 @@ export default function Navbar() {
       shopMenuCloseRef.current = null;
     }, 1500);
   }, [clearShopMenuTimeout]);
+
+  const clearMoreMenuTimeout = useCallback(() => {
+    if (moreMenuCloseRef.current) {
+      clearTimeout(moreMenuCloseRef.current);
+      moreMenuCloseRef.current = null;
+    }
+  }, []);
+
+  const handleMoreMenuOpen = useCallback(() => {
+    clearMoreMenuTimeout();
+    setIsMoreMenuOpen(true);
+  }, [clearMoreMenuTimeout]);
+
+  const handleMoreMenuDelayedClose = useCallback(() => {
+    clearMoreMenuTimeout();
+    moreMenuCloseRef.current = setTimeout(() => {
+      setIsMoreMenuOpen(false);
+      moreMenuCloseRef.current = null;
+    }, 600);
+  }, [clearMoreMenuTimeout]);
 
   const clearCategoryMenuTimeout = useCallback(() => {
     if (categoryMenuCloseRef.current) {
@@ -3484,15 +3510,15 @@ export default function Navbar() {
         </div>
 
         {/* === SECONDARY NAVIGATION BAR (Proposal A) === */}
-        <div className="hd-secondary-nav hidden lg:block bg-gradient-to-r from-neutral-600 to-neutral-700 dark:from-neutral-800 dark:to-neutral-900">
+        <div className="hd-secondary-nav hidden lg:block">
           <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px] 2xl:max-w-[1600px]">
             <div className="flex items-center gap-1 h-12">
               {/* Accueil */}
               <NavLink 
                 to="/" 
                 className={({ isActive }) => 
-                  `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 ${
-                    isActive ? 'underline' : ''
+                  `rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
+                    isActive ? 'bg-white/20' : 'hover:bg-white/10'
                   }`
                 }
               >
@@ -3504,7 +3530,7 @@ export default function Navbar() {
                 <button
                   onMouseEnter={handleCategoryMenuOpen}
                   onMouseLeave={handleCategoryMenuDelayedClose}
-                  className="px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 flex items-center gap-1"
+                  className="flex items-center gap-1 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 hover:bg-white/10"
                 >
                   {t('nav.categories', 'Catégories')}
                   <ChevronDown
@@ -3632,7 +3658,7 @@ export default function Navbar() {
                 <button
                   onMouseEnter={handleShopMenuOpen}
                   onMouseLeave={handleShopMenuDelayedClose}
-                  className="px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 flex items-center gap-1"
+                  className="flex items-center gap-1 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 hover:bg-white/10"
                 >
                   {t('nav.shops', 'Boutiques')}
                   <ChevronDown
@@ -3716,77 +3742,85 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* Promotions */}
+              {/* Parcours d'achat d'abord : Promotions et Nouveautés restent au premier niveau */}
               <NavLink
-                to="/plans"
+                to="/top-deals"
                 className={({ isActive }) =>
-                  `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 ${
-                    isActive ? 'underline' : ''
-                  }`
-                }
-              >
-                {t('nav.plans', 'Plans & tarifs')}
-              </NavLink>
-
-              {/* Promotions */}
-              <NavLink 
-                to="/top-deals" 
-                className={({ isActive }) => 
-                  `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 ${
-                    isActive ? 'underline' : ''
+                  `rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
+                    isActive ? 'bg-white/20' : 'hover:bg-white/10'
                   }`
                 }
               >
                 {t('nav.promotions', 'Promotions')}
               </NavLink>
 
-              {/* Nouveautés */}
-              <NavLink 
-                to="/top-new" 
-                className={({ isActive }) => 
-                  `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 ${
-                    isActive ? 'underline' : ''
+              <NavLink
+                to="/top-new"
+                className={({ isActive }) =>
+                  `rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
+                    isActive ? 'bg-white/20' : 'hover:bg-white/10'
                   }`
                 }
               >
                 {t('nav.newArrivals', 'Nouveautés')}
               </NavLink>
 
-              {/* Réclamations & Avis amélioration - all users (desktop) */}
-              <Link
-                to="/reclamations"
-                className="px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200"
-              >
-                {t('nav.complaints', 'Réclamations')}
-              </Link>
-              <Link
-                to="/avis-amelioration"
-                className="px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200"
-              >
-                {t('nav.feedback', 'Avis amélioration')}
-              </Link>
-
-              {/* Devenir Boutique - non-shop users (desktop) */}
-              {user && user.accountType !== 'shop' && shopConversionEnabled && (
-                <NavLink
-                  to="/shop-conversion-request"
-                  className={({ isActive }) =>
-                    `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 ${
-                      isActive ? 'underline' : ''
-                    }`
-                  }
+              {/* Infos & aide regroupées : ces pages n'ont pas à disputer la place au shopping */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onMouseEnter={handleMoreMenuOpen}
+                  onMouseLeave={handleMoreMenuDelayedClose}
+                  onClick={() => (isMoreMenuOpen ? setIsMoreMenuOpen(false) : handleMoreMenuOpen())}
+                  className={`flex items-center gap-1 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
+                    isMoreMenuOpen ? 'bg-white/20' : 'hover:bg-white/10'
+                  }`}
+                  aria-expanded={isMoreMenuOpen}
                 >
-                  {t('nav.becomeShop', 'Devenir Boutique')}
-                </NavLink>
-              )}
+                  {t('nav.more', 'Plus')}
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {isMoreMenuOpen && (
+                  <div
+                    className="hd-menu-panel absolute left-0 z-50 mt-0 w-72 overflow-hidden rounded-2xl"
+                    onMouseEnter={handleMoreMenuOpen}
+                    onMouseLeave={handleMoreMenuDelayedClose}
+                  >
+                    <div className="p-2">
+                      {[
+                        { to: '/plans', label: t('nav.plans', 'Plans & tarifs') },
+                        { to: '/avantages', label: t('nav.benefits', 'Pourquoi HDMarket') },
+                        { to: '/reclamations', label: t('nav.complaints', 'Réclamations') },
+                        { to: '/avis-amelioration', label: t('nav.feedback', 'Avis amélioration') },
+                        ...(user && user.accountType !== 'shop' && shopConversionEnabled
+                          ? [{ to: '/shop-conversion-request', label: t('nav.becomeShop', 'Devenir Boutique') }]
+                          : [])
+                      ].map((item) => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setIsMoreMenuOpen(false)}
+                          className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-orange-50 hover:text-[#FF6A00] dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                          {item.label}
+                          <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Admin (desktop) */}
               {canAccessBackOffice && (
                 <NavLink
                   to="/admin"
                   className={({ isActive }) =>
-                    `px-4 py-2 text-white font-semibold text-sm hover:underline transition-all duration-200 flex items-center gap-1.5 ${
-                      isActive ? 'underline' : ''
+                    `flex items-center gap-1.5 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
+                      isActive ? 'bg-white/20' : 'hover:bg-white/10'
                     }`
                   }
                 >
@@ -3906,6 +3940,21 @@ export default function Navbar() {
               >
                 <BadgePercent size={20} />
                 {t('nav.plans', 'Plans & tarifs')}
+              </NavLink>
+
+              <NavLink
+                to="/avantages"
+                onClick={() => setIsMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[#FF6A00] text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                  }`
+                }
+              >
+                <Sparkles size={20} />
+                {t('nav.benefits', 'Pourquoi HDMarket')}
               </NavLink>
 
               {aiRecommendationsEnabled && (
@@ -4432,7 +4481,7 @@ export default function Navbar() {
 
       {/* BARRE DE NAVIGATION FIXE MOBILE - DESIGN MODERNE ET AMÉLIORÉE */}
       <div 
-        className={`hd-mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-50 min-h-[64px] bg-white dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-800/80 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+        className={`hd-mobile-tabbar ${isProductDetailRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[64px] bg-white dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-800/80 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
           bottomNavHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom))]' : 'translate-y-0'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', willChange: 'transform' }}

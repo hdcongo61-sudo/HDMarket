@@ -53,6 +53,7 @@ const TopUsedProducts = lazy(() => import('./pages/TopUsedProducts'));
 const CategoryProducts = lazy(() => import('./pages/CategoryProducts'));
 const Products = lazy(() => import('./pages/Products'));
 const Plans = lazy(() => import('./pages/Plans'));
+const Benefits = lazy(() => import('./pages/Benefits'));
 const CityProducts = lazy(() => import('./pages/CityProducts'));
 const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const ProductDetailsWrapper = () => {
@@ -606,6 +607,8 @@ function AppContent() {
         <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/discover" element={<Discover />} />
+          <Route path="/avantages" element={<Benefits />} />
+          <Route path="/benefits" element={<Benefits />} />
           <Route path="/explore" element={<Explorer />} />
           <Route path="/flash-sales" element={<FlashSales />} />
           <Route path="/wallet" element={<Wallet />} />

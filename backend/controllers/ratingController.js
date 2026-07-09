@@ -111,6 +111,7 @@ export const upsertRating = asyncHandler(async (req, res) => {
       entityId: String(product._id),
       metadata: {
         value,
+        productTitle: product.title || '',
         productSlug: product.slug || '',
         deepLink: targetLink
       }

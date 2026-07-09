@@ -735,8 +735,8 @@ export default function AdminAppSettings() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-5 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-[#FFB000] to-[#FF6A00] shadow-sm">
-              <Image size={24} className="text-white" strokeWidth={2.5} />
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+              <Image size={24} strokeWidth={2.2} />
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
@@ -756,6 +756,13 @@ export default function AdminAppSettings() {
               Catégories
             </Link>
             <Link
+              to="/admin/system-settings"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
+            >
+              <Shield size={16} />
+              Paramètres système
+            </Link>
+            <Link
               to="/admin"
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
             >
@@ -765,9 +772,33 @@ export default function AdminAppSettings() {
           </div>
         </header>
 
+        {/* Navigation d'ancres : la page fait 8 sections, on saute au lieu de scroller à l'aveugle */}
+        <nav className="sticky top-2 z-20 rounded-2xl border border-gray-200 bg-white/90 px-2 py-2 shadow-sm backdrop-blur-md">
+          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {[
+              ['#identite', 'Identité'],
+              ['#banniere-hero', 'Bannière hero'],
+              ['#banniere-pub', 'Bannière pub'],
+              ['#demarrage', 'Démarrage'],
+              ['#splash', 'Splash animé'],
+              ['#mots-interdits', 'Mots interdits'],
+              ['#contacts', 'Contacts'],
+              ['#signalements', 'Signalements']
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={href}
+                className="flex-shrink-0 rounded-full bg-gray-100 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition hover:bg-[#FFF0E4] hover:text-[#FF6A00]"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </nav>
+
         <section className="space-y-8">
           {/* App Logos & Icon */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div id="identite" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6A00] text-white">
                 <Sparkles size={20} />
@@ -840,13 +871,13 @@ export default function AdminAppSettings() {
           </div>
 
           {/* Hero Banner (Accueil) */}
-          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+          <div id="banniere-hero" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
                 <Image size={20} className="text-neutral-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Bannière du HERO (Accueil)</h2>
+                <h2 className="text-lg font-black tracking-tight text-gray-900">Bannière du HERO (Accueil)</h2>
                 <p className="text-sm text-gray-500">
                   Image en arrière-plan du HERO sur la page d’accueil. 1600×600px recommandé.
                 </p>
@@ -881,13 +912,13 @@ export default function AdminAppSettings() {
           </div>
 
           {/* Promo Banner */}
-          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+          <div id="banniere-pub" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
                 <Image size={20} className="text-neutral-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Bannière publicitaire</h2>
+                <h2 className="text-lg font-black tracking-tight text-gray-900">Bannière publicitaire</h2>
                 <p className="text-sm text-gray-500">
                   Bannière sur la page d’accueil. Lien optionnel et plage de dates.
                 </p>
@@ -971,13 +1002,13 @@ export default function AdminAppSettings() {
           </div>
 
           {/* Splash screen (écran de démarrage) */}
-          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+          <div id="demarrage" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
                 <Sparkles size={20} className="text-amber-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Écran de démarrage</h2>
+                <h2 className="text-lg font-black tracking-tight text-gray-900">Écran de démarrage</h2>
                 <p className="text-sm text-gray-500">
                   Image plein écran affichée à l’ouverture de l’app avant la page d’accueil. Durée en secondes (1–30) et bouton « Passer ».
                 </p>
@@ -1044,7 +1075,7 @@ export default function AdminAppSettings() {
           </div>
 
           {/* Animated launch splash (BootSplash) */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div id="splash" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6A00] text-white">
                 <Monitor size={20} />
@@ -1119,13 +1150,13 @@ export default function AdminAppSettings() {
           </div>
 
           {/* Prohibited Words Section */}
-          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+          <div id="mots-interdits" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
                 <Shield size={20} className="text-amber-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Mots interdits</h2>
+                <h2 className="text-lg font-black tracking-tight text-gray-900">Mots interdits</h2>
                 <p className="text-sm text-gray-500">
                   Ajoutez les mots que les vendeurs ne doivent pas utiliser dans leurs annonces. Les annonces contenant ces mots seront bloquées.
                 </p>
@@ -1190,13 +1221,13 @@ export default function AdminAppSettings() {
           </div>
 
           {/* Network Settings Section */}
-          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+          <div id="contacts" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100">
                 <Smartphone size={20} className="text-teal-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Réseaux de contact</h2>
+                <h2 className="text-lg font-black tracking-tight text-gray-900">Réseaux de contact</h2>
                 <p className="text-sm text-gray-500">
                   Configurez les réseaux téléphoniques et leurs numéros. Ces numéros remplaceront les numéros codés en dur dans l'application.
                 </p>
@@ -1387,13 +1418,13 @@ export default function AdminAppSettings() {
           </div>
 
           {/* Reports Section */}
-          <div className="rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
+          <div id="signalements" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
                 <Flag size={20} className="text-red-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Signalements de contenu</h2>
+                <h2 className="text-lg font-black tracking-tight text-gray-900">Signalements de contenu</h2>
                 <p className="text-sm text-gray-500">
                   Consultez et gérez les signalements de commentaires et photos.
                 </p>

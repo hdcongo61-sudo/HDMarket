@@ -22,6 +22,7 @@ export default function Footer() {
   ];
 
   const serviceLinks = [
+    { to: '/avantages', label: t('nav.benefits', 'Pourquoi HDMarket') },
     { to: '/plans', label: t('nav.plans', 'Plans & tarifs') },
     { to: '/help', label: t('footer.help', 'Aide et service client') },
     { to: '/shops/free-delivery', label: t('footer.freeDelivery', 'Livraison offerte') },

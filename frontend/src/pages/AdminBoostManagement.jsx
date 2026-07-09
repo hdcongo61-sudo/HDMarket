@@ -209,7 +209,7 @@ export default function AdminBoostManagement() {
             onClick={() => setActiveTab(key)}
             className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
               activeTab === key
-                ? 'bg-neutral-600 text-white'
+                ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
             }`}
           >
@@ -279,7 +279,7 @@ export default function AdminBoostManagement() {
                 />
                 <button
                   type="submit"
-                  className="rounded-xl bg-neutral-600 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
+                  className="rounded-xl bg-[#FF6A00] px-3 py-2 text-sm font-black text-white transition hover:bg-[#f05f00]"
                 >
                   Enregistrer
                 </button>
@@ -402,7 +402,7 @@ export default function AdminBoostManagement() {
                 />
                 <button
                   type="submit"
-                  className="rounded-xl bg-neutral-600 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
+                  className="rounded-xl bg-[#FF6A00] px-3 py-2 text-sm font-black text-white transition hover:bg-[#f05f00]"
                 >
                   Ajouter
                 </button>

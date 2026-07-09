@@ -148,6 +148,7 @@ const processPaymentSubmission = async (data = {}) => {
       validationType: 'productValidation',
       metadata: {
         ...(data.metadata || {}),
+        paymentType: data.metadata?.paymentType || 'LISTING_FEE',
         waitingCount
       }
     }));

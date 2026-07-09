@@ -46,6 +46,8 @@ export default function Cart() {
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
   const [pending, setPending] = useState({});
+  const [qtyPending, setQtyPending] = useState({});
+  const [qtyDrafts, setQtyDrafts] = useState({});
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showDistanceWarning, setShowDistanceWarning] = useState(false);
   const [lastRemoved, setLastRemoved] = useState(null);
@@ -96,14 +98,33 @@ export default function Cart() {
     if (!productId || !cartItemKey || !Number.isFinite(parsedQuantity)) return;
     const value = Math.max(1, parsedQuantity);
     if (value === Number(item?.quantity || 0)) return;
-    setPending((prev) => ({ ...prev, [cartItemKey]: true }));
+    // Qty syncs are tracked separately from removals so the card never dims/locks
+    // while stepping; the stepper shows the target value instantly instead.
+    setQtyPending((prev) => ({ ...prev, [cartItemKey]: value }));
     try {
       await updateItem(productId, value, item?.selectedAttributes || [], item?.selectionKey || '');
     } catch (e) {
-      console.error(e);
+      showToast(e?.response?.data?.message || 'Impossible de modifier la quantité.', { variant: 'error' });
     } finally {
-      setPending((prev) => ({ ...prev, [cartItemKey]: false }));
+      setQtyPending((prev) => {
+        const next = { ...prev };
+        delete next[cartItemKey];
+        return next;
+      });
     }
+  };
+
+  // Direct typing edits a local draft; the server call happens once, on blur/Enter.
+  const commitQtyDraft = (item) => {
+    const cartItemKey = getCartItemKey(item);
+    const raw = qtyDrafts[cartItemKey];
+    setQtyDrafts((prev) => {
+      const next = { ...prev };
+      delete next[cartItemKey];
+      return next;
+    });
+    if (raw === undefined || String(raw).trim() === '') return;
+    changeQuantity(item, raw);
   };
 
   const handleRemove = async (item) => {
@@ -462,49 +483,54 @@ export default function Cart() {
                         </div>
 
                         <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-end">
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-1.5 shadow-[0_8px_20px_rgba(255,106,0,0.08)]">
-                            <div className="mb-1 flex items-center justify-center gap-1 px-2 text-[10px] font-black uppercase tracking-wide text-gray-500">
-                              Qté
-                              {pending[cartItemKey] ? (
-                                <span className="h-2 w-2 animate-pulse rounded-full bg-[#FF6A00]" />
-                              ) : null}
-                            </div>
-                            <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              className={`flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white shadow-sm ring-1 transition active:scale-95 disabled:opacity-40 ${quantity <= 1 ? 'text-red-500 ring-red-100 hover:bg-red-50' : 'text-gray-800 ring-gray-200 hover:text-[#FF6A00]'}`}
-                              onClick={() => (quantity <= 1 ? handleRemove(item) : changeQuantity(item, quantity - 1))}
-                              disabled={disableAll || isRemoving}
-                              aria-label={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
-                              title={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
-                            >
-                              {quantity <= 1 ? <TrashIcon className="h-[18px] w-[18px]" /> : <span className="text-lg font-black">−</span>}
-                            </button>
-                            
-                            <div className="relative w-12 sm:w-16">
-                              <input
-                                type="number"
-                                min="1"
-                                inputMode="numeric"
-                                aria-label="Quantité"
-                                className="h-10 w-full rounded-full border border-gray-200 bg-white text-center text-base font-black text-slate-950 shadow-inner outline-none transition focus:border-[#FF6A00] focus:ring-2 focus:ring-gray-200 disabled:bg-gray-50 disabled:text-gray-400"
-                                value={quantity}
-                                onChange={(e) => changeQuantity(item, e.target.value)}
-                                disabled={disableAll}
-                              />
-                            </div>
-                            
-                            <button
-                              type="button"
-                              className="flex h-10 min-h-[40px] w-10 min-w-[40px] items-center justify-center rounded-full bg-white text-gray-800 shadow-sm ring-1 ring-gray-200 transition hover:text-[#FF6A00] active:scale-95 disabled:opacity-40"
-                              onClick={() => changeQuantity(item, quantity + 1)}
-                              disabled={disableAll}
-                              aria-label="Augmenter la quantité"
-                            >
-                              <span className="text-lg font-black">+</span>
-                            </button>
-                            </div>
-                          </div>
+                          {/* Stepper compact (style Taobao) : − | qté | + , saisie directe validée au blur */}
+                          {(() => {
+                            const qtySyncing = qtyPending[cartItemKey] !== undefined;
+                            const qtyDisplayed = qtyDrafts[cartItemKey] ?? qtyPending[cartItemKey] ?? quantity;
+                            return (
+                              <div className="inline-flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm">
+                                <button
+                                  type="button"
+                                  onClick={() => (quantity <= 1 ? handleRemove(item) : changeQuantity(item, quantity - 1))}
+                                  disabled={disableAll || isRemoving || qtySyncing}
+                                  aria-label={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
+                                  title={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
+                                  className={`flex h-11 w-11 items-center justify-center transition active:bg-gray-100 disabled:opacity-40 ${quantity <= 1
+                                    ? 'text-red-500 hover:bg-red-50'
+                                    : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                  {quantity <= 1 ? <TrashIcon className="h-[18px] w-[18px]" /> : <span className="text-xl font-black leading-none">−</span>}
+                                </button>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  aria-label="Quantité"
+                                  value={qtyDisplayed}
+                                  onChange={(e) => {
+                                    const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                                    setQtyDrafts((prev) => ({ ...prev, [cartItemKey]: digits }));
+                                  }}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  onBlur={() => commitQtyDraft(item)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') e.currentTarget.blur();
+                                  }}
+                                  disabled={disableAll || isRemoving}
+                                  className={`h-11 w-12 border-x border-gray-100 bg-transparent text-center text-base font-black outline-none transition focus:bg-[#FFF7F0] disabled:text-gray-400 ${qtySyncing ? 'animate-pulse text-[#FF6A00]' : 'text-gray-900'}`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => changeQuantity(item, quantity + 1)}
+                                  disabled={disableAll || isRemoving || qtySyncing}
+                                  aria-label="Augmenter la quantité"
+                                  className="flex h-11 w-11 items-center justify-center text-gray-700 transition hover:bg-gray-50 hover:text-[#FF6A00] active:bg-gray-100 disabled:opacity-40"
+                                >
+                                  <span className="text-xl font-black leading-none">+</span>
+                                </button>
+                              </div>
+                            );
+                          })()}
 
                           {/* Line Total Enhanced - Much Smaller on Mobile */}
                           <div className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-right">

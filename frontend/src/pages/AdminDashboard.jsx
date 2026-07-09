@@ -21,8 +21,6 @@ import { useToast } from '../context/ToastContext';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
-import GlassCard from '../components/ui/GlassCard';
-import SoftColorCard from '../components/ui/SoftColorCard';
 import FloatingGlassButton from '../components/ui/FloatingGlassButton';
 import AppOfflineDiagnosticsCard from '../components/admin/AppOfflineDiagnosticsCard';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
@@ -59,8 +57,13 @@ import {
   Monitor,
   Crown,
   ArrowUpRight,
-  Sparkles
+  Sparkles,
+  ClipboardList,
+  Truck,
+  Ticket,
+  SlidersHorizontal
 } from 'lucide-react';
+import useAdminCounts from '../hooks/useAdminCounts';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
@@ -103,23 +106,22 @@ const formatMonthLabel = (key) => {
   return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 };
 
-function SectionStatCard({ label, value, helper, icon: Icon, variant = 'blue' }) {
+function SectionStatCard({ label, value, helper, icon: Icon, variant: _variant = 'blue' }) {
   return (
-    <SoftColorCard variant={variant} className="group relative overflow-hidden px-5 py-4">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-200">{label}</p>
-          <p className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
-          {helper ? <p className="mt-1 text-xs text-slate-600 dark:text-slate-200">{helper}</p> : null}
+    <article className="rounded-2xl border border-gray-100 bg-white px-4 py-3.5 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-400">{label}</p>
+          <p className="mt-1.5 text-2xl font-black leading-none text-gray-900 dark:text-white">{value}</p>
+          {helper ? <p className="mt-1.5 truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{helper}</p> : null}
         </div>
         {Icon && (
-          <div className="glass-card ml-3 flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition-transform duration-300 group-hover:scale-110 dark:text-slate-100">
-            <Icon size={20} strokeWidth={2} />
-          </div>
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+            <Icon size={18} strokeWidth={2.2} />
+          </span>
         )}
       </div>
-      <div className="absolute inset-0 bg-white/0 transition-opacity duration-300 group-hover:bg-white/5 dark:group-hover:bg-black/10" />
-    </SoftColorCard>
+    </article>
   );
 }
 
@@ -240,62 +242,59 @@ const REALTIME_WINDOW_OPTIONS = [
 
 function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
   return (
-    <GlassCard
-      variant={highlight ? 'green' : 'glass'}
-      interactive
-      className="group relative overflow-hidden p-5 glass-fade-in"
+    <article
+      className={`rounded-2xl border p-5 ${highlight
+        ? 'border-orange-200 bg-[#FFF7F0] dark:border-orange-900/40 dark:bg-orange-950/20'
+        : 'border-gray-100 bg-white dark:border-neutral-800 dark:bg-neutral-900'}`}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-400">
             {title}
           </p>
-          <p className="mb-1 text-3xl font-bold text-slate-900 dark:text-white">
+          <p className="mt-2 text-3xl font-black leading-none text-gray-900 dark:text-white">
             {value}
           </p>
           {subtitle && (
-            <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+            <p className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-neutral-400">
               {trend && (
-                <TrendingUp size={12} className={trend > 0 ? 'text-green-500' : 'text-red-500'} />
+                <TrendingUp size={12} className={trend > 0 ? 'text-emerald-500' : 'text-red-500'} />
               )}
               {subtitle}
             </p>
           )}
         </div>
         {Icon && (
-          <div className="glass-card ml-3 flex h-12 w-12 items-center justify-center rounded-xl text-slate-700 shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:shadow-md dark:text-white">
-            <Icon size={22} strokeWidth={2.5} />
-          </div>
+          <span className="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+            <Icon size={20} strokeWidth={2.2} />
+          </span>
         )}
       </div>
-      <div className="absolute inset-0 bg-white/0 transition-opacity duration-300 group-hover:bg-white/5 dark:group-hover:bg-black/10" />
-    </GlassCard>
+    </article>
   );
 }
 
 function AdminQuickKpiCard({ label, value, helper, icon: Icon, tone = 'slate' }) {
-  const toneClasses = {
-    blue: 'bg-blue-500/10 border-blue-200 text-blue-900 dark:border-blue-900/70 dark:bg-blue-500/20 dark:text-blue-100',
-    green:
-      'bg-emerald-500/10 border-emerald-200 text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-500/20 dark:text-emerald-100',
-    purple:
-      'bg-purple-500/10 border-purple-200 text-purple-900 dark:border-purple-900/70 dark:bg-purple-500/20 dark:text-purple-100',
-    orange:
-      'bg-gray-1000/10 border-gray-200 text-orange-900 dark:border-orange-900/70 dark:bg-gray-1000/20 dark:text-orange-100',
-    slate: 'bg-slate-500/10 border-slate-200 text-slate-900 dark:border-slate-700 dark:bg-slate-500/20 dark:text-slate-100'
+  // Flat tiles, tone kept only on the icon chip so the numbers stay the loudest element.
+  const toneChips = {
+    blue: 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300',
+    green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300',
+    purple: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300',
+    orange: 'bg-[#FFF0E4] text-[#FF6A00] dark:bg-orange-950/40 dark:text-orange-300',
+    slate: 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300'
   };
-  const colorClass = toneClasses[tone] || toneClasses.slate;
+  const chipClass = toneChips[tone] || toneChips.slate;
 
   return (
-    <article className={`rounded-2xl border p-3 shadow-sm ${colorClass}`}>
+    <article className="rounded-2xl border border-gray-100 bg-white p-3.5 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">{label}</p>
-          <p className="mt-1 text-xl font-bold leading-none">{value}</p>
-          {helper ? <p className="mt-1 text-xs opacity-80">{helper}</p> : null}
+          <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-400">{label}</p>
+          <p className="mt-1.5 text-xl font-black leading-none text-gray-900 dark:text-white">{value}</p>
+          {helper ? <p className="mt-1.5 truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{helper}</p> : null}
         </div>
         {Icon ? (
-          <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/70 shadow-sm dark:bg-slate-900/60">
+          <span className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${chipClass}`}>
             <Icon size={18} />
           </span>
         ) : null}
@@ -387,6 +386,7 @@ export default function AdminDashboard() {
   const { showToast } = useToast();
 
   const { user: authUser } = useContext(AuthContext);
+  const { counts: adminTaskCounts } = useAdminCounts(Boolean(authUser));
   const normalizedRole = String(authUser?.role || '').toLowerCase();
   const isAdmin = normalizedRole === 'admin';
   const isManager = normalizedRole === 'manager';
@@ -1386,6 +1386,73 @@ export default function AdminDashboard() {
     }
   ];
 
+  // ── Workbench (style Taobao/Qianniu) : file d'attente "À traiter" + accès rapide ──
+  const pendingTasksByType = adminTaskCounts?.pendingTasksByType || {};
+  const pendingQueueTiles = [
+    {
+      key: 'payments',
+      label: 'Paiements à vérifier',
+      count: Number(stats?.payments?.waiting || 0),
+      to: '/admin/payment-verification',
+      icon: DollarSign,
+      show: canManagePayments
+    },
+    {
+      key: 'productValidation',
+      label: 'Produits à valider',
+      count: Number(pendingTasksByType.productValidation || 0),
+      to: '/admin/payment-verification',
+      icon: Package,
+      show: canManagePayments
+    },
+    {
+      key: 'boostApproval',
+      label: 'Boosts à approuver',
+      count: Number(pendingTasksByType.boostApproval || 0),
+      to: '/admin/product-boosts',
+      icon: Sparkles,
+      show: isAdmin || isFounder
+    },
+    {
+      key: 'disputes',
+      label: 'Litiges & réclamations',
+      count: Math.max(Number(pendingTasksByType.disputes || 0), Number(pendingComplaintsCount || 0)),
+      to: '/admin/complaints',
+      icon: AlertCircle,
+      show: canManageComplaints
+    },
+    {
+      key: 'deliveryOps',
+      label: 'Livraisons à traiter',
+      count: Number(pendingTasksByType.deliveryOps || 0),
+      to: '/admin/delivery-requests',
+      icon: Truck,
+      show: Number(pendingTasksByType.deliveryOps || 0) > 0
+    },
+    {
+      key: 'feedback',
+      label: 'Avis non lus',
+      count: Number(adminTaskCounts?.unreadFeedback || 0),
+      to: '/admin/feedback',
+      icon: MessageSquare,
+      show: isAdmin || isFounder
+    }
+  ].filter((tile) => tile.show);
+  const pendingQueueTotal = pendingQueueTiles.reduce((sum, tile) => sum + tile.count, 0);
+
+  const quickAccessLinks = [
+    { key: 'orders', label: 'Commandes', to: '/admin/orders', icon: ClipboardList, show: canAccessBackOffice },
+    { key: 'payments', label: 'Paiements', to: '/admin/payments', icon: DollarSign, show: canManagePayments },
+    { key: 'users', label: 'Utilisateurs', to: '/admin/users', icon: Users, show: canManageUsers },
+    { key: 'products', label: 'Produits', to: '/admin/products', icon: Package, show: canAccessBackOffice },
+    { key: 'boosts', label: 'Boosts', to: '/admin/product-boosts', icon: Sparkles, show: isAdmin || isFounder },
+    { key: 'promoCodes', label: 'Codes promo', to: '/admin/promo-codes', icon: Ticket, show: isAdmin || isFounder },
+    { key: 'delivery', label: 'Livreurs', to: '/admin/delivery-guys', icon: Truck, show: isAdmin || isManager || isFounder },
+    { key: 'reports', label: 'Rapports', to: '/admin/reports', icon: FileText, show: isAdmin || isFounder },
+    { key: 'appSettings', label: 'Paramètres', to: '/admin/settings', icon: SlidersHorizontal, show: isAdmin || isFounder },
+    { key: 'taskCenter', label: 'Tâches', to: '/admin/task-center', icon: CheckCircle, show: canAccessBackOffice }
+  ].filter((link) => link.show);
+
   const { overdueReminderOrders, regularReminderOrders } = useMemo(() => {
     if (!reminderOrders.length) {
       return { overdueReminderOrders: [], regularReminderOrders: [] };
@@ -1489,7 +1556,9 @@ export default function AdminDashboard() {
     );
   };
 
-  const shouldShowSection = (key) => !isMobileView || activeAdminTab === key;
+  // Chaque onglet est un espace de travail focalisé (desktop compris) — fini le
+  // scroll aveugle de ~10 écrans ; les données restent chargées en arrière-plan.
+  const shouldShowSection = (key) => activeAdminTab === key;
 
   const paymentFilterOptions = [
     { value: 'waiting', label: 'En attente' },
@@ -1501,54 +1570,88 @@ export default function AdminDashboard() {
   return (
     <div className="glass-page-shell min-h-screen lg:min-h-0">
       <div className="glass-content-spacing mx-auto max-w-7xl space-y-8 py-6 sm:py-8 lg:px-8">
-        <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] sm:p-6 dark:border-neutral-800 dark:bg-neutral-950">
-          <div className="relative space-y-5">
+        {/* ── WORKBENCH (style Taobao/Qianniu) ── */}
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-2">
-                <p className="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
-                  Admin Command Center
+              <div className="min-w-0 space-y-1.5">
+                <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">
+                  Espace de travail
                 </p>
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">{pageTitle}</h1>
-                <p className="max-w-2xl text-sm text-slate-600 dark:text-slate-300">{pageSubtitle}</p>
+                <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-3xl">{pageTitle}</h1>
+                <p className="max-w-2xl text-sm text-gray-500 dark:text-neutral-400">{pageSubtitle}</p>
                 {stats?.generatedAt ? (
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    Derniere mise a jour: {formatDateTime(stats.generatedAt)}
+                  <p className="text-xs font-medium text-gray-400 dark:text-neutral-500">
+                    Dernière mise à jour : {formatDateTime(stats.generatedAt)}
                   </p>
                 ) : null}
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+              <div className="flex flex-wrap items-center gap-2 lg:flex-shrink-0">
                 <button
                   type="button"
                   onClick={refreshAll}
                   disabled={refreshing}
-                  className="glass-card inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-200 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-60 dark:text-slate-100"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                 >
-                  <RefreshCw
-                    size={16}
-                    className={
-                      refreshing ? 'animate-spin' : 'transition-transform duration-300 hover:rotate-180'
-                    }
-                  />
+                  <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
                   {refreshing ? 'Actualisation...' : 'Actualiser'}
                 </button>
                 <Link
                   to="/admin/system-settings"
-                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-950 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 transition active:scale-[0.97] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
                 >
                   <Settings size={16} />
-                  Paramètres système
+                  Système
                 </Link>
                 <Link
                   to="/admin/task-center"
-                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)] transition active:scale-[0.97]"
                 >
-                  <BarChart3 size={16} />
-                  Centre de commande
+                  <CheckCircle size={16} />
+                  Centre de tâches
                 </Link>
               </div>
             </div>
 
             <AppOfflineDiagnosticsCard />
+
+            {/* À traiter : la file d'attente du jour, chiffres d'abord */}
+            <div>
+              <div className="mb-2 flex items-baseline justify-between">
+                <h2 className="text-sm font-black uppercase tracking-wide text-gray-900 dark:text-white">
+                  À traiter
+                </h2>
+                <span className={`text-xs font-bold ${pendingQueueTotal > 0 ? 'text-[#FF6A00]' : 'text-emerald-600'}`}>
+                  {pendingQueueTotal > 0
+                    ? `${formatNumber(pendingQueueTotal)} action${pendingQueueTotal > 1 ? 's' : ''} en attente`
+                    : 'Rien à traiter'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                {pendingQueueTiles.map((tile) => {
+                  const TileIcon = tile.icon;
+                  const hasWork = tile.count > 0;
+                  return (
+                    <Link
+                      key={tile.key}
+                      to={tile.to}
+                      className={`group rounded-2xl border p-3 transition active:scale-[0.97] ${hasWork
+                        ? 'border-orange-200 bg-[#FFF7F0] dark:border-orange-900/40 dark:bg-orange-950/20'
+                        : 'border-gray-100 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-900'}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <TileIcon size={16} className={hasWork ? 'text-[#FF6A00]' : 'text-gray-400 dark:text-neutral-500'} />
+                        <ChevronRight size={14} className="text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-[#FF6A00] dark:text-neutral-600" />
+                      </div>
+                      <p className={`mt-2 text-2xl font-black leading-none ${hasWork ? 'text-[#FF6A00]' : 'text-gray-400 dark:text-neutral-500'}`}>
+                        {formatNumber(tile.count)}
+                      </p>
+                      <p className="mt-1 truncate text-[11px] font-bold text-gray-600 dark:text-neutral-300">{tile.label}</p>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {heroQuickKpis.map((kpi) => (
@@ -1563,48 +1666,73 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {isMobileView && availableTabs.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {availableTabs.map((tab) => {
-                  const TabIcon = adminTabMeta[tab.key]?.icon || Activity;
-                  const tabHelper = adminTabMeta[tab.key]?.helper;
+            {/* Accès rapide : grille d'applications vers les pages dédiées */}
+            <div>
+              <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-gray-900 dark:text-white">
+                Accès rapide
+              </h2>
+              <div className="grid grid-cols-5 gap-2 sm:grid-cols-5 lg:grid-cols-10">
+                {quickAccessLinks.map((link) => {
+                  const LinkIcon = link.icon;
                   return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveAdminTab(tab.key)}
-                      className={`flex min-w-[142px] flex-shrink-0 items-center gap-2 rounded-2xl border px-3 py-2.5 text-left text-sm transition-all duration-200 ${
-                        activeAdminTab === tab.key
-                          ? 'border-slate-900 bg-slate-900 text-white shadow-md'
-                          : 'border-slate-200 bg-white/80 text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100'
-                      }`}
+                    <Link
+                      key={link.key}
+                      to={link.to}
+                      className="group flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2.5 transition hover:bg-gray-50 active:scale-[0.95] dark:hover:bg-neutral-900"
                     >
-                      <span
-                        className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${
-                          activeAdminTab === tab.key
-                            ? 'bg-white/20'
-                            : 'bg-slate-100 dark:bg-slate-700'
-                        }`}
-                      >
-                        <TabIcon size={16} />
+                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#FF6A00] transition group-hover:bg-[#FF6A00] group-hover:text-white">
+                        <LinkIcon size={20} strokeWidth={2.2} />
                       </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-semibold">{tab.label}</span>
-                        <span
-                          className={`block truncate text-[11px] ${
-                            activeAdminTab === tab.key ? 'text-white/80' : 'text-slate-500'
-                          }`}
-                        >
-                          {tabHelper}
-                        </span>
+                      <span className="w-full truncate text-center text-[11px] font-bold text-gray-600 dark:text-neutral-300">
+                        {link.label}
                       </span>
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
-            )}
+            </div>
           </div>
         </section>
+
+        {/* Onglets de section (tous formats) : chaque espace de travail est focalisé */}
+        {availableTabs.length > 1 && (
+          <div className="hd-admin-sticky sticky top-0 z-20 -mx-1 rounded-2xl border border-gray-100 px-1 py-1.5">
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+              {availableTabs.map((tab) => {
+                const TabIcon = adminTabMeta[tab.key]?.icon || Activity;
+                const active = activeAdminTab === tab.key;
+                const tabBadge =
+                  tab.key === 'payments'
+                    ? Number(stats?.payments?.waiting || 0)
+                    : tab.key === 'complaints'
+                      ? Number(pendingComplaintsCount || 0)
+                      : 0;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveAdminTab(tab.key)}
+                    className={`inline-flex flex-shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-bold transition-all ${
+                      active
+                        ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+                        : 'text-gray-600 hover:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    <TabIcon size={16} />
+                    {tab.label}
+                    {tabBadge > 0 ? (
+                      <span className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-black ${
+                        active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#FF6A00]'
+                      }`}>
+                        {tabBadge > 99 ? '99+' : tabBadge}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
       {isFounder && (
         <section className="glass-card rounded-3xl p-4 shadow-sm sm:p-5">

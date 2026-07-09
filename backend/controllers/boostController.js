@@ -534,12 +534,14 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
 
   await notifyBoostManagers({
     actorId: sellerId,
-    message: `${seller.shopName || seller.name || 'Un vendeur'} a soumis une demande de boost ${boostType}.`,
+    message: `${seller.shopName || seller.name || 'Un vendeur'} a payé ${Number(computed.totalPrice || 0).toLocaleString('fr-FR')} FCFA pour une demande de boost ${boostType}. Vérifiez la preuve et activez ou refusez le boost.`,
     metadata: {
       boostRequestId: boostRequest._id,
       boostType,
       sellerId,
       totalPrice: computed.totalPrice,
+      paymentMethod,
+      paymentOperator: resolvedPaymentOperator,
       deepLink: `/admin/product-boosts?status=PENDING&requestId=${boostRequest._id}`
     }
   });
@@ -1055,7 +1057,7 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
       metadata: {
         title: 'Boost rejeté',
         message: request.rejectionReason
-          ? `Votre demande de boost a été rejetée: ${request.rejectionReason}${walletRefunded ? ' Le paiement portefeuille a été remboursé.' : ''}`
+          ? `Votre demande de boost a été rejetée : ${request.rejectionReason}.${walletRefunded ? ' Le paiement portefeuille a été remboursé.' : ''}`
           : `Votre demande de boost a été rejetée.${walletRefunded ? ' Le paiement portefeuille a été remboursé.' : ''}`,
         boostRequestId: request._id,
         status: request.status

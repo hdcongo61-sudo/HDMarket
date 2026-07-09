@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import legacyCategoryGroups from '../data/categories';
 import {
   Smartphone, Shirt, Dumbbell, Home, Factory, HeartPulse, Car, Truck,
   Package, ShoppingBag, Sparkles, Globe
@@ -23,18 +24,34 @@ export const resolveIcon = (iconKey) => {
 const normalizeTree = (tree = []) => {
   return tree
     .filter((node) => node.level === 0)
-    .map((group) => ({
-      id: group.slug || group._id,
-      label: group.name,
-      description: group.description || '',
-      icon: resolveIcon(group.iconKey),
-      options: (group.children || [])
+    .map((group) => {
+      const children = (group.children || [])
         .filter((child) => child.level === 1)
         .map((child) => ({
           value: child.slug || child._id,
-          label: child.name
-        }))
-    }))
+          label: child.name,
+          id: child.id || child._id,
+          parentId: group.id || group._id,
+          path: child.path || ''
+        }));
+      const rootValue = group.slug || group._id;
+      return {
+        id: rootValue,
+        value: rootValue,
+        label: group.name,
+        description: group.description || '',
+        icon: resolveIcon(group.iconKey),
+        options: children.length > 0
+          ? children
+          : [{
+              value: rootValue,
+              label: group.name,
+              id: group.id || group._id,
+              parentId: null,
+              path: group.path || rootValue
+            }]
+      };
+    })
     .filter((group) => group.options.length > 0);
 };
 
@@ -42,6 +59,14 @@ const normalizeTree = (tree = []) => {
 const buildCategoryMap = (groups) => {
   const map = new Map();
   groups.forEach((group) => {
+    if (group.value || group.id) {
+      map.set(group.value || group.id, {
+        value: group.value || group.id,
+        label: group.label,
+        group,
+        isRoot: true
+      });
+    }
     group.options.forEach((option) => {
       map.set(option.value, { ...option, group });
     });
@@ -83,8 +108,15 @@ export default function useCategories() {
   }, []);
 
   const categoryGroups = useMemo(() => normalizeTree(tree), [tree]);
-  const categoryMap = useMemo(() => buildCategoryMap(categoryGroups), [categoryGroups]);
-  const allCategoryOptions = useMemo(() => buildAllOptions(categoryGroups), [categoryGroups]);
+  const effectiveCategoryGroups = useMemo(
+    () => (categoryGroups.length > 0 ? categoryGroups : legacyCategoryGroups),
+    [categoryGroups]
+  );
+  const categoryMap = useMemo(
+    () => buildCategoryMap([...legacyCategoryGroups, ...effectiveCategoryGroups]),
+    [effectiveCategoryGroups]
+  );
+  const allCategoryOptions = useMemo(() => buildAllOptions(effectiveCategoryGroups), [effectiveCategoryGroups]);
 
   const getCategoryMeta = (value) => {
     if (!value) return null;
@@ -92,7 +124,9 @@ export default function useCategories() {
   };
 
   return {
-    categoryGroups,
+    categoryGroups: effectiveCategoryGroups,
+    dynamicCategoryGroups: categoryGroups,
+    effectiveCategoryGroups,
     allCategoryOptions,
     getCategoryMeta,
     loading,

@@ -116,6 +116,7 @@ export const CartProvider = ({ children }) => {
       try {
         if (quantity <= 0) {
           const { data } = await api.delete(`/cart/items/${productId}`, {
+            params: selectionKey ? { selectionKey } : undefined,
             data: { selectionKey, selectedAttributes }
           });
           if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
@@ -168,6 +169,7 @@ export const CartProvider = ({ children }) => {
       setError('');
       try {
         const { data } = await api.delete(`/cart/items/${productId}`, {
+          params: selectionKey ? { selectionKey } : undefined,
           data: { selectionKey, selectedAttributes }
         });
         if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {

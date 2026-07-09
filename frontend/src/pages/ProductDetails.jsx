@@ -125,6 +125,7 @@ export default function ProductDetails() {
   const [certifyError, setCertifyError] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [isVariantSheetOpen, setIsVariantSheetOpen] = useState(false);
   const trackedProductViewsRef = useRef(new Set());
   const pendingFocusCommentIdRef = useRef('');
   const commentHighlightTimerRef = useRef(null);
@@ -1493,6 +1494,26 @@ export default function ProductDetails() {
       : Number(product?.price || 0);
   const normalizedQuantity = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
   const discountPercentage = product?.discount || 0;
+  // Taobao-style variant strip + "Tout" sheet: driven by the first select
+  // attribute whose options are mapped to product photos.
+  const imageVariantAttribute = useMemo(
+    () =>
+      (Array.isArray(productOptionDefinitions) ? productOptionDefinitions : []).find(
+        (attr) =>
+          attr?.type === 'select' &&
+          attr?.optionImages &&
+          Array.isArray(attr?.options) &&
+          attr.options.length > 0
+      ) || null,
+    [productOptionDefinitions]
+  );
+  const selectableAttributes = useMemo(
+    () =>
+      (Array.isArray(productOptionDefinitions) ? productOptionDefinitions : []).filter(
+        (attr) => attr?.type === 'select' && Array.isArray(attr?.options) && attr.options.length > 0
+      ),
+    [productOptionDefinitions]
+  );
   const wholesaleTiers = useMemo(() => {
     if (!Array.isArray(product?.wholesaleTiers)) return [];
     return product.wholesaleTiers
@@ -2253,6 +2274,53 @@ export default function ProductDetails() {
             ))}
           </div>
         )}
+        {/* Variant strip (style Taobao) : options photo + bouton "Tout" ouvrant la fiche complète */}
+        {imageVariantAttribute && (
+          <div className="flex items-center gap-2 border-t border-gray-50 px-3 py-2.5">
+            <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {imageVariantAttribute.options.map((option) => {
+                const optionKey = String(option).trim().toLowerCase();
+                const selectedValue = normalizedSelectedAttributes.find(
+                  (e) => e.name.toLowerCase() === imageVariantAttribute.name.toLowerCase()
+                )?.value || '';
+                const active = selectedValue.toLowerCase() === optionKey;
+                const optionImageIdx = imageVariantAttribute.optionImages?.[optionKey];
+                const optionThumb = Number.isInteger(optionImageIdx)
+                  ? product?.images?.[optionImageIdx] || ''
+                  : '';
+                return (
+                  <button key={`variant-strip-${option}`} type="button"
+                    onClick={() => handleAttributeValueChange(imageVariantAttribute, !imageVariantAttribute.required && active ? '' : option)}
+                    className={`inline-flex max-w-[150px] flex-shrink-0 items-center gap-1.5 rounded-lg border p-1 pr-2 transition-all active:scale-[0.97] ${active
+                      ? 'border-[#FF6A00] bg-[#fff0e4]'
+                      : 'border-gray-200 bg-gray-50'}`}
+                    aria-pressed={active}>
+                    <span className="h-9 w-9 flex-shrink-0 overflow-hidden rounded bg-gray-100">
+                      {optionThumb ? (
+                        <img src={optionThumb} alt={option} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-sm font-black text-gray-300">
+                          {String(option).charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </span>
+                    <span className={`truncate text-xs font-bold ${active ? 'text-[#FF6A00]' : 'text-gray-700'}`}>
+                      {option}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" onClick={() => setIsVariantSheetOpen(true)}
+              className="inline-flex flex-shrink-0 items-center gap-0.5 rounded-full bg-gray-100 py-2 pl-3 pr-2 text-xs font-black text-gray-700 active:scale-95"
+              aria-label={`Voir les ${imageVariantAttribute.options.length} options`}>
+              Tout
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-800 text-white">
+                <ChevronRight size={11} />
+              </span>
+            </button>
+          </div>
+        )}
       </section>
 
       {/* ── DIVIDER ── */}
@@ -2982,6 +3050,144 @@ export default function ProductDetails() {
                 <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── VARIANT PICKER SHEET (style Taobao "Tout") ── */}
+      {isVariantSheetOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true">
+          <button type="button" aria-label="Fermer"
+            onClick={() => setIsVariantSheetOpen(false)}
+            className="absolute inset-0 bg-black/50" />
+          <div className="relative flex max-h-[85vh] flex-col rounded-t-2xl bg-white"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            {/* Header : sélection courante + fermer */}
+            <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-4">
+              <p className="min-w-0 text-sm font-black text-gray-900">
+                {normalizedSelectedAttributes.length > 0 ? (
+                  <>Sélectionné : «{normalizedSelectedAttributes.map((entry) => entry.value).join(' ; ')}»</>
+                ) : (
+                  'Choisissez vos options'
+                )}
+              </p>
+              <button type="button" onClick={() => setIsVariantSheetOpen(false)}
+                className="flex-shrink-0 rounded-full p-1 text-gray-500 active:scale-95" aria-label="Fermer">
+                <X size={20} />
+              </button>
+            </div>
+            {/* Aperçu : photo courante + prix + quantité */}
+            <div className="flex items-start gap-3 border-b border-gray-100 px-4 pb-3">
+              <button type="button" onClick={() => openImageModal(selectedImage)}
+                className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 active:scale-[0.97]"
+                aria-label="Agrandir la photo">
+                <img
+                  src={
+                    galleryImages[selectedImage]?.type === 'image'
+                      ? galleryImages[selectedImage]?.src
+                      : galleryImages.find((g) => g.type === 'image')?.src || product?.images?.[0] || ''
+                  }
+                  alt={product.title}
+                  className="h-full w-full object-cover"
+                />
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-black text-[#FF6A00]">
+                    {formatPriceWithStoredSettings(appliedUnitPrice)}
+                  </span>
+                  {hasDiscount && Number(originalPrice) > appliedUnitPrice ? (
+                    <span className="text-xs text-gray-400 line-through">
+                      {formatPriceWithStoredSettings(originalPrice)}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-xs font-semibold text-gray-500">{stockStatus.label}</p>
+                <div className="mt-2 inline-flex items-center rounded-lg border border-gray-200">
+                  <button type="button" onClick={decreaseQuantity} disabled={normalizedQuantity <= 1}
+                    className="px-3 py-1.5 text-sm font-black text-gray-600 disabled:text-gray-300" aria-label="Réduire la quantité">−</button>
+                  <span className="min-w-[36px] border-x border-gray-200 px-2 py-1.5 text-center text-sm font-black">
+                    {normalizedQuantity}
+                  </span>
+                  <button type="button" onClick={increaseQuantity}
+                    className="px-3 py-1.5 text-sm font-black text-gray-600" aria-label="Augmenter la quantité">+</button>
+                </div>
+              </div>
+            </div>
+            {/* Toutes les options */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+              {selectableAttributes.map((attribute) => {
+                const selectedValue = normalizedSelectedAttributes.find(
+                  (e) => e.name.toLowerCase() === attribute.name.toLowerCase()
+                )?.value || '';
+                return (
+                  <div key={`sheet-opt-${attribute.key || attribute.name}`} className="mb-4 last:mb-0">
+                    <p className="mb-2 text-sm font-black text-gray-900">
+                      {attribute.name} ({attribute.options.length})
+                      {attribute.required && <span className="ml-0.5 text-[#FF6A00]">*</span>}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {attribute.options.map((option) => {
+                        const optionKey = String(option).trim().toLowerCase();
+                        const active = selectedValue.toLowerCase() === optionKey;
+                        const optionPrice = attribute.optionPrices?.[optionKey];
+                        const optionImageIdx = attribute.optionImages?.[optionKey];
+                        const optionThumb = Number.isInteger(optionImageIdx)
+                          ? product?.images?.[optionImageIdx] || ''
+                          : '';
+                        return (
+                          <button key={`sheet-${attribute.name}-${option}`} type="button"
+                            onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
+                            className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border p-1 pr-2.5 text-left transition-all active:scale-[0.97] ${active
+                              ? 'border-[#FF6A00] bg-[#fff0e4]'
+                              : 'border-transparent bg-gray-100'}`}
+                            aria-pressed={active}>
+                            {optionThumb ? (
+                              <img src={optionThumb} alt="" loading="lazy"
+                                className="h-8 w-8 flex-shrink-0 rounded object-cover" />
+                            ) : null}
+                            <span className={`truncate text-sm font-semibold ${active ? 'text-[#FF6A00]' : 'text-gray-700'}`}>
+                              {option}
+                            </span>
+                            {Number.isFinite(optionPrice) && optionPrice > 0 ? (
+                              <span className={`flex-shrink-0 text-xs font-black ${active ? 'text-[#FF6A00]' : 'text-gray-500'}`}>
+                                {formatPriceWithStoredSettings(optionPrice)}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {(selectionError || isOptionSelectionBlocked) && (
+                <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {selectionError || 'Veuillez sélectionner les options obligatoires.'}
+                </p>
+              )}
+            </div>
+            {/* Actions */}
+            {!isOwnProduct && (
+              <div className="flex gap-2 border-t border-gray-100 px-4 py-3">
+                <button type="button"
+                  onClick={() => { setIsVariantSheetOpen(false); handleAddToCart(); }}
+                  disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock || isOptionSelectionBlocked
+                    ? 'bg-gray-100 text-gray-400'
+                    : 'border border-[#FF6A00] bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                  {isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : 'Ajouter au panier'}
+                </button>
+                <button type="button"
+                  onClick={() => { setIsVariantSheetOpen(false); handleBuyNow(); }}
+                  disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock || isOptionSelectionBlocked
+                    ? 'bg-gray-200 text-gray-400'
+                    : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
+                  {addingToCart ? '...' : 'Acheter'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

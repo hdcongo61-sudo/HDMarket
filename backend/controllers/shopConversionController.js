@@ -326,7 +326,13 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
       shopName: normalizedShopName,
       userName: user.name,
       userEmail: user.email,
-      userPhone: user.phone
+      userPhone: user.phone,
+      paymentAmount: amount,
+      paymentMethod,
+      paymentStatus: request.paymentStatus,
+      operator: request.operator,
+      transactionNumber: request.transactionNumber,
+      requiredDocuments: ['shopPaper', 'shopInvoice', 'insidePhoto', 'outsidePhoto']
     };
 
     for (const admin of admins) {

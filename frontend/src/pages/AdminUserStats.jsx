@@ -1,10 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Heart, MessageCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Eye,
+  Heart,
+  MessageCircle,
+  Store,
+  Tag,
+  TrendingUp
+} from 'lucide-react';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
-import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
+import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const numberFormatter = new Intl.NumberFormat('fr-FR');
 const formatNumber = (value) => {
@@ -15,26 +22,32 @@ const formatNumber = (value) => {
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
 const SummaryCard = ({ label, value, helper }) => (
-  <div className="rounded-2xl border border-gray-100 bg-white px-4 py-5 shadow-sm">
-    <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-    <p className="text-2xl font-semibold text-gray-900">{value}</p>
-    {helper ? <p className="text-xs text-gray-400 mt-1">{helper}</p> : null}
+  <div className="rounded-2xl border border-gray-100 bg-white px-4 py-4">
+    <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">{label}</p>
+    <p className="mt-1.5 text-2xl font-black leading-none text-gray-900">{value}</p>
+    {helper ? <p className="mt-1.5 text-xs font-medium text-gray-500">{helper}</p> : null}
   </div>
 );
 
-const HighlightStat = ({ label, value, helper }) => (
-  <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-neutral-600 to-neutral-600 px-4 py-5 text-white shadow-lg">
-    <p className="text-xs uppercase tracking-wide text-neutral-100">{label}</p>
-    <p className="text-3xl font-semibold">{value}</p>
-    {helper ? <p className="text-xs text-neutral-100/80 mt-1">{helper}</p> : null}
+const HighlightStat = ({ label, value, helper, icon: Icon }) => (
+  <div className="rounded-2xl border border-orange-200 bg-[#FFF7F0] px-4 py-4">
+    <div className="flex items-center justify-between">
+      <p className="text-[11px] font-black uppercase tracking-wide text-[#B45309]">{label}</p>
+      {Icon ? <Icon size={16} className="text-[#FF6A00]" /> : null}
+    </div>
+    <p className="mt-1.5 text-3xl font-black leading-none text-[#FF6A00]">{value}</p>
+    {helper ? <p className="mt-1.5 text-xs font-medium text-gray-500">{helper}</p> : null}
   </div>
 );
 
-const SectionModal = ({ title, onClose, children }) => (
-  <BaseModal isOpen={Boolean(title)} onClose={onClose} size="lg" mobileSheet={true}>
-    <ModalHeader title={title} onClose={onClose} />
-    <ModalBody>{children}</ModalBody>
-  </BaseModal>
+const SectionTitle = ({ eyebrow, title, aside }) => (
+  <div className="flex items-end justify-between gap-3">
+    <div>
+      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">{eyebrow}</p> : null}
+      <h2 className="mt-0.5 text-lg font-black tracking-tight text-gray-900">{title}</h2>
+    </div>
+    {aside ? <p className="text-xs font-semibold text-gray-400">{aside}</p> : null}
+  </div>
 );
 
 export default function AdminUserStats() {
@@ -43,7 +56,6 @@ export default function AdminUserStats() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeModal, setActiveModal] = useState(null);
   const [shopPage, setShopPage] = useState(1);
 
   useEffect(() => {
@@ -116,112 +128,23 @@ export default function AdminUserStats() {
       {
         label: 'Contacts WhatsApp',
         value: formatNumber(stats.performance.clicks),
-        helper: 'Nombre de clics générés'
+        helper: 'Nombre de clics générés',
+        icon: MessageCircle
       },
       {
         label: 'Vues totales',
         value: formatNumber(stats.performance.views),
-        helper: 'Réponses aux annonces'
+        helper: 'Réponses aux annonces',
+        icon: Eye
       },
       {
         label: 'Conversion',
         value: `${formatNumber(stats.performance.conversion)} %`,
-        helper: 'Annonces approuvées'
+        helper: 'Annonces approuvées',
+        icon: TrendingUp
       }
     ];
   }, [stats]);
-
-  const openModal = (section) => setActiveModal(section);
-  const closeModal = () => setActiveModal(null);
-
-  const renderModalContent = () => {
-    if (!activeModal || !stats) return null;
-    switch (activeModal) {
-      case 'summary':
-        return (
-          <dl className="space-y-3">
-            {summary.map((item) => (
-              <div key={item.label} className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <dt className="text-xs uppercase tracking-wide text-gray-500">{item.label}</dt>
-                <dd className="text-sm font-semibold text-gray-900">{item.helper ? `${item.value} · ${item.helper}` : item.value}</dd>
-              </div>
-            ))}
-          </dl>
-        );
-      case 'highlights':
-        return (
-          <div className="space-y-3">
-            {highlightStats.map((item) => (
-              <div key={item.label} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-gray-500">{item.label}</p>
-                <p className="text-xl font-semibold text-gray-900">{item.value}</p>
-                {item.helper ? <p className="text-xs text-gray-500">{item.helper}</p> : null}
-              </div>
-            ))}
-          </div>
-        );
-      case 'timeline':
-        return timeline.length ? (
-          <div className="space-y-3">
-            {timeline.map((entry) => (
-              <div key={entry.label} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-gray-500">{entry.label}</p>
-                <p className="text-sm font-semibold text-gray-900">{formatNumber(entry.count)} annonces</p>
-                <p className="text-xs text-gray-500">
-                  {formatNumber(entry.favorites)} favoris · {formatNumber(entry.clicks)} contacts
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">Aucune activité récente.</p>
-        );
-      case 'categories':
-        return categories.length ? (
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <span
-                key={category.category}
-                className="rounded-full border border-gray-200 bg-white px-4 py-1 text-xs font-semibold text-gray-600"
-              >
-                {category.category} · {formatNumber(category.count)} annonces
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">Aucune donnée catégorielle disponible.</p>
-        );
-      case 'topProducts':
-        return topProducts.length ? (
-          <div className="space-y-3">
-            {topProducts.map((product) => (
-              <div key={product._id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-900">{product.title}</p>
-                  <span className="text-xs text-gray-500">{product.category || 'Catégorie inconnue'}</span>
-                </div>
-                <p className="text-[11px] uppercase tracking-wide text-gray-400">{product.status || 'Statut inconnu'}</p>
-                <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Heart className="h-3 w-3 text-neutral-500" />
-                    {formatNumber(product.favorites)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MessageCircle className="h-3 w-3 text-neutral-500" />
-                    {formatNumber(product.whatsappClicks)}
-                  </span>
-                  <span className="text-xs text-gray-400">{formatCurrency(product.price)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">Aucun produit avec suffisamment d'engagement.</p>
-        );
-      default:
-        return null;
-    }
-  };
 
   const followedShops = useMemo(() => stats?.followedShops || [], [stats]);
   const totalShopPages = Math.max(1, Math.ceil(followedShops.length / SHOPS_PER_PAGE));
@@ -237,19 +160,10 @@ export default function AdminUserStats() {
     });
   }, [followedShops.length]);
 
-  const modalTitleMap = {
-    summary: 'Vue d’ensemble',
-    highlights: 'Performances',
-    timeline: 'Timeline détaillée',
-    categories: 'Répartition par catégorie',
-    topProducts: 'Produits les plus engagés'
-  };
-  const modalTitle = activeModal ? modalTitleMap[activeModal] : '';
-
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="animate-pulse rounded-2xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+        <div className="animate-pulse rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500">
           Chargement des statistiques…
         </div>
       </div>
@@ -258,34 +172,37 @@ export default function AdminUserStats() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-500">
-          <Link
-            to="/admin"
-            className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-1 text-xs font-semibold text-gray-600 hover:border-neutral-300 hover:text-neutral-700"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Retour au back office
-          </Link>
-          {stats?.user ? (
-            <span className="text-sm font-semibold text-gray-900">
-              Statistiques de {stats.user.name}
-            </span>
-          ) : (
-            <span className="text-sm font-semibold text-gray-900">Statistiques utilisateur</span>
-          )}
-        </div>
-        {stats?.user ? (
-          <div className="text-right text-xs text-gray-500">
-            <p>{stats.user.email}</p>
-            <p>
-              {stats.user.accountType === 'shop' ? 'Boutique' : 'Particulier'} ·
-              {' '}
-              {stats.user.role === 'manager' ? 'Gestionnaire' : 'Utilisateur'}
-            </p>
+      {/* ── Identité utilisateur ── */}
+      <header className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
+        <Link
+          to="/admin/users"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 active:scale-[0.97]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Utilisateurs
+        </Link>
+        <div className="mt-3 flex items-center gap-3">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-lg font-black uppercase text-[#FF6A00]">
+            {String(stats?.user?.name || 'U').charAt(0)}
           </div>
-        ) : null}
-      </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-black tracking-tight text-gray-900">
+              {stats?.user ? `Statistiques de ${stats.user.name}` : 'Statistiques utilisateur'}
+            </h1>
+            {stats?.user ? (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="truncate text-xs font-medium text-gray-500">{stats.user.email}</span>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-600">
+                  {stats.user.accountType === 'shop' ? 'Boutique' : 'Particulier'}
+                </span>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-600">
+                  {stats.user.role === 'manager' ? 'Gestionnaire' : 'Utilisateur'}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </header>
 
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -299,47 +216,31 @@ export default function AdminUserStats() {
 
       {stats ? (
         <>
+          {/* Performances d'abord : les chiffres qui disent si ce vendeur marche */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Vue d’ensemble</h2>
-              <button
-                type="button"
-                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
-                onClick={() => openModal('summary')}
-              >
-                Voir les résultats
-              </button>
+            <SectionTitle eyebrow="Performance" title="Ce que génèrent ses annonces" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {highlightStats.map((item) => (
+                <HighlightStat key={item.label} {...item} />
+              ))}
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          </div>
+
+          <div className="space-y-3">
+            <SectionTitle eyebrow="Activité" title="Vue d’ensemble" />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               {summary.map((item) => (
                 <SummaryCard key={item.label} label={item.label} value={item.value} helper={item.helper} />
               ))}
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Performances</h2>
-              <button
-                type="button"
-                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
-                onClick={() => openModal('highlights')}
-              >
-                Voir les résultats
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {highlightStats.map((item) => (
-                <HighlightStat key={item.label} label={item.label} value={item.value} helper={item.helper} />
-              ))}
-            </div>
-          </div>
-
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Boutiques suivies</h2>
-              <p className="text-xs text-gray-400">{followedShops.length} boutique(s)</p>
-            </div>
+            <SectionTitle
+              eyebrow="Réseau"
+              title="Boutiques suivies"
+              aside={`${followedShops.length} boutique${followedShops.length > 1 ? 's' : ''}`}
+            />
             {followedShops.length ? (
               <>
                 <div className="space-y-2">
@@ -347,21 +248,26 @@ export default function AdminUserStats() {
                     <Link
                       key={shop.id}
                       to={buildShopPath(shop)}
-                    className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3 text-xs font-semibold text-gray-700 transition hover:border-neutral-200 hover:text-neutral-800"
-                  >
-                    <div className="min-w-0 space-y-0.5">
-                      <p className="truncate text-sm font-semibold text-gray-900">{shop.name}</p>
-                      <p className="truncate text-[11px] text-gray-500">
-                        {shop.city || 'Localisation inconnue'}
-                      </p>
-                    </div>
-                    <span className="flex-shrink-0 text-[11px] text-gray-400">
-                      {formatNumber(shop.followersCount)} abonnés
-                    </span>
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 transition hover:border-orange-200 hover:bg-[#FFF7F0]"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
+                          <Store size={16} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-gray-900">{shop.name}</p>
+                          <p className="truncate text-[11px] font-medium text-gray-500">
+                            {shop.city || 'Localisation inconnue'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="flex-shrink-0 text-[11px] font-bold text-gray-400">
+                        {formatNumber(shop.followersCount)} abonnés
+                      </span>
                     </Link>
                   ))}
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-gray-500">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-gray-500">
                   <span>
                     Affichage{' '}
                     {Math.min((shopPage - 1) * SHOPS_PER_PAGE + 1, followedShops.length)}-
@@ -372,7 +278,7 @@ export default function AdminUserStats() {
                       type="button"
                       onClick={() => setShopPage((prev) => Math.max(1, prev - 1))}
                       disabled={shopPage <= 1}
-                      className="rounded border border-gray-200 px-2 py-1 font-semibold text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 font-bold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Précédent
                     </button>
@@ -380,7 +286,7 @@ export default function AdminUserStats() {
                       type="button"
                       onClick={() => setShopPage((prev) => Math.min(totalShopPages, prev + 1))}
                       disabled={shopPage >= totalShopPages}
-                      className="rounded border border-gray-200 px-2 py-1 font-semibold text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 font-bold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Suivant
                     </button>
@@ -388,37 +294,27 @@ export default function AdminUserStats() {
                 </div>
               </>
             ) : (
-              <p className="text-xs text-gray-500">Aucune boutique suivie.</p>
+              <p className="rounded-2xl border border-dashed border-gray-200 bg-white p-4 text-xs font-medium text-gray-500">
+                Aucune boutique suivie.
+              </p>
             )}
           </section>
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Timeline</h2>
-                <p className="text-xs text-gray-400">6 derniers mois</p>
-              </div>
-              <button
-                type="button"
-                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
-                onClick={() => openModal('timeline')}
-              >
-                Voir les résultats
-              </button>
-            </div>
+            <SectionTitle eyebrow="Historique" title="Timeline" aside="6 derniers mois" />
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {timeline.length ? (
                 timeline.map((entry) => (
-                  <div key={entry.label} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase tracking-wide text-gray-500">{entry.label}</p>
-                    <p className="text-lg font-semibold text-gray-900">{formatNumber(entry.count)} annonces</p>
-                    <p className="text-xs text-gray-500">
+                  <div key={entry.label} className="rounded-2xl border border-gray-100 bg-white p-4">
+                    <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">{entry.label}</p>
+                    <p className="mt-1 text-lg font-black text-gray-900">{formatNumber(entry.count)} annonces</p>
+                    <p className="mt-0.5 text-xs font-medium text-gray-500">
                       {formatNumber(entry.favorites)} favoris · {formatNumber(entry.clicks)} contacts
                     </p>
                   </div>
                 ))
               ) : (
-                <div className="rounded-2xl border border-dashed border-gray-200 bg-white/70 p-4 text-xs text-gray-500">
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-4 text-xs font-medium text-gray-500">
                   Aucune activité récente.
                 </div>
               )}
@@ -426,75 +322,55 @@ export default function AdminUserStats() {
           </section>
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Répartition par catégorie</h2>
-              <button
-                type="button"
-                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
-                onClick={() => openModal('categories')}
-              >
-                Voir les résultats
-              </button>
-            </div>
+            <SectionTitle eyebrow="Catalogue" title="Répartition par catégorie" />
             <div className="flex flex-wrap gap-2">
               {categories.length ? (
                 categories.map((category) => (
                   <span
                     key={category.category}
-                    className="rounded-full border border-gray-200 bg-white px-4 py-1 text-xs font-semibold text-gray-600"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-bold text-gray-600"
                   >
-                    {category.category} · {formatNumber(category.count)} annonces
+                    <Tag size={12} className="text-[#FF6A00]" />
+                    {category.category} · {formatNumber(category.count)}
                   </span>
                 ))
               ) : (
-                <p className="text-xs text-gray-500">Aucune donnée catégorielle disponible.</p>
+                <p className="text-xs font-medium text-gray-500">Aucune donnée catégorielle disponible.</p>
               )}
             </div>
           </section>
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Produits les plus engagés</h2>
-                <p className="text-xs text-gray-400">Favoris + clics</p>
-              </div>
-              <button
-                type="button"
-                className="text-xs font-semibold text-neutral-600 hover:text-neutral-800"
-                onClick={() => openModal('topProducts')}
-              >
-                Voir les résultats
-              </button>
-            </div>
-            <div className="space-y-3">
+            <SectionTitle eyebrow="Best-of" title="Produits les plus engagés" aside="Favoris + clics" />
+            <div className="space-y-2">
               {topProducts.length ? (
                 topProducts.map((product) => (
-                <Link
-                  key={product._id}
-                  to={buildProductPath(product)}
-                  className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-neutral-200 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{product.title}</p>
-                    <p className="text-xs text-gray-500">
-                      {product.category || 'Catégorie inconnue'} · {product.status || 'Statut inconnu'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Heart className="h-3 w-3 text-neutral-500" />
-                      {formatNumber(product.favorites)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageCircle className="h-3 w-3 text-neutral-500" />
-                      {formatNumber(product.whatsappClicks)}
-                    </span>
-                    <span className="text-xs text-gray-400">{formatCurrency(product.price)}</span>
-                  </div>
-                </Link>
+                  <Link
+                    key={product._id}
+                    to={buildProductPath(product)}
+                    className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white p-4 transition hover:border-orange-200 hover:bg-[#FFF7F0] sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-gray-900">{product.title}</p>
+                      <p className="text-xs font-medium text-gray-500">
+                        {product.category || 'Catégorie inconnue'} · {product.status || 'Statut inconnu'}
+                      </p>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-4 text-xs font-semibold text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Heart className="h-3.5 w-3.5 text-[#FF6A00]" />
+                        {formatNumber(product.favorites)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="h-3.5 w-3.5 text-[#FF6A00]" />
+                        {formatNumber(product.whatsappClicks)}
+                      </span>
+                      <span className="font-black text-gray-900">{formatCurrency(product.price)}</span>
+                    </div>
+                  </Link>
                 ))
               ) : (
-                <div className="rounded-2xl border border-dashed border-gray-200 bg-white/70 p-4 text-xs text-gray-500">
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-4 text-xs font-medium text-gray-500">
                   Aucun produit avec suffisamment d'engagement.
                 </div>
               )}
@@ -502,11 +378,6 @@ export default function AdminUserStats() {
           </section>
         </>
       ) : null}
-      {activeModal && (
-        <SectionModal title={modalTitle} onClose={closeModal}>
-          {renderModalContent()}
-        </SectionModal>
-      )}
     </div>
   );
 }

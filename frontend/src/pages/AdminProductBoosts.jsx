@@ -631,7 +631,7 @@ export default function AdminProductBoosts() {
             className={`w-full min-h-[42px] rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
               product.boosted
                 ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg'
-                : 'bg-gradient-to-r from-neutral-600 to-neutral-600 hover:from-neutral-700 hover:to-neutral-700 text-white shadow-md hover:shadow-lg'
+                : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] hover:bg-[#f05f00]'
             } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
           >
             {savingId === product._id ? (
@@ -792,7 +792,7 @@ export default function AdminProductBoosts() {
             className={`w-full min-h-[42px] rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
               isShopCurrentlyBoosted(shop)
                 ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg'
-                : 'bg-gradient-to-r from-neutral-600 to-neutral-600 hover:from-neutral-700 hover:to-neutral-700 text-white shadow-md hover:shadow-lg'
+                : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] hover:bg-[#f05f00]'
             } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
           >
             {savingShopId === shop._id ? (

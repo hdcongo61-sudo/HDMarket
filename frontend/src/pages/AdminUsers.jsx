@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Ban, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, AlertCircle, MapPin, Truck, Clock } from 'lucide-react';
+import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, AlertCircle, MapPin, Truck, Clock } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -1399,12 +1399,12 @@ export default function AdminUsers() {
         <div className="border-b border-neutral-100 bg-neutral-50/50 px-5 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-900 text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
                 <ShieldAlert size={18} />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500">Admin Console</p>
-                <h1 className="text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#FF6A00]">Communauté</p>
+                <h1 className="text-xl font-black tracking-tight text-neutral-900 sm:text-2xl">
                   Utilisateurs &amp; Rôles
                 </h1>
               </div>
@@ -2020,6 +2020,13 @@ export default function AdminUsers() {
                           Historique
                         </button>
                       )}
+                      <Link
+                        to={`/admin/users/${user.id}/stats`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-[#FFF0E4] px-3 py-2 text-xs font-semibold text-[#FF6A00] hover:bg-orange-100"
+                      >
+                        <BarChart3 size={14} />
+                        Stats
+                      </Link>
                     </div>
                   </article>
                 );

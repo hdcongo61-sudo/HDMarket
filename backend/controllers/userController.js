@@ -1667,6 +1667,8 @@ const NOTIFICATION_TITLES = Object.freeze({
   product_rejected: 'Produit rejeté',
   boost_expired: 'Boost expiré',
   promo_expired: 'Promotion expirée',
+  shop_conversion_request: 'Demande boutique à vérifier',
+  validation_required: 'Action requise',
   assistant_product_action_request: 'Demande assistant produit'
 });
 
@@ -1772,7 +1774,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
       case 'product_comment':
         message = snippet
           ? `${actorName} a commenté votre annonce${productLabel} : ${snippet}`
-          : `${actorName} a laissé un commentaire sur votre annonce${productLabel}.`;
+          : `${actorName} a commenté votre annonce${productLabel}. Ouvrez la discussion pour répondre.`;
         break;
       case 'reply':
         message = snippet
@@ -1780,12 +1782,12 @@ export const getNotifications = asyncHandler(async (req, res) => {
           : `${actorName} a répondu à votre commentaire${productLabel}.`;
         break;
       case 'favorite':
-        message = `${actorName} a ajouté votre annonce${productLabel} à ses favoris.`;
+        message = `${actorName} a ajouté votre annonce${productLabel} à ses favoris. C'est un signal d'intérêt pour ce produit.`;
         break;
       case 'rating':
         message = metadata.value
-          ? `${actorName} a noté votre annonce${productLabel} (${metadata.value}/5).`
-          : `${actorName} a noté votre annonce${productLabel}.`;
+          ? `${actorName} a noté votre annonce${productLabel} (${metadata.value}/5). Consultez l'évaluation.`
+          : `${actorName} a noté votre annonce${productLabel}. Consultez l'évaluation.`;
         break;
       case 'product_approval':
       case 'product_approved':
@@ -1810,7 +1812,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
       }
       case 'shop_follow': {
         const shopLabel = shopInfo?.shopName || metadata.shopName || 'votre boutique';
-        message = `${actorName} a commencé à suivre ${shopLabel}.`;
+        message = `${actorName} suit maintenant ${shopLabel}. Il recevra vos nouveautés.`;
         break;
       }
       case 'shop_review': {
@@ -1895,13 +1897,22 @@ export const getNotifications = asyncHandler(async (req, res) => {
       case 'payment_proof_submitted': {
         const amountValue = Number(metadata.amount || 0);
         const amountText = Number.isFinite(amountValue) && amountValue > 0
-          ? ` (${amountValue.toLocaleString('fr-FR')} FCFA)`
+          ? `${amountValue.toLocaleString('fr-FR')} FCFA`
           : '';
         const waitingCount = Number(metadata.waitingCount || 0);
         const waitingSuffix =
           waitingCount > 1 ? ` · ${waitingCount} paiements en attente` : '';
-        const productText = productLabel || '';
-        message = `${actorName} a soumis une preuve de paiement${productText}${amountText}. Consultez la section "Vérification des paiements"${waitingSuffix}.`;
+        const isListingPayment =
+          String(metadata.paymentType || '').toUpperCase() === 'LISTING_FEE' ||
+          String(metadata.validationType || '') === 'productValidation' ||
+          Boolean(productLabel);
+        if (isListingPayment) {
+          message = `${actorName} a payé${amountText ? ` ${amountText}` : ''} pour faire valider son annonce${productLabel}. Vérifiez le paiement et l'annonce${waitingSuffix}.`;
+        } else if (metadata.role === 'wallet_deposit_request' || metadata.walletId) {
+          message = `${actorName} a soumis un dépôt portefeuille${amountText ? ` de ${amountText}` : ''}. Vérifiez la preuve avant de créditer le solde.`;
+        } else {
+          message = `${actorName} a soumis une preuve de paiement${amountText ? ` de ${amountText}` : ''}. Consultez la section "Vérification des paiements"${waitingSuffix}.`;
+        }
         break;
       }
       case 'payment_validated': {
@@ -1946,7 +1957,14 @@ export const getNotifications = asyncHandler(async (req, res) => {
           Number.isFinite(totalValue) && totalValue > 0
             ? ` (${totalValue.toLocaleString('fr-FR')} FCFA)`
             : '';
-        message = `${actorName} a passé ${orderSubject} pour ${itemsLabel}${totalText}.`;
+        const deliveryMode = String(metadata.deliveryMode || metadata.fulfillmentMode || '').toUpperCase();
+        const deliveryText =
+          deliveryMode === 'PICKUP'
+            ? ' · retrait en boutique'
+            : deliveryMode === 'DELIVERY'
+            ? ' · livraison'
+            : '';
+        message = `${actorName} a passé ${orderSubject} pour ${itemsLabel}${totalText}${deliveryText}. Vérifiez les détails et confirmez rapidement.`;
         break;
       }
       case 'order_full_payment_waived': {
@@ -2105,6 +2123,15 @@ export const getNotifications = asyncHandler(async (req, res) => {
           metadata.message && String(metadata.message).trim()
             ? String(metadata.message).trim()
             : 'Une action de validation est requise.';
+        break;
+      }
+      case 'shop_conversion_request': {
+        const amountValue = Number(metadata.paymentAmount || metadata.amount || 0);
+        const amountText = Number.isFinite(amountValue) && amountValue > 0
+          ? ` un paiement de ${amountValue.toLocaleString('fr-FR')} FCFA pour`
+          : '';
+        const shopName = metadata.shopName ? ` "${metadata.shopName}"` : '';
+        message = `${metadata.userName || actorName} a soumis${amountText} une demande d'accès boutique${shopName}. Vérifiez les informations, les documents et les 4 photos obligatoires.`;
         break;
       }
       default:

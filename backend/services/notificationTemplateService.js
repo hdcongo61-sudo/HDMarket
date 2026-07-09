@@ -19,30 +19,54 @@ const resolveOrderLabel = (metadata = {}, snapshot = {}) => {
   return productTitle ? `la commande "${productTitle}"` : 'la commande';
 };
 
-const buildPaymentMessage = ({ metadata = {}, actorName = 'Un utilisateur', action = 'a soumis une preuve de paiement' }) => {
-  const amount = formatAmount(metadata.amount || metadata.expectedAmount || metadata.amountPaid);
-  const suffix = amount ? ` (${amount})` : '';
-  return `${actorName} ${action}${suffix}.`;
+const formatOrderSummary = (metadata = {}, snapshot = {}) => {
+  const itemCount = Number(metadata.itemCount || metadata.itemsCount || 0);
+  const total = formatAmount(metadata.totalAmount || metadata.orderTotal || metadata.amount);
+  const deliveryMode = String(metadata.deliveryMode || metadata.fulfillmentMode || '').toUpperCase();
+  const deliveryLabel =
+    deliveryMode === 'PICKUP'
+      ? 'Retrait en boutique'
+      : deliveryMode === 'DELIVERY'
+      ? 'Livraison'
+      : '';
+  const parts = [
+    itemCount > 0 ? `${itemCount} article${itemCount > 1 ? 's' : ''}` : '',
+    total ? `total ${total}` : '',
+    deliveryLabel,
+    metadata.deliveryCity ? `ville ${metadata.deliveryCity}` : ''
+  ].filter(Boolean);
+  const orderCode = pickFirst(snapshot.orderCode, metadata.orderCode, metadata.orderNumber);
+  return `${orderCode ? ` (${orderCode})` : ''}${parts.length ? ` — ${parts.join(' · ')}` : ''}`;
+};
+
+const isListingValidationPayment = (metadata = {}) => {
+  const paymentType = String(metadata.paymentType || '').toUpperCase();
+  const validationType = String(metadata.validationType || '').trim();
+  return (
+    paymentType === 'LISTING_FEE' ||
+    validationType === 'productValidation' ||
+    Boolean(metadata.productId || metadata.productTitle)
+  );
 };
 
 const TEMPLATES = {
   // === ORDERS ===
   order_placed: ({ metadata, snapshot, actorName }) => ({
     title: 'Nouvelle commande reçue',
-    message: `${actorName} a commandé ${resolveOrderLabel(metadata, snapshot)}. Préparez la commande pour expédition.`,
+    message: `${actorName} a passé ${resolveOrderLabel(metadata, snapshot)}${formatOrderSummary(metadata, snapshot)}. Vérifiez les détails et préparez la suite.`,
     actionLabel: 'Voir la commande'
   }),
   order_created: ({ metadata, snapshot, actorName }) => {
     const shopName = snapshot.shopName || metadata.shopName || 'le vendeur';
     return {
       title: 'Commande confirmée',
-      message: `${shopName} a confirmé ${resolveOrderLabel(metadata, snapshot)}. Votre commande est en cours de préparation.`,
+      message: `${shopName} a confirmé ${resolveOrderLabel(metadata, snapshot)}${formatOrderSummary(metadata, snapshot)}. Votre commande est en préparation.`,
       actionLabel: 'Voir la commande'
     };
   },
   order_accepted: ({ metadata, snapshot }) => ({
     title: 'Commande acceptée',
-    message: `${resolveOrderLabel(metadata, snapshot)} est en préparation. Le vendeur va bientôt l'expédier.`,
+    message: `${resolveOrderLabel(metadata, snapshot)} est acceptée et passe en préparation. Le vendeur vous informera de la prochaine étape.`,
     actionLabel: 'Voir la commande'
   }),
   order_rejected: ({ metadata, snapshot }) => ({
@@ -52,12 +76,12 @@ const TEMPLATES = {
   }),
   order_received: ({ metadata, snapshot, actorName }) => ({
     title: 'Nouvelle commande',
-    message: `${actorName} vient de passer ${resolveOrderLabel(metadata, snapshot)}. Vérifiez les détails et confirmez rapidement.`,
+    message: `${actorName} vient de passer ${resolveOrderLabel(metadata, snapshot)}${formatOrderSummary(metadata, snapshot)}. Vérifiez les détails et confirmez rapidement.`,
     actionLabel: 'Voir la commande'
   }),
   order_cancelled: ({ metadata, snapshot, actorName }) => ({
     title: 'Commande annulée',
-    message: `${actorName} a annulé ${resolveOrderLabel(metadata, snapshot)}.${metadata.reason ? ` Motif: ${metadata.reason}` : ''}${metadata.refundRequested ? ' Un remboursement a été demandé.' : ''}`,
+    message: `${actorName} a annulé ${resolveOrderLabel(metadata, snapshot)}.${metadata.reason ? ` Motif : ${metadata.reason}` : ''}${metadata.refundRequested ? ' Un remboursement doit être suivi.' : ''}`,
     actionLabel: 'Voir la commande'
   }),
   order_cancellation_window_skipped: ({ metadata, snapshot }) => ({
@@ -155,14 +179,41 @@ const TEMPLATES = {
   // === PAYMENTS ===
   payment_pending: ({ metadata, actorName }) => {
     const amount = formatAmount(metadata.amount || metadata.expectedAmount);
+    const productTitle = pickFirst(metadata.productTitle);
+    if (isListingValidationPayment(metadata)) {
+      return {
+        title: 'Annonce à vérifier',
+        message: `${actorName} a payé${amount ? ` ${amount}` : ''} pour faire valider son annonce${
+          productTitle ? ` "${productTitle}"` : ''
+        }. Vérifiez le paiement et l'annonce.`,
+        actionLabel: 'Vérifier l\'annonce'
+      };
+    }
     return {
       title: 'Paiement en attente',
-      message: `${actorName} doit encore payer${amount ? ` ${amount}` : ''} pour sa commande. Vérifiez les preuves de paiement.`,
+      message: `${actorName} doit encore payer${amount ? ` ${amount}` : ''} pour sa commande. Vérifiez la preuve de paiement.`,
       actionLabel: 'Vérifier le paiement'
     };
   },
   payment_proof_submitted: ({ metadata, actorName }) => {
     const amount = formatAmount(metadata.amount || metadata.expectedAmount);
+    const productTitle = pickFirst(metadata.productTitle);
+    if (isListingValidationPayment(metadata)) {
+      return {
+        title: 'Paiement d\'annonce reçu',
+        message: `${actorName} a payé${amount ? ` ${amount}` : ''} pour faire valider son annonce${
+          productTitle ? ` "${productTitle}"` : ''
+        }. Vérifiez le paiement et l'annonce.`,
+        actionLabel: 'Vérifier l\'annonce'
+      };
+    }
+    if (metadata.role === 'wallet_deposit_request' || metadata.walletId) {
+      return {
+        title: 'Dépôt portefeuille à vérifier',
+        message: `${actorName} a soumis un dépôt portefeuille${amount ? ` de ${amount}` : ''}. Vérifiez la preuve avant de créditer le solde.`,
+        actionLabel: 'Vérifier le dépôt'
+      };
+    }
     return {
       title: 'Preuve de paiement reçue',
       message: `${actorName} a envoyé une preuve de paiement${amount ? ` de ${amount}` : ''}. Vérifiez-la dans le centre de validation.`,
@@ -172,9 +223,16 @@ const TEMPLATES = {
   payment_validated: ({ metadata }) => {
     const amount = formatAmount(metadata.amount || metadata.amountPaid);
     const customMessage = String(metadata.message || '').trim();
+    if (customMessage) {
+      return {
+        title: pickFirst(metadata.title, 'Paiement confirmé'),
+        message: customMessage,
+        actionLabel: metadata.paymentMethod === 'wallet' && metadata.productId ? 'Voir le paiement' : 'Voir le détail'
+      };
+    }
     return {
       title: 'Paiement confirmé',
-      message: customMessage || `Votre paiement${amount ? ` de ${amount}` : ''} a été validé avec succès. Votre commande peut maintenant être traitée.`,
+      message: `Votre paiement${amount ? ` de ${amount}` : ''} a été validé. Le traitement peut continuer.`,
       actionLabel: metadata.paymentMethod === 'wallet' && metadata.productId ? 'Voir le paiement' : 'Voir la commande'
     };
   },
@@ -199,7 +257,7 @@ const TEMPLATES = {
     const amount = formatAmount(metadata.amount);
     return {
       title: 'Tranche payée',
-      message: `${actorName} a soumis une preuve de paiement de tranche${amount ? ` de ${amount}` : ''}. Vérifiez-la.`,
+      message: `${actorName} a soumis une preuve de paiement de tranche${amount ? ` de ${amount}` : ''}. Vérifiez la preuve et validez ou refusez la tranche.`,
       actionLabel: 'Valider la tranche'
     };
   },
@@ -345,11 +403,21 @@ const TEMPLATES = {
     message: `Votre demande de conversion en boutique a été refusée.${metadata.reason ? ` Motif: ${metadata.reason}` : ''}`,
     actionLabel: 'Contactez le support'
   }),
+  shop_conversion_request: ({ metadata, actorName }) => {
+    const amount = formatAmount(metadata.paymentAmount || metadata.amount);
+    return {
+      title: 'Demande boutique à vérifier',
+      message: `${metadata.userName || actorName} a soumis${amount ? ` un paiement de ${amount} pour` : ''} une demande d'accès boutique${
+        metadata.shopName ? ` "${metadata.shopName}"` : ''
+      }. Vérifiez les informations, les documents et les 4 photos obligatoires.`,
+      actionLabel: 'Vérifier la demande'
+    };
+  },
 
   // === SOCIAL ===
   product_comment: ({ snapshot, actorName }) => ({
     title: 'Nouveau commentaire',
-    message: `${actorName} a commenté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''}.`,
+    message: `${actorName} a commenté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''}. Ouvrez la discussion pour répondre.`,
     actionLabel: 'Voir le commentaire'
   }),
   reply: ({ snapshot, actorName }) => ({
@@ -359,12 +427,12 @@ const TEMPLATES = {
   }),
   favorite: ({ snapshot, actorName }) => ({
     title: 'Ajout aux favoris',
-    message: `${actorName} a ajouté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''} à ses favoris.`,
+    message: `${actorName} a ajouté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''} à ses favoris. C'est un signal d'intérêt pour ce produit.`,
     actionLabel: 'Voir l\'annonce'
   }),
   rating: ({ metadata, snapshot, actorName }) => ({
     title: 'Nouvelle note',
-    message: `${actorName} a noté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''} ${metadata.value ? `${metadata.value}/5 ⭐` : ''}.`,
+    message: `${actorName} a noté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''}${metadata.value ? ` ${metadata.value}/5 ⭐` : ''}. Consultez l'évaluation.`,
     actionLabel: 'Voir l\'évaluation'
   }),
   shop_review: ({ metadata, snapshot, actorName }) => {
@@ -378,7 +446,7 @@ const TEMPLATES = {
   },
   shop_follow: ({ snapshot, actorName }) => ({
     title: 'Nouvel abonné',
-    message: `${actorName} suit maintenant votre boutique${snapshot.shopName ? ` "${snapshot.shopName}"` : ''}.`,
+    message: `${actorName} suit maintenant votre boutique${snapshot.shopName ? ` "${snapshot.shopName}"` : ''}. Il recevra vos nouveautés.`,
     actionLabel: 'Voir ma boutique'
   }),
   order_message: ({ metadata, snapshot, actorName }) => ({
@@ -536,7 +604,7 @@ const TEMPLATES = {
     actionLabel: 'Voir l\'avis'
   }),
   validation_required: ({ metadata }) => ({
-    title: '🔔 Action requise',
+    title: pickFirst(metadata.title, '🔔 Action requise'),
     message: pickFirst(metadata.message, 'Une action de validation est requise dans le centre des tâches.'),
     actionLabel: pickFirst(metadata.actionLabel, 'Voir la tâche')
   })
