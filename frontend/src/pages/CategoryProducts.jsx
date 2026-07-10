@@ -392,7 +392,7 @@ export default function CategoryProducts() {
               <div className="w-full md:w-auto">
                 <label
                   htmlFor="category-sort"
-                  className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-600"
+                  className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-white/80"
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   Trier

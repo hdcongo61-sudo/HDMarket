@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { CreditCard, Search, ShieldCheck, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { CreditCard, Search, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
 import api, { isApiCanceledError } from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
@@ -308,26 +308,60 @@ const fetchProducts = useCallback(async () => {
     [setSearchParams]
   );
 
+  const handleShopVerifiedChange = useCallback(
+    (enabled) => {
+      setShopVerified(enabled);
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (enabled) {
+            params.set('shopVerified', 'true');
+          } else {
+            params.delete('shopVerified');
+          }
+          params.delete('page');
+          return params;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const handleSortChange = useCallback(
+    (value) => {
+      setSort(value);
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (value && value !== 'new') {
+            params.set('sort', value);
+          } else {
+            params.delete('sort');
+          }
+          params.delete('page');
+          return params;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   return (
     <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
-        <header className="hd-products-hero overflow-hidden rounded-2xl p-4 text-white sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/20">
-                <Sparkles className="h-3.5 w-3.5" />
-                Catalogue HDMarket
-              </div>
-              <h1 className="text-2xl font-black leading-tight sm:text-4xl">Tous les produits</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/88">
-                Parcourez les annonces disponibles avec une navigation rapide, des filtres lisibles et des cartes pensées pour mobile.
-              </p>
+        {/* Hero compact : le catalogue est une page outil, pas une page vitrine */}
+        <header className="hd-products-hero overflow-hidden rounded-2xl p-4 text-white sm:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <h1 className="text-xl font-black leading-tight sm:text-2xl">Tous les produits</h1>
+              <span className="text-xs font-bold text-white/80">
+                {items.length} affiché{items.length > 1 ? 's' : ''}
+              </span>
             </div>
-            <form
-              onSubmit={handleSearchSubmit}
-              className="w-full lg:max-w-xl"
-            >
-              <div className="hd-products-search flex items-center gap-2 rounded-full bg-white px-3 py-2">
+            <form onSubmit={handleSearchSubmit} className="w-full lg:max-w-xl">
+              <div className="hd-products-search flex items-center gap-2 rounded-full bg-white px-3 py-1">
                 <Search className="h-5 w-5 shrink-0 text-[#FF6A00]" />
                 <input
                   type="search"
@@ -350,7 +384,8 @@ const fetchProducts = useCallback(async () => {
                   type="submit"
                   className="hd-primary-button min-h-0 rounded-full px-4 py-2 text-sm font-black"
                 >
-                  Rechercher
+                  <Search className="h-4 w-4 sm:hidden" />
+                  <span className="hidden sm:inline">Rechercher</span>
                 </button>
               </div>
             </form>
@@ -371,68 +406,72 @@ const fetchProducts = useCallback(async () => {
           </section>
         )}
 
-        <section className="hd-products-toolbar flex flex-col gap-3 rounded-2xl px-3 py-3 sm:px-4 md:sticky md:top-20 md:z-20 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 flex-wrap">
-            <span>
-              {items.length} résultat{items.length > 1 ? 's' : ''} affiché{items.length > 1 ? 's' : ''}
-            </span>
-            {searchTerm && (
-              <span className="hd-products-chip-active rounded-full px-3 py-1 text-xs font-semibold">
-                Filtre&nbsp;:&nbsp;{searchTerm}
-              </span>
-            )}
-            {categoryFilter && (
+        {/* Barre outils sticky (tous écrans) : tri en chips à un tap + filtres toggle.
+            Une seule rangée défilante sur mobile au lieu de trois rangées empilées. */}
+        <section className="hd-products-toolbar sticky top-16 z-20 space-y-2 rounded-2xl px-3 py-2.5 sm:px-4 md:top-20">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
+            {SORT_OPTIONS.map((option) => (
               <button
+                key={option.value}
                 type="button"
-                onClick={clearCategoryFilter}
-                className="hd-products-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                onClick={() => handleSortChange(option.value)}
+                className={`${sort === option.value ? 'hd-products-chip-active' : 'hd-products-chip'} flex-shrink-0 rounded-full px-3.5 py-2 text-xs font-black`}
+                aria-pressed={sort === option.value}
               >
-                Catégorie&nbsp;:&nbsp;{categoryMeta?.label || categoryFilter}
-                <span aria-hidden="true">×</span>
+                {option.label}
               </button>
-            )}
-            {installmentOnly && (
-              <button
-                type="button"
-                onClick={() => handleInstallmentFilterChange(false)}
-                className="hd-products-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
-              >
-                Paiement par tranche
-                <span aria-hidden="true">×</span>
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            ))}
+            <span className="mx-0.5 my-1 w-px flex-shrink-0 self-stretch bg-gray-200" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => handleInstallmentFilterChange(!installmentOnly)}
+              className={`${installmentOnly ? 'hd-products-chip-active' : 'hd-products-chip'} inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black`}
+              aria-pressed={installmentOnly}
+            >
+              <CreditCard className="h-4 w-4" />
+              Tranche
+            </button>
+            <button
+              type="button"
+              onClick={() => handleShopVerifiedChange(!shopVerified)}
+              className={`${shopVerified ? 'hd-products-chip-active' : 'hd-products-chip'} inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black`}
+              aria-pressed={shopVerified}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Boutiques vérifiées
+            </button>
             <Link
               to="/search"
-              className="hd-products-chip inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-black sm:text-sm"
+              className="hd-products-chip inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black"
             >
-              <SlidersHorizontal className="w-4 h-4 text-[#FF6A00]" />
+              <SlidersHorizontal className="h-4 w-4 text-[#FF6A00]" />
               Recherche avancée
             </Link>
-            <label className="hd-products-chip inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-black sm:text-sm">
-              <input
-                type="checkbox"
-                checked={installmentOnly}
-                onChange={(event) => handleInstallmentFilterChange(event.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-neutral-600 focus:ring-neutral-500"
-              />
-              <CreditCard className="h-4 w-4 text-[#FF6A00]" />
-              Tranche uniquement
-            </label>
-            <select
-              id="sort-options"
-              value={sort}
-              onChange={(event) => setSort(event.target.value)}
-              className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 sm:text-sm"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </div>
+          {(searchTerm || categoryFilter) && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="hd-products-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                >
+                  «&nbsp;{searchTerm}&nbsp;»
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
+              {categoryFilter && (
+                <button
+                  type="button"
+                  onClick={clearCategoryFilter}
+                  className="hd-products-chip-active inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                >
+                  Catégorie&nbsp;:&nbsp;{categoryMeta?.label || categoryFilter}
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
         {error && (
@@ -487,19 +526,6 @@ const fetchProducts = useCallback(async () => {
           </div>
         )}
 
-        <section className="rounded-2xl border border-neutral-100 bg-white px-4 py-4 text-sm text-neutral-700 sm:px-6 sm:py-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-semibold text-neutral-800">
-              Besoin d&apos;une catégorie spécifique&nbsp;?
-            </p>
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 hover:text-neutral-500"
-            >
-              Retour à la page d&apos;accueil
-            </Link>
-          </div>
-        </section>
       </div>
     </div>
   );

@@ -3022,7 +3022,7 @@ const loadDiscountProducts = async () => {
             </div>
 
             {wholesaleLoading && !wholesaleProducts.length ? (
-              <div className="grid grid-cols-2 gap-3 p-5">
+              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={`wdsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
                     <div className="aspect-[4/3] animate-pulse bg-gray-100" />
@@ -3035,7 +3035,7 @@ const loadDiscountProducts = async () => {
                 ))}
               </div>
             ) : wholesaleProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 p-5">
+              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
                 {wholesaleProducts.slice(0, 4).map((product, idx) => {
                   const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                   const tierPrice = product?.wholesaleTiers?.[0]?.unitPrice || product?.price;
@@ -3125,7 +3125,7 @@ const loadDiscountProducts = async () => {
             </div>
 
             {installmentLoading && !installmentProducts.length ? (
-              <div className="grid grid-cols-2 gap-3 p-5">
+              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={`idsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
                     <div className="aspect-[4/3] animate-pulse bg-gray-100" />
@@ -3138,7 +3138,7 @@ const loadDiscountProducts = async () => {
                 ))}
               </div>
             ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
-              <div className="grid grid-cols-2 gap-3 p-5">
+              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
                 {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
                   .slice(0, 4)
                   .map((product, idx) => {
