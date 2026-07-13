@@ -114,13 +114,13 @@ export default function MyFeedback() {
     return (
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
             <User className="h-8 w-8" />
           </div>
           <p className="text-sm font-semibold text-gray-600">Vous devez être connecté pour accéder à cette page.</p>
           <Link
             to="/login"
-            className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#FF6A00] px-5 text-sm font-black text-white"
+            className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#e85d00] px-5 text-sm font-black text-white"
           >
             <ArrowLeft size={16} />
             Retour à la connexion
@@ -166,12 +166,12 @@ export default function MyFeedback() {
           <form onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-black text-gray-800">
-                <FileText className="h-4 w-4 text-[#FF6A00]" />
+                <FileText className="h-4 w-4 text-[#e85d00]" />
                 Sujet *
               </label>
               <input
                 type="text"
-                className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-4 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
+                className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-4 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                 placeholder="Ex : Nouvelle fonctionnalité"
                 value={subject}
                 onChange={(e) => { setSubject(e.target.value); setSubmitError(''); setSubmitSuccess(''); }}
@@ -182,11 +182,11 @@ export default function MyFeedback() {
             </div>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-black text-gray-800">
-                <MessageCircle className="h-4 w-4 text-[#FF6A00]" />
+                <MessageCircle className="h-4 w-4 text-[#e85d00]" />
                 Votre avis *
               </label>
               <textarea
-                className="w-full rounded-xl border border-gray-200 bg-gray-100/35 px-4 py-3 text-sm font-semibold outline-none transition placeholder:text-gray-400 focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
+                className="w-full rounded-xl border border-gray-200 bg-gray-100/35 px-4 py-3 text-sm font-semibold outline-none transition placeholder:text-gray-400 focus:border-[#e85d00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                 rows={4}
                 value={body}
                 onChange={(e) => { setBody(e.target.value); setSubmitError(''); setSubmitSuccess(''); }}
@@ -245,7 +245,7 @@ export default function MyFeedback() {
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-wide text-[#FF6A00]">Historique</p>
+              <p className="text-xs font-black uppercase tracking-wide text-[#e85d00]">Historique</p>
               <h2 className="mt-1 text-xl font-black text-gray-900">Vos avis envoyés</h2>
             </div>
           </div>

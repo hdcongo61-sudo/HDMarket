@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, ShieldCheck, Sparkles, Star, Store, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Share2, ShieldCheck, Sparkles, Star, Store } from 'lucide-react';
 import { formatCount, formatDate, formatRatingLabel } from './shopProfileHelpers';
 
 const isCloudinaryUrl = (url = '') =>
@@ -26,12 +26,13 @@ export default function ShopHero({
   hasActivePromo,
   hasFreeDelivery,
   yearsActiveLabel,
-  customerSatisfaction,
+  onBack,
+  onShare,
   t
 }) {
   return (
     <section className="overflow-hidden rounded-none bg-white shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
-      <div className="relative h-[210px] w-full overflow-hidden bg-[#fff0df] sm:h-[280px] dark:bg-neutral-900">
+      <div className="relative h-[150px] w-full overflow-hidden bg-[#fff0df] dark:bg-neutral-900">
         {shop?.shopBanner || shop?.shopBannerMobile ? (
           <>
             <img
@@ -57,7 +58,9 @@ export default function ShopHero({
           />
         )}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
-        <div className="absolute left-4 top-4 flex items-center gap-2">
+        <button type="button" onClick={onBack} className="absolute left-2.5 top-2.5 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur" aria-label={t('common.back', 'Retour')}><ArrowLeft size={18} /></button>
+        <button type="button" onClick={onShare} className="absolute right-2.5 top-2.5 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur" aria-label={t('shop_profile.share', 'Partager')}><Share2 size={17} /></button>
+        <div className="hidden">
           {isCertifiedShop && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1.5 text-[11px] font-black text-emerald-700 shadow-sm ring-1 ring-white/60 backdrop-blur">
               <ShieldCheck size={13} />
@@ -71,7 +74,7 @@ export default function ShopHero({
             </span>
           )}
         </div>
-        <div className="absolute inset-x-4 bottom-4">
+        <div className="hidden">
           <div className="flex items-end gap-3">
             <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-xl ring-1 ring-black/5 dark:border-neutral-950 dark:bg-neutral-900 dark:ring-white/10">
               {shop?.shopLogo ? (
@@ -101,8 +104,22 @@ export default function ShopHero({
         </div>
       </div>
 
-      <div className="px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="relative px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
+        <div className="flex items-end gap-3 -mt-8">
+          <div className="z-[1] h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-[0_8px_20px_rgba(0,0,0,0.12)] dark:border-neutral-950 dark:bg-neutral-900">
+            {shop?.shopLogo ? <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-2xl font-black text-[var(--shop-color)]">{String(shop?.shopName || 'B').charAt(0).toUpperCase()}</div>}
+          </div>
+          <div className="z-[1] min-w-0 flex-1 pb-1">
+            <div className="flex items-center gap-1.5"><h1 className="truncate text-[19px] font-black text-[#231f1b] dark:text-white">{shop?.shopName}</h1>{isCertifiedShop ? <ShieldCheck size={16} className="shrink-0 text-[#e85d00]" /> : null}</div>
+            <p className="mt-0.5 truncate text-xs text-[#8a8378]">{[shop?.commune, shop?.city].filter(Boolean).join(', ') || 'HDMarket'}</p>
+          </div>
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-[#6b6459]">
+          <span className="inline-flex items-center gap-1"><Star size={13} className="fill-[#e85d00] text-[#e85d00]" /><strong className="text-[#44403a]">{formatRatingLabel(ratingAverage)}</strong> · {formatCount(ratingCount)} {t('shop_profile.reviews_count', 'avis')}</span>
+          {stats?.slice(0, 2).map((item) => <span key={`inline-${item.label}`}>{item.value} {String(item.label || '').toLowerCase()}</span>)}
+        </div>
+        <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-[#047857]"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{openingSummary?.statusText}</div>
+        <div className="hidden">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black ${
               openingSummary?.isOpen
@@ -137,7 +154,7 @@ export default function ShopHero({
             )}
         </p>
 
-        <div className="mt-4 grid grid-cols-4 overflow-hidden rounded border border-gray-100 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="hidden">
           {stats.map((item) => (
             <div key={item.label} className="flex flex-col items-center gap-0.5 border-r border-gray-100 px-1 py-3 last:border-r-0 dark:border-neutral-800">
               <span className="text-lg font-black text-[var(--shop-color)]">{item.value}</span>
@@ -147,16 +164,11 @@ export default function ShopHero({
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {hasFreeDelivery ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f5f2ee] px-2.5 py-1 text-[11px] font-semibold text-[#44403a]"><Store size={11} className="text-[#047857]" />Livraison offerte</span> : null}
           {yearsActiveLabel && (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
               <Clock size={11} />
               {yearsActiveLabel}
-            </span>
-          )}
-          {customerSatisfaction && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
-              <TrendingUp size={11} />
-              {customerSatisfaction}
             </span>
           )}
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">

@@ -61,7 +61,7 @@ const formatPercentLabel = (value) => {
 const normalizeShopColor = (value) =>
   /^#[0-9A-F]{6}$/i.test(String(value || '').trim())
     ? String(value).trim().toUpperCase()
-    : '#FF6A00';
+    : '#e85d00';
 
 const getReadableTextColor = (hexColor) => {
   const hex = normalizeShopColor(hexColor).slice(1);
@@ -1014,18 +1014,6 @@ export default function ShopProfile() {
       }}
     >
       <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-clip px-0 py-0 sm:px-6 sm:py-5 lg:px-8">
-        <ShopTopHeader
-          title={shop.shopName}
-          subtitle={[shop?.commune, shop?.city].filter(Boolean).join(', ') || t('shop_profile.public_shop', 'Boutique publique')}
-          onBack={() => navigate(-1)}
-          onShare={handleShareShop}
-          onFollowToggle={handleFollowToggle}
-          isFollowing={isFollowing}
-          followDisabled={followDisabled}
-          followPending={followPending}
-          t={t}
-        />
-
         {isOfflineSnapshot && (
           <div className="mx-3 mb-2 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800 sm:mx-0 sm:mb-4">
             {offlineBannerText ||
@@ -1048,21 +1036,13 @@ export default function ShopProfile() {
             hasFreeDelivery={hasFreeDelivery}
             yearsActiveLabel={yearsActiveLabel}
             customerSatisfaction={customerSatisfaction}
+            onBack={() => navigate(-1)}
+            onShare={handleShareShop}
             t={t}
           />
 
-          <ShopQuickInfo openingSummary={openingSummary} trustQuickInfo={trustQuickInfo} t={t} />
-
           <div className="grid min-w-0 gap-2 overflow-x-clip sm:gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0 space-y-2 overflow-x-clip sm:space-y-4">
-              {isMobile && (
-                <ShopOpeningHoursCard
-                  openingSummary={openingSummary}
-                  isCertifiedShop={isCertifiedShop}
-                  t={t}
-                />
-              )}
-
               <ShopActionsCard
                 isOwnShop={isOwnShop}
                 slug={slug}

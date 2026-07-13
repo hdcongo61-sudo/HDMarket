@@ -193,7 +193,7 @@ function Metric({ label, value, icon: Icon }) {
     <div className="rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</p>
-        <Icon size={16} className="text-[#FF6A00]" />
+        <Icon size={16} className="text-[#e85d00]" />
       </div>
       <p className="mt-2 text-2xl font-black text-gray-900">{value}</p>
     </div>
@@ -215,17 +215,17 @@ function PermissionPill({ permissionKey }) {
 function PermissionSwitch({ permission, checked, onToggle, disabled }) {
   const Icon = permission.icon;
   return (
-    <label className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${checked ? 'border-[#FF6A00]/30 bg-gray-100/50' : 'border-gray-100 bg-white hover:bg-gray-50'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
+    <label className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${checked ? 'border-[#e85d00]/30 bg-gray-100/50' : 'border-gray-100 bg-white hover:bg-gray-50'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={() => onToggle(permission.key)}
-        className="mt-1 h-4 w-4 accent-[#FF6A00]"
+        className="mt-1 h-4 w-4 accent-[#e85d00]"
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <Icon size={15} className={checked ? 'text-[#FF6A00]' : 'text-gray-400'} />
+          <Icon size={15} className={checked ? 'text-[#e85d00]' : 'text-gray-400'} />
           <p className="text-sm font-bold text-gray-900">{permission.label}</p>
         </div>
         <p className="mt-1 text-xs leading-5 text-gray-500">{permission.description}</p>
@@ -242,19 +242,19 @@ function ActivityLog({ logs, loading }) {
           <h2 className="text-base font-black text-gray-900">Journal d'activite</h2>
           <p className="text-sm text-gray-500">Historique des invitations, permissions et actions assistant.</p>
         </div>
-        <Activity size={18} className="text-[#FF6A00]" />
+        <Activity size={18} className="text-[#e85d00]" />
       </div>
 
       <div className="mt-4 space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-8 text-sm text-gray-500">
-            <Loader2 size={18} className="mr-2 animate-spin text-[#FF6A00]" />
+            <Loader2 size={18} className="mr-2 animate-spin text-[#e85d00]" />
             Chargement du journal...
           </div>
         ) : logs.length ? (
           logs.map((log) => (
             <div key={log._id} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3">
-              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#FF6A00] ring-1 ring-gray-100">
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#e85d00] ring-1 ring-gray-100">
                 <Activity size={15} />
               </div>
               <div className="min-w-0 flex-1">
@@ -292,9 +292,9 @@ function WorkspaceOrderRow({ order }) {
   return (
     <Link
       to={`/seller/orders/detail/${order?._id}`}
-      className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 transition hover:border-[#FF6A00]/30 hover:bg-gray-100"
+      className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 transition hover:border-[#e85d00]/30 hover:bg-gray-100"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[#FF6A00]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[#e85d00]">
         <Package size={17} />
       </div>
       <div className="min-w-0 flex-1">
@@ -317,9 +317,9 @@ function WorkspaceTaskCard({ title, description, count, icon: Icon, to, tone = '
       ? 'bg-red-50 text-red-700 ring-red-100'
       : tone === 'amber'
         ? 'bg-amber-50 text-amber-700 ring-amber-100'
-        : 'bg-gray-100 text-[#FF6A00] ring-gray-200';
+        : 'bg-gray-100 text-[#e85d00] ring-gray-200';
   return (
-    <Link to={to} className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm transition hover:border-[#FF6A00]/30 hover:shadow-md">
+    <Link to={to} className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm transition hover:border-[#e85d00]/30 hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-black text-gray-900">{title}</p>
@@ -470,7 +470,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="text-sm font-black text-gray-900">Commandes prioritaires</p>
-                  <Link to="/seller/orders?status=new" className="text-xs font-bold text-[#FF6A00]">Voir tout</Link>
+                  <Link to="/seller/orders?status=new" className="text-xs font-bold text-[#e85d00]">Voir tout</Link>
                 </div>
                 <div className="space-y-2">
                   {workspaceLoading ? (
@@ -490,7 +490,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="text-sm font-black text-gray-900">Livraisons actives</p>
-                  <Link to="/seller/orders?status=handoff" className="text-xs font-bold text-[#FF6A00]">Voir tout</Link>
+                  <Link to="/seller/orders?status=handoff" className="text-xs font-bold text-[#e85d00]">Voir tout</Link>
                 </div>
                 <div className="space-y-2">
                   {workspaceLoading ? (
@@ -517,7 +517,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
                       <p className="truncate text-sm font-bold text-gray-800">{ACTION_LABELS[log.action] || log.action}</p>
                       <p className="text-xs text-gray-400">{formatDate(log.createdAt)}</p>
                     </div>
-                    <Activity size={15} className="shrink-0 text-[#FF6A00]" />
+                    <Activity size={15} className="shrink-0 text-[#e85d00]" />
                   </div>
                 ))
               ) : (
@@ -613,13 +613,13 @@ function AssistantProductsView() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Rechercher un produit"
-              className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:bg-white"
+              className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm font-semibold outline-none focus:border-[#e85d00] focus:bg-white"
             />
           </label>
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value)}
-            className="h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-semibold outline-none focus:border-[#FF6A00] focus:bg-white"
+            className="h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-semibold outline-none focus:border-[#e85d00] focus:bg-white"
           >
             <option value="all">Tous statuts</option>
             <option value="approved">Approuves</option>
@@ -631,7 +631,7 @@ function AssistantProductsView() {
             type="button"
             onClick={loadProducts}
             disabled={loading}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#FF6A00] px-4 text-sm font-black text-white disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-60"
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
             Actualiser
@@ -683,7 +683,7 @@ function AssistantProductsView() {
                         {product?.status || 'draft'}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm font-black text-[#FF6A00]">{formatMoney(product?.price)}</p>
+                    <p className="mt-1 text-sm font-black text-[#e85d00]">{formatMoney(product?.price)}</p>
                     <p className="mt-1 line-clamp-2 text-xs text-gray-500">{product?.description || 'Aucune description.'}</p>
                   </div>
                 </div>
@@ -845,7 +845,7 @@ function OwnerView({ shopId }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-[#FF6A00]" size={32} />
+        <Loader2 className="animate-spin text-[#e85d00]" size={32} />
       </div>
     );
   }
@@ -873,7 +873,7 @@ function OwnerView({ shopId }) {
         {assistant ? (
           <div className="mt-5 flex flex-col gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FF6A00] text-lg font-black text-white">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-lg font-black text-white">
                 {getDisplayName(assistant.assistant, 'A').charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
@@ -897,7 +897,7 @@ function OwnerView({ shopId }) {
         ) : (
           <div className="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#FF6A00] ring-1 ring-gray-100">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#e85d00] ring-1 ring-gray-100">
                 <UserPlus size={18} />
               </div>
               <div>
@@ -915,7 +915,7 @@ function OwnerView({ shopId }) {
             <select
               value={lookupType}
               onChange={(event) => setLookupType(event.target.value)}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-[#e85d00]/25"
             >
               <option value="email">Email</option>
               <option value="phone">Telephone</option>
@@ -931,13 +931,13 @@ function OwnerView({ shopId }) {
                 onChange={(event) => setLookupValue(event.target.value)}
                 onKeyDown={(event) => event.key === 'Enter' && invite()}
                 placeholder={lookupType === 'email' ? 'email@exemple.com' : lookupType === 'phone' ? '+243...' : 'ID utilisateur'}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#e85d00]/25"
               />
             </div>
             <button
               onClick={invite}
               disabled={actionLoading}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#FF6A00] px-4 py-2.5 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#e85d00] px-4 py-2.5 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
             >
               {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
               Inviter
@@ -973,7 +973,7 @@ function OwnerView({ shopId }) {
                 key={preset.key}
                 type="button"
                 onClick={() => applyPreset(preset)}
-                className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-[#FF6A00]/30 hover:bg-gray-100"
+                className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-left transition hover:border-[#e85d00]/30 hover:bg-gray-100"
               >
                 <p className="text-sm font-black text-gray-900">{preset.label}</p>
                 <p className="mt-1 text-xs leading-5 text-gray-500">{preset.description}</p>
@@ -1015,7 +1015,7 @@ function OwnerView({ shopId }) {
               <button
                 onClick={savePermissions}
                 disabled={actionLoading}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#FF6A00] px-4 py-3 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#e85d00] px-4 py-3 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50 sm:w-auto"
               >
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
                 Enregistrer les permissions
@@ -1132,7 +1132,7 @@ function AssistantView() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-[#FF6A00]" size={32} />
+        <Loader2 className="animate-spin text-[#e85d00]" size={32} />
       </div>
     );
   }
@@ -1173,7 +1173,7 @@ function AssistantView() {
                     <button
                       onClick={() => accept(invite.shop?._id)}
                       disabled={actionLoading}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#FF6A00] px-3 py-2 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#e85d00] px-3 py-2 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
                     >
                       {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
                       Accepter
@@ -1193,7 +1193,7 @@ function AssistantView() {
           <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex min-w-0 gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FF6A00] text-white">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white">
                   <Store size={22} />
                 </div>
                 <div className="min-w-0">
@@ -1230,7 +1230,7 @@ function AssistantView() {
                     <Link
                       key={link.to}
                       to={link.to}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3 text-sm font-bold text-gray-800 hover:bg-gray-100 hover:text-[#FF6A00]"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3 text-sm font-bold text-gray-800 hover:bg-gray-100 hover:text-[#e85d00]"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Icon size={16} />
@@ -1293,7 +1293,7 @@ export default function ShopAssistant() {
             </div>
           </div>
           <div className="hidden items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 sm:inline-flex">
-            <ShieldCheck size={14} className="text-[#FF6A00]" />
+            <ShieldCheck size={14} className="text-[#e85d00]" />
             Acces controle
           </div>
         </div>

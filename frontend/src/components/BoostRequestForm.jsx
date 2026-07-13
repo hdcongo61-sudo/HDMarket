@@ -231,7 +231,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   return (
     <form onSubmit={handleSubmit} className="hd-form-card rounded-3xl p-3 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-[#ff6a00]" />
+        <Sparkles className="h-5 w-5 text-[#e85d00]" />
         <h3 className="text-base font-black text-slate-900 sm:text-lg">Nouvelle demande de boost</h3>
       </div>
 
@@ -246,7 +246,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                 onClick={() => setBoostType(item.value)}
                 className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                   boostType === item.value
-                    ? 'border-[#ff6a00] bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'border-[#e85d00] bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border-gray-200 bg-white text-slate-700'
                 }`}
               >
@@ -344,7 +344,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             onClick={() => setPaymentMethod('mobile_money')}
             className={`rounded-2xl border p-3 text-left transition ${
               paymentMethod === 'mobile_money'
-                ? 'border-[#ff6a00] bg-white text-gray-500 shadow-sm'
+                ? 'border-[#e85d00] bg-white text-gray-500 shadow-sm'
                 : 'border-gray-200 bg-white/80 text-slate-700 hover:border-gray-200'
             }`}
           >
@@ -401,7 +401,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                   onClick={() => setPaymentOperator(network.name)}
                   className={`rounded-xl border px-3 py-2 text-left transition-colors ${
                     paymentOperator === network.name
-                      ? 'border-[#ff6a00] bg-gray-100 text-gray-500 shadow-sm'
+                      ? 'border-[#e85d00] bg-gray-100 text-gray-500 shadow-sm'
                       : 'border-gray-200 bg-white text-slate-700 hover:border-gray-200'
                   }`}
                 >

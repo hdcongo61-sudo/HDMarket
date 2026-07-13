@@ -22,7 +22,6 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import FloatingGlassButton from '../components/ui/FloatingGlassButton';
-import AppOfflineDiagnosticsCard from '../components/admin/AppOfflineDiagnosticsCard';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 import {
   Paperclip,
@@ -59,9 +58,7 @@ import {
   ArrowUpRight,
   Sparkles,
   ClipboardList,
-  Truck,
-  Ticket,
-  SlidersHorizontal
+  Truck
 } from 'lucide-react';
 import useAdminCounts from '../hooks/useAdminCounts';
 
@@ -116,7 +113,7 @@ function SectionStatCard({ label, value, helper, icon: Icon, variant: _variant =
           {helper ? <p className="mt-1.5 truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{helper}</p> : null}
         </div>
         {Icon && (
-          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
             <Icon size={18} strokeWidth={2.2} />
           </span>
         )}
@@ -265,7 +262,7 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
           )}
         </div>
         {Icon && (
-          <span className="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+          <span className="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
             <Icon size={20} strokeWidth={2.2} />
           </span>
         )}
@@ -274,31 +271,11 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
   );
 }
 
-function AdminQuickKpiCard({ label, value, helper, icon: Icon, tone = 'slate' }) {
-  // Flat tiles, tone kept only on the icon chip so the numbers stay the loudest element.
-  const toneChips = {
-    blue: 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300',
-    green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300',
-    purple: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300',
-    orange: 'bg-[#FFF0E4] text-[#FF6A00] dark:bg-orange-950/40 dark:text-orange-300',
-    slate: 'bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300'
-  };
-  const chipClass = toneChips[tone] || toneChips.slate;
-
+function AdminQuickKpiCard({ label, value }) {
   return (
-    <article className="rounded-2xl border border-gray-100 bg-white p-3.5 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-400">{label}</p>
-          <p className="mt-1.5 text-xl font-black leading-none text-gray-900 dark:text-white">{value}</p>
-          {helper ? <p className="mt-1.5 truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{helper}</p> : null}
-        </div>
-        {Icon ? (
-          <span className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${chipClass}`}>
-            <Icon size={18} />
-          </span>
-        ) : null}
-      </div>
+    <article className="min-w-0 bg-white px-4 py-3 dark:bg-neutral-900">
+      <p className="truncate text-[11px] font-bold text-[#8a8378] dark:text-neutral-400">{label}</p>
+      <p className="mt-1 truncate text-lg font-black leading-none text-[#231f1b] dark:text-white">{value}</p>
     </article>
   );
 }
@@ -396,29 +373,22 @@ export default function AdminDashboard() {
   const canManageUsers = isAdmin || isFounder;
   const canManagePayments = isAdmin || isManager || isFounder;
   const canManageComplaints = isAdmin || isManager || isFounder;
-  const pageTitle = isFounder
-    ? 'Founder command center'
-    : isManager
-    ? 'Espace gestionnaire'
-    : 'Tableau de bord administrateur';
-  const pageSubtitle = isFounder
-    ? 'Vue exécutive temps réel et intelligence croissance.'
-    : isManager
-    ? 'Validez les preuves de paiement et contrôlez la mise en ligne des annonces.'
-    : 'Visualisez les indicateurs clés de la plateforme et gérez la validation des paiements.';
+  const pageTitle = 'Tableau de bord';
   const availableTabs = useMemo(() => {
     const tabs = [];
-    if (canViewStats) tabs.push({ key: 'overview', label: 'Statistiques' });
-    if (canManageUsers) tabs.push({ key: 'users', label: 'Utilisateurs' });
+    if (canViewStats) tabs.push({ key: 'overview', label: 'Vue globale' });
     if (canManagePayments) tabs.push({ key: 'payments', label: 'Paiements' });
+    if (canAccessBackOffice) tabs.push({ key: 'orders', label: 'Commandes', to: '/admin/orders' });
     if (canManageComplaints) tabs.push({ key: 'complaints', label: 'Réclamations' });
+    if (canManageUsers) tabs.push({ key: 'users', label: 'Utilisateurs' });
     return tabs;
-  }, [canViewStats, canManageUsers, canManagePayments, canManageComplaints]);
+  }, [canAccessBackOffice, canViewStats, canManageUsers, canManagePayments, canManageComplaints]);
   const adminTabMeta = useMemo(
     () => ({
       overview: { icon: Activity, helper: 'Vue globale' },
       users: { icon: Users, helper: 'Comptes & roles' },
       payments: { icon: DollarSign, helper: 'Validations' },
+      orders: { icon: ClipboardList, helper: 'Suivi des commandes' },
       complaints: { icon: AlertCircle, helper: 'Support & litiges' }
     }),
     []
@@ -1440,19 +1410,6 @@ export default function AdminDashboard() {
   ].filter((tile) => tile.show);
   const pendingQueueTotal = pendingQueueTiles.reduce((sum, tile) => sum + tile.count, 0);
 
-  const quickAccessLinks = [
-    { key: 'orders', label: 'Commandes', to: '/admin/orders', icon: ClipboardList, show: canAccessBackOffice },
-    { key: 'payments', label: 'Paiements', to: '/admin/payments', icon: DollarSign, show: canManagePayments },
-    { key: 'users', label: 'Utilisateurs', to: '/admin/users', icon: Users, show: canManageUsers },
-    { key: 'products', label: 'Produits', to: '/admin/products', icon: Package, show: canAccessBackOffice },
-    { key: 'boosts', label: 'Boosts', to: '/admin/product-boosts', icon: Sparkles, show: isAdmin || isFounder },
-    { key: 'promoCodes', label: 'Codes promo', to: '/admin/promo-codes', icon: Ticket, show: isAdmin || isFounder },
-    { key: 'delivery', label: 'Livreurs', to: '/admin/delivery-guys', icon: Truck, show: isAdmin || isManager || isFounder },
-    { key: 'reports', label: 'Rapports', to: '/admin/reports', icon: FileText, show: isAdmin || isFounder },
-    { key: 'appSettings', label: 'Paramètres', to: '/admin/settings', icon: SlidersHorizontal, show: isAdmin || isFounder },
-    { key: 'taskCenter', label: 'Tâches', to: '/admin/task-center', icon: CheckCircle, show: canAccessBackOffice }
-  ].filter((link) => link.show);
-
   const { overdueReminderOrders, regularReminderOrders } = useMemo(() => {
     if (!reminderOrders.length) {
       return { overdueReminderOrders: [], regularReminderOrders: [] };
@@ -1569,20 +1526,19 @@ export default function AdminDashboard() {
 
   return (
     <div className="glass-page-shell min-h-screen lg:min-h-0">
-      <div className="glass-content-spacing mx-auto max-w-7xl space-y-8 py-6 sm:py-8 lg:px-8">
+      <div className="glass-content-spacing mx-auto max-w-7xl space-y-4 py-5 sm:py-6 lg:px-8">
         {/* ── WORKBENCH (style Taobao/Qianniu) ── */}
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="border-0 bg-transparent p-0 shadow-none dark:bg-transparent">
           <div className="space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 space-y-1.5">
-                <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">
+                <p className="hidden">
                   Espace de travail
                 </p>
-                <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-3xl">{pageTitle}</h1>
-                <p className="max-w-2xl text-sm text-gray-500 dark:text-neutral-400">{pageSubtitle}</p>
+                <h1 className="text-[22px] font-black tracking-tight text-[#231f1b] dark:text-white">{pageTitle}</h1>
                 {stats?.generatedAt ? (
-                  <p className="text-xs font-medium text-gray-400 dark:text-neutral-500">
-                    Dernière mise à jour : {formatDateTime(stats.generatedAt)}
+                  <p className="text-xs font-medium text-[#8a8378] dark:text-neutral-500">
+                    Mis à jour à {new Date(stats.generatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 ) : null}
               </div>
@@ -1591,37 +1547,30 @@ export default function AdminDashboard() {
                   type="button"
                   onClick={refreshAll}
                   disabled={refreshing}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#e2dcd2] bg-white text-gray-700 transition active:scale-[0.97] disabled:opacity-60"
+                  aria-label="Actualiser"
                 >
                   <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-                  {refreshing ? 'Actualisation...' : 'Actualiser'}
+                  <span className="sr-only">{refreshing ? 'Actualisation...' : 'Actualiser'}</span>
                 </button>
                 <Link
-                  to="/admin/system-settings"
-                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 transition active:scale-[0.97] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
-                >
-                  <Settings size={16} />
-                  Système
-                </Link>
-                <Link
                   to="/admin/task-center"
-                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)] transition active:scale-[0.97]"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 text-sm font-black text-white transition active:scale-[0.97]"
                 >
                   <CheckCircle size={16} />
                   Centre de tâches
+                  {pendingQueueTotal > 0 ? <span className="rounded-full bg-[#e85d00] px-2 py-0.5 text-[11px]">{formatNumber(pendingQueueTotal)}</span> : null}
                 </Link>
               </div>
             </div>
 
-            <AppOfflineDiagnosticsCard />
-
             {/* À traiter : la file d'attente du jour, chiffres d'abord */}
             <div>
               <div className="mb-2 flex items-baseline justify-between">
-                <h2 className="text-sm font-black uppercase tracking-wide text-gray-900 dark:text-white">
-                  À traiter
+                <h2 className="text-[13px] font-black text-[#231f1b] dark:text-white">
+                  À traiter aujourd’hui
                 </h2>
-                <span className={`text-xs font-bold ${pendingQueueTotal > 0 ? 'text-[#FF6A00]' : 'text-emerald-600'}`}>
+                <span className={`text-xs font-bold ${pendingQueueTotal > 0 ? 'text-[#e85d00]' : 'text-emerald-600'}`}>
                   {pendingQueueTotal > 0
                     ? `${formatNumber(pendingQueueTotal)} action${pendingQueueTotal > 1 ? 's' : ''} en attente`
                     : 'Rien à traiter'}
@@ -1629,68 +1578,37 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                 {pendingQueueTiles.map((tile) => {
-                  const TileIcon = tile.icon;
                   const hasWork = tile.count > 0;
                   return (
                     <Link
                       key={tile.key}
                       to={tile.to}
-                      className={`group rounded-2xl border p-3 transition active:scale-[0.97] ${hasWork
-                        ? 'border-orange-200 bg-[#FFF7F0] dark:border-orange-900/40 dark:bg-orange-950/20'
-                        : 'border-gray-100 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-900'}`}
+                    className={`group rounded-[14px] border px-3 py-3 transition active:scale-[0.97] ${hasWork
+                        ? 'border-[#f0c7aa] bg-[#fff8f2] dark:border-orange-900/40 dark:bg-orange-950/20'
+                        : 'border-[#eee8e0] bg-white dark:border-neutral-800 dark:bg-neutral-900'}`}
                     >
-                      <div className="flex items-center justify-between">
-                        <TileIcon size={16} className={hasWork ? 'text-[#FF6A00]' : 'text-gray-400 dark:text-neutral-500'} />
-                        <ChevronRight size={14} className="text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-[#FF6A00] dark:text-neutral-600" />
-                      </div>
-                      <p className={`mt-2 text-2xl font-black leading-none ${hasWork ? 'text-[#FF6A00]' : 'text-gray-400 dark:text-neutral-500'}`}>
+                      <p className={`text-lg font-black leading-none ${hasWork ? 'text-[#c2410c]' : 'text-[#8a8378] dark:text-neutral-500'}`}>
                         {formatNumber(tile.count)}
                       </p>
-                      <p className="mt-1 truncate text-[11px] font-bold text-gray-600 dark:text-neutral-300">{tile.label}</p>
+                      <p className="mt-2 truncate text-[11px] font-bold text-[#6b6459] dark:text-neutral-300">{tile.label}</p>
                     </Link>
                   );
                 })}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {heroQuickKpis.map((kpi) => (
-                <AdminQuickKpiCard
-                  key={kpi.key}
-                  label={kpi.label}
-                  value={kpi.value}
-                  helper={kpi.helper}
-                  icon={kpi.icon}
-                  tone={kpi.tone}
-                />
-              ))}
-            </div>
-
-            {/* Accès rapide : grille d'applications vers les pages dédiées */}
-            <div>
-              <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-gray-900 dark:text-white">
-                Accès rapide
-              </h2>
-              <div className="grid grid-cols-5 gap-2 sm:grid-cols-5 lg:grid-cols-10">
-                {quickAccessLinks.map((link) => {
-                  const LinkIcon = link.icon;
-                  return (
-                    <Link
-                      key={link.key}
-                      to={link.to}
-                      className="group flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2.5 transition hover:bg-gray-50 active:scale-[0.95] dark:hover:bg-neutral-900"
-                    >
-                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#FF6A00] transition group-hover:bg-[#FF6A00] group-hover:text-white">
-                        <LinkIcon size={20} strokeWidth={2.2} />
-                      </span>
-                      <span className="w-full truncate text-center text-[11px] font-bold text-gray-600 dark:text-neutral-300">
-                        {link.label}
-                      </span>
-                    </Link>
-                  );
-                })}
+            <div className="overflow-x-auto rounded-[14px] border border-[#eee8e0]">
+              <div className="grid min-w-[620px] grid-cols-4 gap-0 [&>*]:rounded-none [&>*]:border-0 [&>*]:border-r [&>*]:shadow-none">
+                {heroQuickKpis.map((kpi) => (
+                  <AdminQuickKpiCard
+                    key={kpi.key}
+                    label={kpi.label}
+                    value={kpi.value}
+                  />
+                ))}
               </div>
             </div>
+
           </div>
         </section>
 
@@ -1707,26 +1625,34 @@ export default function AdminDashboard() {
                     : tab.key === 'complaints'
                       ? Number(pendingComplaintsCount || 0)
                       : 0;
-                return (
+                const tabClassName = `inline-flex min-h-11 flex-shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition-all ${
+                  active
+                    ? 'bg-[#f5f2ee] text-[#231f1b]'
+                    : 'text-[#6b6459] hover:bg-[#f5f2ee] dark:text-neutral-300 dark:hover:bg-neutral-800'
+                }`;
+                const tabContent = (
+                  <>
+                    <TabIcon size={16} />
+                    {tab.label}
+                    {tabBadge > 0 ? (
+                      <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-[#e85d00] px-1.5 py-0.5 text-[11px] font-black text-white">
+                        {tabBadge > 99 ? '99+' : tabBadge}
+                      </span>
+                    ) : null}
+                  </>
+                );
+                return tab.to ? (
+                  <Link key={tab.key} to={tab.to} className={tabClassName}>
+                    {tabContent}
+                  </Link>
+                ) : (
                   <button
                     key={tab.key}
                     type="button"
                     onClick={() => setActiveAdminTab(tab.key)}
-                    className={`inline-flex flex-shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-bold transition-all ${
-                      active
-                        ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
-                        : 'text-gray-600 hover:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                    }`}
+                    className={tabClassName}
                   >
-                    <TabIcon size={16} />
-                    {tab.label}
-                    {tabBadge > 0 ? (
-                      <span className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-black ${
-                        active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#FF6A00]'
-                      }`}>
-                        {tabBadge > 99 ? '99+' : tabBadge}
-                      </span>
-                    ) : null}
+                    {tabContent}
                   </button>
                 );
               })}

@@ -33,9 +33,9 @@ const HighlightStat = ({ label, value, helper, icon: Icon }) => (
   <div className="rounded-2xl border border-orange-200 bg-[#FFF7F0] px-4 py-4">
     <div className="flex items-center justify-between">
       <p className="text-[11px] font-black uppercase tracking-wide text-[#B45309]">{label}</p>
-      {Icon ? <Icon size={16} className="text-[#FF6A00]" /> : null}
+      {Icon ? <Icon size={16} className="text-[#e85d00]" /> : null}
     </div>
-    <p className="mt-1.5 text-3xl font-black leading-none text-[#FF6A00]">{value}</p>
+    <p className="mt-1.5 text-3xl font-black leading-none text-[#e85d00]">{value}</p>
     {helper ? <p className="mt-1.5 text-xs font-medium text-gray-500">{helper}</p> : null}
   </div>
 );
@@ -43,7 +43,7 @@ const HighlightStat = ({ label, value, helper, icon: Icon }) => (
 const SectionTitle = ({ eyebrow, title, aside }) => (
   <div className="flex items-end justify-between gap-3">
     <div>
-      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">{eyebrow}</p> : null}
+      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">{eyebrow}</p> : null}
       <h2 className="mt-0.5 text-lg font-black tracking-tight text-gray-900">{title}</h2>
     </div>
     {aside ? <p className="text-xs font-semibold text-gray-400">{aside}</p> : null}
@@ -182,7 +182,7 @@ export default function AdminUserStats() {
           Utilisateurs
         </Link>
         <div className="mt-3 flex items-center gap-3">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-lg font-black uppercase text-[#FF6A00]">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-lg font-black uppercase text-[#e85d00]">
             {String(stats?.user?.name || 'U').charAt(0)}
           </div>
           <div className="min-w-0">
@@ -330,7 +330,7 @@ export default function AdminUserStats() {
                     key={category.category}
                     className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-bold text-gray-600"
                   >
-                    <Tag size={12} className="text-[#FF6A00]" />
+                    <Tag size={12} className="text-[#e85d00]" />
                     {category.category} · {formatNumber(category.count)}
                   </span>
                 ))
@@ -358,11 +358,11 @@ export default function AdminUserStats() {
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-4 text-xs font-semibold text-gray-500">
                       <span className="flex items-center gap-1">
-                        <Heart className="h-3.5 w-3.5 text-[#FF6A00]" />
+                        <Heart className="h-3.5 w-3.5 text-[#e85d00]" />
                         {formatNumber(product.favorites)}
                       </span>
                       <span className="flex items-center gap-1">
-                        <MessageCircle className="h-3.5 w-3.5 text-[#FF6A00]" />
+                        <MessageCircle className="h-3.5 w-3.5 text-[#e85d00]" />
                         {formatNumber(product.whatsappClicks)}
                       </span>
                       <span className="font-black text-gray-900">{formatCurrency(product.price)}</span>

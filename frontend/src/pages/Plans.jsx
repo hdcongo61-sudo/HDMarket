@@ -69,10 +69,10 @@ function PlanCard({ icon: Icon, eyebrow, title, price, suffix, description, feat
           Essentiel
         </span>
       )}
-      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#FF6A00] dark:bg-orange-950/50">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#e85d00] dark:bg-orange-950/50">
         <Icon size={21} />
       </div>
-      <p className="mt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">{eyebrow}</p>
+      <p className="mt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">{eyebrow}</p>
       <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-white">{title}</h2>
       <div className="mt-4 flex flex-wrap items-end gap-x-2 gap-y-1">
         <span className="text-3xl font-black tracking-tight text-gray-950 dark:text-white">{price}</span>
@@ -94,7 +94,7 @@ function PlanCard({ icon: Icon, eyebrow, title, price, suffix, description, feat
         state={action.state}
         className={`mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-black transition active:scale-[0.98] ${
           featured
-            ? 'bg-[#FF6A00] text-white hover:bg-[#ef6200]'
+            ? 'bg-[#e85d00] text-white hover:bg-[#ef6200]'
             : 'bg-gray-950 text-white hover:bg-gray-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200'
         }`}
       >
@@ -193,7 +193,7 @@ export default function Plans() {
 
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-5">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF6A00]">Commencer à vendre</p>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#e85d00]">Commencer à vendre</p>
           <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Plans principaux</h2>
         </div>
 
@@ -246,7 +246,7 @@ export default function Plans() {
         <section className="mt-14">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF6A00]">Gagner en visibilité</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#e85d00]">Gagner en visibilité</p>
               <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Plans Boost</h2>
             </div>
             <p className="max-w-xl text-sm text-gray-500 dark:text-neutral-400">
@@ -312,7 +312,7 @@ export default function Plans() {
                     <Link
                       to={boostAction.to}
                       state={boostAction.state}
-                      className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 text-xs font-black text-[#FF6A00] transition hover:bg-orange-100 dark:bg-orange-950/40"
+                      className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 text-xs font-black text-[#e85d00] transition hover:bg-orange-100 dark:bg-orange-950/40"
                     >
                       {boostAction.label} <ArrowRight size={14} />
                     </Link>
@@ -335,7 +335,7 @@ export default function Plans() {
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-2">
             <div className="flex gap-3 rounded-2xl bg-gray-50 p-4 dark:bg-neutral-950">
-              <Truck className="mt-0.5 shrink-0 text-[#FF6A00]" size={20} />
+              <Truck className="mt-0.5 shrink-0 text-[#e85d00]" size={20} />
               <div>
                 <p className="font-black">Livraison</p>
                 <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-neutral-300">
@@ -346,7 +346,7 @@ export default function Plans() {
               </div>
             </div>
             <div className="flex gap-3 rounded-2xl bg-gray-50 p-4 dark:bg-neutral-950">
-              <Package className="mt-0.5 shrink-0 text-[#FF6A00]" size={20} />
+              <Package className="mt-0.5 shrink-0 text-[#e85d00]" size={20} />
               <div>
                 <p className="font-black">Achat d’un produit</p>
                 <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-neutral-300">

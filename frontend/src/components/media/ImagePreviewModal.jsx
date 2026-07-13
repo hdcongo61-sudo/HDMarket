@@ -521,7 +521,7 @@ export default function ImagePreviewModal({
                   onClick={handleShare}
                   className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-gray-100"
                 >
-                  <Share2 className="h-4 w-4 text-[#FF6A00]" />
+                  <Share2 className="h-4 w-4 text-[#e85d00]" />
                   Partager
                 </button>
                 <button
@@ -529,7 +529,7 @@ export default function ImagePreviewModal({
                   onClick={handleDownload}
                   className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-gray-100"
                 >
-                  <Download className="h-4 w-4 text-[#FF6A00]" />
+                  <Download className="h-4 w-4 text-[#e85d00]" />
                   Télécharger
                 </button>
                 <button
@@ -625,7 +625,7 @@ export default function ImagePreviewModal({
                   }}
                   className={`h-14 w-14 shrink-0 overflow-hidden rounded-2xl border-2 bg-white/10 transition active:scale-95 sm:h-16 sm:w-16 ${
                     index === currentIndex
-                      ? 'border-[#FF6A00] shadow-[0_0_0_2px_rgba(255,106,0,0.25)]'
+                      ? 'border-[#e85d00] shadow-[0_0_0_2px_rgba(255,106,0,0.25)]'
                       : 'border-white/18 opacity-70 hover:opacity-100'
                   }`}
                   aria-label={`Afficher image ${index + 1}`}
@@ -666,7 +666,7 @@ export default function ImagePreviewModal({
                   disabled={favoritePending}
                   className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:cursor-wait ${
                     favoriteActive
-                      ? 'bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.35)]'
+                      ? 'bg-[#e85d00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.35)]'
                       : 'bg-white/14 text-white ring-1 ring-white/10 hover:bg-white/20'
                   } ${favoritePending ? 'opacity-70' : ''}`}
                   aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -697,7 +697,7 @@ export default function ImagePreviewModal({
                 <button
                   type="button"
                   onClick={() => resetTransform()}
-                  className="inline-flex h-11 min-w-[72px] items-center justify-center rounded-full bg-[#FF6A00] px-3 text-xs font-black tabular-nums text-white transition active:scale-95"
+                  className="inline-flex h-11 min-w-[72px] items-center justify-center rounded-full bg-[#e85d00] px-3 text-xs font-black tabular-nums text-white transition active:scale-95"
                   aria-label="Réinitialiser le zoom"
                   title="Réinitialiser le zoom"
                 >

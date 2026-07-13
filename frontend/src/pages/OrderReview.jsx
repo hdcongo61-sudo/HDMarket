@@ -241,7 +241,7 @@ export default function OrderReview() {
                       <p className={`mt-1 text-xs ${active ? 'text-white/80' : 'text-gray-500'}`}>
                         {item.shopName} · Qté {item.quantity}
                       </p>
-                      <p className={`mt-1 text-xs font-semibold ${active ? 'text-white' : 'text-[#FF6A00]'}`}>
+                      <p className={`mt-1 text-xs font-semibold ${active ? 'text-white' : 'text-[#e85d00]'}`}>
                         {formatPriceWithStoredSettings(item.unitPrice || 0)} / unité
                       </p>
                       {Array.isArray(item.selectedAttributes) && item.selectedAttributes.length > 0 ? (

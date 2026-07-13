@@ -39,7 +39,7 @@ const NotifToggle = React.memo(({ label, checked, onChange }) => (
       aria-checked={checked}
       onClick={onChange}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
-        checked ? 'bg-[#FF6A00]' : 'bg-black/15 dark:bg-white/25'
+        checked ? 'bg-[#e85d00]' : 'bg-black/15 dark:bg-white/25'
       }`}
     >
       <span
@@ -56,7 +56,7 @@ const SectionCard = ({ id, icon: Icon, title, subtitle, action, children }) => (
   <section id={id} className="ui-card scroll-mt-28 rounded-2xl p-4">
     <div className="flex items-center gap-2.5">
       {Icon && (
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00]/10 text-[#FF6A00]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e85d00]/10 text-[#e85d00]">
           <Icon size={17} />
         </span>
       )}
@@ -337,7 +337,7 @@ export default function UserSettings() {
               className="h-14 w-14 shrink-0 rounded-2xl object-cover ring-1 ring-black/5 dark:ring-white/10"
             />
           ) : (
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FF6A00] text-xl font-black text-white">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-xl font-black text-white">
               {user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </span>
           )}
@@ -348,7 +348,7 @@ export default function UserSettings() {
             <p className="truncate text-xs font-medium text-gray-500 dark:text-neutral-400">
               {[user?.phone, user?.city].filter(Boolean).join(' · ') || '-'}
             </p>
-            <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6A00]">
+            <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#e85d00]">
               {t('settings.editProfile', 'Modifier le profil')}
             </span>
           </div>
@@ -367,7 +367,7 @@ export default function UserSettings() {
             <SettingRow label={t('settings.currency', 'Devise')}>
               <CurrencySelector />
               <p className="flex items-center gap-1.5 text-[11px] font-medium text-gray-500 dark:text-neutral-400">
-                <Coins size={12} className="text-[#FF6A00]" />
+                <Coins size={12} className="text-[#e85d00]" />
                 {t('settings.pricePreview', 'Apercu prix')}: <span className="font-bold text-gray-700 dark:text-neutral-200">{previewPrice}</span>
               </p>
             </SettingRow>
@@ -394,7 +394,7 @@ export default function UserSettings() {
                   aria-pressed={active}
                   className={`flex flex-col items-center justify-center gap-2 rounded-xl border py-3.5 text-xs font-bold transition active:scale-[0.97] ${
                     active
-                      ? 'border-[#FF6A00] bg-[#FF6A00]/10 text-[#FF6A00]'
+                      ? 'border-[#e85d00] bg-[#e85d00]/10 text-[#e85d00]'
                       : 'border-gray-200 text-gray-600 hover:bg-black/[0.03] dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-white/5'
                   }`}
                 >
@@ -437,7 +437,7 @@ export default function UserSettings() {
           ) : (
             <div className="divide-y divide-black/5 dark:divide-white/10">
               <NotifGroup
-                dotClass="bg-[#FF6A00]"
+                dotClass="bg-[#e85d00]"
                 title={t('settings.notifOrders', 'Commandes')}
                 notifPrefs={notifPrefs}
                 onToggle={handleNotifToggle}
@@ -518,7 +518,7 @@ export default function UserSettings() {
               type="button"
               onClick={handleHardRefresh}
               disabled={hardRefreshing || clearingPwaCache}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white transition hover:bg-[#f45f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#f45f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCcw size={16} className={hardRefreshing ? 'animate-spin' : ''} />
               {hardRefreshing

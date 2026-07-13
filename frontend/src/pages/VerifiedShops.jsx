@@ -10,12 +10,6 @@ import {
   Store,
   MapPin,
   User,
-  Crown,
-  Heart,
-  ShoppingCart,
-  Eye,
-  Award,
-  MoreVertical,
   ChevronRight,
   Search,
   CheckCircle,
@@ -348,46 +342,36 @@ export default function VerifiedShops() {
   );
 
   return (
-    <div className="hd-products-flow min-h-screen bg-[#f6f2ec] text-gray-900">
-      <header className="verified-shops-header border-b border-gray-200/70 bg-[#fff7ee]/95 backdrop-blur-xl transition-[visibility] duration-150 md:sticky md:top-0 md:z-40">
+    <div className="min-h-screen bg-[#f5f2ee] text-[#231f1b]">
+      <header className="verified-shops-header border-b border-[#e2dcd2] bg-white/96 backdrop-blur-xl transition-[visibility] duration-150 md:sticky md:top-0 md:z-40">
         <div className="mx-auto max-w-5xl px-3 py-3 sm:px-5">
-          <nav className="flex items-center gap-5 overflow-x-auto pb-2 hide-scrollbar">
-            {['Suivies', 'Recommandées', 'Nouveautés', 'Top local', 'Certifiées'].map((tab, index) => (
-              <span
-                key={tab}
-                className={`relative shrink-0 text-base font-black tracking-tight ${
-                  index === 1 ? 'text-[#FF6A00]' : 'text-gray-900'
-                }`}
-              >
-                {tab}
-                {index === 1 ? (
-                  <span className="absolute -bottom-2 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-[#FF6A00]" />
-                ) : null}
-              </span>
-            ))}
-          </nav>
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
+              <Shield className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2">
+                <h1 className="truncate text-xl font-black tracking-tight text-[#231f1b] sm:text-2xl">{pageTitle}</h1>
+                {!loading ? <span className="text-sm font-black text-[#8a8378]">({certifiedCountLabel})</span> : null}
+              </div>
+              <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">Vendeurs contrôlés par HDMarket</p>
+            </div>
+            <button type="button" onClick={() => setAllShopsModalOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] bg-white text-[#231f1b]" aria-label="Voir toutes les boutiques">
+              <Grid3x3 className="h-4 w-4" />
+            </button>
+          </div>
 
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
               onClick={() => setAllShopsModalOpen(true)}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-[#FF6A00] shadow-[0_8px_20px_rgba(255,106,0,0.12)] active:scale-95"
-              aria-label="Voir toutes les boutiques"
+              className="flex min-h-12 flex-1 items-center gap-3 rounded-full bg-[#f5f2ee] pl-4 pr-1.5 text-left ring-1 ring-[#eee8e0] active:scale-[0.99]"
             >
-              <Grid3x3 className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setAllShopsModalOpen(true)}
-              className="flex min-h-[48px] flex-1 items-center gap-3 rounded-xl border-2 border-[#FF6A00] bg-white px-4 text-left shadow-[0_10px_24px_rgba(255,106,0,0.12)] active:scale-[0.99]"
-            >
-              <Search className="h-5 w-5 shrink-0 text-gray-500" />
-              <span className="min-w-0 flex-1 truncate text-sm font-black text-gray-900">
+              <Search className="h-4 w-4 shrink-0 text-[#8a8378]" />
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#8a8378]">
                 Rechercher une boutique vérifiée
               </span>
-              <span className="rounded-full bg-[#FF6A00] px-4 py-2 text-sm font-black text-white">
-                Search
-              </span>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black text-white"><Search className="h-4 w-4" /></span>
             </button>
           </div>
 
@@ -395,10 +379,10 @@ export default function VerifiedShops() {
             <button
               type="button"
               onClick={() => setSelectedCity('')}
-              className={`shrink-0 rounded-full px-4 py-2 text-xs font-black transition ${
+              className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-black transition ${
                 selectedCity === ''
-                  ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)]'
-                  : 'border border-gray-200 bg-white text-gray-700'
+                  ? 'bg-black text-white'
+                  : 'border border-[#e2dcd2] bg-white text-[#6b6459]'
               }`}
             >
               Toutes les villes
@@ -408,10 +392,10 @@ export default function VerifiedShops() {
                 key={city}
                 type="button"
                 onClick={() => setSelectedCity(city)}
-                className={`shrink-0 rounded-full px-4 py-2 text-xs font-black transition ${
+                className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-black transition ${
                   selectedCity === city
-                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)]'
-                    : 'border border-gray-200 bg-white text-gray-700'
+                    ? 'bg-black text-white'
+                    : 'border border-[#e2dcd2] bg-white text-[#6b6459]'
                 }`}
               >
                 {city}
@@ -422,41 +406,18 @@ export default function VerifiedShops() {
       </header>
 
       <main className="mx-auto max-w-5xl px-3 py-4 pb-24 sm:px-5 sm:py-6">
-        <section className="hd-products-hero mb-4 rounded-2xl p-4 text-white sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        {!loading && shops.length > 0 ? (
+          <div className="mb-3 flex items-end justify-between gap-3 px-1">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
-                <Shield className="h-4 w-4" />
-                <span className="text-xs font-black uppercase tracking-wide">
-                  Marketplace certifiée
-                </span>
-              </div>
-              <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">
-                Boutiques vérifiées
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/86">
-                Découvrez des vendeurs contrôlés, leurs nouveautés et les produits populaires dans un flux rapide à parcourir.
-              </p>
+              <h2 className="text-[17px] font-black text-[#231f1b]">Boutiques recommandées</h2>
+              <p className="mt-0.5 text-xs font-semibold text-[#8a8378]">Classées par activité et confiance</p>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-2xl bg-white/14 px-3 py-2 ring-1 ring-white/18">
-                <p className="text-lg font-black">{certifiedCountLabel}</p>
-                <p className="text-[11px] font-bold text-white/72">certifiées</p>
-              </div>
-              <div className="rounded-2xl bg-white/14 px-3 py-2 ring-1 ring-white/18">
-                <p className="text-lg font-black">{formatCount(pendingShops.length)}</p>
-                <p className="text-[11px] font-bold text-white/72">en revue</p>
-              </div>
-              <div className="rounded-2xl bg-white/14 px-3 py-2 ring-1 ring-white/18">
-                <p className="text-lg font-black">{formatCount(shops.reduce((sum, shop) => sum + Number(shop.productCount || 0), 0))}</p>
-                <p className="text-[11px] font-bold text-white/72">annonces</p>
-              </div>
-            </div>
+            <span className="text-xs font-black text-[#8a8378]">{certifiedCountLabel} résultats</span>
           </div>
-        </section>
+        ) : null}
 
         {loading && !shops.length ? (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {[1, 2, 3].map((item) => (
               <article key={item} className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
                 <div className="flex animate-pulse items-center gap-3">
@@ -484,7 +445,7 @@ export default function VerifiedShops() {
           </section>
         ) : !shops.length ? (
           <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
-            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00]">
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
               <Store className="h-8 w-8" />
             </div>
             <h2 className="text-lg font-black text-gray-900">Aucune boutique vérifiée</h2>
@@ -497,7 +458,7 @@ export default function VerifiedShops() {
               <button
                 type="button"
                 onClick={() => setSelectedCity('')}
-                className="hd-primary-button mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full px-5 text-sm font-black"
+                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-black px-5 text-sm font-black text-white"
               >
                 Voir toutes les villes
               </button>
@@ -524,7 +485,7 @@ export default function VerifiedShops() {
               return (
                 <article
                   key={shop._id}
-                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(117,75,36,0.12)]"
+                  className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_3px_14px_rgba(35,31,27,0.05)] transition active:scale-[0.995]"
                 >
                   <div className="p-4 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
@@ -537,7 +498,7 @@ export default function VerifiedShops() {
                             loading="lazy"
                             decoding="async"
                           />
-                          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#FF6A00] px-2 py-0.5 text-[9px] font-black text-white shadow-sm">
+                          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#e85d00] px-2 py-0.5 text-[9px] font-black text-white shadow-sm">
                             HD
                           </span>
                         </div>
@@ -547,18 +508,8 @@ export default function VerifiedShops() {
                               {shop.shopName || shop.name}
                             </h2>
                             <VerifiedBadge verified showLabel={false} />
-                            {isTopShop ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-black text-gray-500 ring-1 ring-gray-200">
-                                <Award className="h-3 w-3" />
-                                TOP {shopRank + 1}
-                              </span>
-                            ) : null}
-                            {isBestReviewed ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700 ring-1 ring-amber-100">
-                                <Crown className="h-3 w-3" />
-                                Avis
-                              </span>
-                            ) : null}
+                            {isTopShop ? <span className="text-[10px] font-black text-[#c2410c]">TOP {shopRank + 1}</span> : null}
+                            {isBestReviewed ? <span className="text-[10px] font-black text-emerald-700">Bien notée</span> : null}
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
                             <span>{lastProductDate}</span>
@@ -570,25 +521,11 @@ export default function VerifiedShops() {
                           </div>
                         </div>
                       </Link>
-                      <button
-                        type="button"
-                        onClick={() => setAllShopsModalOpen(true)}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-50 text-gray-500 active:scale-95"
-                        aria-label="Plus d'options"
-                      >
-                        <MoreVertical className="h-5 w-5" />
-                      </button>
                     </div>
-
-                    <p className="mt-4 text-sm font-semibold leading-6 text-gray-800">
-                      <span className="font-black text-emerald-600">Nouveau</span>
-                      {' '}
-                      Découvrez les derniers produits de {shop.shopName || shop.name}. Boutique vérifiée par HDMarket.
-                    </p>
 
                     {displayProducts.length > 0 ? (
                       <div className="mt-3 grid grid-cols-3 gap-1.5 overflow-hidden rounded-xl">
-                        {displayProducts.slice(0, 6).map((item, index) => {
+                        {displayProducts.slice(0, 3).map((item, index) => {
                           const productImage = item.images?.[0] || item.image || '/api/placeholder/200/200';
                           const productLink = item.slug
                             ? buildProductPath({ slug: item.slug, _id: item._id })
@@ -608,7 +545,7 @@ export default function VerifiedShops() {
                                 decoding="async"
                               />
                               {item.price ? (
-                                <span className="absolute bottom-1 left-1 rounded-full bg-white/92 px-2 py-1 text-[10px] font-black text-[#FF6A00] shadow-sm">
+                                <span className="absolute bottom-1 left-1 rounded-full bg-white/94 px-2 py-1 text-[10px] font-black text-[#231f1b] shadow-sm">
                                   {formatCurrency(item.price)}
                                 </span>
                               ) : null}
@@ -625,26 +562,13 @@ export default function VerifiedShops() {
                       </Link>
                     )}
 
-                    <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-gray-500">
-                      <div className="flex min-w-0 flex-wrap items-center gap-3">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Heart className="h-4 w-4 text-[#FF6A00]" />
-                          {formatCount(shop.followersCount || 0)}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <ShoppingCart className="h-4 w-4 text-gray-700" />
-                          {formatCount(shop.productCount || 0)} annonce{Number(shop.productCount || 0) > 1 ? 's' : ''}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <Eye className="h-4 w-4 text-gray-500" />
-                          {formatCount(shop.totalViews ?? Math.floor((shop.productCount || 0) * 12.5))}
-                        </span>
-                      </div>
+                    <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-[#8a8378]">
+                      <p className="min-w-0 truncate">{formatCount(shop.followersCount || 0)} abonnés · {formatCount(shop.productCount || 0)} produits</p>
                       <Link
                         to={buildShopPath(shop)}
-                        className="shrink-0 rounded-full bg-[#FF6A00] px-4 py-2 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)]"
+                        className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-black px-4 text-xs font-black text-white"
                       >
-                        Voir
+                        Voir la boutique
                       </Link>
                     </div>
                   </div>
@@ -664,11 +588,11 @@ export default function VerifiedShops() {
           </div>
         )}
 
-        {!loading && !error && pendingShops.length > 0 ? (
+        {isAdmin && !loading && !error && pendingShops.length > 0 ? (
           <section className="mt-6 rounded-2xl border border-amber-100 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-wide text-[#FF6A00]">
+                <p className="text-xs font-black uppercase tracking-wide text-[#e85d00]">
                   Vérification
                 </p>
                 <h2 className="mt-1 text-xl font-black text-gray-900">Boutiques en revue</h2>
@@ -710,7 +634,7 @@ export default function VerifiedShops() {
         <div className="py-2 text-center">
           <Link
             to="/"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-gray-200 bg-white px-5 text-sm font-black text-gray-500 shadow-sm"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#e2dcd2] bg-white px-5 text-sm font-black text-[#6b6459]"
           >
             Retourner à l&apos;accueil
           </Link>
@@ -726,12 +650,12 @@ export default function VerifiedShops() {
         size="xl"
         mobileSheet
         ariaLabel="Toutes les boutiques"
-        panelClassName="sm:max-w-5xl hd-products-flow"
+        panelClassName="sm:max-w-5xl"
       >
         <ModalHeader
           title="Toutes les boutiques"
           subtitle={`${allShopsForModal.length} boutique${allShopsForModal.length > 1 ? 's' : ''} au total`}
-          icon={<Store size={18} className="text-[#FF6A00]" />}
+          icon={<Store size={18} className="text-[#e85d00]" />}
           onClose={() => {
             setAllShopsModalOpen(false);
             setAllShopsSearch('');
@@ -758,7 +682,7 @@ export default function VerifiedShops() {
                     {certifiedShopsInModal.length} boutique{certifiedShopsInModal.length > 1 ? 's' : ''} vérifiée{certifiedShopsInModal.length > 1 ? 's' : ''}
                   </p>
                 </div>
-                <CheckCircle className="h-5 w-5 text-[#FF6A00]" />
+                <CheckCircle className="h-5 w-5 text-[#e85d00]" />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {certifiedShopsInModal.map((shop) => (
@@ -792,7 +716,7 @@ export default function VerifiedShops() {
                     </div>
                     <div className="mt-4 flex items-center justify-between text-xs font-bold text-gray-500">
                       <span>{formatCount(shop.productCount || 0)} annonces</span>
-                      <span className="inline-flex items-center gap-1 text-[#FF6A00]">
+                      <span className="inline-flex items-center gap-1 text-[#e85d00]">
                         Voir <ChevronRight className="h-3.5 w-3.5" />
                       </span>
                     </div>
@@ -853,7 +777,7 @@ export default function VerifiedShops() {
 
           {allShopsForModal.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-12 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00]">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
                 <Search size={30} />
               </div>
               <p className="text-sm font-black text-gray-900">Aucune boutique trouvée</p>

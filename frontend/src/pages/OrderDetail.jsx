@@ -43,6 +43,7 @@ import InstallmentReminder from '../components/orders/InstallmentReminder';
 import InstallmentOrderTracking from '../components/orders/InstallmentOrderTracking';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
+import OrderMiniRail from '../components/orders/OrderMiniRail';
 import BaseModal from '../components/modals/BaseModal';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
@@ -155,7 +156,7 @@ const DeliveryProofImage = ({ src, alt, className = '' }) => {
     return (
       <span className={`flex flex-col items-center justify-center gap-1 bg-slate-50 px-3 text-center text-xs font-semibold text-slate-600 ${className}`}>
         Aperçu indisponible
-        <a href={src} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="text-[#ff6a00] underline">Ouvrir la photo</a>
+        <a href={src} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="text-[#e85d00] underline">Ouvrir la photo</a>
       </span>
     );
   }
@@ -1078,12 +1079,12 @@ export default function OrderDetail() {
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Bon de commande ${orderShort}</title>
   <style>
-    :root{--orange:#ff6a00;--orange-dark:#9a4a00;--paper:#fffaf4;--ink:#111827;--muted:#6b7280;--line:#f2dfcf;}
+    :root{--orange:#e85d00;--orange-dark:#9a4a00;--paper:#fffaf4;--ink:#111827;--muted:#6b7280;--line:#f2dfcf;}
     *{box-sizing:border-box}
     body{margin:0;background:#f6f3ee;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
     .page{max-width:900px;margin:24px auto;padding:24px}
     .sheet{overflow:hidden;border:1px solid var(--line);border-radius:28px;background:#fff;box-shadow:0 18px 48px rgba(117,75,36,.10)}
-    .hero{padding:28px;background:linear-gradient(135deg,#ff6a00,#ff3d13 58%,#ff9a1f);color:#fff}
+    .hero{padding:28px;background:linear-gradient(135deg,#e85d00,#e85d00 58%,#ff9a1f);color:#fff}
     .brand{display:flex;align-items:center;justify-content:space-between;gap:16px}
     .brand h1{margin:0;font-size:34px;letter-spacing:-.03em}
     .pill{display:inline-flex;align-items:center;border-radius:999px;padding:8px 12px;background:#fff;color:var(--orange-dark);font-size:12px;font-weight:900;text-transform:uppercase}
@@ -1372,6 +1373,18 @@ export default function OrderDetail() {
     .map(normalizeFileUrl)
     .filter(Boolean);
   const hasDeliveryEvidence = deliveryProofSources.length > 0 || Boolean(String(order.clientSignatureImage || '').trim());
+  const compactProgressSteps = buildProgressSteps({
+    isInstallment: isInstallmentOrder,
+    isPickup: pickupOrder
+  });
+  const compactProgressIndex = effectiveOrderStatus === 'cancelled'
+    ? 0
+    : resolveProgressStepIndex({ status: effectiveOrderStatus, isInstallment: isInstallmentOrder });
+  const compactProgress = effectiveOrderStatus === 'cancelled'
+    ? 100
+    : compactProgressSteps.length > 1
+      ? (compactProgressIndex / (compactProgressSteps.length - 1)) * 100
+      : 100;
 
   return (
     <div className="hd-order-flow min-h-screen bg-[#f6f3ee] text-slate-950 dark:bg-neutral-950">
@@ -1429,11 +1442,105 @@ export default function OrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
+        <section className="space-y-3 md:hidden">
+          <article className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_4px_16px_rgba(35,31,27,0.06)]">
+            <div className="border-b border-[#eee8e0] px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(order._id.slice(-6).toUpperCase(), 'orderId')}
+                    className="inline-flex min-h-11 items-center gap-2 text-left"
+                  >
+                    <span className="text-base font-black text-[#231f1b]">Commande #{order._id.slice(-6)}</span>
+                    {copiedKey === 'orderId' ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-[#8a8378]" />}
+                  </button>
+                  <p className="text-xs font-semibold text-[#8a8378]">{formatOrderTimestamp(order.createdAt) || 'Date non disponible'}</p>
+                </div>
+                <StatusBadge status={displayOrderStatus} compact />
+              </div>
+              <OrderMiniRail
+                className="mt-3"
+                progress={compactProgress}
+                stops={compactProgressSteps.length}
+                step={compactProgressIndex + 1}
+                urgent={effectiveOrderStatus === 'cancelled'}
+                label={STATUS_LABELS[displayOrderStatus] || STATUS_LABELS[effectiveOrderStatus] || effectiveOrderStatus}
+              />
+            </div>
+
+            <div className="space-y-3 p-4">
+              <div className="space-y-3">
+                {orderItems.map((item, index) => {
+                  const image = item.snapshot?.image || item.product?.images?.[0];
+                  return (
+                    <div key={`${order._id}-compact-${index}`} className="flex gap-3">
+                      {image ? (
+                        <img src={image} alt={item.snapshot?.title || 'Produit'} className="h-16 w-16 shrink-0 rounded-xl border border-[#eee8e0] object-cover" />
+                      ) : (
+                        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-[#f5f2ee]"><Package className="h-5 w-5 text-[#8a8378]" /></div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-black leading-5 text-[#231f1b]">{item.snapshot?.title || 'Produit'} × {item.quantity || 1}</p>
+                        <p className="mt-1 text-xs font-semibold text-[#6b6459]">{item.snapshot?.shopName || order.seller?.shopName || 'Vendeur HDMarket'}</p>
+                        <p className="mt-1 text-sm font-black text-[#231f1b]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-xl bg-[#f5f2ee] px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-[#6b6459]">{paymentModeLabel}</span>
+                  <span className="text-lg font-black text-[#231f1b]">{formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}</span>
+                </div>
+                {showPayment ? <p className="mt-1 text-xs font-semibold text-[#8a8378]">{paidAmountLabel} : {formatCurrency(isInstallmentOrder ? installmentPaid : paidAmount)} · Reste {formatCurrency(isInstallmentOrder ? installmentRemaining : remainingAmount)}</p> : null}
+              </div>
+
+              {!hideDeliveryDetails ? (
+                <div className="flex items-start gap-3 rounded-xl border border-[#eee8e0] px-3 py-3">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#e85d00]" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-[#231f1b]">{pickupOrder ? 'Point de retrait' : 'Adresse de livraison'}</p>
+                    <p className="mt-1 text-xs leading-5 text-[#6b6459]">{pickupOrder ? pickupShopAddress?.addressLine || 'Adresse boutique non renseignée' : displayDeliveryAddress}{!pickupOrder && displayDeliveryCity ? `, ${displayDeliveryCity}` : ''}</p>
+                  </div>
+                </div>
+              ) : null}
+
+              {order.deliveryCode && !hideDeliveryDetails ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[#f0c7aa] bg-[#fff8f2] px-3 py-3">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-wide text-[#8a8378]">Code de livraison</p>
+                    <p className={`mt-1 font-mono text-xl font-black tracking-[0.22em] text-[#231f1b] ${deliveryCodeRevealed ? '' : 'select-none blur-sm'}`}>{order.deliveryCode}</p>
+                  </div>
+                  <button type="button" onClick={() => setDeliveryCodeRevealed((value) => !value)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-[#231f1b] ring-1 ring-[#e2dcd2]" aria-label={deliveryCodeRevealed ? 'Masquer le code' : 'Afficher le code'}>
+                    {deliveryCodeRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              ) : null}
+
+              {visibleBuyerPrimaryAction ? (
+                <button type="button" onClick={handlePrimaryBuyerAction} disabled={isPrimaryActionPending || skipLoadingId === order._id} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-black text-white disabled:opacity-60 ${visibleBuyerPrimaryAction.intent === 'danger' ? 'bg-red-700' : 'bg-[#e85d00]'}`}>
+                  {isPrimaryActionPending ? <Clock className="h-4 w-4 animate-spin" /> : null}
+                  {visibleBuyerPrimaryAction.label}
+                </button>
+              ) : null}
+
+              <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={shareOrderOnWhatsApp} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#e2dcd2] text-xs font-black text-[#231f1b]"><MessageCircle className="h-4 w-4" /> Partager</button>
+                <button type="button" onClick={() => openOrderPdf(order)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#e2dcd2] text-xs font-black text-[#231f1b]"><Download className="h-4 w-4" /> Bon de commande</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
         <motion.div
           {...riseIn(reduceMotion, 0)}
-          className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]"
+          className="hidden overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)] md:block"
         >
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#ff6a00] via-[#ff3d13] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
+          <div className="relative overflow-hidden bg-gradient-to-br from-[#e85d00] via-[#e85d00] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-4">
@@ -1488,13 +1595,13 @@ export default function OrderDetail() {
               <div className="bg-white px-5 pb-3 pt-4 dark:bg-neutral-950 sm:px-7">
                 <div className="mb-2.5 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-wide text-gray-500">Suivi</p>
-                  <p className={`text-[11px] font-black ${cancelled ? 'text-rose-600' : 'text-[#FF6A00]'}`}>
+                  <p className={`text-[11px] font-black ${cancelled ? 'text-rose-600' : 'text-[#e85d00]'}`}>
                     {cancelled ? 'Commande annulée' : `Étape ${stepIndex + 1}/${steps.length}`}
                   </p>
                 </div>
                 <div className="relative h-1.5 rounded-full bg-gray-100 dark:bg-neutral-800">
                   <motion.div
-                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-gradient-to-r from-[#FFB000] to-[#FF6A00]'}`}
+                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-gradient-to-r from-[#FFB000] to-[#e85d00]'}`}
                     initial={reduceMotion ? { width: `${fillPct}%` } : { width: 0 }}
                     animate={{ width: `${fillPct}%` }}
                     transition={{ duration: reduceMotion ? 0 : 0.9, ease: 'easeOut', delay: reduceMotion ? 0 : 0.3 }}
@@ -1513,7 +1620,7 @@ export default function OrderDetail() {
                             cancelled
                               ? 'bg-rose-300'
                               : done
-                                ? 'bg-[#FF6A00]'
+                                ? 'bg-[#e85d00]'
                                 : 'bg-gray-200 dark:bg-neutral-700'
                           } ${current && !reduceMotion ? 'animate-pulse' : ''}`}
                         />
@@ -1546,7 +1653,7 @@ export default function OrderDetail() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#FF6A00]" /> Code de livraison
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#e85d00]" /> Code de livraison
                   </p>
                   <motion.p
                     animate={reduceMotion ? {} : { scale: deliveryCodeRevealed ? [1, 1.06, 1] : 1 }}
@@ -1575,7 +1682,7 @@ export default function OrderDetail() {
                   <button
                     type="button"
                     onClick={() => copyToClipboard(order.deliveryCode, 'deliveryCode')}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#FF6A00] text-white transition active:scale-95"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e85d00] text-white transition active:scale-95"
                     title="Copier le code"
                   >
                     {copiedKey === 'deliveryCode' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -1609,7 +1716,7 @@ export default function OrderDetail() {
             <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
                     <Package className="w-4 h-4" />
                   </span>
                   <div>
@@ -1634,13 +1741,13 @@ export default function OrderDetail() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2 mb-1">
                         {item.product ? (
-                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="line-clamp-2 font-black text-gray-900 hover:text-[#FF6A00]">
+                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="line-clamp-2 font-black text-gray-900 hover:text-[#e85d00]">
                             {item.snapshot?.title || 'Produit'}
                           </Link>
                         ) : (
                           <span className="font-bold text-gray-900">{item.snapshot?.title || 'Produit'}</span>
                         )}
-                        <span className="whitespace-nowrap text-sm font-black text-[#FF6A00]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</span>
+                        <span className="whitespace-nowrap text-sm font-black text-[#e85d00]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</span>
                       </div>
                       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
                         <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">Qté {item.quantity || 1}</span>
@@ -1668,7 +1775,7 @@ export default function OrderDetail() {
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
-                    <MapPin className="w-4 h-4 text-[#FF6A00]" /> {pickupOrder ? 'Adresse boutique' : 'Adresse de livraison'}
+                    <MapPin className="w-4 h-4 text-[#e85d00]" /> {pickupOrder ? 'Adresse boutique' : 'Adresse de livraison'}
                   </h4>
                   {[
                     'pending',
@@ -1735,7 +1842,7 @@ export default function OrderDetail() {
 
             {!hideDeliveryDetails && order.trackingNote && (
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><Info className="w-4 h-4 text-[#FF6A00]" /> Note de suivi</h4>
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><Info className="w-4 h-4 text-[#e85d00]" /> Note de suivi</h4>
                 <p className="text-sm font-semibold leading-6 text-gray-700">{order.trackingNote}</p>
               </div>
             )}
@@ -1879,7 +1986,7 @@ export default function OrderDetail() {
             )}
 
             <motion.section {...riseIn(reduceMotion, 0.22)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
-              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCard className="w-4 h-4 text-[#FF6A00]" /> Paiement</h4>
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCard className="w-4 h-4 text-[#e85d00]" /> Paiement</h4>
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1922,7 +2029,7 @@ export default function OrderDetail() {
                 )}
                 <div className="flex justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-3">
                   <span className="text-sm font-semibold text-gray-600">Total commande</span>
-                  <span className="text-xl font-black text-[#FF6A00]">
+                  <span className="text-xl font-black text-[#e85d00]">
                     {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
                   </span>
                 </div>
@@ -2015,7 +2122,7 @@ export default function OrderDetail() {
             {isInstallmentOrder && (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
-                  <Receipt className="w-4 h-4 text-[#FF6A00]" /> Validation de vente
+                  <Receipt className="w-4 h-4 text-[#e85d00]" /> Validation de vente
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
@@ -2035,7 +2142,7 @@ export default function OrderDetail() {
             {isInstallmentOrder && (
               <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
-                  <CreditCard className="w-4 h-4 text-[#FF6A00]" /> Échéancier et preuves transactionnelles
+                  <CreditCard className="w-4 h-4 text-[#e85d00]" /> Échéancier et preuves transactionnelles
                 </h4>
                 {!visibleInstallmentEntries.length ? (
                   <p className="text-sm text-gray-500">Aucune tranche disponible.</p>
@@ -2114,7 +2221,7 @@ export default function OrderDetail() {
                                   onClick={() => handleInstallmentProofFieldChange(index, 'paymentMethod', 'mobile_money')}
                                   className={`rounded-xl border p-3 text-left text-xs font-bold ${
                                     proofDraft.paymentMethod === 'mobile_money'
-                                      ? 'border-[#FF6A00] bg-orange-50 text-orange-800'
+                                      ? 'border-[#e85d00] bg-orange-50 text-orange-800'
                                       : 'border-gray-200 bg-white text-gray-600'
                                   }`}
                                 >
@@ -2230,7 +2337,7 @@ export default function OrderDetail() {
             )}
 
             <div>
-              <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><ShieldCheck className="w-4 h-4 text-[#FF6A00]" /> Gestionnaire</h4>
+              <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><ShieldCheck className="w-4 h-4 text-[#e85d00]" /> Gestionnaire</h4>
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <p className="text-sm font-semibold text-gray-900">{createdByLabel}</p>
                 {order.createdBy?.email && <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Mail className="w-3 h-3" />{order.createdBy.email}</p>}
@@ -2332,7 +2439,7 @@ export default function OrderDetail() {
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
               {isOrderFulfilmentComplete(order) &&
                 order.items?.length > 0 && (
-                <button type="button" onClick={handleReorder} disabled={reordering} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FF6A00] px-6 py-3 font-black text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] disabled:opacity-50">
+                <button type="button" onClick={handleReorder} disabled={reordering} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-6 py-3 font-black text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] disabled:opacity-50">
                   {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                   <span>{reordering ? 'Ajout au panier...' : 'Commander à nouveau'}</span>
                 </button>
@@ -2357,7 +2464,7 @@ export default function OrderDetail() {
           <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_12px_30px_rgba(117,75,36,0.07)] sm:mt-8 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
               <h3 className="flex min-w-0 items-center gap-2 text-sm font-black text-gray-900 sm:text-base">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
                   <Sparkles className="h-4 w-4" />
                 </span>
                 <span className="truncate">Produits de la même catégorie</span>
@@ -2389,13 +2496,13 @@ export default function OrderDetail() {
                           <img src={imageUrl} alt={product.title || 'Produit'} className="h-full w-full object-cover" loading="lazy" decoding="async" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
-                            <Package className="h-7 w-7 text-[#FF6A00]/45" />
+                            <Package className="h-7 w-7 text-[#e85d00]/45" />
                           </div>
                         )}
                       </div>
                       <div className="p-2 sm:p-2.5">
                         <p className="line-clamp-2 min-h-[2rem] text-[11px] font-bold leading-4 text-gray-900 sm:text-xs">{product.title || 'Produit'}</p>
-                        <p className="mt-1 truncate text-[11px] font-black text-[#FF6A00] sm:text-xs">{formatCurrency(price)}</p>
+                        <p className="mt-1 truncate text-[11px] font-black text-[#e85d00] sm:text-xs">{formatCurrency(price)}</p>
                       </div>
                     </Link>
                   );

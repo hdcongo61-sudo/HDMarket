@@ -2078,7 +2078,7 @@ export default function ProductDetails() {
     return (
       <div className={`overflow-hidden ${rounded} border border-gray-200 bg-white shadow-sm`}>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <h2 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900">
+          <h2 className="text-[17px] font-black text-gray-900">
             Vidéo {providerLabel}
           </h2>
           <span className={`inline-flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white ${brandClass}`}>
@@ -2103,7 +2103,7 @@ export default function ProductDetails() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 bg-gray-50 px-4 py-8 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#FF6A00] shadow-sm">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#e85d00] shadow-sm">
               <Video size={22} />
             </span>
             <p className="text-sm font-semibold text-gray-700">Aperçu indisponible ici</p>
@@ -2118,14 +2118,14 @@ export default function ProductDetails() {
           rel="noopener noreferrer"
           className="flex items-center gap-3 border-t border-gray-100 bg-gray-50 px-4 py-3 transition hover:bg-gray-100"
         >
-          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${brandClass}`}>
+          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white ${brandClass}`}>
             <ExternalLink size={16} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-xs font-black text-gray-900">Ouvrir sur {providerLabel}</span>
             <span className="block truncate text-[11px] text-gray-500">{socialVideo.originalUrl}</span>
           </span>
-          <span className="shrink-0 rounded bg-white px-2 py-1 text-[11px] font-black text-[#FF6A00] shadow-sm">
+          <span className="shrink-0 rounded bg-white px-2 py-1 text-[11px] font-black text-[#e85d00] shadow-sm">
             Ouvrir
           </span>
         </a>
@@ -2148,7 +2148,7 @@ export default function ProductDetails() {
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
         >
           <button type="button" onClick={handleBackNavigation}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-800 active:scale-95 dark:bg-neutral-800 dark:text-neutral-100"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-800 active:scale-95 dark:bg-neutral-800 dark:text-neutral-100"
             aria-label="Retour">
             <ArrowLeft size={18} />
           </button>
@@ -2159,16 +2159,16 @@ export default function ProductDetails() {
           </button>
           <div className="flex items-center gap-1.5">
             <button type="button" onClick={handleNativeShare}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:scale-95"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:scale-95"
               aria-label="Partager">
               <Share2 size={16} />
             </button>
             <Link to="/cart"
-              className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:scale-95"
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:scale-95"
               aria-label="Panier">
               <ShoppingCart size={16} />
               {cartCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full bg-[#FF6A00] px-1 text-center text-[9px] font-black text-white leading-4">
+                <span className="absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full bg-[#e85d00] px-1 text-center text-[9px] font-black text-white leading-4">
                   {cartCount > 99 ? '99+' : cartCount}
                 </span>
               )}
@@ -2218,7 +2218,7 @@ export default function ProductDetails() {
           {/* Overlay badges */}
           <div className="absolute left-3 top-3 z-20 flex flex-col gap-1.5">
             {hasDiscount && (
-              <span className="rounded bg-[#FF6A00] px-2 py-0.5 text-xs font-black text-white shadow">
+              <span className="rounded bg-[#e85d00] px-2 py-0.5 text-xs font-black text-white shadow">
                 -{discountPercentage}%
               </span>
             )}
@@ -2229,26 +2229,26 @@ export default function ProductDetails() {
             )}
           </div>
           <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-            {galleryImages.length > 1 && (
-              <span className="rounded-full bg-black/40 px-2 py-0.5 text-[11px] font-bold text-white backdrop-blur-sm">
-                {selectedImage + 1}/{galleryImages.length}
-              </span>
-            )}
             <button type="button" onClick={handleZoomButtonClick}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm active:scale-95"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm active:scale-95"
               aria-label="Agrandir">
-              <ZoomIn size={14} />
+              <ZoomIn size={18} />
             </button>
           </div>
           {galleryImages.length > 1 && (
+            <span className="absolute bottom-3 right-3 z-20 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+              {selectedImage + 1}/{galleryImages.length}
+            </span>
+          )}
+          {galleryImages.length > 1 && (
             <>
               <button type="button" onClick={(e) => { e.stopPropagation(); goToPrevImage(); }}
-                className="absolute left-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm active:scale-95">
-                <ChevronLeft size={16} />
+                className="absolute left-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm active:scale-95">
+                <ChevronLeft size={20} />
               </button>
               <button type="button" onClick={(e) => { e.stopPropagation(); goToNextImage(); }}
-                className="absolute right-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm active:scale-95">
-                <ChevronRight size={16} />
+                className="absolute right-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm active:scale-95">
+                <ChevronRight size={20} />
               </button>
             </>
           )}
@@ -2259,7 +2259,7 @@ export default function ProductDetails() {
             {galleryImages.map((item, index) => (
               <button key={`thumb-${item.src || index}`} type="button"
                 onClick={() => setSelectedImage(index)}
-                className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded border-2 transition-all ${selectedImage === index ? 'border-[#FF6A00]' : 'border-transparent opacity-55 hover:opacity-80'}`}>
+                className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded border-2 transition-all ${selectedImage === index ? 'border-[#e85d00]' : 'border-transparent opacity-55 hover:opacity-80'}`}>
                 {item.type === 'video' ? (
                   <>
                     <img src={galleryImages.find((g) => g.type === 'image')?.src || ''} alt="Vidéo" className="h-full w-full object-contain bg-white" loading="lazy" />
@@ -2274,62 +2274,15 @@ export default function ProductDetails() {
             ))}
           </div>
         )}
-        {/* Variant strip (style Taobao) : options photo + bouton "Tout" ouvrant la fiche complète */}
-        {imageVariantAttribute && (
-          <div className="flex items-center gap-2 border-t border-gray-50 px-3 py-2.5">
-            <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {imageVariantAttribute.options.map((option) => {
-                const optionKey = String(option).trim().toLowerCase();
-                const selectedValue = normalizedSelectedAttributes.find(
-                  (e) => e.name.toLowerCase() === imageVariantAttribute.name.toLowerCase()
-                )?.value || '';
-                const active = selectedValue.toLowerCase() === optionKey;
-                const optionImageIdx = imageVariantAttribute.optionImages?.[optionKey];
-                const optionThumb = Number.isInteger(optionImageIdx)
-                  ? product?.images?.[optionImageIdx] || ''
-                  : '';
-                return (
-                  <button key={`variant-strip-${option}`} type="button"
-                    onClick={() => handleAttributeValueChange(imageVariantAttribute, !imageVariantAttribute.required && active ? '' : option)}
-                    className={`inline-flex max-w-[150px] flex-shrink-0 items-center gap-1.5 rounded-lg border p-1 pr-2 transition-all active:scale-[0.97] ${active
-                      ? 'border-[#FF6A00] bg-[#fff0e4]'
-                      : 'border-gray-200 bg-gray-50'}`}
-                    aria-pressed={active}>
-                    <span className="h-9 w-9 flex-shrink-0 overflow-hidden rounded bg-gray-100">
-                      {optionThumb ? (
-                        <img src={optionThumb} alt={option} className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-sm font-black text-gray-300">
-                          {String(option).charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                    </span>
-                    <span className={`truncate text-xs font-bold ${active ? 'text-[#FF6A00]' : 'text-gray-700'}`}>
-                      {option}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <button type="button" onClick={() => setIsVariantSheetOpen(true)}
-              className="inline-flex flex-shrink-0 items-center gap-0.5 rounded-full bg-gray-100 py-2 pl-3 pr-2 text-xs font-black text-gray-700 active:scale-95"
-              aria-label={`Voir les ${imageVariantAttribute.options.length} options`}>
-              Tout
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gray-800 text-white">
-                <ChevronRight size={11} />
-              </span>
-            </button>
-          </div>
-        )}
       </section>
 
       {/* ── DIVIDER ── */}
       <div className="h-2 bg-[#f5f5f5]" />
 
-      {/* ── PRICE ── */}
+      {/* ── PRIMARY PRODUCT INFORMATION ── */}
       <section className="bg-white px-4 pt-3.5 pb-3">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-[28px] font-black text-[#FF6A00] leading-tight">
+          <span className="text-[28px] font-black text-neutral-950 leading-tight">
             {formatPriceWithStoredSettings(finalPrice)}
           </span>
           {hasDiscount && (
@@ -2337,80 +2290,40 @@ export default function ProductDetails() {
               <span className="text-sm text-gray-400 line-through">
                 {formatPriceWithStoredSettings(originalPrice)}
               </span>
-              <span className="rounded bg-[#FF6A00] px-1.5 py-0.5 text-[11px] font-black text-white">
-                -{discountPercentage}%
+              <span className="rounded-full bg-[#fff0e4] px-2.5 py-1 text-[11px] font-black text-[#c2410c]">
+                Économisez {formatPriceWithStoredSettings(originalPrice - finalPrice)}
               </span>
             </>
           )}
         </div>
-        <p className="mt-1 text-[11px] text-rose-500">Prix après avantages HDMarket.</p>
+        <h1 className="mt-2 text-[17px] font-black leading-snug text-[#231f1b]">{product.title}</h1>
+        <div className="mt-2 flex items-center gap-2.5 text-[11px] text-[#8a8378]">
+          <span className="flex items-center gap-1"><Star size={12} className="fill-[#e85d00] text-[#e85d00]" /><strong className="text-[#44403a]">{ratingAverage}</strong> ({ratingCount})</span>
+          <span>·</span><span>{formattedTotalOrdersQty} ventes</span>
+        </div>
         {installmentOffer.available && (
-          <div className="mt-2 inline-flex items-center gap-1.5 rounded bg-[#fff0e4] px-2.5 py-1.5">
-            <span className="text-[11px] font-semibold text-[#FF6A00]">
-              Paiement en tranches · min {formatPriceWithStoredSettings(installmentOffer.minAmount || 0)} · {installmentOffer.duration || 0}j
+          <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#f7f4ef] px-3 py-2">
+            <Clock size={14} className="text-[#e85d00]" />
+            <span className="text-[11px] font-semibold text-[#e85d00]">
+              Payable en tranches dès {formatPriceWithStoredSettings(installmentOffer.minAmount || 0)} sur {installmentOffer.duration || 0} jours
             </span>
           </div>
         )}
         {wholesaleEnabled && <div className="mt-2">{renderWholesaleSection({ compact: true })}</div>}
       </section>
 
-      {/* ── DIVIDER ── */}
-      <div className="h-2 bg-[#f5f5f5]" />
-
-      {/* ── TITLE + STATS + SERVICE BADGES ── */}
+      {/* ── REASSURANCE ── */}
       <section className="bg-white px-4 pt-3 pb-4">
-        <h1 className="text-base font-bold text-gray-900 leading-snug">{product.title}</h1>
-
-        {/* Stats row */}
-        <div className="mt-2 flex items-center gap-2.5 text-[11px] text-gray-500 flex-wrap">
-          <span className="flex items-center gap-0.5">
-            <Star size={12} className="fill-[#FF6A00] text-[#FF6A00]" />
-            <span className="font-semibold text-gray-700">{ratingAverage}</span>
-            <span>({ratingCount})</span>
-          </span>
-          <span className="text-gray-200">|</span>
-          <span>{formattedTotalOrdersQty} ventes</span>
-          <span className="text-gray-200">|</span>
-          <span className="flex items-center gap-0.5"><Eye size={11} /> {formattedTotalViews}</span>
-          <span className="text-gray-200">|</span>
-          <span className="flex items-center gap-0.5"><Heart size={11} /> {favoriteCount}</span>
-          {(todayViews > 0) && (
-            <>
-              <span className="text-gray-200">|</span>
-              <span className="text-[#FF6A00]">{formattedTodayViews} aujourd'hui</span>
-            </>
-          )}
-        </div>
-
-        {/* Service badges horizontal scroll */}
-        <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <span className={`flex-shrink-0 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-semibold ${freeDeliveryAvailable ? 'bg-[#fff0e4] text-[#FF6A00]' : pickupOnly ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-600'}`}>
+        <div className="flex flex-col gap-2.5 text-[12px] font-semibold text-[#6b6459]">
+          <span className="inline-flex items-center gap-2">
             <Truck size={12} /> {freeDeliveryAvailable ? 'Livraison gratuite' : pickupOnly ? 'Retrait boutique' : deliveryAvailable ? 'Livraison disponible' : 'Retrait uniquement'}
           </span>
-          <span className="flex-shrink-0 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-semibold bg-gray-100 text-gray-600">
-            <Shield size={12} /> Paiement sécurisé
+          <span className="inline-flex items-center gap-2">
+            <Shield size={12} /> Paiement sécurisé{product.warrantyEnabled ? ` · Garantie ${Number(product.warrantyPeriodValue || 0)}${warrantyPeriodUnitLabel}` : ''}{product.certified ? ' · Certifié HDMarket' : ''}
           </span>
-          {product.certified && (
-            <span className="flex-shrink-0 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-semibold bg-[#fff0e4] text-[#FF6A00]">
-              <Check size={12} /> Certifié HDMarket
-            </span>
-          )}
-          {product.warrantyEnabled && (
-            <span className="flex-shrink-0 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-semibold bg-gray-100 text-gray-600">
-              <Shield size={12} /> Garantie {Number(product.warrantyPeriodValue || 0)}{warrantyPeriodUnitLabel}
-            </span>
-          )}
-          <span className={`flex-shrink-0 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-semibold ${stockStatus.className}`}>
-            {stockStatus.label}
+          <span className="inline-flex items-center gap-2 font-bold text-[#047857]">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{stockStatus.label}
           </span>
-          <span className="flex-shrink-0 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-semibold bg-gray-100 text-gray-600">
-            <Clock size={12} /> {daysSince === 0 ? "Aujourd'hui" : daysSince === 1 ? 'Hier' : `${daysSince}j`}
-          </span>
-          {sellerCity && (
-            <span className="flex-shrink-0 inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[11px] font-semibold bg-gray-100 text-gray-600">
-              <MapPin size={12} /> {sellerCity}
-            </span>
-          )}
         </div>
       </section>
 
@@ -2430,26 +2343,14 @@ export default function ProductDetails() {
       {hasProductOptions && (
         <>
           <section className={`px-4 pt-3.5 pb-4 transition-colors ${isOptionSelectionBlocked ? 'bg-[#FFF7ED]' : 'bg-white'}`}>
-            <div className="mb-3.5 flex items-center justify-between gap-2">
-              <h3 className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]">
-                  <SlidersHorizontal size={17} />
-                </span>
-                <span className="flex min-w-0 flex-col leading-tight">
-                  <span className="text-sm font-black text-gray-900">Options du produit</span>
-                  <span className="truncate text-[11px] font-semibold text-gray-500">
-                    {isOptionSelectionBlocked
-                      ? 'Sélectionnez vos options pour continuer'
-                      : `${productOptionDefinitions.length} option${productOptionDefinitions.length > 1 ? 's' : ''} à personnaliser`}
-                  </span>
-                </span>
-              </h3>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h3 className="text-[17px] font-black text-gray-900">Options du produit</h3>
               {hasRequiredProductOptions && (
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${
                     selectedAttributeValidation.valid
                       ? 'bg-emerald-50 text-emerald-700'
-                      : 'animate-pulse bg-[#FF6A00] text-white'
+                      : 'animate-pulse bg-[#e85d00] text-white'
                   }`}
                 >
                   {selectedAttributeValidation.valid ? (
@@ -2471,9 +2372,9 @@ export default function ProductDetails() {
                 return (
                   <div key={`mob-opt-${attribute.key || attribute.name}`}>
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-                      <span>{attribute.name}{attribute.required && <span className="ml-0.5 text-[#FF6A00]">*</span>}</span>
+                      <span>{attribute.name}{attribute.required && <span className="ml-0.5 text-[#e85d00]">*</span>}</span>
                       {selectedValue ? (
-                        <span className="rounded bg-[#FFF0E4] px-1.5 py-0.5 font-black text-[#FF6A00]">{selectedValue}</span>
+                        <span className="rounded bg-[#FFF0E4] px-1.5 py-0.5 font-black text-[#e85d00]">{selectedValue}</span>
                       ) : attribute.required ? (
                         <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">À choisir</span>
                       ) : null}
@@ -2493,7 +2394,7 @@ export default function ProductDetails() {
                             <button key={`${attribute.name}-${option}`} type="button"
                               onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
                               className={`overflow-hidden rounded-lg border-2 text-left transition-all active:scale-[0.97] ${active
-                                ? 'border-[#FF6A00] ring-1 ring-orange-200'
+                                ? 'border-[#e85d00] ring-1 ring-orange-200'
                                 : 'border-gray-200'}`}
                               aria-pressed={active}>
                               <div className="aspect-square bg-gray-100">
@@ -2506,11 +2407,11 @@ export default function ProductDetails() {
                                 )}
                               </div>
                               <div className={`px-1.5 py-1 ${active ? 'bg-[#fff0e4]' : 'bg-white'}`}>
-                                <p className={`truncate text-[11px] font-bold ${active ? 'text-[#FF6A00]' : 'text-gray-700'}`}>
+                                <p className={`truncate text-[11px] font-bold ${active ? 'text-[#e85d00]' : 'text-gray-700'}`}>
                                   {option}
                                 </p>
                                 {Number.isFinite(optionPrice) && optionPrice > 0 ? (
-                                  <p className="truncate text-[11px] font-black text-[#FF6A00]">
+                                  <p className="truncate text-[11px] font-black text-[#e85d00]">
                                     {formatPriceWithStoredSettings(optionPrice)}
                                   </p>
                                 ) : null}
@@ -2528,8 +2429,8 @@ export default function ProductDetails() {
                           return (
                             <button key={`${attribute.name}-${option}`} type="button"
                               onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
-                              className={`inline-flex items-center gap-2 rounded border px-3.5 py-2 text-sm font-semibold transition-all active:scale-[0.97] ${active
-                                ? 'border-[#FF6A00] bg-[#fff0e4] text-[#FF6A00]'
+                              className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all active:scale-[0.97] ${active
+                                ? 'border-[#e85d00] bg-[#fff0e4] text-[#e85d00]'
                                 : 'border-gray-200 bg-white text-gray-700'}`}>
                               {swatch && (
                                 <span
@@ -2539,7 +2440,7 @@ export default function ProductDetails() {
                               )}
                               {option}
                               {Number.isFinite(optionPrice) && optionPrice > 0 ? (
-                                <span className={`text-[11px] font-black ${active ? 'text-[#FF6A00]' : 'text-gray-500'}`}>
+                                <span className={`text-[11px] font-black ${active ? 'text-[#e85d00]' : 'text-gray-500'}`}>
                                   {formatPriceWithStoredSettings(optionPrice)}
                                 </span>
                               ) : null}
@@ -2551,7 +2452,7 @@ export default function ProductDetails() {
                       <input type={attribute.type === 'number' ? 'number' : 'text'}
                         value={selectedValue}
                         onChange={(e) => handleAttributeValueChange(attribute, e.target.value)}
-                        className="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-[#FF6A00] focus:outline-none"
+                        className="min-h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-[#e85d00] focus:outline-none"
                         placeholder={`Ex: ${attribute.name}`} />
                     )}
                   </div>
@@ -2596,9 +2497,9 @@ export default function ProductDetails() {
               </div>
               {isProfessional && !isOwnProduct && isShopVerified && (
                 <button type="button" onClick={handleFollowToggle} disabled={followLoading}
-                  className={`flex-shrink-0 rounded px-3.5 py-1.5 text-xs font-semibold border transition-all active:scale-95 ${isFollowingShop
+                  className={`flex min-h-11 flex-shrink-0 items-center rounded-full px-4 text-xs font-semibold border transition-all active:scale-95 ${isFollowingShop
                     ? 'border-gray-300 bg-white text-gray-700'
-                    : 'border-[#FF6A00] bg-[#fff0e4] text-[#FF6A00]'}`}>
+                    : 'border-[#e85d00] bg-[#fff0e4] text-[#e85d00]'}`}>
                   {followLoading ? '...' : isFollowingShop ? 'Abonné ✓' : 'Suivre'}
                 </button>
               )}
@@ -2609,7 +2510,7 @@ export default function ProductDetails() {
                   <span className="flex items-center gap-1"><Clock size={11} /> Répond en {sellerResponseTimeLabel}</span>
                 )}
                 {showPhone && (
-                  <a href={`tel:${(phoneNumber || '').replace(/\s+/g, '')}`} className="flex items-center gap-1 text-[#FF6A00] font-semibold">
+                  <a href={`tel:${(phoneNumber || '').replace(/\s+/g, '')}`} className="flex items-center gap-1 text-[#e85d00] font-semibold">
                     <Phone size={11} /> {phoneNumber}
                   </a>
                 )}
@@ -2617,7 +2518,7 @@ export default function ProductDetails() {
             )}
             {canOpenShopProfile && (
               <Link to={buildShopPath(shopIdentifier)}
-                className="mt-3 flex items-center justify-center gap-2 w-full rounded py-2.5 bg-[#0a0a0a] text-white text-xs font-semibold active:scale-[0.98] transition-transform">
+                className="mt-3 flex min-h-11 items-center justify-center gap-2 w-full rounded-full bg-[#f7f4ef] text-gray-900 text-xs font-bold active:scale-[0.98] transition-transform">
                 <Store size={13} /> Voir la boutique
               </Link>
             )}
@@ -2627,7 +2528,7 @@ export default function ProductDetails() {
       )}
 
       {/* ── TAB BAR (sticky) ── */}
-      <div className="sticky top-[52px] z-20 bg-white border-b border-gray-100">
+      <div className="bg-white border-b border-gray-100">
         <div className="flex">
           {[
             { key: 'description', label: 'Description' },
@@ -2635,8 +2536,8 @@ export default function ProductDetails() {
             { key: 'reviews', label: `Avis (${commentCount})` },
           ].map(({ key, label }) => (
             <button key={key} type="button" onClick={() => setActiveTab(key)}
-              className={`flex-1 py-3 text-[13px] font-semibold transition-colors ${activeTab === key
-                ? 'text-[#FF6A00] border-b-2 border-[#FF6A00]'
+              className={`min-h-11 flex-1 py-3 text-[13px] font-semibold transition-colors ${activeTab === key
+                ? 'text-gray-950 border-b-2 border-[#e85d00]'
                 : 'text-gray-500'}`}>
               {label}
             </button>
@@ -2654,7 +2555,7 @@ export default function ProductDetails() {
             <div className="rounded border border-gray-100 bg-gray-50 p-3 space-y-2">
               <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Livraison & Retours</h4>
               <div className="flex items-start gap-2 text-xs text-gray-600">
-                <Truck size={13} className="mt-0.5 flex-shrink-0 text-[#FF6A00]" />
+                <Truck size={13} className="mt-0.5 flex-shrink-0 text-[#e85d00]" />
                 <span>{deliveryPrimaryLabel} · {deliverySecondaryLabel}</span>
               </div>
               <div className="flex items-start gap-2 text-xs text-gray-600">
@@ -2710,10 +2611,10 @@ export default function ProductDetails() {
             {/* Rating summary */}
             <div className="flex items-center gap-4 pb-3 border-b border-gray-100">
               <div className="text-center">
-                <p className="text-4xl font-black text-[#FF6A00]">{ratingAverage}</p>
+                <p className="text-4xl font-black text-[#e85d00]">{ratingAverage}</p>
                 <div className="flex items-center gap-0.5 mt-1">
                   {[1,2,3,4,5].map((s) => (
-                    <Star key={s} size={13} className={s <= Math.floor(Number(ratingAverage)) ? 'fill-[#FF6A00] text-[#FF6A00]' : 'text-gray-200'} />
+                    <Star key={s} size={13} className={s <= Math.floor(Number(ratingAverage)) ? 'fill-[#e85d00] text-[#e85d00]' : 'text-gray-200'} />
                   ))}
                 </div>
                 <p className="text-[11px] text-gray-400 mt-0.5">{ratingCount} avis</p>
@@ -2724,9 +2625,9 @@ export default function ProductDetails() {
                   return (
                     <div key={s} className="flex items-center gap-2 text-[11px] text-gray-500">
                       <span className="w-3 text-right">{s}</span>
-                      <Star size={10} className="fill-[#FF6A00] text-[#FF6A00]" />
+                      <Star size={10} className="fill-[#e85d00] text-[#e85d00]" />
                       <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                        <div className="h-full rounded-full bg-[#FF6A00]" style={{ width: `${pct}%` }} />
+                        <div className="h-full rounded-full bg-[#e85d00]" style={{ width: `${pct}%` }} />
                       </div>
                       <span className="w-8">{pct}%</span>
                     </div>
@@ -2741,7 +2642,7 @@ export default function ProductDetails() {
                   <span className="text-xs text-gray-500">Votre note:</span>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button key={star} type="button" onClick={() => handleSubmitRating(star)} disabled={submittingRating} className="focus:outline-none">
-                      <Star size={20} className={star <= userRating ? 'fill-[#FF6A00] text-[#FF6A00]' : 'text-gray-300'} />
+                      <Star size={20} className={star <= userRating ? 'fill-[#e85d00] text-[#e85d00]' : 'text-gray-300'} />
                     </button>
                   ))}
                   {submittingRating && <span className="text-xs text-gray-400 ml-1">...</span>}
@@ -2749,9 +2650,9 @@ export default function ProductDetails() {
                 <form onSubmit={handleSubmitComment} className="flex gap-2">
                   <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Écrire un avis..." disabled={submittingComment}
-                    className="flex-1 min-w-0 rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#FF6A00] focus:outline-none" />
+                    className="flex-1 min-w-0 rounded border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#e85d00] focus:outline-none" />
                   <button type="submit" disabled={submittingComment || !newComment.trim()}
-                    className="rounded bg-[#FF6A00] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                    className="rounded bg-[#e85d00] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
                     {submittingComment ? '...' : 'Envoyer'}
                   </button>
                 </form>
@@ -2760,7 +2661,7 @@ export default function ProductDetails() {
             )}
             {!user && (
               <p className="text-xs text-gray-400">
-                <Link to="/login" className="text-[#FF6A00] font-semibold">Connectez-vous</Link> pour noter ou commenter.
+                <Link to="/login" className="text-[#e85d00] font-semibold">Connectez-vous</Link> pour noter ou commenter.
               </p>
             )}
             {commentsLoading && comments.length === 0 && (
@@ -2799,7 +2700,7 @@ export default function ProductDetails() {
                 ))}
                 {comments.length > 3 && (
                   <button type="button" onClick={() => setIsReviewsModalOpen(true)}
-                    className="w-full rounded border border-gray-200 py-2.5 text-xs font-semibold text-[#FF6A00]">
+                    className="w-full rounded border border-gray-200 py-2.5 text-xs font-semibold text-[#e85d00]">
                     Voir les {comments.length} avis
                   </button>
                 )}
@@ -2822,14 +2723,14 @@ export default function ProductDetails() {
             <Link
               to={`${buildShopPath(shopIdentifier)}#products`}
               {...externalLinkProps}
-              className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 transition-colors hover:text-[#FF6A00]"
+              className="text-[17px] font-black text-gray-900 transition-colors hover:text-[#e85d00]"
             >
               Autres articles de la boutique
             </Link>
             <Link
               to={`${buildShopPath(shopIdentifier)}#products`}
               {...externalLinkProps}
-              className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#FF6A00]"
+              className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#e85d00]"
             >
               Voir tout
               <ChevronRight size={13} />
@@ -2870,8 +2771,8 @@ export default function ProductDetails() {
       {(relatedLoading || relatedProducts.length > 0) && (
         <section className="bg-white pt-3.5 pb-4">
           <div className="flex items-center justify-between px-4 mb-3">
-            <h3 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900">Recommandé pour vous</h3>
-            <Link to={`/products?category=${product.category}`} className="text-xs font-semibold text-[#FF6A00]">Voir tout</Link>
+            <h3 className="text-[17px] font-black text-gray-900">Recommandé pour vous</h3>
+            <Link to={`/products?category=${product.category}`} className="text-xs font-semibold text-[#e85d00]">Voir tout</Link>
           </div>
           <div className="flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {relatedLoading && relatedProducts.length === 0
@@ -2892,7 +2793,7 @@ export default function ProductDetails() {
                     </div>
                     <div className="p-2">
                       <p className="text-[11px] font-semibold text-gray-800 line-clamp-2 mb-1">{rp.title}</p>
-                      <p className="text-xs font-black text-[#FF6A00]">{formatPriceWithStoredSettings(rp.price)}</p>
+                      <p className="text-xs font-black text-neutral-950">{formatPriceWithStoredSettings(rp.price)}</p>
                     </div>
                   </Link>
                 ))
@@ -2906,7 +2807,7 @@ export default function ProductDetails() {
         <>
           <div className="h-2 bg-[#f5f5f5]" />
           <section className="bg-white px-4 py-4">
-            <h3 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 mb-3">Document joint</h3>
+            <h3 className="text-[17px] font-black text-gray-900 mb-3">Document joint</h3>
             <img src={product.pdf} alt={`Document ${product.title || ''}`} className="w-full h-auto rounded border border-gray-100" loading="lazy" />
           </section>
         </>
@@ -2934,7 +2835,7 @@ export default function ProductDetails() {
                     }
                   }}
                   className="flex items-center justify-center gap-2 w-full rounded border border-gray-200 bg-gray-50 py-3 text-sm font-medium text-gray-700 active:scale-[0.98] transition-all disabled:opacity-60">
-                  <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#FF6A00]" />
+                  <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#e85d00]" />
                   <span>{inquiryLoading ? 'Ouverture...' : 'Des questions ? Contacter le vendeur'}</span>
               </button>
               {inquiryError && <p className="text-xs text-red-600 mt-1.5">{inquiryError}</p>}
@@ -2942,7 +2843,7 @@ export default function ProductDetails() {
           ) : (
             <Link to="/login" state={{ from: { pathname: `/product/${product?.slug || product?._id}` } }}
               className="flex items-center justify-center gap-2 w-full rounded border border-gray-200 bg-gray-50 py-3 text-sm font-medium text-gray-700 active:scale-[0.98] transition-all">
-              <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#FF6A00]" />
+              <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#e85d00]" />
               <span>Connectez-vous pour contacter le vendeur</span>
             </Link>
           )}
@@ -2955,7 +2856,7 @@ export default function ProductDetails() {
 
       {/* ── SHARE ── */}
       <section className="bg-white px-4 py-4">
-        <h3 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-sm font-black text-gray-900 mb-3">Partager ce produit</h3>
+        <h3 className="text-[17px] font-black text-gray-900 mb-3">Partager ce produit</h3>
         <div className="flex flex-wrap gap-2">
           <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`}
             target="_blank" rel="noopener noreferrer"
@@ -2994,40 +2895,27 @@ export default function ProductDetails() {
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex items-stretch h-[58px]">
-            {/* Store icon */}
-            {canOpenShopProfile ? (
-              <Link to={buildShopPath(shopIdentifier)}
-                className="flex flex-col items-center justify-center gap-0.5 px-4 border-r border-gray-100 text-gray-600 active:bg-gray-50">
-                <Store size={19} />
-                <span className="text-[10px] font-semibold">Boutique</span>
-              </Link>
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-0.5 px-4 border-r border-gray-100 text-gray-400">
-                <Store size={19} />
-                <span className="text-[10px] font-semibold">Boutique</span>
-              </div>
-            )}
             {/* Chat / WhatsApp icon */}
             {whatsappLink ? (
               <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsappClick}
-                className="flex flex-col items-center justify-center gap-0.5 px-4 border-r border-gray-100 text-gray-600 active:bg-gray-50">
+                className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 text-gray-600 active:bg-gray-50">
                 <MessageCircle size={19} />
                 <span className="text-[10px] font-semibold">Chat</span>
               </a>
             ) : (
               <button type="button" onClick={() => setIsReviewsModalOpen(true)}
-                className="flex flex-col items-center justify-center gap-0.5 px-4 border-r border-gray-100 text-gray-600 active:bg-gray-50">
+                className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 text-gray-600 active:bg-gray-50">
                 <Star size={19} />
                 <span className="text-[10px] font-semibold">Avis</span>
               </button>
             )}
             {/* Favorite icon */}
             <button type="button" onClick={handleFavoriteToggle}
-              className="flex flex-col items-center justify-center gap-0.5 px-4 border-r border-gray-100 active:bg-gray-50">
+              className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 active:bg-gray-50">
               <Heart size={19}
-                className={isInFavorites ? 'text-[#FF6A00]' : 'text-gray-600'}
+                className={isInFavorites ? 'text-[#e85d00]' : 'text-gray-600'}
                 fill={isInFavorites ? 'currentColor' : 'none'} />
-              <span className={`text-[10px] font-semibold ${isInFavorites ? 'text-[#FF6A00]' : 'text-gray-600'}`}>
+              <span className={`text-[10px] font-semibold ${isInFavorites ? 'text-[#e85d00]' : 'text-gray-600'}`}>
                 {favoriteCount > 0 ? favoriteCount : 'Favori'}
               </span>
             </button>
@@ -3035,17 +2923,17 @@ export default function ProductDetails() {
             <div className="flex flex-1 items-center gap-2 px-2">
               <button type="button" onClick={handleAddToCart}
                 disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock || isOptionSelectionBlocked
+                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock || isOptionSelectionBlocked
                   ? 'bg-gray-100 text-gray-400'
-                  : 'border border-[#FF6A00] bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                  : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00]'}`}>
                 <ShoppingCart size={16} className="flex-shrink-0" />
-                <span className="truncate">{isOptionSelectionBlocked ? 'Options' : isOutOfStock ? 'Rupture' : inCart ? 'Au panier' : normalizedQuantity > 1 ? `×${normalizedQuantity}` : 'Ajouter'}</span>
+                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir les options' : isOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
               </button>
               <button type="button" onClick={handleBuyNow}
                 disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock || isOptionSelectionBlocked
+                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock || isOptionSelectionBlocked
                   ? 'bg-gray-200 text-gray-400'
-                  : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
+                  : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
                 <Zap size={16} className="flex-shrink-0" fill="currentColor" />
                 <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
               </button>
@@ -3093,7 +2981,7 @@ export default function ProductDetails() {
               </button>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black text-[#FF6A00]">
+                  <span className="text-xl font-black text-[#e85d00]">
                     {formatPriceWithStoredSettings(appliedUnitPrice)}
                   </span>
                   {hasDiscount && Number(originalPrice) > appliedUnitPrice ? (
@@ -3124,7 +3012,7 @@ export default function ProductDetails() {
                   <div key={`sheet-opt-${attribute.key || attribute.name}`} className="mb-4 last:mb-0">
                     <p className="mb-2 text-sm font-black text-gray-900">
                       {attribute.name} ({attribute.options.length})
-                      {attribute.required && <span className="ml-0.5 text-[#FF6A00]">*</span>}
+                      {attribute.required && <span className="ml-0.5 text-[#e85d00]">*</span>}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {attribute.options.map((option) => {
@@ -3139,18 +3027,18 @@ export default function ProductDetails() {
                           <button key={`sheet-${attribute.name}-${option}`} type="button"
                             onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
                             className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border p-1 pr-2.5 text-left transition-all active:scale-[0.97] ${active
-                              ? 'border-[#FF6A00] bg-[#fff0e4]'
+                              ? 'border-[#e85d00] bg-[#fff0e4]'
                               : 'border-transparent bg-gray-100'}`}
                             aria-pressed={active}>
                             {optionThumb ? (
                               <img src={optionThumb} alt="" loading="lazy"
                                 className="h-8 w-8 flex-shrink-0 rounded object-cover" />
                             ) : null}
-                            <span className={`truncate text-sm font-semibold ${active ? 'text-[#FF6A00]' : 'text-gray-700'}`}>
+                            <span className={`truncate text-sm font-semibold ${active ? 'text-[#e85d00]' : 'text-gray-700'}`}>
                               {option}
                             </span>
                             {Number.isFinite(optionPrice) && optionPrice > 0 ? (
-                              <span className={`flex-shrink-0 text-xs font-black ${active ? 'text-[#FF6A00]' : 'text-gray-500'}`}>
+                              <span className={`flex-shrink-0 text-xs font-black ${active ? 'text-[#e85d00]' : 'text-gray-500'}`}>
                                 {formatPriceWithStoredSettings(optionPrice)}
                               </span>
                             ) : null}
@@ -3175,7 +3063,7 @@ export default function ProductDetails() {
                   disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock || isOptionSelectionBlocked
                     ? 'bg-gray-100 text-gray-400'
-                    : 'border border-[#FF6A00] bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                    : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00]'}`}>
                   {isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : 'Ajouter au panier'}
                 </button>
                 <button type="button"
@@ -3183,7 +3071,7 @@ export default function ProductDetails() {
                   disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock || isOptionSelectionBlocked
                     ? 'bg-gray-200 text-gray-400'
-                    : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
+                    : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
                   {addingToCart ? '...' : 'Acheter'}
                 </button>
               </div>
@@ -3481,7 +3369,7 @@ export default function ProductDetails() {
               <div className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_18px_42px_rgba(117,75,36,0.09)]">
                 <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-[#fff2e6] via-white to-orange-50 px-5 py-4 dark:from-neutral-900 dark:via-neutral-900 dark:to-orange-950/30">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)]">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)]">
                       <Video className="h-6 w-6" />
                     </span>
                     <div>
@@ -3681,7 +3569,7 @@ export default function ProductDetails() {
                             />
                           ) : (
                             <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[22px] bg-neutral-950 shadow-md">
-                              <Store className="h-9 w-9 text-white" />
+                              <Store className="h-11 w-11 text-white" />
                             </div>
                           )}
 
@@ -3800,10 +3688,10 @@ export default function ProductDetails() {
                       disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
                       className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock || isOptionSelectionBlocked
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
-                        : 'border border-[#FF6A00] bg-[#FFF0E4] text-[#FF6A00] hover:bg-[#ffe4cf]'
+                        : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00] hover:bg-[#ffe4cf]'
                         }`}
                     >
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#FF6A00]">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#e85d00]">
                         <ShoppingCart size={16} />
                       </span>
                       <span className="truncate leading-tight">
@@ -3816,7 +3704,7 @@ export default function ProductDetails() {
                       disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
                       className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isOutOfStock || isOptionSelectionBlocked
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
-                        : 'bg-[#FF6A00] text-white shadow-[0_18px_34px_-22px_rgba(255,106,0,0.9)] hover:bg-[#f45f00]'
+                        : 'bg-[#e85d00] text-white shadow-[0_18px_34px_-22px_rgba(255,106,0,0.9)] hover:bg-[#f45f00]'
                         }`}
                     >
                       <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isOutOfStock ? 'bg-slate-300' : 'bg-white/15 text-white'
@@ -4581,12 +4469,12 @@ export default function ProductDetails() {
   const productOptionsPanel = hasProductOptions ? (
     <div
       className={`rounded-3xl border bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4 transition-colors ${
-        isOptionSelectionBlocked ? 'border-[#FF6A00]/40 ring-1 ring-[#FF6A00]/20' : 'border-slate-200/80'
+        isOptionSelectionBlocked ? 'border-[#e85d00]/40 ring-1 ring-[#e85d00]/20' : 'border-slate-200/80'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]">
             <SlidersHorizontal size={18} />
           </span>
           <div className="min-w-0">
@@ -4603,7 +4491,7 @@ export default function ProductDetails() {
             className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${
               selectedAttributeValidation.valid
                 ? 'bg-emerald-50 text-emerald-700'
-                : 'animate-pulse bg-[#FF6A00] text-white'
+                : 'animate-pulse bg-[#e85d00] text-white'
             }`}
           >
             {selectedAttributeValidation.valid ? (
@@ -4671,7 +4559,7 @@ export default function ProductDetails() {
                             {option}
                           </p>
                           {Number.isFinite(optionPrice) && optionPrice > 0 ? (
-                            <p className={`truncate text-[11px] font-black ${active ? 'text-orange-300' : 'text-[#FF6A00]'}`}>
+                            <p className={`truncate text-[11px] font-black ${active ? 'text-orange-300' : 'text-[#e85d00]'}`}>
                               {formatPriceWithStoredSettings(optionPrice)}
                             </p>
                           ) : null}
@@ -5044,7 +4932,7 @@ export default function ProductDetails() {
                       onClick={() => setSelectedImage(index)}
                       className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border transition ${
                         safeSelectedImage === index
-                          ? 'border-[#FF6A00] ring-2 ring-[#FF6A00]/50'
+                          ? 'border-[#e85d00] ring-2 ring-[#e85d00]/50'
                           : 'border-white/20 opacity-60 hover:opacity-100'
                       }`}
                     >

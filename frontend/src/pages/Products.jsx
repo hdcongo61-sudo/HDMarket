@@ -362,7 +362,7 @@ const fetchProducts = useCallback(async () => {
             </div>
             <form onSubmit={handleSearchSubmit} className="w-full lg:max-w-xl">
               <div className="hd-products-search flex items-center gap-2 rounded-full bg-white px-3 py-1">
-                <Search className="h-5 w-5 shrink-0 text-[#FF6A00]" />
+                <Search className="h-5 w-5 shrink-0 text-[#e85d00]" />
                 <input
                   type="search"
                   value={searchInput}
@@ -444,7 +444,7 @@ const fetchProducts = useCallback(async () => {
               to="/search"
               className="hd-products-chip inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black"
             >
-              <SlidersHorizontal className="h-4 w-4 text-[#FF6A00]" />
+              <SlidersHorizontal className="h-4 w-4 text-[#e85d00]" />
               Recherche avancée
             </Link>
           </div>
@@ -521,7 +521,7 @@ const fetchProducts = useCallback(async () => {
           </>
         ) : (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
-            <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-[#FF6A00]" />
+            <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-[#e85d00]" />
             <p className="font-bold text-gray-900">Aucun produit ne correspond à votre recherche pour le moment.</p>
           </div>
         )}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
+  ArrowLeft,
   Bell,
   Check,
   ClipboardList,
@@ -139,6 +140,7 @@ const extractObjectId = (value, depth = 0) => {
 
 const resolveCategory = (alert) => {
   const type = alert?.type || '';
+  if (type === 'shop_follow' || type === 'shop_review') return 'shop';
   if (ORDER_TYPES.has(type) || type.startsWith('order_') || type.startsWith('installment_')) return 'orders';
   if (DISPUTE_TYPES.has(type) || COMPLAINT_TYPES.has(type)) return 'dispute';
   if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) return 'delivery';
@@ -366,13 +368,9 @@ export default function NotificationPage() {
     () => [
       { key: 'all', label: t('notifications.filters.all', 'Tout') },
       { key: 'unread', label: t('notifications.filters.unread', 'Non lues') },
-      { key: 'reminders', label: t('notifications.filters.reminders', 'Rappels') },
       { key: 'orders', label: t('notifications.filters.orders', 'Commandes') },
-      { key: 'boost', label: t('notifications.filters.boost', 'Boost') },
-      { key: 'dispute', label: t('notifications.filters.dispute', 'Litiges') },
-      { key: 'delivery', label: t('notifications.filters.delivery', 'Livraison') },
-      { key: 'admin', label: t('notifications.filters.admin', 'Admin') },
-      { key: 'system', label: t('notifications.filters.system', 'Système') }
+      { key: 'shop', label: t('notifications.filters.shop', 'Boutique') },
+      { key: 'select', label: t('notifications.filters.more', 'Plus') }
     ],
     [t]
   );
@@ -477,6 +475,7 @@ export default function NotificationPage() {
       unread: alerts.filter((alert) => alert?.isNew).length,
       reminders: alerts.filter((alert) => applyFilter(alert, 'reminders')).length,
       orders: alerts.filter((alert) => resolveCategory(alert) === 'orders').length,
+      shop: alerts.filter((alert) => resolveCategory(alert) === 'shop').length,
       boost: alerts.filter((alert) => resolveCategory(alert) === 'boost').length,
       dispute: alerts.filter((alert) => resolveCategory(alert) === 'dispute').length,
       delivery: alerts.filter((alert) => resolveCategory(alert) === 'delivery').length,
@@ -685,7 +684,7 @@ export default function NotificationPage() {
     return (
       <main className="hd-commerce-shell min-h-screen px-5 py-16 text-center">
         <div className="mx-auto max-w-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#ff6a00] text-white shadow-[0_16px_34px_rgba(255,106,0,0.24)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_16px_34px_rgba(255,106,0,0.24)]">
             <Bell className="h-7 w-7" />
           </div>
           <h1 className="mt-5 text-2xl font-semibold text-neutral-950 dark:text-neutral-100">{t('notifications.title', 'Notifications')}</h1>
@@ -699,28 +698,20 @@ export default function NotificationPage() {
 
   return (
     <main className="hd-commerce-shell min-h-screen text-neutral-900 dark:text-neutral-100">
-      {/* Slim sticky header (title + unread count + quick "tout lire") — the rest of the
-          page (stats, filters, search) scrolls away normally instead of staying pinned. */}
-      <GlassHeader
-        title={t('notifications.title', 'Notifications')}
-        subtitle={
-          unreadCount > 0
-            ? `${unreadCount} ${t('notifications.newCount', `nouvelle${unreadCount > 1 ? 's' : ''}`)}`
-            : `${alerts.length} ${t('notifications.notificationCount', `notification${alerts.length > 1 ? 's' : ''}`)}`
-        }
-        backTo="/"
-        right={
+      <header className="sticky top-0 z-30 border-b border-[#f5f2ee] bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
+        <div className="mx-auto flex min-h-[60px] max-w-3xl items-center px-2">
+          <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b] dark:text-white" aria-label={t('common.back', 'Retour')}><ArrowLeft className="h-5 w-5" /></button>
+          <h1 className="min-w-0 flex-1 text-[17px] font-black text-[#231f1b] dark:text-white">{t('notifications.title', 'Notifications')} <span className="text-[#8a8378]">({unreadCount})</span></h1>
           <button
             type="button"
             onClick={handleMarkAllRead}
             disabled={markingAll || unreadCount < 1}
-            className="inline-flex h-9 flex-shrink-0 items-center gap-1 rounded-full bg-[#ff6a00] px-3 text-xs font-black text-white shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex min-h-11 flex-shrink-0 items-center px-3 text-xs font-black text-[#e85d00] transition active:scale-95 disabled:opacity-40"
           >
-            <Check className="h-3.5 w-3.5" />
             {markingAll ? '...' : t('notifications.markAllRead', 'Tout lire')}
           </button>
-        }
-      />
+        </div>
+      </header>
 
       <div className="mx-auto w-full max-w-3xl px-3 pb-10">
         {(offlineSnapshotActive || rapid3GActive) && (
@@ -737,65 +728,43 @@ export default function NotificationPage() {
           </section>
         )}
 
-        {/* Compact stats strip — flat, in normal document flow (not sticky) */}
-        <section className="mt-3 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl border border-orange-100 bg-orange-50 px-3 py-2.5 dark:border-orange-900/30 dark:bg-orange-950/20">
-            <p className="text-[10px] font-black uppercase tracking-wide text-orange-700/80 dark:text-orange-300/80">Non lues</p>
-            <p className="mt-0.5 text-xl font-black leading-none text-orange-800 dark:text-orange-200">{unreadCount}</p>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">Total</p>
-            <p className="mt-0.5 text-xl font-black leading-none text-gray-900 dark:text-neutral-100">{alerts.length}</p>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">Priorité</p>
-            <p className="mt-0.5 text-xl font-black leading-none text-gray-900 dark:text-neutral-100">{filterCounts.orders + filterCounts.delivery}</p>
-          </div>
-        </section>
-
         {/* Filter chips — normal flow */}
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="mt-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max items-center gap-2">
-            {filters.map((filter) => {
+            {filters.filter((filter) => ['all', 'select'].includes(filter.key) || Number(filterCounts[filter.key] || 0) > 0).map((filter) => {
               const isActive = activeFilter === filter.key;
               return (
                 <button
                   key={filter.key}
                   type="button"
-                  onClick={() => setActiveFilter(filter.key)}
-                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  onClick={() => {
+                    if (filter.key === 'select') {
+                      setSelectionMode((value) => !value);
+                      setSelectedIds(new Set());
+                      return;
+                    }
+                    setActiveFilter(filter.key);
+                  }}
+                  className={`inline-flex min-h-11 items-center gap-1 rounded-full border px-4 text-xs font-bold transition ${
                     isActive
-                      ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
-                      : 'bg-gray-100 text-gray-500 hover:bg-orange-100 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
+                      ? 'border-neutral-950 bg-neutral-950 text-white'
+                      : 'border-[#e2dcd2] bg-white text-[#6b6459] dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'
                   }`}
                 >
                   {filter.label}
-                  <span
+                  {filter.key !== 'select' ? <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                       isActive ? 'bg-white/25' : 'bg-white text-gray-500 dark:bg-neutral-900/80 dark:text-neutral-300'
                     }`}
                   >
                     {filterCounts[filter.key] || 0}
-                  </span>
+                  </span> : null}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Search + selection — normal flow */}
-        <div className="mt-2 flex items-center gap-2">
-          <label className="flex min-h-[42px] min-w-0 flex-1 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-            <Search className="h-4 w-4 text-gray-400" />
-            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Rechercher une notification" className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-neutral-100" />
-          </label>
-          <button type="button" onClick={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} className="min-h-[42px] rounded-2xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
-            {selectionMode ? 'Annuler' : 'Sélectionner'}
-          </button>
-          {!['all', 'unread'].includes(activeFilter) && (
-            <button type="button" onClick={muteActiveCategory} title="Désactiver cette catégorie" className="grid h-[42px] w-[42px] place-items-center rounded-2xl border border-gray-200 bg-white text-gray-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"><VolumeX className="h-4 w-4" /></button>
-          )}
-        </div>
         {selectionMode && selectedIds.size > 0 && (
           <div className="mt-2 flex items-center justify-between rounded-2xl bg-neutral-950 px-3 py-2 text-white">
             <span className="text-xs font-bold">{selectedIds.size} sélectionnée(s)</span>
@@ -932,7 +901,7 @@ export default function NotificationPage() {
           ) : (
             <div className="mt-14 text-center">
               <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-[#ff6a00]">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
                   <Bell className="h-6 w-6" />
                 </div>
                 <h3 className="mt-4 text-base font-medium text-neutral-900 dark:text-neutral-100">

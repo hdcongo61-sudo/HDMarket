@@ -1187,7 +1187,7 @@ export default function ProductForm(props) {
           value={entry.label || ''}
           onChange={(e) => updateImageVariant(combinedIndex, 'label', e.target.value)}
           placeholder={`${String(imageVariantName || '').trim() || 'Option'} (ex: Rouge)`}
-          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#FF6A00] focus:outline-none"
+          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#e85d00] focus:outline-none"
         />
         <input
           type="number"
@@ -1196,7 +1196,7 @@ export default function ProductForm(props) {
           value={entry.price ?? ''}
           onChange={(e) => updateImageVariant(combinedIndex, 'price', e.target.value)}
           placeholder="Prix (optionnel)"
-          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#FF6A00] focus:outline-none"
+          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#e85d00] focus:outline-none"
         />
       </div>
     );
@@ -1853,7 +1853,7 @@ export default function ProductForm(props) {
         if (!disabled) onChange?.(!checked);
       }}
       className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:ring-offset-2 ${
-        checked ? 'border-[#ff6a00] bg-[#ff6a00]' : 'border-gray-200 bg-gray-100'
+        checked ? 'border-[#e85d00] bg-[#e85d00]' : 'border-gray-200 bg-gray-100'
       } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-95'}`}
     >
       <span
@@ -1866,7 +1866,7 @@ export default function ProductForm(props) {
   // Unified, branded header used by every section of the form. Collapsible
   // sections fold on mobile (chevron); static sections always render expanded.
   const renderSectionHeader = ({ id, icon: Icon, title, subtitle, collapsible = true, accent = 'orange' }) => {
-    const badgeClass = accent === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-[#FFF1E6] text-[#FF6A00]';
+    const badgeClass = accent === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-[#FFF1E6] text-[#e85d00]';
     const badge = (
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${badgeClass}`}>
         <Icon className="h-[18px] w-[18px]" />
@@ -1920,11 +1920,11 @@ export default function ProductForm(props) {
   ];
 
   // Taobao-style shared input class
-  const tbInput = 'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#FF6A00] focus:ring-2 focus:ring-[#FF6A00]/15 transition-colors';
+  const tbInput = 'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#e85d00] focus:ring-2 focus:ring-[#e85d00]/15 transition-colors';
   // Section title with orange left accent
   const SectionTitle = ({ children }) => (
     <h3 className="flex items-center gap-2">
-      <span className="w-[3px] h-[18px] rounded-full bg-[#FF6A00] flex-shrink-0" />
+      <span className="w-[3px] h-[18px] rounded-full bg-[#e85d00] flex-shrink-0" />
       <span className="text-sm font-black text-gray-900">{children}</span>
     </h3>
   );
@@ -1944,7 +1944,7 @@ export default function ProductForm(props) {
       {!hideHeader && (
         <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
-            {isEditing ? <Edit className="w-4 h-4 text-[#FF6A00]" /> : <Plus className="w-4 h-4 text-[#FF6A00]" />}
+            {isEditing ? <Edit className="w-4 h-4 text-[#e85d00]" /> : <Plus className="w-4 h-4 text-[#e85d00]" />}
           </div>
           <div className="min-w-0">
             <p className="text-[15px] font-black text-gray-900 leading-tight">{headerTitle}</p>
@@ -1957,15 +1957,15 @@ export default function ProductForm(props) {
       <div className="bg-white px-4 py-3 border-b border-gray-50">
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-xs font-semibold text-gray-500">Progression</p>
-          <span className="text-xs font-black text-[#FF6A00]">{requiredCompletedCount}/{requiredTotalCount}</span>
+          <span className="text-xs font-black text-[#e85d00]">{requiredCompletedCount}/{requiredTotalCount}</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-          <div className="h-full rounded-full bg-[#FF6A00] transition-all duration-300" style={{ width: `${completionPercent}%` }} />
+          <div className="h-full rounded-full bg-[#e85d00] transition-all duration-300" style={{ width: `${completionPercent}%` }} />
         </div>
         <div className="mt-2 flex gap-1.5">
           {sectionProgressItems.map((item) => (
             <span key={item.key}
-              className={`flex-1 py-1 text-center text-[10px] font-bold rounded transition-colors ${item.done ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-400'}`}>
+              className={`flex-1 py-1 text-center text-[10px] font-bold rounded transition-colors ${item.done ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-400'}`}>
               {item.label}
             </span>
           ))}
@@ -2307,10 +2307,10 @@ export default function ProductForm(props) {
           {(!isMobile || expandedSections.commercialisation) && (
             <div className="space-y-4 pt-1">
 
-          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.installmentEnabled ? 'border-[#FF6A00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
+          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.installmentEnabled ? 'border-[#e85d00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.installmentEnabled ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.installmentEnabled ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500'}`}>
                   <CreditCard className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
@@ -2339,8 +2339,8 @@ export default function ProductForm(props) {
               <div className="space-y-3">
                 {/* Live plan preview */}
                 {installmentPlanPreview && (
-                  <div className="rounded-xl border border-[#FF6A00]/30 bg-white p-3">
-                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+                  <div className="rounded-xl border border-[#e85d00]/30 bg-white p-3">
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                       <Wallet className="h-3.5 w-3.5" />
                       Aperçu de l'échéancier
                     </div>
@@ -2367,7 +2367,7 @@ export default function ProductForm(props) {
                     </div>
                     {installmentPlanPreview.days > 0 && (
                       <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
-                        <Clock className="h-3.5 w-3.5 text-[#FF6A00]" />
+                        <Clock className="h-3.5 w-3.5 text-[#e85d00]" />
                         Solde à régler sur {installmentPlanPreview.days} jour
                         {installmentPlanPreview.days > 1 ? 's' : ''}.
                       </p>
@@ -2378,7 +2378,7 @@ export default function ProductForm(props) {
                 {/* Group: amount & duration */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-[#FF6A00]" />
+                    <DollarSign className="h-4 w-4 text-[#e85d00]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Montant &amp; durée</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2418,7 +2418,7 @@ export default function ProductForm(props) {
                 {/* Group: schedule window */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-[#FF6A00]" />
+                    <Calendar className="h-4 w-4 text-[#e85d00]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Période de l'échéancier</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2450,7 +2450,7 @@ export default function ProductForm(props) {
                 {/* Group: late rules & guarantees */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-[#FF6A00]" />
+                    <ShieldCheck className="h-4 w-4 text-[#e85d00]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Règles &amp; garanties</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2493,14 +2493,14 @@ export default function ProductForm(props) {
                   <label
                     className={`mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-3 transition-colors ${
                       form.installmentRequireGuarantor
-                        ? 'border-[#FF6A00]/40 bg-[#FFF7ED]'
+                        ? 'border-[#e85d00]/40 bg-[#FFF7ED]'
                         : 'border-gray-200 bg-gray-50'
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                          form.installmentRequireGuarantor ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500'
+                          form.installmentRequireGuarantor ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500'
                         }`}
                       >
                         <Users className="h-4 w-4" />
@@ -2518,7 +2518,7 @@ export default function ProductForm(props) {
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, installmentRequireGuarantor: e.target.checked }))
                       }
-                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-[#FF6A00] focus:ring-[#FF6A00]"
+                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-[#e85d00] focus:ring-[#e85d00]"
                     />
                   </label>
                 </div>
@@ -2533,10 +2533,10 @@ export default function ProductForm(props) {
             )}
           </div>
 
-          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.wholesaleEnabled ? 'border-[#FF6A00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
+          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.wholesaleEnabled ? 'border-[#e85d00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.wholesaleEnabled ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.wholesaleEnabled ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500'}`}>
                   <Boxes className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
@@ -2623,8 +2623,8 @@ export default function ProductForm(props) {
                 </button>
 
                 {normalizedWholesalePreviewTiers.length > 0 && (
-                  <div className="rounded-xl border border-[#FF6A00]/30 bg-white p-3">
-                    <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+                  <div className="rounded-xl border border-[#e85d00]/30 bg-white p-3">
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                       <Boxes className="h-3.5 w-3.5" />
                       Aperçu des prix appliqués
                     </div>
@@ -2972,7 +2972,7 @@ export default function ProductForm(props) {
                       type="text"
                       value={imageVariantName}
                       onChange={(e) => setImageVariantName(e.target.value)}
-                      className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#FF6A00] focus:outline-none"
+                      className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#e85d00] focus:outline-none"
                       placeholder="Ex: Couleur, Modèle, Dimension"
                     />
                     <span className="w-full text-[11px] text-gray-500 sm:w-auto">
@@ -3651,7 +3651,7 @@ export default function ProductForm(props) {
               {/* ── Header ── */}
               <div className={`flex items-center justify-between bg-[#1a1a1a] border-b border-white/10 flex-shrink-0 ${isMobile ? 'px-4 py-3 safe-area-top' : 'px-4 py-3'}`}>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#FF6A00] flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#e85d00] flex items-center justify-center flex-shrink-0">
                     <Crop className="w-4 h-4 text-white" />
                   </div>
                   <div>
@@ -3680,7 +3680,7 @@ export default function ProductForm(props) {
                   <button key={label} type="button" onClick={() => applyCropAspectPreset(key)}
                     className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all touch-manipulation ${
                       cropAspect === key
-                        ? 'bg-[#FF6A00] text-white shadow-[0_4px_12px_rgba(255,106,0,0.4)]'
+                        ? 'bg-[#e85d00] text-white shadow-[0_4px_12px_rgba(255,106,0,0.4)]'
                         : 'bg-white/10 text-white/70 active:bg-white/20'
                     }`}>
                     {label}
@@ -3758,7 +3758,7 @@ export default function ProductForm(props) {
                       <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-white/20" style={{ top: `${(i / 3) * 100}%` }} />
                     ))}
                     {/* Orange border frame */}
-                    <div className="absolute inset-0 border-2 border-[#FF6A00]/80 pointer-events-none" />
+                    <div className="absolute inset-0 border-2 border-[#e85d00]/80 pointer-events-none" />
                     {/* Corner accents */}
                     {[
                       'top-0 left-0 border-t-2 border-l-2',
@@ -3766,7 +3766,7 @@ export default function ProductForm(props) {
                       'bottom-0 left-0 border-b-2 border-l-2',
                       'bottom-0 right-0 border-b-2 border-r-2',
                     ].map((cls, i) => (
-                      <div key={i} className={`absolute w-5 h-5 border-[#FF6A00] ${cls}`} />
+                      <div key={i} className={`absolute w-5 h-5 border-[#e85d00] ${cls}`} />
                     ))}
                   </div>
                 </div>
@@ -3789,7 +3789,7 @@ export default function ProductForm(props) {
                         <Icon className="w-3.5 h-3.5" />
                         {label}
                         {id === 'filters' && !filtersAreDefault && (
-                          <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
+                          <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[#e85d00]" />
                         )}
                       </button>
                     );
@@ -3832,13 +3832,13 @@ export default function ProductForm(props) {
                       <input type="range" min={sliderMinScale} max={sliderMaxScale} step={0.001} value={imageScale}
                         onChange={handleZoomInput}
                         className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20"
-                        style={{ accentColor: '#FF6A00' }} />
+                        style={{ accentColor: '#e85d00' }} />
                       <button type="button" onClick={() => handleZoomChange(0.15)}
                         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white active:bg-white/20 touch-manipulation"
                         aria-label="Zoom avant">
                         <ZoomIn className="w-4 h-4" />
                       </button>
-                      <span className="w-12 flex-shrink-0 text-right text-xs font-black text-[#FF6A00]">{zoomPct}%</span>
+                      <span className="w-12 flex-shrink-0 text-right text-xs font-black text-[#e85d00]">{zoomPct}%</span>
                     </div>
                   </div>
                 ) : (
@@ -3854,14 +3854,14 @@ export default function ProductForm(props) {
                             <Icon className="w-3.5 h-3.5 text-white/50" />
                             {label}
                           </span>
-                          <span className="w-12 text-right text-[11px] font-black text-[#FF6A00]">
+                          <span className="w-12 text-right text-[11px] font-black text-[#e85d00]">
                             {imageFilters[key]}%
                           </span>
                         </div>
                         <input type="range" min={min} max={max} step={1} value={imageFilters[key]}
                           onChange={(e) => setImageFilters((f) => ({ ...f, [key]: Number(e.target.value) }))}
                           className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20"
-                          style={{ accentColor: '#FF6A00' }} />
+                          style={{ accentColor: '#e85d00' }} />
                       </div>
                     ))}
                     <button type="button" onClick={() => setImageFilters(DEFAULT_IMAGE_FILTERS)} disabled={filtersAreDefault}
@@ -3879,7 +3879,7 @@ export default function ProductForm(props) {
                   Annuler
                 </button>
                 <button type="button" onClick={handleCropConfirm}
-                  className="flex-1 py-4 text-sm font-bold text-[#FF6A00] active:bg-[#FF6A00]/10 transition-colors touch-manipulation">
+                  className="flex-1 py-4 text-sm font-bold text-[#e85d00] active:bg-[#e85d00]/10 transition-colors touch-manipulation">
                   Confirmer
                 </button>
               </div>

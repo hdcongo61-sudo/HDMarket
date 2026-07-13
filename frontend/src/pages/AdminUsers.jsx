@@ -1399,11 +1399,11 @@ export default function AdminUsers() {
         <div className="border-b border-neutral-100 bg-neutral-50/50 px-5 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
                 <ShieldAlert size={18} />
               </div>
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#FF6A00]">Communauté</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#e85d00]">Communauté</p>
                 <h1 className="text-xl font-black tracking-tight text-neutral-900 sm:text-2xl">
                   Utilisateurs &amp; Rôles
                 </h1>
@@ -2022,7 +2022,7 @@ export default function AdminUsers() {
                       )}
                       <Link
                         to={`/admin/users/${user.id}/stats`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-[#FFF0E4] px-3 py-2 text-xs font-semibold text-[#FF6A00] hover:bg-orange-100"
+                        className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-[#FFF0E4] px-3 py-2 text-xs font-semibold text-[#e85d00] hover:bg-orange-100"
                       >
                         <BarChart3 size={14} />
                         Stats
@@ -2809,7 +2809,7 @@ export default function AdminUsers() {
 
                   <div className="rounded-xl bg-orange-50 p-4 space-y-3">
                     <h4 className="flex items-center gap-2 font-semibold text-gray-900">
-                      <FileImage size={18} className="text-[#ff6a00]" />
+                      <FileImage size={18} className="text-[#e85d00]" />
                       Justificatifs de la boutique (4 requis)
                     </h4>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

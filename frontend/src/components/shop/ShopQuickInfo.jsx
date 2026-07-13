@@ -4,7 +4,7 @@ export default function ShopQuickInfo({ openingSummary, trustQuickInfo, t }) {
   return (
     <section className="overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="min-w-0 flex-1 truncate border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+        <h2 className="min-w-0 flex-1 truncate text-[17px] font-black text-gray-900 dark:text-white">
           {t('shop_profile.trust_badges', 'Confiance & vérification')}
         </h2>
         <span

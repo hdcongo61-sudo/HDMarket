@@ -221,32 +221,18 @@ export default function Cart() {
   return ( 
     <main className="hd-products-flow min-h-screen">
       <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 lg:px-8 space-y-5 sm:space-y-7">
-      <header className="hd-products-hero rounded-2xl p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-black uppercase tracking-wide text-white/76">Commande</p>
-            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">Mon panier</h1>
-            <p className="max-w-2xl text-sm font-semibold leading-6 text-white/86">
-              {items.length > 0 
-                ? `${items.length} article${items.length > 1 ? 's' : ''} dans votre panier`
-                : 'Votre panier est vide, explorez les sélections HDMarket.'
-              }
-            </p>
-          </div>
-          
+      <header className="flex min-h-[60px] items-center border-b border-[#f5f2ee] bg-white px-2 sm:rounded-2xl sm:border">
+        <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b]" aria-label="Retour">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="m15 18-6-6 6-6" /></svg>
+        </button>
+        <h1 className="min-w-0 flex-1 text-[17px] font-black text-[#231f1b]">
+          Mon panier <span className="font-semibold text-[#8a8378]">({items.length})</span>
+        </h1>
           {items.length > 0 && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                disabled={disableAll}
-                className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-white/16 px-5 py-2.5 text-sm font-black text-white shadow-sm transition-all hover:bg-white/24 disabled:opacity-60"
-              >
-                <TrashIcon className="w-4 h-4" />
-                Vider le panier
-              </button>
-            </div>
+            <button onClick={() => setShowClearConfirm(true)} disabled={disableAll} className="inline-flex min-h-11 items-center px-3 text-[13px] font-bold text-[#8a8378] disabled:opacity-60">
+              Vider
+            </button>
           )}
-        </div>
       </header>
 
       {/* Clear Cart Confirmation Modal Enhanced */}
@@ -350,14 +336,14 @@ export default function Cart() {
       {loading && items.length === 0 ? (
         <div className="flex items-center justify-center rounded-2xl border border-gray-200 bg-white py-16 shadow-sm">
           <div className="flex items-center gap-3 text-gray-600">
-            <div className="w-6 h-6 border-2 border-[#FF6A00] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#e85d00] border-t-transparent rounded-full animate-spin" />
             <span className="font-medium">Chargement du panier...</span>
           </div>
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:py-16">
           <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-gray-200">
-            <ShoppingBagIcon className="w-12 h-12 text-[#FF6A00]" />
+            <ShoppingBagIcon className="w-12 h-12 text-[#e85d00]" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Panier vide</h2>
           <p className="text-gray-600 mb-8 max-w-sm mx-auto font-medium">
@@ -390,7 +376,7 @@ export default function Cart() {
                   type="button"
                   onClick={handleUndoRemove}
                   disabled={restoring}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#FF6A00] px-4 py-2 text-xs font-black text-white transition hover:bg-[#f45f00] active:scale-95 disabled:opacity-60"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#e85d00] px-4 py-2 text-xs font-black text-white transition hover:bg-[#f45f00] active:scale-95 disabled:opacity-60"
                 >
                   <UndoIcon className="h-3.5 w-3.5" />
                   {restoring ? '…' : 'Annuler'}
@@ -400,7 +386,6 @@ export default function Cart() {
             {items.map((item) => {
               const { product, quantity, lineTotal, unitPrice } = item;
               const discount = product.discount || 0;
-              const originalPrice = product.priceBeforeDiscount || product.price;
               const cartItemKey = getCartItemKey(item);
               
               const isRemoving = Boolean(pending[cartItemKey]);
@@ -439,7 +424,7 @@ export default function Cart() {
                           loading="lazy"
                         />
                         {discount > 0 && !item.variantPriceApplied && (
-                          <div className="absolute left-2 top-2 rounded-full bg-[#FF4D1C] px-2 py-1 text-[10px] font-black text-white shadow-sm">
+                          <div className="absolute left-2 top-2 rounded-full bg-[#e85d00] px-2 py-1 text-[10px] font-black text-white shadow-sm">
                             -{discount}%
                           </div>
                         )}
@@ -453,7 +438,7 @@ export default function Cart() {
                   <Link
                     to={buildProductPath(product)}
                     {...externalLinkProps}
-                    className="line-clamp-2 text-sm font-black text-gray-900 transition-colors hover:text-[#FF6A00] sm:text-lg"
+                    className="line-clamp-2 text-sm font-black text-gray-900 transition-colors hover:text-[#e85d00] sm:text-lg"
                   >
                             {product.title}
                           </Link>
@@ -465,21 +450,7 @@ export default function Cart() {
                           />
                           
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
-                          <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
-                            <span className="text-lg font-black text-[#FF6A00] sm:text-2xl">
-                              {formatPrice(unitPrice)}
-                            </span>
-                            {discount > 0 && !item.variantPriceApplied && (
-                              <>
-                                <span className="text-xs sm:text-lg text-gray-400 line-through font-bold">
-                                  {formatPrice(originalPrice)}
-                                </span>
-                                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100 sm:text-xs">
-                                  Éco: {formatPrice((originalPrice - product.price) * quantity)}
-                                </span>
-                              </>
-                            )}
-                          </div>
+                          <p className="text-xs font-semibold text-[#8a8378]">{formatPrice(unitPrice)} / unité</p>
                         </div>
 
                         <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-end">
@@ -517,14 +488,14 @@ export default function Cart() {
                                     if (e.key === 'Enter') e.currentTarget.blur();
                                   }}
                                   disabled={disableAll || isRemoving}
-                                  className={`h-11 w-12 border-x border-gray-100 bg-transparent text-center text-base font-black outline-none transition focus:bg-[#FFF7F0] disabled:text-gray-400 ${qtySyncing ? 'animate-pulse text-[#FF6A00]' : 'text-gray-900'}`}
+                                  className={`h-11 w-12 border-x border-gray-100 bg-transparent text-center text-base font-black outline-none transition focus:bg-[#FFF7F0] disabled:text-gray-400 ${qtySyncing ? 'animate-pulse text-[#e85d00]' : 'text-gray-900'}`}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => changeQuantity(item, quantity + 1)}
                                   disabled={disableAll || isRemoving || qtySyncing}
                                   aria-label="Augmenter la quantité"
-                                  className="flex h-11 w-11 items-center justify-center text-gray-700 transition hover:bg-gray-50 hover:text-[#FF6A00] active:bg-gray-100 disabled:opacity-40"
+                                  className="flex h-11 w-11 items-center justify-center text-gray-700 transition hover:bg-gray-50 hover:text-[#e85d00] active:bg-gray-100 disabled:opacity-40"
                                 >
                                   <span className="text-xl font-black leading-none">+</span>
                                 </button>
@@ -533,9 +504,8 @@ export default function Cart() {
                           })()}
 
                           {/* Line Total Enhanced - Much Smaller on Mobile */}
-                          <div className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-right">
-                            <span className="block text-[10px] font-bold text-gray-500">Sous-total</span>
-                            <div className="text-sm font-black text-gray-900 sm:text-lg">
+                          <div className="text-right">
+                            <div className="text-[17px] font-black text-neutral-950">
                               {formatPrice(lineTotal)}
                             </div>
                           </div>
@@ -551,43 +521,42 @@ export default function Cart() {
 
           {/* Order Summary Enhanced */}
           <div className="space-y-4">
-            <div className="sticky top-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(117,75,36,0.09)] sm:p-6">
-              <h2 className="mb-5 text-xl font-black text-gray-900">Résumé</h2>
+            <div className="sticky top-6 rounded-2xl border border-[#e2dcd2] bg-white p-5 shadow-[0_18px_45px_rgba(117,75,36,0.09)] sm:p-6">
+              <h2 className="mb-5 text-xl font-black text-[#231f1b]">Résumé</h2>
               
               <div className="space-y-4">
                 {/* Items Count Enhanced */}
-                <div className="flex justify-between items-center rounded-2xl bg-gray-50 px-4 py-3">
-                  <span className="text-gray-700 font-semibold">Articles ({totals.quantity})</span>
-                  <span className="font-black text-gray-900 text-lg">{formatPrice(totals.subtotal)}</span>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-semibold text-[#6b6459]">Sous-total ({totals.quantity} article{totals.quantity > 1 ? 's' : ''})</span>
+                  <span className="text-lg font-black text-[#231f1b]">{formatPrice(totals.subtotal)}</span>
                 </div>
 
                 {/* Savings Enhanced */}
                 {totalSavings > 0 && (
-                  <div className="flex justify-between items-center rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
-                    <span className="text-green-700 font-semibold">Économies</span>
-                    <span className="font-black text-green-600 text-lg">-{formatPrice(totalSavings)}</span>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-semibold text-[#6b6459]">Économies</span>
+                    <span className="text-lg font-black text-emerald-700">-{formatPrice(totalSavings)}</span>
                   </div>
                 )}
 
                 {/* Shipping Estimate Enhanced */}
-                <div className="flex justify-between items-center rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                  <span className="text-gray-700 font-semibold">Livraison estimée</span>
-                  <span className="font-black text-[#FF6A00]">À confirmer</span>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-semibold text-[#6b6459]">Livraison</span>
+                  <span className="text-right text-sm font-semibold text-[#6b6459]">calculée à l’étape suivante</span>
                 </div>
 
                 {/* Divider Enhanced */}
-                <div className="border-t border-gray-200 pt-5">
+                <div className="border-t border-[#e2dcd2] pt-5">
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-black text-gray-900">Total</span>
-                    <span className="text-3xl font-black text-[#FF6A00]">{formatPrice(totals.subtotal)}</span>
+                    <span className="text-3xl font-black text-neutral-950">{formatPrice(totals.subtotal)}</span>
                   </div>
                 </div>
 
                 {/* Info Note Enhanced */}
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-center text-xs font-semibold leading-relaxed text-gray-700">
-                    Les paiements sont sécurisés et gérés après validation des annonces.
-                    Contactez directement les vendeurs pour finaliser vos achats.
+                <div className="border-t border-[#f0ebe4] pt-4">
+                  <p className="text-center text-xs font-semibold leading-relaxed text-[#6b6459]">
+                    Paiement sécurisé · Livraison suivie · Support HDMarket
                   </p>
                 </div>
 
@@ -604,15 +573,6 @@ export default function Cart() {
               </div>
             </div>
 
-            {/* Security Badges Enhanced */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 text-center shadow-sm">
-              <h3 className="font-black text-gray-900 mb-4">Achat protégé</h3>
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-3 text-gray-600">
-                <div className="text-xs font-semibold">Paiement vérifié</div>
-                <div className="text-xs font-semibold">Livraison suivie</div>
-                <div className="text-xs font-semibold">Support HDMarket</div>
-              </div>
-            </div>
           </div>
         </div>
       )}

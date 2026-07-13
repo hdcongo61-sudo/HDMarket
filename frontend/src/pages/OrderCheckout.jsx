@@ -27,14 +27,6 @@ import SelectedAttributesList from '../components/orders/SelectedAttributesList'
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
-const DELIVERY_SOURCE_LABELS = {
-  COMMUNE_FREE: 'Livraison gratuite (commune)',
-  COMMUNE_FIXED: 'Livraison fixée par la commune',
-  SHOP_FREE: 'Livraison gratuite boutique',
-  PRODUCT_FEE: 'Livraison vendeur',
-  PICKUP: 'Retrait boutique'
-};
-
 const normalizeBoolean = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
@@ -304,16 +296,6 @@ export default function OrderCheckout() {
       Object.values(deliveryPreviewBySeller).reduce((sum, entry) => sum + Number(entry?.fee || 0), 0),
     [deliveryPreviewBySeller]
   );
-  const primaryDeliverySourcePreview = useMemo(() => {
-    const entries = Object.values(deliveryPreviewBySeller);
-    if (!entries.length) return 'PICKUP';
-    if (entries.length === 1) return entries[0]?.source || 'PICKUP';
-    if (entries.every((entry) => entry?.source === entries[0]?.source)) {
-      return entries[0]?.source || 'PICKUP';
-    }
-    return 'PRODUCT_FEE';
-  }, [deliveryPreviewBySeller]);
-
   const getSellerPromoState = (sellerId) =>
     promoStates[sellerId] || { status: 'idle', message: '', code: '', pricing: null, promo: null };
 
@@ -388,7 +370,7 @@ export default function OrderCheckout() {
   const paymentModeDescription = isInstallmentPayment
     ? 'Cette commande sera traitée en paiement par tranche après validation du vendeur.'
     : isFullPaymentSelected
-      ? 'Vous payez le montant total maintenant. Les frais de livraison sont offerts.'
+      ? 'Vous payez le montant total maintenant pour confirmer la commande.'
       : isWalletPayment
         ? 'Aucun acompte ni code transaction requis. Le paiement est traité automatiquement.'
         : 'Un acompte de 25% est requis pour confirmer votre commande.';
@@ -397,7 +379,7 @@ export default function OrderCheckout() {
       ? `${formatCurrency(summaryPaidAmount)} seront débités de votre portefeuille pour activer l’échéancier.`
       : `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
     : isFullPaymentSelected
-      ? `Paiement intégral demandé: ${formatCurrency(summaryPaidAmount)}. La livraison est offerte et verrouillée.`
+      ? `Paiement intégral demandé : ${formatCurrency(summaryPaidAmount)}.`
       : isWalletPayment
         ? 'Paiement portefeuille: aucun acompte à saisir. La validation se fait côté HDMarket.'
         : sellerGroups.length > 1
@@ -434,7 +416,6 @@ export default function OrderCheckout() {
         amount: depositAmount,
         remainingLabel: 'Solde après validation',
         remaining: remainingAmount,
-        tone: 'neutral',
         bullets: ['25% maintenant', 'Solde à la livraison', 'Validation admin']
       }
     ];
@@ -450,9 +431,8 @@ export default function OrderCheckout() {
         amount: checkoutTotalWithDelivery,
         remainingLabel: 'Reste à payer',
         remaining: 0,
-        tone: 'success',
         bullets: [
-          'Livraison offerte',
+          'Paiement total',
           'Frais verrouillés',
           deliveryMode === 'DELIVERY' && Number(deliveryFeePreviewTotal || 0) > 0
             ? `Économie ${formatCurrency(deliveryFeePreviewTotal)}`
@@ -472,7 +452,6 @@ export default function OrderCheckout() {
         amount: installmentFirstPaymentAmount,
         remainingLabel: 'Reste échelonné',
         remaining: installmentRemainingAmount,
-        tone: 'installment',
         bullets: [
           'Validation vendeur',
           'Suivi des tranches',
@@ -495,7 +474,6 @@ export default function OrderCheckout() {
         remainingLabel: 'Code à saisir',
         remaining: 0,
         remainingDisplay: 'Aucun',
-        tone: 'wallet',
         bullets: [
           'Aucun code transaction',
           'Aucun acompte frontend',
@@ -517,7 +495,6 @@ export default function OrderCheckout() {
         remainingLabel: 'Réglé par',
         remaining: 0,
         remainingDisplay: 'Le proche',
-        tone: 'sponsor',
         bullets: [
           'Il reçoit une notification',
           'Il approuve puis paie',
@@ -1116,7 +1093,7 @@ export default function OrderCheckout() {
       setCheckoutStatus('');
       showToast(
         isFullPaymentSelected
-          ? 'Commande payée intégralement. Livraison offerte activée.'
+          ? 'Commande payée intégralement et confirmée.'
           : 'Commande enregistrée. Elle est en attente de validation.',
         { variant: 'success' }
       );
@@ -1375,32 +1352,21 @@ export default function OrderCheckout() {
   return (
     <div className="hd-order-flow hd-commerce-shell min-h-screen bg-[#f5f5f5] pb-28 dark:bg-black lg:pb-8">
       <div className="mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
-      {/* Header Enhanced */}
-      <header className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#e2dcd2] bg-white px-3 shadow-sm sm:px-5">
           <Link
             to="/cart"
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700 transition hover:border-gray-200 hover:bg-gray-100 hover:text-[#ff6a00]"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#231f1b] transition hover:bg-[#f5f2ee]"
+            aria-label="Retour au panier"
           >
-            <ArrowLeft size={16} />
-            <span>Retour panier</span>
+            <ArrowLeft size={20} />
           </Link>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-wide">
-            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[#ff6a00]">{totals.quantity} article{totals.quantity > 1 ? 's' : ''}</span>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">Paiement sécurisé</span>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[17px] font-black text-[#231f1b]">Paiement</h1>
+            <p className="truncate text-xs font-semibold text-[#8a8378]">{paymentModeDescription}</p>
           </div>
-        </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div className="space-y-2">
-            <p className="max-w-2xl text-sm font-semibold leading-6 text-slate-600">{paymentModeDescription}</p>
-          </div>
-          <div className="hidden rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 text-right lg:block">
-            <p className="text-[11px] font-black uppercase tracking-wide text-orange-800">À payer maintenant</p>
-            <p className="text-2xl font-black text-[#ff6a00]">
-              {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}
-            </p>
-          </div>
-        </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-emerald-700">
+            <ShieldCheck size={16} /> Sécurisé
+          </span>
       </header>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-start">
@@ -1444,7 +1410,7 @@ export default function OrderCheckout() {
                   <p className="text-xs text-gray-500">
                     Vendeur: {product.user?.phone || product.contactPhone || '—'}
                   </p>
-                  <p className="mt-2 text-base font-black text-[#ff6a00] sm:hidden">
+                  <p className="mt-2 text-base font-black text-[#231f1b] sm:hidden">
                     {formatCurrency(lineTotal)}
                   </p>
                   <p className="mt-1 text-[11px] font-semibold text-slate-500">
@@ -1468,19 +1434,11 @@ export default function OrderCheckout() {
               </span>
             </div>
             {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                <span className="text-base font-bold text-slate-600">
-                  Livraison ({DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source'})
+              <div className="flex items-center justify-between px-1 py-1">
+                <span className="text-base font-bold text-[#6b6459]">Livraison</span>
+                <span className="text-lg font-black text-[#231f1b]">
+                  {(isFullPaymentSelected || isWalletPayment) ? 'Offerte' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
-                <span className={`text-lg font-black ${(isFullPaymentSelected || isWalletPayment) ? 'text-emerald-700' : 'text-neutral-700'}`}>
-                  {(isFullPaymentSelected || isWalletPayment) ? 'GRATUITE' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
-                </span>
-              </div>
-            )}
-            {(isFullPaymentSelected || isWalletPayment) && (
-              <div className="flex items-center justify-between rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-5 py-4">
-                <span className="text-base font-black text-emerald-700">Livraison offerte</span>
-                <span className="text-lg font-black text-emerald-700">0 FCFA</span>
               </div>
             )}
             {!isInstallmentPayment && checkoutSavings > 0 && (
@@ -1492,11 +1450,11 @@ export default function OrderCheckout() {
               </div>
             )}
             {!isWalletPayment && (
-              <div className="flex items-center justify-between rounded-2xl border-2 border-gray-200 bg-gray-100 px-5 py-4">
-                <span className="text-base font-black text-orange-800">
+              <div className="flex items-center justify-between rounded-2xl border border-[#e2dcd2] bg-[#fff7f0] px-5 py-4">
+                <span className="text-base font-black text-[#6b6459]">
                   {summaryPrimaryPaymentLabel}
                 </span>
-                <span className="text-2xl font-black text-[#ff6a00]">
+                <span className="text-2xl font-black text-[#231f1b]">
                   {formatCurrency(summaryPaidAmount)}
                 </span>
               </div>
@@ -1510,25 +1468,13 @@ export default function OrderCheckout() {
               </div>
             )}
           </div>
-          <div className="mx-5 mb-5 flex items-start gap-3 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-5 text-emerald-800 sm:text-base">
-            <ShieldCheck size={20} className="mt-0.5 flex-shrink-0" />
-            <span>
-              {isInstallmentPayment
-                ? 'Le vendeur doit confirmer la vente puis valider chaque tranche.'
-                : isFullPaymentSelected
-                  ? 'Le paiement intégral confirme la commande. Les frais de livraison sont offerts et ne peuvent plus être ajoutés.'
-                  : isWalletPayment
-                    ? 'Aucun acompte ni code transaction requis. HDMarket traite le paiement automatiquement.'
-                    : 'Le paiement de l’acompte confirme la commande. Le solde sera réglé à la livraison.'}
-            </span>
-          </div>
         </section>
 
         {/* Payment Form Enhanced */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gray-100 text-[#ff6a00]">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gray-100 text-[#e85d00]">
                 <CreditCard size={19} />
               </div>
               <div>
@@ -1586,7 +1532,7 @@ export default function OrderCheckout() {
                           communeId: ''
                         }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
                     >
                       <option value="">Sélectionner une ville</option>
                       {cities.map((entry) => (
@@ -1607,7 +1553,7 @@ export default function OrderCheckout() {
                         }))
                       }
                       disabled={!shippingAddress.cityId}
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition disabled:bg-slate-100 focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition disabled:bg-slate-100 focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
                     >
                       <option value="">Sélectionner une commune</option>
                       {availableCommunes.map((entry) => (
@@ -1625,7 +1571,7 @@ export default function OrderCheckout() {
                       onChange={(e) =>
                         setShippingAddress((prev) => ({ ...prev, addressLine: e.target.value }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
                       placeholder="Quartier, rue, repère"
                     />
                   </div>
@@ -1637,14 +1583,14 @@ export default function OrderCheckout() {
                       onChange={(e) =>
                         setShippingAddress((prev) => ({ ...prev, phone: e.target.value }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
                       placeholder="Ex: 06xxxxxxx"
                     />
                   </div>
-                  <div className="md:col-span-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
+                  <div className="md:col-span-2 rounded-xl border border-[#e2dcd2] bg-[#f5f2ee] px-3 py-2 text-xs font-semibold text-[#6b6459]">
                     <MapPin size={14} className="inline mr-1" />
                     {selectedCity?.name ? `${selectedCity.name} · ` : ''}
-                    {DELIVERY_SOURCE_LABELS[primaryDeliverySourcePreview] || 'Source en attente'} · {(isFullPaymentSelected || isWalletPayment) ? 'GRATUITE' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
+                    Adresse utilisée pour calculer la livraison
                   </div>
                 </div>
               ) : (
@@ -1659,7 +1605,7 @@ export default function OrderCheckout() {
                 <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-black uppercase tracking-wide text-[#ff6a00]">
+                      <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                         Mode de paiement
                       </p>
                       <h3 className="mt-1 text-base font-black leading-tight text-slate-950">
@@ -1676,138 +1622,27 @@ export default function OrderCheckout() {
                   {paymentModeCards.map((option) => {
                     const selected = paymentMode === option.id;
                     const Icon = option.icon;
-                    // Every card carries its mode's tint permanently (not just on hover), so all
-                    // options read as visually distinct at rest. Selecting one deepens that same
-                    // tint and adds a solid check badge — the selected card looks like a natural
-                    // "more saturated" version of itself, not just the odd one out.
-                    const TONE_CLASSES = {
-                      success: {
-                        card: selected
-                          ? 'border-emerald-500 bg-emerald-100 shadow-[0_14px_30px_rgba(16,185,129,0.18)] ring-2 ring-emerald-200'
-                          : 'border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:bg-emerald-100/70',
-                        icon: selected ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-700 ring-1 ring-emerald-200',
-                        badge: selected ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-700 ring-1 ring-emerald-200',
-                        amount: 'text-emerald-700',
-                        chip: 'bg-white text-emerald-700 ring-emerald-100',
-                        checkBadge: 'bg-emerald-600'
-                      },
-                      installment: {
-                        card: selected
-                          ? 'border-amber-500 bg-amber-100 shadow-[0_14px_30px_rgba(245,158,11,0.18)] ring-2 ring-amber-200'
-                          : 'border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100/70',
-                        icon: selected ? 'bg-amber-500 text-white' : 'bg-white text-amber-700 ring-1 ring-amber-200',
-                        badge: selected ? 'bg-amber-500 text-white' : 'bg-white text-amber-700 ring-1 ring-amber-200',
-                        amount: 'text-amber-700',
-                        chip: 'bg-white text-amber-700 ring-amber-100',
-                        checkBadge: 'bg-amber-500'
-                      },
-                      wallet: {
-                        card: selected
-                          ? 'border-sky-500 bg-sky-100 shadow-[0_14px_30px_rgba(14,165,233,0.18)] ring-2 ring-sky-200'
-                          : 'border-sky-200 bg-sky-50 hover:border-sky-300 hover:bg-sky-100/70',
-                        icon: selected ? 'bg-sky-600 text-white' : 'bg-white text-sky-700 ring-1 ring-sky-200',
-                        badge: selected ? 'bg-sky-600 text-white' : 'bg-white text-sky-700 ring-1 ring-sky-200',
-                        amount: 'text-sky-700',
-                        chip: 'bg-white text-sky-700 ring-sky-100',
-                        checkBadge: 'bg-sky-600'
-                      },
-                      sponsor: {
-                        card: selected
-                          ? 'border-violet-500 bg-violet-100 shadow-[0_14px_30px_rgba(139,92,246,0.18)] ring-2 ring-violet-200'
-                          : 'border-violet-200 bg-violet-50 hover:border-violet-300 hover:bg-violet-100/70',
-                        icon: selected ? 'bg-violet-600 text-white' : 'bg-white text-violet-700 ring-1 ring-violet-200',
-                        badge: selected ? 'bg-violet-600 text-white' : 'bg-white text-violet-700 ring-1 ring-violet-200',
-                        amount: 'text-violet-700',
-                        chip: 'bg-white text-violet-700 ring-violet-100',
-                        checkBadge: 'bg-violet-600'
-                      },
-                      neutral: {
-                        card: selected
-                          ? 'border-[#ff6a00] bg-orange-100 shadow-[0_14px_30px_rgba(255,106,0,0.18)] ring-2 ring-orange-200'
-                          : 'border-orange-200 bg-orange-50 hover:border-orange-300 hover:bg-orange-100/70',
-                        icon: selected ? 'bg-[#ff6a00] text-white' : 'bg-white text-[#ff6a00] ring-1 ring-orange-200',
-                        badge: selected ? 'bg-[#ff6a00] text-white' : 'bg-white text-[#ff6a00] ring-1 ring-orange-200',
-                        amount: 'text-[#b45309]',
-                        chip: 'bg-white text-[#b45309] ring-orange-100',
-                        checkBadge: 'bg-[#ff6a00]'
-                      }
-                    };
-                    const toneClasses = TONE_CLASSES[option.tone] || TONE_CLASSES.neutral;
-
                     return (
                       <button
                         key={option.id}
                         type="button"
                         onClick={() => setPaymentMode(option.id)}
-                        className={`group relative min-h-[188px] overflow-hidden rounded-2xl border p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.985] sm:p-4 ${toneClasses.card}`}
+                        className={`group relative flex min-h-16 items-center gap-3 rounded-xl border px-3 text-left transition active:scale-[0.985] ${selected ? 'border-[#e85d00] bg-[#fff7f0]' : 'border-[#e2dcd2] bg-white'}`}
                         aria-pressed={selected}
                       >
-                        {selected && (
-                          <span
-                            className={`absolute right-3 top-3 inline-flex items-center gap-1 rounded-full py-1 pl-1 pr-2.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ${toneClasses.checkBadge}`}
-                          >
-                            <Check size={13} strokeWidth={3} className="rounded-full bg-white/25 p-0.5" />
-                            Sélectionné
-                          </span>
-                        )}
-
-                        <div className="flex items-start gap-3 pr-16">
-                          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${toneClasses.icon}`}>
-                            <Icon size={19} />
-                          </span>
-                          <div className="min-w-0">
-                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${toneClasses.badge}`}>
-                              {option.eyebrow}
-                            </span>
-                            <h4 className="mt-2 text-[15px] font-black leading-tight text-slate-950 sm:text-base">{option.title}</h4>
-                          </div>
-                        </div>
-
-                        <p className="mt-3 min-h-[36px] text-xs font-semibold leading-relaxed text-slate-600">
-                          {option.subtitle}
-                        </p>
-
-                        <div className="mt-3 rounded-xl bg-white p-3 ring-1 ring-slate-200/80">
-                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-                                {option.amountLabel}
-                              </p>
-                              <p className={`mt-1 truncate text-lg font-black leading-none ${toneClasses.amount}`}>
-                                {option.amountDisplay || formatCurrency(option.amount)}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-                                {option.remainingLabel}
-                              </p>
-                              <p className="mt-1 max-w-[96px] truncate text-sm font-black text-slate-900 sm:max-w-[120px]">
-                                {option.remainingDisplay || formatCurrency(option.remaining)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {option.bullets.map((item) => (
-                            <span
-                              key={`${option.id}-${item}`}
-                              className={`rounded-full px-2 py-1 text-[10px] font-black ring-1 ${toneClasses.chip}`}
-                            >
-                              {item}
-                            </span>
-                          ))}
-                        </div>
+                        <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? 'border-[#e85d00]' : 'border-[#d8d2c9]'}`}>
+                          {selected ? <span className="h-2.5 w-2.5 rounded-full bg-[#e85d00]" /> : null}
+                        </span>
+                        <Icon size={19} className={selected ? 'text-[#e85d00]' : 'text-[#8a8378]'} />
+                        <span className="min-w-0 flex-1">
+                          <strong className="block truncate text-sm text-[#231f1b]">{option.title}</strong>
+                          <span className="block truncate text-[11px] font-semibold text-[#8a8378]">{option.subtitle}</span>
+                        </span>
+                        <strong className="shrink-0 text-sm text-neutral-950">{option.amountDisplay || formatCurrency(option.amount)}</strong>
                       </button>
                     );
                   })}
                 </div>
-                {showFullPaymentOption && (
-                  <div className="mx-3 mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 sm:mx-4 sm:mb-4">
-                    <p className="font-semibold">Vous payez le montant total maintenant. Les frais de livraison sont offerts.</p>
-                    <p className="mt-1">Sous-total: {formatCurrency(checkoutSubtotal)} · Livraison: GRATUITE · Total: {formatCurrency(checkoutSubtotal)}</p>
-                  </div>
-                )}
                 {isInstallmentProductEligible && (
                   <p className="mx-3 mb-2 text-xs font-semibold text-slate-600 sm:mx-4">
                     Paiement en plusieurs fois disponible
@@ -1824,7 +1659,7 @@ export default function OrderCheckout() {
 
             {isInstallmentPayment && walletEligible && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <p className="text-[11px] font-black uppercase tracking-wide text-[#ff6a00]">
+                <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                   Payer le premier versement avec
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1833,7 +1668,7 @@ export default function OrderCheckout() {
                     onClick={() => setInstallmentPaymentMethod('mobile_money')}
                     className={`rounded-2xl border px-3 py-3 text-left transition ${
                       installmentPaymentMethod === 'mobile_money'
-                        ? 'border-[#ff6a00] bg-orange-50 text-orange-900 ring-1 ring-orange-100'
+                        ? 'border-[#e85d00] bg-orange-50 text-orange-900 ring-1 ring-orange-100'
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
@@ -1894,12 +1729,12 @@ export default function OrderCheckout() {
                           loading="lazy"
                         />
                       ) : (
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff0e4] text-base font-black text-[#ff6a00]">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff0e4] text-base font-black text-[#e85d00]">
                           {String(group.sellerName || 'V').charAt(0).toUpperCase()}
                         </span>
                       )}
                       <div className="min-w-0 space-y-0.5">
-                        <p className="text-[11px] font-black uppercase tracking-wide text-[#ff6a00]">
+                        <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                           {group.sellerIsShop ? 'Boutique' : 'Vendeur'}
                         </p>
                         <p className="truncate text-base font-black text-slate-950 sm:text-lg">{group.sellerName}</p>
@@ -1909,7 +1744,7 @@ export default function OrderCheckout() {
                       </div>
                     </div>
                     <div className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-2 text-right">
-                      <p className="text-base font-black text-[#ff6a00] sm:text-lg">
+                      <p className="text-base font-black text-[#e85d00] sm:text-lg">
                         {isWalletPayment ? 'Automatique' : formatCurrency(groupDeposit)}
                       </p>
                       <p className="text-xs font-black text-orange-800">
@@ -1932,7 +1767,7 @@ export default function OrderCheckout() {
                             onChange={(e) =>
                               handlePaymentChange(group.sellerId, 'payerName', e.target.value)
                             }
-                            className="min-h-[48px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none transition focus:border-[#ff6a00] focus:ring-2 focus:ring-gray-200"
+                            className="min-h-[48px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
                             placeholder={user?.name || 'Ex: Jean K.'}
                           />
                         </div>
@@ -1953,7 +1788,7 @@ export default function OrderCheckout() {
                           <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">
                             Code transaction
                           </label>
-                          <div className="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition-all focus-within:border-[#ff6a00] focus-within:ring-2 focus-within:ring-gray-200">
+                          <div className="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition-all focus-within:border-[#e85d00] focus-within:ring-2 focus-within:ring-gray-200">
                             <CreditCard size={18} className="flex-shrink-0 text-slate-400" />
                             <input
                               type="text"
@@ -2158,16 +1993,6 @@ export default function OrderCheckout() {
                         {formatCurrency(groupEffectiveSubtotal)}
                       </span>
                     </div>
-                    {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-neutral-700 font-semibold">
-                          Livraison ({DELIVERY_SOURCE_LABELS[deliveryPreviewBySeller[group.sellerId]?.source] || 'Source'})
-                        </span>
-                        <span className={`font-black ${(isFullPaymentSelected || isWalletPayment) ? 'text-emerald-700' : 'text-neutral-700'}`}>
-                          {(isFullPaymentSelected || isWalletPayment) ? 'GRATUITE' : formatCurrency(groupDeliveryFee)}
-                        </span>
-                      </div>
-                    )}
                     {!isInstallmentPayment && groupEffectiveSubtotal < Number(group.subtotal || 0) && (
                       <div className="flex justify-between items-center">
                         <span className="text-neutral-700 font-semibold">Économie promo</span>
@@ -2196,8 +2021,8 @@ export default function OrderCheckout() {
                 </div>
               );
             })}
-            <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800 sm:text-sm">
-              <CheckCircle size={18} className="mt-0.5 flex-shrink-0 text-emerald-700" />
+            <div className="flex items-start gap-3 rounded-2xl border border-[#e2dcd2] bg-[#f5f2ee] px-4 py-3 text-xs font-semibold text-[#6b6459] sm:text-sm">
+              <CheckCircle size={18} className="mt-0.5 flex-shrink-0 text-[#6b6459]" />
               {paymentCommitmentMessage}
             </div>
             {error && (
@@ -2218,7 +2043,7 @@ export default function OrderCheckout() {
               className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-black text-white transition active:scale-[0.98] disabled:opacity-60 sm:text-xl ${
                 paysWithWallet
                   ? 'bg-emerald-600 shadow-[0_14px_32px_rgba(16,185,129,0.28)] hover:bg-emerald-700'
-                  : 'bg-[#ff6a00] shadow-[0_14px_32px_rgba(255,106,0,0.28)] hover:bg-[#f05f00]'
+                  : 'bg-[#e85d00] shadow-[0_14px_32px_rgba(255,106,0,0.28)] hover:bg-[#f05f00]'
               }`}
             >
               {loading ? (
@@ -2229,7 +2054,7 @@ export default function OrderCheckout() {
               ) : (
                 <>
                   <Lock size={22} />
-                  {isSponsorPayment ? 'Envoyer la demande au proche' : paysWithWallet ? 'Payer avec le portefeuille' : isFullPaymentSelected ? 'Payer intégralement et confirmer' : 'Confirmer la commande'}
+                  Confirmer la commande
                 </>
               )}
             </button>
@@ -2242,7 +2067,7 @@ export default function OrderCheckout() {
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">
               {paysWithWallet ? 'Paiement portefeuille' : summaryPrimaryPaymentLabel}
             </p>
-            <p className="truncate text-2xl font-black text-[#ff6a00]">
+            <p className="truncate text-2xl font-black text-neutral-950">
               {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}
             </p>
           </div>
@@ -2253,7 +2078,7 @@ export default function OrderCheckout() {
             className={`inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl px-7 text-lg font-black text-white active:scale-[0.97] disabled:opacity-60 ${
               paysWithWallet
                 ? 'bg-emerald-600 shadow-[0_14px_28px_rgba(16,185,129,0.30)]'
-                : 'bg-[#ff6a00] shadow-[0_14px_28px_rgba(255,106,0,0.30)]'
+                : 'bg-[#e85d00] shadow-[0_14px_28px_rgba(255,106,0,0.30)]'
             }`}
           >
             {loading ? (
@@ -2261,7 +2086,7 @@ export default function OrderCheckout() {
             ) : (
               <Lock size={20} />
             )}
-            {loading ? 'Validation...' : 'Confirmer'}
+            {loading ? 'Validation...' : 'Confirmer la commande'}
           </button>
         </div>
       </div>

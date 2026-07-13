@@ -33,13 +33,13 @@ export default function ShopReviewsSection({
   return (
     <section className="overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800" id="reviews">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+        <h2 className="text-[17px] font-black text-gray-900 dark:text-white">
           {t('shop_profile.reviews', 'Avis clients')}
         </h2>
         <button
           type="button"
           onClick={() => setShowCommentsModal(true)}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded bg-gray-100 px-3 text-[11px] font-bold text-[var(--shop-color)] transition hover:bg-gray-200 dark:bg-neutral-800"
+          className="inline-flex min-h-11 items-center gap-1.5 px-2 text-[13px] font-bold text-[#e85d00] transition dark:text-orange-300"
         >
           <span>{t('shop_profile.view_all', 'Voir tout')}</span>
           <ExternalLink size={13} />
@@ -50,7 +50,7 @@ export default function ShopReviewsSection({
       {ratingCount > 0 && (
         <div className="mt-4 flex items-center gap-4 border-b border-gray-100 pb-4 dark:border-neutral-800">
           <div className="text-center">
-            <p className="text-4xl font-black text-[var(--shop-color)]">{formatRatingLabel(ratingAverage)}</p>
+            <p className="text-4xl font-black text-neutral-950">{formatRatingLabel(ratingAverage)}</p>
             <div className="mt-1 flex items-center justify-center gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star

@@ -1348,12 +1348,12 @@ const loadDiscountProducts = async () => {
     const scrollStyle = { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' };
 
     return (
-      <main className="max-w-7xl mx-auto px-2.5 max-[375px]:px-2 pt-3 max-[375px]:pt-2.5 pb-4 max-[375px]:pb-3 space-y-3 max-[375px]:space-y-2.5">
+      <main className="mx-auto flex max-w-7xl flex-col gap-3 px-2.5 pb-4 pt-3 max-[375px]:gap-2.5 max-[375px]:px-2 max-[375px]:pb-3 max-[375px]:pt-2.5">
         {/* Pour Vous — AI Recommendations (placed prominently at top) */}
         <PourVousSection />
 
         {(user || showFullPaymentHomeBanner) ? (
-          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <section className="order-[-1] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.05)]">
             {user ? (
               <Link
                 to="/profile"
@@ -1364,7 +1364,7 @@ const loadDiscountProducts = async () => {
                 <span
                   className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 ${
                     hasDeliveryAddress
-                      ? 'bg-[#fff2e6] text-[#ff6a00] ring-orange-100'
+                      ? 'bg-[#fff2e6] text-[#e85d00] ring-orange-100'
                       : 'bg-amber-100 text-amber-700 ring-amber-200'
                   }`}
                 >
@@ -1429,11 +1429,11 @@ const loadDiscountProducts = async () => {
                 className="group block border-t border-gray-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:border-neutral-800 dark:from-amber-950/40 dark:via-neutral-950 dark:to-orange-950/30"
               >
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FF6A00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.18)]">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.18)]">
                     <Users className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#FF6A00] ring-1 ring-orange-100">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e85d00] ring-1 ring-orange-100">
                       <Sparkles className="h-3 w-3" />
                       Paiement par un proche
                     </span>
@@ -1441,7 +1441,7 @@ const loadDiscountProducts = async () => {
                       {payForOtherBannerText}
                     </span>
                   </span>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FF6A00] px-3 py-2 text-[11px] font-black text-white shadow-sm">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#e85d00] px-3 py-2 text-[11px] font-black text-white shadow-sm">
                     Voir
                     <ChevronRight className="h-3.5 w-3.5" />
                   </span>
@@ -1453,7 +1453,7 @@ const loadDiscountProducts = async () => {
 
         <WalletHomeCallout compact user={user} t={t} walletEnabled={walletFeatureEnabled} />
 
-        <section className="-mx-2.5 overflow-hidden rounded-b-[30px] bg-[#ff3d13] text-white shadow-[0_16px_34px_rgba(255,106,0,0.2)] max-[375px]:-mx-2">
+        <section className="order-first -mx-2.5 overflow-hidden rounded-b-[24px] bg-[#e85d00] text-white shadow-[0_16px_34px_rgba(232,93,0,0.18)] max-[375px]:-mx-2">
           <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
             <div className="pointer-events-none absolute -right-8 top-3 h-24 w-24 rounded-full bg-white/15 blur-2xl" />
             <div className="pointer-events-none absolute left-32 -top-8 h-16 w-16 rounded-full bg-amber-200/20 blur-xl" />
@@ -1490,7 +1490,7 @@ const loadDiscountProducts = async () => {
               <button
                 type="button"
                 onClick={() => setCategoryModalOpen(true)}
-                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-[#ff4f17] active:scale-95"
+                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-[#e85d00] active:scale-95"
                 aria-label="Ouvrir les catégories"
               >
                 <LayoutGrid className="h-5 w-5" />
@@ -1505,7 +1505,7 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="inline-flex h-11 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#ff5a1f] text-white shadow-[0_8px_18px_rgba(255,90,31,0.28)] active:scale-95"
+                className="inline-flex h-11 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,90,31,0.28)] active:scale-95"
                 aria-label="Rechercher"
               >
                 <Search className="h-6 w-6" />
@@ -1523,13 +1523,7 @@ const loadDiscountProducts = async () => {
                 {...externalLinkProps}
                 className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-center active:scale-95"
               >
-                <span className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
-                  index === 0 ? 'bg-amber-100 text-amber-700' :
-                  index === 1 ? 'bg-orange-100 text-[#ff5a1f]' :
-                  index === 2 ? 'bg-rose-100 text-rose-600' :
-                  index === 3 ? 'bg-emerald-100 text-emerald-700' :
-                  'bg-slate-100 text-slate-700'
-                }`}>
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[#eee8e0] bg-white text-[#e85d00] shadow-[0_2px_8px_rgba(117,75,36,0.06)]">
                   <Icon className="h-5 w-5" />
                 </span>
                 <span className="max-w-full truncate text-[11px] font-bold text-slate-800">{label}</span>
@@ -1539,20 +1533,20 @@ const loadDiscountProducts = async () => {
         </section>
 
         {heroProducts.length > 0 ? (
-          <section className="overflow-hidden rounded-2xl bg-[#ff3d13] p-2 shadow-[0_12px_30px_rgba(255,69,20,0.22)]">
-            <div className="grid grid-cols-2 gap-2">
+          <section className="overflow-hidden rounded-[18px] border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.07)]">
+            <div>
               <Link
                 to="/top-deals"
                 {...externalLinkProps}
-                className="col-span-2 flex min-h-[118px] overflow-hidden rounded-xl bg-white/95 text-slate-950 active:scale-[0.99]"
+                className="flex min-h-[150px] overflow-hidden bg-white text-slate-950 active:scale-[0.99]"
               >
-                <div className="flex flex-1 flex-col justify-between p-3">
+                <div className="flex flex-1 flex-col justify-between gap-3 p-4">
                   <div>
-                    <p className="text-[12px] font-black uppercase tracking-wide text-[#ff4f17]">Sélection chaude</p>
-                    <p className="mt-1 text-xl font-black leading-tight">Offres à suivre aujourd’hui</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.06em] text-[#e85d00]">Sélection du jour</p>
+                    <p className="mt-1.5 text-[19px] font-black leading-tight text-[#231f1b]">Offres à suivre aujourd’hui</p>
                   </div>
-                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#ff5a1f] px-3 py-1.5 text-xs font-black text-white">
-                    Voir <ChevronRight className="h-3.5 w-3.5" />
+                  <span className="inline-flex min-h-10 w-fit items-center gap-1 rounded-full bg-neutral-950 px-4 text-xs font-black text-white">
+                    Voir les offres <ChevronRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
                 <div className="grid w-[42%] grid-cols-2 gap-1 p-2">
@@ -1572,33 +1566,6 @@ const loadDiscountProducts = async () => {
                   ))}
                 </div>
               </Link>
-              {heroProducts.slice(0, 2).map((product, idx) => (
-                <Link
-                  key={`hero-product-${product._id || idx}`}
-                  to={buildHomeProductLink(product)}
-                  {...externalLinkProps}
-                  className="overflow-hidden rounded-xl bg-white/95 active:scale-[0.98]"
-                >
-                  <div className="aspect-[1.18/1] overflow-hidden bg-gray-100">
-                    <PreviewableImage
-                      product={product}
-                      src={resolveProductPrimaryImage(product)}
-                      images={resolveProductImageSet(product)}
-                      alt={product.title || 'Produit'}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                      reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
-                      showHint={false}
-                    />
-                  </div>
-                  <div className="p-2.5">
-                    <p className="line-clamp-1 text-[12px] font-black text-slate-900">{product.title}</p>
-                    <p className="mt-1 text-[17px] font-black leading-none text-[#ff4f17]">
-                      {Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F
-                    </p>
-                  </div>
-                </Link>
-              ))}
             </div>
           </section>
         ) : null}
@@ -1607,7 +1574,7 @@ const loadDiscountProducts = async () => {
         <section className="hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_14px_34px_rgba(117,75,36,0.08)] max-[375px]:p-2.5">
           <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 max-[375px]:gap-1.5">
-              <div className="inline-flex h-7 w-7 max-[375px]:h-6 max-[375px]:w-6 items-center justify-center rounded-xl bg-[#FF6A00] shadow-sm">
+              <div className="inline-flex h-7 w-7 max-[375px]:h-6 max-[375px]:w-6 items-center justify-center rounded-xl bg-[#e85d00] shadow-sm">
                 <LayoutGrid className="h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3 text-white" />
               </div>
               <p className="text-xs max-[375px]:text-[11px] font-black text-gray-900">{t('home.allCategories', 'Toutes catégories')}</p>
@@ -1624,7 +1591,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/products"
               {...externalLinkProps}
-              className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#FF6A00] text-white text-xs max-[375px]:text-[11px] font-black leading-none whitespace-nowrap shadow-[0_8px_18px_rgba(255,106,0,0.22)] tap-feedback transition-transform"
+              className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#e85d00] text-white text-xs max-[375px]:text-[11px] font-black leading-none whitespace-nowrap shadow-[0_8px_18px_rgba(255,106,0,0.22)] tap-feedback transition-transform"
             >
               <LayoutGrid className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
               <span className="block truncate">{t('home.all', 'Tout')}</span>
@@ -1639,7 +1606,7 @@ const loadDiscountProducts = async () => {
                   title={group.label}
                 >
                   {Icon && (
-                    <span className="inline-flex h-5 w-5 max-[375px]:h-[18px] max-[375px]:w-[18px] items-center justify-center rounded-full bg-gray-100 text-[#FF6A00] flex-shrink-0 mx-auto">
+                    <span className="inline-flex h-5 w-5 max-[375px]:h-[18px] max-[375px]:w-[18px] items-center justify-center rounded-full bg-gray-100 text-[#e85d00] flex-shrink-0 mx-auto">
                       <Icon className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
                     </span>
                   )}
@@ -2482,7 +2449,7 @@ const loadDiscountProducts = async () => {
                 to="/profile"
                 className="group flex min-w-0 items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-200"
               >
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-gray-200">
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200">
                   <MapPin className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -2503,7 +2470,7 @@ const loadDiscountProducts = async () => {
                     Utilisée pour calculer la livraison au checkout
                   </span>
                 </span>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-500 ring-1 ring-gray-200 transition group-hover:bg-[#ff6a00] group-hover:text-white">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-500 ring-1 ring-gray-200 transition group-hover:bg-[#e85d00] group-hover:text-white">
                   Modifier <ChevronRight className="h-3.5 w-3.5" />
                 </span>
               </Link>
@@ -2526,7 +2493,7 @@ const loadDiscountProducts = async () => {
                     {fullPaymentBannerText}
                   </span>
                 </span>
-                <span className="inline-flex shrink-0 items-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-[#ff6a00]">
+                <span className="inline-flex shrink-0 items-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-[#e85d00]">
                   En savoir plus
                 </span>
               </Link>
@@ -2539,7 +2506,7 @@ const loadDiscountProducts = async () => {
           <Link
             to="/products"
             {...externalLinkProps}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF6A00] text-white text-sm font-black whitespace-nowrap shadow-[0_10px_22px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e85d00] text-white text-sm font-black whitespace-nowrap shadow-[0_10px_22px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
             Tout
@@ -2553,7 +2520,7 @@ const loadDiscountProducts = async () => {
                 className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 bg-white text-sm font-black text-gray-800 whitespace-nowrap shadow-sm transition-colors hover:bg-gray-100"
               >
                 {Icon && (
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[#FF6A00] flex-shrink-0 mx-auto">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[#e85d00] flex-shrink-0 mx-auto">
                     <Icon className="w-4 h-4" />
                   </span>
                 )}
@@ -3067,11 +3034,11 @@ const loadDiscountProducts = async () => {
                       </div>
                       {/* Info */}
                       <div className="flex flex-col gap-1.5 p-3">
-                        <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-[#FF6A00] transition-colors">
+                        <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-[#e85d00] transition-colors">
                           {product.title}
                         </p>
                         <div className="flex items-center gap-2">
-                          <span className="text-lg font-black text-[#FF6A00]">{formatPrice(product.price)}</span>
+                          <span className="text-lg font-black text-neutral-950">{formatPrice(product.price)}</span>
                           {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
                             <span className="text-xs text-gray-400 line-through">{formatPrice(product.priceBeforeDiscount)}</span>
                           )}
@@ -3171,11 +3138,11 @@ const loadDiscountProducts = async () => {
                         </div>
                         {/* Info */}
                         <div className="flex flex-col gap-1.5 p-3">
-                          <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-[#FF6A00] transition-colors">
+                          <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-[#e85d00] transition-colors">
                             {product.title}
                           </p>
                           <div className="flex items-center gap-2">
-                            <span className="text-lg font-black text-[#FF6A00]">{formatPrice(product.price)}</span>
+                            <span className="text-lg font-black text-neutral-950">{formatPrice(product.price)}</span>
                             {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
                               <span className="text-xs text-gray-400 line-through">{formatPrice(product.priceBeforeDiscount)}</span>
                             )}
@@ -3401,7 +3368,7 @@ const loadDiscountProducts = async () => {
         <ModalHeader
           title={t('home.exploreCategoriesTitle', 'Explorer nos univers')}
           subtitle={t('home.exploreCategoriesSubtitle', 'Sélectionnez une catégorie pour découvrir nos produits')}
-          icon={<LayoutGrid className="w-4 h-4 text-[#FF6A00]" />}
+          icon={<LayoutGrid className="w-4 h-4 text-[#e85d00]" />}
           onClose={() => setCategoryModalOpen(false)}
         />
         <ModalBody className="space-y-5">
@@ -3438,7 +3405,7 @@ const loadDiscountProducts = async () => {
                     onClick={() => setCategoryModalOpen(false)}
                     className="group flex items-start gap-3"
                   >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200 transition group-hover:scale-105">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200 transition group-hover:scale-105">
                       {Icon ? <Icon className="h-6 w-6" /> : <LayoutGrid className="h-6 w-6" />}
                     </span>
                     <span className="min-w-0">
@@ -3461,7 +3428,7 @@ const loadDiscountProducts = async () => {
                       <Link
                         to={`/categories/${firstOption}`}
                         onClick={() => setCategoryModalOpen(false)}
-                        className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-black text-gray-600 transition hover:border-gray-200 hover:text-[#FF6A00]"
+                        className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-black text-gray-600 transition hover:border-gray-200 hover:text-[#e85d00]"
                       >
                         +{group.options.length - 5}
                       </Link>

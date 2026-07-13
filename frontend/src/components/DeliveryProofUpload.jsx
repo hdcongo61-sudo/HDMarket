@@ -221,7 +221,7 @@ export default function DeliveryProofUpload({
     <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_18px_42px_rgba(117,75,36,0.09)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
             <Camera className="w-5 h-5" />
           </span>
           <div>
@@ -266,7 +266,7 @@ export default function DeliveryProofUpload({
           Photos de {proofLabel} ({files.length}/{MAX_FILES}, min {minimumFilesRequired})
         </label>
         <label className="flex min-h-[84px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-center transition hover:bg-gray-100 active:scale-[0.99]">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#FF6A00] shadow-sm ring-1 ring-gray-200">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#e85d00] shadow-sm ring-1 ring-gray-200">
             <Camera className="w-5 h-5" />
           </span>
           <span className="text-sm font-black text-gray-500">
@@ -288,7 +288,7 @@ export default function DeliveryProofUpload({
                 <div className="relative overflow-hidden rounded-[16px] bg-white">
                   <img src={previews[index]} alt={entry.originalName} className="h-24 w-full object-cover" />
                   {entry.optimized ? (
-                    <span className="absolute left-1.5 top-1.5 rounded-full bg-[#FF6A00] px-2 py-0.5 text-[10px] font-black text-white">
+                    <span className="absolute left-1.5 top-1.5 rounded-full bg-[#e85d00] px-2 py-0.5 text-[10px] font-black text-white">
                       Optimisée
                     </span>
                   ) : null}
@@ -334,7 +334,7 @@ export default function DeliveryProofUpload({
           rows={3}
           value={deliveryNote}
           onChange={(event) => setDeliveryNote(event.target.value.slice(0, 1000))}
-          className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
+          className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#e85d00] focus:bg-white focus:ring-4 focus:ring-gray-200"
           placeholder={
             isPickupMode
               ? 'Ex: Retrait en boutique, article vérifié et signé.'
@@ -371,7 +371,7 @@ export default function DeliveryProofUpload({
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-white">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#FFB000] to-[#FF6A00] transition-all duration-200"
+              className="h-full rounded-full bg-gradient-to-r from-[#FFB000] to-[#e85d00] transition-all duration-200"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
@@ -383,7 +383,7 @@ export default function DeliveryProofUpload({
           type="button"
           onClick={submit}
           disabled={submitDisabled}
-          className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FFB000] to-[#FF6A00] px-4 text-sm font-black text-white shadow-[0_16px_30px_-18px_rgba(255,106,0,0.9)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-56"
+          className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FFB000] to-[#e85d00] px-4 text-sm font-black text-white shadow-[0_16px_30px_-18px_rgba(255,106,0,0.9)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-56"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {loading

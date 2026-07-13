@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, RefreshCw } from 'lucide-react';
 
 const toneStyles = {
-  dark: 'bg-[#FF6A00] text-white',
-  orange: 'bg-[#FFF0E4] text-[#FF6A00] dark:bg-orange-950/40 dark:text-orange-300',
+  dark: 'bg-[#e85d00] text-white',
+  orange: 'bg-[#FFF0E4] text-[#e85d00] dark:bg-orange-950/40 dark:text-orange-300',
   red: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
   amber: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300',
   emerald: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300',
@@ -25,7 +25,7 @@ export function AdminCommandHero({
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="p-5 sm:p-6 lg:p-7">
           {eyebrow ? (
-            <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">
+            <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">
               {eyebrow}
             </p>
           ) : null}
@@ -56,7 +56,7 @@ export function AdminCommandHero({
                       <span className="truncate text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-400">
                         {metric.label}
                       </span>
-                      {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-[#FF6A00]" /> : null}
+                      {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-[#e85d00]" /> : null}
                     </div>
                     <p className="mt-2 truncate text-lg font-black text-neutral-950 dark:text-white">
                       {metric.value}
@@ -137,14 +137,14 @@ export function AdminSegmentedControl({ options = [], value, onChange, className
               onClick={() => onChange?.(option.value)}
               className={`flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl px-3.5 py-2 text-sm font-bold transition active:scale-[0.98] ${
                 active
-                  ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+                  ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
                   : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900'
               }`}
             >
               {Icon ? <Icon className="h-4 w-4" /> : null}
               <span>{option.label}</span>
               {Number(option.count || 0) > 0 ? (
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#e85d00]'}`}>
                   {Number(option.count) > 99 ? '99+' : Number(option.count)}
                 </span>
               ) : null}

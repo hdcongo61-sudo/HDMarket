@@ -354,7 +354,7 @@ export default function Register() {
           </Link>
           <Link
             to="/login"
-            className="rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#FF6A00] transition hover:bg-orange-100 dark:bg-orange-400/10 dark:text-orange-100"
+            className="rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#e85d00] transition hover:bg-orange-100 dark:bg-orange-400/10 dark:text-orange-100"
           >
             {copy.signIn}
           </Link>
@@ -367,7 +367,7 @@ export default function Register() {
                 <header className="relative mb-6">
                   <div className="mb-4 flex justify-center lg:justify-start">
                     <div className="inline-flex flex-col items-center lg:items-start">
-                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-[#FF6A00] dark:bg-white">
+                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-[#e85d00] dark:bg-white">
                         <img
                           src={logoSrc}
                           alt={copy.appBadge}
@@ -385,10 +385,10 @@ export default function Register() {
                 </header>
 
                 <div className="mb-5 grid grid-cols-2 gap-2">
-                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 1 ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
+                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 1 ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
                     {copy.step1}
                   </div>
-                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 2 ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
+                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 2 ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
                     {copy.step2}
                   </div>
                 </div>
@@ -486,7 +486,7 @@ export default function Register() {
                             type="button"
                             onClick={sendVerificationCode}
                             disabled={codeSending || !form.email.trim()}
-                            className="min-h-[48px] rounded border border-gray-200 bg-white px-3 text-xs font-black text-[#FF6A00] transition hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-orange-100"
+                            className="min-h-[48px] rounded border border-gray-200 bg-white px-3 text-xs font-black text-[#e85d00] transition hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-orange-100"
                           >
                             {codeSending ? copy.sendingCode : codeSent ? copy.resendCode : copy.sendCode}
                           </button>
@@ -506,7 +506,7 @@ export default function Register() {
                           setStep(2);
                           setTimeout(() => passwordRef.current?.focus(), 80);
                         }}
-                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[#FF6A00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00]"
+                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00]"
                       >
                         {copy.continueStep2}
                       </button>
@@ -668,7 +668,7 @@ export default function Register() {
                               key={option.value}
                               className={`min-h-[48px] rounded px-3 py-3 text-center text-sm font-semibold transition ${
                                 form.gender === option.value
-                                  ? 'bg-[#FF6A00] text-white'
+                                  ? 'bg-[#e85d00] text-white'
                                   : 'bg-gray-100 text-gray-700 dark:bg-neutral-900 dark:text-slate-100'
                               }`}
                             >
@@ -691,7 +691,7 @@ export default function Register() {
                           type="checkbox"
                           checked={acceptedTerms}
                           onChange={(e) => setAcceptedTerms(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#FF6A00]"
+                          className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#e85d00]"
                         />
                         <span>
                           {copy.termsLead}{' '}
@@ -729,7 +729,7 @@ export default function Register() {
                         <button
                           type="submit"
                           disabled={!canSubmit}
-                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded bg-[#FF6A00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00] disabled:opacity-60"
+                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00] disabled:opacity-60"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                           {loading ? copy.creatingAccount : copy.createAccount}
@@ -742,7 +742,7 @@ export default function Register() {
                 <footer className="mt-6 border-t border-gray-100 pt-4 text-sm text-gray-600 dark:border-neutral-800 dark:text-slate-300">
                   <p>
                     {copy.haveAccount}{' '}
-                    <Link to="/login" className="font-black text-[#FF6A00] hover:underline dark:text-orange-100">
+                    <Link to="/login" className="font-black text-[#e85d00] hover:underline dark:text-orange-100">
                       {copy.signIn}
                     </Link>
                   </p>

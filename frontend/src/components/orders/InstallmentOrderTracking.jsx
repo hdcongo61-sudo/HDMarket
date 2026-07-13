@@ -6,7 +6,7 @@ const clamp = (value) => Math.max(0, Math.min(100, Number(value) || 0));
 const ProgressBar = ({ value, locked = false }) => (
   <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
     <div
-      className={`h-full rounded-full transition-[width] duration-700 ${locked ? 'bg-gray-300' : 'bg-gradient-to-r from-[#FFB000] to-[#FF6A00]'}`}
+      className={`h-full rounded-full transition-[width] duration-700 ${locked ? 'bg-gray-300' : 'bg-gradient-to-r from-[#FFB000] to-[#e85d00]'}`}
       style={{ width: `${clamp(value)}%` }}
     />
   </div>
@@ -39,8 +39,8 @@ export default function InstallmentOrderTracking({ order, isPickup = false }) {
     <div className="space-y-3 bg-white px-5 pb-4 pt-4 dark:bg-neutral-950 sm:px-7">
       <section className="rounded-2xl border border-orange-200 bg-orange-50/60 p-4 dark:border-orange-900/50 dark:bg-orange-950/20">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-gray-800 dark:text-gray-100"><Receipt className="h-4 w-4 text-[#FF6A00]" /> Suivi des tranches</p>
-          <span className="text-xs font-black text-[#FF6A00]">{paidCount}/{schedule.length || 0} payée{paidCount > 1 ? 's' : ''}</span>
+          <p className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-gray-800 dark:text-gray-100"><Receipt className="h-4 w-4 text-[#e85d00]" /> Suivi des tranches</p>
+          <span className="text-xs font-black text-[#e85d00]">{paidCount}/{schedule.length || 0} payée{paidCount > 1 ? 's' : ''}</span>
         </div>
         <ProgressBar value={paymentPercent} />
         <p className="mt-2 text-xs font-semibold text-gray-600 dark:text-gray-300">

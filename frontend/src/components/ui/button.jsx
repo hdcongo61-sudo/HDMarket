@@ -4,7 +4,7 @@ import cn from '../../lib/utils';
 
 const VARIANT_CLASSES = {
   default:
-    'border border-[#ff6a00] bg-gradient-to-b from-[#ff8a1f] to-[#ff5a1f] text-white shadow-[0_12px_26px_rgba(255,106,0,0.24)] hover:from-[#ff7c0a] hover:to-[#e85f00] dark:border-[#ff8a1f] dark:from-[#ff8a1f] dark:to-[#ff5a1f] dark:text-white',
+    'border border-[#e85d00] bg-gradient-to-b from-[#ff8a1f] to-[#e85d00] text-white shadow-[0_12px_26px_rgba(255,106,0,0.24)] hover:from-[#ff7c0a] hover:to-[#e85f00] dark:border-[#ff8a1f] dark:from-[#ff8a1f] dark:to-[#e85d00] dark:text-white',
   destructive:
     'border border-red-600 bg-red-600 text-white shadow-[0_10px_24px_rgba(220,38,38,0.18)] hover:bg-red-700',
   outline:
@@ -13,7 +13,7 @@ const VARIANT_CLASSES = {
     'border border-gray-200 bg-[#fff0e4] text-gray-500 hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/25 dark:text-orange-100 dark:hover:bg-orange-950/40',
   ghost:
     'border border-transparent text-slate-800 hover:bg-gray-100 hover:text-[#b45100] dark:text-neutral-100 dark:hover:bg-orange-950/25',
-  link: 'border border-transparent text-[#FF6A00] underline-offset-4 hover:underline dark:text-orange-200'
+  link: 'border border-transparent text-[#e85d00] underline-offset-4 hover:underline dark:text-orange-200'
 };
 
 const SIZE_CLASSES = {

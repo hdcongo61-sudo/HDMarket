@@ -83,7 +83,7 @@ export default function SellerBoosts() {
               Retour
             </Link>
             <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#FFB000] to-[#FF6A00] text-white shadow-sm">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#FFB000] to-[#e85d00] text-white shadow-sm">
                 <Sparkles className="h-5 w-5" />
               </span>
               <div className="min-w-0 space-y-0.5">
@@ -109,7 +109,7 @@ export default function SellerBoosts() {
           </article>
           <article className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">CA boost</p>
-            <p className="mt-1 truncate text-base font-black text-[#FF6A00] sm:text-xl">{formatCurrency(stats.revenue)}</p>
+            <p className="mt-1 truncate text-base font-black text-[#e85d00] sm:text-xl">{formatCurrency(stats.revenue)}</p>
           </article>
         </section>
 
@@ -117,7 +117,7 @@ export default function SellerBoosts() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 className="border-l-[3px] border-[#FF6A00] pl-2.5 text-base font-black text-gray-900 sm:text-lg">Historique des demandes</h2>
+            <h2 className="border-l-[3px] border-[#e85d00] pl-2.5 text-base font-black text-gray-900 sm:text-lg">Historique des demandes</h2>
             <span className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-600">
               <TrendingUp className="h-3.5 w-3.5" />
               {requests.length}
@@ -139,7 +139,7 @@ export default function SellerBoosts() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="inline-flex items-center gap-2 text-sm font-black text-gray-900">
-                        <Sparkles className="h-4 w-4 shrink-0 text-[#FF6A00]" />
+                        <Sparkles className="h-4 w-4 shrink-0 text-[#e85d00]" />
                         <span className="truncate">{item.boostType}</span>
                       </p>
                       <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
@@ -167,7 +167,7 @@ export default function SellerBoosts() {
                     </div>
                     <div className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-2">
                       <p className="text-gray-500">Total</p>
-                      <p className="truncate font-black text-[#FF6A00]">{formatCurrency(item.totalPrice)}</p>
+                      <p className="truncate font-black text-[#e85d00]">{formatCurrency(item.totalPrice)}</p>
                     </div>
                   </div>
 
@@ -181,7 +181,7 @@ export default function SellerBoosts() {
                     return (
                       <div className={`mt-3 rounded-lg border p-2.5 ${isWallet ? 'border-orange-100 bg-orange-50' : 'border-indigo-100 bg-indigo-50'}`}>
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-black text-white ${isWallet ? 'bg-[#FF6A00]' : 'bg-indigo-600'}`}>
+                          <span className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-black text-white ${isWallet ? 'bg-[#e85d00]' : 'bg-indigo-600'}`}>
                             {isWallet ? <Wallet className="h-3.5 w-3.5" /> : <Smartphone className="h-3.5 w-3.5" />}
                             {isWallet ? 'Portefeuille HDMarket' : 'Mobile Money'}
                           </span>

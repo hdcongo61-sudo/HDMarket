@@ -287,7 +287,7 @@ export default function Suggestions() {
             </div>
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FF6A00]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e85d00]">
                   <Target className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-black text-gray-900 sm:text-2xl">{formatNumber(preferredCategories.length)}</span>
@@ -312,7 +312,7 @@ export default function Suggestions() {
         {preferredCategories.length > 0 && (
           <div className="hd-products-toolbar rounded-2xl p-3 shadow-sm sm:p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-[#FF6A00]" />
+              <Filter className="w-4 h-4 text-[#e85d00]" />
               <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide">Catégories suggérées</h3>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -321,7 +321,7 @@ export default function Suggestions() {
                   key={category}
                   className="hd-products-chip inline-flex items-center gap-2 rounded-full px-4 py-2"
                 >
-                  <TrendingUp className="w-4 h-4 text-[#FF6A00]" />
+                  <TrendingUp className="w-4 h-4 text-[#e85d00]" />
                   <span className="text-sm font-black text-gray-800">{CATEGORY_LABELS[category] || category}</span>
                   {categoryStats[category] > 0 && (
                     <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-black text-gray-500">
@@ -351,7 +351,7 @@ export default function Suggestions() {
         {!preferredCategories.length && !loading && (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
-              <Search className="w-10 h-10 text-[#FF6A00]" />
+              <Search className="w-10 h-10 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900 mb-2">Aucune suggestion disponible</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
@@ -380,7 +380,7 @@ export default function Suggestions() {
         {!loading && items.length === 0 && preferredCategories.length > 0 && (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
-              <Zap className="w-10 h-10 text-[#FF6A00]" />
+              <Zap className="w-10 h-10 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900 mb-2">Aucune suggestion disponible</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">

@@ -114,7 +114,7 @@ const metricToneClasses = {
   red: 'bg-red-50 text-red-600',
   blue: 'bg-sky-50 text-sky-600',
   indigo: 'bg-indigo-50 text-indigo-600',
-  orange: 'bg-[#FFF0E4] text-[#FF6A00]'
+  orange: 'bg-[#FFF0E4] text-[#e85d00]'
 };
 
 const DashboardCard = ({ label, value, hint, icon: Icon, tone = 'neutral' }) => (
@@ -137,7 +137,7 @@ const DashboardCard = ({ label, value, hint, icon: Icon, tone = 'neutral' }) => 
 const SectionHeader = ({ eyebrow, title, description, action }) => (
   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div>
-      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">{eyebrow}</p> : null}
+      {eyebrow ? <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">{eyebrow}</p> : null}
       <h2 className="mt-1 text-lg font-black tracking-tight text-slate-950">{title}</h2>
       {description ? <p className="mt-1 text-xs font-semibold text-gray-500">{description}</p> : null}
     </div>
@@ -680,11 +680,11 @@ export default function AdminPayments() {
       <header className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
         <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#FF6A00]">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#e85d00]">
               <CreditCard className="h-6 w-6" />
             </span>
             <div className="min-w-0">
-              <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+              <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                 Finances
               </p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
@@ -713,7 +713,7 @@ export default function AdminPayments() {
             </Link>
             <Link
               to="/admin/payment-verification"
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#FF6A00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
             >
               <ShieldCheck className="h-4 w-4" />
               File de vérification
@@ -727,7 +727,7 @@ export default function AdminPayments() {
             type="button"
             onClick={() => setFilter('waiting')}
             className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition active:scale-[0.98] ${!isWalletAdminPanel
-              ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+              ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
               : 'text-slate-600 hover:bg-gray-100'}`}
           >
             <CreditCard className="h-4 w-4" />
@@ -737,7 +737,7 @@ export default function AdminPayments() {
             type="button"
             onClick={() => setFilter('wallet_overview')}
             className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition active:scale-[0.98] ${isWalletAdminPanel
-              ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+              ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
               : 'text-slate-600 hover:bg-gray-100'}`}
           >
             <Wallet className="h-4 w-4" />
@@ -852,13 +852,13 @@ export default function AdminPayments() {
                     onClick={() => setFilter(option.value)}
                     className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition active:scale-[0.97] ${
                       active
-                        ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                        ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                         : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                     }`}
                   >
                     {option.label}
                     {chipCount > 0 ? (
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#e85d00]'}`}>
                         {chipCount > 99 ? '99+' : chipCount}
                       </span>
                     ) : null}
@@ -1393,7 +1393,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_overview')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_overview'
-                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1404,7 +1404,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_deposits')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_deposits'
-                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1415,7 +1415,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_withdrawals')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_withdrawals'
-                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1537,7 +1537,7 @@ export default function AdminPayments() {
                 onClick={() => setWalletDepositStatus(option.value)}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                   walletDepositStatus === option.value
-                    ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >

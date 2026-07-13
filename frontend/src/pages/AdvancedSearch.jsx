@@ -326,7 +326,7 @@ export default function AdvancedSearch() {
 
           {/* Search Bar */}
           <div className="relative max-w-3xl">
-            <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#FF6A00]" />
+            <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#e85d00]" />
             <input
               type="text"
               value={searchQuery}
@@ -357,7 +357,7 @@ export default function AdvancedSearch() {
                     <button
                       type="button"
                       onClick={clearAllFilters}
-                      className="text-xs font-bold text-[#B45309] hover:text-[#FF6A00]"
+                      className="text-xs font-bold text-[#B45309] hover:text-[#e85d00]"
                     >
                       Tout effacer
                     </button>

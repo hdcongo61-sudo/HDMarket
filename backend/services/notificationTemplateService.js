@@ -512,8 +512,8 @@ const TEMPLATES = {
     const pct = metadata.pctDown || Math.round(Number(metadata.pctDown || 10));
     const title = metadata.productTitle || snapshot.productTitle || 'Un article';
     return {
-      title: '📉 Baisse de prix !',
-      message: `Bonne nouvelle ! Le prix de "${title}" a baissé de ${pct}%${saved ? ` (soit ${saved} d'économie)` : ''}. Profitez-en vite !`,
+      title: 'Un favori est en promotion',
+      message: `Le produit "${title}", que vous avez ajouté à vos favoris, bénéficie maintenant d'une remise de ${pct}%${saved ? `, soit ${saved} d'économie` : ''}. C'est le moment d'en profiter !`,
       actionLabel: 'Voir le produit'
     };
   },

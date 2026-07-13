@@ -86,7 +86,7 @@ function SectionTitle({ icon: Icon, title, subtitle }) {
     <div className="mb-4">
       <div className="flex items-center gap-2 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">
         {Icon ? (
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-gray-100 text-[#ff6a00] ring-1 ring-gray-200 dark:bg-orange-950/30 dark:ring-orange-900/50">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200 dark:bg-orange-950/30 dark:ring-orange-900/50">
             <Icon className="h-4 w-4" />
           </span>
         ) : null}
@@ -545,14 +545,14 @@ export default function HelpPage() {
       <header className="sticky top-0 z-20 border-b border-gray-200/80 bg-white/85 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] text-[#ff6a00]">
+            <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] text-[#e85d00]">
               {companyName}
             </p>
             <h1 className="truncate text-lg font-extrabold">Centre d'aide</h1>
           </div>
           <Link
             to="/"
-            className="inline-flex min-h-9 items-center rounded-full border border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-bold text-[#ff6a00] transition hover:bg-orange-100 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200"
+            className="inline-flex min-h-9 items-center rounded-full border border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-bold text-[#e85d00] transition hover:bg-orange-100 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200"
           >
             Retour
           </Link>
@@ -581,7 +581,7 @@ export default function HelpPage() {
                   value={editorSearch}
                   onChange={(event) => setEditorSearch(event.target.value)}
                   placeholder="Rechercher un utilisateur"
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900"
                 />
               </label>
 
@@ -616,7 +616,7 @@ export default function HelpPage() {
                               className={`rounded-full px-3 py-1 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                 isGranted
                                   ? 'border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40'
-                                  : 'bg-[#ff6a00] text-white hover:bg-[#f05f00]'
+                                  : 'bg-[#e85d00] text-white hover:bg-[#f05f00]'
                               }`}
                             >
                               {isWorking ? '...' : isGranted ? 'Retirer' : 'Accorder'}
@@ -695,7 +695,7 @@ export default function HelpPage() {
                     <select
                       value={category}
                       onChange={(event) => setCategory(event.target.value)}
-                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-800 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-800 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                     >
                       {HELP_CATEGORIES.map((item) => (
                         <option key={item.value} value={item.value}>
@@ -713,7 +713,7 @@ export default function HelpPage() {
                       onChange={(event) => setSubject(event.target.value)}
                       maxLength={140}
                       placeholder="Ex: Paiement non validé"
-                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                     />
                   </label>
                 </div>
@@ -729,7 +729,7 @@ export default function HelpPage() {
                       onClick={() => setContentFormat(format)}
                       className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
                         contentFormat === format
-                          ? 'bg-[#ff6a00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.20)]'
+                          ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.20)]'
                           : 'border border-gray-200 bg-gray-100 text-orange-700 hover:bg-orange-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
                       }`}
                     >
@@ -760,7 +760,7 @@ export default function HelpPage() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-bold text-[#ff6a00] transition hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-bold text-[#e85d00] transition hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     >
                       <Paperclip className="h-3.5 w-3.5" />
                       Ajouter
@@ -809,7 +809,7 @@ export default function HelpPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#ff6a00] px-4 py-2 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#e85d00] px-4 py-2 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <SendHorizonal className="h-4 w-4" />
                     {submitting ? 'Envoi...' : 'Envoyer la demande'}

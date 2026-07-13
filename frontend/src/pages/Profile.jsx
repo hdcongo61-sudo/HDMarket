@@ -59,7 +59,7 @@ const STATS_PERIOD_OPTIONS = [
 ];
 
 const SHOP_COLOR_PRESETS = [
-  '#FF6A00',
+  '#e85d00',
   '#2563EB',
   '#7C3AED',
   '#DB2777',
@@ -87,7 +87,7 @@ const initialForm = {
   shopName: '',
   shopAddress: '',
   shopDescription: '',
-  shopColor: '#FF6A00',
+  shopColor: '#e85d00',
   freeDeliveryEnabled: false,
   freeDeliveryNote: '',
   address: '',
@@ -626,7 +626,7 @@ export default function Profile() {
       shopName: user.shopName || '',
       shopAddress: user.shopAddress || '',
       shopDescription: user.shopDescription || '',
-      shopColor: user.shopColor || '#FF6A00',
+      shopColor: user.shopColor || '#e85d00',
       freeDeliveryEnabled: Boolean(user.freeDeliveryEnabled),
       freeDeliveryNote: user.freeDeliveryNote || '',
       address: user.address || '',
@@ -908,7 +908,7 @@ export default function Profile() {
         shopName: value === 'shop' ? prev.shopName : '',
         shopAddress: value === 'shop' ? prev.shopAddress : '',
         shopDescription: value === 'shop' ? prev.shopDescription : '',
-        shopColor: value === 'shop' ? prev.shopColor : '#FF6A00',
+        shopColor: value === 'shop' ? prev.shopColor : '#e85d00',
         freeDeliveryEnabled: value === 'shop' ? prev.freeDeliveryEnabled : false,
         freeDeliveryNote: value === 'shop' ? prev.freeDeliveryNote : ''
       }));
@@ -1568,7 +1568,7 @@ export default function Profile() {
         payload.append('shopName', form.shopName);
         payload.append('shopAddress', form.shopAddress);
         payload.append('shopDescription', form.shopDescription.trim());
-        payload.append('shopColor', form.shopColor || '#FF6A00');
+        payload.append('shopColor', form.shopColor || '#e85d00');
         payload.append('freeDeliveryEnabled', String(Boolean(form.freeDeliveryEnabled)));
         payload.append('freeDeliveryNote', form.freeDeliveryNote || '');
         if (shopLogoFile) {
@@ -1611,7 +1611,7 @@ export default function Profile() {
         shopName: data.shopName || '',
         shopAddress: data.shopAddress || '',
         shopDescription: data.shopDescription || '',
-        shopColor: data.shopColor || '#FF6A00',
+        shopColor: data.shopColor || '#e85d00',
         freeDeliveryEnabled: Boolean(data.freeDeliveryEnabled),
         freeDeliveryNote: data.freeDeliveryNote || '',
         address: data.address || '',
@@ -1670,7 +1670,7 @@ export default function Profile() {
                   className="h-[72px] w-[72px] flex-shrink-0 rounded-2xl border-2 border-white object-cover shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
                 />
               ) : (
-                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#ff6a00] shadow-[0_10px_24px_rgba(255,106,0,0.22)]">
+                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#e85d00] shadow-[0_10px_24px_rgba(255,106,0,0.22)]">
                   <User className="h-9 w-9 text-white" />
                 </div>
               )}
@@ -1682,7 +1682,7 @@ export default function Profile() {
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold text-slate-700">
                   <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5 text-[#ff6a00]" />
+                    <MapPin className="h-3.5 w-3.5 text-[#e85d00]" />
                     {(user?.city || 'Ville')}{user?.commune ? ` · ${user.commune}` : ''}
                   </span>
                   <span className="text-slate-300">|</span>
@@ -1691,7 +1691,7 @@ export default function Profile() {
                     onClick={() => setActiveTab('security')}
                     className="inline-flex items-center gap-1 text-slate-700"
                   >
-                    <Shield className="h-3.5 w-3.5 text-[#ff6a00]" />
+                    <Shield className="h-3.5 w-3.5 text-[#e85d00]" />
                     Compte sécurisé
                   </button>
                 </div>
@@ -1717,7 +1717,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl bg-gradient-to-r from-[#ff8a1f] to-[#ff4f17] p-4 text-white shadow-[0_14px_30px_rgba(255,106,0,0.28)]">
+          <div className="mt-5 rounded-2xl bg-gradient-to-r from-[#ff8a1f] to-[#e85d00] p-4 text-white shadow-[0_14px_30px_rgba(255,106,0,0.28)]">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-2xl font-black leading-none">HD VIP</p>
@@ -1728,7 +1728,7 @@ export default function Profile() {
               <button
                 type="button"
                 onClick={() => setActiveTab('profile')}
-                className="flex-shrink-0 rounded-full bg-white px-4 py-2 text-sm font-black text-[#ff5a1f] active:scale-95"
+                className="flex-shrink-0 rounded-full bg-white px-4 py-2 text-sm font-black text-[#e85d00] active:scale-95"
               >
                 Voir
               </button>
@@ -1750,7 +1750,7 @@ export default function Profile() {
               >
                 <Icon className="h-6 w-6 text-slate-900" />
                 <span className="text-[11px] font-bold text-slate-800">{label}</span>
-                <span className="text-[10px] font-black text-[#ff6a00]">{formatNumber(value)}</span>
+                <span className="text-[10px] font-black text-[#e85d00]">{formatNumber(value)}</span>
               </button>
             ))}
           </div>
@@ -1781,7 +1781,7 @@ export default function Profile() {
                 >
                   <Icon className="h-6 w-6 text-slate-900" />
                   {value > 0 ? (
-                    <span className="absolute right-2 top-0 rounded-full bg-[#ff5a1f] px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
+                    <span className="absolute right-2 top-0 rounded-full bg-[#e85d00] px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
                       {formatNumber(value)}
                     </span>
                   ) : null}
@@ -1796,7 +1796,7 @@ export default function Profile() {
               to={userShopLink}
               className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition-colors hover:bg-gray-100"
             >
-              <Store className="h-4 w-4 text-[#ff6a00]" />
+              <Store className="h-4 w-4 text-[#e85d00]" />
               Voir ma boutique publique
             </Link>
           )}

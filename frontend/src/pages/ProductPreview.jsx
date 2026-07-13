@@ -307,7 +307,7 @@ export default function ProductPreview() {
               to="/products"
               className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2.5 text-sm font-black text-slate-500 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-gray-200"
             >
-              <Eye className="h-4 w-4 text-[#ff6a00]" />
+              <Eye className="h-4 w-4 text-[#e85d00]" />
               <span className="truncate">Explorer HDMarket</span>
             </Link>
           </div>
@@ -360,7 +360,7 @@ export default function ProductPreview() {
                   />
                   <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
                   {hasProductDiscount ? (
-                    <span className="absolute left-3 top-3 rounded-full bg-[#ff3d13] px-2.5 py-1 text-xs font-black text-white shadow-lg">
+                    <span className="absolute left-3 top-3 rounded-full bg-[#e85d00] px-2.5 py-1 text-xs font-black text-white shadow-lg">
                       -{product.discount}%
                     </span>
                   ) : null}
@@ -373,7 +373,7 @@ export default function ProductPreview() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
-                        <p className="text-[28px] font-black leading-none text-[#ff6a00]">
+                        <p className="text-[28px] font-black leading-none text-[#e85d00]">
                           {formatCurrency(product.price)}
                         </p>
                         {hasProductDiscount ? (
@@ -406,7 +406,7 @@ export default function ProductPreview() {
                     ) : null}
                     {cityLabel ? (
                       <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-gray-50 px-2 py-1">
-                        <MapPin className="h-3.5 w-3.5 text-[#ff6a00]" />
+                        <MapPin className="h-3.5 w-3.5 text-[#e85d00]" />
                         <span className="max-w-[160px] truncate">{cityLabel}</span>
                       </span>
                     ) : null}
@@ -417,7 +417,7 @@ export default function ProductPreview() {
               {shopName ? (
                 <div className="border-t border-gray-100 px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff2e6] text-[#ff6a00] ring-1 ring-gray-200">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200">
                       <Store className="h-5 w-5" />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -498,7 +498,7 @@ export default function ProductPreview() {
                             loading="lazy"
                           />
                           {pickHasDiscount ? (
-                            <span className="absolute left-1.5 top-1.5 rounded-full bg-[#ff3d13] px-1.5 py-0.5 text-[9px] font-black leading-none text-white">
+                            <span className="absolute left-1.5 top-1.5 rounded-full bg-[#e85d00] px-1.5 py-0.5 text-[9px] font-black leading-none text-white">
                               -{pick.product.discount}%
                             </span>
                           ) : null}
@@ -507,7 +507,7 @@ export default function ProductPreview() {
                           <p className="line-clamp-2 min-h-[32px] text-[11px] font-black leading-4 text-slate-950">
                             {pick.product?.title}
                           </p>
-                          <p className="mt-1 truncate text-sm font-black leading-none text-[#ff6a00]">
+                          <p className="mt-1 truncate text-sm font-black leading-none text-[#e85d00]">
                             {formatCurrency(pick.product?.price)}
                           </p>
                           <div className="mt-1 flex min-h-[16px] items-center gap-1 text-[9px] font-bold text-gray-500">
@@ -526,7 +526,7 @@ export default function ProductPreview() {
                 </div>
               ) : (
                 <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#ff6a00] shadow-sm">
+                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#e85d00] shadow-sm">
                     <Sparkles className="h-7 w-7" />
                   </div>
                   <p className="text-sm font-black text-slate-800">Aucune inspiration pour le moment</p>

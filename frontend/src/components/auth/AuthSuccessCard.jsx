@@ -41,7 +41,7 @@ export default function AuthSuccessCard({
               className={join(
                 'min-h-[48px] rounded px-4 text-sm font-black transition active:scale-[0.98]',
                 action.primary
-                  ? 'bg-[#FF6A00] text-white hover:bg-[#e85f00]'
+                  ? 'bg-[#e85d00] text-white hover:bg-[#e85f00]'
                   : 'border border-gray-200 bg-gray-50 text-gray-800 hover:bg-gray-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-100',
                 action.disabled ? 'opacity-60 cursor-not-allowed' : ''
               )}

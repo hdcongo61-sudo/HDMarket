@@ -1019,7 +1019,7 @@ export default function UserDashboard() {
 
   if (loading && items.length === 0) {
     return (
-      <div className="hd-my-flow min-h-screen bg-[#f5f5f5] dark:bg-neutral-950">
+      <div className="min-h-screen bg-[#f5f2ee] dark:bg-neutral-950">
         {/* Skeleton header */}
         <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-3">
           <div className="flex items-center justify-between">
@@ -1058,15 +1058,15 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="hd-my-flow min-h-screen bg-[#f5f5f5] dark:bg-neutral-950">
+    <div className="min-h-screen bg-[#f5f2ee] text-[#231f1b] dark:bg-neutral-950">
 
       {/* ── TAOBAO STICKY HEADER ── */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-100 dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="flex items-center justify-between gap-2 px-4 py-3"
+      <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/96 shadow-[0_2px_10px_rgba(35,31,27,0.04)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3"
           style={{ paddingTop: 'calc(env(safe-area-inset-top,0px) + 10px)' }}>
           <div className="min-w-0">
-            <h1 className="text-[15px] font-black text-gray-900 dark:text-white leading-tight">Mes annonces</h1>
-            <p className="text-[11px] text-gray-400 leading-tight mt-0.5">
+            <h1 className="text-[17px] font-black leading-tight text-[#231f1b] dark:text-white">Mes annonces</h1>
+            <p className="mt-0.5 text-[11px] font-semibold leading-tight text-[#8a8378]">
               {stats.total > 0
                 ? `${stats.total} annonce${stats.total > 1 ? 's' : ''} · ${stats.approved} active${stats.approved > 1 ? 's' : ''}`
                 : 'Aucune annonce pour l\'instant'}
@@ -1074,14 +1074,14 @@ export default function UserDashboard() {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button type="button" onClick={load} disabled={loading}
-              className="h-9 w-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 active:scale-95 transition-transform disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] bg-white text-[#6b6459] active:scale-95 transition-transform disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300"
               aria-label="Actualiser">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             {sellingEnabled ? (
               <button type="button"
                 onClick={() => { setEditingProduct(null); setProductModalOpen(true); }}
-                className="flex items-center gap-1.5 pl-3 pr-4 py-2 rounded-full bg-[#FF6A00] text-white text-sm font-bold shadow-sm active:scale-95 transition-transform">
+                className="flex min-h-11 items-center gap-1.5 rounded-full bg-black pl-3 pr-4 text-sm font-black text-white active:scale-95 transition-transform">
                 <Plus className="w-4 h-4" />
                 Publier
               </button>
@@ -1096,57 +1096,50 @@ export default function UserDashboard() {
 
       {/* ── INLINE KPI STRIP ── */}
       {!loading && stats.total > 0 && (
-        <section className="bg-white">
-          <div className="flex divide-x divide-gray-100">
+        <section className="mx-auto max-w-6xl bg-[#f5f2ee] px-3 pt-3">
+          <div className="grid grid-cols-3 gap-2">
             <button type="button" onClick={() => { setStatusFilter('all'); setSelectedStatuses([]); }}
-              className="flex-1 flex flex-col items-center py-3 gap-0.5 active:bg-gray-50 transition-colors">
-              <span className="text-[22px] font-black text-gray-900 leading-tight">{stats.total}</span>
-              <span className="text-[11px] text-gray-500">Total</span>
+              className="flex min-h-[72px] flex-col items-start justify-center rounded-2xl border border-[#e2dcd2] bg-white px-3 text-left active:bg-[#fff8f2] transition-colors">
+              <span className="text-[18px] font-black leading-tight text-[#231f1b]">{stats.total}</span>
+              <span className="mt-1 text-[11px] font-bold text-[#8a8378]">Total</span>
             </button>
             <button type="button" onClick={() => { setStatusFilter('approved'); setSelectedStatuses([]); }}
-              className="flex-1 flex flex-col items-center py-3 gap-0.5 active:bg-gray-50 transition-colors">
-              <span className="text-[22px] font-black text-emerald-600 leading-tight">{stats.approved}</span>
-              <span className="text-[11px] text-gray-500">Actives</span>
+              className="flex min-h-[72px] flex-col items-start justify-center rounded-2xl border border-[#e2dcd2] bg-white px-3 text-left active:bg-[#fff8f2] transition-colors">
+              <span className="text-[18px] font-black leading-tight text-[#231f1b]">{stats.approved}</span>
+              <span className="mt-1 text-[11px] font-bold text-[#8a8378]">En ligne</span>
             </button>
             <button type="button" onClick={() => { setStatusFilter('pending'); setSelectedStatuses([]); }}
-              className="flex-1 flex flex-col items-center py-3 gap-0.5 active:bg-gray-50 transition-colors">
-              <span className="text-[22px] font-black text-amber-500 leading-tight">{stats.pending}</span>
-              <span className="text-[11px] text-gray-500">Attente</span>
-            </button>
-            <button type="button" onClick={() => {}}
-              className="flex-1 flex flex-col items-center py-3 gap-0.5 active:bg-gray-50 transition-colors">
-              <span className="text-[14px] font-black text-[#FF6A00] leading-tight">{formatCurrency(stats.totalValue)}</span>
-              <span className="text-[11px] text-gray-500">Valeur</span>
+              className="flex min-h-[72px] flex-col items-start justify-center rounded-2xl border border-[#f0c7aa] bg-[#fff8f2] px-3 text-left active:bg-[#fff0e4] transition-colors">
+              <span className="text-[18px] font-black leading-tight text-[#c2410c]">{Number(stats.pending || 0) + Number(stats.rejected || 0)}</span>
+              <span className="mt-1 text-[11px] font-bold text-[#8a8378]">À traiter</span>
             </button>
           </div>
         </section>
       )}
 
       {/* ── QUICK SHORTCUTS ROW ── */}
-      <section className="bg-white border-t border-gray-50">
-        <div className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <section className="mx-auto max-w-6xl bg-[#f5f2ee]">
+        <div className="flex gap-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
-            { to: '/wallet', icon: Wallet, label: 'Portefeuille', color: 'text-emerald-600' },
-            { to: '/seller/boosts', icon: Sparkles, label: 'Boosts', color: 'text-[#FF6A00]' },
-            { to: '/seller/analytics', icon: BarChart3, label: 'Analytics', color: 'text-blue-600' },
-            { to: '/orders', icon: Package, label: 'Commandes', color: 'text-purple-600' },
-            ...(isShopUser ? [{ to: '/seller/promo-codes', icon: Tag, label: 'Codes promo', color: 'text-pink-600' }] : []),
-          ].map(({ to, icon: Icon, label, color }) => (
+            { to: '/wallet', icon: Wallet, label: 'Portefeuille' },
+            { to: '/seller/boosts', icon: Sparkles, label: 'Boosts' },
+            { to: '/seller/analytics', icon: BarChart3, label: 'Statistiques' },
+            { to: '/orders', icon: Package, label: 'Commandes' },
+            ...(isShopUser ? [{ to: '/seller/promo-codes', icon: Tag, label: 'Codes promo' }] : []),
+          ].map(({ to, icon: Icon, label }) => (
             <Link key={to} to={to}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 active:bg-gray-100 transition-colors">
-              <Icon className={`w-3.5 h-3.5 ${color}`} />
+              className="flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-full border border-[#e2dcd2] bg-white px-3.5 text-xs font-bold text-[#231f1b] active:bg-[#fff8f2] transition-colors">
+              <Icon className="h-3.5 w-3.5 text-[#e85d00]" />
               {label}
             </Link>
           ))}
         </div>
       </section>
 
-      <div className="h-2 bg-[#f5f5f5]" />
-
-      <div className="pb-32 lg:pb-12">
+      <div className="mx-auto max-w-6xl space-y-3 px-3 pb-32 lg:pb-12">
 
         {!loading && (promoAnalyticsLoading || promoAnalytics) && (
-          <div className="space-y-4 mb-8">
+          <div className="mb-8 hidden space-y-4 md:block">
             {promoAnalytics?.gamification?.isMostGenerousOfMonth ? (
               <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 p-4">
                 <div className="flex items-center gap-3">
@@ -1231,7 +1224,7 @@ export default function UserDashboard() {
           <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">Assistant boutique</p>
@@ -1243,7 +1236,7 @@ export default function UserDashboard() {
               </div>
             </div>
             <Link to="/seller/assistant/workspace"
-              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF6A00] text-white text-xs font-bold active:scale-95 transition-transform">
+              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#e85d00] text-white text-xs font-bold active:scale-95 transition-transform">
               {assistantAssignment ? 'Ouvrir' : 'Voir'}
             </Link>
           </div>
@@ -1252,7 +1245,7 @@ export default function UserDashboard() {
           <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-gray-900">Assistant boutique</p>
@@ -1260,7 +1253,7 @@ export default function UserDashboard() {
               </div>
             </div>
             <Link to="/seller/assistant"
-              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF6A00] text-white text-xs font-bold active:scale-95 transition-transform">
+              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#e85d00] text-white text-xs font-bold active:scale-95 transition-transform">
               Gérer
             </Link>
           </div>
@@ -1312,11 +1305,11 @@ export default function UserDashboard() {
                     <input type="text" value={promoForm.code}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
                       placeholder="Code (ex: SUMMER20)"
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#FF6A00] uppercase placeholder-normal"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00] uppercase placeholder-normal"
                       required />
                     <select value={promoForm.appliesTo}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, appliesTo: e.target.value, productId: '' }))}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#FF6A00]">
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]">
                       <option value="boutique">Toute la boutique</option>
                       <option value="product">Produit spécifique</option>
                     </select>
@@ -1326,19 +1319,19 @@ export default function UserDashboard() {
                   <div className="grid grid-cols-3 gap-2">
                     <select value={promoForm.discountType}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, discountType: e.target.value }))}
-                      className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-sm focus:outline-none focus:border-[#FF6A00]">
+                      className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-sm focus:outline-none focus:border-[#e85d00]">
                       <option value="percentage">%</option>
                       <option value="fixed">Fixe</option>
                     </select>
                     <input type="number" min="1" value={promoForm.discountValue}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, discountValue: e.target.value }))}
                       placeholder={promoForm.discountType === 'percentage' ? 'Ex: 20' : 'Ex: 5000'}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#FF6A00]"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
                       required />
                     <input type="number" min="1" value={promoForm.usageLimit}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, usageLimit: e.target.value }))}
                       placeholder="Limite"
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#FF6A00]"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
                       required />
                   </div>
 
@@ -1346,11 +1339,11 @@ export default function UserDashboard() {
                   <div className="grid grid-cols-2 gap-2">
                     <input type="date" value={promoForm.startDate}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#FF6A00]"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
                       required />
                     <input type="date" value={promoForm.endDate}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#FF6A00]"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
                       required />
                   </div>
 
@@ -1358,7 +1351,7 @@ export default function UserDashboard() {
                   {promoForm.appliesTo === 'product' && (
                     <select value={promoForm.productId}
                       onChange={(e) => setPromoForm((prev) => ({ ...prev, productId: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#FF6A00]"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
                       required>
                       <option value="">Sélectionner un produit approuvé</option>
                       {promoEligibleProducts.map((p) => (
@@ -1372,11 +1365,11 @@ export default function UserDashboard() {
                     <label className="inline-flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer">
                       <input type="checkbox" checked={promoForm.isActive}
                         onChange={(e) => setPromoForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-                        className="rounded border-gray-300 accent-[#FF6A00]" />
+                        className="rounded border-gray-300 accent-[#e85d00]" />
                       Activer immédiatement
                     </label>
                     <button type="submit" disabled={promoSubmitting}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF6A00] text-white text-xs font-bold disabled:opacity-60 active:scale-95 transition-transform">
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e85d00] text-white text-xs font-bold disabled:opacity-60 active:scale-95 transition-transform">
                       {promoSubmitting ? <><RefreshCw className="w-3 h-3 animate-spin" /> Création...</> : <><Plus className="w-3 h-3" /> Créer</>}
                     </button>
                   </div>
@@ -1396,7 +1389,7 @@ export default function UserDashboard() {
                       <button key={opt.value} type="button"
                         onClick={() => { setPromoCodeStatusFilter(opt.value); loadPromoCodes(opt.value); }}
                         className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
-                          promoCodeStatusFilter === opt.value ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-600'
+                          promoCodeStatusFilter === opt.value ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-600'
                         }`}>
                         {opt.label}
                       </button>
@@ -1465,7 +1458,7 @@ export default function UserDashboard() {
 
         {/* ── TAOBAO SEARCH + FILTER BAR ── */}
         {!loading && items.length > 0 && (
-          <div className="bg-white">
+          <div className="rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_3px_14px_rgba(35,31,27,0.05)]">
             {/* Search input */}
             <div className="px-4 pt-3 pb-2">
               <div className="relative">
@@ -1473,7 +1466,7 @@ export default function UserDashboard() {
                 <input type="text" value={searchDraft}
                   onChange={(e) => setSearchDraft(e.target.value)}
                   placeholder="Rechercher par titre ou description..."
-                  className="w-full pl-9 pr-9 py-2.5 bg-gray-100 rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 transition-all" />
+                  className="min-h-11 w-full rounded-full border border-[#eee8e0] bg-[#f5f2ee] py-2.5 pl-9 pr-9 text-sm text-[#231f1b] placeholder-[#8a8378] focus:outline-none focus:ring-2 focus:ring-[#fff0e4] transition-all" />
                 {searchDraft && (
                   <button type="button"
                     onClick={() => { setSearchDraft(''); setSearchQuery(''); }}
@@ -1489,19 +1482,19 @@ export default function UserDashboard() {
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                   showAdvancedFilters || selectedCategories.length > 0 || priceMin || priceMax || dateFrom || dateTo || selectedStatuses.length > 0 || boostedFilter !== 'all' || installmentFilter !== 'all'
-                    ? 'border-[#FF6A00] bg-[#fff0e4] text-[#FF6A00]'
-                    : 'border-gray-200 bg-gray-50 text-gray-600'
+                    ? 'border-[#e85d00] bg-[#fff0e4] text-[#e85d00]'
+                    : 'border-[#e2dcd2] bg-white text-[#6b6459]'
                 }`}>
                 <Filter className="w-3.5 h-3.5" />
                 Filtres
                 {(selectedCategories.length > 0 || priceMin || priceMax || dateFrom || dateTo || selectedStatuses.length > 0 || boostedFilter !== 'all' || installmentFilter !== 'all') && (
-                  <span className="ml-1 w-4 h-4 rounded-full bg-[#FF6A00] text-white text-[9px] flex items-center justify-center font-black">!</span>
+                  <span className="ml-1 w-4 h-4 rounded-full bg-[#e85d00] text-white text-[9px] flex items-center justify-center font-black">!</span>
                 )}
                 {showAdvancedFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
               <div className="flex items-center gap-1.5">
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-                  className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-2.5 py-1.5 focus:outline-none focus:border-[#FF6A00]">
+                  className="min-h-11 rounded-full border border-[#e2dcd2] bg-white px-3 text-xs font-bold text-[#6b6459] focus:outline-none focus:border-[#e85d00]">
                   <option value="date-desc">Récent</option>
                   <option value="date-asc">Ancien</option>
                   <option value="price-desc">Prix ↓</option>
@@ -1509,13 +1502,13 @@ export default function UserDashboard() {
                   <option value="title-asc">Titre A-Z</option>
                 </select>
                 {/* View toggle */}
-                <div className="flex items-center bg-gray-100 rounded-full p-0.5">
+                <div className="flex min-h-11 items-center rounded-full bg-[#f5f2ee] p-1">
                   <button type="button" onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-full transition-all ${viewMode === 'list' ? 'bg-white text-[#FF6A00] shadow-sm' : 'text-gray-400'}`}>
+                    className={`p-1.5 rounded-full transition-all ${viewMode === 'list' ? 'bg-white text-[#e85d00] shadow-sm' : 'text-gray-400'}`}>
                     <List className="w-3.5 h-3.5" />
                   </button>
                   <button type="button" onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-full transition-all ${viewMode === 'grid' ? 'bg-white text-[#FF6A00] shadow-sm' : 'text-gray-400'}`}>
+                    className={`p-1.5 rounded-full transition-all ${viewMode === 'grid' ? 'bg-white text-[#e85d00] shadow-sm' : 'text-gray-400'}`}>
                     <Grid3x3 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1543,7 +1536,7 @@ export default function UserDashboard() {
                         return (
                           <button key={cat} type="button"
                             onClick={() => isSelected ? setSelectedCategories(selectedCategories.filter((c) => c !== cat)) : setSelectedCategories([...selectedCategories, cat])}
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${isSelected ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${isSelected ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-600'}`}>
                             {categoryInfo?.label || cat}
                           </button>
                         );
@@ -1556,9 +1549,9 @@ export default function UserDashboard() {
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Prix</p>
                   <div className="flex gap-2">
                     <input type="number" value={priceMin} onChange={(e) => setPriceMin(e.target.value)}
-                      placeholder="Min" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6A00]" />
+                      placeholder="Min" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#e85d00]" />
                     <input type="number" value={priceMax} onChange={(e) => setPriceMax(e.target.value)}
-                      placeholder="Max" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6A00]" />
+                      placeholder="Max" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#e85d00]" />
                   </div>
                 </div>
                 {/* Date range */}
@@ -1566,9 +1559,9 @@ export default function UserDashboard() {
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Date</p>
                   <div className="flex gap-2">
                     <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6A00]" />
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#e85d00]" />
                     <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#FF6A00]" />
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#e85d00]" />
                   </div>
                 </div>
                 {/* Installment filter */}
@@ -1577,7 +1570,7 @@ export default function UserDashboard() {
                   <div className="flex gap-1.5">
                     {[{ key: 'all', label: 'Tous' }, { key: 'enabled', label: 'Avec tranche' }, { key: 'disabled', label: 'Sans' }].map((opt) => (
                       <button key={opt.key} type="button" onClick={() => setInstallmentFilter(opt.key)}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${installmentFilter === opt.key ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${installmentFilter === opt.key ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-600'}`}>
                         {opt.label}
                       </button>
                     ))}
@@ -1587,7 +1580,7 @@ export default function UserDashboard() {
                 <div className="flex gap-2 pt-1 border-t border-gray-100">
                   <input type="text" value={filterName} onChange={(e) => setFilterName(e.target.value)}
                     placeholder="Nom du filtre à sauvegarder..."
-                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#FF6A00]" />
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#e85d00]" />
                   <button type="button" onClick={saveCurrentFilter}
                     className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-semibold">
                     <Save className="w-3 h-3" /> Sauver
@@ -1613,16 +1606,16 @@ export default function UserDashboard() {
 
         {/* ── TAOBAO STATUS TABS (horizontal scroll) ── */}
         {!loading && items.length > 0 && (
-          <div className="border-b border-gray-100 bg-white md:sticky md:top-[52px] md:z-20">
-            <div className="flex overflow-x-auto px-4 gap-2 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="rounded-2xl border border-[#e2dcd2] bg-white md:sticky md:top-[68px] md:z-20">
+            <div className="flex gap-2 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {Object.entries(STATUS_LABELS).map(([key, label]) => {
                 const isActive = statusFilter === key && selectedStatuses.length === 0;
                 const count = key === 'all' ? stats.total : stats[key] || 0;
                 return (
                   <button key={key} type="button"
                     onClick={() => { setStatusFilter(key); setSelectedStatuses([]); }}
-                    className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
-                      isActive ? 'bg-[#FF6A00] text-white shadow-sm' : 'bg-gray-100 text-gray-600'
+                    className={`flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-full px-4 text-xs font-bold transition-all active:scale-95 ${
+                      isActive ? 'bg-black text-white' : 'bg-[#f5f2ee] text-[#6b6459]'
                     }`}>
                     {label}
                     {count > 0 && (
@@ -1649,13 +1642,13 @@ export default function UserDashboard() {
         {!loading && items.length === 0 && (
           <div className="bg-white px-8 py-16 text-center">
             <div className="mx-auto w-16 h-16 rounded-full bg-[#fff0e4] flex items-center justify-center mb-4">
-              <Package className="w-8 h-8 text-[#FF6A00]" />
+              <Package className="w-8 h-8 text-[#e85d00]" />
             </div>
             <h3 className="text-base font-black text-gray-900 mb-1">Aucune annonce</h3>
             <p className="text-sm text-gray-500 mb-5">Publiez votre première annonce pour commencer à vendre</p>
             <button type="button"
               onClick={() => { setEditingProduct(null); setProductModalOpen(true); }}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FF6A00] text-white font-bold text-sm shadow-sm active:scale-95 transition-transform">
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#e85d00] text-white font-bold text-sm shadow-sm active:scale-95 transition-transform">
               <Plus className="w-4 h-4" /> Publier une annonce
             </button>
           </div>
@@ -1667,7 +1660,7 @@ export default function UserDashboard() {
             <Filter className="w-8 h-8 text-gray-300 mx-auto mb-3" />
             <p className="text-sm font-semibold text-gray-600 mb-3">Aucune annonce pour ces filtres</p>
             <button type="button" onClick={clearAllFilters}
-              className="text-sm font-bold text-[#FF6A00] underline-offset-2 hover:underline">
+              className="text-sm font-bold text-[#e85d00] underline-offset-2 hover:underline">
               Réinitialiser les filtres
             </button>
           </div>
@@ -1721,11 +1714,11 @@ export default function UserDashboard() {
         {!loading && paginatedItems.length > 0 && (
           <>
             {/* Select all bar */}
-            <div className="bg-white border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center justify-between rounded-2xl border border-[#e2dcd2] bg-white px-4 py-3">
               <button type="button" onClick={selectAllProducts}
-                className="flex items-center gap-2 text-xs font-semibold text-gray-600 active:text-[#FF6A00] transition-colors">
+                className="flex items-center gap-2 text-xs font-semibold text-gray-600 active:text-[#e85d00] transition-colors">
                 {selectedProducts.size === paginatedItems.length && paginatedItems.length > 0 ? (
-                  <CheckSquare className="w-4 h-4 text-[#FF6A00]" />
+                  <CheckSquare className="w-4 h-4 text-[#e85d00]" />
                 ) : (
                   <Square className="w-4 h-4 text-gray-400" />
                 )}
@@ -1737,7 +1730,7 @@ export default function UserDashboard() {
               </span>
             </div>
 
-            <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4' : 'divide-y divide-gray-50 bg-white'}>
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'space-y-3'}>
               {paginatedItems.map((product) => {
                 const StatusIcon = STATUS_ICONS[product.status] || Clock;
                 const statusStyle = STATUS_STYLES[product.status] || STATUS_STYLES.pending;
@@ -1758,13 +1751,6 @@ export default function UserDashboard() {
 
                 // ── TAOBAO LIST ROW ──
                 if (viewMode === 'list') {
-                  const statusBorderColor = {
-                    approved: 'border-l-emerald-500',
-                    pending: 'border-l-amber-400',
-                    rejected: 'border-l-red-500',
-                    disabled: 'border-l-gray-300',
-                  }[product.status] || 'border-l-gray-200';
-
                   const statusBadgeStyle = {
                     approved: 'bg-emerald-50 text-emerald-700',
                     pending: 'bg-amber-50 text-amber-700',
@@ -1774,7 +1760,7 @@ export default function UserDashboard() {
 
                   return (
                     <div key={productId}
-                      className={`bg-white border-l-[3px] ${statusBorderColor} relative ${
+                      className={`relative overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_3px_14px_rgba(35,31,27,0.05)] ${
                         isRecentlyCreated ? 'bg-sky-50/30' : isSelected ? 'bg-[#fff8f5]' : ''
                       }`}>
 
@@ -1786,7 +1772,7 @@ export default function UserDashboard() {
                           className="mt-0.5 flex-shrink-0 active:scale-90 transition-transform"
                           aria-label={isSelected ? 'Désélectionner' : 'Sélectionner'}>
                           {isSelected
-                            ? <CheckSquare className="w-4.5 h-4.5 text-[#FF6A00]" />
+                            ? <CheckSquare className="w-4.5 h-4.5 text-[#e85d00]" />
                             : <Square className="w-4 h-4 text-gray-300" />}
                         </button>
 
@@ -1810,7 +1796,7 @@ export default function UserDashboard() {
                           )}
                           {/* Boosted indicator */}
                           {product.boosted && (
-                            <span className="absolute top-1 left-1 bg-[#FF6A00] text-white text-[9px] font-black px-1 py-0.5 rounded">
+                            <span className="absolute top-1 left-1 bg-[#e85d00] text-white text-[9px] font-black px-1 py-0.5 rounded">
                               ⚡
                             </span>
                           )}
@@ -1843,7 +1829,7 @@ export default function UserDashboard() {
 
                           {/* Price */}
                           <div className="flex items-baseline gap-1.5 mb-1">
-                            <span className="text-base font-black text-[#FF6A00]">{formatCurrency(product.price)}</span>
+                            <span className="text-base font-black text-[#231f1b]">{formatCurrency(product.price)}</span>
                             {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
                               <span className="text-xs text-gray-400 line-through">{formatCurrency(product.priceBeforeDiscount)}</span>
                             )}
@@ -1872,40 +1858,34 @@ export default function UserDashboard() {
                       </div>
 
                       {/* Action row */}
-                      <div className="flex divide-x divide-gray-100 border-t border-gray-50">
+                      <div className="flex gap-2 border-t border-[#eee8e0] px-3 py-3">
                         <Link to={`/my/annonce/${product.slug || productId}`}
-                          className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-gray-600 active:bg-gray-50 transition-colors">
+                          className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full bg-black px-4 text-xs font-black text-white transition-colors">
                           <FileText className="w-3.5 h-3.5" /> Détail
                         </Link>
                         <button type="button"
                           onClick={() => { setEditingProduct(product); setProductModalOpen(true); }}
-                          className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-gray-600 active:bg-gray-50 transition-colors">
-                          <Edit className="w-3.5 h-3.5" /> Modifier
+                          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] active:bg-[#f5f2ee] transition-colors" aria-label="Modifier">
+                          <Edit className="w-3.5 h-3.5" />
                         </button>
-                        {product.status === 'approved' && (
-                          <Link to={buildProductPath(product)} {...externalLinkProps}
-                            className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-gray-600 active:bg-gray-50 transition-colors">
-                            <Eye className="w-3.5 h-3.5" /> Voir
-                          </Link>
-                        )}
                         <button type="button"
                           onClick={() => setAnalyticsProduct({ id: productId, title: product.title })}
-                          className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-gray-600 active:bg-gray-50 transition-colors">
-                          <BarChart3 className="w-3.5 h-3.5" /> Stats
+                          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] active:bg-[#f5f2ee] transition-colors" aria-label="Statistiques">
+                          <BarChart3 className="w-3.5 h-3.5" />
                         </button>
                         {product.status !== 'disabled' ? (
                           <button type="button"
                             onClick={() => updateStatus(product.slug || product._id, 'disable')}
                             disabled={updatingId === product._id}
-                            className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-red-500 active:bg-red-50 transition-colors disabled:opacity-40">
-                            <PowerOff className="w-3.5 h-3.5" /> Off
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-red-200 text-red-600 active:bg-red-50 transition-colors disabled:opacity-40" aria-label="Désactiver">
+                            <PowerOff className="w-3.5 h-3.5" />
                           </button>
                         ) : (
                           <button type="button"
                             onClick={() => updateStatus(product.slug || product._id, 'enable')}
                             disabled={updatingId === product._id}
-                            className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-emerald-600 active:bg-emerald-50 transition-colors disabled:opacity-40">
-                            <Power className="w-3.5 h-3.5" /> On
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-emerald-200 text-emerald-700 active:bg-emerald-50 transition-colors disabled:opacity-40" aria-label="Activer">
+                            <Power className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -2033,7 +2013,7 @@ export default function UserDashboard() {
                           {product.title}
                         </h3>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-black text-neutral-600">
+                          <span className="text-xl font-black text-[#231f1b]">
                             {formatCurrency(product.price)}
                           </span>
                           {product.priceBeforeDiscount && product.priceBeforeDiscount > product.price && (
@@ -2229,7 +2209,7 @@ export default function UserDashboard() {
       {isMobile && sellingEnabled && (
         <button type="button"
           onClick={() => { setEditingProduct(null); setProductModalOpen(true); }}
-          className="fixed bottom-24 right-4 z-30 w-14 h-14 rounded-full bg-[#FF6A00] text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform"
+          className="fixed bottom-24 right-4 z-30 w-14 h-14 rounded-full bg-[#e85d00] text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform"
           style={{ boxShadow: '0 8px 24px rgba(255,106,0,0.45)' }}
           aria-label="Publier une annonce">
           <Plus className="w-6 h-6" />

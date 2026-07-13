@@ -156,7 +156,7 @@ const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => (
         <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-slate-400">
           {title}
         </p>
-        <p className={`mt-2 text-3xl font-black leading-none ${highlight ? 'text-[#FF6A00]' : 'text-gray-900 dark:text-slate-100'}`}>
+        <p className={`mt-2 text-3xl font-black leading-none ${highlight ? 'text-[#e85d00]' : 'text-gray-900 dark:text-slate-100'}`}>
           {value}
         </p>
         {helper && (
@@ -169,7 +169,7 @@ const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => (
         )}
       </div>
       {Icon && (
-        <span className="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+        <span className="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
           <Icon size={20} strokeWidth={2.2} />
         </span>
       )}
@@ -511,11 +511,11 @@ export default function AdminProducts() {
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-6 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 dark:border-slate-700 dark:bg-slate-900 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#FF6A00]">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFF0E4] text-[#e85d00]">
               <Package size={24} strokeWidth={2.2} />
             </div>
             <div>
-              <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#FF6A00]">
+              <p className="inline-flex items-center rounded-full bg-[#FFF0E4] px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                 Catalogue
               </p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-gray-900 dark:text-slate-100 sm:text-3xl">
@@ -544,7 +544,7 @@ export default function AdminProducts() {
             </button>
             <Link
               to="/admin/product-boosts"
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#FF6A00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
             >
               <Sparkles size={16} />
               Boosts
@@ -584,7 +584,7 @@ export default function AdminProducts() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
                   <Filter size={20} />
                 </div>
                 <div>
@@ -621,13 +621,13 @@ export default function AdminProducts() {
                     }}
                     className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition active:scale-[0.97] ${
                       active
-                        ? 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                        ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
                         : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
                     }`}
                   >
                     {option.title}
                     {Number(option.count) > 0 ? (
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#FF6A00]'}`}>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/25 text-white' : 'bg-[#FFF0E4] text-[#e85d00]'}`}>
                         {Number(option.count) > 999 ? '999+' : Number(option.count)}
                       </span>
                     ) : null}
@@ -645,7 +645,7 @@ export default function AdminProducts() {
                     setPage(1);
                   }}
                   placeholder="Rechercher par titre ou description..."
-                  className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-4 py-3 pl-11 text-sm transition focus:border-[#FF6A00] focus:bg-white focus:outline-none"
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-4 py-3 pl-11 text-sm transition focus:border-[#e85d00] focus:bg-white focus:outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -779,7 +779,7 @@ export default function AdminProducts() {
                             setDetailMessage('');
                             setDetailError('');
                           }}
-                          className="inline-flex items-center gap-2 rounded-full bg-[#FFF0E4] px-3 py-1 text-xs font-black text-[#FF6A00] transition hover:bg-orange-100"
+                          className="inline-flex items-center gap-2 rounded-full bg-[#FFF0E4] px-3 py-1 text-xs font-black text-[#e85d00] transition hover:bg-orange-100"
                         >
                           Détails
                           <ChevronRight className="w-3 h-3" />
@@ -879,7 +879,7 @@ export default function AdminProducts() {
                 type="button"
                 onClick={handleSearchUsers}
                 disabled={searchingUsers || !userSearchQuery.trim()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-2 text-sm font-black text-white transition hover:bg-[#f05f00] disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 py-2 text-sm font-black text-white transition hover:bg-[#f05f00] disabled:opacity-60"
               >
                 <Search size={14} />
                 Rechercher
@@ -910,7 +910,7 @@ export default function AdminProducts() {
                         className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-70 ${
                           isManagerUser
                             ? 'bg-red-600 text-white hover:bg-red-700'
-                            : 'bg-[#FF6A00] text-white hover:bg-[#f05f00]'
+                            : 'bg-[#e85d00] text-white hover:bg-[#f05f00]'
                         }`}
                       >
                         {isBusy ? (
@@ -1114,7 +1114,7 @@ export default function AdminProducts() {
                         type="button"
                         onClick={handleCertificationToggle}
                         disabled={detailBusy}
-                        className="min-h-[44px] w-full rounded-xl bg-[#FF6A00] px-4 py-2 text-xs font-black text-white transition hover:bg-[#f05f00] disabled:opacity-60"
+                        className="min-h-[44px] w-full rounded-xl bg-[#e85d00] px-4 py-2 text-xs font-black text-white transition hover:bg-[#f05f00] disabled:opacity-60"
                       >
                         {selectedProduct.certified ? 'Retirer la certification' : 'Certifier ce produit'}
                       </button>

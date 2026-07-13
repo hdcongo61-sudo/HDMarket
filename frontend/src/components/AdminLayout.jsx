@@ -23,12 +23,10 @@ import {
   UserX,
   Menu,
   X,
-  Search,
   ChevronDown
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
-import useOfflineQueueStats from '../hooks/useOfflineQueueStats';
 
 const ADMIN_UI_STATE_KEY = 'hdmarket:admin-ui-state';
 const ADMIN_GROUP_ORDER = ['overview', 'commerce', 'operations', 'system', 'founder'];
@@ -90,7 +88,6 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
     label: t('nav.adminDashboard', 'Tableau de bord'),
     icon: LayoutDashboard,
     group: 'overview',
-    badge: Number(counters?.pendingTasks || 0),
     show: (u) =>
       u?.role === 'admin' ||
       u?.role === 'manager' ||
@@ -99,7 +96,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
   },
   {
     to: '/admin/task-center',
-    label: t('nav.taskCenter', 'Pending actions'),
+    label: t('nav.taskCenter', 'Centre de tâches'),
     icon: AlertCircle,
     group: 'overview',
     badge: Number(counters?.pendingTasks || 0),
@@ -115,7 +112,6 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
     label: t('nav.deliveryRequests', 'Demandes livraison'),
     icon: Truck,
     group: 'operations',
-    badge: Number(counters?.pendingTasksByType?.deliveryOps || 0),
     show: (u) =>
       platformDeliveryEnabled &&
       (u?.role === 'admin' ||
@@ -137,7 +133,6 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
     label: t('nav.complaints', 'Réclamations'),
     icon: AlertCircle,
     group: 'operations',
-    badge: Number(counters?.pendingTasksByType?.disputes || 0),
     show: (u) =>
       u?.role === 'admin' ||
       u?.role === 'manager' ||
@@ -147,35 +142,19 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
   },
   { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
   { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres app'), icon: SlidersHorizontal, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/system-settings', label: t('nav.systemSettings', 'Paramètres système'), icon: SlidersHorizontal, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres'), icon: SlidersHorizontal, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
   { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderTree, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/feedback', label: t('nav.feedback', 'Avis amélioration'), icon: MessageSquare, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canReadFeedback || hasAnyPermission(u, ['read_feedback']) },
-  {
-    to: '/admin/payment-verification',
-    label: t('nav.verifyPayments', 'Vérifier paiements'),
-    icon: CheckCircle,
-    group: 'operations',
-    badge: Number(counters?.pendingTasksByType?.productValidation || 0) + Number(counters?.waitingPayments || 0),
-    show: (u) =>
-      u?.role === 'admin' ||
-      u?.role === 'founder' ||
-      u?.canVerifyPayments ||
-      hasAnyPermission(u, ['verify_payments'])
-  },
   {
     to: '/admin/product-boosts',
-    label: t('nav.productBoosts', 'Boost produits'),
+    label: t('nav.productBoosts', 'Boosts'),
     icon: Sparkles,
     group: 'commerce',
-    badge: Number(counters?.pendingTasksByType?.boostApproval || 0),
     show: (u) =>
       u?.role === 'admin' ||
       u?.role === 'founder' ||
       u?.canManageBoosts ||
       hasAnyPermission(u, ['manage_boosts'])
   },
-  { to: '/admin/boost-management', label: t('nav.boostPricing', 'Tarification boost'), icon: Sparkles, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageBoosts || hasAnyPermission(u, ['manage_boosts']) },
   { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
   { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, group: 'founder', show: (u) => u?.role === 'founder' },
   { to: '/admin/founder-notifications-intelligence', label: t('nav.founderNotificationsIntelligence', 'Notif Intelligence'), icon: Crown, group: 'founder', badge: Number(counters?.pendingTasks || 0), show: (u) => u?.role === 'founder' },
@@ -186,11 +165,9 @@ export default function AdminLayout() {
   const { user } = useContext(AuthContext);
   const { t, getRuntimeValue } = useAppSettings();
   const { counts: adminCounts } = useAdminCounts(Boolean(user));
-  const { total: offlineQueueTotal } = useOfflineQueueStats();
   const storageKey = useMemo(() => buildAdminUiStateStorageKey(user), [user]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sidebarQuery, setSidebarQuery] = useState('');
   const [collapsedSections, setCollapsedSections] = useState({ ...DEFAULT_COLLAPSED_SECTIONS });
   const isManager = user?.role === 'manager';
   const isFounder = user?.role === 'founder';
@@ -203,14 +180,23 @@ export default function AdminLayout() {
     );
 
   const navItems = buildNavItems(t, platformDeliveryEnabled, adminCounts);
-  const visibleItems = navItems.filter((item) => item.show(user));
-  const normalizedSidebarQuery = String(sidebarQuery || '').trim().toLowerCase();
-  const filteredItems = useMemo(() => {
-    if (!normalizedSidebarQuery) return visibleItems;
-    return visibleItems.filter((item) =>
-      String(item.label || '').toLowerCase().includes(normalizedSidebarQuery)
-    );
-  }, [visibleItems, normalizedSidebarQuery]);
+  const mergedNavItems = navItems
+    .filter((item) => ![
+      '/admin/delivery-guys',
+      '/delivery/dashboard',
+      '/admin/settings/categories',
+      '/admin/founder-notifications-intelligence',
+      '/admin/founder-account-control'
+    ].includes(item.to))
+    .map((item) => {
+      if (item.to === '/admin/payments') return { ...item, label: 'Paiements & vérification' };
+      if (item.to === '/admin/product-boosts') return { ...item, label: 'Boosts & tarification' };
+      if (item.to === '/admin/settings') return { ...item, label: 'Paramètres système' };
+      if (item.to === '/admin/chat-templates') return { ...item, label: 'Messages & avis' };
+      return item;
+    });
+  const visibleItems = mergedNavItems.filter((item) => item.show(user));
+  const filteredItems = visibleItems;
   const groupedItems = useMemo(() => {
     const buckets = {
       overview: [],
@@ -305,7 +291,7 @@ export default function AdminLayout() {
       const items = groupedItems[groupKey] || [];
       if (!items.length) return null;
       const sectionCollapsed =
-        !collapsed && !normalizedSidebarQuery && Boolean(collapsedSections[groupKey]);
+        !collapsed && Boolean(collapsedSections[groupKey]);
       return (
         <section key={groupKey} className={collapsed ? 'space-y-1' : 'space-y-1.5'}>
           {!collapsed ? (
@@ -337,19 +323,12 @@ export default function AdminLayout() {
         <button
           type="button"
           onClick={() => setMobileMenuOpen((o) => !o)}
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-[#7a4a24] shadow-sm hover:text-[#ff6a00] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#e2dcd2] bg-white text-[#231f1b] hover:text-[#e85d00] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
           aria-label={mobileMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
-        <div className="inline-flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</span>
-          {offlineQueueTotal > 0 ? (
-            <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
-              {offlineQueueTotal > 99 ? '99+' : offlineQueueTotal}
-            </span>
-          ) : null}
-        </div>
+        <span className="text-sm font-black text-[#231f1b] dark:text-white">HDMarket Admin</span>
         <div className="w-10" />
       </header>
 
@@ -367,13 +346,9 @@ export default function AdminLayout() {
       >
           <div className="border-b border-white/35 px-4 py-4">
             <div className="flex items-center justify-between">
-              <div className="inline-flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900 dark:text-white">{roleLabel}</span>
-                {offlineQueueTotal > 0 ? (
-                  <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
-                    {offlineQueueTotal > 99 ? '99+' : offlineQueueTotal}
-                  </span>
-                ) : null}
+              <div>
+                <p className="text-sm font-black text-[#231f1b] dark:text-white">HDMarket Admin</p>
+                <p className="text-xs text-[#8a8378]">Rôle : {roleLabel}</p>
               </div>
             <button
               type="button"
@@ -384,15 +359,6 @@ export default function AdminLayout() {
               <X size={20} />
             </button>
           </div>
-          <div className="mt-3 relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={sidebarQuery}
-              onChange={(event) => setSidebarQuery(event.target.value)}
-              placeholder={t('nav.searchMenu', 'Rechercher un menu')}
-              className="ui-input w-full rounded-xl bg-white/70 py-2 pl-9 pr-3 text-sm text-slate-700"
-            />
-          </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
           {renderSectionList(false, () => setMobileMenuOpen(false))}
@@ -401,7 +367,7 @@ export default function AdminLayout() {
 
       <aside
         className={`hidden shrink-0 flex-col border-r border-neutral-200 bg-white/92 backdrop-blur-xl transition-[width] duration-200 dark:border-neutral-800 dark:bg-neutral-950/92 lg:flex lg:h-full ${
-          sidebarCollapsed ? 'w-[78px]' : 'w-[292px]'
+          sidebarCollapsed ? 'w-[78px]' : 'w-[236px]'
         }`}
       >
         <div className="flex h-full flex-col">
@@ -409,17 +375,12 @@ export default function AdminLayout() {
             <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} gap-2`}>
               {!sidebarCollapsed ? (
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FF6A00] shadow-[0_8px_18px_rgba(255,106,0,0.28)]">
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black">
                     <span className="text-sm font-black tracking-tight text-white">HD</span>
-                    {offlineQueueTotal > 0 ? (
-                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-violet-500 px-1 py-0.5 text-[10px] font-semibold text-white">
-                        {offlineQueueTotal > 99 ? '99+' : offlineQueueTotal}
-                      </span>
-                    ) : null}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-slate-900 dark:text-white">HDMarket · {roleLabel}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-300">{visibleItems.length} menus</p>
+                    <p className="truncate text-sm font-black text-[#231f1b] dark:text-white">HDMarket Admin</p>
+                    <p className="text-xs text-[#8a8378]">Rôle : {roleLabel}</p>
                   </div>
                 </div>
               ) : null}
@@ -432,33 +393,10 @@ export default function AdminLayout() {
                 {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
               </button>
             </div>
-            {!sidebarCollapsed ? (
-              <div className="mt-3 relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={sidebarQuery}
-                  onChange={(event) => setSidebarQuery(event.target.value)}
-                  placeholder={t('nav.searchMenu', 'Rechercher un menu')}
-                  className="ui-input w-full rounded-xl bg-white/70 py-2 pl-9 pr-3 text-sm text-slate-700"
-                />
-              </div>
-            ) : null}
           </div>
           <nav className={`flex-1 overflow-y-auto overscroll-contain ${sidebarCollapsed ? 'px-2 py-3 space-y-2' : 'px-2.5 py-3 space-y-4'}`}>
             {renderSectionList(sidebarCollapsed)}
           </nav>
-          {!sidebarCollapsed ? (
-            <div className="border-t border-white/35 px-3 py-3">
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                  Navigation
-                </p>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  Les sections sont filtrables via la barre de recherche.
-                </p>
-              </div>
-            </div>
-          ) : null}
         </div>
       </aside>
 

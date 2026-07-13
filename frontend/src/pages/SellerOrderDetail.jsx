@@ -42,6 +42,7 @@ import InstallmentReminder from '../components/orders/InstallmentReminder';
 import InstallmentOrderTracking from '../components/orders/InstallmentOrderTracking';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
+import OrderMiniRail from '../components/orders/OrderMiniRail';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
@@ -1128,9 +1129,21 @@ export default function SellerOrderDetail() {
     { key: 'cancelled', label: 'Annulée', icon: X, time: order.cancelledAt }
   ].filter((entry) => Boolean(entry.time));
   const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
+  const compactProgressSteps = buildProgressSteps({
+    isInstallment: isInstallmentOrder,
+    isPickup: isPickupOrder
+  });
+  const compactRailStatus = getSellerTimelineStatus(order, installmentWorkflow?.workflowStatus);
+  const compactProgressIndex = order.status === 'cancelled'
+    ? 0
+    : resolveProgressStepIndex({ status: compactRailStatus, isInstallment: isInstallmentOrder });
+  const compactProgress = order.status === 'cancelled'
+    ? 100
+    : compactProgressSteps.length > 1
+      ? (compactProgressIndex / (compactProgressSteps.length - 1)) * 100
+      : 100;
   const openCancelModal = ({ prefillReason = '', defaultRefund = false } = {}) => {
     setCancelModalOpen(true);
-    setCancelIssueRefund(Boolean(defaultRefund && Number(order?.paidAmount || 0) > 0));
     if (prefillReason) {
       setCancelReason((currentReason) =>
         String(currentReason || '').trim() ? currentReason : prefillReason
@@ -1174,11 +1187,86 @@ export default function SellerOrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
+        <section className="space-y-3 md:hidden">
+          <article className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_4px_16px_rgba(35,31,27,0.06)]">
+            <div className="border-b border-[#eee8e0] px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <button type="button" onClick={() => copyToClipboard(order._id.slice(-6).toUpperCase(), 'orderId')} className="inline-flex min-h-11 items-center gap-2 text-left">
+                    <span className="text-base font-black text-[#231f1b]">Commande #{order._id.slice(-6)}</span>
+                    {copiedKey === 'orderId' ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-[#8a8378]" />}
+                  </button>
+                  <p className="text-xs font-semibold text-[#8a8378]">{formatOrderTimestamp(order.createdAt) || 'Date non disponible'}</p>
+                </div>
+                <StatusBadge status={displayStatusLabel} compact />
+              </div>
+              <OrderMiniRail className="mt-3" progress={compactProgress} stops={compactProgressSteps.length} step={compactProgressIndex + 1} urgent={order.status === 'cancelled'} label={STATUS_LABELS[displayStatusLabel] || displayStatusLabel} />
+            </div>
+
+            <div className="space-y-3 p-4">
+              {orderItems.map((item, index) => {
+                const image = item.snapshot?.image || item.product?.images?.[0];
+                return (
+                  <div key={`${order._id}-seller-compact-${index}`} className="flex gap-3">
+                    {image ? <img src={image} alt={item.snapshot?.title || 'Produit'} className="h-16 w-16 shrink-0 rounded-xl border border-[#eee8e0] object-cover" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-[#f5f2ee]"><Package className="h-5 w-5 text-[#8a8378]" /></div>}
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-black leading-5 text-[#231f1b]">{item.snapshot?.title || 'Produit'} × {item.quantity || 1}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#6b6459]">{isInstallmentOrder ? `Acompte ${formatCurrency(installmentPaid)} · reste ${formatCurrency(installmentRemaining)}` : paymentModeLabel}</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-black text-[#231f1b]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</p>
+                  </div>
+                );
+              })}
+
+              <div className="flex items-center justify-between rounded-xl bg-[#f5f2ee] px-3 py-3">
+                <span className="text-xs font-bold text-[#6b6459]">Total commande</span>
+                <span className="text-lg font-black text-[#231f1b]">{formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}</span>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-xl border border-[#eee8e0] px-3 py-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-sm font-black text-[#c2410c]">{String(order.customer?.name || 'C').charAt(0).toUpperCase()}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black text-[#231f1b]">{order.customer?.name || 'Client'}</p>
+                  <p className="truncate text-xs text-[#8a8378]">{order.deliveryAddress || order.deliveryCity || 'Adresse non renseignée'}</p>
+                </div>
+                {orderContactPhone ? <a href={`tel:${orderContactPhone}`} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#231f1b]" aria-label="Appeler le client"><Phone className="h-4 w-4" /></a> : null}
+              </div>
+
+              {order.deliveryCode ? (
+                <div className="flex items-center justify-between rounded-xl border border-[#eee8e0] px-3 py-3">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-wide text-[#8a8378]">Code de livraison</p>
+                    <p className="mt-1 font-mono text-xl font-black tracking-[0.22em] text-[#231f1b]">••••</p>
+                  </div>
+                  <button type="button" onClick={() => copyToClipboard(order.deliveryCode, 'deliveryCode')} className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs font-black text-[#c2410c]">{copiedKey === 'deliveryCode' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copiedKey === 'deliveryCode' ? 'Copié' : 'Copier'}</button>
+                </div>
+              ) : null}
+
+              <OrderChat order={order} buttonText="Contacter l’acheteur" unreadCount={unreadCount} />
+
+              {sellerPrimaryAction ? (
+                <button type="button" onClick={handlePrimarySellerAction} disabled={sellerPrimaryAction.disabled || Boolean(statusUpdatingId) || statusMutation.isReliablePending || saleConfirmationLoading || paymentValidationLoadingIndex >= 0 || order.cancellationWindow?.isActive} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#0d0d0d] px-4 text-sm font-black text-white disabled:opacity-60">
+                  {statusMutation.isReliablePending || Boolean(statusUpdatingId) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+                  {sellerPrimaryAction.label}
+                </button>
+              ) : null}
+
+              {canShowDeliveryProofForm ? (
+                <div ref={deliveryProofFormRef} tabIndex={-1} className="scroll-mt-24 rounded-xl border border-[#e2dcd2] p-3 outline-none">
+                  <DeliveryProofUpload orderId={order._id} initialProofs={order.deliveryProofImages || []} mode={canRequestPickupProof ? 'pickup' : 'delivery'} minFiles={canRequestPickupProof ? 3 : 1} onSuccess={(updatedOrder) => { if (updatedOrder?._id) { applyOrderToSellerCaches(updatedOrder); setShowDeliveryProofForm(false); showToast(canRequestPickupProof ? 'Preuve de retrait enregistrée et retrait confirmé.' : 'Preuve de livraison envoyée au client.', { variant: 'success' }); invalidateOrderQueries(); } else { loadOrder(); } }} />
+                </div>
+              ) : null}
+
+              {canCancelOrder ? <button type="button" onClick={() => openCancelModal({ defaultRefund: cityMismatch })} className="min-h-11 w-full text-center text-xs font-black text-red-700">Annuler la commande</button> : null}
+            </div>
+          </article>
+        </section>
+
         <motion.div
           {...riseIn(reduceMotion, 0)}
-          className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)]"
+          className="hidden overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)] md:block"
         >
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#ff6a00] via-[#ff3d13] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
+          <div className="relative overflow-hidden bg-gradient-to-br from-[#e85d00] via-[#e85d00] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-4">
@@ -1243,13 +1331,13 @@ export default function SellerOrderDetail() {
               <div className="bg-white px-5 pb-3 pt-4 dark:bg-neutral-950 sm:px-7">
                 <div className="mb-2.5 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-wide text-gray-500">Suivi</p>
-                  <p className={`text-[11px] font-black ${cancelled ? 'text-rose-600' : 'text-[#FF6A00]'}`}>
+                  <p className={`text-[11px] font-black ${cancelled ? 'text-rose-600' : 'text-[#e85d00]'}`}>
                     {cancelled ? 'Commande annulée' : `Étape ${stepIndex + 1}/${steps.length}`}
                   </p>
                 </div>
                 <div className="relative h-1.5 rounded-full bg-gray-100 dark:bg-neutral-800">
                   <motion.div
-                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-gradient-to-r from-[#FFB000] to-[#FF6A00]'}`}
+                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-gradient-to-r from-[#FFB000] to-[#e85d00]'}`}
                     initial={reduceMotion ? { width: `${fillPct}%` } : { width: 0 }}
                     animate={{ width: `${fillPct}%` }}
                     transition={{ duration: reduceMotion ? 0 : 0.9, ease: 'easeOut', delay: reduceMotion ? 0 : 0.3 }}
@@ -1268,7 +1356,7 @@ export default function SellerOrderDetail() {
                             cancelled
                               ? 'bg-rose-300'
                               : done
-                                ? 'bg-[#FF6A00]'
+                                ? 'bg-[#e85d00]'
                                 : 'bg-gray-200 dark:bg-neutral-700'
                           } ${current && !reduceMotion ? 'animate-pulse' : ''}`}
                         />
@@ -1298,7 +1386,7 @@ export default function SellerOrderDetail() {
             <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00] ring-1 ring-gray-200">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
                     <Package className="w-4 h-4" />
                   </span>
                   <div>
@@ -1323,13 +1411,13 @@ export default function SellerOrderDetail() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2 mb-1">
                         {item.product ? (
-                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="line-clamp-2 font-black text-gray-900 hover:text-[#FF6A00]">
+                          <Link to={buildProductPath(item.product)} {...externalLinkProps} className="line-clamp-2 font-black text-gray-900 hover:text-[#e85d00]">
                             {item.snapshot?.title || 'Produit'}
                           </Link>
                         ) : (
                           <span className="font-bold text-gray-900">{item.snapshot?.title || 'Produit'}</span>
                         )}
-                        <span className="whitespace-nowrap text-sm font-black text-[#FF6A00]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</span>
+                        <span className="whitespace-nowrap text-sm font-black text-[#e85d00]">{formatCurrency((item.snapshot?.price || 0) * (item.quantity || 1))}</span>
                       </div>
                       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
                         <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">Qté {item.quantity || 1}</span>
@@ -1490,7 +1578,7 @@ export default function SellerOrderDetail() {
                 )}
                 <div className="flex justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-3">
                   <span className="text-sm font-semibold text-gray-600">Total commande</span>
-                  <span className="text-xl font-black text-[#FF6A00]">
+                  <span className="text-xl font-black text-[#e85d00]">
                     {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
                   </span>
                 </div>
@@ -1853,7 +1941,7 @@ export default function SellerOrderDetail() {
             {sellerPrimaryAction ? (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                  <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
                   <h4 className="text-sm font-black text-gray-900">
                     Action suivante
                   </h4>
@@ -1899,7 +1987,7 @@ export default function SellerOrderDetail() {
             {canSendConfirmationReminder ? (
               <div className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/70 p-4 shadow-[0_12px_30px_rgba(117,75,36,0.06)]">
                 <div className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#FF6A00] ring-1 ring-amber-100">
+                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#e85d00] ring-1 ring-amber-100">
                     <ShieldCheck className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -1913,7 +2001,7 @@ export default function SellerOrderDetail() {
                   type="button"
                   onClick={handleSendConfirmationReminder}
                   disabled={confirmationReminderLoading}
-                  className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#FF6A00] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,106,0,0.20)] transition hover:bg-[#e85f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,106,0,0.20)] transition hover:bg-[#e85f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {confirmationReminderLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1928,7 +2016,7 @@ export default function SellerOrderDetail() {
             {canManageInstallmentSaleStatus && !sellerPrimaryAction && (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                  <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
                   <h4 className="text-sm font-black text-gray-900">
                     Mettre à jour le statut de vente
                   </h4>
@@ -2016,7 +2104,7 @@ export default function SellerOrderDetail() {
               ) && (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#FF6A00]" />
+                  <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
                   <h4 className="text-sm font-black text-gray-900">
                     Mettre à jour le statut {isPickupOrder ? '(retrait boutique)' : ''}
                   </h4>
@@ -2432,11 +2520,11 @@ export default function SellerOrderDetail() {
             <div className="space-y-3 rounded-xl border border-orange-200 bg-orange-50 p-3">
               <div>
                 <p className="text-xs font-black text-orange-900">Remboursement intégral obligatoire</p>
-                <p className="mt-1 text-sm font-black text-[#ff6a00]">{formatCurrency(order.paidAmount)} — en une seule fois</p>
+                <p className="mt-1 text-sm font-black text-[#e85d00]">{formatCurrency(order.paidAmount)} — en une seule fois</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {['wallet', 'mobile_money'].map((method) => (
-                  <button key={method} type="button" onClick={() => setCancelRefundMethod(method)} className={`rounded-xl border px-3 py-2 text-xs font-black ${cancelRefundMethod === method ? 'border-[#ff6a00] bg-white text-[#ff6a00]' : 'border-orange-100 text-gray-600'}`}>
+                  <button key={method} type="button" onClick={() => setCancelRefundMethod(method)} className={`rounded-xl border px-3 py-2 text-xs font-black ${cancelRefundMethod === method ? 'border-[#e85d00] bg-white text-[#e85d00]' : 'border-orange-100 text-gray-600'}`}>
                     {method === 'wallet' ? 'Portefeuille' : 'Mobile Money'}
                   </button>
                 ))}

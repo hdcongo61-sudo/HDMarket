@@ -23,6 +23,8 @@ import {
   CreditCard,
   Receipt,
   ShieldCheck,
+  MessageCircle,
+  Ellipsis,
   ChevronDown,
   ChevronRight,
   RefreshCw
@@ -500,10 +502,12 @@ const OrderProgress = ({ status }) => {
 // Compact order summary card - links to seller order detail page
 const MotionLink = motion.create(Link);
 
-const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
+const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount = 0 }) => {
   const { t } = useAppSettings();
   const { user } = useContext(AuthContext);
   const reduceMotion = useReducedMotion();
+  const [expanded, setExpanded] = useState(index === 1);
+  const [deliveryCodeVisible, setDeliveryCodeVisible] = useState(false);
   const orderItems = getOrderItems(order);
   const totalAmount = getOrderTotal(order);
   const uiState = getOrderUiState(order, 'seller');
@@ -515,9 +519,6 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
     isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status)
       ? order.installmentSaleStatus || 'confirmed'
       : order.installmentSaleStatus || '';
-  const installmentProgress =
-    installmentTotal > 0 ? Math.min(100, Math.round((installmentPaid / installmentTotal) * 100)) : 0;
-  const fullPaymentBadgeStatus = getFullPaymentBadgeStatus(order);
   const pickupCardStatus = getPickupCardStatus(order);
   const installmentFulfilmentBadge =
     isInstallmentOrder && ['installment_paid', 'completed'].includes(order.status)
@@ -536,38 +537,39 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
   const customerName = order.customer?.name || t('orders.customer', 'Client');
   const isOwnOrder = assistantShop?._id && order.customer?._id &&
     String(order.customer._id) === String(user?._id || user?.id);
+  const compactActionLabel = /confirm/i.test(uiState.primaryAction.label)
+    ? 'Confirmer'
+    : /expédi|livr/i.test(uiState.primaryAction.label)
+      ? 'Expédier'
+      : uiState.primaryAction.label;
 
   return (
-    <MotionLink
+    <motion.article
       {...riseIn(reduceMotion, Math.min(index, 6) * 0.06)}
-      to={`/seller/orders/detail/${order._id}`}
-      className="group block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_12px_28px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(117,75,36,0.14)] dark:border-orange-900/30 dark:bg-neutral-950 sm:rounded-2xl sm:shadow-[0_16px_38px_rgba(117,75,36,0.10)]"
+      className={`group block overflow-hidden rounded-2xl bg-white transition dark:bg-neutral-950 ${expanded ? 'border-[1.5px] border-[#e2dcd2] shadow-[0_4px_16px_rgba(117,75,36,0.08)]' : 'border border-[#eee8e0] shadow-[0_2px_10px_rgba(117,75,36,0.05)]'}`}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900/70 sm:gap-3 sm:px-4 sm:py-3">
+      <button type="button" onClick={() => setExpanded((value) => !value)} className={`flex w-full items-center justify-between gap-2 px-3.5 py-3 text-left sm:px-4 ${expanded ? 'border-b border-[#f5f2ee]' : ''}`} aria-expanded={expanded}>
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-100 text-[#FF6A00]">
-            <User className="w-3.5 h-3.5" />
-          </span>
-          <span className="truncate text-sm font-black text-gray-950 dark:text-white sm:text-base">{customerName}</span>
+          <span className="truncate text-sm font-black text-gray-950 dark:text-white">#{String(order._id || '').slice(-6)}</span>
+          <span className="text-[11px] text-[#a49c8f]">· {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}</span>
           {isOwnOrder && (
             <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
               Ma commande
             </span>
           )}
-          <ChevronRight className="w-4 h-4 text-orange-300 flex-shrink-0" />
         </div>
         <StatusBadge status={statusBadgeKey} />
-      </div>
+      </button>
       <OrderMiniRail
         label={uiState.nextStep}
         progress={uiState.progress}
         urgent={uiState.isUrgent}
         stops={isInstallmentOrder ? 4 : 5}
-        className="px-3 pt-2.5 sm:px-4 sm:pt-3"
+        className="hidden"
       />
-      <div className="flex gap-3 p-3 sm:p-4">
+      <div className={`flex items-center gap-2.5 px-3.5 ${expanded ? 'py-3' : 'pb-3.5'} sm:px-4`}>
         {firstItem?.snapshot?.image ? (
-          <div className="h-[76px] w-[76px] flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100 sm:h-24 sm:w-24 sm:rounded-xl">
+          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-[10px] bg-gray-100">
             <img
               src={firstItem.snapshot.image}
               alt={productTitle}
@@ -577,70 +579,48 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
             />
           </div>
         ) : (
-          <div className="flex h-[76px] w-[76px] flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100 sm:h-24 sm:w-24 sm:rounded-xl">
-            <Package className="w-8 h-8 text-[#FF6A00]" />
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[10px] bg-gray-100">
+            <Package className="h-5 w-5 text-[#e85d00]" />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm font-black leading-5 text-gray-950 dark:text-white">{productTitle}</p>
+          <p className="truncate text-[13px] font-bold text-gray-950 dark:text-white">{productTitle} × {firstItem?.quantity ?? 1}{!expanded ? ` · ${customerName}` : ''}</p>
           {itemCount > 1 && <p className="text-xs text-gray-500 mt-0.5">+{itemCount - 1} autre{itemCount > 2 ? 's' : ''}</p>}
-          <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-600 sm:text-sm">
-            <span>{formatCurrency(firstItem?.snapshot?.price ?? 0)}</span>
-            <span className="text-gray-400">×</span>
-            <span>{firstItem?.quantity ?? 1}</span>
-          </div>
+          {expanded && isInstallmentOrder ? <p className="mt-0.5 truncate text-[11px] text-[#8a8378]">Acompte {formatCurrency(installmentPaid)} versé · reste {formatCurrency(Math.max(0, installmentTotal - installmentPaid))}</p> : null}
+          {!expanded ? <p className="mt-1 text-[15px] font-black text-neutral-950">{formatCurrency(totalAmount)}</p> : null}
           <SelectedAttributesList
             selectedAttributes={firstItem?.selectedAttributes}
             compact
             className="mt-2"
           />
-          {isInstallmentOrder && (
-            <div className="mt-2 space-y-1">
-              <p className="text-xs font-bold text-gray-500">
-                {t('orders.installment', 'Tranche')}: {installmentProgress}% {t('orders.validated', 'validé')}
-              </p>
-              <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                <div
-                  className="h-full bg-[#FF6A00]"
-                  style={{ width: `${installmentProgress}%` }}
-                />
-              </div>
-              {['installment_paid', 'completed'].includes(order.status) && (
-                <p className="text-[11px] text-gray-500">
-                  {t('orders.saleStatus', 'Statut vente')}: {INSTALLMENT_SALE_STATUS_LABELS[installmentSaleStatus] || t('orders.confirmedFeminine', 'Confirmée')}
-                </p>
-              )}
-            </div>
-          )}
         </div>
-      </div>
-      <div className="flex flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-          {isInstallmentOrder ? (
-            <StatusBadge paymentType="installment" compact />
-          ) : (
-            <StatusBadge status={fullPaymentBadgeStatus} compact />
-          )}
-          <div className="flex min-w-0 items-center justify-end gap-2">
-            <span className="truncate text-sm font-black text-[#FF6A00] sm:text-base">{formatCurrency(totalAmount)}</span>
-            <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
-              uiState.primaryAction.tone === 'urgent'
-                ? 'bg-red-50 text-red-700'
-                : uiState.primaryAction.tone === 'muted'
-                  ? 'bg-gray-100 text-gray-500'
-                  : 'bg-[#FF6A00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.18)]'
-            }`}>
-              {uiState.primaryAction.label}
-            </span>
-          </div>
-        </div>
-        {Number(order.deliveryFeeTotal ?? 0) > 0 && (
-          <p className="text-xs text-gray-500">
-            {t('orders.deliveryFee', 'Frais de livraison')}: {formatCurrency(order.deliveryFeeTotal)}
-          </p>
+        {expanded ? <span className="shrink-0 text-[15px] font-black text-neutral-950">{formatCurrency(totalAmount)}</span> : (
+          <Link to={`/seller/orders/detail/${order._id}`} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-[#e85d00] px-4 text-xs font-black text-white">{compactActionLabel}</Link>
         )}
       </div>
-    </MotionLink>
+      {expanded ? (
+        <div className="space-y-3 px-3.5 pb-3.5 sm:px-4">
+          <div className="flex items-center gap-3 rounded-xl bg-[#faf8f5] p-2.5">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fff0e4] text-sm font-black text-[#e85d00]">{String(customerName).charAt(0).toUpperCase()}</span>
+            <span className="min-w-0 flex-1"><strong className="block truncate text-[13px] text-[#231f1b]">{customerName}</strong><span className="block truncate text-[11px] text-[#8a8378]">{order.customer?.address || order.deliveryAddress?.address || order.deliveryAddress?.street || t('orders.customerAddress', 'Adresse client')}</span></span>
+            {order.customer?.phone ? <a href={`tel:${order.customer.phone}`} onClick={(event) => event.stopPropagation()} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('orders.callCustomer', 'Appeler le client')}><Phone className="h-4 w-4" /></a> : null}
+            <Link to={`/orders/messages?orderId=${order._id}`} className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('orders.messageCustomer', 'Écrire au client')}><MessageCircle className="h-4 w-4" />{unreadCount > 0 ? <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e85d00] px-1 text-[9px] font-black text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</Link>
+          </div>
+          {order.deliveryCode ? (
+            <button type="button" onClick={() => setDeliveryCodeVisible((value) => !value)} className="flex min-h-11 w-full items-center justify-between rounded-xl border border-dashed border-[#d8d2c9] px-3 text-left">
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-[#44403a]"><ShieldCheck className="h-4 w-4 text-[#8a8378]" />{t('orders.deliveryCode', 'Code de livraison')}</span>
+              <span className="inline-flex items-center gap-2 text-xs font-black text-[#e85d00]"><span className="font-mono text-sm tracking-[0.15em] text-[#a49c8f]">{deliveryCodeVisible ? order.deliveryCode : '••••'}</span>{deliveryCodeVisible ? t('common.hide', 'Masquer') : t('common.show', 'Afficher')}</span>
+            </button>
+          ) : null}
+          <OrderMiniRail label={uiState.nextStep} progress={uiState.progress} urgent={uiState.isUrgent} stops={isInstallmentOrder ? 4 : 5} />
+          <div className="flex gap-2">
+            <Link to={`/seller/orders/detail/${order._id}`} className="flex min-h-12 flex-1 items-center justify-center rounded-full bg-neutral-950 px-4 text-sm font-black text-white">{uiState.primaryAction.label}</Link>
+            <button type="button" onClick={() => setExpanded(false)} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('common.more', 'Plus')}><Ellipsis className="h-5 w-5" /></button>
+          </div>
+          <Link to={`/seller/orders/detail/${order._id}?action=cancel`} className="block min-h-11 text-center text-xs font-bold leading-[44px] text-[#b91c1c]">{t('orders.cancelOrder', 'Annuler la commande')}</Link>
+        </div>
+      ) : null}
+    </motion.article>
   );
 };
 
@@ -1057,7 +1037,7 @@ const SellerMobileOrderCard = ({
                 </button>
                 <Link
                   to={`/seller/order/detail/${order._id}`}
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#e55f00] transition-all"
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#e85d00] text-white font-semibold text-sm hover:bg-[#e55f00] transition-all"
                 >
                   <CheckCircle className="w-4 h-4" />
                   {t('orders.deliveryProof', 'Preuve livraison')}
@@ -1880,32 +1860,25 @@ export default function SellerOrders() {
           </span>
         </div>
       )}
-      <div className="px-3 pt-3 sm:px-6 sm:pt-5 lg:px-8">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-white/90 px-3 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.09)] backdrop-blur dark:border-orange-900/30 dark:bg-neutral-950/80 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-4 sm:shadow-[0_18px_42px_rgba(117,75,36,0.10)]">
+      <div className="border-b border-gray-100 bg-white px-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-[60px] max-w-7xl items-center justify-between gap-2">
           <Link
             to="/"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500 transition active:scale-95 sm:h-10 sm:w-10"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#231f1b] transition active:scale-95"
             aria-label={t('common.back', 'Retour')}
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#B45309] sm:text-[11px] sm:tracking-[0.16em]">
-              {t('orders.sellerCommandCenter', 'File vendeur')}
-            </p>
-            <h1 className="truncate text-xl font-black text-neutral-950 dark:text-white sm:text-2xl">
+            <h1 className="truncate text-[17px] font-black text-neutral-950 dark:text-white">
               {t('orders.sellerTitle', 'Commandes vendeur')}
             </h1>
-            <p className="truncate text-xs text-neutral-500 dark:text-neutral-400 sm:text-sm">
-              {t('orders.sellerSubtitle', 'Suivi, livraison et validation')}
-            </p>
           </div>
           <Link
             to="/stats"
-            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-2 text-xs font-bold text-gray-500 transition hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/30 dark:text-orange-200 sm:gap-2 sm:px-3"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#44403a] transition active:scale-95"
           >
             <TrendingUp className="h-3.5 w-3.5" />
-            {t('orders.stats', 'Stats')}
           </Link>
         </div>
       </div>
@@ -1918,7 +1891,7 @@ export default function SellerOrders() {
               : `${queuedStatusActionCount} changement${queuedStatusActionCount > 1 ? 's' : ''} de statut en attente de connexion.`}
           </div>
         )}
-        <div className="mb-5 sm:mb-6">
+        <div className="mb-5 hidden md:block">
           <OrderCommandCenter
             eyebrow={t('orders.sellerCommandCenter', 'File vendeur')}
             title={t('orders.sellerHubTitle', 'Traiter les commandes importantes')}
@@ -1929,17 +1902,17 @@ export default function SellerOrders() {
         </div>
 
         {!installmentAnalyticsLoading && installmentAnalytics.totalInstallmentSales > 0 && (
-          <div className="mb-5 grid grid-cols-1 gap-3 sm:mb-8 md:grid-cols-3 md:gap-6">
+          <div className="mb-5 hidden grid-cols-1 gap-3 sm:mb-8 md:grid md:grid-cols-3 md:gap-6">
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_32px_rgba(117,75,36,0.08)] sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-2xl bg-[#FF6A00]">
+                <div className="p-3 rounded-2xl bg-[#e85d00]">
                   <CreditCard className="w-5 h-5 text-white" />
                 </div>
 
                 {Number(cancelOrder?.paidAmount || 0) > 0 && (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900">
                     Cette commande est payée. Le remboursement intégral de <strong>{formatCurrency(cancelOrder.paidAmount)}</strong> doit être envoyé en une seule fois.
-                    <Link to={`/seller/orders/detail/${cancelOrderId}`} onClick={closeCancelModal} className="mt-2 inline-flex rounded-lg bg-[#ff6a00] px-3 py-2 font-black text-white">Ouvrir le détail et rembourser</Link>
+                    <Link to={`/seller/orders/detail/${cancelOrderId}`} onClick={closeCancelModal} className="mt-2 inline-flex rounded-lg bg-[#e85d00] px-3 py-2 font-black text-white">Ouvrir le détail et rembourser</Link>
                   </div>
                 )}
                 <span className="text-2xl font-bold text-gray-900">
@@ -1953,7 +1926,7 @@ export default function SellerOrders() {
             </div>
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_32px_rgba(117,75,36,0.08)] sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-2xl bg-[#FF6A00]">
+                <div className="p-3 rounded-2xl bg-[#e85d00]">
                   <DollarSign className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
@@ -1967,7 +1940,7 @@ export default function SellerOrders() {
             </div>
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_32px_rgba(117,75,36,0.08)] sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-2xl bg-[#FF6A00]">
+                <div className="p-3 rounded-2xl bg-[#e85d00]">
                   <AlertCircle className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
@@ -2008,7 +1981,7 @@ export default function SellerOrders() {
         ) : orders.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-[0_18px_42px_rgba(117,75,36,0.10)] sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              <ClipboardList className="w-10 h-10 text-[#FF6A00]" />
+              <ClipboardList className="w-10 h-10 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
@@ -2024,7 +1997,7 @@ export default function SellerOrders() {
           <>
             <div className="space-y-3 sm:space-y-6">
               {orders.map((order, index) => (
-                <SellerOrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} index={index} />
+                <SellerOrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} index={index} unreadCount={Number(orderUnreadCounts?.[order._id] || 0)} />
               ))}
             </div>
 

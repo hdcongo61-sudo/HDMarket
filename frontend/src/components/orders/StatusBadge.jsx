@@ -1,112 +1,69 @@
 import React from 'react';
-import {
-  Clock3,
-  CreditCard,
-  Package,
-  Truck,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  ClipboardCheck,
-  Wallet
-} from 'lucide-react';
-
 const STATUS_CONFIG = {
   pending_payment: {
     label: 'Paiement en attente',
-    className:
-      'bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:border-neutral-700',
-    Icon: Clock3
+    className: 'bg-[#fff0e4] text-[#c2410c]',
+    dotClassName: 'bg-[#e85d00]'
   },
   paid: {
     label: 'Payée',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: CreditCard
+    className: 'bg-[#eff6ff] text-[#1d4ed8]', dotClassName: 'bg-blue-500'
   },
   ready_for_pickup: {
     label: 'Prête au retrait',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: Package
+    className: 'bg-[#eff6ff] text-[#1d4ed8]', dotClassName: 'bg-blue-500'
   },
   picked_up_confirmed: {
     label: 'Retrait confirmé',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: CheckCircle2
+    className: 'bg-[#ecfdf5] text-[#047857]', dotClassName: 'bg-emerald-500'
   },
   ready_for_delivery: {
     label: 'En préparation',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: Package
+    className: 'bg-[#eff6ff] text-[#1d4ed8]', dotClassName: 'bg-blue-500'
   },
   out_for_delivery: {
     label: 'En cours de livraison',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: Truck
+    className: 'bg-[#eff6ff] text-[#1d4ed8]', dotClassName: 'bg-blue-500'
   },
   delivery_proof_submitted: {
     label: 'Preuve livrée',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: ClipboardCheck
+    className: 'bg-[#fff0e4] text-[#c2410c]', dotClassName: 'bg-[#e85d00]'
   },
   confirmed_by_client: {
     label: 'Confirmée client',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: CheckCircle2
+    className: 'bg-[#ecfdf5] text-[#047857]', dotClassName: 'bg-emerald-500'
   },
   pending_installment: {
     label: 'Validation vente',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: Wallet
+    className: 'bg-[#fff0e4] text-[#c2410c]', dotClassName: 'bg-[#e85d00]'
   },
   installment_active: {
     label: 'Tranche active',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: CreditCard
+    className: 'bg-[#eff6ff] text-[#1d4ed8]', dotClassName: 'bg-blue-500'
   },
   overdue_installment: {
     label: 'Tranche en retard',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: AlertTriangle
+    className: 'bg-red-50 text-red-700', dotClassName: 'bg-red-500'
   },
   confirmed: {
     label: 'Confirmée',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: Package
+    className: 'bg-[#eff6ff] text-[#1d4ed8]', dotClassName: 'bg-blue-500'
   },
   delivering: {
     label: 'En cours de livraison',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: Truck
+    className: 'bg-[#eff6ff] text-[#1d4ed8]', dotClassName: 'bg-blue-500'
   },
   delivered: {
     label: 'Livrée',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: CheckCircle2
+    className: 'bg-[#ecfdf5] text-[#047857]', dotClassName: 'bg-emerald-500'
   },
   completed: {
     label: 'Terminée',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: CheckCircle2
+    className: 'bg-[#ecfdf5] text-[#047857]', dotClassName: 'bg-emerald-500'
   },
   cancelled: {
     label: 'Annulée',
-    className:
-      'bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
-    Icon: XCircle
+    className: 'bg-red-50 text-red-700', dotClassName: 'bg-red-500'
   }
 };
 
@@ -114,21 +71,21 @@ const PAYMENT_BADGE = {
   full: {
     label: 'Paiement complet',
     className:
-      'bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:border-neutral-700'
+      'bg-[#eff6ff] text-[#1d4ed8]'
   },
   installment: {
     label: 'Paiement par tranche',
     className:
-      'bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:border-neutral-700'
+      'bg-[#fff0e4] text-[#c2410c]'
   }
 };
 
-export default function StatusBadge({ status, paymentType, className = '', compact = false }) {
+export default function StatusBadge({ status, paymentType, className = '' }) {
   if (paymentType) {
     const cfg = PAYMENT_BADGE[paymentType] || PAYMENT_BADGE.full;
     return (
       <span
-        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${cfg.className} ${className}`.trim()}
+        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${cfg.className} ${className}`.trim()}
       >
         {cfg.label}
       </span>
@@ -136,21 +93,11 @@ export default function StatusBadge({ status, paymentType, className = '', compa
   }
 
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending_payment;
-  const Icon = cfg.Icon;
-  const iconMotionClass =
-    status === 'pending_payment' || status === 'pending_installment'
-      ? 'status-pending-dot'
-      : status === 'out_for_delivery' || status === 'delivering'
-        ? 'status-delivery-icon'
-        : status === 'completed' || status === 'delivered' || status === 'picked_up_confirmed'
-          ? 'status-completed-icon'
-          : '';
-
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${cfg.className} ${className}`.trim()}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${cfg.className} ${className}`.trim()}
     >
-      {!compact && <Icon className={`h-3.5 w-3.5 ${iconMotionClass}`.trim()} />}
+      <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${cfg.dotClassName}`} />
       {cfg.label}
     </span>
   );

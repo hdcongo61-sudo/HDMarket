@@ -21,7 +21,7 @@ export default function ShopAboutSection({
   return (
     <section className="min-w-0 space-y-3 overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+        <h2 className="min-w-0 truncate text-[17px] font-black text-gray-900 dark:text-white">
           {t('shop_profile.about', 'À propos')}
         </h2>
         <span className="inline-flex max-w-full items-center gap-1 rounded bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-[var(--shop-color)] dark:bg-neutral-800">
@@ -106,7 +106,7 @@ export default function ShopAboutSection({
       {shopLocation ? (
         <section className="min-w-0 space-y-3 overflow-hidden rounded border border-gray-100 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="border-l-[3px] border-[var(--shop-color)] pl-2.5 text-sm font-black text-gray-900 dark:text-white">
+            <p className="text-[17px] font-black text-gray-900 dark:text-white">
               {t('shop_profile.location', 'Localisation')}
             </p>
             <span

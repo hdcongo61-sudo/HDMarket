@@ -69,7 +69,7 @@ export default function SwipeActions({
           disabled={!canMarkRead}
           className={`pointer-events-auto inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-black shadow-sm transition duration-200 active:scale-95 ${
             canMarkRead
-              ? 'bg-[#ff6a00] text-white hover:bg-[#e85f00]'
+              ? 'bg-[#e85d00] text-white hover:bg-[#e85f00]'
               : 'bg-orange-100 text-orange-300 dark:bg-neutral-700 dark:text-neutral-400'
           }`}
         >

@@ -61,7 +61,7 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
               -{discountPercent}%
             </div>
           )}
-          <div className="absolute bottom-2.5 left-2.5 rounded-full bg-white/95 px-3 py-1.5 text-sm font-black text-[#FF6A00] shadow-[0_4px_14px_rgba(0,0,0,0.15)] backdrop-blur-sm">
+          <div className="absolute bottom-2.5 left-2.5 rounded-full bg-white/95 px-3 py-1.5 text-sm font-black text-[#e85d00] shadow-[0_4px_14px_rgba(0,0,0,0.15)] backdrop-blur-sm">
             {formatPrice(product?.price || 0)}
           </div>
           {product?.boosted && (
@@ -76,7 +76,7 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
           </p>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1 min-w-0 flex-1">
-              {isShop ? <Store className="h-3 w-3 flex-shrink-0 text-[#FF6A00]" /> : <ShoppingBag className="h-3 w-3 flex-shrink-0 text-gray-400" />}
+              {isShop ? <Store className="h-3 w-3 flex-shrink-0 text-[#e85d00]" /> : <ShoppingBag className="h-3 w-3 flex-shrink-0 text-gray-400" />}
               <span className="text-[10px] font-semibold text-gray-500 truncate">{shopName}</span>
             </div>
             {product?.city && (
@@ -196,7 +196,7 @@ export default function Explorer() {
     <div className="min-h-screen bg-[#f6f3ee] dark:bg-neutral-950">
       
       {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#ff6a00] via-[#ff3d13] to-[#ff8a1f] px-5 py-6 text-white shadow-[0_18px_48px_rgba(255,106,0,0.18)] sm:px-7 sm:py-8">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#e85d00] via-[#e85d00] to-[#ff8a1f] px-5 py-6 text-white shadow-[0_18px_48px_rgba(255,106,0,0.18)] sm:px-7 sm:py-8">
         <div className="absolute inset-x-0 top-0 h-px bg-white/30" />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -235,7 +235,7 @@ export default function Explorer() {
               onClick={() => setActiveCategory('')}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                 !activeCategory
-                  ? 'bg-[#FF6A00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
+                  ? 'bg-[#e85d00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
                   : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-500'
               }`}
             >
@@ -249,7 +249,7 @@ export default function Explorer() {
                 onClick={() => setActiveCategory(activeCategory === cat ? '' : cat)}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                   activeCategory === cat
-                    ? 'bg-[#FF6A00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
+                    ? 'bg-[#e85d00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
                     : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-500'
                 }`}
               >
@@ -267,11 +267,11 @@ export default function Explorer() {
         {isError && !isLoading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
-              <TrendingUp className="h-8 w-8 text-[#FF6A00]" />
+              <TrendingUp className="h-8 w-8 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900">{t('explorer.errorTitle', 'Oups !')}</h3>
             <p className="mt-2 text-sm text-gray-500 max-w-xs">{t('explorer.errorMessage', 'Recommandations momentanément indisponibles.')}</p>
-            <button type="button" onClick={handleRefresh} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#FF6A00] px-6 py-2.5 text-sm font-black text-white shadow-[0_8px_20px_rgba(255,106,0,0.25)] transition active:scale-95">
+            <button type="button" onClick={handleRefresh} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-[0_8px_20px_rgba(255,106,0,0.25)] transition active:scale-95">
               <RefreshCw className="h-3.5 w-3.5" />{t('explorer.retry', 'Réessayer')}
             </button>
           </div>
@@ -280,7 +280,7 @@ export default function Explorer() {
         {hasContent === false && !isLoading && !isError && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
-              <Package className="h-8 w-8 text-[#FF6A00]" />
+              <Package className="h-8 w-8 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900">
               {activeCategory ? t('explorer.emptyCategory', `Aucun produit en "${activeCategory}"`) : t('explorer.emptyTitle', 'Commencez à explorer')}
@@ -293,7 +293,7 @@ export default function Explorer() {
                 {t('explorer.showAll', 'Voir tout')}
               </button>
             ) : (
-              <Link to="/products" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#FF6A00] px-6 py-2.5 text-sm font-black text-white shadow-[0_8px_20px_rgba(255,106,0,0.25)] transition active:scale-95">
+              <Link to="/products" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-[0_8px_20px_rgba(255,106,0,0.25)] transition active:scale-95">
                 {t('explorer.browseProducts', 'Parcourir les produits')}<ChevronRight className="h-4 w-4" />
               </Link>
             )}
@@ -312,7 +312,7 @@ export default function Explorer() {
             <div ref={observerRef} className="flex justify-center py-8">
               {isFetchingNextPage && (
                 <div className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm text-gray-500 shadow-sm ring-1 ring-gray-200">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#e85d00] border-t-transparent" />
                   {t('explorer.loading', 'Chargement...')}
                 </div>
               )}

@@ -46,6 +46,19 @@
 
 :root {
   /* Additional tokens for use in arbitrary values */
+  --hd-accent: #e85d00;
+  --hd-accent-hover: #bf4d00;
+  --hd-accent-soft: #fff0e4;
+  --hd-accent-subtle: #fff7f0;
+  --hd-status-ok: #047857;
+  --hd-status-info: #1d4ed8;
+  --hd-destructive: #b91c1c;
+  --hd-ink: #231f1b;
+  --hd-text-secondary: #6b6459;
+  --hd-text-tertiary: #8a8378;
+  --hd-warm-bg: #f5f2ee;
+  --hd-warm-card: #ffffff;
+  --hd-warm-border: #e2dcd2;
   --apple-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --apple-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --background: 0 0% 100%;
@@ -88,19 +101,15 @@
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
   --hd-black: #0a0a0a;
   --hd-white: #ffffff;
-  --hd-orange: #FF6A00;
-  --hd-orange-600: #e85f00;
-  --hd-orange-soft: #fff0e4;
-  --hd-warm-bg: #f5f5f5;
-  --hd-warm-card: #fffaf4;
-  --hd-warm-border: #e5e7eb;
-  --hd-ink: #231f1b;
+  /* Backwards-compatible aliases while legacy surfaces migrate. */
+  --hd-orange: var(--hd-accent);
+  --hd-orange-600: var(--hd-accent);
+  --hd-orange-soft: var(--hd-accent-soft);
   --hd-cocoa: #5f4636;
   --hd-surface-light: #f5f5f5;
   --hd-surface-dark: #111111;
   --hd-divider-light: #ededed;
   --hd-divider-dark: #1f1f1f;
-  --hd-text-secondary: #6b7280;
   --ui-card-radius: 1.05rem;
   --ui-card-radius-lg: 1.25rem;
   --ui-card-border: rgba(110, 72, 35, 0.13);
@@ -348,15 +357,15 @@ select:disabled {
   }
 }
 
-/* Accessibility: white text on the flat brand-orange fill (#FF6A00) was ~2.9:1.
-   Darken the solid fill to #E85D00 (≥3.5:1 with white) app-wide; text-[#FF6A00]
+/* Accessibility: white text on the flat brand-orange fill (#e85d00) was ~2.9:1.
+   Darken the solid fill to #E85D00 (≥3.5:1 with white) app-wide; text-[#e85d00]
    and the hd-flow gradients keep the brighter brand hue. Being unlayered, these
    beat the layered Tailwind utilities — including their hover variants, which is
    why every hover shade used with this fill is re-declared here. */
-.bg-\[\#FF6A00\],
-.bg-\[\#ff6a00\],
-.active\:bg-\[\#FF6A00\]:active,
-.hover\:bg-\[\#ff6a00\]:hover {
+.bg-\[\#e85d00\],
+.bg-\[\#e85d00\],
+.active\:bg-\[\#e85d00\]:active,
+.hover\:bg-\[\#e85d00\]:hover {
   background-color: #e85d00;
 }
 .hover\:bg-\[\#f05f00\]:hover,
@@ -527,20 +536,20 @@ select:disabled {
   border-radius: 20px;
 }
 
-.hd-mobile-menu-sheet a:not([class*="from-[#FF6A00]"]):not([class*="grid-cols-2"]):not([class*="bg-black"]),
+.hd-mobile-menu-sheet a:not([class*="from-[#e85d00]"]):not([class*="grid-cols-2"]):not([class*="bg-black"]),
 .hd-mobile-menu-sheet button:not([class*="bg-black"]):not([class*="bg-red"]) {
   border: 1px solid rgba(229, 231, 235, 0.86);
   background-color: rgba(255, 255, 255, 0.82);
   color: #332216;
 }
 
-.hd-mobile-menu-sheet a:not([class*="from-[#FF6A00]"]):active,
+.hd-mobile-menu-sheet a:not([class*="from-[#e85d00]"]):active,
 .hd-mobile-menu-sheet button:active {
   transform: scale(0.99);
 }
 
 .hd-mobile-menu-sheet [class*="bg-black"] {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
   box-shadow: 0 12px 24px rgba(255, 106, 0, 0.18);
 }
@@ -593,7 +602,7 @@ select:disabled {
 }
 
 .hd-secondary-nav {
-  background: linear-gradient(135deg, #ff5a1f 0%, #ff6a00 52%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #e85d00 52%, #ff8a1f 100%) !important;
   box-shadow: 0 12px 30px rgba(255, 106, 0, 0.16);
 }
 
@@ -604,7 +613,7 @@ select:disabled {
 .hd-search-hero {
   background:
     radial-gradient(circle at 14% 0%, rgba(255, 255, 255, 0.3), transparent 18rem),
-    linear-gradient(135deg, #ff4f1f 0%, #ff6a00 50%, #ff922e 100%);
+    linear-gradient(135deg, #ff4f1f 0%, #e85d00 50%, #ff922e 100%);
   box-shadow: 0 18px 42px rgba(255, 106, 0, 0.16);
 }
 
@@ -668,7 +677,7 @@ select:disabled {
 .hd-search-flow .bg-gray-600,
 .hd-search-flow .bg-neutral-600,
 .hd-search-flow .bg-neutral-700 {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 
@@ -772,7 +781,7 @@ select:disabled {
 .hd-order-flow .bg-gray-600,
 .hd-order-flow .bg-neutral-600,
 .hd-order-flow .bg-neutral-700 {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 
@@ -823,7 +832,7 @@ select:disabled {
 .hd-my-hero {
   background:
     radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.28), transparent 18rem),
-    linear-gradient(135deg, #ff4f1f 0%, #ff6a00 46%, #ff922e 100%);
+    linear-gradient(135deg, #ff4f1f 0%, #e85d00 46%, #ff922e 100%);
   box-shadow: 0 18px 42px rgba(255, 106, 0, 0.16);
 }
 
@@ -883,7 +892,7 @@ select:disabled {
 .hd-my-flow .bg-gray-600,
 .hd-my-flow .bg-neutral-600,
 .hd-my-flow .bg-neutral-700 {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 
@@ -930,7 +939,7 @@ select:disabled {
 .hd-my-flow .hd-primary-button,
 .hd-my-flow [class*="from-neutral-600"],
 .hd-my-flow [class*="to-neutral-600"] {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
 }
 
 .hd-profile-flow {
@@ -1006,7 +1015,7 @@ select:disabled {
 .hd-profile-flow .bg-gray-600,
 .hd-profile-flow .bg-neutral-600,
 .hd-profile-flow .bg-neutral-700 {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 
@@ -1048,7 +1057,7 @@ select:disabled {
 .hd-profile-flow .hd-primary-button,
 .hd-profile-flow [class*="from-neutral-600"],
 .hd-profile-flow [class*="to-neutral-600"] {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
 }
 
 .hd-admin-flow {
@@ -1065,9 +1074,7 @@ select:disabled {
 }
 
 .hd-admin-flow main {
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255, 106, 0, 0.08), transparent 26rem),
-    linear-gradient(180deg, #f5f5f5 0%, #f5f5f5 45%, #f5f5f5 100%);
+  background: #f5f2ee;
 }
 
 .hd-admin-flow section,
@@ -1088,7 +1095,7 @@ select:disabled {
 .hd-admin-flow [class*="rounded-[22px]"],
 .hd-admin-flow [class*="rounded-[24px]"],
 .hd-admin-flow [class*="rounded-[28px]"] {
-  box-shadow: 0 14px 34px rgba(117, 75, 36, 0.075);
+  box-shadow: 0 3px 14px rgba(35, 31, 27, 0.05);
 }
 
 .hd-admin-flow .bg-gray-50,
@@ -1155,7 +1162,7 @@ select:disabled {
 .hd-admin-flow .bg-gray-600,
 .hd-admin-flow .bg-neutral-600,
 .hd-admin-flow .bg-neutral-700 {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: #0a0a0a !important;
   color: #fff !important;
 }
 
@@ -1195,9 +1202,9 @@ select:disabled {
 }
 
 .hd-admin-flow .hd-admin-nav-active {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: #0a0a0a !important;
   color: #fff !important;
-  box-shadow: 0 12px 24px rgba(255, 106, 0, 0.18);
+  box-shadow: none;
 }
 
 body.hd-admin-modal-scope .ui-modal-panel {
@@ -1224,7 +1231,7 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-neutral-950,
 body.hd-admin-modal-scope .ui-modal-panel .bg-neutral-900,
 body.hd-admin-modal-scope .ui-modal-panel .bg-gray-900,
 body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 
@@ -1239,7 +1246,7 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
 }
 
 .hd-product-price {
-  color: var(--hd-orange);
+  color: var(--hd-black);
 }
 
 .hd-category-chip {
@@ -1303,6 +1310,39 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
 body.menu-open .verified-shops-header {
   visibility: hidden;
   pointer-events: none;
+}
+
+/* Mobile menu: one neutral list and one accent for the current destination. */
+@media (max-width: 767px) {
+  .hd-mobile-menu-list > a:not(.mobile-profile-card),
+  .hd-mobile-menu-list > button {
+    min-height: 44px;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: #4b4741 !important;
+    box-shadow: none !important;
+  }
+
+  .hd-mobile-menu-list > a:not(.mobile-profile-card):hover,
+  .hd-mobile-menu-list > button:hover {
+    background: rgba(255, 255, 255, 0.72) !important;
+  }
+
+  .hd-mobile-menu-list > a[aria-current='page']:not(.mobile-profile-card) {
+    background: #fff2e6 !important;
+    color: #e85d00 !important;
+    font-weight: 800 !important;
+  }
+
+  .dark .hd-mobile-menu-list > a:not(.mobile-profile-card),
+  .dark .hd-mobile-menu-list > button {
+    color: #d6d3d1 !important;
+  }
+
+  .dark .hd-mobile-menu-list > a[aria-current='page']:not(.mobile-profile-card) {
+    background: rgba(232, 93, 0, 0.16) !important;
+    color: #fb923c !important;
+  }
 }
 
 /* Prevent iOS long-press callout (Rechercher/Annuler) on app cards/images in mobile/PWA.
@@ -2887,7 +2927,7 @@ input[type="radio"] {
 }
 
 .product-detail-commerce .product-detail-thumb.is-active {
-  border-color: #ff6a00;
+  border-color: #e85d00;
   box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.85);
 }
 
@@ -2927,7 +2967,7 @@ input[type="radio"] {
 }
 
 .product-detail-commerce :where(.bg-black, .bg-neutral-950, .bg-neutral-900, .bg-neutral-800, .bg-gray-900, .bg-gray-600, .bg-neutral-600, .bg-neutral-700) {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 
@@ -2959,7 +2999,7 @@ input[type="radio"] {
 
 .product-detail-commerce .product-detail-tabs button[aria-selected="true"],
 .product-detail-commerce .product-detail-tabs .bg-neutral-900 {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
 }
 
 .product-detail-commerce .product-detail-bottom-bar {
@@ -2996,7 +3036,7 @@ input[type="radio"] {
   border: 1px solid rgba(229, 231, 235, 0.94);
   background:
     radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.45), transparent 18rem),
-    linear-gradient(135deg, #ff4f1f 0%, #ff6a00 52%, #ff922e 100%);
+    linear-gradient(135deg, #ff4f1f 0%, #e85d00 52%, #ff922e 100%);
   box-shadow: 0 18px 42px rgba(255, 106, 0, 0.16);
 }
 
@@ -3037,7 +3077,7 @@ input[type="radio"] {
 
 .hd-products-flow .hd-products-chip-active {
   border-color: rgba(255, 106, 0, 0.38);
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%);
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%);
   color: #fff;
 }
 
@@ -3060,7 +3100,7 @@ input[type="radio"] {
 }
 
 .hd-products-flow :where(.bg-black, .bg-neutral-950, .bg-neutral-900, .bg-neutral-800, .bg-gray-900, .bg-gray-600, .bg-neutral-600, .bg-neutral-700) {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff8a1f 100%) !important;
+  background: linear-gradient(135deg, #e85d00 0%, #ff8a1f 100%) !important;
   color: #fff !important;
 }
 

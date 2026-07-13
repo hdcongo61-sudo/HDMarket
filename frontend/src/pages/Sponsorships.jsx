@@ -70,7 +70,7 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
           type="button"
           onClick={() => setMethod('mobile_money')}
           className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black ${
-            method === 'mobile_money' ? 'bg-[#FF6A00] text-white' : 'bg-white text-gray-600'
+            method === 'mobile_money' ? 'bg-[#e85d00] text-white' : 'bg-white text-gray-600'
           }`}
         >
           <CreditCard size={14} /> Mobile Money
@@ -111,7 +111,7 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
                   onClick={() => setPaymentOption(option.id)}
                   className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left ${
                     paymentOption === option.id
-                      ? 'border-[#FF6A00] bg-orange-50'
+                      ? 'border-[#e85d00] bg-orange-50'
                       : 'border-gray-200 bg-white'
                   }`}
                 >
@@ -119,13 +119,13 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
                     <span className="block text-xs font-black text-gray-900">{option.label}</span>
                     <span className="block text-[11px] font-semibold text-gray-500">{option.hint}</span>
                   </span>
-                  <span className="text-sm font-black text-[#FF6A00]">{formatCurrency(option.amount)}</span>
+                  <span className="text-sm font-black text-[#e85d00]">{formatCurrency(option.amount)}</span>
                 </button>
               ))}
             </div>
           )}
           <p className="rounded-lg bg-white px-3 py-2 text-xs font-black text-gray-900">
-            Montant à envoyer : <span className="text-[#FF6A00]">{formatCurrency(amountToPay)}</span>
+            Montant à envoyer : <span className="text-[#e85d00]">{formatCurrency(amountToPay)}</span>
           </p>
           {instructions ? (
             <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-blue-800">
@@ -160,7 +160,7 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
           disabled={busy}
           onClick={submit}
           className={`inline-flex flex-1 items-center justify-center rounded-lg px-3 py-2.5 text-sm font-black text-white disabled:opacity-60 ${
-            method === 'wallet' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#FF6A00]'
+            method === 'wallet' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#e85d00]'
           }`}
         >
           {busy ? 'Traitement…' : `Payer ${formatCurrency(amountToPay)}`}
@@ -329,7 +329,7 @@ export default function Sponsorships() {
               type="button"
               disabled={busy}
               onClick={() => openForm(gid, 'accept')}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#e85d00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
             >
               <Check size={16} /> Approuver &amp; payer
             </button>
@@ -420,7 +420,7 @@ export default function Sponsorships() {
               type="button"
               disabled={busy}
               onClick={() => openForm(gid, 'pay')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#FF6A00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#e85d00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
             >
               <CreditCard size={16} /> Payer moi-même
             </button>
@@ -452,7 +452,7 @@ export default function Sponsorships() {
                 type="button"
                 disabled={busy}
                 onClick={() => retry(gid)}
-                className="inline-flex flex-1 items-center justify-center rounded-lg bg-[#FF6A00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
+                className="inline-flex flex-1 items-center justify-center rounded-lg bg-[#e85d00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
               >
                 {busy ? 'Envoi…' : 'Renvoyer la demande'}
               </button>
@@ -493,14 +493,14 @@ export default function Sponsorships() {
           <button
             type="button"
             onClick={() => setTab('incoming')}
-            className={`rounded-full px-4 py-1.5 text-xs font-black ${tab === 'incoming' ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`rounded-full px-4 py-1.5 text-xs font-black ${tab === 'incoming' ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-600'}`}
           >
             À régler
           </button>
           <button
             type="button"
             onClick={() => setTab('sent')}
-            className={`rounded-full px-4 py-1.5 text-xs font-black ${tab === 'sent' ? 'bg-[#FF6A00] text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`rounded-full px-4 py-1.5 text-xs font-black ${tab === 'sent' ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-600'}`}
           >
             Mes demandes
           </button>

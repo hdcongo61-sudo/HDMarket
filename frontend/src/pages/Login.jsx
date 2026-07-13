@@ -9,7 +9,7 @@ import {
   HelpCircle,
   Loader2,
   LockKeyhole,
-  Phone,
+  User,
   ShieldCheck
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -136,6 +136,16 @@ export default function Login() {
     if (loading) return;
 
     setError('');
+    if (!form.phone.trim()) {
+      setError(isFrench ? 'Saisissez votre email ou votre numéro de téléphone.' : 'Enter your email or phone number.');
+      identifierRef.current?.focus();
+      return;
+    }
+    if (!form.password.trim()) {
+      setError(isFrench ? 'Saisissez votre mot de passe.' : 'Enter your password.');
+      passwordRef.current?.focus();
+      return;
+    }
     setSlowNetwork(false);
     setLoading(true);
     if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
@@ -176,7 +186,7 @@ export default function Login() {
             </span>
             {copy.appBadge}
           </Link>
-          <span className="inline-flex items-center gap-2 rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#FF6A00] dark:bg-orange-400/10 dark:text-orange-100">
+          <span className="inline-flex items-center gap-2 rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#e85d00] dark:bg-orange-400/10 dark:text-orange-100">
             <ShieldCheck size={14} />
             {copy.sessionLabel}
           </span>
@@ -195,14 +205,7 @@ export default function Login() {
                   transition={{ duration: 0.28 }}
                 >
                   <header className="mb-7">
-                    <div className="relative mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#FF6A00] dark:bg-white">
-                      <img
-                        src={logoSrc}
-                        alt={copy.appBadge}
-                        className={`${isMobile ? 'h-10 w-10' : 'h-11 w-11'} object-contain`}
-                      />
-                    </div>
-                    <h1 className="text-[2rem] font-black leading-[1.05] tracking-normal text-gray-900 dark:text-white sm:text-[2.55rem]">
+                    <h1 className="text-[28px] font-black leading-[1.15] tracking-normal text-[#231f1b] dark:text-white">
                       {copy.title}
                     </h1>
                     <p className="mt-3 max-w-sm text-[15px] leading-6 text-gray-600 dark:text-neutral-300">
@@ -226,9 +229,9 @@ export default function Login() {
                       <label htmlFor="login-identifier" className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">
                         {copy.identifierLabel}
                       </label>
-                      <div className="flex items-stretch overflow-hidden rounded border border-gray-200 bg-white transition focus-within:border-[#FF6A00] focus-within:ring-2 focus-within:ring-[#FF6A00]/10 dark:border-neutral-800 dark:bg-neutral-900">
-                        <span className="flex items-center justify-center border-r border-gray-200 bg-gray-50 px-4 text-[#FF6A00] dark:border-neutral-800 dark:bg-neutral-950 dark:text-orange-200">
-                          <Phone size={18} />
+                      <div className="flex min-h-[52px] items-center overflow-hidden rounded-xl border border-[#e2dcd2] bg-white px-3 transition focus-within:border-[#e85d00] focus-within:ring-2 focus-within:ring-[#e85d00]/10 dark:border-neutral-800 dark:bg-neutral-900">
+                        <span className="flex items-center justify-center text-[#a49c8f]">
+                          <User size={18} />
                         </span>
                         <input
                           id="login-identifier"
@@ -236,7 +239,7 @@ export default function Login() {
                           type="text"
                           autoComplete="username"
                           inputMode="email"
-                          className="ui-input min-h-[54px] flex-1 border-0 bg-transparent px-4 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
+                          className="ui-input min-h-[52px] flex-1 border-0 bg-transparent px-3 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
                           placeholder={copy.identifierPlaceholder}
                           value={form.phone}
                           onChange={(e) => {
@@ -258,8 +261,8 @@ export default function Login() {
                       <label htmlFor="login-password" className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">
                         {copy.passwordLabel}
                       </label>
-                      <div className="flex items-stretch overflow-hidden rounded border border-gray-200 bg-white transition focus-within:border-[#FF6A00] focus-within:ring-2 focus-within:ring-[#FF6A00]/10 dark:border-neutral-800 dark:bg-neutral-900">
-                        <span className="flex items-center justify-center border-r border-gray-200 bg-gray-50 px-4 text-[#FF6A00] dark:border-neutral-800 dark:bg-neutral-950 dark:text-orange-200">
+                      <div className="flex min-h-[52px] items-center overflow-hidden rounded-xl border border-[#e2dcd2] bg-white px-3 transition focus-within:border-[#e85d00] focus-within:ring-2 focus-within:ring-[#e85d00]/10 dark:border-neutral-800 dark:bg-neutral-900">
+                        <span className="flex items-center justify-center text-[#a49c8f]">
                           <LockKeyhole size={18} />
                         </span>
                         <input
@@ -267,7 +270,7 @@ export default function Login() {
                           ref={passwordRef}
                           type={showPassword ? 'text' : 'password'}
                           autoComplete="current-password"
-                          className="ui-input min-h-[54px] flex-1 border-0 bg-transparent px-4 pr-2 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
+                          className="ui-input min-h-[52px] flex-1 border-0 bg-transparent px-3 pr-2 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
                           placeholder={copy.passwordPlaceholder}
                           value={form.password}
                           onChange={(e) => {
@@ -279,7 +282,7 @@ export default function Login() {
                         <button
                           type="button"
                           onClick={() => setShowPassword((prev) => !prev)}
-                          className="flex items-center justify-center border-l border-gray-200 bg-gray-50 px-3 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 active:scale-95 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
+                          className="flex h-11 w-11 items-center justify-center text-gray-500 transition hover:text-gray-900 active:scale-95 dark:text-neutral-300 dark:hover:text-white"
                           aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                         >
                           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -293,20 +296,20 @@ export default function Login() {
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="h-4 w-4 rounded border-gray-300 accent-[#FF6A00] dark:border-neutral-700"
+                          className="h-4 w-4 rounded border-gray-300 accent-[#e85d00] dark:border-neutral-700"
                         />
                         {copy.rememberMe}
                       </label>
-                      <Link to="/forgot-password" className="text-sm font-black text-[#FF6A00] transition hover:text-[#e85f00] dark:text-orange-200 dark:hover:text-orange-100">
+                      <Link to="/forgot-password" className="text-sm font-black text-[#e85d00] transition hover:text-[#e85f00] dark:text-orange-200 dark:hover:text-orange-100">
                         {copy.forgotPassword}
                       </Link>
                     </div>
 
                     <motion.button
                       type="submit"
-                      disabled={loading || !form.phone.trim() || !form.password.trim()}
+                      disabled={loading}
                       whileTap={{ scale: 0.985 }}
-                      className="group inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded bg-[#FF6A00] px-4 text-[15px] font-black text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-55"
+                      className="group inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-[15px] font-black text-white transition hover:bg-[#bf4d00] disabled:cursor-wait disabled:opacity-70"
                     >
                       {loading ? <Loader2 size={17} className="animate-spin" /> : null}
                       {loading ? copy.submitting : copy.submit}
@@ -323,14 +326,14 @@ export default function Login() {
                   <footer className="mt-6 grid gap-2 border-t border-gray-100 pt-5 text-sm text-gray-600 dark:border-neutral-800 dark:text-neutral-300">
                     <p>
                       {copy.noAccount}{' '}
-                      <Link to="/register" className="font-black text-[#FF6A00] transition hover:text-[#e85f00] dark:text-orange-100">
+                      <Link to="/register" className="font-black text-[#e85d00] transition hover:text-[#e85f00] dark:text-orange-100">
                         {copy.createAccount}
                       </Link>
                     </p>
                     <p className="inline-flex items-center gap-1.5">
                       <HelpCircle size={15} />
                       {copy.supportLead}{' '}
-                      <Link to="/help" className="font-black text-gray-900 transition hover:text-[#FF6A00] dark:text-white dark:hover:text-orange-100">
+                      <Link to="/help" className="font-black text-gray-900 transition hover:text-[#e85d00] dark:text-white dark:hover:text-orange-100">
                         {copy.support}
                       </Link>
                     </p>

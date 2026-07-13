@@ -38,7 +38,7 @@ function FeatureCard({ icon: Icon, title, benefit, steps, to, cta }) {
   return (
     <article className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
           <Icon size={19} strokeWidth={2.2} />
         </span>
         <div className="min-w-0 flex-1">
@@ -54,7 +54,7 @@ function FeatureCard({ icon: Icon, title, benefit, steps, to, cta }) {
           <ol className="mt-1.5 space-y-1.5">
             {steps.map((step, index) => (
               <li key={step} className="flex items-start gap-2 text-xs font-medium text-gray-600 dark:text-neutral-300">
-                <span className="mt-px flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FFF0E4] text-[10px] font-black text-[#FF6A00]">
+                <span className="mt-px flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#FFF0E4] text-[10px] font-black text-[#e85d00]">
                   {index + 1}
                 </span>
                 {step}
@@ -66,7 +66,7 @@ function FeatureCard({ icon: Icon, title, benefit, steps, to, cta }) {
       {to && (
         <Link
           to={to}
-          className="mt-3 inline-flex items-center gap-1 text-xs font-black text-[#FF6A00] transition hover:gap-1.5"
+          className="mt-3 inline-flex items-center gap-1 text-xs font-black text-[#e85d00] transition hover:gap-1.5"
         >
           {cta || 'Essayer maintenant'}
           <ChevronRight size={14} />
@@ -79,7 +79,7 @@ function FeatureCard({ icon: Icon, title, benefit, steps, to, cta }) {
 function SectionHeader({ id, eyebrow, title, subtitle }) {
   return (
     <div id={id} className="scroll-mt-20 pt-8">
-      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">{eyebrow}</p>
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">{eyebrow}</p>
       <h2 className="mt-1 text-xl font-black tracking-tight text-gray-900 dark:text-white">{title}</h2>
       {subtitle && <p className="mt-1 text-sm text-gray-500 dark:text-neutral-400">{subtitle}</p>}
     </div>
@@ -113,7 +113,7 @@ export default function Benefits() {
     <main className="hd-commerce-shell min-h-screen bg-[#f5f5f5] pb-16 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       {/* ── HERO ── */}
       <section className="bg-white px-4 pb-6 pt-8 text-center dark:bg-neutral-900">
-        <p className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#FF6A00]">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">
           <ShoppingBag size={12} />
           Guide des avantages
         </p>
@@ -145,7 +145,7 @@ export default function Benefits() {
             <a
               key={chip.id}
               href={`#${chip.id}`}
-              className="flex-shrink-0 rounded-full bg-gray-100 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition hover:bg-[#FFF0E4] hover:text-[#FF6A00] dark:bg-neutral-800 dark:text-neutral-300"
+              className="flex-shrink-0 rounded-full bg-gray-100 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition hover:bg-[#FFF0E4] hover:text-[#e85d00] dark:bg-neutral-800 dark:text-neutral-300"
             >
               {chip.label}
             </a>
@@ -380,7 +380,7 @@ export default function Benefits() {
         </div>
 
         {/* ── CTA FINAL ── */}
-        <section className="mt-10 rounded-2xl bg-[#FF6A00] p-6 text-center text-white shadow-[0_16px_34px_rgba(255,106,0,0.22)]">
+        <section className="mt-10 rounded-2xl bg-[#e85d00] p-6 text-center text-white shadow-[0_16px_34px_rgba(255,106,0,0.22)]">
           <h2 className="text-xl font-black tracking-tight">Prêt à essayer ?</h2>
           <p className="mx-auto mt-1 max-w-sm text-sm font-medium text-white/85">
             Créez votre compte gratuitement et découvrez tout ça par vous-même.
@@ -388,7 +388,7 @@ export default function Benefits() {
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Link
               to="/register"
-              className="inline-flex min-h-[44px] items-center rounded-full bg-white px-5 text-sm font-black text-[#FF6A00] transition active:scale-95"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-white px-5 text-sm font-black text-[#e85d00] transition active:scale-95"
             >
               Créer un compte
             </Link>

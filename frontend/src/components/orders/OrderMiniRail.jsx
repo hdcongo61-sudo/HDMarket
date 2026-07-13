@@ -10,6 +10,7 @@ export default function OrderMiniRail({
   stops = 5,
   urgent = false,
   label = '',
+  step,
   className = ''
 }) {
   const reduceMotion = useReducedMotion();
@@ -17,17 +18,15 @@ export default function OrderMiniRail({
   return (
     <div className={className}>
       {label ? (
-        <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-bold text-gray-500">{label}</p>
-          <span className={`shrink-0 text-[11px] font-black ${urgent ? 'text-red-600' : 'text-[#FF6A00]'}`}>
-            {pct}%
-          </span>
-        </div>
+        <p className={`text-xs font-semibold leading-5 ${urgent ? 'text-red-700' : 'text-[#6b6459]'}`}>
+          Étape {Math.max(1, Math.min(stops, Number(step) || Math.round((pct / 100) * (stops - 1)) + 1))}/{stops}
+          {' — '}{label}
+        </p>
       ) : null}
-      <div className="relative mt-2 h-1.5 rounded-full bg-gray-100 dark:bg-neutral-800">
+      <div className="relative mt-2 h-[5px] rounded-full bg-[#f5f2ee] dark:bg-neutral-800">
         <motion.div
           className={`absolute inset-y-0 left-0 rounded-full ${
-            urgent ? 'bg-red-500' : 'bg-gradient-to-r from-[#FFB000] to-[#FF6A00]'
+            urgent ? 'bg-red-600' : 'bg-[#e85d00]'
           }`}
           initial={reduceMotion ? { width: `${pct}%` } : { width: 0 }}
           animate={{ width: `${pct}%` }}
@@ -44,8 +43,8 @@ export default function OrderMiniRail({
                   reached
                     ? urgent
                       ? 'bg-red-500'
-                      : 'bg-[#FF6A00]'
-                    : 'bg-gray-200 dark:bg-neutral-700'
+                      : 'bg-[#e85d00]'
+                    : 'bg-[#e2dcd2] dark:bg-neutral-700'
                 }`}
               />
             );

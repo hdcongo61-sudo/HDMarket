@@ -607,12 +607,14 @@ function ProductCard({
     const mobileInterestLabel = mobileInterestCount > 0
       ? `${formatSalesCount(mobileInterestCount)}+ intéressés`
       : productCity || conditionLabel;
-    const modernBadges = [
-      hasActiveBoost ? { key: 'boost', label: 'Boost', tone: 'dark', icon: Zap } : null,
-      hasDiscount ? { key: 'discount', label: `-${p.discount}%`, tone: 'dark' } : null,
-      installmentAvailable ? { key: 'installment', label: 'Tranche', tone: 'soft', icon: Clock } : null,
-      wholesaleEnabled ? { key: 'wholesale', label: wholesaleMinQty ? `Gros ${wholesaleMinQty}+` : 'Gros', tone: 'emerald', icon: Boxes } : null
-    ].filter(Boolean);
+    // One photo badge only: the image stays scannable and product-first.
+    const primaryBadge = hasDiscount
+      ? { key: 'discount', label: `-${Math.round(Number(p.discount || 0))}%` }
+      : isNew
+        ? { key: 'new', label: 'Nouveau' }
+        : p.certified
+          ? { key: 'certified', label: 'Certifié' }
+          : null;
     const cardRadius = useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-2xl';
     const imageAspect = isListCard
       ? 'h-auto min-h-[132px] w-[38%] shrink-0'
@@ -640,7 +642,6 @@ function ProductCard({
       : useCompactMobile
         ? 'text-[15px]'
         : 'text-[17px]';
-    const visibleBadges = modernBadges.slice(0, isShopProfileCompact || useCompactMobile ? 2 : 3);
     const trustLabel = freeDeliveryAvailable
       ? 'Livraison offerte'
       : pickupOnly
@@ -699,26 +700,11 @@ function ProductCard({
             />
             {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />}
 
-            <div className={`absolute left-1.5 top-1.5 max-w-[calc(100%-3.7rem)] flex-wrap gap-1 sm:left-2 sm:top-2 sm:gap-1.5 ${useCommerceMobileCard ? 'hidden' : 'flex'}`}>
-              {visibleBadges.map((badge) => {
-                const Icon = badge.icon;
-                const badgeClass =
-                  badge.tone === 'emerald'
-                    ? 'bg-emerald-600 text-white'
-                    : badge.tone === 'soft'
-                      ? 'bg-white/92 text-gray-900'
-                      : 'bg-[#FF6A00] text-white';
-                return (
-                  <span
-                    key={badge.key}
-                    className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow-sm backdrop-blur sm:px-2 sm:py-1 sm:text-[10px] ${badgeClass}`}
-                  >
-                    {Icon && !isShopProfileCompact ? <Icon className="h-3 w-3" /> : null}
-                    {badge.label}
-                  </span>
-                );
-              })}
-            </div>
+            {primaryBadge ? (
+              <span className="absolute left-2 top-2 inline-flex rounded-md bg-[#e85d00] px-2 py-1 text-[10px] font-black text-white shadow-sm">
+                {primaryBadge.label}
+              </span>
+            ) : null}
 
             <button
               type="button"
@@ -726,11 +712,9 @@ function ProductCard({
               disabled={favoritePending}
               className={`absolute right-1.5 top-1.5 items-center justify-center rounded-full shadow-sm backdrop-blur transition active:scale-95 disabled:cursor-wait sm:right-2 sm:top-2 ${
                 favoriteActive
-                  ? 'bg-[#FF6A00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]'
-                  : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#FF6A00] dark:bg-neutral-950/90 dark:text-neutral-200'
-              } ${
-                useCommerceMobileCard ? 'hidden' : 'inline-flex'
-              } ${
+                  ? 'bg-[#e85d00] text-white shadow-[0_10px_22px_rgba(232,93,0,0.24)]'
+                  : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-950/90 dark:text-neutral-200'
+              } inline-flex ${
                 isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
               } ${favoritePending ? 'scale-95 opacity-80' : ''}`}
               aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -762,9 +746,6 @@ function ProductCard({
                 }}
                 className="line-clamp-2 min-h-[2.15rem] text-[13px] font-black leading-[1.15] text-slate-950 transition hover:text-slate-800"
               >
-                {mobilePromoLabel ? (
-                  <span className="mr-1 font-black italic text-rose-600">{mobilePromoLabel}</span>
-                ) : null}
                 <span>{p.title}</span>
               </ProductDetailLink>
             ) : (
@@ -784,21 +765,19 @@ function ProductCard({
             )}
 
             <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard ? '-mt-0.5' : ''}`}>
-              <span className={`${useCommerceMobileCard ? 'text-[clamp(17px,5.2vw,22px)] leading-none' : priceClass} hd-product-price font-black tracking-tight dark:text-orange-300`}>
+              <span className={`${useCommerceMobileCard ? 'text-[17px] leading-none' : priceClass} hd-product-price font-black tracking-tight text-neutral-950 dark:text-white`}>
                 {discountedPrice}
               </span>
-              {useCommerceMobileCard && hasDiscount ? (
-                <span className="text-[12px] font-bold text-[#ff5a1f]">après remise</span>
-              ) : null}
               {originalPrice && !isShopProfileCompact && !useCommerceMobileCard ? (
                 <span className="text-xs font-medium text-neutral-400 line-through">{originalPrice}</span>
               ) : null}
             </div>
 
             {useCommerceMobileCard ? (
-              <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-neutral-500">
-                {originalPrice ? <span className="line-through">{originalPrice}</span> : null}
-                <span className="truncate">{mobileInterestLabel}</span>
+              <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-[#8a8378]">
+                {ratingAverage > 0 ? <span className="inline-flex items-center gap-1"><Star className="h-3 w-3 fill-[#e85d00] text-[#e85d00]" />{ratingAverage}</span> : null}
+                {salesCount > 0 ? <span>{formatSalesCount(salesCount)} vendus</span> : null}
+                {productCity ? <span className="truncate">{productCity}</span> : null}
               </div>
             ) : null}
 
@@ -842,22 +821,7 @@ function ProductCard({
               </div>
             ) : null}
 
-            <div className={`mt-auto grid-cols-[1fr_auto] items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800 ${useCommerceMobileCard ? 'hidden' : 'grid'}`}>
-              <ProductDetailLink
-                disabled={disableProductNavigation}
-                to={resolvedProductLink}
-                {...externalLinkProps}
-                onClick={() => {
-                  trackBoostClick();
-                  trackCardInteraction('cta_open');
-                  handleProductClick?.(p);
-                }}
-                className={`inline-flex items-center justify-center rounded-xl bg-[#FF6A00] px-3 text-xs font-bold text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)] transition active:scale-[0.98] dark:bg-gray-1000 dark:text-white ${
-                  isShopProfileCompact ? 'h-8' : 'h-10'
-                }`}
-              >
-                Voir
-              </ProductDetailLink>
+            <div className="mt-auto grid grid-cols-1 items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
               {!isOwner ? (
                 <button
                   type="button"
@@ -867,15 +831,21 @@ function ProductCard({
                     handleAddToCart();
                   }}
                   disabled={adding || inCart}
-                  className={`inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition active:scale-95 disabled:opacity-45 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${
-                    isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
-                  }`}
+                  className="inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-full bg-neutral-950 px-3 text-xs font-extrabold text-white transition active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-500 dark:bg-white dark:text-neutral-950 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
                   aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
                 >
                   <ShoppingCart className="h-4 w-4" />
+                  {inCart ? 'Dans le panier' : adding ? 'Ajout…' : 'Ajouter au panier'}
                 </button>
               ) : (
-                <span />
+                <ProductDetailLink
+                  disabled={disableProductNavigation}
+                  to={resolvedProductLink}
+                  {...externalLinkProps}
+                  className="inline-flex min-h-[40px] items-center justify-center rounded-full bg-neutral-950 px-3 text-xs font-extrabold text-white dark:bg-white dark:text-neutral-950"
+                >
+                  Voir le produit
+                </ProductDetailLink>
               )}
             </div>
 
@@ -1202,8 +1172,8 @@ function ProductCard({
             disabled={favoritePending}
             className={`absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 shadow-lg backdrop-blur-sm transition-all duration-150 tap-feedback sm:min-h-0 sm:min-w-0 sm:p-1.5 ${
               favoriteActive
-                ? 'bg-[#FF6A00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.3)]'
-                : 'bg-white/95 text-gray-600 hover:scale-110 hover:bg-gray-100 hover:text-[#FF6A00] hover:shadow-xl'
+                ? 'bg-[#e85d00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.3)]'
+                : 'bg-white/95 text-gray-600 hover:scale-110 hover:bg-gray-100 hover:text-[#e85d00] hover:shadow-xl'
             } ${favoritePending ? 'scale-95 cursor-wait opacity-85' : ''}`}
             aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
@@ -1395,21 +1365,21 @@ function ProductCard({
               disabled={adding || inCart}
               className={`w-full inline-flex items-center justify-center ${
                 isShopProfileCompact
-                  ? 'gap-1 px-2 py-1 rounded-lg text-[9px]'
+                  ? 'min-h-[40px] gap-1 px-2 rounded-full text-[9px]'
                   : useCompactMobile
-                  ? 'gap-1 px-2 py-1 rounded-xl text-[9px]'
-                  : 'gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl sm:rounded-3xl text-[10px] sm:text-xs'
+                  ? 'min-h-[40px] gap-1 px-2 rounded-full text-[9px]'
+                  : 'min-h-[40px] gap-1.5 sm:gap-2 px-3 sm:px-4 rounded-full text-[10px] sm:text-xs'
               } font-semibold transition-all duration-200 active:scale-95 shadow-sm ${
                 inCart
                   ? 'bg-gray-100 text-gray-500 cursor-not-allowed opacity-60'
                 : adding
-                  ? 'bg-blue-700 text-white cursor-wait'
-                  : 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:from-blue-700 hover:to-cyan-600 shadow-[0_2px_8px_rgba(2,132,199,0.35)]'
+                  ? 'bg-neutral-700 text-white cursor-wait'
+                  : 'bg-neutral-950 text-white hover:bg-neutral-800'
               }`}
             >
               <ShoppingCart size={12} className="sm:w-4 sm:h-4" />
               <span>
-                {inCart ? 'Déjà' : adding ? 'Ajout...' : useCompactMobile ? 'Panier' : 'Ajouter au panier'}
+                {inCart ? 'Dans le panier' : adding ? 'Ajout...' : 'Ajouter au panier'}
               </span>
             </button>
           </div>

@@ -34,7 +34,7 @@ function LogoUploadTile({
       <p className="mt-0.5 mb-3 text-[11px] font-medium leading-snug text-gray-500">{hint}</p>
       {error && <p className="mb-2 text-xs font-semibold text-red-600">{error}</p>}
       {success && <p className="mb-2 text-xs font-semibold text-emerald-600">{success}</p>}
-      <label className="group relative flex flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-white p-5 text-center transition-colors hover:border-[#FF6A00]/50 hover:bg-orange-50/40">
+      <label className="group relative flex flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-white p-5 text-center transition-colors hover:border-[#e85d00]/50 hover:bg-orange-50/40">
         {preview ? (
           <>
             <img src={preview} alt={label} className={previewClassName} />
@@ -42,7 +42,7 @@ function LogoUploadTile({
           </>
         ) : (
           <>
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-gray-100 text-gray-400 transition-colors group-hover:bg-orange-100 group-hover:text-[#FF6A00]">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-gray-100 text-gray-400 transition-colors group-hover:bg-orange-100 group-hover:text-[#e85d00]">
               <Upload className="h-5 w-5" />
             </span>
             <span className="text-xs font-bold text-gray-700">Cliquez pour uploader</span>
@@ -55,7 +55,7 @@ function LogoUploadTile({
         type="button"
         onClick={onSave}
         disabled={saving || !canSave}
-        className="mt-3 w-full rounded-lg bg-[#FF6A00] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-3 w-full rounded-lg bg-[#e85d00] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving ? 'Mise à jour…' : 'Enregistrer'}
       </button>
@@ -722,7 +722,7 @@ export default function AdminAppSettings() {
       <div className="min-h-screen bg-[#f5f5f5]">
         <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center py-24">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#FF6A00]" />
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#e85d00]" />
             <p className="mt-4 text-sm font-medium text-gray-600">Chargement des paramètres…</p>
           </div>
         </div>
@@ -735,7 +735,7 @@ export default function AdminAppSettings() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-5 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#FFF0E4] text-[#FF6A00]">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
               <Image size={24} strokeWidth={2.2} />
             </div>
             <div>
@@ -788,7 +788,7 @@ export default function AdminAppSettings() {
               <a
                 key={href}
                 href={href}
-                className="flex-shrink-0 rounded-full bg-gray-100 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition hover:bg-[#FFF0E4] hover:text-[#FF6A00]"
+                className="flex-shrink-0 rounded-full bg-gray-100 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition hover:bg-[#FFF0E4] hover:text-[#e85d00]"
               >
                 {label}
               </a>
@@ -800,7 +800,7 @@ export default function AdminAppSettings() {
           {/* App Logos & Icon */}
           <div id="identite" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6A00] text-white">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#e85d00] text-white">
                 <Sparkles size={20} />
               </div>
               <div>
@@ -812,7 +812,7 @@ export default function AdminAppSettings() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <LogoUploadTile
-                icon={<Monitor className="h-4 w-4 text-[#FF6A00]" />}
+                icon={<Monitor className="h-4 w-4 text-[#e85d00]" />}
                 label="Logo desktop"
                 hint="Barre de navigation (web) — format horizontal."
                 fileHint="PNG, JPG, WEBP — horizontal"
@@ -826,7 +826,7 @@ export default function AdminAppSettings() {
                 onSave={saveAppLogoDesktop}
               />
               <LogoUploadTile
-                icon={<Smartphone className="h-4 w-4 text-[#FF6A00]" />}
+                icon={<Smartphone className="h-4 w-4 text-[#e85d00]" />}
                 label="Logo mobile"
                 hint="En-tête sur mobile — format carré."
                 fileHint="PNG, JPG, WEBP — carré"
@@ -840,7 +840,7 @@ export default function AdminAppSettings() {
                 onSave={saveAppLogoMobile}
               />
               <LogoUploadTile
-                icon={<AppWindow className="h-4 w-4 text-[#FF6A00]" />}
+                icon={<AppWindow className="h-4 w-4 text-[#e85d00]" />}
                 label="Icône de l’application"
                 hint="Icône PWA & écran d’accueil (iOS/Android)."
                 fileHint="PNG carré — 512×512 recommandé"
@@ -854,7 +854,7 @@ export default function AdminAppSettings() {
                 onSave={saveAppIcon}
               />
               <LogoUploadTile
-                icon={<Globe className="h-4 w-4 text-[#FF6A00]" />}
+                icon={<Globe className="h-4 w-4 text-[#e85d00]" />}
                 label="Favicon"
                 hint="Petite icône de l’onglet du navigateur."
                 fileHint="PNG carré — 32×32 ou 48×48"
@@ -1077,7 +1077,7 @@ export default function AdminAppSettings() {
           {/* Animated launch splash (BootSplash) */}
           <div id="splash" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6A00] text-white">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#e85d00] text-white">
                 <Monitor size={20} />
               </div>
               <div>
@@ -1094,7 +1094,7 @@ export default function AdminAppSettings() {
                 {
                   key: 'desktop',
                   label: 'Desktop',
-                  icon: <Monitor className="h-4 w-4 text-[#FF6A00]" />,
+                  icon: <Monitor className="h-4 w-4 text-[#e85d00]" />,
                   enabled: bootSplashDesktopEnabled,
                   setEnabled: setBootSplashDesktopEnabled,
                   duration: bootSplashDesktopDuration,
@@ -1103,7 +1103,7 @@ export default function AdminAppSettings() {
                 {
                   key: 'mobile',
                   label: 'Mobile',
-                  icon: <Smartphone className="h-4 w-4 text-[#FF6A00]" />,
+                  icon: <Smartphone className="h-4 w-4 text-[#e85d00]" />,
                   enabled: bootSplashMobileEnabled,
                   setEnabled: setBootSplashMobileEnabled,
                   duration: bootSplashMobileDuration,
@@ -1119,7 +1119,7 @@ export default function AdminAppSettings() {
                       type="checkbox"
                       checked={p.enabled}
                       onChange={(e) => p.setEnabled(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-[#FF6A00] focus:ring-[#FF6A00]"
+                      className="h-4 w-4 rounded border-gray-300 text-[#e85d00] focus:ring-[#e85d00]"
                     />
                     <span className="text-sm font-medium text-gray-700">Activer au lancement</span>
                   </label>
@@ -1133,7 +1133,7 @@ export default function AdminAppSettings() {
                       value={p.duration}
                       onChange={(e) => p.setDuration(Math.min(10, Math.max(1, Number(e.target.value) || 2.4)))}
                       disabled={!p.enabled}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#FF6A00] focus:ring-2 focus:ring-orange-100 disabled:opacity-50"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#e85d00] focus:ring-2 focus:ring-orange-100 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -1143,7 +1143,7 @@ export default function AdminAppSettings() {
               type="button"
               onClick={saveBootSplash}
               disabled={bootSplashSaving}
-              className="w-full rounded-lg bg-[#FF6A00] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-lg bg-[#e85d00] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#e85f00] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {bootSplashSaving ? 'Mise à jour…' : 'Enregistrer le splash animé'}
             </button>

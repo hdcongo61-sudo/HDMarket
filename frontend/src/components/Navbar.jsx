@@ -798,13 +798,13 @@ export default function Navbar() {
     if (bottomBarTouchStart === null) return;
     const touchY = e.touches[0].clientY;
     const diff = bottomBarTouchStart - touchY; // Negative for swipe up
-    
+
     // Cancel long press if moved
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
     }
-    
+
     // Swipe up to expand (only if not already expanded)
     if (!bottomBarExpanded && diff > 20) {
       setBottomBarExpanded(true);
@@ -1028,12 +1028,12 @@ export default function Navbar() {
     }
 
     setIsHistoryPanelOpen(false);
-    
+
     const controller = new AbortController();
     const timeout = setTimeout(async () => {
       setSearching(true);
       setSearchError("");
-      
+
       try {
         // Check cache first
         const cachedResult = await getCachedSearch(searchQuery.trim(), filters);
@@ -1048,18 +1048,18 @@ export default function Navbar() {
           });
           setShowResults(true);
           setSearching(false);
-          
+
           // Generate related searches from cached data
           const relatedTerms = new Set();
           const products = Array.isArray(cachedResult?.products) ? cachedResult.products : [];
           const categories = Array.isArray(cachedResult?.categories) ? cachedResult.categories : [];
-          
+
           categories.slice(0, 3).forEach(cat => {
             if (cat.title && cat.title.toLowerCase() !== searchQuery.trim().toLowerCase()) {
               relatedTerms.add(cat.title);
             }
           });
-          
+
           products.slice(0, 5).forEach(product => {
             if (product.category && product.category.toLowerCase() !== searchQuery.trim().toLowerCase()) {
               relatedTerms.add(product.category);
@@ -1068,17 +1068,17 @@ export default function Navbar() {
               relatedTerms.add(product.brand);
             }
           });
-          
+
           setRelatedSearches(Array.from(relatedTerms).slice(0, 5));
-          
+
           // Still fetch fresh data in background to update cache
           // (don't await, let it run in background)
         }
-        
+
         // Build query params with filters
         const params = new URLSearchParams();
         params.append('q', searchQuery.trim());
-        
+
         if (filters.category) params.append('category', filters.category);
         if (filters.minPrice) params.append('minPrice', filters.minPrice);
         if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
@@ -1089,14 +1089,14 @@ export default function Navbar() {
         const { data } = await api.get(`/search?${params.toString()}`, {
           signal: controller.signal
         });
-        
+
         const results = {
           products: Array.isArray(data?.products) ? data.products : [],
           shops: Array.isArray(data?.shops) ? data.shops : [],
           categories: Array.isArray(data?.categories) ? data.categories : [],
           totals: data?.totals || { products: 0, shops: 0, categories: 0, total: 0 }
         };
-        
+
         // Only update if not cancelled and not using cached result
         if (!cachedResult) {
           setSearchResults(results);
@@ -1117,7 +1117,7 @@ export default function Navbar() {
             totals: cachedResult.totals
           });
         }
-        
+
         // Cache the results
         await setCachedSearch(searchQuery.trim(), filters, results);
 
@@ -1171,7 +1171,7 @@ export default function Navbar() {
         setSearching(false);
       }
     }, 300);
-    
+
     return () => {
       clearTimeout(timeout);
       controller.abort();
@@ -1189,9 +1189,9 @@ export default function Navbar() {
       const params = new URLSearchParams();
       if (showHistoryGrouped) params.append('groupByDate', 'true');
       if (historySearchQuery.trim()) params.append('search', historySearchQuery.trim());
-      
+
       const { data } = await api.get(`/users/search-history?${params.toString()}`);
-      
+
       if (showHistoryGrouped && data && typeof data === 'object' && !Array.isArray(data)) {
         // Grouped format
         setGroupedHistory({
@@ -1625,7 +1625,7 @@ export default function Navbar() {
   const handleSuggestionClick = (query) => {
     setSearchQuery(query);
     setShowResults(true);
-    
+
     // Track analytics for popular search click
     api.post('/search/analytics', {
       query: query,
@@ -1723,7 +1723,7 @@ export default function Navbar() {
     const currentLimit = resultsLimit[type] || 0;
     const allResults = searchResults[type] || [];
     const newLimit = Math.min(currentLimit + 5, allResults.length);
-    
+
     setResultsLimit(prev => ({ ...prev, [type]: newLimit }));
     setDisplayedResults(prev => ({
       ...prev,
@@ -1834,8 +1834,8 @@ export default function Navbar() {
                         )}
                         {product.condition && (
                           <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                            product.condition === 'new' 
-                              ? 'bg-neutral-100 text-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-400' 
+                            product.condition === 'new'
+                              ? 'bg-neutral-100 text-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-400'
                               : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                           }`}>
                             {product.condition === 'new' ? t('nav.newCondition', 'Neuf') : t('nav.usedCondition', 'Occasion')}
@@ -2134,8 +2134,8 @@ export default function Navbar() {
                           )}
                           {product.condition && (
                             <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                              product.condition === 'new' 
-                                ? 'bg-neutral-100 text-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-400' 
+                              product.condition === 'new'
+                                ? 'bg-neutral-100 text-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-400'
                                 : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                             }`}>
                               {product.condition === 'new' ? t('nav.newCondition', 'Neuf') : t('nav.usedCondition', 'Occasion')}
@@ -2694,11 +2694,11 @@ export default function Navbar() {
   // Chargement des boutiques avec gestion d'erreur
   useEffect(() => {
     let cancelled = false;
-    
+
     const loadShops = async () => {
       setShopsLoading(true);
       setShopsError("");
-      
+
       try {
         const { data } = await api.get('/shops', {
           params: {
@@ -2724,7 +2724,7 @@ export default function Navbar() {
         }
       }
     };
-    
+
     const timer = window.setTimeout(loadShops, 1400);
     return () => {
       cancelled = true;
@@ -2875,7 +2875,7 @@ export default function Navbar() {
                 <ArrowDown size={20} />
               </button>
               <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF6A00]" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e85d00]" size={18} />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -2903,7 +2903,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => handleSaveSearch(searchQuery, filters)}
-                  className="hd-soft-button p-2 text-[#FF6A00]"
+                  className="hd-soft-button p-2 text-[#e85d00]"
                   title={t('nav.saveSearch', 'Sauvegarder la recherche')}
                 >
                   <Save size={18} />
@@ -2964,13 +2964,13 @@ export default function Navbar() {
         {/* Top Bar: Logo, Search, Actions */}
         <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px] 2xl:max-w-[1600px]">
           <div className="flex items-center justify-between h-16 gap-4 lg:gap-6">
-            
+
             {/* === LOGO HDMarket === */}
             <Link to="/" className="flex items-center space-x-2 sm:space-x-3 group active:scale-95 transition-transform">
               {desktopLogo || mobileLogo ? (
                 <>
                   <span
-                    className="inline-flex max-w-[136px] items-center truncate text-[27px] font-black leading-none tracking-normal text-[#FF6A00] drop-shadow-[0_2px_8px_rgba(255,106,0,0.14)] sm:hidden"
+                    className="inline-flex max-w-[136px] items-center truncate text-[27px] font-black leading-none tracking-normal text-[#e85d00] drop-shadow-[0_2px_8px_rgba(255,106,0,0.14)] sm:hidden"
                     title={mobileBrandText}
                   >
                     {mobileBrandText}
@@ -2984,7 +2984,7 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#FF6A00] rounded-xl flex items-center justify-center shadow-md sm:shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#e85d00] rounded-xl flex items-center justify-center shadow-md sm:shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
                     <span className="text-white font-black text-sm sm:text-base">HD</span>
                   </div>
                   <div className="hidden sm:flex flex-col">
@@ -3008,7 +3008,7 @@ export default function Navbar() {
               className="hd-mobile-search-pill flex flex-1 items-center gap-2 rounded-full px-3 py-2.5 text-left text-sm font-medium text-gray-500 lg:hidden"
               aria-label={t('nav.search', 'Rechercher')}
             >
-              <Search className="h-4 w-4 text-[#FF6A00]" />
+              <Search className="h-4 w-4 text-[#e85d00]" />
               <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', `Rechercher sur ${mobileBrandText}`)}</span>
             </button>
 
@@ -3022,7 +3022,7 @@ export default function Navbar() {
                 >
                   <Bell size={18} />
                   {commentAlerts > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-[#FF6A00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg">
+                    <span className="absolute -top-0.5 -right-0.5 bg-[#e85d00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg">
                       {commentAlerts > 99 ? '99+' : commentAlerts}
                     </span>
                   )}
@@ -3033,7 +3033,7 @@ export default function Navbar() {
             {/* === SEARCH BAR (Centered in Top Bar) === */}
             <div className="hd-search-flow hidden lg:flex flex-1 max-w-xl mx-4">
               <div className="relative w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FF6A00]" size={20} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e85d00]" size={20} />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -3041,17 +3041,17 @@ export default function Navbar() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.searchPlaceholderFull', 'Rechercher produits, boutiques, catégories...')}
                   className="hd-global-search w-full rounded-full py-3 pl-12 pr-24 text-sm transition-all duration-200 placeholder:text-gray-500"
-                  onFocus={() => { 
-                    setShowResults(true); 
+                  onFocus={() => {
+                    setShowResults(true);
                     if (isMobileLayout) setIsSearchFullScreen(true);
-                    if (user && searchHistory.length === 0) fetchSearchHistory(); 
+                    if (user && searchHistory.length === 0) fetchSearchHistory();
                   }}
                   onKeyDown={handleSearchKeyDown}
                   onBlur={() => setTimeout(() => setShowResults(false), 250)}
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <button 
-                    onClick={handleOpenHistoryPanel} 
+                  <button
+                    onClick={handleOpenHistoryPanel}
                     className="hd-soft-button px-2.5 py-1 text-xs font-bold"
                   >
                     {t('nav.history', 'Historique')}
@@ -3077,7 +3077,7 @@ export default function Navbar() {
                   >
                     <Bell size={18} />
                     {commentAlerts > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-[#FF6A00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      <span className="absolute -top-1 -right-1 bg-[#e85d00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {commentAlerts > 99 ? '99+' : commentAlerts}
                       </span>
                     )}
@@ -3090,7 +3090,7 @@ export default function Navbar() {
                     >
                       <MessageSquare size={18} />
                       {hasUnreadOrderMessages && (
-                          <span className="absolute -top-1 -right-1 bg-[#FF6A00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
+                          <span className="absolute -top-1 -right-1 bg-[#e85d00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
                           {unreadOrderMessagesBadge}
                         </span>
                       )}
@@ -3115,7 +3115,7 @@ export default function Navbar() {
                   >
                     <ShoppingCart size={18} />
                     {cartCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-[#FF6A00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        <span className="absolute -top-1 -right-1 bg-[#e85d00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {cartCount > 99 ? '99+' : cartCount}
                       </span>
                     )}
@@ -3141,7 +3141,7 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="relative group">
-                  <button className="hd-soft-button flex items-center gap-2 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 focus:ring-offset-2">
+                  <button className="hd-soft-button flex items-center gap-2 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#e85d00]/30 focus:ring-offset-2">
                     {resolveUserProfileImage(user) ? (
                       <img
                         src={resolveUserProfileImage(user)}
@@ -3497,8 +3497,8 @@ export default function Navbar() {
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 active:scale-95 ${
-                  isMenuOpen 
-                    ? 'bg-neutral-100 dark:bg-neutral-900/40 text-neutral-900 dark:text-neutral-300 shadow-md' 
+                  isMenuOpen
+                    ? 'bg-neutral-100 dark:bg-neutral-900/40 text-neutral-900 dark:text-neutral-300 shadow-md'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
                 aria-label={isMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
@@ -3514,9 +3514,9 @@ export default function Navbar() {
           <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px] 2xl:max-w-[1600px]">
             <div className="flex items-center gap-1 h-12">
               {/* Accueil */}
-              <NavLink 
-                to="/" 
-                className={({ isActive }) => 
+              <NavLink
+                to="/"
+                className={({ isActive }) =>
                   `rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
                     isActive ? 'bg-white/20' : 'hover:bg-white/10'
                   }`
@@ -3572,14 +3572,14 @@ export default function Navbar() {
                                       onClick={() => setIsCategoryMenuOpen(false)}
                                       className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold transition ${
                                         isActive
-                                          ? 'bg-white text-[#FF6A00] shadow-[inset_3px_0_0_0_#FF6A00] dark:bg-gray-800'
+                                          ? 'bg-white text-[#e85d00] shadow-[inset_3px_0_0_0_#e85d00] dark:bg-gray-800'
                                           : 'text-gray-700 hover:bg-white/70 dark:text-gray-200 dark:hover:bg-gray-800/60'
                                       }`}
                                     >
                                       <span
                                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
                                           isActive
-                                            ? 'bg-orange-50 text-[#FF6A00]'
+                                            ? 'bg-orange-50 text-[#e85d00]'
                                             : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
                                         }`}
                                       >
@@ -3588,7 +3588,7 @@ export default function Navbar() {
                                       <span className="flex-1 truncate">{group.label}</span>
                                       <ChevronRight
                                         size={14}
-                                        className={isActive ? 'text-[#FF6A00]' : 'text-gray-300 dark:text-gray-600'}
+                                        className={isActive ? 'text-[#e85d00]' : 'text-gray-300 dark:text-gray-600'}
                                       />
                                     </Link>
                                   </li>
@@ -3617,7 +3617,7 @@ export default function Navbar() {
                                   <Link
                                     to={`/categories/${activeGroup.options?.[0]?.value || ''}`}
                                     onClick={() => setIsCategoryMenuOpen(false)}
-                                    className="shrink-0 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-black text-gray-600 transition hover:border-[#FF6A00] hover:text-[#FF6A00] dark:border-gray-700 dark:text-gray-300"
+                                    className="shrink-0 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-black text-gray-600 transition hover:border-[#e85d00] hover:text-[#e85d00] dark:border-gray-700 dark:text-gray-300"
                                   >
                                     Tout voir
                                   </Link>
@@ -3628,7 +3628,7 @@ export default function Navbar() {
                                       key={option.value}
                                       to={`/categories/${option.value}`}
                                       onClick={() => setIsCategoryMenuOpen(false)}
-                                      className="truncate rounded-lg px-2 py-1.5 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 hover:text-[#FF6A00] dark:text-gray-300 dark:hover:bg-gray-800"
+                                      className="truncate rounded-lg px-2 py-1.5 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 hover:text-[#e85d00] dark:text-gray-300 dark:hover:bg-gray-800"
                                     >
                                       {option.label}
                                     </Link>
@@ -3666,10 +3666,10 @@ export default function Navbar() {
                     className={`transition-transform duration-200 ${isShopMenuOpen ? "rotate-180" : ""}`}
                   />
                 </button>
-                
+
                 {/* ENHANCED BOUTIQUES MENU */}
                 {isShopMenuOpen && (
-                  <div 
+                  <div
                     className="hd-menu-panel absolute left-0 z-50 mt-0 w-96 overflow-hidden rounded-2xl"
                     onMouseEnter={handleShopMenuOpen}
                     onMouseLeave={handleShopMenuDelayedClose}
@@ -3687,7 +3687,7 @@ export default function Navbar() {
                         {t('nav.seeAllArrow', 'Tout voir →')}
                       </Link>
                     </div>
-                    
+
                     <div className="max-h-96 overflow-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
                       {shopsLoading ? (
                         <div className="p-4 flex items-center justify-center">
@@ -3803,7 +3803,7 @@ export default function Navbar() {
                           key={item.to}
                           to={item.to}
                           onClick={() => setIsMoreMenuOpen(false)}
-                          className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-orange-50 hover:text-[#FF6A00] dark:text-gray-200 dark:hover:bg-gray-800"
+                          className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-orange-50 hover:text-[#e85d00] dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                           {item.label}
                           <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
@@ -3848,44 +3848,44 @@ export default function Navbar() {
       {/* === MENU MOBILE OVERLAY === */}
       {isMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-stone-950/35 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-40 bg-stone-950/30"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
         >
-          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-[30px] border border-gray-200 bg-gray-50 shadow-[0_28px_70px_rgba(124,58,0,0.22)] dark:border-orange-900/40 dark:bg-neutral-950">
-            <div className="h-full overflow-y-auto px-3 py-4 pb-32 space-y-3">
+          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-[24px] border border-[#e2dcd2] bg-[#f5f2ee] shadow-[0_24px_60px_rgba(35,31,27,0.18)] dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="hd-mobile-menu-list h-full space-y-1 overflow-y-auto px-3 py-3 pb-32">
 
               {/* User avatar / profile card */}
               {user ? (
                 <Link
                   to="/profile"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gradient-to-br from-[#FF6A00] to-[#ff8a2a] px-4 py-4 text-white shadow-[0_16px_38px_rgba(255,106,0,0.28)] transition active:scale-[0.99]"
+                  className="mobile-profile-card mb-2 flex items-center gap-3 rounded-2xl border border-[#e2dcd2] bg-white px-4 py-3.5 text-[#231f1b] shadow-sm transition active:scale-[0.99] dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
                 >
                   {resolveUserProfileImage(user) ? (
                     <img
                       src={resolveUserProfileImage(user)}
                       alt={user.name || t('nav.user', 'Utilisateur')}
-                      className="h-12 w-12 rounded-full object-cover ring-2 ring-white/60 flex-shrink-0"
+                      className="h-11 w-11 flex-shrink-0 rounded-full object-cover ring-2 ring-[#fff2e6]"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 ring-1 ring-white/40">
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#fff2e6] text-lg font-black text-[#e85d00]">
                       {user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold truncate">
+                    <p className="truncate font-black">
                       {user.name || t('nav.user', 'Utilisateur')}
                     </p>
-                    <p className="text-sm text-white/80 truncate">{user.email}</p>
+                    <p className="truncate text-sm font-medium text-[#8a8378]">{user.email}</p>
                   </div>
                 </Link>
               ) : (
                 <Link
                   to="/login"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm transition active:scale-[0.99] dark:border-orange-900/40 dark:bg-neutral-900"
+                  className="mobile-profile-card mb-2 flex items-center gap-3 rounded-2xl border border-[#e2dcd2] bg-white px-4 py-3.5 shadow-sm transition active:scale-[0.99] dark:border-neutral-800 dark:bg-neutral-900"
                 >
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-[#FF6A00]">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-[#e85d00]">
                     <User size={24} />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -3899,10 +3899,10 @@ export default function Navbar() {
               <NavLink
                 to="/"
                 onClick={() => setIsMenuOpen(false)}
-                className={({ isActive }) => 
+                className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-[#FF6A00] text-white shadow-sm'
+                    isActive
+                      ? 'bg-[#e85d00] text-white shadow-sm'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3915,10 +3915,10 @@ export default function Navbar() {
               <NavLink
                 to="/shops/verified"
                 onClick={() => setIsMenuOpen(false)}
-                className={({ isActive }) => 
+                className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-[#FF6A00] text-white shadow-sm'
+                    isActive
+                      ? 'bg-[#e85d00] text-white shadow-sm'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3933,7 +3933,7 @@ export default function Navbar() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-[#FF6A00] text-white shadow-sm'
+                      ? 'bg-[#e85d00] text-white shadow-sm'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3948,7 +3948,7 @@ export default function Navbar() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-[#FF6A00] text-white shadow-sm'
+                      ? 'bg-[#e85d00] text-white shadow-sm'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                   }`
                 }
@@ -3961,10 +3961,10 @@ export default function Navbar() {
                 <NavLink
                   to="/suggestions"
                   onClick={() => setIsMenuOpen(false)}
-                  className={({ isActive }) => 
+                  className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                      isActive 
-                        ? 'bg-[#FF6A00] text-white shadow-sm'
+                      isActive
+                        ? 'bg-[#e85d00] text-white shadow-sm'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                     }`
                   }
@@ -3998,13 +3998,13 @@ export default function Navbar() {
                   <p className="px-4 pt-4 pb-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     Mon compte
                   </p>
-                  <NavLink 
-                    to="/my" 
+                  <NavLink
+                    to="/my"
                     onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) => 
+                    className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-[#FF6A00] text-white shadow-sm'
+                        isActive
+                          ? 'bg-[#e85d00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -4013,13 +4013,13 @@ export default function Navbar() {
                     {t('nav.myListings', 'Mes annonces')}
                   </NavLink>
 
-                  <NavLink 
-                    to="/profile" 
+                  <NavLink
+                    to="/profile"
                     onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) => 
+                    className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-[#FF6A00] text-white shadow-sm'
+                        isActive
+                          ? 'bg-[#e85d00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -4034,7 +4034,7 @@ export default function Navbar() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                         isActive
-                          ? 'bg-[#FF6A00] text-white shadow-sm'
+                          ? 'bg-[#e85d00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -4043,13 +4043,13 @@ export default function Navbar() {
                     {t('nav.preferences', 'Préférences')}
                   </NavLink>
 
-                  <NavLink 
-                    to="/stats" 
+                  <NavLink
+                    to="/stats"
                     onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) => 
+                    className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-[#FF6A00] text-white shadow-sm'
+                        isActive
+                          ? 'bg-[#e85d00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -4059,13 +4059,13 @@ export default function Navbar() {
                   </NavLink>
 
                   {user && user.accountType !== 'shop' && shopConversionEnabled && (
-                    <NavLink 
-                      to="/shop-conversion-request" 
+                    <NavLink
+                      to="/shop-conversion-request"
                       onClick={() => setIsMenuOpen(false)}
-                      className={({ isActive }) => 
+                      className={({ isActive }) =>
                         `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                          isActive 
-                            ? 'bg-[#FF6A00] text-white shadow-sm' 
+                          isActive
+                            ? 'bg-[#e85d00] text-white shadow-sm'
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                         }`
                       }
@@ -4076,13 +4076,13 @@ export default function Navbar() {
                   )}
 
                   {/* Wallet */}
-                  <NavLink 
-                    to="/wallet" 
+                  <NavLink
+                    to="/wallet"
                     onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) => 
+                    className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-[#FF6A00] text-white shadow-sm'
+                        isActive
+                          ? 'bg-[#e85d00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -4092,13 +4092,13 @@ export default function Navbar() {
                   </NavLink>
 
                   {/* Shop Assistant */}
-                  <NavLink 
-                    to="/seller/assistant" 
+                  <NavLink
+                    to="/seller/assistant"
                     onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) => 
+                    className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-[#FF6A00] text-white shadow-sm'
+                        isActive
+                          ? 'bg-[#e85d00] text-white shadow-sm'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
                       }`
                     }
@@ -4107,8 +4107,8 @@ export default function Navbar() {
                     {t('nav.shopAssistant', 'Assistant boutique')}
                   </NavLink>
 
-                  <NavLink 
-                    to="/notifications" 
+                  <NavLink
+                    to="/notifications"
                     onClick={() => setIsMenuOpen(false)}
                     className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
@@ -4120,7 +4120,7 @@ export default function Navbar() {
                       </span>
                     )}
                   </NavLink>
-                  <NavLink 
+                  <NavLink
                     to="/orders"
                     onClick={() => setIsMenuOpen(false)}
                     className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -4360,8 +4360,8 @@ export default function Navbar() {
               {/* Admin mobile */}
               {canAccessBackOffice && (
                 <>
-                  <NavLink 
-                    to="/admin" 
+                  <NavLink
+                    to="/admin"
                     onClick={() => setIsMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900/20 text-neutral-700 dark:text-neutral-300 font-medium hover:bg-neutral-200 dark:hover:bg-neutral-900/40 transition-colors"
                   >
@@ -4405,8 +4405,8 @@ export default function Navbar() {
               )}
 
               {/* Actions communes */}
-              <NavLink 
-                to="/favorites" 
+              <NavLink
+                to="/favorites"
                 onClick={() => setIsMenuOpen(false)}
                 className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
@@ -4419,8 +4419,8 @@ export default function Navbar() {
                 )}
               </NavLink>
 
-              <NavLink 
-                to="/cart" 
+              <NavLink
+                to="/cart"
                 onClick={() => setIsMenuOpen(false)}
                 className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
@@ -4455,7 +4455,7 @@ export default function Navbar() {
                   <NavLink
                     to="/register"
                     onClick={() => setIsMenuOpen(false)}
-                    className="px-4 py-3 rounded-xl bg-[#FF6A00] text-white text-center font-medium hover:bg-[#f45f00] transition-colors"
+                    className="px-4 py-3 rounded-xl bg-[#e85d00] text-white text-center font-medium hover:bg-[#f45f00] transition-colors"
                   >
                     {t('nav.register', 'Inscription')}
                   </NavLink>
@@ -4480,8 +4480,8 @@ export default function Navbar() {
       )}
 
       {/* BARRE DE NAVIGATION FIXE MOBILE - DESIGN MODERNE ET AMÉLIORÉE */}
-      <div 
-        className={`hd-mobile-tabbar ${isProductDetailRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[64px] bg-white dark:bg-gray-900 border-t border-gray-200/80 dark:border-gray-800/80 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+      <div
+        className={`hd-mobile-tabbar ${isProductDetailRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[68px] border-t border-[#e2dcd2] bg-white/96 shadow-[0_-8px_24px_rgba(35,31,27,0.08)] backdrop-blur-xl transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-950/96 ${
           bottomNavHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom))]' : 'translate-y-0'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', willChange: 'transform' }}
@@ -4491,27 +4491,27 @@ export default function Navbar() {
       >
         {/* Swipe indicator */}
         {!bottomBarExpanded && secondaryItems.length > 0 && (
-          <div 
-            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer z-10"
+          <div
+            className="hidden"
             onClick={() => {
               setBottomBarExpanded(true);
               triggerHaptic('medium');
             }}
           >
-            <div className="bg-[#FF6A00] text-white p-1.5 rounded-full shadow-lg">
+            <div className="bg-[#e85d00] text-white p-1.5 rounded-full shadow-lg">
               <ChevronUp size={12} className="animate-bounce" />
             </div>
           </div>
         )}
-        
-        <div className={`max-w-3xl mx-auto px-3 transition-all duration-300 ${bottomBarExpanded ? 'py-3' : 'py-2.5'}`}>
+
+        <div className={`mx-auto max-w-3xl px-2 transition-all duration-300 ${bottomBarExpanded ? 'py-3' : 'py-2'}`}>
           {/* Primary Navigation Items */}
           <div className="flex items-center justify-around">
             {primaryItems.map((item) => {
               const Icon = item.icon;
               const badge = item.badge || 0;
               const isActive = location.pathname === item.path;
-              
+
               if (item.isButton) {
                 return (
                   <button
@@ -4524,26 +4524,20 @@ export default function Navbar() {
                     }}
                     onTouchStart={handleBottomBarTouchStart}
                     onTouchEnd={handleBottomBarTouchEnd}
-                    className={`relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 text-gray-500 hover:text-[#FF6A00] active:scale-95 ${
-                      isMenuOpen ? 'text-[#FF6A00] scale-105' : ''
+                    className={`relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[#8a8378] transition active:scale-95 ${
+                      isMenuOpen ? 'text-[#e85d00]' : ''
                     }`}
                   >
-                    <div className={`relative transition-all duration-300 ${isMenuOpen ? 'scale-110' : ''}`}>
+                    <div className={`relative flex h-8 min-w-10 items-center justify-center rounded-full px-2 transition ${isMenuOpen ? 'bg-[#fff2e6]' : ''}`}>
                       {isMenuOpen ? (
-                        <X size={22} className="text-[#FF6A00]" strokeWidth={2.5} />
+                        <X size={22} className="text-[#e85d00]" strokeWidth={2.5} />
                       ) : (
                         <Icon size={22} strokeWidth={2} />
                       )}
-                      {isMenuOpen && (
-                        <div className="absolute inset-0 -z-10 bg-orange-100 rounded-full blur-md animate-pulse" />
-                      )}
                     </div>
-                    <span className={`text-[11px] font-semibold transition-all ${isMenuOpen ? 'text-[#FF6A00]' : ''}`}>
+                    <span className={`text-[11px] leading-4 ${isMenuOpen ? 'font-extrabold text-[#e85d00]' : 'font-semibold'}`}>
                       {item.label}
                     </span>
-                    {isMenuOpen && (
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#FF6A00] rounded-full" />
-                    )}
                     {/* Quick Actions Menu */}
                     {enableBottomBarQuickActions && showQuickActions === item.id && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
@@ -4572,7 +4566,7 @@ export default function Navbar() {
                   </button>
                 );
               }
-              
+
               return (
                 <NavLink
                   key={item.id}
@@ -4581,10 +4575,10 @@ export default function Navbar() {
                   onTouchStart={handleBottomBarTouchStart}
                   onTouchEnd={handleBottomBarTouchEnd}
                   className={({ isActive: navIsActive }) =>
-                    `relative flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 ${
+                    `relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 transition ${
                       navIsActive
-                        ? "text-[#FF6A00] scale-105"
-                        : "text-gray-500 hover:text-[#FF6A00]"
+                        ? "text-[#e85d00]"
+                        : "text-gray-500 hover:text-[#e85d00]"
                     }`
                   }
                   onClick={() => {
@@ -4595,29 +4589,21 @@ export default function Navbar() {
                 >
                   {({ isActive: navIsActive }) => (
                     <>
-                      <div className={`relative transition-all duration-300 ${navIsActive ? 'scale-110' : ''}`}>
-                        <Icon 
-                          size={22} 
-                          className={navIsActive ? 'text-[#FF6A00]' : ''}
+                      <div className={`relative flex h-8 min-w-10 items-center justify-center rounded-full px-2 transition ${navIsActive ? 'bg-[#fff2e6]' : ''}`}>
+                        <Icon
+                          size={22}
+                          className={navIsActive ? 'text-[#e85d00]' : ''}
                           strokeWidth={navIsActive ? 2.5 : 2}
                           fill={item.id === 'favorites' && navIsActive ? 'currentColor' : 'none'}
                         />
-                        {navIsActive && (
-                          <div className="absolute inset-0 -z-10 bg-orange-100 rounded-full blur-md animate-pulse" />
-                        )}
                       </div>
-                      <span className={`text-[11px] font-semibold transition-all ${navIsActive ? 'text-[#FF6A00]' : ''}`}>
+                      <span className={`text-[11px] leading-4 transition ${navIsActive ? 'font-extrabold text-[#e85d00]' : 'font-semibold'}`}>
                         {item.label}
                       </span>
                       {badge > 0 && (
-                        <span className={`absolute -top-0.5 right-2.5 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg transition-all ${
-                          navIsActive ? 'bg-[#FF6A00]' : item.id === 'favorites' ? 'bg-rose-500' : 'bg-[#FF6A00]'
-                        }`}>
+                        <span className="absolute right-1 top-0 min-w-[18px] rounded-full bg-[#e85d00] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
                           {badge > 99 ? '99+' : badge}
                         </span>
-                      )}
-                      {navIsActive && (
-                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#FF6A00] rounded-full" />
                       )}
                       {/* Quick Actions Menu */}
                       {enableBottomBarQuickActions && showQuickActions === item.id && (
@@ -4679,7 +4665,7 @@ export default function Navbar() {
                     const Icon = item.icon;
                     const badge = item.badge || 0;
                     const isActive = location.pathname === item.path;
-                    
+
                     return (
                       <NavLink
                         key={item.id}
@@ -4689,8 +4675,8 @@ export default function Navbar() {
                         onTouchEnd={handleBottomBarTouchEnd}
                         className={({ isActive: navIsActive }) =>
                           `relative flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-xl transition-all duration-300 ${
-                            navIsActive 
-                              ? "text-neutral-900 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-900/20 scale-105" 
+                            navIsActive
+                              ? "text-neutral-900 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-900/20 scale-105"
                               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                           }`
                         }
@@ -4702,8 +4688,8 @@ export default function Navbar() {
                         {({ isActive: navIsActive }) => (
                           <>
                             <div className="relative">
-                              <Icon 
-                                size={18} 
+                              <Icon
+                                size={18}
                                 className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
                                 strokeWidth={navIsActive ? 2.5 : 2}
                               />

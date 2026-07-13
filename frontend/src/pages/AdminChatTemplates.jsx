@@ -304,7 +304,7 @@ export default function AdminChatTemplates() {
   return (
     <div className="mx-auto max-w-7xl space-y-5 bg-[#f7f3ee] px-4 pb-8 pt-1 dark:bg-neutral-950">
       <header className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_55px_rgba(17,24,39,0.08)] dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="bg-gradient-to-br from-[#ff6a00] via-[#ff7a1a] to-[#f04423] px-5 py-5 text-white">
+        <div className="bg-gradient-to-br from-[#e85d00] via-[#ff7a1a] to-[#f04423] px-5 py-5 text-white">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/75">Centre assistant</p>
           <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-tight">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/18 ring-1 ring-white/25">
@@ -336,7 +336,7 @@ export default function AdminChatTemplates() {
                 setAccessSearch(value);
                 loadAccessUsers(value).catch(() => {});
               }}
-              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 sm:w-80 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 sm:w-80 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
               placeholder="Rechercher utilisateur..."
             />
           </div>
@@ -398,7 +398,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.title}
                 onChange={(event) => handleChange('title', event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="Ex: Où est ma commande ?"
               />
             </div>
@@ -408,7 +408,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.category}
                 onChange={(event) => handleChange('category', event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="Orders, Payment, Disputes..."
               />
             </div>
@@ -419,7 +419,7 @@ export default function AdminChatTemplates() {
                 <select
                   value={form.type}
                   onChange={(event) => handleChange('type', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 >
                   <option value="question">Question</option>
                   <option value="info">Info</option>
@@ -432,7 +432,7 @@ export default function AdminChatTemplates() {
                 <select
                   value={form.parentId}
                   onChange={(event) => handleChange('parentId', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 >
                   <option value="">Racine</option>
                   {parentOptions
@@ -452,7 +452,7 @@ export default function AdminChatTemplates() {
                 rows={4}
                 value={form.content}
                 onChange={(event) => handleChange('content', event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="Réponse affichée dans l’assistant..."
               />
             </div>
@@ -464,7 +464,7 @@ export default function AdminChatTemplates() {
                   type="number"
                   value={form.priority}
                   onChange={(event) => handleChange('priority', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 />
               </div>
               <div>
@@ -473,7 +473,7 @@ export default function AdminChatTemplates() {
                   type="number"
                   value={form.order}
                   onChange={(event) => handleChange('order', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 />
               </div>
             </div>
@@ -483,7 +483,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.rolesInput}
                 onChange={(event) => handleChange('rolesInput', event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="all, client, seller, admin"
               />
             </div>
@@ -494,7 +494,7 @@ export default function AdminChatTemplates() {
                 <select
                   value={form.entityType}
                   onChange={(event) => handleChange('entityType', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 >
                   <option value="">Aucun</option>
                   <option value="order">Order</option>
@@ -510,7 +510,7 @@ export default function AdminChatTemplates() {
                 <input
                   value={form.entityId}
                   onChange={(event) => handleChange('entityId', event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                   placeholder="ID / slug / URL"
                 />
               </div>
@@ -521,7 +521,7 @@ export default function AdminChatTemplates() {
               <input
                 value={form.path}
                 onChange={(event) => handleChange('path', event.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#ff6a00]/20 transition focus:border-[#ff6a00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-neutral-900 outline-none ring-[#e85d00]/20 transition focus:border-[#e85d00] focus:ring-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:ring-neutral-700"
                 placeholder="/orders, /product/slug..."
               />
             </div>
@@ -542,7 +542,7 @@ export default function AdminChatTemplates() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-[#ff6a00] px-4 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:opacity-60"
+                className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-[#e85d00] px-4 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:opacity-60"
               >
                 {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 {saving ? 'Enregistrement...' : editingId ? 'Mettre à jour' : 'Créer'}

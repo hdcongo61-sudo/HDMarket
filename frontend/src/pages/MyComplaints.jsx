@@ -87,11 +87,11 @@ const DisputeTimeline = ({ status }) => {
           return (
             <React.Fragment key={step}>
               <div
-                className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-[#FF6A00]' : 'bg-orange-100'}`}
+                className={`h-2.5 w-2.5 rounded-full ${done ? 'bg-[#e85d00]' : 'bg-orange-100'}`}
                 title={step}
               />
               {index < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 ${level > index ? 'bg-[#FF6A00]' : 'bg-orange-100'}`} />
+                <div className={`h-0.5 flex-1 ${level > index ? 'bg-[#e85d00]' : 'bg-orange-100'}`} />
               )}
             </React.Fragment>
           );
@@ -267,11 +267,11 @@ export default function MyComplaints() {
     return (
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#FF6A00]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
             <User className="h-8 w-8" />
           </div>
           <p className="text-sm font-semibold text-gray-600">Vous devez être connecté pour accéder à cette page.</p>
-          <Link to="/login" className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#FF6A00] px-5 text-sm font-black text-white">
+          <Link to="/login" className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#e85d00] px-5 text-sm font-black text-white">
             <ArrowLeft size={16} />
             Retour à la connexion
           </Link>
@@ -310,7 +310,7 @@ export default function MyComplaints() {
               <div className="space-y-2">
                 <label className="text-sm font-black text-gray-800">Commande concernée *</label>
                 <select
-                  className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
+                  className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                   value={orderId}
                   onChange={(e) => {
                     setOrderId(e.target.value);
@@ -330,7 +330,7 @@ export default function MyComplaints() {
               <div className="space-y-2">
                 <label className="text-sm font-black text-gray-800">Motif *</label>
                 <select
-                  className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
+                  className="min-h-[52px] w-full rounded-xl border border-gray-200 bg-gray-100/35 px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   disabled={submitLoading}
@@ -347,7 +347,7 @@ export default function MyComplaints() {
             <div className="space-y-2">
               <label className="flex items-center justify-between text-sm font-black text-gray-800">
                 <span className="inline-flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-[#FF6A00]" />
+                  <MessageCircle className="h-4 w-4 text-[#e85d00]" />
                   Description *
                 </span>
                 <span className="text-xs font-bold text-gray-500">
@@ -361,7 +361,7 @@ export default function MyComplaints() {
                   setDescription(e.target.value.slice(0, MAX_DESCRIPTION));
                   setSubmitError('');
                 }}
-                className="w-full rounded-xl border border-gray-200 bg-gray-100/35 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#FF6A00] focus:bg-white focus:ring-4 focus:ring-gray-200"
+                className="w-full rounded-xl border border-gray-200 bg-gray-100/35 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:bg-white focus:ring-4 focus:ring-gray-200"
                 placeholder="Décrivez précisément le problème (état, article reçu, preuves, etc.)."
                 maxLength={MAX_DESCRIPTION}
                 required
@@ -396,12 +396,12 @@ export default function MyComplaints() {
                       className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold"
                     >
                       <span className="inline-flex items-center gap-2 truncate">
-                        <Paperclip className="h-3.5 w-3.5 text-[#FF6A00]" />
+                        <Paperclip className="h-3.5 w-3.5 text-[#e85d00]" />
                         <span className="truncate">{file.name}</span>
                       </span>
                       <button
                         type="button"
-                        className="font-black text-[#FF6A00]"
+                        className="font-black text-[#e85d00]"
                         onClick={() => removeFile(index)}
                         disabled={submitLoading}
                       >
@@ -444,7 +444,7 @@ export default function MyComplaints() {
 
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
           <div className="mb-4">
-            <p className="text-xs font-black uppercase tracking-wide text-[#FF6A00]">Suivi</p>
+            <p className="text-xs font-black uppercase tracking-wide text-[#e85d00]">Suivi</p>
             <h2 className="mt-1 text-xl font-black text-gray-900">Historique des réclamations</h2>
           </div>
           {loading ? (
