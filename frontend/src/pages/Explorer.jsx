@@ -228,7 +228,7 @@ export default function Explorer() {
 
       {/* ── Category Chips ── */}
       {categoryChips.length > 0 && (
-        <div className="border-b border-gray-200/60 bg-[#f6f3ee]/90 backdrop-blur-xl md:sticky md:top-0 md:z-20 dark:bg-neutral-950/90">
+        <div className="border-b border-gray-200/60 bg-[#f6f3ee]/90 backdrop-blur-xl dark:bg-neutral-950/90">
           <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-2.5 scrollbar-hide">
             <button
               type="button"

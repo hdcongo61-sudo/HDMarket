@@ -361,19 +361,19 @@ export default function OrderCheckout() {
     ? Number(totals.subtotal || 0)
     : Number(checkoutTotalWithDelivery || 0);
   const summaryPrimaryPaymentLabel = isInstallmentPayment
-    ? 'Premier paiement'
+    ? t('checkout.firstPayment', 'Premier paiement')
     : isFullPaymentSelected
-      ? 'Paiement intégral'
+      ? t('checkout.fullPayment', 'Paiement intégral')
       : isWalletPayment
-        ? 'Paiement portefeuille'
-        : 'Acompte (25%)';
+        ? t('checkout.walletPayment', 'Paiement portefeuille')
+        : t('checkout.deposit25', 'Acompte (25%)');
   const paymentModeDescription = isInstallmentPayment
-    ? 'Cette commande sera traitée en paiement par tranche après validation du vendeur.'
+    ? t('checkout.installmentDescription', 'Cette commande sera traitée en paiement par tranche après validation du vendeur.')
     : isFullPaymentSelected
-      ? 'Vous payez le montant total maintenant pour confirmer la commande.'
+      ? t('checkout.fullDescription', 'Vous payez le montant total maintenant pour confirmer la commande.')
       : isWalletPayment
-        ? 'Aucun acompte ni code transaction requis. Le paiement est traité automatiquement.'
-        : 'Un acompte de 25% est requis pour confirmer votre commande.';
+        ? t('checkout.walletDescription', 'Aucun acompte ni code transaction requis. Le paiement est traité automatiquement.')
+        : t('checkout.depositDescription', 'Un acompte de 25% est requis pour confirmer votre commande.');
   const paymentCommitmentMessage = isInstallmentPayment
     ? installmentPaymentMethod === 'wallet'
       ? `${formatCurrency(summaryPaidAmount)} seront débités de votre portefeuille pour activer l’échéancier.`
@@ -408,8 +408,8 @@ export default function OrderCheckout() {
     const baseCards = [
       {
         id: PAYMENT_MODES.STANDARD,
-        title: 'Paiement classique',
-        subtitle: 'Acompte pour réserver, solde à régler plus tard.',
+        title: t('checkout.classic', 'Paiement classique'),
+        subtitle: t('checkout.classicSubtitle', 'Acompte pour réserver, solde à régler plus tard.'),
         eyebrow: 'Flexible',
         icon: CreditCard,
         amountLabel: 'À payer maintenant',
@@ -423,8 +423,8 @@ export default function OrderCheckout() {
     if (showFullPaymentOption) {
       baseCards.push({
         id: PAYMENT_MODES.FULL_PAYMENT,
-        title: 'Paiement intégral',
-        subtitle: 'Tout payer maintenant pour verrouiller la commande.',
+        title: t('checkout.full', 'Paiement intégral'),
+        subtitle: t('checkout.fullSubtitle', 'Tout payer maintenant pour confirmer la commande.'),
         eyebrow: fullPaymentLabelText,
         icon: ShieldCheck,
         amountLabel: 'Total à payer',
@@ -444,8 +444,8 @@ export default function OrderCheckout() {
     if (isInstallmentProductEligible) {
       baseCards.push({
         id: PAYMENT_MODES.INSTALLMENT,
-        title: 'Paiement par tranche',
-        subtitle: 'Premier versement, puis échéancier suivi.',
+        title: t('checkout.installment', 'Paiement par tranche'),
+        subtitle: t('checkout.installmentSubtitle', 'Premier versement, puis échéancier suivi.'),
         eyebrow: `${installmentDuration || 0} jours`,
         icon: ClipboardList,
         amountLabel: 'Premier paiement',
@@ -464,16 +464,16 @@ export default function OrderCheckout() {
     if (walletEligible) {
       baseCards.push({
         id: PAYMENT_MODES.WALLET,
-        title: 'Portefeuille HDMarket',
-        subtitle: 'Aucun acompte à payer dans le checkout.',
+        title: t('checkout.wallet', 'Portefeuille HDMarket'),
+        subtitle: t('checkout.walletSubtitle', 'Aucun acompte à payer dans le checkout.'),
         eyebrow: 'Auto',
         icon: Wallet,
         amountLabel: 'Acompte requis',
         amount: 0,
-        amountDisplay: 'Aucun',
+        amountDisplay: t('checkout.none', 'Aucun'),
         remainingLabel: 'Code à saisir',
         remaining: 0,
-        remainingDisplay: 'Aucun',
+        remainingDisplay: t('checkout.none', 'Aucun'),
         bullets: [
           'Aucun code transaction',
           'Aucun acompte frontend',
@@ -485,13 +485,13 @@ export default function OrderCheckout() {
     if (payForOtherEnabled) {
       baseCards.push({
         id: PAYMENT_MODES.SPONSOR,
-        title: 'Un proche paie',
-        subtitle: 'Demandez à un proche de régler votre commande.',
+        title: t('checkout.sponsor', 'Un proche paie'),
+        subtitle: t('checkout.sponsorSubtitle', 'Demandez à un proche de régler votre commande.'),
         eyebrow: 'Proche',
         icon: Users,
         amountLabel: 'À payer maintenant',
         amount: 0,
-        amountDisplay: 'Aucun',
+        amountDisplay: t('checkout.none', 'Aucun'),
         remainingLabel: 'Réglé par',
         remaining: 0,
         remainingDisplay: 'Le proche',
@@ -518,6 +518,7 @@ export default function OrderCheckout() {
     remainingAmount,
     showFullPaymentOption,
     sellerGroups,
+    t,
     walletEligible,
     payForOtherEnabled
   ]);
@@ -1333,16 +1334,16 @@ export default function OrderCheckout() {
           <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6 shadow-lg border border-neutral-200">
             <ClipboardList size={32} className="text-neutral-900" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Votre panier est vide</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">{t('checkout.emptyTitle', 'Votre panier est vide')}</h1>
           <p className="text-gray-600 font-medium mb-8">
-            Ajoutez des produits avant de confirmer une commande.
+            {t('checkout.emptySubtitle', 'Ajoutez des produits avant de confirmer une commande.')}
           </p>
           <Link
             to="/products"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-900 transition-all duration-200 active:scale-95 shadow-sm"
           >
             <ShoppingBag size={18} />
-            Explorer le marché
+            {t('checkout.explore', 'Explorer le marché')}
           </Link>
         </div>
       </div>
@@ -1361,11 +1362,11 @@ export default function OrderCheckout() {
             <ArrowLeft size={20} />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-[17px] font-black text-[#231f1b]">Paiement</h1>
+            <h1 className="text-[17px] font-black text-[#231f1b]">{t('checkout.title', 'Paiement')}</h1>
             <p className="truncate text-xs font-semibold text-[#8a8378]">{paymentModeDescription}</p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-emerald-700">
-            <ShieldCheck size={16} /> Sécurisé
+            <ShieldCheck size={16} /> {t('checkout.secure', 'Sécurisé')}
           </span>
       </header>
 
@@ -1378,8 +1379,8 @@ export default function OrderCheckout() {
                 <ShoppingBag size={19} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-950">Résumé</h2>
-                <p className="text-xs font-semibold text-slate-500">{items.length} ligne{items.length > 1 ? 's' : ''} dans le panier</p>
+                <h2 className="text-lg font-black text-slate-950">{t('checkout.summary', 'Résumé')}</h2>
+                <p className="text-xs font-semibold text-slate-500">{items.length} {t('checkout.cartLines', 'ligne(s) dans le panier')}</p>
               </div>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
@@ -1408,17 +1409,17 @@ export default function OrderCheckout() {
                     className="mb-1"
                   />
                   <p className="text-xs text-gray-500">
-                    Vendeur: {product.user?.phone || product.contactPhone || '—'}
+                    {t('checkout.seller', 'Vendeur')} : {product.user?.phone || product.contactPhone || '—'}
                   </p>
                   <p className="mt-2 text-base font-black text-[#231f1b] sm:hidden">
                     {formatCurrency(lineTotal)}
                   </p>
                   <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                    {formatCurrency(unitPrice)} / unité
+                    {formatCurrency(unitPrice)} / {t('cartPage.unit', 'unité')}
                   </p>
                 </div>
                 <div className="hidden text-right sm:block">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Total ligne</p>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{t('checkout.lineTotal', 'Total ligne')}</p>
                   <span className="mt-1 block text-lg font-black text-slate-950">
                     {formatCurrency(lineTotal)}
                   </span>
@@ -1428,22 +1429,22 @@ export default function OrderCheckout() {
           </div>
           <div className="space-y-3 border-t border-slate-100 p-5 sm:p-6">
             <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-5 py-4">
-              <span className="text-base font-black text-slate-700">Total commande</span>
+              <span className="text-base font-black text-slate-700">{t('checkout.orderTotal', 'Total commande')}</span>
               <span className="text-2xl font-black text-slate-950">
                 {formatCurrency(summaryOrderTotal)}
               </span>
             </div>
             {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
               <div className="flex items-center justify-between px-1 py-1">
-                <span className="text-base font-bold text-[#6b6459]">Livraison</span>
+                <span className="text-base font-bold text-[#6b6459]">{t('checkout.delivery', 'Livraison')}</span>
                 <span className="text-lg font-black text-[#231f1b]">
-                  {(isFullPaymentSelected || isWalletPayment) ? 'Offerte' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
+                  {(isFullPaymentSelected || isWalletPayment) ? t('checkout.offered', 'Offerte') : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
               </div>
             )}
             {!isInstallmentPayment && checkoutSavings > 0 && (
               <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
-                <span className="text-base font-black text-emerald-700">Économie via promo</span>
+                <span className="text-base font-black text-emerald-700">{t('checkout.promoSavings', 'Économie via promo')}</span>
                 <span className="text-lg font-black text-emerald-700">
                   -{formatCurrency(checkoutSavings)}
                 </span>
@@ -1461,7 +1462,7 @@ export default function OrderCheckout() {
             )}
             {summaryRemainingAmount > 0 && (
               <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-5 py-4">
-                <span className="text-base font-bold text-slate-600">Reste à payer</span>
+                <span className="text-base font-bold text-slate-600">{t('checkout.remaining', 'Reste à payer')}</span>
                 <span className="text-lg font-black text-slate-950">
                   {formatCurrency(summaryRemainingAmount)}
                 </span>
@@ -1478,15 +1479,15 @@ export default function OrderCheckout() {
                 <CreditCard size={19} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-950">Paiement et livraison</h2>
-                <p className="text-xs font-semibold text-slate-500">Complétez les informations nécessaires.</p>
+                <h2 className="text-lg font-black text-slate-950">{t('checkout.paymentDelivery', 'Paiement et livraison')}</h2>
+                <p className="text-xs font-semibold text-slate-500">{t('checkout.completeInformation', 'Complétez les informations nécessaires.')}</p>
               </div>
             </div>
           </div>
           
           <form id="order-checkout-form" className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-              <p className="text-xs font-black uppercase tracking-wide text-slate-600">Mode de livraison</p>
+              <p className="text-xs font-black uppercase tracking-wide text-slate-600">{t('checkout.deliveryMode', 'Mode de livraison')}</p>
               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white p-1 ring-1 ring-slate-200">
                 <button
                   type="button"
@@ -1498,7 +1499,7 @@ export default function OrderCheckout() {
                   }`}
                 >
                   <Store size={15} />
-                  Retrait
+                  {t('checkout.pickup', 'Retrait')}
                 </button>
                 <button
                   type="button"
@@ -1511,18 +1512,18 @@ export default function OrderCheckout() {
                   } ${hasPickupOnlyProducts ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <Truck size={15} />
-                  Livraison
+                  {t('checkout.deliveryOption', 'Livraison')}
                 </button>
               </div>
               {hasPickupOnlyProducts && (
                 <p className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                  Un ou plusieurs produits sont en retrait boutique uniquement.
+                  {t('checkout.pickupOnly', 'Un ou plusieurs produits sont en retrait boutique uniquement.')}
                 </p>
               )}
               {deliveryMode === 'DELIVERY' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">Ville</label>
+                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.city', 'Ville')}</label>
                     <select
                       value={shippingAddress.cityId || ''}
                       onChange={(e) =>
@@ -1534,7 +1535,7 @@ export default function OrderCheckout() {
                       }
                       className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
                     >
-                      <option value="">Sélectionner une ville</option>
+                      <option value="">{t('checkout.selectCity', 'Sélectionner une ville')}</option>
                       {cities.map((entry) => (
                         <option key={entry._id} value={entry._id}>
                           {entry.name}
@@ -1543,7 +1544,7 @@ export default function OrderCheckout() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">Commune</label>
+                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.commune', 'Commune')}</label>
                     <select
                       value={shippingAddress.communeId || ''}
                       onChange={(e) =>
@@ -1555,7 +1556,7 @@ export default function OrderCheckout() {
                       disabled={!shippingAddress.cityId}
                       className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition disabled:bg-slate-100 focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
                     >
-                      <option value="">Sélectionner une commune</option>
+                      <option value="">{t('checkout.selectCommune', 'Sélectionner une commune')}</option>
                       {availableCommunes.map((entry) => (
                         <option key={entry._id} value={entry._id}>
                           {entry.name}
@@ -1564,7 +1565,7 @@ export default function OrderCheckout() {
                     </select>
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">Adresse</label>
+                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.address', 'Adresse')}</label>
                     <input
                       type="text"
                       value={shippingAddress.addressLine}
@@ -1572,11 +1573,11 @@ export default function OrderCheckout() {
                         setShippingAddress((prev) => ({ ...prev, addressLine: e.target.value }))
                       }
                       className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
-                      placeholder="Quartier, rue, repère"
+                      placeholder={t('checkout.addressPlaceholder', 'Quartier, rue, repère')}
                     />
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">Téléphone</label>
+                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.phone', 'Téléphone')}</label>
                     <input
                       type="tel"
                       value={shippingAddress.phone}
@@ -1590,12 +1591,12 @@ export default function OrderCheckout() {
                   <div className="md:col-span-2 rounded-xl border border-[#e2dcd2] bg-[#f5f2ee] px-3 py-2 text-xs font-semibold text-[#6b6459]">
                     <MapPin size={14} className="inline mr-1" />
                     {selectedCity?.name ? `${selectedCity.name} · ` : ''}
-                    Adresse utilisée pour calculer la livraison
+                    {t('checkout.addressDeliveryHelp', 'Adresse utilisée pour calculer la livraison')}
                   </div>
                 </div>
               ) : (
                 <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xs font-semibold text-slate-700">
-                  Retrait boutique sélectionné. Aucun frais de livraison ne sera ajouté.
+                  {t('checkout.pickupSelected', 'Retrait boutique sélectionné. Aucun frais de livraison ne sera ajouté.')}
                 </div>
               )}
             </div>
@@ -1606,14 +1607,14 @@ export default function OrderCheckout() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
-                        Mode de paiement
+                        {t('checkout.paymentMode', 'Mode de paiement')}
                       </p>
                       <h3 className="mt-1 text-base font-black leading-tight text-slate-950">
-                        Sélectionnez l'option la plus adaptée
+                        {t('checkout.choosePaymentMode', "Sélectionnez l'option la plus adaptée")}
                       </h3>
                     </div>
                     <span className="inline-flex h-8 shrink-0 items-center rounded-full bg-white px-3 text-[11px] font-black text-slate-700 ring-1 ring-slate-200">
-                      {paymentModeCards.length} option{paymentModeCards.length > 1 ? 's' : ''}
+                      {paymentModeCards.length} {t(paymentModeCards.length > 1 ? 'checkout.options' : 'checkout.option', paymentModeCards.length > 1 ? 'options' : 'option')}
                     </span>
                   </div>
                 </div>
@@ -1645,12 +1646,12 @@ export default function OrderCheckout() {
                 </div>
                 {isInstallmentProductEligible && (
                   <p className="mx-3 mb-2 text-xs font-semibold text-slate-600 sm:mx-4">
-                    Paiement en plusieurs fois disponible
+                    {t('checkout.installmentAvailable', 'Paiement en plusieurs fois disponible')}
                   </p>
                 )}
                 {installmentEligibility.score !== null && (
                   <p className="mx-3 mb-3 text-xs font-semibold text-slate-600 sm:mx-4 sm:mb-4">
-                    Score d'éligibilité: <span className="font-semibold">{installmentEligibility.score}/100</span>{' '}
+                    {t('checkout.eligibilityScore', 'Score d’éligibilité')} : <span className="font-semibold">{installmentEligibility.score}/100</span>{' '}
                     ({installmentEligibility.riskLevel || 'medium'})
                   </p>
                 )}
@@ -1674,7 +1675,7 @@ export default function OrderCheckout() {
                   >
                     <CreditCard size={18} />
                     <p className="mt-2 text-sm font-black">Mobile Money</p>
-                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">Code transaction requis</p>
+                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">{t('checkout.transactionRequired', 'Code transaction requis')}</p>
                   </button>
                   <button
                     type="button"
@@ -1687,7 +1688,7 @@ export default function OrderCheckout() {
                   >
                     <Wallet size={18} />
                     <p className="mt-2 text-sm font-black">Portefeuille HDMarket</p>
-                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">Débit et validation automatiques</p>
+                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">{t('checkout.automaticWallet', 'Débit et validation automatiques')}</p>
                   </button>
                 </div>
               </div>
@@ -1748,7 +1749,7 @@ export default function OrderCheckout() {
                         {isWalletPayment ? 'Automatique' : formatCurrency(groupDeposit)}
                       </p>
                       <p className="text-xs font-black text-orange-800">
-                        {isInstallmentPayment ? 'Premier paiement' : isFullPaymentSelected ? 'Paiement intégral' : isWalletPayment ? 'Paiement portefeuille' : 'Acompte (25%)'}
+                        {summaryPrimaryPaymentLabel}
                       </p>
                     </div>
                   </div>
@@ -1786,7 +1787,7 @@ export default function OrderCheckout() {
                         
                         <div>
                           <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">
-                            Code transaction
+                            {t('checkout.transactionCode', 'Code transaction')}
                           </label>
                           <div className="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition-all focus-within:border-[#e85d00] focus-within:ring-2 focus-within:ring-gray-200">
                             <CreditCard size={18} className="flex-shrink-0 text-slate-400" />
@@ -1811,7 +1812,7 @@ export default function OrderCheckout() {
                     {(paymentMode === PAYMENT_MODES.WALLET || installmentUsesWallet) && (
                       <div className="space-y-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                         <p className="text-sm font-black text-emerald-800">
-                          Paiement par portefeuille HDMarket
+                          {t('checkout.walletValidation', 'Paiement par portefeuille HDMarket')}
                         </p>
                         <p className="text-xs font-semibold text-emerald-700">
                           {installmentUsesWallet
@@ -1825,11 +1826,11 @@ export default function OrderCheckout() {
                       <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                         <div className="flex items-center gap-2">
                           <Users size={18} className="text-amber-700" />
-                          <p className="text-sm font-black text-amber-900">Un proche règle votre commande</p>
+                          <p className="text-sm font-black text-amber-900">{t('checkout.sponsorPayment', 'Un proche règle votre commande')}</p>
                         </div>
                         <div>
                           <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-amber-800">
-                            Numéro du proche
+                            {t('checkout.sponsorPhone', 'Numéro du proche')}
                           </label>
                           <input
                             type="tel"
@@ -1849,7 +1850,7 @@ export default function OrderCheckout() {
                           )}
                           {!sponsorResolving && sponsorResolved && sponsorResolved.found === false && (
                             <p className="mt-1.5 text-xs font-black text-rose-600">
-                              Aucun utilisateur HDMarket pour ce numéro.
+                              {t('checkout.noSponsorUser', 'Aucun utilisateur HDMarket pour ce numéro.')}
                             </p>
                           )}
                         </div>
@@ -1867,7 +1868,7 @@ export default function OrderCheckout() {
                           />
                         </div>
                         <p className="text-xs font-semibold text-amber-700">
-                          Aucun paiement maintenant. Votre proche approuve puis règle. La livraison reste à votre adresse.
+                          {t('checkout.sponsorHelp', 'Aucun paiement maintenant. Votre proche approuve puis règle. La livraison reste à votre adresse.')}
                         </p>
                       </div>
                     )}
@@ -1875,7 +1876,7 @@ export default function OrderCheckout() {
                     {!isInstallmentPayment && (
                       <div className="space-y-2">
                         <label className="block text-xs font-black uppercase tracking-wide text-slate-500">
-                          Code promo vendeur
+                          {t('checkout.promoCode', 'Code promo vendeur')}
                         </label>
                         <div className="flex items-center gap-2">
                           <div className="flex min-h-[46px] flex-1 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3">
@@ -1910,11 +1911,11 @@ export default function OrderCheckout() {
                                 : 'border-gray-200 bg-gray-50 text-gray-600'
                             }`}
                           >
-                            <p className="font-semibold">{promoState.message || 'Code prêt à être appliqué.'}</p>
+                            <p className="font-semibold">{promoState.message || t('checkout.promoReady', 'Code prêt à être appliqué.')}</p>
                             {promoState.status === 'valid' && promoState.pricing && (
                               <p className="mt-1">
-                                Nouveau total vendeur: {formatCurrency(promoState.pricing.finalAmount)}
-                                {' · '}Économie: {formatCurrency(promoState.pricing.discountAmount)}
+                                {t('checkout.newSellerTotal', 'Nouveau total vendeur')} : {formatCurrency(promoState.pricing.finalAmount)}
+                                {' · '}{t('checkout.savings', 'Économie')} : {formatCurrency(promoState.pricing.discountAmount)}
                               </p>
                             )}
                           </div>
@@ -1938,7 +1939,7 @@ export default function OrderCheckout() {
                             className="min-h-[48px] w-full rounded-2xl border border-amber-100 bg-white px-4 text-sm font-semibold text-slate-700"
                           />
                           <p className="mt-1 text-xs font-semibold text-amber-800">
-                            Reste estimé: {formatCurrency(installmentRemainingAmount)}
+                            {t('checkout.estimatedRemaining', 'Reste estimé')} : {formatCurrency(installmentRemainingAmount)}
                           </p>
                         </div>
 
@@ -1988,14 +1989,14 @@ export default function OrderCheckout() {
                   
                   <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs sm:text-sm">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-700 font-semibold">Sous-total vendeur</span>
+                      <span className="text-gray-700 font-semibold">{t('checkout.sellerSubtotal', 'Sous-total vendeur')}</span>
                       <span className="font-black text-gray-900">
                         {formatCurrency(groupEffectiveSubtotal)}
                       </span>
                     </div>
                     {!isInstallmentPayment && groupEffectiveSubtotal < Number(group.subtotal || 0) && (
                       <div className="flex justify-between items-center">
-                        <span className="text-neutral-700 font-semibold">Économie promo</span>
+                        <span className="text-neutral-700 font-semibold">{t('checkout.promoSavings', 'Économie promo')}</span>
                         <span className="font-black text-neutral-700">
                           -{formatCurrency(Number(group.subtotal || 0) - groupEffectiveSubtotal)}
                         </span>
@@ -2003,7 +2004,7 @@ export default function OrderCheckout() {
                     )}
                     <div className="flex justify-between items-center">
                       <span className="text-neutral-700 font-semibold">
-                        {isInstallmentPayment ? 'Premier paiement' : isFullPaymentSelected ? 'Paiement intégral' : isWalletPayment ? 'Paiement portefeuille' : 'Acompte (25%)'}
+                        {summaryPrimaryPaymentLabel}
                       </span>
                       <span className="font-black text-neutral-900">
                         {isWalletPayment ? 'Automatique' : formatCurrency(groupDeposit)}
@@ -2011,7 +2012,7 @@ export default function OrderCheckout() {
                     </div>
                     {groupRemaining > 0 && (
                       <div className="flex justify-between items-center pt-2 border-t border-neutral-200">
-                        <span className="text-gray-700 font-semibold">Reste à payer</span>
+                        <span className="text-gray-700 font-semibold">{t('checkout.remaining', 'Reste à payer')}</span>
                         <span className="font-black text-gray-900">
                           {formatCurrency(groupRemaining)}
                         </span>
@@ -2049,12 +2050,12 @@ export default function OrderCheckout() {
               {loading ? (
                 <>
                   <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
-                  {checkoutStatus || (paysWithWallet ? 'Validation portefeuille...' : isFullPaymentSelected ? 'Paiement intégral...' : 'Confirmation...')}
+                  {checkoutStatus || (paysWithWallet ? t('checkout.walletValidating', 'Validation portefeuille...') : isFullPaymentSelected ? t('checkout.fullValidating', 'Paiement intégral...') : t('checkout.confirming', 'Confirmation...'))}
                 </>
               ) : (
                 <>
                   <Lock size={22} />
-                  Confirmer la commande
+                  {t('checkout.confirm', 'Confirmer la commande')}
                 </>
               )}
             </button>
@@ -2065,7 +2066,7 @@ export default function OrderCheckout() {
         <div className="mx-auto flex max-w-7xl items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-              {paysWithWallet ? 'Paiement portefeuille' : summaryPrimaryPaymentLabel}
+              {paysWithWallet ? t('checkout.walletPayment', 'Paiement portefeuille') : summaryPrimaryPaymentLabel}
             </p>
             <p className="truncate text-2xl font-black text-neutral-950">
               {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}
@@ -2086,7 +2087,7 @@ export default function OrderCheckout() {
             ) : (
               <Lock size={20} />
             )}
-            {loading ? 'Validation...' : 'Confirmer la commande'}
+            {loading ? t('checkout.validating', 'Validation...') : t('checkout.confirm', 'Confirmer la commande')}
           </button>
         </div>
       </div>

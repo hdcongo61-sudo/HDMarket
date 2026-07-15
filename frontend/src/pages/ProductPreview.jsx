@@ -293,7 +293,7 @@ export default function ProductPreview() {
   return (
     <div className="min-h-screen bg-[#f6f3ee] text-slate-950">
       <div className="mx-auto w-full max-w-7xl pb-24">
-        <header className="sticky top-0 z-30 border-b border-gray-200/80 bg-gray-50/95 px-3 py-3 backdrop-blur-xl">
+        <header className="border-b border-gray-200/80 bg-gray-50/95 px-3 py-3 backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <button
               type="button"

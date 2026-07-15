@@ -877,7 +877,7 @@ export default function AdminDeliveryRequests() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100/70">
       <div className="mx-auto max-w-6xl space-y-4 px-3 pb-6 pt-3 sm:px-4 sm:pt-4">
-        <header className="sticky top-0 z-20 -mx-3 border-b border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur-md sm:-mx-4 sm:px-4">
+        <header className="-mx-3 border-b border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur-md sm:-mx-4 sm:px-4">
           <div className="mx-auto max-w-6xl">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>

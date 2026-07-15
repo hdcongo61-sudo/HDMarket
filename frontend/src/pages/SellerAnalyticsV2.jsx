@@ -127,7 +127,7 @@ export default function SellerAnalyticsV2() {
 
   return (
     <div className="hd-profile-flow min-h-screen">
-      <header className="ui-glass-header sticky top-20 z-20">
+      <header className="ui-glass-header">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link to="/profile" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
             <ArrowLeft size={18} />

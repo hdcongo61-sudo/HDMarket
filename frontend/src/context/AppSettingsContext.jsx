@@ -391,7 +391,8 @@ export const AppSettingsProvider = ({ children }) => {
     (key, fallback = '') => {
       const merged = {
         ...(resources.common || {}),
-        ...(resources.orders || {})
+        ...(resources.orders || {}),
+        admin: resources.admin || {}
       };
       return getNestedTranslation(merged, key, fallback || key);
     },

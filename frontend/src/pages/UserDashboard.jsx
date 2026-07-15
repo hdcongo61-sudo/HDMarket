@@ -1021,7 +1021,7 @@ export default function UserDashboard() {
     return (
       <div className="min-h-screen bg-[#f5f2ee] dark:bg-neutral-950">
         {/* Skeleton header */}
-        <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-3">
+        <div className="bg-white border-b border-gray-100 px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="space-y-1.5">
               <div className="h-4 w-36 bg-gray-200 rounded-lg animate-pulse" />
@@ -1061,7 +1061,7 @@ export default function UserDashboard() {
     <div className="min-h-screen bg-[#f5f2ee] text-[#231f1b] dark:bg-neutral-950">
 
       {/* ── TAOBAO STICKY HEADER ── */}
-      <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/96 shadow-[0_2px_10px_rgba(35,31,27,0.04)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-950">
+      <header className="border-b border-[#e2dcd2] bg-white/96 shadow-[0_2px_10px_rgba(35,31,27,0.04)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-950">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3"
           style={{ paddingTop: 'calc(env(safe-area-inset-top,0px) + 10px)' }}>
           <div className="min-w-0">
@@ -1606,7 +1606,7 @@ export default function UserDashboard() {
 
         {/* ── TAOBAO STATUS TABS (horizontal scroll) ── */}
         {!loading && items.length > 0 && (
-          <div className="rounded-2xl border border-[#e2dcd2] bg-white md:sticky md:top-[68px] md:z-20">
+          <div className="rounded-2xl border border-[#e2dcd2] bg-white">
             <div className="flex gap-2 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {Object.entries(STATUS_LABELS).map(([key, label]) => {
                 const isActive = statusFilter === key && selectedStatuses.length === 0;
@@ -1677,7 +1677,7 @@ export default function UserDashboard() {
 
         {/* ── BULK ACTIONS BAR (sticky, Taobao-style) ── */}
         {!loading && paginatedItems.length > 0 && selectedProducts.size > 0 && (
-          <div className="sticky top-[88px] z-20 bg-[#0a0a0a] text-white px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap">
+          <div className="bg-[#0a0a0a] text-white px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap">
             <span className="text-sm font-semibold">
               {selectedProducts.size} sélectionné{selectedProducts.size > 1 ? 's' : ''}
             </span>

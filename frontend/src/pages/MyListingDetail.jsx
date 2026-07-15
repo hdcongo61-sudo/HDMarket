@@ -278,7 +278,7 @@ export default function MyListingDetail() {
 
   return (
     <div className="hd-my-flow hd-commerce-shell min-h-screen pb-28 md:pb-8">
-      <header className="sticky top-0 z-30 border-b border-white/60 bg-white/80 backdrop-blur-xl">
+      <header className="border-b border-white/60 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <button
             type="button"

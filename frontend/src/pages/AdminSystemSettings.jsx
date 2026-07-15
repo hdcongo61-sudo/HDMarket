@@ -1276,7 +1276,7 @@ export default function AdminSystemSettings() {
           ]}
         />
 
-        <div className="sticky top-2 z-20">
+        <div>
           <AdminSegmentedControl
             options={SYSTEM_SECTION_OPTIONS}
             value={activeSystemSection}

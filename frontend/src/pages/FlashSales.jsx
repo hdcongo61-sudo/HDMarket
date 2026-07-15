@@ -14,7 +14,7 @@ export default function FlashSales() {
   return (
     <div className="hd-profile-flow hd-commerce-shell min-h-screen">
       {/* Header */}
-      <header className="ui-glass-header sticky top-20 z-20 border-b border-red-100">
+      <header className="ui-glass-header border-b border-red-100">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link
             to="/"

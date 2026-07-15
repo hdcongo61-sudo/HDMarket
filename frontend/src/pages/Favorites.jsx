@@ -4,6 +4,7 @@ import { ArrowLeft, Filter, Heart } from 'lucide-react';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
 import useCategories from '../hooks/useCategories';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const PAGE_SIZE = 12;
 
@@ -20,6 +21,7 @@ export default function Favorites() {
   const navigate = useNavigate();
   const { favorites, loading } = useContext(FavoriteContext);
   const { getCategoryMeta } = useCategories();
+  const { t } = useAppSettings();
   const [page, setPage] = useState(1);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterPrice, setFilterPrice] = useState('all');
@@ -181,16 +183,16 @@ export default function Favorites() {
             type="button"
             onClick={() => navigate(-1)}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] bg-white text-[#231f1b] transition active:scale-95"
-            aria-label="Retour"
+            aria-label={t('market.back', 'Retour')}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <h1 className="text-xl font-black tracking-tight text-[#231f1b] sm:text-2xl">Mes favoris</h1>
+              <h1 className="text-xl font-black tracking-tight text-[#231f1b] sm:text-2xl">{t('market.favoritesTitle', 'Mes favoris')}</h1>
               {!loading ? <span className="text-sm font-black text-[#8a8378]">({favorites.length})</span> : null}
             </div>
-            <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">Les produits que vous souhaitez retrouver rapidement</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">{t('market.favoritesSubtitle', 'Les produits que vous souhaitez retrouver rapidement')}</p>
           </div>
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
             <Heart className="h-5 w-5" fill="currentColor" />
@@ -201,20 +203,20 @@ export default function Favorites() {
       {loading ? (
         <div className="rounded-2xl border border-[#e2dcd2] bg-white px-6 py-12 text-center shadow-[0_3px_14px_rgba(35,31,27,0.05)]">
           <div className="mx-auto mb-4 h-6 w-6 animate-spin rounded-full border-2 border-[#e85d00] border-t-transparent" />
-          <p className="font-semibold text-gray-600">Chargement de vos favoris…</p>
+          <p className="font-semibold text-gray-600">{t('market.loadingFavorites', 'Chargement de vos favoris…')}</p>
         </div>
       ) : hasFavorites ? (
         <>
           {/* Filters — Category & Price */}
-          <div className="rounded-2xl border border-[#e2dcd2] bg-white p-2.5 shadow-[0_3px_14px_rgba(35,31,27,0.05)] md:sticky md:top-20 md:z-20">
+          <div className="rounded-2xl border border-[#e2dcd2] bg-white p-2.5 shadow-[0_3px_14px_rgba(35,31,27,0.05)]">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <div className="flex items-center gap-2 text-sm font-black text-[#231f1b]">
               <Filter className="w-4 h-4 text-[#e85d00]" />
-              Filtres
+              {t('market.filters', 'Filtres')}
               </div>
               <p className="text-xs font-bold text-[#8a8378]">
-                {filteredFavorites.length} article{filteredFavorites.length !== 1 ? 's' : ''}
-                {(filterCategory || filterPrice !== 'all') && ` sur ${favorites.length}`}
+                {filteredFavorites.length} {t(filteredFavorites.length === 1 ? 'market.item' : 'market.items', filteredFavorites.length === 1 ? 'article' : 'articles')}
+                {(filterCategory || filterPrice !== 'all') && ` ${t('market.of', 'sur')} ${favorites.length}`}
               </p>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -223,9 +225,9 @@ export default function Favorites() {
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                   className="min-h-11 min-w-[170px] rounded-full border border-[#e2dcd2] bg-white py-2 pl-4 pr-9 text-sm font-bold text-[#231f1b] outline-none focus:border-[#e85d00] focus:ring-2 focus:ring-[#fff0e4]"
-                  aria-label="Filtrer par catégorie"
+                  aria-label={t('market.filterCategory', 'Filtrer par catégorie')}
                 >
-                  <option value="">Toutes les catégories</option>
+                  <option value="">{t('market.allCategories', 'Toutes les catégories')}</option>
                   {categoriesInFavorites.map((cat) => (
                     <option key={cat.value} value={cat.value}>
                       {cat.label}
@@ -238,11 +240,11 @@ export default function Favorites() {
                   value={filterPrice}
                   onChange={(e) => setFilterPrice(e.target.value)}
                   className="min-h-11 min-w-[180px] rounded-full border border-[#e2dcd2] bg-white py-2 pl-4 pr-9 text-sm font-bold text-[#231f1b] outline-none focus:border-[#e85d00] focus:ring-2 focus:ring-[#fff0e4]"
-                  aria-label="Filtrer par prix"
+                  aria-label={t('market.filterPrice', 'Filtrer par prix')}
                 >
                   {PRICE_RANGES.map((r) => (
                     <option key={r.value} value={r.value}>
-                      {r.label}
+                      {r.value === 'all' ? t('market.allPrices', 'Tous les prix') : r.label}
                     </option>
                   ))}
                 </select>
@@ -257,7 +259,7 @@ export default function Favorites() {
                   }}
                   className="min-h-11 shrink-0 rounded-full bg-black px-4 text-sm font-black text-white"
                 >
-                  Réinitialiser
+                  {t('market.reset', 'Réinitialiser')}
                 </button>
               )}
             </div>
@@ -265,14 +267,14 @@ export default function Favorites() {
 
           {filteredFavorites.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#e2dcd2] bg-white px-6 py-10 text-center">
-              <p className="font-black text-[#231f1b]">Aucun favori ne correspond aux filtres.</p>
-              <p className="mt-1 text-sm text-[#8a8378]">Modifiez les filtres ou réinitialisez.</p>
+              <p className="font-black text-[#231f1b]">{t('market.favoritesEmptyFiltered', 'Aucun favori ne correspond aux filtres.')}</p>
+              <p className="mt-1 text-sm text-[#8a8378]">{t('market.changeFilters', 'Modifiez les filtres ou réinitialisez.')}</p>
               <button
                 type="button"
                 onClick={() => { setFilterCategory(''); setFilterPrice('all'); setPage(1); }}
                 className="mt-4 min-h-11 rounded-full bg-black px-5 text-sm font-black text-white"
               >
-                Réinitialiser les filtres
+                {t('market.resetFilters', 'Réinitialiser les filtres')}
               </button>
             </div>
           ) : (
@@ -291,15 +293,15 @@ export default function Favorites() {
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff0e4] text-[#e85d00]">
             <Heart className="h-7 w-7" />
           </div>
-          <p className="text-lg font-black text-[#231f1b]">Aucun favori pour le moment</p>
+          <p className="text-lg font-black text-[#231f1b]">{t('market.favoritesEmpty', 'Aucun favori pour le moment')}</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#8a8378]">
-            Explorez le catalogue et cliquez sur le coeur d&apos;un produit pour le retrouver ici.
+            {t('market.favoritesEmptySubtitle', 'Explorez le catalogue et cliquez sur le cœur d’un produit pour le retrouver ici.')}
           </p>
           <Link
             to="/products"
             className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-6 font-black text-white"
           >
-            Découvrir les produits
+            {t('market.discoverProducts', 'Découvrir les produits')}
           </Link>
         </div>
       )}

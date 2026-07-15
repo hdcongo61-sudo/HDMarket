@@ -408,7 +408,7 @@ export default function WalletPage() {
   if (error === 'wallet_disabled') {
     return (
       <div className="hd-profile-flow hd-commerce-shell min-h-screen">
-        <header className="ui-glass-header sticky top-20 z-20">
+        <header className="ui-glass-header">
           <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
             <Link to="/profile" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
               <ArrowLeft size={18} />
@@ -427,7 +427,7 @@ export default function WalletPage() {
 
   return (
     <div className="hd-profile-flow hd-commerce-shell min-h-screen bg-[#f5f7fb] text-slate-950">
-      <header className="sticky top-16 z-20 border-b border-slate-200/70 bg-white/92 backdrop-blur-xl sm:top-20">
+      <header className="border-b border-slate-200/70 bg-white/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/profile" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-[#e85d00]/40 hover:text-[#e85d00] sm:h-10 sm:w-10">

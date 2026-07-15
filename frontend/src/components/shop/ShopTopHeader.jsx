@@ -16,7 +16,7 @@ export default function ShopTopHeader({
     'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-800 transition hover:bg-gray-200 active:scale-95 dark:bg-neutral-800 dark:text-white';
 
   return (
-    <div className="sticky top-0 z-30 mx-0 mb-0 flex items-center gap-2 border-b border-gray-100 bg-white/95 px-3 py-2.5 backdrop-blur-xl sm:mb-4 sm:rounded-2xl sm:border sm:shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
+    <div className="mx-0 mb-0 flex items-center gap-2 border-b border-gray-100 bg-white/95 px-3 py-2.5 backdrop-blur-xl sm:mb-4 sm:rounded-2xl sm:border sm:shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
       <button
         type="button"
         onClick={onBack}

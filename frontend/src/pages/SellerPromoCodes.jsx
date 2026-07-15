@@ -192,7 +192,7 @@ export default function SellerPromoCodes() {
   return (
     <div className="hd-profile-flow min-h-screen">
       {/* Header */}
-      <header className="ui-glass-header sticky top-20 z-20 border-b border-purple-100">
+      <header className="ui-glass-header border-b border-purple-100">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link to="/my" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
             <ArrowLeft size={18} />

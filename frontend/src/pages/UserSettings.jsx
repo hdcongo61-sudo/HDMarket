@@ -306,7 +306,7 @@ export default function UserSettings() {
 
   return (
     <div className="hd-profile-flow hd-commerce-shell min-h-screen">
-      <header className="ui-glass-header sticky top-20 z-20">
+      <header className="ui-glass-header">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link
             to="/profile"

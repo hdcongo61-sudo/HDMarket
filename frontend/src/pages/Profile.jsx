@@ -1804,7 +1804,7 @@ export default function Profile() {
 
         {/* Navigation par onglets — mobile: sticky horizontal avec indicateur animé + progression */}
         {isMobile ? (
-          <div className="hd-profile-sticky sticky top-0 z-30 -mx-4 px-4 pt-2 pb-3 mb-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm">
+          <div className="hd-profile-sticky -mx-4 px-4 pt-2 pb-3 mb-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm">
             {/* Barre de progression du profil */}
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs mb-1.5">

@@ -99,4 +99,32 @@
   "cancel": "Annuler",
   "enabled": "Activé",
   "disabled": "Désactivé"
+  ,"dashboard": {
+    "title": "Tableau de bord",
+    "overview": "Vue globale",
+    "payments": "Paiements",
+    "orders": "Commandes",
+    "complaints": "Réclamations",
+    "users": "Utilisateurs",
+    "updatedAt": "Mis à jour à",
+    "refresh": "Actualiser",
+    "refreshing": "Actualisation...",
+    "taskCenter": "Centre de tâches",
+    "today": "À traiter aujourd’hui",
+    "pendingAction": "action en attente",
+    "pendingActions": "actions en attente",
+    "nothingPending": "Rien à traiter",
+    "paymentsVerify": "Paiements à vérifier",
+    "productsValidate": "Produits à valider",
+    "boostsApprove": "Boosts à approuver",
+    "disputes": "Litiges & réclamations",
+    "deliveries": "Livraisons à traiter",
+    "unreadFeedback": "Avis non lus",
+    "activeNow": "Actifs maintenant",
+    "syncing": "Synchronisation...",
+    "shops": "boutiques",
+    "paymentsPending": "Paiements en attente",
+    "verified": "vérifiés",
+    "total": "total"
+  }
 }

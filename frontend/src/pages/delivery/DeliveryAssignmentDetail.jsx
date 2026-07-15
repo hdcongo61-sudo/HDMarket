@@ -362,7 +362,7 @@ export default function DeliveryAssignmentDetail() {
     <div className="mx-auto w-full max-w-4xl space-y-4 px-3 pb-28 pt-2 sm:px-5">
       <OfflineBanner offline={isOffline} />
 
-      <header className="sticky top-[max(0px,env(safe-area-inset-top))] z-30 -mx-3 border-b border-gray-100/70 bg-white/80 px-3 pb-3 pt-2 backdrop-blur-xl sm:-mx-5 sm:px-5">
+      <header className="-mx-3 border-b border-gray-100/70 bg-white/80 px-3 pb-3 pt-2 backdrop-blur-xl sm:-mx-5 sm:px-5">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"

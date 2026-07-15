@@ -8,6 +8,7 @@ import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const TrashIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -45,6 +46,7 @@ export default function Cart() {
   const { cart, loading, error, addItem, updateItem, removeItem, clearCart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
+  const { t } = useAppSettings();
   const [pending, setPending] = useState({});
   const [qtyPending, setQtyPending] = useState({});
   const [qtyDrafts, setQtyDrafts] = useState({});
@@ -104,7 +106,7 @@ export default function Cart() {
     try {
       await updateItem(productId, value, item?.selectedAttributes || [], item?.selectionKey || '');
     } catch (e) {
-      showToast(e?.response?.data?.message || 'Impossible de modifier la quantité.', { variant: 'error' });
+      showToast(e?.response?.data?.message || t('cartPage.updateError', 'Impossible de modifier la quantité.'), { variant: 'error' });
     } finally {
       setQtyPending((prev) => {
         const next = { ...prev };
@@ -148,7 +150,7 @@ export default function Cart() {
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       undoTimerRef.current = setTimeout(() => setLastRemoved(null), 7000);
     } catch (e) {
-      showToast(e?.response?.data?.message || 'Impossible de retirer l\'article.', { variant: 'error' });
+      showToast(e?.response?.data?.message || t('cartPage.removeError', 'Impossible de retirer l\'article.'), { variant: 'error' });
     } finally {
       setPending((prev) => ({ ...prev, [cartItemKey]: false }));
     }
@@ -163,7 +165,7 @@ export default function Cart() {
       await addItem(snapshot.productId, snapshot.quantity, snapshot.selectedAttributes);
       setLastRemoved(null);
     } catch (e) {
-      showToast(e?.response?.data?.message || 'Impossible de restaurer l\'article.', { variant: 'error' });
+      showToast(e?.response?.data?.message || t('cartPage.restoreError', 'Impossible de restaurer l\'article.'), { variant: 'error' });
     } finally {
       setRestoring(false);
     }
@@ -226,11 +228,11 @@ export default function Cart() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="m15 18-6-6 6-6" /></svg>
         </button>
         <h1 className="min-w-0 flex-1 text-[17px] font-black text-[#231f1b]">
-          Mon panier <span className="font-semibold text-[#8a8378]">({items.length})</span>
+          {t('cartPage.title', 'Mon panier')} <span className="font-semibold text-[#8a8378]">({items.length})</span>
         </h1>
           {items.length > 0 && (
             <button onClick={() => setShowClearConfirm(true)} disabled={disableAll} className="inline-flex min-h-11 items-center px-3 text-[13px] font-bold text-[#8a8378] disabled:opacity-60">
-              Vider
+              {t('cartPage.clear', 'Vider')}
             </button>
           )}
       </header>
@@ -241,11 +243,11 @@ export default function Cart() {
         onClose={() => setShowClearConfirm(false)}
         size="md"
         mobileSheet
-        ariaLabel="Vider le panier"
+        ariaLabel={t('cartPage.clearTitle', 'Vider le panier')}
       >
         <ModalHeader
-          title="Vider le panier"
-          subtitle="Action irréversible"
+          title={t('cartPage.clearTitle', 'Vider le panier')}
+          subtitle={t('cartPage.irreversible', 'Action irréversible')}
           onClose={() => setShowClearConfirm(false)}
         />
         <ModalBody className="space-y-4 text-center">
@@ -253,7 +255,7 @@ export default function Cart() {
             <TrashIcon className="h-8 w-8 text-red-600" />
           </div>
           <p className="text-sm font-medium text-gray-600">
-            Êtes-vous sûr de vouloir supprimer tous les articles de votre panier ? Cette action est irréversible.
+            {t('cartPage.clearConfirm', 'Êtes-vous sûr de vouloir supprimer tous les articles de votre panier ?')}
           </p>
         </ModalBody>
         <ModalFooter>
@@ -262,14 +264,14 @@ export default function Cart() {
               onClick={() => setShowClearConfirm(false)}
               className="flex-1 rounded-xl bg-[rgba(120,120,128,0.12)] px-5 py-3 text-sm font-semibold text-[#8E8E93] transition-all hover:bg-[rgba(120,120,128,0.18)]"
             >
-              Annuler
+              {t('common.cancel', 'Annuler')}
             </button>
             <button
               onClick={handleClear}
               disabled={pending.all}
               className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-red-700 active:scale-95 disabled:opacity-60"
             >
-              {pending.all ? 'Suppression...' : 'Vider le panier'}
+              {pending.all ? t('cartPage.clearing', 'Suppression...') : t('cartPage.clearTitle', 'Vider le panier')}
             </button>
           </div>
         </ModalFooter>
@@ -281,27 +283,25 @@ export default function Cart() {
         onClose={handleCancelCheckout}
         size="lg"
         mobileSheet
-        ariaLabel="Attention à la distance"
+        ariaLabel={t('cartPage.distanceTitle', 'Attention à la distance')}
       >
         <ModalHeader
-          title="Attention à la distance"
-          subtitle="Vérifiez les villes des vendeurs avant de confirmer"
+          title={t('cartPage.distanceTitle', 'Attention à la distance')}
+          subtitle={t('cartPage.distanceSubtitle', 'Vérifiez les villes des vendeurs avant de confirmer')}
           onClose={handleCancelCheckout}
         />
         <ModalBody className="space-y-3">
           <p className="text-sm font-medium text-gray-700">
-            Certains vendeurs sont dans une autre ville que la vôtre. Votre commande peut subir
-            des retards liés à la distance ou à la logistique. Les articles peuvent aussi être
-            endommagés pendant le transport et le vendeur ne pourra pas en être tenu responsable.
+            {t('cartPage.distanceWarning', 'Certains vendeurs sont dans une autre ville. La livraison peut prendre plus de temps.')}
           </p>
           {sellerCityData.mismatchedCities.length > 0 ? (
             <p className="text-xs text-gray-600">
-              Vendeurs : <span className="font-semibold text-gray-900">{sellerCityData.mismatchedCities.join(', ')}</span>
+              {t('cartPage.sellers', 'Vendeurs')} : <span className="font-semibold text-gray-900">{sellerCityData.mismatchedCities.join(', ')}</span>
             </p>
           ) : null}
           {sellerCityData.buyerDisplay ? (
             <p className="text-xs text-gray-600">
-              Votre ville : <span className="font-semibold text-gray-900">{sellerCityData.buyerDisplay}</span>
+              {t('cartPage.yourCity', 'Votre ville')} : <span className="font-semibold text-gray-900">{sellerCityData.buyerDisplay}</span>
             </p>
           ) : null}
         </ModalBody>
@@ -313,7 +313,7 @@ export default function Cart() {
               disabled={pending.all}
               className="flex-1 rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 disabled:opacity-60"
             >
-              {pending.all ? 'Annulation…' : 'Annuler'}
+              {pending.all ? t('cartPage.cancelling', 'Annulation…') : t('common.cancel', 'Annuler')}
             </button>
             <button
               type="button"
@@ -321,7 +321,7 @@ export default function Cart() {
               disabled={pending.all}
               className="flex-1 rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-amber-700 active:scale-95 disabled:opacity-60"
             >
-              Continuer quand même
+              {t('cartPage.continueAnyway', 'Continuer quand même')}
             </button>
           </div>
         </ModalFooter>
@@ -337,7 +337,7 @@ export default function Cart() {
         <div className="flex items-center justify-center rounded-2xl border border-gray-200 bg-white py-16 shadow-sm">
           <div className="flex items-center gap-3 text-gray-600">
             <div className="w-6 h-6 border-2 border-[#e85d00] border-t-transparent rounded-full animate-spin" />
-            <span className="font-medium">Chargement du panier...</span>
+            <span className="font-medium">{t('cartPage.loading', 'Chargement du panier...')}</span>
           </div>
         </div>
       ) : items.length === 0 ? (
@@ -345,16 +345,16 @@ export default function Cart() {
           <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-gray-200">
             <ShoppingBagIcon className="w-12 h-12 text-[#e85d00]" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Panier vide</h2>
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">{t('cartPage.emptyTitle', 'Panier vide')}</h2>
           <p className="text-gray-600 mb-8 max-w-sm mx-auto font-medium">
-            Votre panier est vide. Découvrez nos produits et ajoutez vos articles préférés.
+            {t('cartPage.emptySubtitle', 'Découvrez nos produits et ajoutez vos articles préférés.')}
           </p>
           <Link
             to="/products"
             className="hd-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 py-3.5 font-black"
           >
             <ShoppingBagIcon className="w-5 h-5" />
-            Découvrir les produits
+            {t('cartPage.discover', 'Découvrir les produits')}
           </Link>
         </div>
       ) : (
@@ -369,7 +369,7 @@ export default function Cart() {
                     <TrashIcon className="h-4 w-4" />
                   </span>
                   <p className="min-w-0 truncate text-sm font-semibold text-gray-700">
-                    « {lastRemoved.title} » retiré du panier
+                    « {lastRemoved.title} » {t('cartPage.removed', 'retiré du panier')}
                   </p>
                 </div>
                 <button
@@ -379,7 +379,7 @@ export default function Cart() {
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#e85d00] px-4 py-2 text-xs font-black text-white transition hover:bg-[#f45f00] active:scale-95 disabled:opacity-60"
                 >
                   <UndoIcon className="h-3.5 w-3.5" />
-                  {restoring ? '…' : 'Annuler'}
+                  {restoring ? '…' : t('cartPage.undo', 'Annuler')}
                 </button>
               </div>
             )}
@@ -399,8 +399,8 @@ export default function Cart() {
                     type="button"
                     onClick={() => handleRemove(item)}
                     disabled={disableAll || isRemoving}
-                    aria-label="Retirer du panier"
-                    title="Retirer du panier"
+                    aria-label={t('cartPage.remove', 'Retirer du panier')}
+                    title={t('cartPage.remove', 'Retirer du panier')}
                     className="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-400 shadow-sm ring-1 ring-gray-200 backdrop-blur transition hover:bg-red-50 hover:text-red-600 hover:ring-red-200 active:scale-90 disabled:opacity-50"
                   >
                     {isRemoving ? (
@@ -442,7 +442,7 @@ export default function Cart() {
                   >
                             {product.title}
                           </Link>
-                          <p className="text-[11px] sm:text-sm text-gray-500 font-semibold">Catégorie : <span className="text-gray-800">{product.category}</span></p>
+                          <p className="text-[11px] sm:text-sm text-gray-500 font-semibold">{t('cartPage.category', 'Catégorie')} : <span className="text-gray-800">{product.category}</span></p>
                           <SelectedAttributesList
                             selectedAttributes={item.selectedAttributes}
                             compact
@@ -450,7 +450,7 @@ export default function Cart() {
                           />
                           
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
-                          <p className="text-xs font-semibold text-[#8a8378]">{formatPrice(unitPrice)} / unité</p>
+                          <p className="text-xs font-semibold text-[#8a8378]">{formatPrice(unitPrice)} / {t('cartPage.unit', 'unité')}</p>
                         </div>
 
                         <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-end">
@@ -464,8 +464,8 @@ export default function Cart() {
                                   type="button"
                                   onClick={() => (quantity <= 1 ? handleRemove(item) : changeQuantity(item, quantity - 1))}
                                   disabled={disableAll || isRemoving || qtySyncing}
-                                  aria-label={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
-                                  title={quantity <= 1 ? 'Retirer du panier' : 'Diminuer la quantité'}
+                                  aria-label={quantity <= 1 ? t('cartPage.remove', 'Retirer du panier') : t('cartPage.decrease', 'Diminuer la quantité')}
+                                  title={quantity <= 1 ? t('cartPage.remove', 'Retirer du panier') : t('cartPage.decrease', 'Diminuer la quantité')}
                                   className={`flex h-11 w-11 items-center justify-center transition active:bg-gray-100 disabled:opacity-40 ${quantity <= 1
                                     ? 'text-red-500 hover:bg-red-50'
                                     : 'text-gray-700 hover:bg-gray-50'}`}
@@ -476,7 +476,7 @@ export default function Cart() {
                                   type="text"
                                   inputMode="numeric"
                                   pattern="[0-9]*"
-                                  aria-label="Quantité"
+                                  aria-label={t('cartPage.quantity', 'Quantité')}
                                   value={qtyDisplayed}
                                   onChange={(e) => {
                                     const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
@@ -494,7 +494,7 @@ export default function Cart() {
                                   type="button"
                                   onClick={() => changeQuantity(item, quantity + 1)}
                                   disabled={disableAll || isRemoving || qtySyncing}
-                                  aria-label="Augmenter la quantité"
+                                  aria-label={t('cartPage.increase', 'Augmenter la quantité')}
                                   className="flex h-11 w-11 items-center justify-center text-gray-700 transition hover:bg-gray-50 hover:text-[#e85d00] active:bg-gray-100 disabled:opacity-40"
                                 >
                                   <span className="text-xl font-black leading-none">+</span>
@@ -522,33 +522,33 @@ export default function Cart() {
           {/* Order Summary Enhanced */}
           <div className="space-y-4">
             <div className="sticky top-6 rounded-2xl border border-[#e2dcd2] bg-white p-5 shadow-[0_18px_45px_rgba(117,75,36,0.09)] sm:p-6">
-              <h2 className="mb-5 text-xl font-black text-[#231f1b]">Résumé</h2>
+              <h2 className="mb-5 text-xl font-black text-[#231f1b]">{t('cartPage.summary', 'Résumé')}</h2>
               
               <div className="space-y-4">
                 {/* Items Count Enhanced */}
                 <div className="flex items-center justify-between gap-4">
-                  <span className="font-semibold text-[#6b6459]">Sous-total ({totals.quantity} article{totals.quantity > 1 ? 's' : ''})</span>
+                  <span className="font-semibold text-[#6b6459]">{t('cartPage.subtotal', 'Sous-total')} ({totals.quantity} {t(totals.quantity > 1 ? 'cartPage.items' : 'cartPage.item', totals.quantity > 1 ? 'articles' : 'article')})</span>
                   <span className="text-lg font-black text-[#231f1b]">{formatPrice(totals.subtotal)}</span>
                 </div>
 
                 {/* Savings Enhanced */}
                 {totalSavings > 0 && (
                   <div className="flex items-center justify-between gap-4">
-                    <span className="font-semibold text-[#6b6459]">Économies</span>
+                    <span className="font-semibold text-[#6b6459]">{t('cartPage.savings', 'Économies')}</span>
                     <span className="text-lg font-black text-emerald-700">-{formatPrice(totalSavings)}</span>
                   </div>
                 )}
 
                 {/* Shipping Estimate Enhanced */}
                 <div className="flex items-center justify-between gap-4">
-                  <span className="font-semibold text-[#6b6459]">Livraison</span>
-                  <span className="text-right text-sm font-semibold text-[#6b6459]">calculée à l’étape suivante</span>
+                  <span className="font-semibold text-[#6b6459]">{t('cartPage.delivery', 'Livraison')}</span>
+                  <span className="text-right text-sm font-semibold text-[#6b6459]">{t('cartPage.deliveryNext', 'calculée à l’étape suivante')}</span>
                 </div>
 
                 {/* Divider Enhanced */}
                 <div className="border-t border-[#e2dcd2] pt-5">
                   <div className="flex justify-between items-center">
-                    <span className="text-xl font-black text-gray-900">Total</span>
+                    <span className="text-xl font-black text-gray-900">{t('cartPage.total', 'Total')}</span>
                     <span className="text-3xl font-black text-neutral-950">{formatPrice(totals.subtotal)}</span>
                   </div>
                 </div>
@@ -556,7 +556,7 @@ export default function Cart() {
                 {/* Info Note Enhanced */}
                 <div className="border-t border-[#f0ebe4] pt-4">
                   <p className="text-center text-xs font-semibold leading-relaxed text-[#6b6459]">
-                    Paiement sécurisé · Livraison suivie · Support HDMarket
+                    {t('cartPage.trust', 'Paiement sécurisé · Livraison suivie · Support HDMarket')}
                   </p>
                 </div>
 
@@ -567,7 +567,7 @@ export default function Cart() {
                     onClick={handleCheckoutClick}
                     className="hd-primary-button block min-h-[52px] w-full rounded-full py-4 text-center font-black"
                   >
-                    Passer la commande
+                    {t('cartPage.checkout', 'Passer la commande')}
                   </button>
                 </div>
               </div>

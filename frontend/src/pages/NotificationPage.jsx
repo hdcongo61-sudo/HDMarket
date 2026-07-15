@@ -698,7 +698,7 @@ export default function NotificationPage() {
 
   return (
     <main className="hd-commerce-shell min-h-screen text-neutral-900 dark:text-neutral-100">
-      <header className="sticky top-0 z-30 border-b border-[#f5f2ee] bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
+      <header className="border-b border-[#f5f2ee] bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto flex min-h-[60px] max-w-3xl items-center px-2">
           <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b] dark:text-white" aria-label={t('common.back', 'Retour')}><ArrowLeft className="h-5 w-5" /></button>
           <h1 className="min-w-0 flex-1 text-[17px] font-black text-[#231f1b] dark:text-white">{t('notifications.title', 'Notifications')} <span className="text-[#8a8378]">({unreadCount})</span></h1>

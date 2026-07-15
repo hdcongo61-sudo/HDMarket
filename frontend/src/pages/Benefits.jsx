@@ -139,7 +139,7 @@ export default function Benefits() {
       </section>
 
       {/* ── ANCHOR NAV (sticky) ── */}
-      <nav className="sticky top-0 z-30 border-b border-gray-100 bg-white/90 px-3 py-2 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-900/90">
+      <nav className="border-b border-gray-100 bg-white/90 px-3 py-2 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-900/90">
         <div className="mx-auto flex max-w-3xl gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {navChips.map((chip) => (
             <a

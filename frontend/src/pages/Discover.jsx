@@ -19,27 +19,27 @@ import AuthContext from '../context/AuthContext';
 const sectionMeta = [
   {
     key: 'topDeals',
-    title: 'Bonnes affaires',
-    subtitle: 'Prix agressifs, promotions et produits faciles à comparer.',
+    titleKey: 'market.deals',
+    subtitleKey: 'market.dealsSubtitle',
     to: '/products?sort=price_asc'
   },
   {
     key: 'topSales',
-    title: 'Ce qui se vend',
-    subtitle: 'Produits qui attirent déjà des acheteurs.',
+    titleKey: 'market.topSales',
+    subtitleKey: 'market.topSalesSubtitle',
     to: '/products?sort=popular'
   },
   {
     key: 'newProducts',
-    title: 'Nouveautés',
-    subtitle: 'Les annonces récentes à explorer avant tout le monde.',
+    titleKey: 'market.new',
+    subtitleKey: 'market.newSubtitle',
     to: '/products?sort=new'
   }
 ];
 
 const toItems = (value) => (Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : []);
 
-function SectionHeader({ title, subtitle, to }) {
+function SectionHeader({ title, subtitle, to, viewAllLabel = 'Voir tout' }) {
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
       <div className="min-w-0">
@@ -51,7 +51,7 @@ function SectionHeader({ title, subtitle, to }) {
           to={to}
           className="inline-flex min-h-11 shrink-0 items-center gap-0.5 px-1 text-xs font-black text-[#c2410c]"
         >
-          Voir tout
+          {viewAllLabel}
           <ChevronRight className="h-4 w-4" />
         </Link>
       ) : null}
@@ -59,7 +59,7 @@ function SectionHeader({ title, subtitle, to }) {
   );
 }
 
-function ProductRail({ products = [], loading = false }) {
+function ProductRail({ products = [], loading = false, emptyLabel = 'Aucun produit disponible.' }) {
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -73,7 +73,7 @@ function ProductRail({ products = [], loading = false }) {
   if (!products.length) {
     return (
       <div className="rounded-2xl border border-dashed border-[#e2dcd2] bg-white p-6 text-sm font-semibold text-[#8a8378]">
-        Aucun produit disponible pour ce bloc.
+        {emptyLabel}
       </div>
     );
   }
@@ -90,7 +90,7 @@ function ProductRail({ products = [], loading = false }) {
 export default function Discover() {
   const { categoryGroups } = useCategories();
   const { user } = useContext(AuthContext);
-  const { city: preferredCity } = useAppSettings();
+  const { city: preferredCity, t } = useAppSettings();
   const [sections, setSections] = useState({ topDeals: [], topSales: [], newProducts: [], local: [] });
   const [shops, setShops] = useState([]);
   const [loadingSections, setLoadingSections] = useState({
@@ -222,17 +222,17 @@ export default function Discover() {
               <Compass className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-black tracking-tight text-[#231f1b] sm:text-2xl">Découvrir</h1>
-              <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">Produits, tendances et boutiques à explorer</p>
+              <h1 className="text-xl font-black tracking-tight text-[#231f1b] sm:text-2xl">{t('market.discover', 'Découvrir')}</h1>
+              <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">{t('market.discoverSubtitle', 'Produits, tendances et boutiques à explorer')}</p>
             </div>
             <span className="inline-flex min-h-11 max-w-[42%] items-center gap-1.5 rounded-full border border-[#e2dcd2] px-3 text-xs font-black text-[#6b6459]">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-[#e85d00]" />
-              <span className="truncate">{city || 'Toutes villes'}</span>
+              <span className="truncate">{city || t('market.allCitiesShort', 'Toutes villes')}</span>
             </span>
           </div>
           <Link to="/products" className="mt-3 flex min-h-12 items-center gap-3 rounded-full bg-[#f5f2ee] pl-4 pr-1.5 text-sm font-bold text-[#8a8378] ring-1 ring-[#eee8e0]">
             <Search className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">Rechercher un produit ou une boutique</span>
+            <span className="min-w-0 flex-1 truncate">{t('market.searchProductShop', 'Rechercher un produit ou une boutique')}</span>
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black text-white"><Search className="h-4 w-4" /></span>
           </Link>
         </header>
@@ -240,11 +240,11 @@ export default function Discover() {
         <nav className="mt-3" aria-label="Raccourcis de découverte">
           <div className="mobile-scroll-x flex gap-2 pb-1">
             <Link to="/products" className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-black px-4 text-sm font-black text-white">
-              Tout
+              {t('market.all', 'Tout')}
             </Link>
-            <Link to="/products?sort=price_asc" className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#e2dcd2] bg-white px-4 text-sm font-bold text-[#231f1b]">Promotions</Link>
-            <Link to="/products?sort=new" className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#e2dcd2] bg-white px-4 text-sm font-bold text-[#231f1b]">Nouveautés</Link>
-            <Link to="/shops/verified" className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#e2dcd2] bg-white px-4 text-sm font-bold text-[#231f1b]">Boutiques</Link>
+            <Link to="/products?sort=price_asc" className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#e2dcd2] bg-white px-4 text-sm font-bold text-[#231f1b]">{t('market.promotions', 'Promotions')}</Link>
+            <Link to="/products?sort=new" className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#e2dcd2] bg-white px-4 text-sm font-bold text-[#231f1b]">{t('market.new', 'Nouveautés')}</Link>
+            <Link to="/shops/verified" className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#e2dcd2] bg-white px-4 text-sm font-bold text-[#231f1b]">{t('market.shops', 'Boutiques')}</Link>
             {categoryShortcuts.map((category) => (
               <Link
                 key={category.value || category.label}
@@ -265,15 +265,16 @@ export default function Discover() {
 
         <section className="mt-6">
           <SectionHeader
-            title={city ? `À découvrir à ${city}` : 'Sélection locale'}
-            subtitle="Priorité aux produits proches quand votre ville est connue."
+            title={city ? t('market.discoverInCity', 'À découvrir à {city}').replace('{city}', city) : t('market.localSelection', 'Sélection locale')}
+            subtitle={t('market.localPriority', 'Priorité aux produits proches quand votre ville est connue.')}
             to="/products"
+            viewAllLabel={t('market.viewAll', 'Voir tout')}
           />
-          <ProductRail products={sections.local} loading={loadingSections.local} />
+          <ProductRail products={sections.local} loading={loadingSections.local} emptyLabel={t('market.noProducts', 'Aucun produit disponible pour ce bloc.')} />
         </section>
 
         <section className="mt-8">
-          <SectionHeader title="Boutiques à suivre" subtitle="Vendeurs vérifiés pour une navigation plus sûre." to="/shops/verified" />
+          <SectionHeader title={t('market.shopsToFollow', 'Boutiques à suivre')} subtitle={t('market.verifiedSellers', 'Vendeurs vérifiés pour une navigation plus sûre.')} to="/shops/verified" viewAllLabel={t('market.viewAll', 'Voir tout')} />
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
               {(loadingSections.shops ? Array.from({ length: 4 }) : shops).map((shop, index) =>
                 loadingSections.shops ? (
@@ -284,7 +285,7 @@ export default function Discover() {
                       {shop.shopLogo ? <img src={shop.shopLogo} alt="" className="h-full w-full object-cover" loading="lazy" /> : <Store className="h-5 w-5 text-[#8a8378]" />}
                     </div>
                     <p className="mt-3 truncate text-sm font-black text-[#231f1b]">{shop.shopName || shop.name || 'Boutique'}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-[#8a8378]"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Vérifiée</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-[#8a8378]"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> {t('market.verified', 'Vérifiée')}</p>
                   </Link>
                 )
               )}
@@ -293,8 +294,8 @@ export default function Discover() {
 
         {sectionMeta.map((meta) => (
           <section key={meta.key} className="mt-8">
-            <SectionHeader {...meta} />
-            <ProductRail products={sections[meta.key]} loading={loadingSections[meta.key]} />
+            <SectionHeader title={t(meta.titleKey, meta.titleKey)} subtitle={t(meta.subtitleKey, meta.subtitleKey)} to={meta.to} viewAllLabel={t('market.viewAll', 'Voir tout')} />
+            <ProductRail products={sections[meta.key]} loading={loadingSections[meta.key]} emptyLabel={t('market.noProducts', 'Aucun produit disponible pour ce bloc.')} />
           </section>
         ))}
       </div>

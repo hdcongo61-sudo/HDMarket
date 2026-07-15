@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export default function DeliveryHeader({ title, subtitle, online = true, actions = [] }) {
   return (
-    <header className="sticky top-[max(0px,env(safe-area-inset-top))] z-30 -mx-3 border-b border-white/40 glass-header px-3 pb-3 pt-2 sm:-mx-5 sm:px-5">
+    <header className="-mx-3 border-b border-white/40 glass-header px-3 pb-3 pt-2 sm:-mx-5 sm:px-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">Delivery mode</p>

@@ -16,7 +16,7 @@ export default function GlassHeader({
       initial={{ y: -8, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className={`sticky top-0 z-30 border-b border-neutral-200/70 bg-white/75 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-900/75 ${className}`.trim()}
+      className={`border-b border-neutral-200/70 bg-white/75 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-900/75 ${className}`.trim()}
     >
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4">
         <div className="min-w-0">

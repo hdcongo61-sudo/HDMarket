@@ -99,4 +99,32 @@
   "cancel": "Cancel",
   "enabled": "Enabled",
   "disabled": "Disabled"
+  ,"dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "payments": "Payments",
+    "orders": "Orders",
+    "complaints": "Complaints",
+    "users": "Users",
+    "updatedAt": "Updated at",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing...",
+    "taskCenter": "Task center",
+    "today": "To process today",
+    "pendingAction": "pending action",
+    "pendingActions": "pending actions",
+    "nothingPending": "Nothing to process",
+    "paymentsVerify": "Payments to verify",
+    "productsValidate": "Products to validate",
+    "boostsApprove": "Boosts to approve",
+    "disputes": "Disputes & complaints",
+    "deliveries": "Deliveries to process",
+    "unreadFeedback": "Unread feedback",
+    "activeNow": "Active now",
+    "syncing": "Syncing...",
+    "shops": "shops",
+    "paymentsPending": "Pending payments",
+    "verified": "verified",
+    "total": "total"
+  }
 }

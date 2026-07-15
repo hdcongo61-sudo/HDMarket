@@ -2142,7 +2142,7 @@ export default function ProductDetails() {
       className="product-detail-page min-h-screen bg-[#f5f5f5] pb-32 dark:bg-neutral-950"
     >
       {/* ── STICKY HEADER ── */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-100 dark:border-neutral-800 dark:bg-neutral-950">
+      <header className="bg-white border-b border-gray-100 dark:border-neutral-800 dark:bg-neutral-950">
         <div
           className="flex items-center justify-between gap-2 px-3 py-2.5"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
@@ -3103,7 +3103,7 @@ export default function ProductDetails() {
       className="product-detail-page product-detail-commerce min-h-screen bg-gray-50 dark:bg-black"
     >
       {/* 🎯 NAVIGATION ENHANCED */}
-      <nav className="product-detail-subnav sticky top-0 z-10 border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80 sm:z-40">
+      <nav className="product-detail-subnav border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button

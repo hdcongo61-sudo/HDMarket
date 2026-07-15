@@ -408,7 +408,7 @@ const fetchProducts = useCallback(async () => {
 
         {/* Barre outils sticky (tous écrans) : tri en chips à un tap + filtres toggle.
             Une seule rangée défilante sur mobile au lieu de trois rangées empilées. */}
-        <section className="hd-products-toolbar sticky top-16 z-20 space-y-2 rounded-2xl px-3 py-2.5 sm:px-4 md:top-20">
+        <section className="hd-products-toolbar space-y-2 rounded-2xl px-3 py-2.5 sm:px-4">
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
             {SORT_OPTIONS.map((option) => (
               <button

@@ -61,6 +61,7 @@ import {
   Truck
 } from 'lucide-react';
 import useAdminCounts from '../hooks/useAdminCounts';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
@@ -281,6 +282,7 @@ function AdminQuickKpiCard({ label, value }) {
 }
 
 export default function AdminDashboard() {
+  const { t, language } = useAppSettings();
   const [payments, setPayments] = useState([]);
   const [filter, setFilter] = useState('waiting');
   const [paymentsPage, setPaymentsPage] = useState(1);
@@ -373,16 +375,16 @@ export default function AdminDashboard() {
   const canManageUsers = isAdmin || isFounder;
   const canManagePayments = isAdmin || isManager || isFounder;
   const canManageComplaints = isAdmin || isManager || isFounder;
-  const pageTitle = 'Tableau de bord';
+  const pageTitle = t('admin.dashboard.title', 'Tableau de bord');
   const availableTabs = useMemo(() => {
     const tabs = [];
-    if (canViewStats) tabs.push({ key: 'overview', label: 'Vue globale' });
-    if (canManagePayments) tabs.push({ key: 'payments', label: 'Paiements' });
-    if (canAccessBackOffice) tabs.push({ key: 'orders', label: 'Commandes', to: '/admin/orders' });
-    if (canManageComplaints) tabs.push({ key: 'complaints', label: 'Réclamations' });
-    if (canManageUsers) tabs.push({ key: 'users', label: 'Utilisateurs' });
+    if (canViewStats) tabs.push({ key: 'overview', label: t('admin.dashboard.overview', 'Vue globale') });
+    if (canManagePayments) tabs.push({ key: 'payments', label: t('admin.dashboard.payments', 'Paiements') });
+    if (canAccessBackOffice) tabs.push({ key: 'orders', label: t('admin.dashboard.orders', 'Commandes'), to: '/admin/orders' });
+    if (canManageComplaints) tabs.push({ key: 'complaints', label: t('admin.dashboard.complaints', 'Réclamations') });
+    if (canManageUsers) tabs.push({ key: 'users', label: t('admin.dashboard.users', 'Utilisateurs') });
     return tabs;
-  }, [canAccessBackOffice, canViewStats, canManageUsers, canManagePayments, canManageComplaints]);
+  }, [canAccessBackOffice, canViewStats, canManageUsers, canManagePayments, canManageComplaints, t]);
   const adminTabMeta = useMemo(
     () => ({
       overview: { icon: Activity, helper: 'Vue globale' },
@@ -1322,35 +1324,35 @@ export default function AdminDashboard() {
   const heroQuickKpis = [
     {
       key: 'live',
-      label: 'Actifs maintenant',
+      label: t('admin.dashboard.activeNow', 'Actifs maintenant'),
       value: formatNumber(onlineStats?.totalOnline),
       helper: onlineStatsLoading
-        ? 'Synchronisation...'
+        ? t('admin.dashboard.syncing', 'Synchronisation...')
         : `DAU ${formatNumber(onlineStats?.dau)} · Pic ${formatNumber(onlineStats?.peakToday)}`,
       icon: Wifi,
       tone: 'blue'
     },
     {
       key: 'users',
-      label: 'Utilisateurs',
+      label: t('admin.dashboard.users', 'Utilisateurs'),
       value: formatNumber(totalUserCount),
-      helper: `${formatNumber(stats?.users?.shops)} boutiques`,
+      helper: `${formatNumber(stats?.users?.shops)} ${t('admin.dashboard.shops', 'boutiques')}`,
       icon: Users,
       tone: 'purple'
     },
     {
       key: 'payments',
-      label: 'Paiements attente',
+      label: t('admin.dashboard.paymentsPending', 'Paiements en attente'),
       value: formatNumber(stats?.payments?.waiting),
-      helper: `${formatNumber(stats?.payments?.verified)} verifies`,
+      helper: `${formatNumber(stats?.payments?.verified)} ${t('admin.dashboard.verified', 'vérifiés')}`,
       icon: DollarSign,
       tone: 'green'
     },
     {
       key: 'complaints',
-      label: 'Reclamations',
+      label: t('admin.dashboard.complaints', 'Réclamations'),
       value: formatNumber(pendingComplaintsCount),
-      helper: complaintsLoading ? 'Chargement...' : `${formatNumber(complaints.length)} total`,
+      helper: complaintsLoading ? t('common.loading', 'Chargement...') : `${formatNumber(complaints.length)} ${t('admin.dashboard.total', 'total')}`,
       icon: AlertCircle,
       tone: 'orange'
     }
@@ -1361,7 +1363,7 @@ export default function AdminDashboard() {
   const pendingQueueTiles = [
     {
       key: 'payments',
-      label: 'Paiements à vérifier',
+      label: t('admin.dashboard.paymentsVerify', 'Paiements à vérifier'),
       count: Number(stats?.payments?.waiting || 0),
       to: '/admin/payment-verification',
       icon: DollarSign,
@@ -1369,7 +1371,7 @@ export default function AdminDashboard() {
     },
     {
       key: 'productValidation',
-      label: 'Produits à valider',
+      label: t('admin.dashboard.productsValidate', 'Produits à valider'),
       count: Number(pendingTasksByType.productValidation || 0),
       to: '/admin/payment-verification',
       icon: Package,
@@ -1377,7 +1379,7 @@ export default function AdminDashboard() {
     },
     {
       key: 'boostApproval',
-      label: 'Boosts à approuver',
+      label: t('admin.dashboard.boostsApprove', 'Boosts à approuver'),
       count: Number(pendingTasksByType.boostApproval || 0),
       to: '/admin/product-boosts',
       icon: Sparkles,
@@ -1385,7 +1387,7 @@ export default function AdminDashboard() {
     },
     {
       key: 'disputes',
-      label: 'Litiges & réclamations',
+      label: t('admin.dashboard.disputes', 'Litiges & réclamations'),
       count: Math.max(Number(pendingTasksByType.disputes || 0), Number(pendingComplaintsCount || 0)),
       to: '/admin/complaints',
       icon: AlertCircle,
@@ -1393,7 +1395,7 @@ export default function AdminDashboard() {
     },
     {
       key: 'deliveryOps',
-      label: 'Livraisons à traiter',
+      label: t('admin.dashboard.deliveries', 'Livraisons à traiter'),
       count: Number(pendingTasksByType.deliveryOps || 0),
       to: '/admin/delivery-requests',
       icon: Truck,
@@ -1401,7 +1403,7 @@ export default function AdminDashboard() {
     },
     {
       key: 'feedback',
-      label: 'Avis non lus',
+      label: t('admin.dashboard.unreadFeedback', 'Avis non lus'),
       count: Number(adminTaskCounts?.unreadFeedback || 0),
       to: '/admin/feedback',
       icon: MessageSquare,
@@ -1538,7 +1540,7 @@ export default function AdminDashboard() {
                 <h1 className="text-[22px] font-black tracking-tight text-[#231f1b] dark:text-white">{pageTitle}</h1>
                 {stats?.generatedAt ? (
                   <p className="text-xs font-medium text-[#8a8378] dark:text-neutral-500">
-                    Mis à jour à {new Date(stats.generatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    {t('admin.dashboard.updatedAt', 'Mis à jour à')} {new Date(stats.generatedAt).toLocaleTimeString(String(language || 'fr').startsWith('en') ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 ) : null}
               </div>
@@ -1548,17 +1550,17 @@ export default function AdminDashboard() {
                   onClick={refreshAll}
                   disabled={refreshing}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#e2dcd2] bg-white text-gray-700 transition active:scale-[0.97] disabled:opacity-60"
-                  aria-label="Actualiser"
+                  aria-label={t('admin.dashboard.refresh', 'Actualiser')}
                 >
                   <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-                  <span className="sr-only">{refreshing ? 'Actualisation...' : 'Actualiser'}</span>
+                  <span className="sr-only">{refreshing ? t('admin.dashboard.refreshing', 'Actualisation...') : t('admin.dashboard.refresh', 'Actualiser')}</span>
                 </button>
                 <Link
                   to="/admin/task-center"
                   className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 text-sm font-black text-white transition active:scale-[0.97]"
                 >
                   <CheckCircle size={16} />
-                  Centre de tâches
+                  {t('admin.dashboard.taskCenter', 'Centre de tâches')}
                   {pendingQueueTotal > 0 ? <span className="rounded-full bg-[#e85d00] px-2 py-0.5 text-[11px]">{formatNumber(pendingQueueTotal)}</span> : null}
                 </Link>
               </div>
@@ -1568,12 +1570,12 @@ export default function AdminDashboard() {
             <div>
               <div className="mb-2 flex items-baseline justify-between">
                 <h2 className="text-[13px] font-black text-[#231f1b] dark:text-white">
-                  À traiter aujourd’hui
+                  {t('admin.dashboard.today', 'À traiter aujourd’hui')}
                 </h2>
                 <span className={`text-xs font-bold ${pendingQueueTotal > 0 ? 'text-[#e85d00]' : 'text-emerald-600'}`}>
                   {pendingQueueTotal > 0
-                    ? `${formatNumber(pendingQueueTotal)} action${pendingQueueTotal > 1 ? 's' : ''} en attente`
-                    : 'Rien à traiter'}
+                    ? `${formatNumber(pendingQueueTotal)} ${t(pendingQueueTotal > 1 ? 'admin.dashboard.pendingActions' : 'admin.dashboard.pendingAction', pendingQueueTotal > 1 ? 'actions en attente' : 'action en attente')}`
+                    : t('admin.dashboard.nothingPending', 'Rien à traiter')}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
@@ -1614,7 +1616,7 @@ export default function AdminDashboard() {
 
         {/* Onglets de section (tous formats) : chaque espace de travail est focalisé */}
         {availableTabs.length > 1 && (
-          <div className="hd-admin-sticky sticky top-0 z-20 -mx-1 rounded-2xl border border-gray-100 px-1 py-1.5">
+          <div className="hd-admin-sticky -mx-1 rounded-2xl border border-gray-100 px-1 py-1.5">
             <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
               {availableTabs.map((tab) => {
                 const TabIcon = adminTabMeta[tab.key]?.icon || Activity;

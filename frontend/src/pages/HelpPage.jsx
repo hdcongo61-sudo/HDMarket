@@ -542,7 +542,7 @@ export default function HelpPage() {
     <div className="min-h-screen bg-[#f7f3ee] text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-orange-100/80 via-[#fff4e8] to-transparent dark:from-orange-950/20 dark:via-neutral-950" />
 
-      <header className="sticky top-0 z-20 border-b border-gray-200/80 bg-white/85 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/80">
+      <header className="border-b border-gray-200/80 bg-white/85 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] text-[#e85d00]">
