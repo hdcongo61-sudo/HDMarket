@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { CreditCard, Search, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
 import api, { isApiCanceledError } from '../services/api';
@@ -9,6 +9,7 @@ import { recordProductView } from '../utils/recentViews';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
@@ -71,6 +72,7 @@ const [isMobileView, setIsMobileView] = useState(() =>
       ].join(':'),
     [categoryFilter, installmentOnly, isMobileView, searchTerm, shopVerified, sort]
   );
+  const [activeSnapshotKey, setActiveSnapshotKey] = useState(snapshotKey);
 
   useEffect(() => {
     setCategoryFilter(categoryParam);
@@ -93,6 +95,12 @@ const [isMobileView, setIsMobileView] = useState(() =>
   }, [searchParam]);
 
 const fetchProducts = useCallback(async () => {
+  if (activeSnapshotKey !== snapshotKey) return;
+  const cachedView = readRouteViewCache(snapshotKey);
+  if (cachedView && Number(cachedView.page || 1) >= page) {
+    setLoading(false);
+    return;
+  }
   setLoading(true);
   if (page <= 1) {
     setError('');
@@ -111,8 +119,18 @@ const fetchProducts = useCallback(async () => {
       const { data } = await api.get('/products/public', { params });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
-      setItems((prev) => (page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
-      setTotalPages(Math.max(1, Number(paginationMeta.pages) || 1));
+      const nextTotalPages = Math.max(1, Number(paginationMeta.pages) || 1);
+      setItems((prev) => {
+        const nextItems = page > 1 ? [...prev, ...fetchedItems] : fetchedItems;
+        writeRouteViewCache(snapshotKey, {
+          items: nextItems,
+          page,
+          totalPages: nextTotalPages,
+          offlineSnapshotActive: false
+        });
+        return nextItems;
+      });
+      setTotalPages(nextTotalPages);
       setOfflineSnapshotActive(false);
     } catch (e) {
       if (isApiCanceledError(e)) {
@@ -121,9 +139,17 @@ const fetchProducts = useCallback(async () => {
       if (shouldUseOfflineSnapshot) {
         const snapshot = await loadOfflineSnapshot(snapshotKey);
         if (snapshot && typeof snapshot === 'object') {
-          setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
-          setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
+          const snapshotItems = Array.isArray(snapshot.items) ? snapshot.items : [];
+          const snapshotTotalPages = Math.max(1, Number(snapshot.totalPages) || 1);
+          setItems(snapshotItems);
+          setTotalPages(snapshotTotalPages);
           setOfflineSnapshotActive(true);
+          writeRouteViewCache(snapshotKey, {
+            items: snapshotItems,
+            page,
+            totalPages: snapshotTotalPages,
+            offlineSnapshotActive: true
+          });
           setError('');
           setLoadMoreError('');
           return;
@@ -139,6 +165,7 @@ const fetchProducts = useCallback(async () => {
       setLoading(false);
     }
   }, [
+    activeSnapshotKey,
     page,
     sort,
     searchTerm,
@@ -151,12 +178,19 @@ const fetchProducts = useCallback(async () => {
     snapshotKey
   ]);
 
-  useEffect(() => {
-    initialPageRef.current = 1;
-    setPage(1);
-    setItems([]);
-    setTotalPages(1);
-  }, [sort, searchTerm, categoryFilter, shopVerified, installmentOnly]);
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(snapshotKey);
+    const nextPage = Math.max(1, Number(cached?.page || 1));
+    initialPageRef.current = nextPage;
+    setItems(Array.isArray(cached?.items) ? cached.items : []);
+    setPage(nextPage);
+    setTotalPages(Math.max(1, Number(cached?.totalPages || 1)));
+    setOfflineSnapshotActive(Boolean(cached?.offlineSnapshotActive));
+    setError('');
+    setLoadMoreError('');
+    setLoading(false);
+    setActiveSnapshotKey(snapshotKey);
+  }, [snapshotKey]);
 
   useEffect(() => {
     if (loading) return;
@@ -233,7 +267,7 @@ const fetchProducts = useCallback(async () => {
           params.set('page', String(page));
         }
         return params;
-      }, { replace: false });
+      }, { replace: true });
     }
   }, [page, searchParams, setSearchParams]);
 
@@ -242,13 +276,14 @@ const fetchProducts = useCallback(async () => {
   }, [fetchProducts]);
 
   useEffect(() => {
+    if (activeSnapshotKey !== snapshotKey) return;
     if (!items.length) return;
     if (shouldUseOfflineSnapshot) return;
     saveOfflineSnapshot(snapshotKey, {
       items,
       totalPages
     });
-  }, [items, shouldUseOfflineSnapshot, snapshotKey, totalPages]);
+  }, [activeSnapshotKey, items, shouldUseOfflineSnapshot, snapshotKey, totalPages]);
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();

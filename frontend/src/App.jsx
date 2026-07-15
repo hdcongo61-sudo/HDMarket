@@ -19,6 +19,7 @@ import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfi
 import { hasAnyPermission } from './utils/permissions';
 import { applyAppBranding } from './utils/appIcon';
 import { queryClient } from './lib/queryClient';
+import useAppBrandLogo from './hooks/useAppBrandLogo';
 
 const Home = lazy(() => import('./pages/Home'));
 const Discover = lazy(() => import('./pages/Discover'));
@@ -192,6 +193,26 @@ const getRouteModule = (path = '') => {
   ) {
     return 'account';
   }
+  if (
+    normalized === '/' ||
+    normalized === '/discover' ||
+    normalized === '/explore' ||
+    normalized === '/products' ||
+    normalized.startsWith('/product/') ||
+    normalized.startsWith('/product-preview/') ||
+    normalized.startsWith('/categories/') ||
+    normalized.startsWith('/shop/') ||
+    normalized === '/search' ||
+    normalized === '/cities' ||
+    normalized.startsWith('/top-') ||
+    normalized === '/flash-sales' ||
+    normalized === '/suggestions' ||
+    normalized === '/certified-products' ||
+    normalized === '/shops/verified' ||
+    normalized === '/shops/free-delivery'
+  ) {
+    return 'commerce';
+  }
   return '';
 };
 
@@ -304,6 +325,7 @@ function AppContent() {
   const { user } = useContext(AuthContext);
   const { isFeatureEnabled, getRuntimeValue, assistantChatEnabled } = useAppSettings();
   const shopLoad = useShopProfileLoad();
+  const { logoSrc: appBrandLogo } = useAppBrandLogo();
   const [splashConfig, setSplashConfig] = useState(null);
   const [splashDismissed, setSplashDismissed] = useState(false);
   const bootSplashPrefRef = useRef(readBootSplashPref());
@@ -560,25 +582,25 @@ function AppContent() {
 
   return (
     <>
-      {showBootSplash && (
+      {showBootSplash ? (
         <BootSplash
+          logoSrc={appBrandLogo}
           minDuration={bootSplashPrefRef.current.durationMs}
           onDone={() => setShowBootSplash(false)}
         />
+      ) : (
+        <AppLoader
+          visible={showLoader}
+          logoSrc={showShopProfileLoader ? shopLoad?.shopLogo : appBrandLogo}
+          label={showShopProfileLoader && shopLoad?.shopName ? shopLoad.shopName : 'HDMarket'}
+          timedOut={loaderTimedOut}
+          onRetry={() => {
+            setLoaderTimedOut(false);
+            if (typeof window !== 'undefined') window.location.reload();
+          }}
+        />
       )}
       <PendingActionHandler />
-      <AppLoader
-        visible={showLoader}
-        logoSrc={showShopProfileLoader ? shopLoad?.shopLogo : undefined}
-        label={showShopProfileLoader && shopLoad?.shopName ? shopLoad.shopName : 'HDMarket'}
-        timedOut={loaderTimedOut}
-        onRetry={() => {
-          setLoaderTimedOut(false);
-          if (typeof window !== 'undefined') {
-            window.location.reload();
-          }
-        }}
-      />
       <Suspense fallback={null}>
         <PushNotificationsManager />
       </Suspense>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
@@ -10,6 +10,7 @@ import { useSearchParams } from 'react-router-dom';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const SORT_OPTIONS = [
   { value: 'new', label: 'Plus récents' },
@@ -67,16 +68,21 @@ export default function CategoryProducts() {
       ].join(':'),
     [categoryId, categoryMeta?.value, isMobileView, sort]
   );
+  const [activeSnapshotKey, setActiveSnapshotKey] = useState(snapshotKey);
 
-  useEffect(() => {
-    initialPageRef.current = 1;
-    setPage(1);
-  }, [categoryId]);
-
-  useEffect(() => {
-    initialPageRef.current = 1;
-    setPage(1);
-  }, [sort]);
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(snapshotKey);
+    const nextPage = Math.max(1, Number(cached?.page || 1));
+    initialPageRef.current = nextPage;
+    setItems(Array.isArray(cached?.items) ? cached.items : []);
+    setPage(nextPage);
+    setTotalPages(Math.max(1, Number(cached?.totalPages || 1)));
+    setOfflineSnapshotActive(Boolean(cached?.offlineSnapshotActive));
+    setError('');
+    setLoadMoreError('');
+    setLoading(false);
+    setActiveSnapshotKey(snapshotKey);
+  }, [snapshotKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -108,7 +114,7 @@ export default function CategoryProducts() {
         params.set('page', String(page));
       }
       return params;
-    }, { replace: false });
+    }, { replace: true });
   }, [page, searchParams, setSearchParams]);
 
   useEffect(() => {
@@ -132,6 +138,12 @@ export default function CategoryProducts() {
     const controller = new AbortController();
 
     const fetchProducts = async () => {
+      if (activeSnapshotKey !== snapshotKey) return;
+      const cachedView = readRouteViewCache(snapshotKey);
+      if (cachedView && Number(cachedView.page || 1) >= page) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       if (page <= 1) {
         setError('');
@@ -151,8 +163,18 @@ export default function CategoryProducts() {
         if (!active) return;
         const fetched = Array.isArray(data) ? data : data?.items ?? [];
         const pagination = Array.isArray(data) ? { pages: 1 } : data?.pagination ?? {};
-        setItems((prev) => (page > 1 ? [...prev, ...fetched] : fetched));
-        setTotalPages(Math.max(1, Number(pagination.pages) || 1));
+        const nextTotalPages = Math.max(1, Number(pagination.pages) || 1);
+        setItems((prev) => {
+          const nextItems = page > 1 ? [...prev, ...fetched] : fetched;
+          writeRouteViewCache(snapshotKey, {
+            items: nextItems,
+            page,
+            totalPages: nextTotalPages,
+            offlineSnapshotActive: false
+          });
+          return nextItems;
+        });
+        setTotalPages(nextTotalPages);
         setOfflineSnapshotActive(false);
       } catch (e) {
         if (controller.signal.aborted) return;
@@ -160,9 +182,17 @@ export default function CategoryProducts() {
         if (shouldUseOfflineSnapshot) {
           const snapshot = await loadOfflineSnapshot(snapshotKey);
           if (snapshot && typeof snapshot === 'object') {
-            setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
-            setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
+            const snapshotItems = Array.isArray(snapshot.items) ? snapshot.items : [];
+            const snapshotTotalPages = Math.max(1, Number(snapshot.totalPages) || 1);
+            setItems(snapshotItems);
+            setTotalPages(snapshotTotalPages);
             setOfflineSnapshotActive(true);
+            writeRouteViewCache(snapshotKey, {
+              items: snapshotItems,
+              page,
+              totalPages: snapshotTotalPages,
+              offlineSnapshotActive: true
+            });
             setError('');
             setLoadMoreError('');
             return;
@@ -186,21 +216,17 @@ export default function CategoryProducts() {
       active = false;
       controller.abort();
     };
-  }, [categoryMeta, sort, page, isMobileView, loadMoreRetryTick, pageSize, shouldUseOfflineSnapshot, snapshotKey]);
+  }, [activeSnapshotKey, categoryMeta, sort, page, isMobileView, loadMoreRetryTick, pageSize, shouldUseOfflineSnapshot, snapshotKey]);
 
   useEffect(() => {
-    setItems([]);
-    setTotalPages(1);
-  }, [categoryMeta, sort]);
-
-  useEffect(() => {
+    if (activeSnapshotKey !== snapshotKey) return;
     if (!items.length) return;
     if (shouldUseOfflineSnapshot) return;
     saveOfflineSnapshot(snapshotKey, {
       items,
       totalPages
     });
-  }, [items, shouldUseOfflineSnapshot, snapshotKey, totalPages]);
+  }, [activeSnapshotKey, items, shouldUseOfflineSnapshot, snapshotKey, totalPages]);
 
   useEffect(() => {
     if (loading) return;
@@ -384,7 +410,7 @@ export default function CategoryProducts() {
               </p>
               <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">{categoryMeta.label}</h1>
               <p className="mt-1 text-sm text-white/82">
-                Sélection approuvée, affichée avec des cartes plus rapides à scanner sur mobile.
+                {items.length} produit{items.length > 1 ? 's' : ''} affiché{items.length > 1 ? 's' : ''}
               </p>
             </div>
 

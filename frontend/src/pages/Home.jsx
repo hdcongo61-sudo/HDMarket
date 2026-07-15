@@ -886,7 +886,7 @@ const loadDiscountProducts = async () => {
       next.set('page', targetPage);
     }
 
-    setSearchParams(next, { replace: page === initialPageRef.current });
+    setSearchParams(next, { replace: true });
   }, [page, searchParams, setSearchParams]);
 
   useEffect(() => {

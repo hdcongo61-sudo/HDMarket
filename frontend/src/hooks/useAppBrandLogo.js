@@ -2,6 +2,30 @@ import { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import useIsMobile from './useIsMobile';
 
+const APP_LOGO_CACHE_KEY = 'hdmarket:brand-logos';
+
+const readCachedLogos = () => {
+  if (typeof window === 'undefined') return { mobile: '', desktop: '' };
+  try {
+    const cached = JSON.parse(window.localStorage.getItem(APP_LOGO_CACHE_KEY) || '{}');
+    return {
+      mobile: String(cached?.mobile || ''),
+      desktop: String(cached?.desktop || '')
+    };
+  } catch {
+    return { mobile: '', desktop: '' };
+  }
+};
+
+const cacheLogos = (logos) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(APP_LOGO_CACHE_KEY, JSON.stringify(logos));
+  } catch {
+    // Storage is an optimization; the API remains the source of truth.
+  }
+};
+
 const getFallbackLogo = () => {
   if (typeof window === 'undefined') return '/favicon.svg';
   return `${window.location.origin}/favicon.svg`;
@@ -9,19 +33,20 @@ const getFallbackLogo = () => {
 
 export default function useAppBrandLogo() {
   const isMobile = useIsMobile(767);
-  const [logos, setLogos] = useState({
-    mobile: '',
-    desktop: ''
-  });
+  const [logos, setLogos] = useState(readCachedLogos);
 
   useEffect(() => {
     let active = true;
     const onLogoUpdate = (event) => {
       if (!active) return;
-      setLogos((prev) => ({
-        mobile: event?.detail?.appLogoMobile || prev.mobile,
-        desktop: event?.detail?.appLogoDesktop || prev.desktop
-      }));
+      setLogos((prev) => {
+        const next = {
+          mobile: event?.detail?.appLogoMobile || prev.mobile,
+          desktop: event?.detail?.appLogoDesktop || prev.desktop
+        };
+        cacheLogos(next);
+        return next;
+      });
     };
 
     if (typeof window !== 'undefined') {
@@ -32,10 +57,12 @@ export default function useAppBrandLogo() {
       .get('/settings/app-logo', { skipCache: true })
       .then((res) => {
         if (!active) return;
-        setLogos({
+        const next = {
           mobile: res?.data?.appLogoMobile || '',
           desktop: res?.data?.appLogoDesktop || ''
-        });
+        };
+        cacheLogos(next);
+        setLogos(next);
       })
       .catch(() => {
         // silent fallback

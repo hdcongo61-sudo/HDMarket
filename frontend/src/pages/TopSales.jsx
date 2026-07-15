@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { TrendingUp, Award, ShoppingCart, ArrowLeft } from 'lucide-react';
-import { buildProductPath } from '../utils/links';
 
 const PAGE_LIMIT = 12;
 
@@ -89,8 +88,6 @@ export default function TopSales() {
     }, { replace: true });
   }, [page, searchParams, setSearchParams]);
 
-  const formatCount = (value) => Number(value || 0).toLocaleString('fr-FR');
-
   return (
     <div className="hd-products-flow">
       <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
@@ -129,32 +126,7 @@ export default function TopSales() {
           </div>
         ) : items.length > 0 ? (
           <>
-            <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-5">
-              {items.map((product, index) => (
-                <div key={product._id} className="relative mb-2 break-inside-avoid sm:mb-3">
-                  {/* Ranking Badge */}
-                  {index < 3 && (
-                    <div className="absolute -top-2 -left-2 z-30">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
-                        index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
-                        index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
-                        'bg-gradient-to-br from-amber-600 to-amber-800'
-                      }`}>
-                        <Award className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center">
-                        <span className="text-xs font-black text-gray-900">#{index + 1}</span>
-                      </div>
-                    </div>
-                  )}
-                  <ProductCard
-                    p={product}
-                    productLink={buildProductPath(product)}
-                    commerceFeed
-                  />
-                </div>
-              ))}
-            </div>
+            <ProductMasonryGrid products={items} />
 
             {loading && page > 1 && (
               <div className="flex justify-center py-4">

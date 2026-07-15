@@ -21,10 +21,8 @@ import {
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import useIsMobile from '../hooks/useIsMobile';
-import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
-import { buildProductPath } from '../utils/links';
 import { buildCategoryPreferences, fetchRecentProductViews, loadRecentProductViews } from '../utils/recentViews';
-import ProductCard from '../components/ProductCard';
+import ProductMasonryGrid from '../components/ProductMasonryGrid';
 
 const PAGE_SIZE = 12;
 const MAX_CATEGORIES = 4;
@@ -50,7 +48,6 @@ const CATEGORY_LABELS = {
 
 export default function Suggestions() {
   const isMobileView = useIsMobile();
-  const externalLinkProps = useDesktopExternalLink();
   const { user } = useContext(AuthContext);
   const [views, setViews] = useState([]);
   const [items, setItems] = useState([]);
@@ -408,11 +405,7 @@ export default function Suggestions() {
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {items.map((product) => (
-                <ProductCard key={product._id} p={product} />
-              ))}
-            </div>
+            <ProductMasonryGrid products={items} />
           </>
         )}
 

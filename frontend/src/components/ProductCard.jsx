@@ -715,7 +715,7 @@ function ProductCard({
                   ? 'bg-[#e85d00] text-white shadow-[0_10px_22px_rgba(232,93,0,0.24)]'
                   : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-950/90 dark:text-neutral-200'
               } inline-flex ${
-                isShopProfileCompact ? 'h-8 w-8' : 'h-10 w-10'
+                isShopProfileCompact ? 'h-8 w-8' : 'h-11 w-11'
               } ${favoritePending ? 'scale-95 opacity-80' : ''}`}
               aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             >

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import React from 'react';
 
-const getFallbackLogo = () => {
-  if (typeof window === 'undefined') return '';
-  return `${window.location.origin}/favicon.svg`;
+const normalizeLogoSource = (value) => {
+  if (typeof value === 'string') return value.trim();
+  if (!value || typeof value !== 'object') return '';
+  return String(value.secure_url || value.url || value.src || '').trim();
 };
 
 export default function AppLoader({
@@ -13,49 +13,9 @@ export default function AppLoader({
   timedOut = false,
   onRetry
 }) {
-  const [logo, setLogo] = useState(logoSrc || '');
-
-  useEffect(() => {
-    if (!visible) return undefined;
-    if (logoSrc) {
-      setLogo(logoSrc);
-      return undefined;
-    }
-
-    let isMounted = true;
-    const onAppLogoUpdated = (event) => {
-      if (!isMounted) return;
-      const updatedLogo = event?.detail?.appLogoMobile || event?.detail?.appLogoDesktop || '';
-      if (updatedLogo) {
-        setLogo(updatedLogo);
-      }
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
-    }
-    api
-      .get('/settings/app-logo', { silentGlobalError: true })
-      .then((res) => {
-        if (!isMounted) return;
-        const nextLogo = res?.data?.appLogoMobile || res?.data?.appLogoDesktop || '';
-        setLogo(nextLogo || '');
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setLogo('');
-      });
-
-    return () => {
-      isMounted = false;
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
-      }
-    };
-  }, [logoSrc, visible]);
-
   if (!visible) return null;
 
-  const resolvedLogo = logo || getFallbackLogo();
+  const resolvedLogo = normalizeLogoSource(logoSrc);
 
   return (
     <div

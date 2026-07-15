@@ -12,9 +12,9 @@ export default function FlashSales() {
   const flashSales = data?.items || [];
 
   return (
-    <div className="hd-profile-flow hd-commerce-shell min-h-screen">
+    <div className="hd-products-flow hd-commerce-shell min-h-screen">
       {/* Header */}
-      <header className="ui-glass-header border-b border-red-100">
+      <header className="border-b border-[#eee8e0] bg-white">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link
             to="/"
@@ -24,14 +24,14 @@ export default function FlashSales() {
             <ArrowLeft size={18} />
           </Link>
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e85d00]">
               <Zap size={16} className="text-white fill-white" />
             </div>
             <div>
               <h1 className="text-base font-bold text-gray-900">
                 {t('flashSales.title', 'Bons Plans Flash')}
               </h1>
-              <p className="text-xs text-red-500 font-medium">
+              <p className="text-xs text-[#e85d00] font-medium">
                 {t('flashSales.subtitle', 'Offres limitées dans le temps')}
               </p>
             </div>
