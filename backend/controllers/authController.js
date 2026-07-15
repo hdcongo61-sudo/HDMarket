@@ -150,16 +150,25 @@ export const register = asyncHandler(async (req, res) => {
 });
 
 export const login = asyncHandler(async (req, res) => {
-  const { phone, password } = req.body;
-  const normalizedPhone = phone?.trim();
+  const { phone, email, identifier, password } = req.body;
+  const rawIdentifier = String(identifier || email || phone || '').trim();
 
-  if (!normalizedPhone) {
-    return res.status(400).json({ message: 'Numéro de téléphone manquant' });
+  if (!rawIdentifier) {
+    return res.status(400).json({
+      message: 'Adresse email ou numéro de téléphone manquant.',
+      code: 'IDENTIFIER_REQUIRED'
+    });
   }
-  const phoneCandidates = buildPhoneCandidates(normalizedPhone);
-  const user = await User.findOne({ phone: { $in: phoneCandidates } });
+  const isEmailIdentifier = rawIdentifier.includes('@');
+  const user = isEmailIdentifier
+    ? await User.findOne({ email: rawIdentifier.toLowerCase() })
+    : await User.findOne({ phone: { $in: buildPhoneCandidates(rawIdentifier) } });
   if (!user || !(await user.matchPassword(password))) {
-    return res.status(401).json({ message: 'Numéro de téléphone ou mot de passe incorrect.' });
+    return res.status(401).json({
+      message:
+        "L’adresse email, le numéro de téléphone ou le mot de passe est incorrect, ou ce compte n’existe pas.",
+      code: 'INVALID_CREDENTIALS'
+    });
   }
   if (user.isBlocked) {
     const reason = user.blockedReason ? ` Motif : ${user.blockedReason}` : '';

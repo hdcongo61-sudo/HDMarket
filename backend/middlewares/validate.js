@@ -90,9 +90,11 @@ export const schemas = {
     phone: Joi.string().min(5).max(30)
   }).or('email', 'phone'),
   login: Joi.object({
-    phone: Joi.string().min(5).max(30).required(),
+    email: Joi.string().trim().email(),
+    phone: Joi.string().trim().min(5).max(30),
+    identifier: Joi.string().trim().min(3).max(120),
     password: Joi.string().min(6).required(),
-  }),
+  }).or('email', 'phone', 'identifier'),
   passwordForgot: Joi.object({
     email: Joi.string().email(),
     phone: Joi.string().min(5).max(30)

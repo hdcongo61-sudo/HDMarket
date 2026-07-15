@@ -41,21 +41,41 @@ const fadeUp = {
 
 const mapLoginErrorMessage = (error, isFrench = true) => {
   const status = Number(error?.response?.status || 0);
-  const code = String(error?.code || error?.response?.data?.code || '').toUpperCase();
+  const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
   const rawMessage = String(error?.response?.data?.message || error?.message || '').toLowerCase();
 
   if (code.includes('TIMEDOUT') || rawMessage.includes('timeout')) {
     return isFrench ? 'La connexion prend plus de temps que prévu. Réessayez dans un instant.' : 'Sign-in is taking longer than expected. Please try again shortly.';
   }
-  if (status === 401 || status === 403) {
+  if (code === 'ACCOUNT_BLOCKED') {
     return isFrench
-      ? 'Mot de passe incorrect. Veuillez réessayer.'
-      : 'Incorrect password. Please try again.';
+      ? 'Votre compte est suspendu. Contactez le support pour obtenir de l’aide.'
+      : 'Your account is suspended. Contact support for help.';
   }
-  if (status === 404 || rawMessage.includes('not found') || rawMessage.includes('introuvable')) {
+  if (code === 'ACCOUNT_INACTIVE') {
     return isFrench
-      ? 'Aucun compte trouvé avec cet email ou ce téléphone.'
-      : 'No account found with this email or phone.';
+      ? 'Votre compte est désactivé. Contactez le support.'
+      : 'Your account is disabled. Contact support.';
+  }
+  if (code === 'ACCOUNT_LOCKED') {
+    return isFrench
+      ? 'Votre compte est verrouillé. Contactez le support.'
+      : 'Your account is locked. Contact support.';
+  }
+  if (status === 429 || code === 'RATE_LIMIT_ERROR') {
+    return isFrench
+      ? 'Trop de tentatives de connexion. Réessayez dans 15 minutes.'
+      : 'Too many sign-in attempts. Try again in 15 minutes.';
+  }
+  if (status === 401 || code === 'INVALID_CREDENTIALS') {
+    return isFrench
+      ? "L’adresse email, le numéro de téléphone ou le mot de passe est incorrect, ou ce compte n’existe pas."
+      : 'The email address, phone number, or password is incorrect, or this account does not exist.';
+  }
+  if (status === 403) {
+    return isFrench
+      ? 'La connexion à ce compte est actuellement impossible. Contactez le support.'
+      : 'This account cannot currently sign in. Contact support.';
   }
   if (status >= 500) {
     return isFrench
@@ -152,7 +172,11 @@ export default function Login() {
     slowNetworkTimerRef.current = setTimeout(() => setSlowNetwork(true), SLOW_NETWORK_MS);
 
     try {
-      const { data } = await api.post('/auth/login', form);
+      const identifier = form.phone.trim();
+      const credentials = identifier.includes('@')
+        ? { email: identifier.toLowerCase(), password: form.password }
+        : { phone: identifier, password: form.password };
+      const { data } = await api.post('/auth/login', credentials);
       // Redirect directly — no success interstitial
       await login(data);
       nav(from, { replace: true });
