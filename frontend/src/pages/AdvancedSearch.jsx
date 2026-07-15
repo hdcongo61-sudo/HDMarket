@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -14,8 +14,6 @@ import {
   Store,
   Sparkles,
   RefreshCw,
-  Save,
-  Trash2,
   Heart,
   TrendingUp,
   CheckCircle
@@ -30,24 +28,12 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
-const CONDITIONS = [
-  { value: 'new', label: 'Neuf' },
-  { value: 'used', label: 'Occasion' }
-];
-const SORT_OPTIONS = [
-  { value: 'new', label: 'Plus récents' },
-  { value: 'price_asc', label: 'Prix croissant' },
-  { value: 'price_desc', label: 'Prix décroissant' },
-  { value: 'discount', label: 'Meilleures remises' }
-];
-
 const PAGE_SIZE = 12;
 
 export default function AdvancedSearch() {
-  const { allCategoryOptions, categoryGroups } = useCategories();
+  const { categoryGroups } = useCategories();
   const { showToast } = useToast();
-  const { cities } = useAppSettings();
-  const navigate = useNavigate();
+  const { cities, t } = useAppSettings();
   const [searchParams, setSearchParams] = useSearchParams();
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const {
@@ -59,7 +45,9 @@ export default function AdvancedSearch() {
   } = useNetworkProfile();
   
   // Filter states
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const initialSearchQuery = searchParams.get('q') || searchParams.get('search') || '';
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [searchDraft, setSearchDraft] = useState(initialSearchQuery);
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [city, setCity] = useState(searchParams.get('city') || '');
   const [condition, setCondition] = useState(searchParams.get('condition') || '');
@@ -90,6 +78,16 @@ export default function AdvancedSearch() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const pageSize = compactProductsPageSize || PAGE_SIZE;
+  const conditionOptions = [
+    { value: 'new', label: t('search.conditionNew', 'Neuf') },
+    { value: 'used', label: t('search.conditionUsed', 'Occasion') }
+  ];
+  const sortOptions = [
+    { value: 'new', label: t('search.sortNewest', 'Plus récents') },
+    { value: 'price_asc', label: t('search.sortPriceAsc', 'Prix croissant') },
+    { value: 'price_desc', label: t('search.sortPriceDesc', 'Prix décroissant') },
+    { value: 'discount', label: t('search.sortDiscount', 'Meilleures remises') }
+  ];
   const cityOptions = useMemo(() => {
     const dynamicCities = Array.isArray(cities)
       ? cities
@@ -163,6 +161,15 @@ export default function AdvancedSearch() {
     setSearchParams(params, { replace: true });
   }, [buildQueryParams, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const nextQuery = searchDraft.trim();
+      setSearchQuery((current) => (current === nextQuery ? current : nextQuery));
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchDraft]);
+
   // Fetch products
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -198,12 +205,12 @@ export default function AdvancedSearch() {
           return;
         }
       }
-      setError(e.response?.data?.message || e.message || 'Impossible de charger les produits.');
-      showToast('Erreur lors de la recherche', { variant: 'error' });
+      setError(e.response?.data?.message || e.message || t('search.loadError', 'Impossible de charger les produits.'));
+      showToast(t('search.searchError', 'Erreur lors de la recherche'), { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [buildQueryParams, page, pageSize, shouldUseOfflineSnapshot, showToast, snapshotKey]);
+  }, [buildQueryParams, page, pageSize, shouldUseOfflineSnapshot, showToast, snapshotKey, t]);
 
   useEffect(() => {
     fetchProducts();
@@ -259,6 +266,7 @@ export default function AdvancedSearch() {
   // Clear all filters
   const clearAllFilters = () => {
     setSearchQuery('');
+    setSearchDraft('');
     setCategory('');
     setCity('');
     setCondition('');
@@ -273,6 +281,48 @@ export default function AdvancedSearch() {
     setSort('new');
     setPage(1);
   };
+
+  const submitSearch = (event) => {
+    event.preventDefault();
+    setSearchQuery(searchDraft.trim());
+    setPage(1);
+  };
+
+  const activeFilterChips = [
+    searchQuery && {
+      key: 'query',
+      label: `“${searchQuery}”`,
+      clear: () => {
+        setSearchDraft('');
+        setSearchQuery('');
+      }
+    },
+    category && { key: 'category', label: category, clear: () => setCategory('') },
+    city && { key: 'city', label: city, clear: () => setCity('') },
+    condition && {
+      key: 'condition',
+      label: conditionOptions.find((item) => item.value === condition)?.label || condition,
+      clear: () => setCondition('')
+    },
+    (minPrice || maxPrice) && {
+      key: 'price',
+      label: `${minPrice || '0'} – ${maxPrice || '∞'} F`,
+      clear: () => {
+        setMinPrice('');
+        setMaxPrice('');
+      }
+    },
+    shopVerified === 'true' && {
+      key: 'verified',
+      label: t('search.verifiedShops', 'Boutiques vérifiées'),
+      clear: () => setShopVerified('')
+    },
+    hasDiscount && {
+      key: 'discount',
+      label: t('search.withDiscount', 'Avec remise'),
+      clear: () => setHasDiscount(false)
+    }
+  ].filter(Boolean);
 
   // Toggle section
   const toggleSection = (section) => {
@@ -310,38 +360,61 @@ export default function AdvancedSearch() {
   return (
     <div className="hd-search-flow hd-products-flow hd-commerce-shell min-h-screen">
       {/* Header */}
-      <div className="hd-search-hero text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="rounded-xl bg-white/18 p-3 backdrop-blur-sm ring-1 ring-white/24">
-              <Search className="w-6 h-6" />
+      <div className="border-b border-neutral-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#fff0e4] text-[#e85d00]">
+              <Search className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-3xl font-black">Recherche avancée</h1>
-              <p className="text-white/90 text-sm mt-1">
-                Trouvez exactement ce que vous cherchez avec nos filtres avancés
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#e85d00]">HDMarket</p>
+              <h1 className="text-2xl font-black tracking-tight text-neutral-950 sm:text-3xl">
+                {t('search.title', 'Rechercher sur HDMarket')}
+              </h1>
+              <p className="mt-1 text-sm font-medium text-neutral-500">
+                {t('search.subtitle', 'Produits, boutiques et bonnes affaires, au même endroit.')}
               </p>
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative max-w-3xl">
-            <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#e85d00]" />
+          <form onSubmit={submitSearch} className="flex max-w-4xl gap-2" role="search">
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Rechercher un produit..."
-              className="hd-global-search w-full rounded-full py-4 pl-14 pr-5 text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.target.value)}
+                placeholder={t('search.placeholder', 'Rechercher un produit, une marque ou une boutique…')}
+                className="h-[52px] w-full rounded-xl border border-neutral-300 bg-white py-3 pl-12 pr-11 text-sm font-semibold text-neutral-950 outline-none transition focus:border-[#e85d00] focus:ring-4 focus:ring-orange-100"
+                autoComplete="off"
+                enterKeyHint="search"
             />
-          </div>
+              {searchDraft ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchDraft('');
+                    setSearchQuery('');
+                  }}
+                  className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-950"
+                  aria-label={t('search.clearQuery', 'Effacer la recherche')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+            <button
+              type="submit"
+              className="inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-black text-white transition hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neutral-300"
+            >
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('search.submit', 'Rechercher')}</span>
+            </button>
+          </form>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters Sidebar */}
           <aside className={`lg:w-80 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
@@ -351,7 +424,7 @@ export default function AdvancedSearch() {
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     <SlidersHorizontal className="w-5 h-5" />
-                    Filtres
+                    {t('search.filters', 'Filtres')}
                   </h2>
                   {activeFiltersCount > 0 && (
                     <button
@@ -359,13 +432,16 @@ export default function AdvancedSearch() {
                       onClick={clearAllFilters}
                       className="text-xs font-bold text-[#B45309] hover:text-[#e85d00]"
                     >
-                      Tout effacer
+                      {t('search.clearAll', 'Tout effacer')}
                     </button>
                   )}
                 </div>
                 {activeFiltersCount > 0 && (
                   <p className="text-xs text-gray-500">
-                    {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+                    {t('search.filtersActive', '{count} filtre(s) actif(s)').replace(
+                      '{count}',
+                      String(activeFiltersCount)
+                    )}
                   </p>
                 )}
               </div>
@@ -373,7 +449,7 @@ export default function AdvancedSearch() {
               {/* Filter Sections */}
               <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
                 {/* Basic Filters */}
-                <FilterSection title="Catégorie" icon={Tag} section="basic">
+                <FilterSection title={t('search.category', 'Catégorie')} icon={Tag} section="basic">
                   <select
                     value={category}
                     onChange={(e) => {
@@ -382,7 +458,7 @@ export default function AdvancedSearch() {
                     }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   >
-                    <option value="">Toutes les catégories</option>
+                    <option value="">{t('search.allCategories', 'Toutes les catégories')}</option>
                     {categoryGroups.map((group) => (
                       <optgroup key={group.id} label={group.label}>
                         {group.options.map((option) => (
@@ -396,7 +472,7 @@ export default function AdvancedSearch() {
                 </FilterSection>
 
                 {/* Price Range */}
-                <FilterSection title="Prix" icon={DollarSign} section="price">
+                <FilterSection title={t('search.price', 'Prix')} icon={DollarSign} section="price">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -432,15 +508,15 @@ export default function AdvancedSearch() {
                 </FilterSection>
 
                 {/* Quality Filters */}
-                <FilterSection title="Qualité & Options" icon={Sparkles} section="quality">
+                <FilterSection title={t('search.qualityOptions', 'Qualité et options')} icon={Sparkles} section="quality">
                   <div className="space-y-3">
                     {/* Condition */}
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        État
+                        {t('search.condition', 'État')}
                       </label>
                       <div className="space-y-2">
-                        {CONDITIONS.map((cond) => (
+                        {conditionOptions.map((cond) => (
                           <label key={cond.value} className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="radio"
@@ -468,7 +544,7 @@ export default function AdvancedSearch() {
                             }}
                             className="w-4 h-4 text-neutral-600 focus:ring-neutral-500"
                           />
-                          <span className="text-sm text-gray-700">Tous</span>
+                          <span className="text-sm text-gray-700">{t('search.all', 'Tous')}</span>
                         </label>
                       </div>
                     </div>
@@ -476,7 +552,7 @@ export default function AdvancedSearch() {
                     {/* Certified */}
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Certification
+                        {t('search.certification', 'Certification')}
                       </label>
                       <select
                         value={certified}
@@ -486,9 +562,9 @@ export default function AdvancedSearch() {
                         }}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       >
-                        <option value="">Tous</option>
-                        <option value="true">Certifiés uniquement</option>
-                        <option value="false">Non certifiés</option>
+                        <option value="">{t('search.all', 'Tous')}</option>
+                        <option value="true">{t('search.certifiedOnly', 'Certifiés uniquement')}</option>
+                        <option value="false">{t('search.notCertified', 'Non certifiés')}</option>
                       </select>
                     </div>
 
@@ -506,7 +582,7 @@ export default function AdvancedSearch() {
                         />
                         <span className="text-sm text-gray-700 flex items-center gap-1">
                           <CheckCircle className="w-4 h-4 text-emerald-500" />
-                          Boutiques vérifiées uniquement
+                          {t('search.verifiedOnly', 'Boutiques vérifiées uniquement')}
                         </span>
                       </label>
                     </div>
@@ -525,7 +601,7 @@ export default function AdvancedSearch() {
                         />
                         <span className="text-sm text-gray-700 flex items-center gap-1">
                           <Tag className="w-4 h-4 text-amber-500" />
-                          Avec remise
+                          {t('search.withDiscount', 'Avec remise')}
                         </span>
                       </label>
                     </div>
@@ -533,7 +609,7 @@ export default function AdvancedSearch() {
                     {/* Min Rating */}
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Note minimum
+                        {t('search.minimumRating', 'Note minimum')}
                       </label>
                       <div className="flex items-center gap-2">
                         <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
@@ -556,7 +632,7 @@ export default function AdvancedSearch() {
                     {/* Min Favorites */}
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Minimum de favoris
+                        {t('search.minimumFavorites', 'Minimum de favoris')}
                       </label>
                       <div className="flex items-center gap-2">
                         <Heart className="w-4 h-4 text-red-500" />
@@ -577,7 +653,7 @@ export default function AdvancedSearch() {
                     {/* Min Sales */}
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">
-                        Minimum de ventes
+                        {t('search.minimumSales', 'Minimum de ventes')}
                       </label>
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-emerald-500" />
@@ -598,7 +674,7 @@ export default function AdvancedSearch() {
                 </FilterSection>
 
                 {/* Location */}
-                <FilterSection title="Localisation" icon={MapPin} section="location">
+                <FilterSection title={t('search.location', 'Localisation')} icon={MapPin} section="location">
                   <select
                     value={city}
                     onChange={(e) => {
@@ -607,7 +683,7 @@ export default function AdvancedSearch() {
                     }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   >
-                    <option value="">Toutes les villes</option>
+                    <option value="">{t('search.allCities', 'Toutes les villes')}</option>
                     {cityOptions.map((cityName) => (
                       <option key={cityName} value={cityName}>
                         {cityName}
@@ -638,12 +714,17 @@ export default function AdvancedSearch() {
             <div className="hd-search-panel mb-6 rounded-2xl p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    {loading ? 'Recherche en cours...' : `${totalResults} résultat${totalResults > 1 ? 's' : ''}`}
+                  <h2 className="text-lg font-black text-gray-900">
+                    {loading
+                      ? t('search.searching', 'Recherche en cours…')
+                      : t('search.resultsCount', '{count} résultat(s)').replace('{count}', String(totalResults))}
                   </h2>
                   {activeFiltersCount > 0 && (
                     <p className="text-sm text-gray-500 mt-1">
-                      {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} appliqué{activeFiltersCount > 1 ? 's' : ''}
+                      {t('search.filtersApplied', '{count} filtre(s) appliqué(s)').replace(
+                        '{count}',
+                        String(activeFiltersCount)
+                      )}
                     </p>
                   )}
                 </div>
@@ -655,7 +736,7 @@ export default function AdvancedSearch() {
                     className="hd-soft-button inline-flex items-center gap-2 px-4 py-2 text-sm font-bold lg:hidden"
                   >
                     <Filter className="w-4 h-4" />
-                    Filtres
+                    {t('search.filters', 'Filtres')}
                     {activeFiltersCount > 0 && (
                       <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 text-xs font-bold">
                         {activeFiltersCount}
@@ -672,7 +753,7 @@ export default function AdvancedSearch() {
                     }}
                     className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                   >
-                    {SORT_OPTIONS.map((option) => (
+                    {sortOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -680,17 +761,36 @@ export default function AdvancedSearch() {
                   </select>
                 </div>
               </div>
+              {activeFilterChips.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-neutral-100 pt-4">
+                  {activeFilterChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={() => {
+                        chip.clear();
+                        setPage(1);
+                      }}
+                      className="inline-flex min-h-9 items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 text-xs font-bold text-orange-900 transition hover:border-[#e85d00] hover:bg-orange-100"
+                      aria-label={`${t('search.removeFilter', 'Retirer le filtre')} ${chip.label}`}
+                    >
+                      {chip.label}
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             {/* Error */}
             {error && !offlineSnapshotActive && (
               <div className="mb-6">
                 <NetworkFallbackCard
-                  title="Impossible de charger les résultats."
-                  message="Les résultats mettent plus de temps à charger. Réessayez dans un instant."
+                  title={t('search.resultsLoadError', 'Impossible de charger les résultats.')}
+                  message={t('search.resultsLoadErrorHint', 'Les résultats mettent plus de temps à charger. Réessayez dans un instant.')}
                   onRetry={fetchProducts}
-                  retryLabel="Réessayer"
-                  refreshLabel="Actualiser la page"
+                  retryLabel={t('search.retry', 'Réessayer')}
+                  refreshLabel={t('search.refresh', 'Actualiser la page')}
                 />
               </div>
             )}
@@ -718,7 +818,7 @@ export default function AdvancedSearch() {
                       disabled={loading}
                       className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-black text-gray-500 shadow-sm active:scale-95 disabled:cursor-wait disabled:opacity-60"
                     >
-                      Charger plus
+                      {t('search.loadMore', 'Charger plus')}
                     </button>
                   </div>
                 )}
@@ -726,9 +826,9 @@ export default function AdvancedSearch() {
             ) : (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
                 <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Aucun résultat</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">{t('search.noResults', 'Aucun résultat')}</h3>
                 <p className="text-sm text-gray-500 mb-6">
-                  Aucun produit ne correspond à vos critères de recherche.
+                  {t('search.noResultsHint', 'Aucun produit ne correspond à vos critères de recherche.')}
                 </p>
                 <button
                   type="button"
@@ -736,7 +836,7 @@ export default function AdvancedSearch() {
                   className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  Réinitialiser les filtres
+                  {t('search.resetFilters', 'Réinitialiser les filtres')}
                 </button>
               </div>
             )}

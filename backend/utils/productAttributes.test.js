@@ -161,4 +161,21 @@ describe('validateSelectedAttributesForProduct', () => {
     expect(result.valid).toBe(true);
     expect(result.selectedAttributes).toEqual([{ name: 'Taille', value: 'S' }]);
   });
+
+  it('rejects an omitted selectable group even without a required flag', () => {
+    const result = validateSelectedAttributesForProduct({
+      productAttributes: [{ name: 'Couleur', type: 'select', options: ['Noir', 'Blanc'] }],
+      selectedAttributes: []
+    });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain('Couleur');
+  });
+
+  it('allows an omitted optional free-form attribute', () => {
+    const result = validateSelectedAttributesForProduct({
+      productAttributes: [{ name: 'Gravure', type: 'text', required: false }],
+      selectedAttributes: []
+    });
+    expect(result.valid).toBe(true);
+  });
 });

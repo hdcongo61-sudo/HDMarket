@@ -257,6 +257,13 @@ export const buildSelectedAttributesSelectionKey = (selectedAttributes = []) =>
     .map((entry) => `${entry.name.toLowerCase()}:${entry.value.toLowerCase()}`)
     .join('|');
 
+// Select attributes are always purchase choices. Requiring every declared
+// group here prevents clients from bypassing color/size/etc. validation when
+// legacy product data omitted the explicit `required` flag.
+export const isProductAttributeSelectionRequired = (attribute = {}) =>
+  Boolean(attribute.required) ||
+  (attribute.type === 'select' && Array.isArray(attribute.options) && attribute.options.length > 0);
+
 export const validateSelectedAttributesForProduct = ({
   productAttributes = [],
   selectedAttributes = []
@@ -276,7 +283,7 @@ export const validateSelectedAttributesForProduct = ({
     }
 
     if (!value) {
-      if (attribute.required) {
+      if (isProductAttributeSelectionRequired(attribute)) {
         return {
           valid: false,
           message: `L’option "${attribute.name}" est obligatoire.`,

@@ -18,6 +18,7 @@ import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hoo
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert } from '../utils/appDialog';
 import { createIdempotencyKey } from '../utils/idempotency';
+import { getHighestProductPrice } from '../utils/productAttributes';
 
 const defaultOperatorPhones = {
   MTN: '069822930',
@@ -45,9 +46,18 @@ const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 export default function PaymentForm({ product, onSubmitted }) {
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const submitIdempotencyKeyRef = useRef('');
+  const listingReferencePrice = useMemo(
+    () =>
+      getHighestProductPrice({
+        productAttributes: product?.attributes || [],
+        basePrice: product?.price || 0
+      }),
+    [product?.attributes, product?.price]
+  );
+  const usesHighestOptionPrice = listingReferencePrice > Number(product?.price || 0);
   const expected = useMemo(
-    () => Math.round(product.price * (commissionRatePercent / 100) * 100) / 100,
-    [commissionRatePercent, product.price]
+    () => Math.round(listingReferencePrice * (commissionRatePercent / 100) * 100) / 100,
+    [commissionRatePercent, listingReferencePrice]
   );
 
   const [form, setForm] = useState({
@@ -523,13 +533,21 @@ export default function PaymentForm({ product, onSubmitted }) {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-neutral-900 dark:text-slate-100">Commission de publication</h3>
-              <p className="text-xs text-neutral-700 dark:text-slate-300">Base {commissionRateLabel}% du prix du produit</p>
+              <p className="text-xs text-neutral-700 dark:text-slate-300">
+                Base {commissionRateLabel}% du {usesHighestOptionPrice ? 'prix d’option le plus élevé' : 'prix du produit'}
+              </p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-neutral-600 dark:text-slate-200">{formatCurrency(commissionDue)}</div>
-              <div className="text-xs text-neutral-500 dark:text-slate-400">sur {formatCurrency(product.price)}</div>
+              <div className="text-xs text-neutral-500 dark:text-slate-400">sur {formatCurrency(listingReferencePrice)}</div>
             </div>
           </div>
+          {usesHighestOptionPrice ? (
+            <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs leading-5 text-orange-900">
+              <span className="font-black">Prix de référence : {formatCurrency(listingReferencePrice)}.</span>{' '}
+              L’annonce contient plusieurs prix ; le tarif d’option le plus élevé est retenu pour valider toute l’annonce.
+            </div>
+          ) : null}
           <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
             <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
               <p className="text-neutral-500 dark:text-slate-400">Base</p>

@@ -141,6 +141,7 @@ export const createPayment = asyncHandler(async (req, res) => {
     expectedAmount: Number(commission.dueAmount || 0),
     amountPaid: received,
     currency: 'XAF',
+    commissionReferencePrice: highestListingPrice,
     commissionBaseAmount: Number(commission.baseAmount || 0),
     commissionDiscountAmount: Number(commission.discountAmount || 0),
     commissionDueAmount: Number(commission.dueAmount || 0),

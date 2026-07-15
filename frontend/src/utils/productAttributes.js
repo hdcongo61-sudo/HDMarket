@@ -189,6 +189,14 @@ export const getDefaultSelectedAttributes = (productAttributes = []) =>
     .filter((attribute) => attribute.defaultValue)
     .map((attribute) => ({ name: attribute.name, value: attribute.defaultValue }));
 
+// Every declared select group represents a purchase decision (color, size,
+// storage, etc.). It must be selected even when an older product record did
+// not explicitly persist `required: true`. Free-form fields keep honoring the
+// seller's required flag.
+export const isProductAttributeSelectionRequired = (attribute = {}) =>
+  Boolean(attribute.required) ||
+  (attribute.type === 'select' && Array.isArray(attribute.options) && attribute.options.length > 0);
+
 export const validateSelectedAttributes = ({
   productAttributes = [],
   selectedAttributes = []
@@ -206,7 +214,7 @@ export const validateSelectedAttributes = ({
     if (!value && attribute.defaultValue) value = attribute.defaultValue;
 
     if (!value) {
-      if (attribute.required) missing.push(attribute.name);
+      if (isProductAttributeSelectionRequired(attribute)) missing.push(attribute.name);
       return;
     }
 

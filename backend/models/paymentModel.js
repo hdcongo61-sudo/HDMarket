@@ -183,6 +183,7 @@ const paymentSchema = new mongoose.Schema(
     transactionNumber: { type: String, trim: true },
     amount: { type: Number, min: 0 },
     commissionBaseAmount: { type: Number, min: 0, default: 0 },
+    commissionReferencePrice: { type: Number, min: 0, default: 0 },
     commissionDiscountAmount: { type: Number, min: 0, default: 0 },
     commissionDueAmount: { type: Number, min: 0, default: 0 },
     paymentMethod: {

@@ -1160,6 +1160,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       expectedAmount: dueAmount,
       amountPaid: dueAmount,
       currency: 'XAF',
+      commissionReferencePrice: highestListingPrice,
       commissionBaseAmount: Number(commission?.baseAmount || 0),
       commissionDiscountAmount: Number(commission?.discountAmount || 0),
       commissionDueAmount: dueAmount,

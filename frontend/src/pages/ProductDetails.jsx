@@ -46,6 +46,7 @@ import {
   buildSelectedAttributesSelectionKey,
   formatPhysicalSpecs,
   getDefaultSelectedAttributes,
+  isProductAttributeSelectionRequired,
   normalizeProductAttributes,
   normalizeSelectedAttributes,
   resolveProductImagePrice,
@@ -305,7 +306,7 @@ export default function ProductDetails() {
     () => buildSelectedAttributesSelectionKey(normalizedSelectedAttributes),
     [normalizedSelectedAttributes]
   );
-  const hasRequiredProductOptions = productOptionDefinitions.some((attribute) => attribute.required);
+  const hasRequiredProductOptions = productOptionDefinitions.some(isProductAttributeSelectionRequired);
   const hasProductOptions = productOptionDefinitions.length > 0;
   const matchingCartLine = useMemo(() => {
     if (!product?._id || !user) return null;
@@ -359,9 +360,33 @@ export default function ProductDetails() {
       setSelectionError("");
       return selectedAttributeValidation.selectedAttributes;
     }
-    setSelectionError('Veuillez sélectionner les options obligatoires.');
+    const missingOptions = selectedAttributeValidation.missing || [];
+    setSelectionError(
+      missingOptions.length
+        ? `Veuillez sélectionner : ${missingOptions.join(', ')}.`
+        : 'Veuillez sélectionner toutes les options du produit.'
+    );
     return null;
   }, [selectedAttributeValidation]);
+
+  const promptProductOptionSelection = useCallback(() => {
+    const missingOptions = selectedAttributeValidation.missing || [];
+    setSelectionError(
+      missingOptions.length
+        ? `Veuillez sélectionner : ${missingOptions.join(', ')}.`
+        : 'Veuillez sélectionner toutes les options du produit.'
+    );
+    if (isMobileView) {
+      setIsVariantSheetOpen(true);
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      document.getElementById('product-purchase-options')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    });
+  }, [isMobileView, selectedAttributeValidation.missing]);
 
   const handleFollowToggle = async () => {
     if (!product?.user?._id) return;
@@ -2342,7 +2367,7 @@ export default function ProductDetails() {
       {/* ── PRODUCT OPTIONS ── */}
       {hasProductOptions && (
         <>
-          <section className={`px-4 pt-3.5 pb-4 transition-colors ${isOptionSelectionBlocked ? 'bg-[#FFF7ED]' : 'bg-white'}`}>
+          <section id="product-purchase-options-mobile" className={`px-4 pt-3.5 pb-4 transition-colors ${isOptionSelectionBlocked ? 'bg-[#FFF7ED]' : 'bg-white'}`}>
             <div className="mb-4 flex items-center justify-between gap-2">
               <h3 className="text-[17px] font-black text-gray-900">Options du produit</h3>
               {hasRequiredProductOptions && (
@@ -2372,10 +2397,10 @@ export default function ProductDetails() {
                 return (
                   <div key={`mob-opt-${attribute.key || attribute.name}`}>
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-                      <span>{attribute.name}{attribute.required && <span className="ml-0.5 text-[#e85d00]">*</span>}</span>
+                      <span>{attribute.name}{isProductAttributeSelectionRequired(attribute) && <span className="ml-0.5 text-[#e85d00]">*</span>}</span>
                       {selectedValue ? (
                         <span className="rounded bg-[#FFF0E4] px-1.5 py-0.5 font-black text-[#e85d00]">{selectedValue}</span>
-                      ) : attribute.required ? (
+                      ) : isProductAttributeSelectionRequired(attribute) ? (
                         <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">À choisir</span>
                       ) : null}
                     </p>
@@ -2392,7 +2417,7 @@ export default function ProductDetails() {
                             : '';
                           return (
                             <button key={`${attribute.name}-${option}`} type="button"
-                              onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
+                              onClick={() => handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)}
                               className={`overflow-hidden rounded-lg border-2 text-left transition-all active:scale-[0.97] ${active
                                 ? 'border-[#e85d00] ring-1 ring-orange-200'
                                 : 'border-gray-200'}`}
@@ -2428,7 +2453,7 @@ export default function ProductDetails() {
                           const optionPrice = attribute.optionPrices?.[String(option).trim().toLowerCase()];
                           return (
                             <button key={`${attribute.name}-${option}`} type="button"
-                              onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
+                              onClick={() => handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)}
                               className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all active:scale-[0.97] ${active
                                 ? 'border-[#e85d00] bg-[#fff0e4] text-[#e85d00]'
                                 : 'border-gray-200 bg-white text-gray-700'}`}>
@@ -2921,19 +2946,21 @@ export default function ProductDetails() {
             </button>
             {/* Add to Cart + Buy Now */}
             <div className="flex flex-1 items-center gap-2 px-2">
-              <button type="button" onClick={handleAddToCart}
-                disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
-                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock || isOptionSelectionBlocked
+              <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleAddToCart}
+                disabled={addingToCart || inCart || isOutOfStock}
+                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock
                   ? 'bg-gray-100 text-gray-400'
                   : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00]'}`}>
                 <ShoppingCart size={16} className="flex-shrink-0" />
                 <span className="truncate">{isOptionSelectionBlocked ? 'Choisir les options' : isOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
               </button>
-              <button type="button" onClick={handleBuyNow}
-                disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
-                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock || isOptionSelectionBlocked
+              <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
+                disabled={addingToCart || isOutOfStock}
+                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock
                   ? 'bg-gray-200 text-gray-400'
-                  : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
+                  : isOptionSelectionBlocked
+                    ? 'bg-black text-white'
+                    : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
                 <Zap size={16} className="flex-shrink-0" fill="currentColor" />
                 <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
               </button>
@@ -3012,7 +3039,7 @@ export default function ProductDetails() {
                   <div key={`sheet-opt-${attribute.key || attribute.name}`} className="mb-4 last:mb-0">
                     <p className="mb-2 text-sm font-black text-gray-900">
                       {attribute.name} ({attribute.options.length})
-                      {attribute.required && <span className="ml-0.5 text-[#e85d00]">*</span>}
+                      {isProductAttributeSelectionRequired(attribute) && <span className="ml-0.5 text-[#e85d00]">*</span>}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {attribute.options.map((option) => {
@@ -3025,7 +3052,7 @@ export default function ProductDetails() {
                           : '';
                         return (
                           <button key={`sheet-${attribute.name}-${option}`} type="button"
-                            onClick={() => handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)}
+                            onClick={() => handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)}
                             className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border p-1 pr-2.5 text-left transition-all active:scale-[0.97] ${active
                               ? 'border-[#e85d00] bg-[#fff0e4]'
                               : 'border-transparent bg-gray-100'}`}
@@ -3684,9 +3711,9 @@ export default function ProductDetails() {
                   {productOptionsPanel}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <button
-                      onClick={handleAddToCart}
-                      disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
-                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock || isOptionSelectionBlocked
+                      onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleAddToCart}
+                      disabled={addingToCart || inCart || isOutOfStock}
+                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
                         : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00] hover:bg-[#ffe4cf]'
                         }`}
@@ -3700,11 +3727,13 @@ export default function ProductDetails() {
                     </button>
                     <button
                       type="button"
-                      onClick={handleBuyNow}
-                      disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
-                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isOutOfStock || isOptionSelectionBlocked
+                      onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
+                      disabled={addingToCart || isOutOfStock}
+                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isOutOfStock
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
-                        : 'bg-[#e85d00] text-white shadow-[0_18px_34px_-22px_rgba(255,106,0,0.9)] hover:bg-[#f45f00]'
+                        : isOptionSelectionBlocked
+                          ? 'bg-black text-white hover:bg-neutral-800'
+                          : 'bg-[#e85d00] text-white shadow-[0_18px_34px_-22px_rgba(255,106,0,0.9)] hover:bg-[#f45f00]'
                         }`}
                     >
                       <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isOutOfStock ? 'bg-slate-300' : 'bg-white/15 text-white'
@@ -4468,6 +4497,7 @@ export default function ProductDetails() {
   // === MAIN RETURN: conditional mobile / desktop ===
   const productOptionsPanel = hasProductOptions ? (
     <div
+      id="product-purchase-options"
       className={`rounded-3xl border bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4 transition-colors ${
         isOptionSelectionBlocked ? 'border-[#e85d00]/40 ring-1 ring-[#e85d00]/20' : 'border-slate-200/80'
       }`}
@@ -4516,7 +4546,7 @@ export default function ProductDetails() {
             <div key={`product-option-${attribute.key || attribute.name}`} className="space-y-2">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-slate-900">{attribute.name}</p>
-                {attribute.required && (
+                {isProductAttributeSelectionRequired(attribute) && (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
                     Obligatoire
                   </span>
@@ -4538,7 +4568,7 @@ export default function ProductDetails() {
                         key={`${attribute.name}-${option}`}
                         type="button"
                         onClick={() =>
-                          handleAttributeValueChange(attribute, !attribute.required && active ? '' : option)
+                          handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)
                         }
                         className={`overflow-hidden rounded-xl border-2 text-left transition-all duration-200 active:scale-[0.98] ${
                           active ? 'border-slate-900 ring-1 ring-slate-300' : 'border-slate-200 hover:border-slate-300'
@@ -4581,7 +4611,7 @@ export default function ProductDetails() {
                         onClick={() =>
                           handleAttributeValueChange(
                             attribute,
-                            !attribute.required && active ? '' : option
+                            !isProductAttributeSelectionRequired(attribute) && active ? '' : option
                           )
                         }
                         className={`inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${

@@ -10,7 +10,7 @@ import useCommissionRate from '../hooks/useCommissionRate';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
 import { appAlert } from '../utils/appDialog';
-import { normalizeProductAttributes } from '../utils/productAttributes';
+import { getHighestProductPrice, normalizeProductAttributes } from '../utils/productAttributes';
 import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
@@ -1567,11 +1567,28 @@ export default function ProductForm(props) {
     }
   };
 
+  const getEffectiveBaseListingPrice = () => {
+    const rawBasePrice = Number(form.price) || 0;
+    const discountRate = Number(form.discount) || 0;
+    return discountRate > 0 && discountRate < 100
+      ? Number((rawBasePrice * (1 - discountRate / 100)).toFixed(2))
+      : rawBasePrice;
+  };
+
   const getHighestListingPrice = () => {
-    const imagePrices = Object.values(imageVariants)
-      .map((entry) => Number(entry?.price))
-      .filter((price) => Number.isFinite(price) && price > 0);
-    return Math.max(Number(form.price) || 0, ...imagePrices);
+    const imageVariantAttribute = buildImageVariantAttribute();
+    const paymentAttributes = normalizeProductAttributes([
+      ...(imageVariantAttribute ? [imageVariantAttribute] : []),
+      ...(Array.isArray(form.attributes) ? form.attributes : []).map((attribute) =>
+        attribute && typeof attribute === 'object'
+          ? { ...attribute, optionImages: undefined, optionPrices: undefined }
+          : attribute
+      )
+    ]);
+    return getHighestProductPrice({
+      productAttributes: paymentAttributes,
+      basePrice: getEffectiveBaseListingPrice()
+    });
   };
 
   const calculateCommission = () => {
@@ -1758,7 +1775,7 @@ export default function ProductForm(props) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [payWithWallet, promoCode, form.price, imageVariants, isEditing]);
+  }, [payWithWallet, promoCode, form.price, form.discount, form.attributes, imageVariants, imageVariantName, isEditing]);
 
   // Live preview of the installment plan shown inside the "vente en tranche" card.
   const installmentPlanPreview = useMemo(() => {
@@ -3402,8 +3419,21 @@ export default function ProductForm(props) {
                 <div className="space-y-3 flex-1">
                   <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
                   <p className="text-amber-700 text-sm">
-                    Pour valider votre annonce, envoyez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> ({commissionRateLabel}% du prix).
+                    Pour valider votre annonce, payez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> ({commissionRateLabel}% du prix de référence).
                   </p>
+                  <div className="rounded-xl border border-amber-200 bg-white px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-gray-600">Prix retenu pour le calcul</span>
+                      <span className="text-sm font-black text-gray-950">
+                        {formatPriceWithStoredSettings(getHighestListingPrice())}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] font-medium leading-4 text-gray-500">
+                      {getHighestListingPrice() > getEffectiveBaseListingPrice()
+                        ? 'Votre annonce contient plusieurs prix : l’option la plus élevée est utilisée pour calculer les frais.'
+                        : 'Le prix principal est le prix le plus élevé de cette annonce.'}
+                    </p>
+                  </div>
 
                   {/* Wallet Payment Option */}
                   <div className="rounded-xl border border-amber-300 bg-white p-3">

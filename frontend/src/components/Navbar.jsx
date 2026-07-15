@@ -1098,25 +1098,15 @@ export default function Navbar() {
         };
 
         // Only update if not cancelled and not using cached result
-        if (!cachedResult) {
-          setSearchResults(results);
-          // Update displayed results with initial limits
-          setDisplayedResults({
-            products: results.products.slice(0, resultsLimit.products),
-            shops: results.shops.slice(0, resultsLimit.shops),
-            categories: results.categories.slice(0, resultsLimit.categories),
-            totals: results.totals
-          });
-          setShowResults(true);
-        } else {
-          // Even with cached result, update displayed results
-          setDisplayedResults({
-            products: cachedResult.products.slice(0, resultsLimit.products),
-            shops: cachedResult.shops.slice(0, resultsLimit.shops),
-            categories: cachedResult.categories.slice(0, resultsLimit.categories),
-            totals: cachedResult.totals
-          });
-        }
+        // Cached results render immediately, then fresh results replace them in place.
+        setSearchResults(results);
+        setDisplayedResults({
+          products: results.products.slice(0, resultsLimit.products),
+          shops: results.shops.slice(0, resultsLimit.shops),
+          categories: results.categories.slice(0, resultsLimit.categories),
+          totals: results.totals
+        });
+        setShowResults(true);
 
         // Cache the results
         await setCachedSearch(searchQuery.trim(), filters, results);
@@ -1394,14 +1384,25 @@ export default function Navbar() {
     }
   };
 
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const { products = [], shops = [], categories = [] } = searchResults || {};
-      const allResults = [...products, ...shops, ...categories];
-      if (allResults.length > 0) {
-        handleSelectResult(allResults[0]);
-      }
+  const openFullSearch = () => {
+    const term = searchQuery.trim();
+    if (!term) return;
+    setShowResults(false);
+    setIsSearchFullScreen(false);
+    setIsHistoryPanelOpen(false);
+    navigate(`/search?q=${encodeURIComponent(term)}`);
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      openFullSearch();
+    }
+    if (event.key === 'Escape') {
+      setShowResults(false);
+      setIsSearchFullScreen(false);
+      setIsHistoryPanelOpen(false);
+      event.currentTarget.blur();
     }
   };
 
@@ -1989,7 +1990,7 @@ export default function Navbar() {
             {searchQuery.trim() && totalCount > 0 && (
               <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center sticky bottom-0">
                 <Link
-                  to={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
+                  to={`/search?q=${encodeURIComponent(searchQuery.trim())}`}
                   className="font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-500 dark:hover:text-neutral-300 inline-flex items-center gap-2"
                   onClick={() => {
                     setIsHistoryPanelOpen(false);
@@ -2281,7 +2282,7 @@ export default function Navbar() {
             {searchQuery.trim() && totalCount > 0 && (
               <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center sticky bottom-0">
                 <Link
-                  to={`/products?search=${encodeURIComponent(searchQuery.trim())}`}
+                  to={`/search?q=${encodeURIComponent(searchQuery.trim())}`}
                   className="font-semibold text-neutral-900 dark:text-neutral-300 hover:text-neutral-500 dark:hover:text-neutral-300 inline-flex items-center gap-2"
                   onClick={() => {
                     setIsHistoryPanelOpen(false);
@@ -2899,16 +2900,28 @@ export default function Navbar() {
                   </button>
                 )}
               </div>
-              {searchQuery.trim() && (
-                <button
-                  type="button"
-                  onClick={() => handleSaveSearch(searchQuery, filters)}
-                  className="hd-soft-button p-2 text-[#e85d00]"
-                  title={t('nav.saveSearch', 'Sauvegarder la recherche')}
-                >
-                  <Save size={18} />
-                </button>
-              )}
+              {searchQuery.trim() ? (
+                <div className="flex shrink-0 items-center gap-2">
+                  {user ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSearch(searchQuery, filters)}
+                      className="grid h-11 w-11 place-items-center rounded-xl border border-neutral-200 bg-white text-[#e85d00] shadow-sm active:scale-95"
+                      title={t('nav.saveSearch', 'Sauvegarder la recherche')}
+                    >
+                      <Save size={18} />
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={openFullSearch}
+                    className="grid h-11 w-11 place-items-center rounded-xl bg-black text-white shadow-sm active:scale-95"
+                    title={t('nav.viewAllResults', 'Voir tous les résultats')}
+                  >
+                    <Search size={18} />
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             {/* Quick Actions & Saved Searches & Search Suggestions */}
@@ -3040,7 +3053,7 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.searchPlaceholderFull', 'Rechercher produits, boutiques, catégories...')}
-                  className="hd-global-search w-full rounded-full py-3 pl-12 pr-24 text-sm transition-all duration-200 placeholder:text-gray-500"
+                  className="hd-global-search w-full rounded-xl py-3 pl-12 pr-24 text-sm font-semibold transition-all duration-200 placeholder:font-medium placeholder:text-gray-500"
                   onFocus={() => {
                     setShowResults(true);
                     if (isMobileLayout) setIsSearchFullScreen(true);
@@ -3049,16 +3062,31 @@ export default function Navbar() {
                   onKeyDown={handleSearchKeyDown}
                   onBlur={() => setTimeout(() => setShowResults(false), 250)}
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                  {searchQuery ? (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setSearchQuery('')}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-950"
+                      aria-label={t('search.clearQuery', 'Effacer la recherche')}
+                    >
+                      <X size={16} />
+                    </button>
+                  ) : null}
                   <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={handleOpenHistoryPanel}
-                    className="hd-soft-button px-2.5 py-1 text-xs font-bold"
+                    className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+                    aria-label={t('nav.history', 'Historique')}
+                    title={t('nav.history', 'Historique')}
                   >
-                    {t('nav.history', 'Historique')}
+                    <Clock size={16} />
                   </button>
                 </div>
                 {showResults && (
-                  <div className="hd-search-panel absolute left-0 right-0 top-14 z-50 max-h-80 w-full overflow-auto rounded-2xl scrollbar-thin scrollbar-thumb-orange-200">
+                  <div className="hd-search-panel absolute left-0 right-0 top-14 z-50 max-h-[min(70vh,620px)] w-full overflow-auto rounded-2xl scrollbar-thin scrollbar-thumb-orange-200">
                     {isHistoryPanelOpen ? renderHistoryResults() : renderDesktopSearchResults()}
                   </div>
                 )}

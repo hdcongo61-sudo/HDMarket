@@ -9,6 +9,7 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { validateSelectedAttributes } from '../utils/productAttributes';
 
 const TrashIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -63,6 +64,18 @@ export default function Cart() {
 
   const items = cart.items || [];
   const totals = cart.totals || { quantity: 0, subtotal: 0 };
+  const incompleteOptionItems = useMemo(
+    () =>
+      items.filter((item) => {
+        const attributes = item?.product?.attributes || [];
+        if (!Array.isArray(attributes) || attributes.length === 0) return false;
+        return !validateSelectedAttributes({
+          productAttributes: attributes,
+          selectedAttributes: item?.selectedAttributes || []
+        }).valid;
+      }),
+    [items]
+  );
   const buyerCity = useMemo(() => (user?.city || '').trim(), [user?.city]);
   const getCartItemKey = (item) =>
     String(item?.cartItemId || item?.selectionKey || item?.product?._id || '');
@@ -184,6 +197,17 @@ export default function Cart() {
   };
 
   const handleCheckoutClick = () => {
+    if (incompleteOptionItems.length > 0) {
+      const firstItem = incompleteOptionItems[0];
+      showToast(
+        t('cartPage.chooseAllOptions', 'Choisissez toutes les options du produit avant de commander.'),
+        { variant: 'warning' }
+      );
+      navigate(buildProductPath(firstItem.product), {
+        state: { focusProductOptions: true, returnTo: '/cart' }
+      });
+      return;
+    }
     if (sellerCityData.buyer && sellerCityData.mismatchedCities.length > 0) {
       setShowDistanceWarning(true);
       return;
@@ -562,12 +586,31 @@ export default function Cart() {
 
                 {/* Action Buttons Enhanced */}
                 <div className="space-y-3 pt-2">
+                  {incompleteOptionItems.length > 0 ? (
+                    <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-left">
+                      <p className="text-sm font-black text-orange-900">
+                        {t('cartPage.optionsMissing', 'Options de produit manquantes')}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-orange-800">
+                        {t(
+                          'cartPage.optionsMissingHint',
+                          'Sélectionnez chaque option requise avant de passer la commande.'
+                        )}
+                      </p>
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     onClick={handleCheckoutClick}
-                    className="hd-primary-button block min-h-[52px] w-full rounded-full py-4 text-center font-black"
+                    className={`block min-h-[52px] w-full rounded-full py-4 text-center font-black ${
+                      incompleteOptionItems.length > 0
+                        ? 'bg-black text-white'
+                        : 'hd-primary-button'
+                    }`}
                   >
-                    {t('cartPage.checkout', 'Passer la commande')}
+                    {incompleteOptionItems.length > 0
+                      ? t('cartPage.completeOptions', 'Compléter les options')
+                      : t('cartPage.checkout', 'Passer la commande')}
                   </button>
                 </div>
               </div>
