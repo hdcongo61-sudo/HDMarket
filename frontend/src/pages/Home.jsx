@@ -307,6 +307,104 @@ const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
   );
 };
 
+const PourVousSection = ({ user, t, formatPrice, buildProductLink, externalLinkProps }) => {
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+  const [recsLoading, setRecsLoading] = useState(true);
+  const [recsError, setRecsError] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setRecommendedProducts([]);
+      setRecsLoading(false);
+      setRecsError(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setRecsLoading(true);
+    setRecsError(false);
+
+    api.get('/products/recommendations', { params: { page: 1, limit: 8 }, skipCache: false })
+      .then(({ data }) => {
+        if (!cancelled) setRecommendedProducts(data?.items || []);
+      })
+      .catch(() => {
+        if (!cancelled) setRecsError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setRecsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  if (!user || recsLoading || (!recsError && recommendedProducts.length === 0)) return null;
+
+  return (
+    <section aria-labelledby="pour-vous-title" className="min-w-0">
+      <div className="mb-2 flex min-h-11 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 id="pour-vous-title" className="text-[17px] font-black tracking-[-0.01em] text-[#231f1b]">
+            {t('home.pourVous', 'Pour vous')}
+          </h2>
+          <p className="mt-0.5 truncate text-[11px] font-medium text-[#8a8378]">
+            {t('home.pourVousSubtitle', 'Recommandations basées sur vos goûts')}
+          </p>
+        </div>
+        <Link
+          to="/suggestions"
+          {...externalLinkProps}
+          className="inline-flex min-h-11 shrink-0 items-center gap-0.5 text-[13px] font-bold text-[#e85d00] transition-colors active:text-[#c2410c]"
+        >
+          {t('home.viewAll', 'Voir tout')}
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      </div>
+
+      {recsError ? (
+        <p className="rounded-xl border border-[#eee8e0] bg-white px-3 py-4 text-center text-xs text-[#8a8378]">
+          {t('home.recsError', 'Indisponible. Revenez plus tard.')}
+        </p>
+      ) : (
+        <div
+          className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {recommendedProducts.map((product, index) => (
+            <Link
+              key={`pourvous-${product._id || index}`}
+              to={buildProductLink(product)}
+              {...externalLinkProps}
+              className="w-[138px] shrink-0 snap-start overflow-hidden rounded-[14px] border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.05)] transition-transform active:scale-[0.98]"
+            >
+              <div className="aspect-square overflow-hidden bg-[#f3f0ec]">
+                <PreviewableImage
+                  product={product}
+                  src={resolveProductPrimaryImage(product)}
+                  images={resolveProductImageSet(product)}
+                  alt={product.title || t('home.product', 'Produit')}
+                  className="h-full w-full object-cover"
+                  loading={index < 3 ? 'eager' : 'lazy'}
+                  reportContext={buildImageReportContext(product, buildProductLink(product))}
+                  showHint={false}
+                />
+              </div>
+              <div className="p-2.5">
+                <p className="truncate text-[12px] font-semibold text-[#6b6459]">{product.title}</p>
+                <p className="mt-1 truncate text-[15px] font-black text-[#231f1b]">
+                  {formatPrice(product.price || 0)}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
 /**
  * 🎨 PAGE D'ACCUEIL HDMarket - Design Alibaba Mobile First
  * Focus sur les bonnes affaires avec prix visibles
@@ -1258,66 +1356,6 @@ const loadDiscountProducts = async () => {
     );
   };
 
-  // === POUR VOUS — AI-Powered Recommendations ===
-  const PourVousSection = () => {
-    const { user } = useContext(AuthContext);
-    const [recommendedProducts, setRecommendedProducts] = useState([]);
-    const [recsLoading, setRecsLoading] = useState(true);
-    const [recsError, setRecsError] = useState(false);
-    const recsLoadedRef = useRef(false);
-
-    useEffect(() => {
-      if (!user || recsLoadedRef.current) return;
-      recsLoadedRef.current = true;
-      api.get('/products/recommendations', { params: { page: 1, limit: 8 }, skipCache: false })
-        .then(({ data }) => {
-          setRecommendedProducts(data?.items || []);
-          setRecsLoading(false);
-        })
-        .catch(() => {
-          setRecsError(true);
-          setRecsLoading(false);
-        });
-    }, [user]);
-
-    // Don't render anything while loading — avoid layout flash
-    if (!user || recsLoading) return null;
-    if (recommendedProducts.length === 0) return null;
-
-    return (
-      <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/40 to-orange-50/40 p-3 shadow-sm">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-              <h2 className="text-sm font-bold text-gray-900">{t('home.pourVous', 'Pour vous')}</h2>
-            </div>
-            <p className="mt-0.5 text-[11px] text-gray-500">
-              {t('home.pourVousSubtitle', 'Recommandations basées sur vos goûts')}
-            </p>
-          </div>
-          <Link to="/explore" className="shrink-0 text-xs font-semibold text-purple-700">
-            {t('home.exploreAll', 'Explorer')} <Sparkles className="inline h-3 w-3 ml-0.5" />
-          </Link>
-        </div>
-
-        {recsError ? (
-          <p className="text-xs text-gray-500 py-3 text-center">
-            {t('home.recsError', 'Indisponible. Revenez plus tard.')}
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {recommendedProducts.slice(0, 4).map((product) => (
-              <div key={`pourvous-${product._id}`} className="overflow-hidden rounded-xl border border-purple-100 bg-white p-1 shadow-sm hover:shadow-md transition">
-                <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    );
-  };
-
   // === MOBILE COMPACT FEED LAYOUT (Proposal A) ===
   const renderMobileHome = () => {
     const fallbackDeals = [
@@ -1350,7 +1388,13 @@ const loadDiscountProducts = async () => {
     return (
       <main className="mx-auto flex max-w-7xl flex-col gap-3 px-2.5 pb-4 pt-3 max-[375px]:gap-2.5 max-[375px]:px-2 max-[375px]:pb-3 max-[375px]:pt-2.5">
         {/* Pour Vous — AI Recommendations (placed prominently at top) */}
-        <PourVousSection />
+        <PourVousSection
+          user={user}
+          t={t}
+          formatPrice={formatPrice}
+          buildProductLink={buildHomeProductLink}
+          externalLinkProps={externalLinkProps}
+        />
 
         {(user || showFullPaymentHomeBanner) ? (
           <section className="order-[-1] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.05)]">
