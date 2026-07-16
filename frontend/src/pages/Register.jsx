@@ -7,6 +7,9 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
+import GoogleAuthButton from '../components/auth/GoogleAuthButton';
+import AppleAuthButton from '../components/auth/AppleAuthButton';
+import { signInWithApple, signInWithGoogle } from '../services/providerAuth';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -57,6 +60,7 @@ export default function Register() {
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
+  const initialProviderAuth = location.state?.providerAuth || null;
   const isFrench = String(language || 'fr')
     .toLowerCase()
     .startsWith('fr');
@@ -112,6 +116,11 @@ export default function Register() {
     slowNetwork: isFrench ? 'Création du compte en cours, merci de patienter.' : 'Account creation in progress, please wait.',
     haveAccount: isFrench ? 'Vous avez déjà un compte ?' : 'Already have an account?',
     signIn: isFrench ? 'Se connecter' : 'Sign in',
+    google: isFrench ? 'Continuer avec Google' : 'Continue with Google',
+    apple: isFrench ? 'Continuer avec Apple' : 'Continue with Apple',
+    divider: isFrench ? 'ou avec vos informations' : 'or with your details',
+    googleConnected: isFrench ? 'Compte Google vérifié' : 'Google account verified',
+    appleConnected: isFrench ? 'Compte Apple vérifié' : 'Apple account verified',
     nextStepError: isFrench
       ? 'Renseignez nom, email et téléphone pour continuer.'
       : 'Enter name, email and phone to continue.',
@@ -139,8 +148,8 @@ export default function Register() {
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    name: '',
-    email: '',
+    name: initialProviderAuth?.profile?.name || '',
+    email: initialProviderAuth?.profile?.email || '',
     password: '',
     confirmPassword: '',
     phone: '',
@@ -155,6 +164,8 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [providerLoading, setProviderLoading] = useState('');
+  const [providerAuth, setProviderAuth] = useState(initialProviderAuth);
   const [slowNetwork, setSlowNetwork] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -223,12 +234,13 @@ export default function Register() {
     form.name.trim() &&
       form.email.trim() &&
       form.phone.trim() &&
-      form.password &&
-      form.confirmPassword &&
-      form.password === form.confirmPassword &&
-      passwordChecks.minLength &&
-      passwordChecks.hasUppercase &&
-      passwordChecks.hasNumber &&
+      (providerAuth ||
+        (form.password &&
+          form.confirmPassword &&
+          form.password === form.confirmPassword &&
+          passwordChecks.minLength &&
+          passwordChecks.hasUppercase &&
+          passwordChecks.hasNumber)) &&
       form.address.trim() &&
       form.city &&
       form.gender &&
@@ -277,6 +289,82 @@ export default function Register() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    if (loading || providerLoading) return;
+    setFormError('');
+    setProviderLoading('google');
+    try {
+      const idToken = await signInWithGoogle();
+      const { data } = await api.post('/auth/provider/google', { idToken });
+      if (!data?.profileRequired) {
+        await login(data);
+        nav(from, { replace: true });
+        return;
+      }
+      const nextProviderAuth = { provider: 'google', idToken, profile: data.profile };
+      setProviderAuth(nextProviderAuth);
+      setForm((previous) => ({
+        ...previous,
+        name: data.profile?.name || previous.name,
+        email: data.profile?.email || previous.email,
+        password: '',
+        confirmPassword: ''
+      }));
+      setVerificationCode('');
+      setCodeError('');
+      setCodeMessage('');
+    } catch (requestError) {
+      if (requestError?.code === 'auth/popup-closed-by-user') return;
+      setFormError(
+        isFrench
+          ? 'La connexion avec Google a échoué. Veuillez réessayer.'
+          : 'Google sign-in failed. Please try again.'
+      );
+    } finally {
+      setProviderLoading('');
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (loading || providerLoading) return;
+    setFormError('');
+    setProviderLoading('apple');
+    try {
+      const appleCredential = await signInWithApple();
+      const { data } = await api.post('/auth/provider/apple', { idToken: appleCredential.idToken });
+      if (!data?.profileRequired) {
+        await login(data);
+        nav(from, { replace: true });
+        return;
+      }
+      const profile = {
+        ...data.profile,
+        name: appleCredential.profile?.name || data.profile?.name || '',
+        email: appleCredential.profile?.email || data.profile?.email || ''
+      };
+      setProviderAuth({ provider: 'apple', idToken: appleCredential.idToken, profile });
+      setForm((previous) => ({
+        ...previous,
+        name: profile.name || previous.name,
+        email: profile.email || previous.email,
+        password: '',
+        confirmPassword: ''
+      }));
+      setVerificationCode('');
+      setCodeError('');
+      setCodeMessage('');
+    } catch (requestError) {
+      if (requestError?.code === 'auth/popup-closed-by-user') return;
+      setFormError(
+        isFrench
+          ? 'La connexion avec Apple a échoué. Veuillez réessayer.'
+          : 'Apple sign-in failed. Please try again.'
+      );
+    } finally {
+      setProviderLoading('');
+    }
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     if (loading || successPayload) return;
@@ -294,11 +382,11 @@ export default function Register() {
       setFormError(copy.addressRequired);
       return;
     }
-    if (form.password !== form.confirmPassword) {
+    if (!providerAuth && form.password !== form.confirmPassword) {
       setFormError(copy.passwordsMismatch);
       return;
     }
-    if (!passwordChecks.minLength || !passwordChecks.hasUppercase || !passwordChecks.hasNumber) {
+    if (!providerAuth && (!passwordChecks.minLength || !passwordChecks.hasUppercase || !passwordChecks.hasNumber)) {
       setFormError(copy.passwordRulesError);
       return;
     }
@@ -313,6 +401,20 @@ export default function Register() {
     slowNetworkTimerRef.current = setTimeout(() => setSlowNetwork(true), SLOW_NETWORK_MS);
 
     try {
+      if (providerAuth) {
+        const { data } = await api.post(`/auth/provider/${providerAuth.provider}/register`, {
+          idToken: providerAuth.idToken,
+          name: form.name,
+          phone: form.phone,
+          city: form.city,
+          commune: form.commune || '',
+          gender: form.gender,
+          address: form.address.trim()
+        });
+        setSuccessPayload(data || null);
+        return;
+      }
+
       const payload = new FormData();
       payload.append('name', form.name);
       payload.append('email', form.email);
@@ -384,6 +486,42 @@ export default function Register() {
                   </p>
                 </header>
 
+                {providerAuth ? (
+                  <div className="mb-5 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-100">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm dark:bg-neutral-900">
+                      {providerAuth.provider === 'apple' ? 'A' : 'G'}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block">
+                        {providerAuth.provider === 'apple' ? copy.appleConnected : copy.googleConnected}
+                      </span>
+                      <span className="block truncate text-xs font-medium opacity-80">{form.email}</span>
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <GoogleAuthButton
+                        label={copy.google}
+                        loading={providerLoading === 'google'}
+                        disabled={loading || Boolean(providerLoading)}
+                        onClick={handleGoogleSignIn}
+                      />
+                      <AppleAuthButton
+                        label={copy.apple}
+                        loading={providerLoading === 'apple'}
+                        disabled={loading || Boolean(providerLoading)}
+                        onClick={handleAppleSignIn}
+                      />
+                    </div>
+                    <div className="my-5 flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
+                      {copy.divider}
+                      <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
+                    </div>
+                  </>
+                )}
+
                 <div className="mb-5 grid grid-cols-2 gap-2">
                   <div className={`rounded px-3 py-2 text-xs font-black ${step === 1 ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
                     {copy.step1}
@@ -435,6 +573,7 @@ export default function Register() {
                             setForm((prev) => ({ ...prev, email: e.target.value }));
                             setCodeError('');
                           }}
+                          readOnly={Boolean(providerAuth)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -469,6 +608,7 @@ export default function Register() {
                         />
                       </div>
 
+                      {!providerAuth ? (
                       <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
                         <p className="text-xs font-black text-slate-700 dark:text-slate-100">
                           {copy.verificationTitle}
@@ -494,6 +634,7 @@ export default function Register() {
                         {codeError ? <p className="mt-2 text-xs text-red-600 dark:text-red-100">{codeError}</p> : null}
                         {codeMessage ? <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-100">{codeMessage}</p> : null}
                       </div>
+                      ) : null}
 
                       <button
                         type="button"
@@ -502,9 +643,12 @@ export default function Register() {
                             setFormError(copy.nextStepError);
                             return;
                           }
-                            setFormError('');
+                          setFormError('');
                           setStep(2);
-                          setTimeout(() => passwordRef.current?.focus(), 80);
+                          setTimeout(() => {
+                            if (providerAuth) document.getElementById('register-address')?.focus();
+                            else passwordRef.current?.focus();
+                          }, 80);
                         }}
                         className="inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00]"
                       >
@@ -513,6 +657,7 @@ export default function Register() {
                     </>
                   ) : (
                     <>
+                      {!providerAuth ? (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5 sm:col-span-1">
                           <label htmlFor="register-password" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
@@ -566,7 +711,9 @@ export default function Register() {
                           </div>
                         </div>
                       </div>
+                      ) : null}
 
+                      {!providerAuth ? (
                       <section className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
@@ -597,6 +744,7 @@ export default function Register() {
                           </li>
                         </ul>
                       </section>
+                      ) : null}
 
                       <div className="space-y-1.5">
                         <label htmlFor="register-address" className="text-xs font-semibold text-gray-600 dark:text-slate-300">

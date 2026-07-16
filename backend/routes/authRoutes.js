@@ -3,6 +3,10 @@ import rateLimit from 'express-rate-limit';
 import {
   login,
   register,
+  googleProviderLogin,
+  googleProviderRegister,
+  appleProviderLogin,
+  appleProviderRegister,
   sendRegisterCode,
   sendPasswordResetCode,
   resetPassword,
@@ -32,6 +36,10 @@ const router = express.Router();
 router.post('/register', upload.single('shopLogo'), validate(schemas.register), register);
 router.post('/register/send-code', authLimiter, validate(schemas.registerSendCode), sendRegisterCode);
 router.post('/login', authLimiter, validate(schemas.login), login);
+router.post('/provider/google', authLimiter, validate(schemas.googleProviderLogin), googleProviderLogin);
+router.post('/provider/google/register', authLimiter, validate(schemas.googleProviderRegister), googleProviderRegister);
+router.post('/provider/apple', authLimiter, validate(schemas.appleProviderLogin), appleProviderLogin);
+router.post('/provider/apple/register', authLimiter, validate(schemas.appleProviderRegister), appleProviderRegister);
 router.post('/password/forgot', authLimiter, validate(schemas.passwordForgot), sendPasswordResetCode);
 router.post('/password/reset', authLimiter, validate(schemas.passwordReset), resetPassword);
 router.post('/password/forgot-link', authLimiter, validate(schemas.passwordForgotLink), requestPasswordResetLink);

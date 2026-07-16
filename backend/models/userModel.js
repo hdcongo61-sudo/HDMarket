@@ -12,6 +12,16 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
+    authProviders: {
+      google: {
+        uid: { type: String, trim: true, default: '', sparse: true },
+        linkedAt: { type: Date, default: null }
+      },
+      apple: {
+        uid: { type: String, trim: true, default: '', sparse: true },
+        linkedAt: { type: Date, default: null }
+      }
+    },
     phoneVerified: { type: Boolean, default: false },
     role: {
       type: String,

@@ -95,6 +95,30 @@ export const schemas = {
     identifier: Joi.string().trim().min(3).max(120),
     password: Joi.string().min(6).required(),
   }).or('email', 'phone', 'identifier'),
+  googleProviderLogin: Joi.object({
+    idToken: Joi.string().min(100).required()
+  }),
+  googleProviderRegister: Joi.object({
+    idToken: Joi.string().min(100).required(),
+    name: Joi.string().min(2).max(60).required(),
+    phone: Joi.string().min(5).max(30).required(),
+    address: Joi.string().min(4).max(200).required(),
+    city: Joi.string().trim().min(2).max(80).required(),
+    commune: Joi.string().trim().min(2).max(80).allow('', null),
+    gender: Joi.string().valid('homme', 'femme').required()
+  }),
+  appleProviderLogin: Joi.object({
+    idToken: Joi.string().min(100).required()
+  }),
+  appleProviderRegister: Joi.object({
+    idToken: Joi.string().min(100).required(),
+    name: Joi.string().min(2).max(60).required(),
+    phone: Joi.string().min(5).max(30).required(),
+    address: Joi.string().min(4).max(200).required(),
+    city: Joi.string().trim().min(2).max(80).required(),
+    commune: Joi.string().trim().min(2).max(80).allow('', null),
+    gender: Joi.string().valid('homme', 'femme').required()
+  }),
   passwordForgot: Joi.object({
     email: Joi.string().email(),
     phone: Joi.string().min(5).max(30)

@@ -16,6 +16,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAppSettings } from '../context/AppSettingsContext';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
+import GoogleAuthButton from '../components/auth/GoogleAuthButton';
+import AppleAuthButton from '../components/auth/AppleAuthButton';
+import { signInWithApple, signInWithGoogle } from '../services/providerAuth';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -102,6 +105,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [providerLoading, setProviderLoading] = useState('');
   const [slowNetwork, setSlowNetwork] = useState(false);
   const [error, setError] = useState('');
   const isFrench = String(language || 'fr')
@@ -143,6 +147,71 @@ export default function Login() {
     liveStatus: isFrench ? 'Espace client prêt' : 'Customer space ready',
     deliveryStatus: isFrench ? 'Livraisons suivies' : 'Tracked deliveries',
     messageStatus: isFrench ? 'Messages vendeurs' : 'Seller messages'
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (loading || providerLoading) return;
+    setError('');
+    setProviderLoading('google');
+    try {
+      const idToken = await signInWithGoogle();
+      const { data } = await api.post('/auth/provider/google', { idToken });
+      if (data?.profileRequired) {
+        nav('/register', {
+          state: { from, providerAuth: { provider: 'google', idToken, profile: data.profile } }
+        });
+        return;
+      }
+      await login(data);
+      nav(from, { replace: true });
+    } catch (requestError) {
+      if (requestError?.code === 'auth/popup-closed-by-user') return;
+      setError(
+        isFrench
+          ? 'La connexion avec Google a échoué. Veuillez réessayer.'
+          : 'Google sign-in failed. Please try again.'
+      );
+    } finally {
+      setProviderLoading('');
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (loading || providerLoading) return;
+    setError('');
+    setProviderLoading('apple');
+    try {
+      const appleCredential = await signInWithApple();
+      const { data } = await api.post('/auth/provider/apple', { idToken: appleCredential.idToken });
+      if (data?.profileRequired) {
+        nav('/register', {
+          state: {
+            from,
+            providerAuth: {
+              provider: 'apple',
+              idToken: appleCredential.idToken,
+              profile: {
+                ...data.profile,
+                name: appleCredential.profile?.name || data.profile?.name || '',
+                email: appleCredential.profile?.email || data.profile?.email || ''
+              }
+            }
+          }
+        });
+        return;
+      }
+      await login(data);
+      nav(from, { replace: true });
+    } catch (requestError) {
+      if (requestError?.code === 'auth/popup-closed-by-user') return;
+      setError(
+        isFrench
+          ? 'La connexion avec Apple a échoué. Veuillez réessayer.'
+          : 'Apple sign-in failed. Please try again.'
+      );
+    } finally {
+      setProviderLoading('');
+    }
   };
 
   useEffect(() => {
@@ -236,6 +305,26 @@ export default function Login() {
                       {copy.subtitle}
                     </p>
                   </header>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <GoogleAuthButton
+                      label={copy.google}
+                      loading={providerLoading === 'google'}
+                      disabled={loading || Boolean(providerLoading)}
+                      onClick={handleGoogleSignIn}
+                    />
+                    <AppleAuthButton
+                      label={copy.apple}
+                      loading={providerLoading === 'apple'}
+                      disabled={loading || Boolean(providerLoading)}
+                      onClick={handleAppleSignIn}
+                    />
+                  </div>
+                  <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
+                    {copy.divider}
+                    <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
+                  </div>
 
                   <form onSubmit={submit} className="space-y-4">
                     {error ? (

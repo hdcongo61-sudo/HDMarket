@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User from '../models/userModel.js';
 import PhoneBlacklist from '../models/phoneBlacklistModel.js';
 import { buildSession } from '../services/sessionFactory.js';
@@ -17,6 +18,7 @@ import {
   sendVerificationCode
 } from '../utils/firebaseVerification.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getFirebaseAdminAuth } from '../utils/firebaseAdmin.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -41,6 +43,163 @@ const toBoolean = (value, fallback = false) => {
   }
   return fallback;
 };
+
+const PROVIDER_CONFIG = Object.freeze({
+  google: { firebaseId: 'google.com', label: 'Google' },
+  apple: { firebaseId: 'apple.com', label: 'Apple' }
+});
+
+const verifyProviderCredential = async (idToken, providerName) => {
+  const provider = PROVIDER_CONFIG[providerName];
+  if (!provider) {
+    const error = new Error('Unsupported authentication provider.');
+    error.statusCode = 400;
+    error.code = 'UNSUPPORTED_PROVIDER';
+    throw error;
+  }
+  const firebaseAuth = getFirebaseAdminAuth();
+  if (!firebaseAuth) {
+    const error = new Error(`${provider.label} authentication is not configured.`);
+    error.statusCode = 503;
+    error.code = 'PROVIDER_NOT_CONFIGURED';
+    throw error;
+  }
+
+  try {
+    const decoded = await firebaseAuth.verifyIdToken(String(idToken || ''), true);
+    if (decoded?.firebase?.sign_in_provider !== provider.firebaseId) {
+      const error = new Error(`Invalid ${provider.label} credential.`);
+      error.statusCode = 401;
+      error.code = 'INVALID_PROVIDER_TOKEN';
+      throw error;
+    }
+    if (!decoded.email || decoded.email_verified !== true) {
+      const error = new Error(`A verified ${provider.label} email is required.`);
+      error.statusCode = 401;
+      error.code = 'PROVIDER_EMAIL_NOT_VERIFIED';
+      throw error;
+    }
+    return decoded;
+  } catch (error) {
+    if (error.statusCode) throw error;
+    const invalidError = new Error(`${provider.label} authentication could not be verified.`);
+    invalidError.statusCode = 401;
+    invalidError.code = 'INVALID_PROVIDER_TOKEN';
+    throw invalidError;
+  }
+};
+
+const assertUserCanSignIn = (user, res) => {
+  if (user.isBlocked) {
+    res.status(403).json({ message: 'Votre compte est suspendu.', code: 'ACCOUNT_BLOCKED' });
+    return false;
+  }
+  if (!user.isActive) {
+    res.status(403).json({ message: 'Votre compte est désactivé.', code: 'ACCOUNT_INACTIVE' });
+    return false;
+  }
+  if (user.isLocked) {
+    res.status(403).json({ message: 'Votre compte est verrouillé.', code: 'ACCOUNT_LOCKED' });
+    return false;
+  }
+  return true;
+};
+
+const providerLogin = async (req, res, providerName) => {
+  const decoded = await verifyProviderCredential(req.body?.idToken, providerName);
+  const normalizedEmail = String(decoded.email).toLowerCase().trim();
+  let user = await User.findOne({
+    $or: [{ [`authProviders.${providerName}.uid`]: decoded.uid }, { email: normalizedEmail }]
+  });
+
+  if (!user) {
+    return res.status(200).json({
+      profileRequired: true,
+      provider: providerName,
+      profile: {
+        name: String(decoded.name || '').trim(),
+        email: normalizedEmail,
+        picture: String(decoded.picture || '').trim()
+      }
+    });
+  }
+
+  if (!assertUserCanSignIn(user, res)) return;
+  if (!user.get(`authProviders.${providerName}.uid`)) {
+    user.set(`authProviders.${providerName}.uid`, decoded.uid);
+    user.set(`authProviders.${providerName}.linkedAt`, new Date());
+    if (!user.profileImage && decoded.picture) user.profileImage = decoded.picture;
+    await user.save();
+  }
+
+  const token = genToken(user);
+  return res.json(buildAuthResponse(user, token));
+};
+
+const providerRegister = async (req, res, providerName) => {
+  const { idToken, phone, city, commune, address, gender } = req.body || {};
+  const decoded = await verifyProviderCredential(idToken, providerName);
+  const normalizedEmail = String(decoded.email).toLowerCase().trim();
+  const name = String(req.body?.name || decoded.name || '').trim();
+
+  if (!name || !phone || !city || !address?.trim() || !gender) {
+    return res.status(400).json({ message: 'Missing fields', code: 'PROFILE_FIELDS_REQUIRED' });
+  }
+  const existingUser = await User.findOne({
+    $or: [{ email: normalizedEmail }, { [`authProviders.${providerName}.uid`]: decoded.uid }]
+  });
+  if (existingUser) {
+    return res.status(409).json({ message: 'Un compte existe déjà avec cet email.', code: 'ACCOUNT_EXISTS' });
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
+  }
+  const registrationPhoneCgOnly = toBoolean(
+    await getRuntimeConfig('registration_phone_cg_only', { fallback: true }),
+    true
+  );
+  if (registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
+    return res.status(400).json({
+      message: 'Inscription refusée: seuls les numéros de la République du Congo (+242) sont autorisés.',
+      code: 'REGISTRATION_PHONE_COUNTRY_BLOCKED'
+    });
+  }
+  if (await User.exists({ phone: { $in: buildPhoneCandidates(phone) } })) {
+    return res.status(409).json({ message: 'Téléphone déjà utilisé', code: 'PHONE_ALREADY_USED' });
+  }
+  if (await PhoneBlacklist.exists({
+    isActive: true,
+    $or: [{ phoneNormalized: normalizedPhone }, { phoneVariants: { $in: buildPhoneCandidates(phone) } }]
+  })) {
+    return res.status(403).json({ message: 'Ce numéro est blacklisté.', code: 'PHONE_BLACKLISTED' });
+  }
+
+  const user = await User.create({
+    name,
+    email: normalizedEmail,
+    password: crypto.randomBytes(32).toString('hex'),
+    phone: normalizedPhone,
+    phoneVerified: false,
+    role: 'user',
+    accountType: 'person',
+    country: 'République du Congo',
+    address: address.trim(),
+    city,
+    commune: String(commune || '').trim(),
+    gender,
+    profileImage: String(decoded.picture || '').trim(),
+    authProviders: { [providerName]: { uid: decoded.uid, linkedAt: new Date() } }
+  });
+  const token = genToken(user);
+  return res.status(201).json(buildAuthResponse(user, token));
+};
+
+export const googleProviderLogin = asyncHandler((req, res) => providerLogin(req, res, 'google'));
+export const googleProviderRegister = asyncHandler((req, res) => providerRegister(req, res, 'google'));
+export const appleProviderLogin = asyncHandler((req, res) => providerLogin(req, res, 'apple'));
+export const appleProviderRegister = asyncHandler((req, res) => providerRegister(req, res, 'apple'));
 
 export const register = asyncHandler(async (req, res) => {
   const {
