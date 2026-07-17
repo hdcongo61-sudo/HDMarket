@@ -16,7 +16,10 @@ const productAttributeSchema = new mongoose.Schema(
     optionPrices: { type: mongoose.Schema.Types.Mixed, default: undefined },
     // Optional image link per option (lowercased option label → index into
     // product.images), so a color/variant shows its own photo.
-    optionImages: { type: mongoose.Schema.Types.Mixed, default: undefined }
+    optionImages: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    // Optional availability per option (lowercased option label → true).
+    // Only unavailable options are persisted; absent keys remain available.
+    optionOutOfStock: { type: mongoose.Schema.Types.Mixed, default: undefined }
   },
   { _id: false }
 );

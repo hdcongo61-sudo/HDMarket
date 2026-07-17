@@ -1471,59 +1471,54 @@ export default function OrderCheckout() {
           </div>
         </section>
 
-        {/* Payment Form Enhanced */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gray-100 text-[#e85d00]">
-                <CreditCard size={19} />
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-slate-950">{t('checkout.paymentDelivery', 'Paiement et livraison')}</h2>
-                <p className="text-xs font-semibold text-slate-500">{t('checkout.completeInformation', 'Complétez les informations nécessaires.')}</p>
-              </div>
-            </div>
+        {/* Payment and delivery — compact radio-row pattern from the UX handoff. */}
+        <section className="space-y-4">
+          <div className="px-1">
+            <h2 className="text-[17px] font-black text-[#231f1b]">{t('checkout.paymentDelivery', 'Paiement et livraison')}</h2>
+            <p className="mt-0.5 text-xs font-semibold text-[#8a8378]">{t('checkout.completeInformation', 'Complétez les informations nécessaires.')}</p>
           </div>
           
           <form id="order-checkout-form" className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-              <p className="text-xs font-black uppercase tracking-wide text-slate-600">{t('checkout.deliveryMode', 'Mode de livraison')}</p>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white p-1 ring-1 ring-slate-200">
+            <div className="space-y-3 rounded-2xl border border-[#eee8e0] bg-white p-4 shadow-[0_2px_10px_rgba(117,75,36,0.05)]">
+              <p className="text-[15px] font-black text-[#231f1b]">{t('checkout.delivery', 'Livraison')}</p>
+              <div className="grid grid-cols-2 gap-0 rounded-xl bg-[#f5f2ee] p-1">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('DELIVERY')}
+                  disabled={hasPickupOnlyProducts}
+                  aria-pressed={deliveryMode === 'DELIVERY'}
+                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[9px] px-3 text-[13px] font-extrabold transition-all ${
+                    deliveryMode === 'DELIVERY'
+                      ? 'bg-[#0a0a0a] text-white shadow-sm'
+                      : 'text-[#8a8378] hover:text-[#44403a]'
+                  } ${hasPickupOnlyProducts ? 'cursor-not-allowed opacity-50' : ''}`}
+                >
+                  <Truck size={15} />
+                  {t('checkout.deliveryOption', 'Livraison')}
+                </button>
                 <button
                   type="button"
                   onClick={() => setDeliveryMode('PICKUP')}
-                  className={`inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition-all ${
+                  aria-pressed={deliveryMode === 'PICKUP'}
+                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[9px] px-3 text-[13px] font-extrabold transition-all ${
                     deliveryMode === 'PICKUP'
-                      ? 'bg-slate-950 text-white shadow-sm'
-                      : 'text-slate-500 hover:bg-slate-50'
+                      ? 'bg-[#0a0a0a] text-white shadow-sm'
+                      : 'text-[#8a8378] hover:text-[#44403a]'
                   }`}
                 >
                   <Store size={15} />
                   {t('checkout.pickup', 'Retrait')}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryMode('DELIVERY')}
-                  disabled={hasPickupOnlyProducts}
-                  className={`inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition-all ${
-                    deliveryMode === 'DELIVERY'
-                      ? 'bg-slate-950 text-white shadow-sm'
-                      : 'text-slate-500 hover:bg-slate-50'
-                  } ${hasPickupOnlyProducts ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <Truck size={15} />
-                  {t('checkout.deliveryOption', 'Livraison')}
-                </button>
               </div>
               {hasPickupOnlyProducts && (
-                <p className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                   {t('checkout.pickupOnly', 'Un ou plusieurs produits sont en retrait boutique uniquement.')}
                 </p>
               )}
               {deliveryMode === 'DELIVERY' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 rounded-xl border border-[#eee8e0] bg-[#faf8f5] p-3 md:grid-cols-2">
                   <div className="space-y-1">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.city', 'Ville')}</label>
+                    <label className="block text-[11px] font-bold text-[#8a8378]">{t('checkout.city', 'Ville')}</label>
                     <select
                       value={shippingAddress.cityId || ''}
                       onChange={(e) =>
@@ -1533,7 +1528,7 @@ export default function OrderCheckout() {
                           communeId: ''
                         }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-11 w-full rounded-xl border border-[#e2dcd2] bg-white px-3 text-sm font-semibold text-[#231f1b] outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-[#fff0e4]"
                     >
                       <option value="">{t('checkout.selectCity', 'Sélectionner une ville')}</option>
                       {cities.map((entry) => (
@@ -1544,7 +1539,7 @@ export default function OrderCheckout() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.commune', 'Commune')}</label>
+                    <label className="block text-[11px] font-bold text-[#8a8378]">{t('checkout.commune', 'Commune')}</label>
                     <select
                       value={shippingAddress.communeId || ''}
                       onChange={(e) =>
@@ -1554,7 +1549,7 @@ export default function OrderCheckout() {
                         }))
                       }
                       disabled={!shippingAddress.cityId}
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition disabled:bg-slate-100 focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-11 w-full rounded-xl border border-[#e2dcd2] bg-white px-3 text-sm font-semibold text-[#231f1b] outline-none transition disabled:bg-[#f5f2ee] focus:border-[#e85d00] focus:ring-2 focus:ring-[#fff0e4]"
                     >
                       <option value="">{t('checkout.selectCommune', 'Sélectionner une commune')}</option>
                       {availableCommunes.map((entry) => (
@@ -1565,92 +1560,91 @@ export default function OrderCheckout() {
                     </select>
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.address', 'Adresse')}</label>
+                    <label className="block text-[11px] font-bold text-[#8a8378]">{t('checkout.address', 'Adresse')}</label>
                     <input
                       type="text"
                       value={shippingAddress.addressLine}
                       onChange={(e) =>
                         setShippingAddress((prev) => ({ ...prev, addressLine: e.target.value }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-11 w-full rounded-xl border border-[#e2dcd2] bg-white px-3 text-sm font-semibold text-[#231f1b] outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-[#fff0e4]"
                       placeholder={t('checkout.addressPlaceholder', 'Quartier, rue, repère')}
                     />
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <label className="block text-xs font-black uppercase tracking-wide text-slate-500">{t('checkout.phone', 'Téléphone')}</label>
+                    <label className="block text-[11px] font-bold text-[#8a8378]">{t('checkout.phone', 'Téléphone')}</label>
                     <input
                       type="tel"
                       value={shippingAddress.phone}
                       onChange={(e) =>
                         setShippingAddress((prev) => ({ ...prev, phone: e.target.value }))
                       }
-                      className="min-h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-gray-200"
+                      className="min-h-11 w-full rounded-xl border border-[#e2dcd2] bg-white px-3 text-sm font-semibold text-[#231f1b] outline-none transition focus:border-[#e85d00] focus:ring-2 focus:ring-[#fff0e4]"
                       placeholder="Ex: 06xxxxxxx"
                     />
                   </div>
-                  <div className="md:col-span-2 rounded-xl border border-[#e2dcd2] bg-[#f5f2ee] px-3 py-2 text-xs font-semibold text-[#6b6459]">
-                    <MapPin size={14} className="inline mr-1" />
+                  <div className="flex items-center gap-2 md:col-span-2 text-xs font-semibold text-[#6b6459]">
+                    <MapPin size={15} className="shrink-0 text-[#e85d00]" />
                     {selectedCity?.name ? `${selectedCity.name} · ` : ''}
                     {t('checkout.addressDeliveryHelp', 'Adresse utilisée pour calculer la livraison')}
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xs font-semibold text-slate-700">
+                <div className="rounded-xl border border-[#eee8e0] bg-[#faf8f5] px-3 py-3 text-xs font-semibold text-[#6b6459]">
                   {t('checkout.pickupSelected', 'Retrait boutique sélectionné. Aucun frais de livraison ne sera ajouté.')}
                 </div>
               )}
             </div>
 
-            {paymentModeCards.length > 1 && (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
-                        {t('checkout.paymentMode', 'Mode de paiement')}
-                      </p>
-                      <h3 className="mt-1 text-base font-black leading-tight text-slate-950">
-                        {t('checkout.choosePaymentMode', "Sélectionnez l'option la plus adaptée")}
-                      </h3>
-                    </div>
-                    <span className="inline-flex h-8 shrink-0 items-center rounded-full bg-white px-3 text-[11px] font-black text-slate-700 ring-1 ring-slate-200">
-                      {paymentModeCards.length} {t(paymentModeCards.length > 1 ? 'checkout.options' : 'checkout.option', paymentModeCards.length > 1 ? 'options' : 'option')}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2.5 p-3 sm:p-4">
+            {paymentModeCards.length > 0 && (
+              <div className="rounded-2xl border border-[#eee8e0] bg-white p-4 shadow-[0_2px_10px_rgba(117,75,36,0.05)]">
+                <h3 className="mb-3 text-[15px] font-black text-[#231f1b]">
+                  {t('checkout.paymentMode', 'Mode de paiement')}
+                </h3>
+                <div
+                  className="grid grid-cols-1 gap-2"
+                  role="radiogroup"
+                  aria-label={t('checkout.paymentMode', 'Mode de paiement')}
+                >
                   {paymentModeCards.map((option) => {
                     const selected = paymentMode === option.id;
-                    const Icon = option.icon;
+                    const selectionNote =
+                      option.id === PAYMENT_MODES.FULL_PAYMENT && deliveryMode === 'DELIVERY'
+                        ? t('checkout.offered', 'Livraison offerte')
+                        : '';
                     return (
                       <button
                         key={option.id}
                         type="button"
                         onClick={() => setPaymentMode(option.id)}
-                        className={`group relative flex min-h-16 items-center gap-3 rounded-xl border px-3 text-left transition active:scale-[0.985] ${selected ? 'border-[#e85d00] bg-[#fff7f0]' : 'border-[#e2dcd2] bg-white'}`}
-                        aria-pressed={selected}
+                        className={`group flex min-h-16 items-center gap-3 rounded-[14px] border-[1.5px] px-3.5 py-2.5 text-left transition active:scale-[0.985] ${selected ? 'border-[#e85d00] bg-[#fff7f0]' : 'border-[#e2dcd2] bg-white hover:border-[#c9c1b4]'}`}
+                        role="radio"
+                        aria-checked={selected}
                       >
-                        <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? 'border-[#e85d00]' : 'border-[#d8d2c9]'}`}>
-                          {selected ? <span className="h-2.5 w-2.5 rounded-full bg-[#e85d00]" /> : null}
+                        <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? 'border-[#e85d00] bg-[#e85d00]' : 'border-[#c9c1b4] bg-white'}`}>
+                          {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
                         </span>
-                        <Icon size={19} className={selected ? 'text-[#e85d00]' : 'text-[#8a8378]'} />
                         <span className="min-w-0 flex-1">
-                          <strong className="block truncate text-sm text-[#231f1b]">{option.title}</strong>
-                          <span className="block truncate text-[11px] font-semibold text-[#8a8378]">{option.subtitle}</span>
+                          <strong className="block text-sm font-extrabold text-[#231f1b]">{option.title}</strong>
+                          <span className="mt-0.5 block text-[11.5px] font-semibold leading-4 text-[#8a8378]">{option.subtitle}</span>
                         </span>
-                        <strong className="shrink-0 text-sm text-neutral-950">{option.amountDisplay || formatCurrency(option.amount)}</strong>
+                        <span className="shrink-0 text-right">
+                          <strong className="block text-[15px] font-black text-[#0a0a0a]">{option.amountDisplay || formatCurrency(option.amount)}</strong>
+                          {selectionNote ? (
+                            <span className="mt-0.5 block text-[10px] font-bold text-[#047857]">{selectionNote}</span>
+                          ) : null}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
                 {isInstallmentProductEligible && (
-                  <p className="mx-3 mb-2 text-xs font-semibold text-slate-600 sm:mx-4">
+                  <p className="mt-3 text-xs font-semibold text-[#6b6459]">
                     {t('checkout.installmentAvailable', 'Paiement en plusieurs fois disponible')}
                   </p>
                 )}
                 {installmentEligibility.score !== null && (
-                  <p className="mx-3 mb-3 text-xs font-semibold text-slate-600 sm:mx-4 sm:mb-4">
+                  <p className="mt-1 text-xs font-semibold text-[#6b6459]">
                     {t('checkout.eligibilityScore', 'Score d’éligibilité')} : <span className="font-semibold">{installmentEligibility.score}/100</span>{' '}
                     ({installmentEligibility.riskLevel || 'medium'})
                   </p>

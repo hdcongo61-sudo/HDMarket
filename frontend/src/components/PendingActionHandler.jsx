@@ -31,17 +31,27 @@ export default function PendingActionHandler() {
         if (action.type === 'addFavorite' && action.payload?.product) {
           await addFavorite(action.payload.product);
         } else if (action.type === 'addToCart' && action.payload?.productId) {
-          await addItem(
-            action.payload.productId,
-            action.payload.quantity ?? 1,
-            action.payload.selectedAttributes ?? []
-          );
+          const items = Array.isArray(action.payload.items) && action.payload.items.length
+            ? action.payload.items
+            : [action.payload];
+          for (const item of items) {
+            await addItem(
+              item.productId,
+              item.quantity ?? 1,
+              item.selectedAttributes ?? []
+            );
+          }
         } else if (action.type === 'buyNow' && action.payload?.productId) {
-          await addItem(
-            action.payload.productId,
-            action.payload.quantity ?? 1,
-            action.payload.selectedAttributes ?? []
-          );
+          const items = Array.isArray(action.payload.items) && action.payload.items.length
+            ? action.payload.items
+            : [action.payload];
+          for (const item of items) {
+            await addItem(
+              item.productId,
+              item.quantity ?? 1,
+              item.selectedAttributes ?? []
+            );
+          }
           navigate('/orders/checkout');
         } else if (action.type === 'followShop' && action.payload?.shopId) {
           await api.post(`/users/shops/${action.payload.shopId}/follow`);

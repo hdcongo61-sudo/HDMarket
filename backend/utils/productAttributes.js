@@ -91,6 +91,19 @@ const normalizeOptionImages = (input, options = []) => {
   return Object.keys(normalized).length ? normalized : null;
 };
 
+const normalizeOptionOutOfStock = (input, options = []) => {
+  const parsed = parseMaybeJson(input);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const allowed = new Set(options.map((option) => option.toLowerCase()));
+  const normalized = {};
+  Object.entries(parsed).forEach(([key, raw]) => {
+    const optionKey = toTrimmedString(key).toLowerCase();
+    if (!allowed.has(optionKey) || !normalizeBoolean(raw, false)) return;
+    normalized[optionKey] = true;
+  });
+  return Object.keys(normalized).length ? normalized : null;
+};
+
 export const normalizeProductAttributes = (input) => {
   const parsed = parseMaybeJson(input);
   const list = Array.isArray(parsed) ? parsed : [];
@@ -103,6 +116,7 @@ export const normalizeProductAttributes = (input) => {
       const options = type === 'select' ? normalizeOptionList(entry.options) : [];
       const optionPrices = type === 'select' ? normalizeOptionPrices(entry.optionPrices, options) : null;
       const optionImages = type === 'select' ? normalizeOptionImages(entry.optionImages, options) : null;
+      const optionOutOfStock = type === 'select' ? normalizeOptionOutOfStock(entry.optionOutOfStock, options) : null;
       const defaultValue = normalizeAttributeDefaultValue({
         type,
         value: entry.defaultValue
@@ -115,7 +129,8 @@ export const normalizeProductAttributes = (input) => {
         required: normalizeBoolean(entry.required, false),
         defaultValue,
         ...(optionPrices ? { optionPrices } : {}),
-        ...(optionImages ? { optionImages } : {})
+        ...(optionImages ? { optionImages } : {}),
+        ...(optionOutOfStock ? { optionOutOfStock } : {})
       };
     })
     .filter(Boolean);
@@ -302,6 +317,14 @@ export const validateSelectedAttributesForProduct = ({
         return {
           valid: false,
           message: `La valeur sélectionnée pour "${attribute.name}" est invalide.`,
+          selectedAttributes: [],
+          selectionKey: ''
+        };
+      }
+      if (attribute.optionOutOfStock?.[optionMatch.toLowerCase()]) {
+        return {
+          valid: false,
+          message: `L’option "${optionMatch}" pour "${attribute.name}" est en rupture de stock.`,
           selectedAttributes: [],
           selectionKey: ''
         };

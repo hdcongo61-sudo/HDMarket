@@ -1081,7 +1081,7 @@ export default function ProductForm(props) {
       const options = Array.isArray(current.options) ? [...current.options] : [];
       const previousKey = String(options[optionIndex] || '').trim().toLowerCase();
       options[optionIndex] = value;
-      // Keep any per-option price/image attached to the renamed option.
+      // Keep any per-option price/image/availability attached to the renamed option.
       const nextKey = String(value || '').trim().toLowerCase();
       const migrateKey = (map) => {
         if (!map || !previousKey || previousKey === nextKey || map[previousKey] == null) return map;
@@ -1093,7 +1093,8 @@ export default function ProductForm(props) {
         ...current,
         options,
         optionPrices: migrateKey(current.optionPrices),
-        optionImages: migrateKey(current.optionImages)
+        optionImages: migrateKey(current.optionImages),
+        optionOutOfStock: migrateKey(current.optionOutOfStock)
       };
       return { ...prev, attributes };
     });
@@ -1101,10 +1102,10 @@ export default function ProductForm(props) {
 
   const updateImageVariant = (combinedIndex, field, value) => {
     setImageVariants((prev) => {
-      const current = prev[combinedIndex] || { label: '', price: '' };
+      const current = prev[combinedIndex] || { label: '', price: '', outOfStock: false };
       const entry = { ...current, [field]: value };
       const next = { ...prev, [combinedIndex]: entry };
-      if (!String(entry.label || '').trim() && String(entry.price ?? '') === '') {
+      if (!String(entry.label || '').trim() && String(entry.price ?? '') === '' && !entry.outOfStock) {
         delete next[combinedIndex];
       }
       return next;
@@ -1149,7 +1150,8 @@ export default function ProductForm(props) {
       .map(([key, entry]) => ({
         index: Number(key),
         label: String(entry?.label || '').trim(),
-        price: Number(entry?.price)
+        price: Number(entry?.price),
+        outOfStock: Boolean(entry?.outOfStock)
       }))
       .filter((entry) => Number.isInteger(entry.index) && entry.index >= 0 && entry.label)
       .sort((a, b) => a.index - b.index);
@@ -1158,6 +1160,7 @@ export default function ProductForm(props) {
     const options = [];
     const optionPrices = {};
     const optionImages = {};
+    const optionOutOfStock = {};
     entries.forEach((entry) => {
       const key = entry.label.toLowerCase();
       if (seen.has(key)) return;
@@ -1165,6 +1168,7 @@ export default function ProductForm(props) {
       options.push(entry.label);
       optionImages[key] = entry.index;
       if (Number.isFinite(entry.price) && entry.price > 0) optionPrices[key] = entry.price;
+      if (entry.outOfStock) optionOutOfStock[key] = true;
     });
     return {
       name: String(imageVariantName || '').trim() || 'Variante',
@@ -1173,11 +1177,12 @@ export default function ProductForm(props) {
       required: Object.keys(optionPrices).length > 0,
       defaultValue: '',
       ...(Object.keys(optionPrices).length ? { optionPrices } : {}),
-      optionImages
+      optionImages,
+      ...(Object.keys(optionOutOfStock).length ? { optionOutOfStock } : {})
     };
   };
 
-  // Option + price fields rendered below each photo (Taobao-style variants).
+  // Option, price, and availability fields rendered below each photo.
   const renderImageVariantFields = (combinedIndex) => {
     const entry = imageVariants[combinedIndex] || {};
     return (
@@ -1198,6 +1203,15 @@ export default function ProductForm(props) {
           placeholder="Prix (optionnel)"
           className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#e85d00] focus:outline-none"
         />
+        <label className={`flex min-h-9 cursor-pointer items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${entry.outOfStock ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-gray-50 text-gray-600'}`}>
+          <span>Rupture de stock</span>
+          <input
+            type="checkbox"
+            checked={Boolean(entry.outOfStock)}
+            onChange={(e) => updateImageVariant(combinedIndex, 'outOfStock', e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+          />
+        </label>
       </div>
     );
   };
@@ -1220,7 +1234,8 @@ export default function ProductForm(props) {
         ...current,
         options: options.length ? options : [''],
         optionPrices: dropKey(current.optionPrices),
-        optionImages: dropKey(current.optionImages)
+        optionImages: dropKey(current.optionImages),
+        optionOutOfStock: dropKey(current.optionOutOfStock)
       };
       return { ...prev, attributes };
     });
@@ -1395,7 +1410,7 @@ export default function ProductForm(props) {
         // generic attribute editor carries price-neutral choices.
         ...(Array.isArray(form.attributes) ? form.attributes : []).map((attribute) =>
           attribute && typeof attribute === 'object'
-            ? { ...attribute, optionImages: undefined, optionPrices: undefined }
+            ? { ...attribute, optionImages: undefined, optionPrices: undefined, optionOutOfStock: undefined }
             : attribute
         )
       ]);
@@ -1581,7 +1596,7 @@ export default function ProductForm(props) {
       ...(imageVariantAttribute ? [imageVariantAttribute] : []),
       ...(Array.isArray(form.attributes) ? form.attributes : []).map((attribute) =>
         attribute && typeof attribute === 'object'
-          ? { ...attribute, optionImages: undefined, optionPrices: undefined }
+          ? { ...attribute, optionImages: undefined, optionPrices: undefined, optionOutOfStock: undefined }
           : attribute
       )
     ]);
@@ -1640,7 +1655,8 @@ export default function ProductForm(props) {
         if (!Number.isInteger(index)) return;
         hydratedVariants[index] = {
           label: option,
-          price: imageLinkedAttribute.optionPrices?.[key] ?? ''
+          price: imageLinkedAttribute.optionPrices?.[key] ?? '',
+          outOfStock: Boolean(imageLinkedAttribute.optionOutOfStock?.[key])
         };
       });
       setImageVariants(hydratedVariants);

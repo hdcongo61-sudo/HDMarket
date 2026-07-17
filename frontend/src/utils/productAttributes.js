@@ -28,6 +28,19 @@ const normalizeOptionImages = (input, options = []) => {
   return Object.keys(normalized).length ? normalized : null;
 };
 
+const normalizeOptionOutOfStock = (input, options = []) => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const allowed = new Set(options.map((option) => option.toLowerCase()));
+  const normalized = {};
+  Object.entries(input).forEach(([key, raw]) => {
+    const optionKey = toTrimmedString(key).toLowerCase();
+    const unavailable = raw === true || raw === 1 || String(raw).trim().toLowerCase() === 'true';
+    if (!allowed.has(optionKey) || !unavailable) return;
+    normalized[optionKey] = true;
+  });
+  return Object.keys(normalized).length ? normalized : null;
+};
+
 export const normalizeProductAttributes = (input) => {
   const list = Array.isArray(input) ? input : [];
   return list
@@ -43,6 +56,7 @@ export const normalizeProductAttributes = (input) => {
         : [];
       const optionPrices = type === 'select' ? normalizeOptionPrices(entry.optionPrices, options) : null;
       const optionImages = type === 'select' ? normalizeOptionImages(entry.optionImages, options) : null;
+      const optionOutOfStock = type === 'select' ? normalizeOptionOutOfStock(entry.optionOutOfStock, options) : null;
       return {
         key: toTrimmedString(entry.key) || name.toLowerCase().replace(/\s+/g, '_'),
         name,
@@ -51,7 +65,8 @@ export const normalizeProductAttributes = (input) => {
         required: Boolean(entry.required),
         defaultValue: toTrimmedString(entry.defaultValue),
         ...(optionPrices ? { optionPrices } : {}),
-        ...(optionImages ? { optionImages } : {})
+        ...(optionImages ? { optionImages } : {}),
+        ...(optionOutOfStock ? { optionOutOfStock } : {})
       };
     })
     .filter(Boolean);

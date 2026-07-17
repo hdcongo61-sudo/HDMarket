@@ -97,6 +97,7 @@ export default function ProductDetails() {
   const [cartFeedback, setCartFeedback] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [selectedAttributes, setSelectedAttributes] = useState([]);
+  const [selectedOptionsByAttribute, setSelectedOptionsByAttribute] = useState({});
   const [selectionError, setSelectionError] = useState("");
   const [selectedImage, setSelectedImage] = useState(0);
   const [whatsappClicks, setWhatsappClicks] = useState(0);
@@ -302,28 +303,100 @@ export default function ProductDetails() {
     () => normalizeSelectedAttributes(selectedAttributeValidation.selectedAttributes),
     [selectedAttributeValidation.selectedAttributes]
   );
-  const currentSelectionKey = useMemo(
-    () => buildSelectedAttributesSelectionKey(normalizedSelectedAttributes),
-    [normalizedSelectedAttributes]
+  const getSelectedOptionValues = useCallback(
+    (attribute) => {
+      const key = String(attribute?.name || '').trim().toLowerCase();
+      return Array.isArray(selectedOptionsByAttribute[key])
+        ? selectedOptionsByAttribute[key]
+        : [];
+    },
+    [selectedOptionsByAttribute]
   );
+  const selectedAttributeCombinations = useMemo(() => {
+    if (!selectedAttributeValidation.valid) return [];
+    let combinations = [[]];
+
+    productOptionDefinitions.forEach((attribute) => {
+      const attributeName = String(attribute?.name || '').trim();
+      if (!attributeName) return;
+      if (attribute.type !== 'select') {
+        const entry = normalizedSelectedAttributes.find(
+          (item) => item.name.toLowerCase() === attributeName.toLowerCase()
+        );
+        if (entry) combinations = combinations.map((combination) => [...combination, entry]);
+        return;
+      }
+
+      const selectedValues = getSelectedOptionValues(attribute);
+      combinations = combinations.flatMap((combination) =>
+        selectedValues.map((value) => [...combination, { name: attributeName, value }])
+      );
+    });
+
+    return combinations;
+  }, [
+    getSelectedOptionValues,
+    normalizedSelectedAttributes,
+    productOptionDefinitions,
+    selectedAttributeValidation.valid
+  ]);
+  const selectedAttributesSummary = useMemo(
+    () =>
+      productOptionDefinitions.flatMap((attribute) => {
+        if (attribute.type === 'select') {
+          const values = getSelectedOptionValues(attribute);
+          return values.length ? [{ name: attribute.name, value: values.join(', ') }] : [];
+        }
+        const entry = normalizedSelectedAttributes.find(
+          (item) => item.name.toLowerCase() === attribute.name.toLowerCase()
+        );
+        return entry ? [entry] : [];
+      }),
+    [getSelectedOptionValues, normalizedSelectedAttributes, productOptionDefinitions]
+  );
+  const selectedOutOfStockOptions = useMemo(
+    () =>
+      productOptionDefinitions.flatMap((attribute) =>
+        getSelectedOptionValues(attribute)
+          .filter((value) => attribute.optionOutOfStock?.[String(value).trim().toLowerCase()])
+          .map((value) => ({ name: attribute.name, value }))
+      ),
+    [getSelectedOptionValues, productOptionDefinitions]
+  );
+  const hasSelectedOutOfStockOption = selectedOutOfStockOptions.length > 0;
+  const selectedOptionStockMessage = hasSelectedOutOfStockOption
+    ? `${selectedOutOfStockOptions.map((entry) => entry.value).join(', ')} : rupture de stock.`
+    : '';
   const hasRequiredProductOptions = productOptionDefinitions.some(isProductAttributeSelectionRequired);
   const hasProductOptions = productOptionDefinitions.length > 0;
-  const matchingCartLine = useMemo(() => {
+  const matchingCartLines = useMemo(() => {
     if (!product?._id || !user) return null;
-    return (cart?.items || []).find((item) => {
+    const selectedKeys = new Set(
+      selectedAttributeCombinations.map(buildSelectedAttributesSelectionKey)
+    );
+    return (cart?.items || []).filter((item) => {
       if (String(item?.product?._id || '') !== String(product._id)) return false;
       const itemSelectionKey = String(
         item?.selectionKey || buildSelectedAttributesSelectionKey(item?.selectedAttributes || [])
       ).trim();
-      return itemSelectionKey === currentSelectionKey;
-    }) || null;
-  }, [cart?.items, currentSelectionKey, product?._id, user]);
-  const inCart = Boolean(matchingCartLine);
+      return selectedKeys.has(itemSelectionKey);
+    });
+  }, [cart?.items, product?._id, selectedAttributeCombinations, user]);
+  const inCart = selectedAttributeCombinations.length > 0 &&
+    matchingCartLines?.length === selectedAttributeCombinations.length;
 
   useEffect(() => {
     setSelectedAttributes(defaultSelectedAttributes);
+    setSelectedOptionsByAttribute(
+      productOptionDefinitions.reduce((result, attribute) => {
+        if (attribute.type === 'select' && attribute.defaultValue) {
+          result[attribute.name.toLowerCase()] = [attribute.defaultValue];
+        }
+        return result;
+      }, {})
+    );
     setSelectionError("");
-  }, [defaultSelectedAttributes, product?._id]);
+  }, [defaultSelectedAttributes, product?._id, productOptionDefinitions]);
 
   // Jump the gallery to the photo linked to the selected option (e.g. the red
   // photo when "Rouge" is picked). Gallery indexes the deduplicated image list.
@@ -344,14 +417,43 @@ export default function ProductDetails() {
 
   const handleAttributeValueChange = useCallback((attribute, value) => {
     setSelectionError("");
+    const attributeName = String(attribute?.name || '').trim();
+    const nextValue = String(value ?? '').trim();
+    if (attribute?.type === 'select') {
+      const attributeKey = attributeName.toLowerCase();
+      setSelectedOptionsByAttribute((prev) => {
+        const currentValues = Array.isArray(prev[attributeKey]) ? prev[attributeKey] : [];
+        const alreadySelected = currentValues.some(
+          (item) => item.toLowerCase() === nextValue.toLowerCase()
+        );
+        const nextValues = alreadySelected
+          ? currentValues.filter((item) => item.toLowerCase() !== nextValue.toLowerCase())
+          : [...currentValues, nextValue];
+
+        setSelectedAttributes((currentAttributes) => {
+          const current = normalizeSelectedAttributes(currentAttributes);
+          const filtered = current.filter(
+            (entry) => entry.name.toLowerCase() !== attributeKey
+          );
+          const representativeValue = alreadySelected
+            ? nextValues[nextValues.length - 1] || ''
+            : nextValue;
+          return representativeValue
+            ? [...filtered, { name: attributeName, value: representativeValue }]
+            : filtered;
+        });
+
+        return { ...prev, [attributeKey]: nextValues };
+      });
+      return;
+    }
     setSelectedAttributes((prev) => {
       const current = normalizeSelectedAttributes(prev);
       const filtered = current.filter(
-        (entry) => entry.name.toLowerCase() !== String(attribute?.name || '').trim().toLowerCase()
+        (entry) => entry.name.toLowerCase() !== attributeName.toLowerCase()
       );
-      const nextValue = String(value ?? '').trim();
       if (!nextValue) return filtered;
-      return [...filtered, { name: attribute.name, value: nextValue }];
+      return [...filtered, { name: attributeName, value: nextValue }];
     });
   }, []);
 
@@ -368,6 +470,24 @@ export default function ProductDetails() {
     );
     return null;
   }, [selectedAttributeValidation]);
+
+  const requireSelectedProductOptionCombinations = useCallback(() => {
+    if (!requireSelectedProductOptions()) return null;
+    if (hasSelectedOutOfStockOption) {
+      setSelectionError(selectedOptionStockMessage);
+      return null;
+    }
+    if (selectedAttributeCombinations.length > 50) {
+      setSelectionError('Veuillez limiter votre sélection à 50 combinaisons à la fois.');
+      return null;
+    }
+    return selectedAttributeCombinations;
+  }, [
+    hasSelectedOutOfStockOption,
+    requireSelectedProductOptions,
+    selectedAttributeCombinations,
+    selectedOptionStockMessage
+  ]);
 
   const promptProductOptionSelection = useCallback(() => {
     const missingOptions = selectedAttributeValidation.missing || [];
@@ -1344,8 +1464,8 @@ export default function ProductDetails() {
   const handleAddToCart = async () => {
     if (!product) return;
     const safeQty = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
-    const resolvedSelectedAttributes = requireSelectedProductOptions();
-    if (!resolvedSelectedAttributes) return;
+    const selectedCombinations = requireSelectedProductOptionCombinations();
+    if (!selectedCombinations) return;
 
     if (!user) {
       setPendingAction({
@@ -1353,7 +1473,11 @@ export default function ProductDetails() {
         payload: {
           productId: product._id,
           quantity: safeQty,
-          selectedAttributes: resolvedSelectedAttributes
+          items: selectedCombinations.map((selectedAttributes) => ({
+            productId: product._id,
+            quantity: safeQty,
+            selectedAttributes
+          }))
         }
       });
       navigate('/login', { state: { from: `/product/${slug}` } });
@@ -1365,8 +1489,22 @@ export default function ProductDetails() {
     setAddingToCart(true);
     setCartFeedback("");
     try {
-      await addItem(product._id, safeQty, resolvedSelectedAttributes);
-      setCartFeedback('✅ Ajouté au panier !');
+      const cartSelectionKeys = new Set(
+        (cart?.items || [])
+          .filter((item) => String(item?.product?._id || '') === String(product._id))
+          .map((item) => item?.selectionKey || buildSelectedAttributesSelectionKey(item?.selectedAttributes || []))
+      );
+      const combinationsToAdd = selectedCombinations.filter(
+        (attributes) => !cartSelectionKeys.has(buildSelectedAttributesSelectionKey(attributes))
+      );
+      for (const attributes of combinationsToAdd) {
+        await addItem(product._id, safeQty, attributes);
+      }
+      setCartFeedback(
+        combinationsToAdd.length > 1
+          ? `✅ ${combinationsToAdd.length} options ajoutées au panier !`
+          : '✅ Ajouté au panier !'
+      );
       setTimeout(() => setCartFeedback(''), 3000);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -1382,8 +1520,8 @@ export default function ProductDetails() {
   const handleBuyNow = async () => {
     if (!product) return;
     const safeQty = Math.min(9999, Math.max(1, Math.trunc(Number(selectedQuantity || 1))));
-    const resolvedSelectedAttributes = requireSelectedProductOptions();
-    if (!resolvedSelectedAttributes) return;
+    const selectedCombinations = requireSelectedProductOptionCombinations();
+    if (!selectedCombinations) return;
     const liveStock = Number(product?.stock ?? product?.quantity ?? product?.availableStock ?? Number.NaN);
     if (Number.isFinite(liveStock) && liveStock <= 0) {
       setCartFeedback('❌ Produit en rupture de stock');
@@ -1396,7 +1534,11 @@ export default function ProductDetails() {
         payload: {
           productId: product._id,
           quantity: safeQty,
-          selectedAttributes: resolvedSelectedAttributes
+          items: selectedCombinations.map((selectedAttributes) => ({
+            productId: product._id,
+            quantity: safeQty,
+            selectedAttributes
+          }))
         }
       });
       navigate('/login', { state: { from: `/product/${slug}` } });
@@ -1411,8 +1553,18 @@ export default function ProductDetails() {
     setAddingToCart(true);
     setCartFeedback('');
     try {
-      await addItem(product._id, safeQty, resolvedSelectedAttributes);
-      setCartFeedback('✅ Produit ajouté. Redirection...');
+      const cartSelectionKeys = new Set(
+        (cart?.items || [])
+          .filter((item) => String(item?.product?._id || '') === String(product._id))
+          .map((item) => item?.selectionKey || buildSelectedAttributesSelectionKey(item?.selectedAttributes || []))
+      );
+      const combinationsToAdd = selectedCombinations.filter(
+        (attributes) => !cartSelectionKeys.has(buildSelectedAttributesSelectionKey(attributes))
+      );
+      for (const attributes of combinationsToAdd) {
+        await addItem(product._id, safeQty, attributes);
+      }
+      setCartFeedback('✅ Sélection ajoutée. Redirection...');
       navigate('/orders/checkout');
     } catch (err) {
       if (err.response?.status === 401) {
@@ -1657,6 +1809,7 @@ export default function ProductDetails() {
     ? 'bg-neutral-900'
     : 'bg-neutral-700';
   const isOutOfStock = Number.isFinite(rawStockValue) && rawStockValue <= 0;
+  const isPurchaseOutOfStock = isOutOfStock || hasSelectedOutOfStockOption;
   const productSku = String(product?.sku || product?.confirmationNumber || '').trim();
   const productUpdatedAt = product?.updatedAt ? new Date(product.updatedAt) : null;
   const productUpdatedAtLabel =
@@ -1776,14 +1929,16 @@ export default function ProductDetails() {
     ]
   );
   const isOptionSelectionBlocked = hasRequiredProductOptions && !selectedAttributeValidation.valid;
-  const primaryCartButtonLabel = isOutOfStock
+  const primaryCartButtonLabel = isPurchaseOutOfStock
     ? 'Rupture'
     : inCart
       ? 'Déjà au panier'
       : addingToCart
         ? 'Ajout...'
         : 'Ajouter au panier';
-  const buyNowButtonLabel = inCart
+  const buyNowButtonLabel = isPurchaseOutOfStock
+    ? 'Rupture'
+    : inCart
     ? 'Passer la commande'
     : addingToCart
       ? 'Traitement...'
@@ -2369,7 +2524,10 @@ export default function ProductDetails() {
         <>
           <section id="product-purchase-options-mobile" className={`px-4 pt-3.5 pb-4 transition-colors ${isOptionSelectionBlocked ? 'bg-[#FFF7ED]' : 'bg-white'}`}>
             <div className="mb-4 flex items-center justify-between gap-2">
-              <h3 className="text-[17px] font-black text-gray-900">Options du produit</h3>
+              <div>
+                <h3 className="text-[17px] font-black text-gray-900">Options du produit</h3>
+                <p className="mt-0.5 text-[11px] font-semibold text-gray-500">Vous pouvez sélectionner plusieurs choix.</p>
+              </div>
               {hasRequiredProductOptions && (
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${
@@ -2393,13 +2551,16 @@ export default function ProductDetails() {
                 const selectedValue = normalizedSelectedAttributes.find(
                   (e) => e.name.toLowerCase() === attribute.name.toLowerCase()
                 )?.value || '';
+                const selectedValues = attribute.type === 'select'
+                  ? getSelectedOptionValues(attribute)
+                  : selectedValue ? [selectedValue] : [];
                 const isColor = isColorAttribute(attribute);
                 return (
                   <div key={`mob-opt-${attribute.key || attribute.name}`}>
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-600">
                       <span>{attribute.name}{isProductAttributeSelectionRequired(attribute) && <span className="ml-0.5 text-[#e85d00]">*</span>}</span>
-                      {selectedValue ? (
-                        <span className="rounded bg-[#FFF0E4] px-1.5 py-0.5 font-black text-[#e85d00]">{selectedValue}</span>
+                      {selectedValues.length ? (
+                        <span className="rounded bg-[#FFF0E4] px-1.5 py-0.5 font-black text-[#e85d00]">{selectedValues.join(', ')}</span>
                       ) : isProductAttributeSelectionRequired(attribute) ? (
                         <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">À choisir</span>
                       ) : null}
@@ -2408,21 +2569,22 @@ export default function ProductDetails() {
                       /* Variantes par photo (style Taobao) : une tuile image par option */
                       <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
                         {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
-                          const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                          const active = selectedValues.some((value) => value.toLowerCase() === String(option).toLowerCase());
                           const optionKey = String(option).trim().toLowerCase();
                           const optionPrice = attribute.optionPrices?.[optionKey];
+                          const optionUnavailable = Boolean(attribute.optionOutOfStock?.[optionKey]);
                           const optionImageIdx = attribute.optionImages?.[optionKey];
                           const optionThumb = Number.isInteger(optionImageIdx)
                             ? product?.images?.[optionImageIdx] || ''
                             : '';
                           return (
                             <button key={`${attribute.name}-${option}`} type="button"
-                              onClick={() => handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)}
+                              onClick={() => handleAttributeValueChange(attribute, option)}
                               className={`overflow-hidden rounded-lg border-2 text-left transition-all active:scale-[0.97] ${active
                                 ? 'border-[#e85d00] ring-1 ring-orange-200'
                                 : 'border-gray-200'}`}
                               aria-pressed={active}>
-                              <div className="aspect-square bg-gray-100">
+                              <div className="relative aspect-square bg-gray-100">
                                 {optionThumb ? (
                                   <img src={optionThumb} alt={option} className="h-full w-full object-cover" loading="lazy" />
                                 ) : (
@@ -2430,6 +2592,11 @@ export default function ProductDetails() {
                                     {String(option).charAt(0).toUpperCase()}
                                   </div>
                                 )}
+                                {optionUnavailable ? (
+                                  <span className="absolute inset-x-1 bottom-1 rounded bg-black/75 px-1 py-0.5 text-center text-[9px] font-black uppercase text-white">
+                                    Rupture
+                                  </span>
+                                ) : null}
                               </div>
                               <div className={`px-1.5 py-1 ${active ? 'bg-[#fff0e4]' : 'bg-white'}`}>
                                 <p className={`truncate text-[11px] font-bold ${active ? 'text-[#e85d00]' : 'text-gray-700'}`}>
@@ -2448,12 +2615,12 @@ export default function ProductDetails() {
                     ) : attribute.type === 'select' ? (
                       <div className="flex flex-wrap gap-2">
                         {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
-                          const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                          const active = selectedValues.some((value) => value.toLowerCase() === String(option).toLowerCase());
                           const swatch = isColor ? resolveSwatchColor(option) : '';
                           const optionPrice = attribute.optionPrices?.[String(option).trim().toLowerCase()];
                           return (
                             <button key={`${attribute.name}-${option}`} type="button"
-                              onClick={() => handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)}
+                              onClick={() => handleAttributeValueChange(attribute, option)}
                               className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all active:scale-[0.97] ${active
                                 ? 'border-[#e85d00] bg-[#fff0e4] text-[#e85d00]'
                                 : 'border-gray-200 bg-white text-gray-700'}`}>
@@ -2484,12 +2651,12 @@ export default function ProductDetails() {
                 );
               })}
             </div>
-            {normalizedSelectedAttributes.length > 0 && (
-              <SelectedAttributesList selectedAttributes={normalizedSelectedAttributes} className="mt-3" />
+            {selectedAttributesSummary.length > 0 && (
+              <SelectedAttributesList selectedAttributes={selectedAttributesSummary} className="mt-3" />
             )}
-            {(selectionError || isOptionSelectionBlocked) && (
+            {(selectionError || selectedOptionStockMessage || isOptionSelectionBlocked) && (
               <p className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {selectionError || 'Veuillez sélectionner les options obligatoires.'}
+                {selectionError || selectedOptionStockMessage || 'Veuillez sélectionner les options obligatoires.'}
               </p>
             )}
           </section>
@@ -2947,22 +3114,22 @@ export default function ProductDetails() {
             {/* Add to Cart + Buy Now */}
             <div className="flex flex-1 items-center gap-2 px-2">
               <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleAddToCart}
-                disabled={addingToCart || inCart || isOutOfStock}
-                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock
+                disabled={addingToCart || inCart || isPurchaseOutOfStock}
+                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isPurchaseOutOfStock
                   ? 'bg-gray-100 text-gray-400'
                   : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00]'}`}>
                 <ShoppingCart size={16} className="flex-shrink-0" />
-                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir les options' : isOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
+                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir les options' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
               </button>
               <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
-                disabled={addingToCart || isOutOfStock}
-                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock
+                disabled={addingToCart || isPurchaseOutOfStock}
+                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isPurchaseOutOfStock
                   ? 'bg-gray-200 text-gray-400'
                   : isOptionSelectionBlocked
                     ? 'bg-black text-white'
                     : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
                 <Zap size={16} className="flex-shrink-0" fill="currentColor" />
-                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
+                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
               </button>
             </div>
           </div>
@@ -2980,8 +3147,8 @@ export default function ProductDetails() {
             {/* Header : sélection courante + fermer */}
             <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-4">
               <p className="min-w-0 text-sm font-black text-gray-900">
-                {normalizedSelectedAttributes.length > 0 ? (
-                  <>Sélectionné : «{normalizedSelectedAttributes.map((entry) => entry.value).join(' ; ')}»</>
+                {selectedAttributesSummary.length > 0 ? (
+                  <>Sélectionné : «{selectedAttributesSummary.map((entry) => entry.value).join(' ; ')}»</>
                 ) : (
                   'Choisissez vos options'
                 )}
@@ -3017,7 +3184,9 @@ export default function ProductDetails() {
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1 text-xs font-semibold text-gray-500">{stockStatus.label}</p>
+                <p className={`mt-1 text-xs font-semibold ${hasSelectedOutOfStockOption ? 'text-red-600' : 'text-gray-500'}`}>
+                  {selectedOptionStockMessage || stockStatus.label}
+                </p>
                 <div className="mt-2 inline-flex items-center rounded-lg border border-gray-200">
                   <button type="button" onClick={decreaseQuantity} disabled={normalizedQuantity <= 1}
                     className="px-3 py-1.5 text-sm font-black text-gray-600 disabled:text-gray-300" aria-label="Réduire la quantité">−</button>
@@ -3032,27 +3201,27 @@ export default function ProductDetails() {
             {/* Toutes les options */}
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
               {selectableAttributes.map((attribute) => {
-                const selectedValue = normalizedSelectedAttributes.find(
-                  (e) => e.name.toLowerCase() === attribute.name.toLowerCase()
-                )?.value || '';
+                const selectedValues = getSelectedOptionValues(attribute);
                 return (
                   <div key={`sheet-opt-${attribute.key || attribute.name}`} className="mb-4 last:mb-0">
                     <p className="mb-2 text-sm font-black text-gray-900">
                       {attribute.name} ({attribute.options.length})
                       {isProductAttributeSelectionRequired(attribute) && <span className="ml-0.5 text-[#e85d00]">*</span>}
+                      <span className="ml-2 text-[10px] font-semibold text-gray-400">Choix multiple</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {attribute.options.map((option) => {
                         const optionKey = String(option).trim().toLowerCase();
-                        const active = selectedValue.toLowerCase() === optionKey;
+                        const active = selectedValues.some((value) => value.toLowerCase() === optionKey);
                         const optionPrice = attribute.optionPrices?.[optionKey];
+                        const optionUnavailable = Boolean(attribute.optionOutOfStock?.[optionKey]);
                         const optionImageIdx = attribute.optionImages?.[optionKey];
                         const optionThumb = Number.isInteger(optionImageIdx)
                           ? product?.images?.[optionImageIdx] || ''
                           : '';
                         return (
                           <button key={`sheet-${attribute.name}-${option}`} type="button"
-                            onClick={() => handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)}
+                            onClick={() => handleAttributeValueChange(attribute, option)}
                             className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border p-1 pr-2.5 text-left transition-all active:scale-[0.97] ${active
                               ? 'border-[#e85d00] bg-[#fff0e4]'
                               : 'border-transparent bg-gray-100'}`}
@@ -3069,6 +3238,11 @@ export default function ProductDetails() {
                                 {formatPriceWithStoredSettings(optionPrice)}
                               </span>
                             ) : null}
+                            {optionUnavailable ? (
+                              <span className="flex-shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-red-700">
+                                Rupture
+                              </span>
+                            ) : null}
                           </button>
                         );
                       })}
@@ -3076,9 +3250,9 @@ export default function ProductDetails() {
                   </div>
                 );
               })}
-              {(selectionError || isOptionSelectionBlocked) && (
+              {(selectionError || selectedOptionStockMessage || isOptionSelectionBlocked) && (
                 <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {selectionError || 'Veuillez sélectionner les options obligatoires.'}
+                  {selectionError || selectedOptionStockMessage || 'Veuillez sélectionner les options obligatoires.'}
                 </p>
               )}
             </div>
@@ -3087,19 +3261,19 @@ export default function ProductDetails() {
               <div className="flex gap-2 border-t border-gray-100 px-4 py-3">
                 <button type="button"
                   onClick={() => { setIsVariantSheetOpen(false); handleAddToCart(); }}
-                  disabled={addingToCart || inCart || isOutOfStock || isOptionSelectionBlocked}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isOutOfStock || isOptionSelectionBlocked
+                  disabled={addingToCart || inCart || isPurchaseOutOfStock || isOptionSelectionBlocked}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isPurchaseOutOfStock || isOptionSelectionBlocked
                     ? 'bg-gray-100 text-gray-400'
                     : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00]'}`}>
-                  {isOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : 'Ajouter au panier'}
+                  {isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Déjà au panier' : 'Ajouter au panier'}
                 </button>
                 <button type="button"
                   onClick={() => { setIsVariantSheetOpen(false); handleBuyNow(); }}
-                  disabled={addingToCart || isOutOfStock || isOptionSelectionBlocked}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isOutOfStock || isOptionSelectionBlocked
+                  disabled={addingToCart || isPurchaseOutOfStock || isOptionSelectionBlocked}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isPurchaseOutOfStock || isOptionSelectionBlocked
                     ? 'bg-gray-200 text-gray-400'
                     : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
-                  {addingToCart ? '...' : 'Acheter'}
+                  {isPurchaseOutOfStock ? 'Rupture' : addingToCart ? '...' : 'Acheter'}
                 </button>
               </div>
             )}
@@ -3712,8 +3886,8 @@ export default function ProductDetails() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <button
                       onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleAddToCart}
-                      disabled={addingToCart || inCart || isOutOfStock}
-                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isOutOfStock
+                      disabled={addingToCart || inCart || isPurchaseOutOfStock}
+                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${inCart || isPurchaseOutOfStock
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
                         : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00] hover:bg-[#ffe4cf]'
                         }`}
@@ -3728,15 +3902,15 @@ export default function ProductDetails() {
                     <button
                       type="button"
                       onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
-                      disabled={addingToCart || isOutOfStock}
-                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isOutOfStock
+                      disabled={addingToCart || isPurchaseOutOfStock}
+                      className={`group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all duration-200 active:scale-[0.98] ${isPurchaseOutOfStock
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
                         : isOptionSelectionBlocked
                           ? 'bg-black text-white hover:bg-neutral-800'
                           : 'bg-[#e85d00] text-white shadow-[0_18px_34px_-22px_rgba(255,106,0,0.9)] hover:bg-[#f45f00]'
                         }`}
                     >
-                      <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isOutOfStock ? 'bg-slate-300' : 'bg-white/15 text-white'
+                      <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isPurchaseOutOfStock ? 'bg-slate-300' : 'bg-white/15 text-white'
                         }`}>
                         <Zap size={16} fill="currentColor" />
                       </span>
@@ -4512,7 +4686,9 @@ export default function ProductDetails() {
             <p className="text-xs text-slate-500">
               {isOptionSelectionBlocked
                 ? 'Sélectionnez vos options pour continuer.'
-                : 'Choisissez vos options avant d’ajouter au panier.'}
+                : selectedAttributeCombinations.length > 1
+                  ? `${selectedAttributeCombinations.length} combinaisons seront ajoutées au panier.`
+                  : 'Vous pouvez sélectionner plusieurs choix.'}
             </p>
           </div>
         </div>
@@ -4541,6 +4717,9 @@ export default function ProductDetails() {
             normalizedSelectedAttributes.find(
               (entry) => entry.name.toLowerCase() === attribute.name.toLowerCase()
             )?.value || '';
+          const selectedValues = attribute.type === 'select'
+            ? getSelectedOptionValues(attribute)
+            : selectedValue ? [selectedValue] : [];
 
           return (
             <div key={`product-option-${attribute.key || attribute.name}`} className="space-y-2">
@@ -4556,9 +4735,10 @@ export default function ProductDetails() {
               {attribute.type === 'select' && attribute.optionImages ? (
                 <div className="grid grid-cols-4 gap-2 lg:grid-cols-6">
                   {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
-                    const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                    const active = selectedValues.some((value) => value.toLowerCase() === String(option).toLowerCase());
                     const optionKey = String(option).trim().toLowerCase();
                     const optionPrice = attribute.optionPrices?.[optionKey];
+                    const optionUnavailable = Boolean(attribute.optionOutOfStock?.[optionKey]);
                     const optionImageIdx = attribute.optionImages?.[optionKey];
                     const optionThumb = Number.isInteger(optionImageIdx)
                       ? product?.images?.[optionImageIdx] || ''
@@ -4567,15 +4747,13 @@ export default function ProductDetails() {
                       <button
                         key={`${attribute.name}-${option}`}
                         type="button"
-                        onClick={() =>
-                          handleAttributeValueChange(attribute, !isProductAttributeSelectionRequired(attribute) && active ? '' : option)
-                        }
+                        onClick={() => handleAttributeValueChange(attribute, option)}
                         className={`overflow-hidden rounded-xl border-2 text-left transition-all duration-200 active:scale-[0.98] ${
                           active ? 'border-slate-900 ring-1 ring-slate-300' : 'border-slate-200 hover:border-slate-300'
                         }`}
                         aria-pressed={active}
                       >
-                        <div className="aspect-square bg-slate-100">
+                        <div className="relative aspect-square bg-slate-100">
                           {optionThumb ? (
                             <img src={optionThumb} alt={option} className="h-full w-full object-cover" loading="lazy" />
                           ) : (
@@ -4583,6 +4761,11 @@ export default function ProductDetails() {
                               {String(option).charAt(0).toUpperCase()}
                             </div>
                           )}
+                          {optionUnavailable ? (
+                            <span className="absolute inset-x-1 bottom-1 rounded bg-black/75 px-1 py-0.5 text-center text-[9px] font-black uppercase text-white">
+                              Rupture
+                            </span>
+                          ) : null}
                         </div>
                         <div className={`px-1.5 py-1 ${active ? 'bg-slate-900' : 'bg-white'}`}>
                           <p className={`truncate text-[11px] font-bold ${active ? 'text-white' : 'text-slate-700'}`}>
@@ -4601,19 +4784,14 @@ export default function ProductDetails() {
               ) : attribute.type === 'select' ? (
                 <div className="flex flex-wrap gap-2">
                   {(Array.isArray(attribute.options) ? attribute.options : []).map((option) => {
-                    const active = selectedValue.toLowerCase() === String(option).toLowerCase();
+                    const active = selectedValues.some((value) => value.toLowerCase() === String(option).toLowerCase());
                     const swatch = isColorAttribute(attribute) ? resolveSwatchColor(option) : '';
                     const optionPrice = attribute.optionPrices?.[String(option).trim().toLowerCase()];
                     return (
                       <button
                         key={`${attribute.name}-${option}`}
                         type="button"
-                        onClick={() =>
-                          handleAttributeValueChange(
-                            attribute,
-                            !isProductAttributeSelectionRequired(attribute) && active ? '' : option
-                          )
-                        }
+                        onClick={() => handleAttributeValueChange(attribute, option)}
                         className={`inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
                           active
                             ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
@@ -4654,13 +4832,13 @@ export default function ProductDetails() {
         })}
       </div>
 
-      {normalizedSelectedAttributes.length > 0 && (
-        <SelectedAttributesList selectedAttributes={normalizedSelectedAttributes} className="pt-1" />
+      {selectedAttributesSummary.length > 0 && (
+        <SelectedAttributesList selectedAttributes={selectedAttributesSummary} className="pt-1" />
       )}
 
-      {(selectionError || isOptionSelectionBlocked) && (
+      {(selectionError || selectedOptionStockMessage || isOptionSelectionBlocked) && (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-          {selectionError || 'Veuillez sélectionner les options obligatoires.'}
+          {selectionError || selectedOptionStockMessage || 'Veuillez sélectionner les options obligatoires.'}
         </p>
       )}
     </div>

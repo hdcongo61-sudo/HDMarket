@@ -39,6 +39,18 @@ describe('normalizeProductAttributes', () => {
     expect(attr.optionImages).toBeUndefined();
   });
 
+  it('keeps only declared options explicitly marked out of stock', () => {
+    const [attr] = normalizeProductAttributes([
+      {
+        name: 'Couleur',
+        type: 'select',
+        options: ['Rouge', 'Noir'],
+        optionOutOfStock: { rouge: true, noir: false, ghost: true }
+      }
+    ]);
+    expect(attr.optionOutOfStock).toEqual({ rouge: true });
+  });
+
   it('only supports optionPrices/optionImages on select attributes', () => {
     const [attr] = normalizeProductAttributes([
       { name: 'Poids', type: 'number', options: [], optionPrices: { a: 100 } }
@@ -160,6 +172,20 @@ describe('validateSelectedAttributesForProduct', () => {
     });
     expect(result.valid).toBe(true);
     expect(result.selectedAttributes).toEqual([{ name: 'Taille', value: 'S' }]);
+  });
+
+  it('rejects a declared option that is out of stock', () => {
+    const result = validateSelectedAttributesForProduct({
+      productAttributes: [{
+        name: 'Couleur',
+        type: 'select',
+        options: ['Rouge', 'Noir'],
+        optionOutOfStock: { rouge: true }
+      }],
+      selectedAttributes: [{ name: 'Couleur', value: 'Rouge' }]
+    });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain('rupture de stock');
   });
 
   it('rejects an omitted selectable group even without a required flag', () => {

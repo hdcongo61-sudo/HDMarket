@@ -27,17 +27,19 @@ const productAttributes = [
     name: 'Couleur',
     type: 'select',
     options: ['Rouge', 'Noir'],
-    optionImages: { rouge: 1, noir: 0 }
+    optionImages: { rouge: 1, noir: 0 },
+    optionOutOfStock: { rouge: true }
   }
 ];
 const images = ['https://x/black.jpg', 'https://x/red.jpg'];
 
 describe('backend/frontend productAttributes parity', () => {
-  it('normalizeProductAttributes agrees on option prices/images', () => {
+  it('normalizeProductAttributes agrees on option prices/images/availability', () => {
     const backendResult = backendAttrs.normalizeProductAttributes(productAttributes);
     const frontendResult = frontendAttrs.normalizeProductAttributes(productAttributes);
     expect(frontendResult.map((a) => a.optionPrices)).toEqual(backendResult.map((a) => a.optionPrices));
     expect(frontendResult.map((a) => a.optionImages)).toEqual(backendResult.map((a) => a.optionImages));
+    expect(frontendResult.map((a) => a.optionOutOfStock)).toEqual(backendResult.map((a) => a.optionOutOfStock));
   });
 
   it.each([

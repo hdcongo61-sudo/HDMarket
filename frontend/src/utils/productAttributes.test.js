@@ -34,6 +34,18 @@ describe('normalizeProductAttributes', () => {
     ]);
     expect(attr.optionImages).toBeUndefined();
   });
+
+  it('keeps only declared options explicitly marked out of stock', () => {
+    const [attr] = normalizeProductAttributes([
+      {
+        name: 'Couleur',
+        type: 'select',
+        options: ['Rouge', 'Noir'],
+        optionOutOfStock: { rouge: true, noir: false, ghost: true }
+      }
+    ]);
+    expect(attr.optionOutOfStock).toEqual({ rouge: true });
+  });
 });
 
 describe('resolveSelectedAttributesPrice', () => {
