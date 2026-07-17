@@ -1187,7 +1187,7 @@ export default function AdminDeliveryRequests() {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <Link
-                          to={`/orders/detail/${oid}`}
+                          to={`/admin/orders?orderId=${encodeURIComponent(String(oid || ''))}`}
                           className="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200"
                         >
                           Voir commande

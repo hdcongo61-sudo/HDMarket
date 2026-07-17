@@ -21,12 +21,12 @@ export const buildProductPath = (product) => {
   // timestamp placeholder (e.g. "1782162322025") — the backend can't resolve
   // those slugs, which results in a 404.
   const identifier = extractIdentifier(product, 'slug');
-  return identifier ? `/product/${identifier}` : '/product';
+  return identifier ? `/product/${identifier}` : '/products';
 };
 
 export const buildShopPath = (shop) => {
   const identifier = extractIdentifier(shop, 'slug');
-  return identifier ? `/shop/${identifier}` : '/shop';
+  return identifier ? `/shop/${identifier}` : '/shops/verified';
 };
 
 export const buildProductShareUrl = (product, origin = '') => {

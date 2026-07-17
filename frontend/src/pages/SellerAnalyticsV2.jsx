@@ -169,7 +169,7 @@ export default function SellerAnalyticsV2() {
         {isAssistant && (
           <div className="mb-4 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
             <span className="font-bold">📊 Vue boutique :</span> Vous consultez les statistiques de <span className="font-bold">{assistantShop?.shopName}</span>.
-            <Link to="/user-stats" className="ml-2 text-xs font-semibold text-blue-600 underline">
+            <Link to="/stats" className="ml-2 text-xs font-semibold text-blue-600 underline">
               Voir mes statistiques personnelles →
             </Link>
           </div>

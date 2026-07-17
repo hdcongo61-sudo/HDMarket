@@ -242,6 +242,15 @@ function LegacyOrderReviewRedirect() {
   return <Navigate to={`/orders/${encodeURIComponent(targetId)}/review`} replace />;
 }
 
+function OrdersStatusRouteResolver() {
+  const { status = '' } = useParams();
+  const value = String(status || '').trim();
+  if (/^[a-f\d]{24}$/i.test(value)) {
+    return <Navigate to={`/orders/detail/${value}`} replace />;
+  }
+  return <UserOrders />;
+}
+
 function AdminIndexRedirect() {
   const stored =
     typeof window !== 'undefined'
@@ -641,6 +650,10 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ForgotPassword />} />
+          <Route path="/user-stats" element={<Navigate to="/stats" replace />} />
+          <Route path="/product" element={<Navigate to="/products" replace />} />
+          <Route path="/shop" element={<Navigate to="/shops/verified" replace />} />
           <Route path="/product/:slug" element={<ProductDetailsWrapper />} />
           <Route path="/product-preview/:slug" element={<ProductPreview />} />
           <Route path="/shop/:slug" element={<ShopProfile />} />
@@ -984,7 +997,7 @@ function AppContent() {
             path="/orders/:status"
             element={
               <ProtectedRoute>
-                <UserOrders />
+                <OrdersStatusRouteResolver />
               </ProtectedRoute>
             }
           />

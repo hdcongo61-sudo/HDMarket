@@ -421,7 +421,7 @@ export const sweepReviewReminders = async ({ limit = MAX_NOTIFICATIONS_PER_RUN }
         },
         entityType: 'order',
         entityId: String(order._id),
-        deepLink: `/orders/${order._id}`
+        deepLink: `/orders/${order._id}/review${productId ? `?productId=${encodeURIComponent(String(productId))}` : ''}`
       });
       notificationsSent += 1;
     } catch (err) {

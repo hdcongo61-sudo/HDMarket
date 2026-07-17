@@ -82,6 +82,17 @@ const isGenericOrdersCollectionUrl = (value = '') => {
   );
 };
 
+const isLegacyOrderDetailsUrl = (value = '') => {
+  const normalized = normalizeNotificationUrl(value);
+  if (!normalized) return false;
+  try {
+    const pathname = new URL(normalized, URL_BASE).pathname;
+    return /^\/orders\/[a-f\d]{24}\/?$/i.test(pathname);
+  } catch {
+    return false;
+  }
+};
+
 const appendQueryAndHash = (link, params = {}, hash = '') => {
   const normalized = normalizeNotificationUrl(link);
   if (!normalized) return '';
@@ -146,7 +157,7 @@ const buildShopReviewsUrl = ({ notification, shopId }) => {
   return appendQueryAndHash(base, reviewId ? { reviewId } : {}, 'reviews');
 };
 
-const resolveNotificationClickUrl = ({ notification, orderId, productId, shopId, recipientUser = null }) => {
+export const resolveNotificationClickUrl = ({ notification, orderId, productId, shopId, recipientUser = null }) => {
   const metadata = notification?.metadata || {};
   const notificationType = String(notification?.type || '').trim();
   let url = normalizeNotificationUrl(
@@ -174,6 +185,10 @@ const resolveNotificationClickUrl = ({ notification, orderId, productId, shopId,
       buildOrderDetailsUrl({ orderId, recipientUser }) ||
       '/orders'
     );
+  }
+
+  if (orderId && isLegacyOrderDetailsUrl(url)) {
+    return buildOrderDetailsUrl({ orderId, recipientUser });
   }
 
   if (notificationType === 'product_comment' || notificationType === 'reply' || notificationType === 'rating') {

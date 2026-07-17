@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -61,6 +61,9 @@ const strengthLabelOf = (score) => {
 export default function ForgotPassword() {
   const { language } = useAppSettings();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const resetToken = String(searchParams.get('token') || '').trim();
+  const tokenMode = resetToken.length >= 10;
   const isFrench = String(language || 'fr')
     .toLowerCase()
     .startsWith('fr');
@@ -125,7 +128,7 @@ export default function ForgotPassword() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(tokenMode ? 2 : 1);
   const [codeSending, setCodeSending] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -201,11 +204,11 @@ export default function ForgotPassword() {
     setMessage('');
     setSlowNetwork('');
 
-    if (!form.email.trim()) {
+    if (!tokenMode && !form.email.trim()) {
       setError(copy.emailRequired);
       return;
     }
-    if (!form.verificationCode.trim()) {
+    if (!tokenMode && !form.verificationCode.trim()) {
       setError(copy.codeRequired);
       return;
     }
@@ -227,11 +230,18 @@ export default function ForgotPassword() {
     slowNetworkTimerRef.current = setTimeout(() => setSlowNetwork('reset'), SLOW_NETWORK_MS);
 
     try {
-      await api.post('/auth/password/reset', {
-        email: form.email,
-        verificationCode: form.verificationCode.trim(),
-        newPassword: form.newPassword
-      });
+      if (tokenMode) {
+        await api.post('/auth/password/reset-token', {
+          token: resetToken,
+          newPassword: form.newPassword
+        });
+      } else {
+        await api.post('/auth/password/reset', {
+          email: form.email,
+          verificationCode: form.verificationCode.trim(),
+          newPassword: form.newPassword
+        });
+      }
       setSuccess(true);
     } catch (err) {
       setError(mapForgotErrorMessage(err, 'reset', isFrench));
@@ -275,7 +285,7 @@ export default function ForgotPassword() {
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
                 </header>
 
-                <div className="mb-5 grid grid-cols-2 gap-2">
+                {!tokenMode ? <div className="mb-5 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
@@ -298,7 +308,7 @@ export default function ForgotPassword() {
                   >
                     {copy.stepReset}
                   </button>
-                </div>
+                </div> : null}
 
                 <form onSubmit={submit} className="space-y-4">
                   {error ? (
@@ -313,7 +323,7 @@ export default function ForgotPassword() {
                     </div>
                   ) : null}
 
-                  <div className="space-y-1.5">
+                  {!tokenMode ? <div className="space-y-1.5">
                     <label htmlFor="forgot-email" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                       {copy.email}
                     </label>
@@ -334,9 +344,9 @@ export default function ForgotPassword() {
                       />
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     </div>
-                  </div>
+                  </div> : null}
 
-                  <button
+                  {!tokenMode ? <button
                     type="button"
                     onClick={sendCode}
                     disabled={codeSending || !form.email.trim()}
@@ -352,13 +362,13 @@ export default function ForgotPassword() {
                     ) : (
                       copy.sendCode
                     )}
-                  </button>
+                  </button> : null}
 
-                  {slowNetwork === 'send' && codeSending ? (
+                  {!tokenMode && slowNetwork === 'send' && codeSending ? (
                     <p className="text-xs text-amber-700 dark:text-amber-200">{copy.slowNetwork}</p>
                   ) : null}
 
-                  {step === 1 ? (
+                  {step === 1 && !tokenMode ? (
                     <button
                       type="button"
                       onClick={() => setStep(2)}
@@ -368,7 +378,7 @@ export default function ForgotPassword() {
                     </button>
                   ) : (
                     <>
-                      <div className="space-y-1.5">
+                      {!tokenMode ? <div className="space-y-1.5">
                         <label htmlFor="forgot-code" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                           {copy.verificationCode}
                         </label>
@@ -387,7 +397,7 @@ export default function ForgotPassword() {
                           />
                           <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         </div>
-                      </div>
+                      </div> : null}
 
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
@@ -482,20 +492,20 @@ export default function ForgotPassword() {
                         </ul>
                       </section>
 
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <button
+                      <div className={`grid grid-cols-1 gap-2 ${tokenMode ? '' : 'sm:grid-cols-2'}`}>
+                        {!tokenMode ? <button
                           type="button"
                           onClick={() => setStep(1)}
                           className="glass-card min-h-[48px] rounded-xl px-4 text-sm font-semibold text-slate-700 dark:text-slate-100"
                         >
                           {copy.back}
-                        </button>
+                        </button> : null}
                         <button
                           type="submit"
                           disabled={
                             loading ||
-                            !form.email.trim() ||
-                            !form.verificationCode.trim() ||
+                            (!tokenMode && !form.email.trim()) ||
+                            (!tokenMode && !form.verificationCode.trim()) ||
                             !form.newPassword ||
                             !form.confirmPassword
                           }

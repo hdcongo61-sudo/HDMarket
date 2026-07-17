@@ -90,6 +90,28 @@ const resolvePushClickUrl = (data = {}) => {
     }
   }
   if (!normalized) normalized = '/';
+
+  // Repair legacy order links before opening the app. `/orders/:id` collides
+  // with the order-status route; detail pages require `/orders/detail/:id`.
+  try {
+    const parsed = new URL(normalized, self.location.origin);
+    const legacyOrderMatch = parsed.pathname.match(/^\/orders\/([a-f\d]{24})\/?$/i);
+    if (legacyOrderMatch) {
+      const orderId = String(data.orderId || legacyOrderMatch[1]).trim();
+      const role = String(data.recipientRole || '').trim().toLowerCase();
+      const accountType = String(data.recipientAccountType || '').trim().toLowerCase();
+      if (['admin', 'founder', 'manager'].includes(role)) {
+        normalized = `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
+      } else if (role === 'seller' || accountType === 'shop') {
+        normalized = `/seller/orders/detail/${encodeURIComponent(orderId)}`;
+      } else {
+        normalized = `/orders/detail/${encodeURIComponent(orderId)}`;
+      }
+    }
+  } catch {
+    // Keep the original normalized destination when parsing fails.
+  }
+
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
   return `${self.location.origin}${normalized}`;
 };

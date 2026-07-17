@@ -193,7 +193,7 @@ const extractOrderIdFromLink = (link) => {
   if (orderIdFromQuery) return orderIdFromQuery;
 
   const match = parsed.pathname.match(
-    /\/(?:seller\/orders\/detail|seller\/order\/detail|orders\/detail|order\/detail)\/([a-f\d]{24})(?:\/|$)/i
+    /\/(?:seller\/orders\/detail|seller\/order\/detail|orders\/detail|order\/detail|orders)\/([a-f\d]{24})(?:\/|$)/i
   );
   return match?.[1] || '';
 };
@@ -525,6 +525,18 @@ export const resolveNotificationLink = (alert, user = null) => {
 
   if (isOrderLikeType(type)) {
     return resolveRoleAwareOrderLink(alert, user, deepLink) || buildOrderPath(alert, user) || '/orders';
+  }
+
+  // Older and non-standard order notification types can still carry an
+  // orderId (for example payment events). Never let their legacy
+  // /orders/:id link fall through to the status-filter route.
+  const hasOrderContext = Boolean(
+    extractObjectId(alert?.metadata?.orderId) ||
+    extractObjectId(alert?.entityType === 'order' ? alert?.entityId : '') ||
+    extractOrderIdFromLink(deepLink)
+  );
+  if (hasOrderContext) {
+    return resolveRoleAwareOrderLink(alert, user, deepLink) || buildOrderPath(alert, user);
   }
 
   if (FEEDBACK_TYPES.has(type)) {
