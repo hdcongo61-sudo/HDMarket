@@ -1520,6 +1520,74 @@ export default function OrderDetail() {
                 </div>
               ) : null}
 
+              {(hasDeliveryEvidence || order.deliveryStatus === 'submitted' ||
+                order.deliveryStatus === 'verified' ||
+                order.status === 'delivery_proof_submitted') ? (
+                <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <p className="text-sm font-black text-[#231f1b]">
+                      {pickupOrder ? 'Preuve de retrait' : 'Preuve de livraison'}
+                    </p>
+                  </div>
+                  <p className="text-xs font-semibold leading-5 text-[#6b6459]">
+                    {pickupOrder
+                      ? deliveryConfirmationDone
+                        ? 'Retrait confirmé par le client'
+                        : 'Preuve soumise par le vendeur, en attente de votre confirmation'
+                      : deliveryConfirmationDone
+                        ? 'Livraison confirmée'
+                        : 'Preuve soumise par le vendeur, en attente de votre confirmation'}
+                  </p>
+                  {order.deliveryDate ? (
+                    <p className="text-xs text-[#8a8378]">{formatOrderTimestamp(order.deliveryDate)}</p>
+                  ) : null}
+                  {order.deliveryNote ? (
+                    <p className="rounded-lg bg-white/80 px-3 py-2 text-xs leading-5 text-[#6b6459]">
+                      <span className="font-black text-[#231f1b]">Note vendeur :</span> {order.deliveryNote}
+                    </p>
+                  ) : null}
+                  {deliveryProofSources.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {deliveryProofSources.map((src, index) => (
+                        <button
+                          key={`mobile-proof-image-${index}`}
+                          type="button"
+                          onClick={() => openProofPreview(src, `Photo ${index + 1}`)}
+                          className="relative aspect-[4/3] overflow-hidden rounded-xl bg-white ring-1 ring-emerald-100"
+                        >
+                          <DeliveryProofImage
+                            src={src}
+                            alt={`${pickupOrder ? 'Photo de retrait' : 'Photo de livraison'} ${index + 1}`}
+                            className="h-full w-full object-contain bg-slate-50 p-1.5"
+                          />
+                          <span className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-[10px] font-black text-white">
+                            Photo {index + 1} · Agrandir
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {order.clientSignatureImage ? (
+                    <button
+                      type="button"
+                      onClick={() => openProofPreview(order.clientSignatureImage, 'Signature client')}
+                      className="relative block w-full overflow-hidden rounded-xl border border-rose-100 bg-white"
+                    >
+                      <img
+                        src={normalizeFileUrl(order.clientSignatureImage)}
+                        alt="Signature client"
+                        className="h-24 w-full object-contain p-2"
+                        loading="lazy"
+                      />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[10px] font-black text-white">
+                        Signature client · Agrandir
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
               {order.cancellationWindow?.isActive && effectiveOrderStatus !== 'cancelled' ? (
                 <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
                   <CancellationTimer
