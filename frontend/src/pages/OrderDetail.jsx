@@ -1520,6 +1520,26 @@ export default function OrderDetail() {
                 </div>
               ) : null}
 
+              {order.cancellationWindow?.isActive && effectiveOrderStatus !== 'cancelled' ? (
+                <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                  <CancellationTimer
+                    deadline={order.cancellationWindow.deadline}
+                    remainingMs={order.cancellationWindow.remainingMs}
+                    isActive={order.cancellationWindow.isActive}
+                    onExpire={() => setOrder((prev) => prev ? { ...prev, cancellationWindow: { ...prev.cancellationWindow, isActive: false, remainingMs: 0 } } : null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSkipCancellationWindow}
+                    disabled={skipLoadingId === order._id}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-black text-white shadow-sm disabled:opacity-70"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    {skipLoadingId === order._id ? 'En cours...' : 'Autoriser le vendeur à traiter'}
+                  </button>
+                </div>
+              ) : null}
+
               {visibleBuyerPrimaryAction ? (
                 <button type="button" onClick={handlePrimaryBuyerAction} disabled={isPrimaryActionPending || skipLoadingId === order._id} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-black text-white disabled:opacity-60 ${visibleBuyerPrimaryAction.intent === 'danger' ? 'bg-red-700' : 'bg-[#e85d00]'}`}>
                   {isPrimaryActionPending ? <Clock className="h-4 w-4 animate-spin" /> : null}
