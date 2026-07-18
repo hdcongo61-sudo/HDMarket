@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } 
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, Wallet, ArrowRight } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, Edit, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, Wallet, ArrowRight } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -10,10 +10,12 @@ import useCommissionRate from '../hooks/useCommissionRate';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
 import { appAlert } from '../utils/appDialog';
-import { getHighestProductPrice, normalizeProductAttributes } from '../utils/productAttributes';
+import { getHighestProductPrice, hydrateImageVariantsFromAttributes, normalizeProductAttributes } from '../utils/productAttributes';
 import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
+
+const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
 
 const isCloudinaryUrl = (url = '') =>
   typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
@@ -138,8 +140,11 @@ export default function ProductForm(props) {
   const [loading, setLoading] = useState(false);
   const [imagePreviews, setImagePreviews] = useState([]);
   const imagePreviewsRef = useRef([]);
+  const imageReplacementsRef = useRef({});
   const [existingImages, setExistingImages] = useState([]);
   const [removedImages, setRemovedImages] = useState([]);
+  const [imageReplacements, setImageReplacements] = useState({});
+  const [studioImageIndex, setStudioImageIndex] = useState(null);
   const [imageError, setImageError] = useState('');
   // Image-first variants (Taobao style): each photo can carry an option label
   // and its price, edited right below the image. Keyed by the combined image
@@ -714,6 +719,17 @@ export default function ProductForm(props) {
   const removeExistingImage = (index) => {
     const target = existingImages[index];
     if (!target) return;
+    const replacement = imageReplacements[index];
+    if (replacement?.url?.startsWith('blob:')) URL.revokeObjectURL(replacement.url);
+    setImageReplacements((prev) => {
+      const next = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const numericKey = Number(key);
+        if (numericKey < index) next[numericKey] = value;
+        if (numericKey > index) next[numericKey - 1] = value;
+      });
+      return next;
+    });
     setExistingImages(existingImages.filter((_, i) => i !== index));
     setRemovedImages((prev) => [...prev, target]);
     shiftAttributeOptionImages(index);
@@ -724,10 +740,17 @@ export default function ProductForm(props) {
     imagePreviewsRef.current = imagePreviews;
   }, [imagePreviews]);
 
+  useEffect(() => {
+    imageReplacementsRef.current = imageReplacements;
+  }, [imageReplacements]);
+
   useEffect(
     () => () => {
       imagePreviewsRef.current.forEach((preview) => {
         if (preview?.url?.startsWith('blob:')) URL.revokeObjectURL(preview.url);
+      });
+      Object.values(imageReplacementsRef.current).forEach((replacement) => {
+        if (replacement?.url?.startsWith('blob:')) URL.revokeObjectURL(replacement.url);
       });
     },
     []
@@ -1186,23 +1209,36 @@ export default function ProductForm(props) {
   const renderImageVariantFields = (combinedIndex) => {
     const entry = imageVariants[combinedIndex] || {};
     return (
-      <div className="space-y-1 border-t border-gray-200 bg-white p-2">
-        <input
-          type="text"
-          value={entry.label || ''}
-          onChange={(e) => updateImageVariant(combinedIndex, 'label', e.target.value)}
-          placeholder={`${String(imageVariantName || '').trim() || 'Option'} (ex: Rouge)`}
-          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#e85d00] focus:outline-none"
-        />
-        <input
-          type="number"
-          min="0"
-          inputMode="numeric"
-          value={entry.price ?? ''}
-          onChange={(e) => updateImageVariant(combinedIndex, 'price', e.target.value)}
-          placeholder="Prix (optionnel)"
-          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#e85d00] focus:outline-none"
-        />
+      <div className="space-y-2 border-t border-gray-200 bg-white p-2.5">
+        {entry.label && (
+          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Option enregistrée
+          </div>
+        )}
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-black text-gray-500">
+            {String(imageVariantName || '').trim() || 'Option'}
+          </span>
+          <input
+            type="text"
+            value={entry.label || ''}
+            onChange={(e) => updateImageVariant(combinedIndex, 'label', e.target.value)}
+            placeholder={`${String(imageVariantName || '').trim() || 'Option'} (ex: Rouge)`}
+            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#e85d00] focus:outline-none"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-black text-gray-500">Prix de cette option</span>
+          <input
+            type="number"
+            min="0"
+            inputMode="numeric"
+            value={entry.price ?? ''}
+            onChange={(e) => updateImageVariant(combinedIndex, 'price', e.target.value)}
+            placeholder="Prix (optionnel)"
+            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#e85d00] focus:outline-none"
+          />
+        </label>
         <label className={`flex min-h-9 cursor-pointer items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${entry.outOfStock ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-gray-50 text-gray-600'}`}>
           <span>Rupture de stock</span>
           <input
@@ -1458,6 +1494,36 @@ export default function ProductForm(props) {
           data.append('images', file);
         }
       });
+      data.append('newImageStudioMetadata', JSON.stringify(
+        files.slice(0, maxImagesLimit).map((item) => item?.studioMetadata ? {
+          output: item.studioMetadata.state?.output,
+          qualityScore: item.studioMetadata.quality?.score,
+          complianceStatus: item.studioMetadata.quality?.checks,
+          aiOperationsApplied: item.studioMetadata.state?.aiOperations || [],
+          editState: item.studioMetadata.state
+        } : null)
+      ));
+      const replacementTargets = [];
+      const replacementMetadata = [];
+      Object.entries(imageReplacements)
+        .sort(([left], [right]) => Number(left) - Number(right))
+        .forEach(([index, replacement]) => {
+          if (!(replacement?.file instanceof File) || !existingImages[Number(index)]) return;
+          data.append('editedImages', replacement.file);
+          replacementTargets.push(existingImages[Number(index)]);
+          replacementMetadata.push({
+            originalImage: existingImages[Number(index)],
+            output: replacement.state?.output,
+            qualityScore: replacement.quality?.score,
+            complianceStatus: replacement.quality?.checks,
+            aiOperationsApplied: replacement.state?.aiOperations || [],
+            editState: replacement.state
+          });
+        });
+      if (replacementTargets.length) {
+        data.append('imageReplacementTargets', JSON.stringify(replacementTargets));
+        data.append('imageStudioMetadata', JSON.stringify(replacementMetadata));
+      }
       removedImages.forEach((image) => data.append('removeImages', image));
       if (videoFile) {
         data.append('video', videoFile);
@@ -1643,22 +1709,12 @@ export default function ProductForm(props) {
     }
     // The photo-linked attribute is edited under the image cards; explode it
     // back into per-image entries and keep the rest in the generic editor.
-    const hydratedAttributes = normalizeProductAttributes(initialValues.attributes);
-    const imageLinkedAttribute = hydratedAttributes.find(
-      (attribute) => attribute.optionImages && Object.keys(attribute.optionImages).length
-    );
+    const {
+      attributes: hydratedAttributes,
+      imageLinkedAttribute,
+      imageVariants: hydratedVariants
+    } = hydrateImageVariantsFromAttributes(initialValues.attributes);
     if (imageLinkedAttribute) {
-      const hydratedVariants = {};
-      imageLinkedAttribute.options.forEach((option) => {
-        const key = option.toLowerCase();
-        const index = imageLinkedAttribute.optionImages[key];
-        if (!Number.isInteger(index)) return;
-        hydratedVariants[index] = {
-          label: option,
-          price: imageLinkedAttribute.optionPrices?.[key] ?? '',
-          outOfStock: Boolean(imageLinkedAttribute.optionOutOfStock?.[key])
-        };
-      });
       setImageVariants(hydratedVariants);
       setImageVariantName(imageLinkedAttribute.name || 'Couleur');
     } else {
@@ -1752,10 +1808,67 @@ export default function ProductForm(props) {
       socialVideoUrl: initialValues.socialVideoUrl || ''
     });
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
+    setImageReplacements({});
     setExistingPdf(initialValues.pdf || null);
     setRemovePdf(false);
     setRemovedImages([]);
   }, [initialValues]);
+
+  const studioImages = useMemo(() => [
+    ...existingImages.map((url, index) => ({
+      url: imageReplacements[index]?.url || url,
+      originalUrl: url,
+      file: imageReplacements[index]?.file,
+      name: imageReplacements[index]?.file?.name || `produit-${index + 1}.webp`,
+      existing: true
+    })),
+    ...imagePreviews.map((preview, index) => ({
+      ...preview,
+      file: files[index]?.file || files[index],
+      existing: false
+    }))
+  ], [existingImages, files, imagePreviews, imageReplacements]);
+
+  const handleStudioSave = useCallback(async ({ file, files: batchFiles, sourceIndex, state, quality }) => {
+    const results = Array.isArray(batchFiles) ? batchFiles : [{ file, sourceIndex }];
+    const existingCount = existingImages.length;
+    const newReplacementPreviews = [];
+
+    results.forEach(({ file: editedFile, sourceIndex: absoluteIndex }) => {
+      if (!(editedFile instanceof File)) return;
+      const previewUrl = URL.createObjectURL(editedFile);
+      if (absoluteIndex < existingCount) {
+        setImageReplacements((prev) => {
+          if (prev[absoluteIndex]?.url?.startsWith('blob:')) URL.revokeObjectURL(prev[absoluteIndex].url);
+          return {
+            ...prev,
+            [absoluteIndex]: { file: editedFile, url: previewUrl, state, quality }
+          };
+        });
+        return;
+      }
+      newReplacementPreviews.push({ index: absoluteIndex - existingCount, file: editedFile, url: previewUrl });
+    });
+
+    if (newReplacementPreviews.length) {
+      setFiles((prev) => {
+        const next = [...prev];
+        newReplacementPreviews.forEach(({ index, file: editedFile }) => {
+          if (next[index]) next[index] = { ...next[index], file: editedFile, cropped: true, studioMetadata: { state, quality } };
+        });
+        return next;
+      });
+      setImagePreviews((prev) => {
+        const next = [...prev];
+        newReplacementPreviews.forEach(({ index, file: editedFile, url }) => {
+          if (next[index]?.url?.startsWith('blob:')) URL.revokeObjectURL(next[index].url);
+          if (next[index]) next[index] = { ...next[index], name: editedFile.name, url };
+        });
+        return next;
+      });
+    }
+    setImageError('');
+  }, [existingImages.length]);
 
   const isEditing = Boolean(productId);
 
@@ -3022,10 +3135,15 @@ export default function ProductForm(props) {
                         <div key={`${src}-${index}`} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100">
                           <div className="relative aspect-square">
                             <img
-                              src={thumbImageUrl(src)}
+                              src={imageReplacements[index]?.url || thumbImageUrl(src)}
                               alt={`Image existante ${index + 1}`}
                               className="w-full h-full object-contain"
                             />
+                            {imageReplacements[index] && (
+                              <span className="absolute left-2 top-2 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-black text-white">
+                                Studio appliqué
+                              </span>
+                            )}
                             <button
                               type="button"
                               onClick={() => removeExistingImage(index)}
@@ -3033,6 +3151,16 @@ export default function ProductForm(props) {
                               aria-label="Supprimer l'image"
                             >
                               <X size={12} />
+                            </button>
+                          </div>
+                          <div className="border-t border-gray-200 bg-white p-2">
+                            <button
+                              type="button"
+                              onClick={() => setStudioImageIndex(index)}
+                              className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-neutral-950 px-3 text-xs font-black text-white transition hover:bg-neutral-800"
+                            >
+                              <SlidersHorizontal className="h-3.5 w-3.5" />
+                              Edit Photo
                             </button>
                           </div>
                           {renderImageVariantFields(index)}
@@ -3105,13 +3233,13 @@ export default function ProductForm(props) {
                             <div className="p-2 flex flex-wrap gap-1.5 border-t border-gray-200 bg-white">
                               <button
                                 type="button"
-                                onClick={() => editImageCrop(index)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors"
-                                aria-label="Recadrer cette image"
-                                title="Recadrer"
+                                onClick={() => setStudioImageIndex(existingImages.length + index)}
+                                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-neutral-950 px-2.5 text-xs font-black text-white transition-colors hover:bg-neutral-800"
+                                aria-label="Modifier cette image dans le Studio"
+                                title="Edit Photo"
                               >
-                                <Crop className="w-3.5 h-3.5" />
-                                Recadrer
+                                <SlidersHorizontal className="w-3.5 h-3.5" />
+                                Edit Photo
                               </button>
                               <button
                                 type="button"
@@ -3934,6 +4062,19 @@ export default function ProductForm(props) {
           </BaseModal>
         );
       })()}
+      {studioImageIndex !== null && (
+        <React.Suspense fallback={null}>
+          <ProductImageStudio
+            isOpen
+            image={studioImages[studioImageIndex]}
+            images={studioImages}
+            initialIndex={studioImageIndex}
+            shopName={user?.shopName || user?.name || user?.fullName || ''}
+            onClose={() => setStudioImageIndex(null)}
+            onSave={handleStudioSave}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

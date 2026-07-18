@@ -1,529 +1,125 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
+import { ArrowLeft, Edit3, Loader2, PackageSearch } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import api from '../services/api';
+import ProductForm from '../components/ProductForm';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Edit, Tag, FileText, Package, DollarSign, Save, Image, AlertCircle, Upload, X, Plus, Video } from 'lucide-react';
-import useCategories from '../hooks/useCategories';
-import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
-import { isValidSocialVideoUrl } from '../utils/socialVideo';
-
-const isCloudinaryUrl = (url = '') =>
-  typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
-
-const squareImageUrl = (url = '', size = 300) => {
-  if (!isCloudinaryUrl(url)) return url;
-  return url.replace('/upload/', `/upload/c_fill,g_auto,w_${size},h_${size},q_auto,f_auto/`);
-};
+import api from '../services/api';
 
 export default function EditProduct() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const { categoryGroups, getCategoryMeta } = useCategories();
   const { showToast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [product, setProduct] = useState(null);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    category: '',
-    discount: 0,
-    condition: 'used',
-    images: [],
-    socialVideoUrl: ''
-  });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [newImages, setNewImages] = useState([]);
-  const [newImagePreviews, setNewImagePreviews] = useState([]);
-  const [removedImages, setRemovedImages] = useState([]);
-  const maxImages = 10;
-
-  const priceDisplay = useMemo(() => {
-    if (!product) return { current: '', before: '' };
-    const current = formatPriceWithStoredSettings(product.price);
-    const before = product.priceBeforeDiscount
-      ? formatPriceWithStoredSettings(product.priceBeforeDiscount)
-      : product.discount > 0
-      ? formatPriceWithStoredSettings(Number((product.price / (1 - product.discount / 100)).toFixed(0)))
-      : '';
-    return { current, before };
-  }, [product]);
 
   useEffect(() => {
     let active = true;
-    const fetchProduct = async () => {
+
+    const loadProduct = async () => {
+      setLoading(true);
+      setError('');
       try {
-        setLoading(true);
-        const { data } = await api.get(`/products/${slug}`);
+        const { data } = await api.get(`/products/${slug}`, {
+          skipCache: true,
+          headers: { 'x-skip-cache': '1' }
+        });
         if (!active) return;
-        const ownerId = data.user?._id || data.user;
-        if (user?.role !== 'admin' && user?.role !== 'founder' && ownerId && String(ownerId) !== user?.id) {
+        const ownerId = data?.user?._id || data?.user;
+        const currentUserId = user?._id || user?.id;
+        const canModerate = ['admin', 'founder'].includes(String(user?.role || ''));
+        if (!canModerate && ownerId && String(ownerId) !== String(currentUserId || '')) {
           setError("Vous n'êtes pas autorisé à modifier cette annonce.");
           return;
         }
         setProduct(data);
-        const categoryMeta = getCategoryMeta(data.category);
-        setForm({
-          title: data.title || '',
-          description: data.description || '',
-          category: categoryMeta?.value || data.category || '',
-          discount: data.discount ?? 0,
-          condition: data.condition || 'used',
-          images: data.images || [],
-          socialVideoUrl: data.socialVideoUrl || ''
-        });
-        setError('');
-      } catch (e) {
+      } catch (requestError) {
         if (!active) return;
-        const message =
-          e.response?.status === 403
-            ? "Accès refusé. Cette annonce ne vous appartient pas."
-            : e.response?.status === 404
-            ? 'Annonce introuvable.'
-            : e.response?.data?.message || e.message || 'Erreur lors du chargement.';
-        setError(message);
+        setError(
+          requestError?.response?.status === 403
+            ? "Vous n'êtes pas autorisé à modifier cette annonce."
+            : requestError?.response?.status === 404
+              ? 'Annonce introuvable.'
+              : requestError?.response?.data?.message || 'Impossible de charger cette annonce.'
+        );
       } finally {
         if (active) setLoading(false);
       }
     };
-    fetchProduct();
-    return () => {
-      active = false;
-    };
-  }, [slug, user?.id, user?.role]);
 
-  const onChange = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    if (form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl)) {
-      showToast('Le lien vidéo doit être un lien Facebook ou TikTok valide.', { variant: 'error' });
-      setSaving(false);
-      return;
-    }
-    try {
-      const payload = new FormData();
-      payload.append('title', form.title);
-      payload.append('description', form.description);
-      payload.append('category', form.category);
-      payload.append('discount', String(form.discount));
-      payload.append('condition', form.condition);
-      payload.append('socialVideoUrl', form.socialVideoUrl || '');
-      removedImages.forEach((src) => payload.append('removeImages', src));
-      newImages.forEach((file) => payload.append('images', file));
-      await api.put(`/products/${slug}`, payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      showToast('Annonce mise à jour avec succès !', { variant: 'success' });
-      navigate('/my');
-    } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Erreur lors de la mise à jour.';
-      showToast(message, { variant: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleImageSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    const remaining = maxImages - (form.images.length - removedImages.length + newImages.length);
-    const toAdd = files.slice(0, Math.max(0, remaining));
-    setNewImages((prev) => [...prev, ...toAdd]);
-    toAdd.forEach((file) => {
-      const preview = URL.createObjectURL(file);
-      setNewImagePreviews((prev) => [...prev, preview]);
-    });
-    e.target.value = '';
-  };
-
-  const removeNewImage = (index) => {
-    const preview = newImagePreviews[index];
-    if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
-    setNewImages((prev) => prev.filter((_, i) => i !== index));
-    setNewImagePreviews((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeExistingImage = (src) => {
-    setRemovedImages((prev) => [...prev, src]);
-  };
-
-  const restoreImage = (src) => {
-    setRemovedImages((prev) => prev.filter((s) => s !== src));
-  };
+    loadProduct();
+    return () => { active = false; };
+  }, [slug, user?._id, user?.id, user?.role]);
 
   if (loading) {
     return (
-      <div className="hd-my-flow hd-commerce-shell min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <Edit className="w-8 h-8 text-white" />
-          </div>
-          <p className="text-gray-500">Chargement de l'annonce…</p>
+      <main className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
+        <div className="rounded-3xl border border-[#e2dcd2] bg-white px-8 py-10 text-center shadow-sm">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#e85d00]" />
+          <p className="mt-3 text-sm font-bold text-stone-600">Chargement de toutes les options…</p>
         </div>
-      </div>
+      </main>
     );
   }
 
-  if (error) {
+  if (error || !product) {
     return (
-      <div className="hd-my-flow hd-commerce-shell min-h-screen flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-white" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+      <main className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
+        <div className="w-full max-w-md rounded-3xl border border-[#e2dcd2] bg-white p-7 text-center shadow-sm">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0e4]">
+            <PackageSearch className="h-7 w-7 text-[#b94700]" />
+          </span>
+          <h1 className="mt-4 text-xl font-black text-[#231f1b]">Modification indisponible</h1>
+          <p className="mt-2 text-sm text-stone-600">{error || 'Annonce introuvable.'}</p>
           <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-600 text-white font-semibold rounded-xl hover:bg-neutral-700 transition-colors"
+            type="button"
+            onClick={() => navigate('/my')}
+            className="mt-6 min-h-11 rounded-full bg-[#231f1b] px-5 text-sm font-black text-white"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Retour
+            Retour à mes annonces
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="hd-my-flow hd-commerce-shell min-h-screen">
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        {/* En-tête */}
-        <div className="flex items-center justify-between mb-8">
+    <main className="min-h-screen bg-[#f5f2ee] pb-24">
+      <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex min-h-16 max-w-3xl items-center gap-3 px-4">
           <button
+            type="button"
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-[#231f1b] hover:bg-[#f5f2ee]"
+            aria-label="Retour"
           >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Retour</span>
+            <ArrowLeft className="h-5 w-5" />
           </button>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff0e4]">
+            <Edit3 className="h-5 w-5 text-[#b94700]" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-black text-[#231f1b]">Modifier le produit</h1>
+            <p className="truncate text-xs text-stone-500">Prix, photos, couleurs, options et disponibilité</p>
+          </div>
         </div>
+      </header>
 
-        {/* En-tête du formulaire */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Edit className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Modifier l'annonce</h1>
-          <p className="text-gray-500">Mettez à jour les informations de votre produit</p>
-        </div>
-
-        <form onSubmit={onSubmit} className="space-y-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          {/* Section Informations de base */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
-              <h2 className="text-lg font-semibold text-gray-900">Informations du produit</h2>
-            </div>
-
-            {/* Titre */}
-            <div className="space-y-2">
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <FileText className="w-4 h-4 text-neutral-500" />
-                <span>Titre de l'annonce *</span>
-              </label>
-              <input
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
-                placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
-                value={form.title}
-                onChange={(e) => onChange('title', e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <FileText className="w-4 h-4 text-neutral-500" />
-                <span>Description détaillée *</span>
-              </label>
-              <textarea
-                rows={4}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400 resize-none"
-                placeholder="Décrivez votre produit en détail : caractéristiques, état, accessoires inclus..."
-                value={form.description}
-                onChange={(e) => onChange('description', e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Vidéo Facebook / TikTok */}
-            <div className="space-y-2">
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Video className="w-4 h-4 text-neutral-500" />
-                <span>Vidéo Facebook / TikTok</span>
-              </label>
-              <input
-                type="url"
-                inputMode="url"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all placeholder-gray-400"
-                placeholder="https://www.tiktok.com/@compte/video/123…  ·  https://www.facebook.com/…"
-                value={form.socialVideoUrl}
-                onChange={(e) => onChange('socialVideoUrl', e.target.value)}
-              />
-              {form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl) && (
-                <p className="text-xs font-medium text-red-600">
-                  Lien non reconnu. Utilisez un lien Facebook ou TikTok valide.
-                </p>
-              )}
-            </div>
-
-            {/* Catégorie et Condition */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Catégorie */}
-              <div className="space-y-2">
-                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Tag className="w-4 h-4 text-neutral-500" />
-                  <span>Catégorie *</span>
-                </label>
-                <select
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
-                  value={form.category}
-                  onChange={(e) => onChange('category', e.target.value)}
-                  required
-                >
-                  <option value="">Sélectionnez une catégorie</option>
-                  {categoryGroups.map((group, index) => (
-                    <optgroup key={index} label={group.label}>
-                      {group.options.map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              {/* Condition */}
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700">État du produit</label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <div className="relative">
-                      <input
-                        type="radio"
-                        name="condition"
-                        value="new"
-                        checked={form.condition === 'new'}
-                        onChange={(e) => onChange('condition', e.target.value)}
-                        className="sr-only"
-                      />
-                      <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
-                        form.condition === 'new' 
-                          ? 'border-neutral-500 bg-neutral-500' 
-                          : 'border-gray-300'
-                      }`}>
-                        {form.condition === 'new' && (
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm text-gray-700">Neuf</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <div className="relative">
-                      <input
-                        type="radio"
-                        name="condition"
-                        value="used"
-                        checked={form.condition === 'used'}
-                        onChange={(e) => onChange('condition', e.target.value)}
-                        className="sr-only"
-                      />
-                      <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
-                        form.condition === 'used' 
-                          ? 'border-neutral-500 bg-neutral-500' 
-                          : 'border-gray-300'
-                      }`}>
-                        {form.condition === 'used' && (
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm text-gray-700">Occasion</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Section Prix et Remise */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
-              <h2 className="text-lg font-semibold text-gray-900">Prix et Promotion</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Prix Actuel */}
-              <div className="rounded-2xl bg-gradient-to-r from-neutral-50 to-neutral-50 border border-neutral-100 p-4">
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="w-4 h-4 text-neutral-500" />
-                    <span className="text-sm font-medium text-neutral-900">Prix actuel</span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-2xl font-bold text-neutral-600">{priceDisplay.current}</p>
-                    {priceDisplay.before && (
-                      <p className="text-sm text-gray-500 line-through">{priceDisplay.before}</p>
-                    )}
-                  </div>
-                  <p className="text-xs text-neutral-700">
-                    Le prix de vente ne peut pas être modifié après création
-                  </p>
-                </div>
-              </div>
-
-              {/* Remise */}
-              <div className="space-y-2">
-                <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Tag className="w-4 h-4 text-green-500" />
-                  <span>Remise promotionnelle (%)</span>
-                </label>
-                <input
-                  type="number"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
-                  min="0"
-                  max="99"
-                  step="1"
-                  value={form.discount}
-                  onChange={(e) => onChange('discount', Number(e.target.value))}
-                />
-                <p className="text-xs text-gray-500">
-                  Appliquez une remise pour mettre en avant votre annonce
-                </p>
-                {form.discount > 0 && (
-                  <div className="text-xs text-green-600 font-medium">
-                    Nouveau prix: {formatPriceWithStoredSettings(Math.round(product.price * (1 - form.discount / 100)))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Section Images — Modifiable */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-2 h-6 bg-gradient-to-b from-neutral-500 to-neutral-500 rounded-full"></div>
-              <h2 className="text-lg font-semibold text-gray-900">Images du produit</h2>
-            </div>
-
-            <div className="space-y-3">
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Image className="w-4 h-4 text-neutral-500" />
-                <span>Images ({form.images.length - removedImages.length + newImages.length} / {maxImages})</span>
-              </label>
-
-              {/* Existing images */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {form.images.map((src, index) => {
-                  const isRemoved = removedImages.includes(src);
-                  return (
-                    <div key={`existing-${index}`} className={`relative group rounded-lg border-2 overflow-hidden ${isRemoved ? 'border-red-300 opacity-40' : 'border-gray-200'}`}>
-                      <img
-                        src={squareImageUrl(src)}
-                        alt={`${form.title} ${index + 1}`}
-                        className="w-full aspect-square object-cover"
-                      />
-                      {isRemoved ? (
-                        <button
-                          type="button"
-                          onClick={() => restoreImage(src)}
-                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-white shadow flex items-center justify-center text-xs font-bold text-gray-600 hover:bg-gray-100"
-                          title="Restaurer"
-                        >
-                          <ArrowLeft size={12} className="rotate-180" />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => removeExistingImage(src)}
-                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Supprimer"
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* New images preview */}
-                {newImagePreviews.map((preview, index) => (
-                  <div key={`new-${index}`} className="relative group rounded-lg border-2 border-emerald-300 overflow-hidden">
-                    <img
-                      src={preview}
-                      alt={`Nouvelle ${index + 1}`}
-                      className="w-full aspect-square object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeNewImage(index)}
-                      className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Supprimer"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-
-                {/* Add image button */}
-                {form.images.length - removedImages.length + newImages.length < maxImages && (
-                  <label className="flex flex-col items-center justify-center aspect-square rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors group">
-                    <Plus className="w-6 h-6 text-gray-400 group-hover:text-neutral-600 transition-colors" />
-                    <span className="text-xs text-gray-400 mt-1">Ajouter</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageSelect}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-
-              <p className="text-xs text-gray-500">
-                Les nouvelles images seront automatiquement recadrées en 800×800px. Cliquez sur <X size={10} className="inline" /> pour supprimer une image.
-              </p>
-            </div>
-          </div>
-
-          {/* Boutons d'action */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => navigate('/my')}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-neutral-600 to-neutral-600 text-white font-semibold rounded-xl hover:from-neutral-700 hover:to-neutral-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
-            >
-              {saving ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Enregistrement...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  <span>Enregistrer les modifications</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+      <div className="mx-auto max-w-3xl px-3 pt-4 sm:px-4">
+        <ProductForm
+          key={product._id || product.id || slug}
+          initialValues={product}
+          productId={product._id || product.id}
+          submitLabel="Enregistrer les modifications"
+          onCancel={() => navigate(-1)}
+          onUpdated={(updatedProduct) => {
+            showToast('Annonce mise à jour avec succès !', { variant: 'success' });
+            navigate(updatedProduct?.slug ? `/product/${updatedProduct.slug}` : '/my');
+          }}
+        />
       </div>
-    </div>
+    </main>
   );
 }

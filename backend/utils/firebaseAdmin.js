@@ -29,7 +29,8 @@ export const getFirebaseAdminApp = () => {
   const serviceAccount = parseServiceAccount();
   if (!serviceAccount) return null;
   firebaseApp = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
+    ...(process.env.FIREBASE_STORAGE_BUCKET ? { storageBucket: process.env.FIREBASE_STORAGE_BUCKET } : {})
   });
   return firebaseApp;
 };
@@ -37,4 +38,10 @@ export const getFirebaseAdminApp = () => {
 export const getFirebaseAdminAuth = () => {
   const app = getFirebaseAdminApp();
   return app ? admin.auth(app) : null;
+};
+
+export const getFirebaseAdminStorage = () => {
+  const app = getFirebaseAdminApp();
+  if (!app || !process.env.FIREBASE_STORAGE_BUCKET) return null;
+  return admin.storage(app);
 };

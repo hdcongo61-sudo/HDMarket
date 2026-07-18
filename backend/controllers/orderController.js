@@ -26,6 +26,7 @@ import { DELIVERY_FEE_SOURCE, resolveDeliveryPricing } from '../utils/deliveryPr
 import { getWholesalePricing } from '../utils/wholesaleUtils.js';
 import {
   findUsedTransactionCodes,
+  isTransactionCodeAlreadyUsed,
   isTransactionCodeValid,
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE

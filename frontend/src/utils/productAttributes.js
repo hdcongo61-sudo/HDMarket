@@ -72,6 +72,29 @@ export const normalizeProductAttributes = (input) => {
     .filter(Boolean);
 };
 
+// Rebuild ProductForm's per-photo update state from persisted attributes so
+// colors/labels, prices, image links and availability remain visible.
+export const hydrateImageVariantsFromAttributes = (input) => {
+  const attributes = normalizeProductAttributes(input);
+  const imageLinkedAttribute = attributes.find(
+    (attribute) => attribute.optionImages && Object.keys(attribute.optionImages).length > 0
+  ) || null;
+  const imageVariants = {};
+
+  imageLinkedAttribute?.options.forEach((option) => {
+    const key = option.toLowerCase();
+    const index = Number(imageLinkedAttribute.optionImages?.[key]);
+    if (!Number.isInteger(index) || index < 0) return;
+    imageVariants[index] = {
+      label: option,
+      price: imageLinkedAttribute.optionPrices?.[key] ?? '',
+      outOfStock: Boolean(imageLinkedAttribute.optionOutOfStock?.[key])
+    };
+  });
+
+  return { attributes, imageLinkedAttribute, imageVariants };
+};
+
 // Mirror of the backend rule: the image linked to the current selection.
 export const resolveSelectedAttributesImage = ({
   productAttributes = [],

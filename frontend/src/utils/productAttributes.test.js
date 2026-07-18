@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getHighestProductPrice,
   getLowestProductPrice,
+  hydrateImageVariantsFromAttributes,
   normalizeProductAttributes,
   resolveProductImagePrice,
   resolveSelectedAttributesImage,
@@ -45,6 +46,29 @@ describe('normalizeProductAttributes', () => {
       }
     ]);
     expect(attr.optionOutOfStock).toEqual({ rouge: true });
+  });
+});
+
+describe('hydrateImageVariantsFromAttributes', () => {
+  it('restores saved color, price, image index and stock state for updates', () => {
+    const result = hydrateImageVariantsFromAttributes([
+      {
+        name: 'Couleur',
+        type: 'select',
+        options: ['Rouge', 'Bleu'],
+        optionImages: { rouge: 0, bleu: 1 },
+        optionPrices: { rouge: 15000, bleu: 17500 },
+        optionOutOfStock: { bleu: true }
+      },
+      { name: 'Matière', type: 'select', options: ['Coton'] }
+    ]);
+
+    expect(result.imageLinkedAttribute.name).toBe('Couleur');
+    expect(result.imageVariants).toEqual({
+      0: { label: 'Rouge', price: 15000, outOfStock: false },
+      1: { label: 'Bleu', price: 17500, outOfStock: true }
+    });
+    expect(result.attributes).toHaveLength(2);
   });
 });
 

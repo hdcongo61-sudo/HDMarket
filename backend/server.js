@@ -47,6 +47,7 @@ import walletRoutes from './routes/walletRoutes.js';
 import sellerAnalyticsV2Routes from './routes/sellerAnalyticsV2Routes.js';
 import shopAssistantRoutes from './routes/shopAssistantRoutes.js';
 import homeRoutes from './routes/homeRoutes.js';
+import imageStudioRoutes from './routes/imageStudioRoutes.js';
 
 import User from './models/userModel.js';
 import Order from './models/orderModel.js';
@@ -342,6 +343,7 @@ app.use(maintenanceModeMiddleware);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/home', homeRoutes);
+app.use('/api/image-studio', imageStudioRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cart', cartRoutes);

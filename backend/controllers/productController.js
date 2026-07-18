@@ -47,6 +47,7 @@ import {
   normalizeProductAttributes,
   normalizeProductPhysical
 } from '../utils/productAttributes.js';
+import imageStudioService from '../services/imageStudioService.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const MAX_PRODUCT_IMAGES_HARD_LIMIT = 20;
@@ -1048,6 +1049,13 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   let product;
   try {
+    let newImageStudioMetadata = [];
+    try {
+      const parsed = JSON.parse(String(req.body?.newImageStudioMetadata || '[]'));
+      newImageStudioMetadata = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      newImageStudioMetadata = [];
+    }
     product = await Product.create({
       title,
       description,
@@ -1061,6 +1069,12 @@ export const createProduct = asyncHandler(async (req, res) => {
       condition: safeCondition,
       priceBeforeDiscount,
       images,
+      imageStudioMetadata: images.flatMap((editedImage, index) => {
+        const metadata = newImageStudioMetadata[index];
+        return metadata && typeof metadata === 'object'
+          ? [{ ...metadata, editedImage, editedAt: new Date(), editedBy: req.user.id }]
+          : [];
+      }),
       video: videoUrl,
       socialVideoUrl: normalizedSocialVideoUrl,
       pdf: pdfUrl,
@@ -2959,9 +2973,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   const imageFiles = getUploadedFiles(req.files, 'images');
+  const editedImageFiles = getUploadedFiles(req.files, 'editedImages');
   const videoFiles = getUploadedFiles(req.files, 'video');
   const pdfFiles = getUploadedFiles(req.files, 'pdf');
-  const hasUploads = imageFiles.length + videoFiles.length + pdfFiles.length > 0;
+  const hasUploads = imageFiles.length + editedImageFiles.length + videoFiles.length + pdfFiles.length > 0;
 
   if (hasUploads && isRestricted(seller, 'canUploadImages')) {
     return res.status(403).json({
@@ -3017,9 +3032,79 @@ export const updateProduct = asyncHandler(async (req, res) => {
     try {
       const uploaded = await Promise.all(imageFiles.map(uploadProductMedia));
       product.images = [...existingImages, ...uploaded];
+      let newImageStudioMetadata = [];
+      try {
+        const parsed = JSON.parse(String(req.body?.newImageStudioMetadata || '[]'));
+        newImageStudioMetadata = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        newImageStudioMetadata = [];
+      }
+      const metadataEntries = uploaded.flatMap((editedImage, index) => {
+        const metadata = newImageStudioMetadata[index];
+        return metadata && typeof metadata === 'object'
+          ? [{ ...metadata, editedImage, editedAt: new Date(), editedBy: req.user.id }]
+          : [];
+      });
+      if (metadataEntries.length) {
+        const previousMetadata = Array.isArray(product.imageStudioMetadata) ? product.imageStudioMetadata : [];
+        product.imageStudioMetadata = [...previousMetadata, ...metadataEntries].slice(-100);
+      }
     } catch (error) {
       console.error('Erreur upload images produit', error);
       return res.status(500).json({ message: 'Erreur lors de l’upload des images.' });
+    }
+  }
+
+  if (editedImageFiles.length) {
+    const blockedImage = editedImageFiles
+      .map((file) => imageStudioService.analyze(file))
+      .find((analysis) => analysis.compliance?.status === 'blocked');
+    if (blockedImage) {
+      return res.status(422).json({
+        message: blockedImage.compliance.violations?.[0] || 'Une photo éditée n’est pas conforme.',
+        compliance: blockedImage.compliance
+      });
+    }
+    let replacementTargets = [];
+    let studioMetadata = [];
+    try {
+      replacementTargets = JSON.parse(String(req.body?.imageReplacementTargets || '[]'));
+      studioMetadata = JSON.parse(String(req.body?.imageStudioMetadata || '[]'));
+    } catch {
+      return res.status(400).json({ message: 'Métadonnées Image Studio invalides.' });
+    }
+    if (!Array.isArray(replacementTargets) || replacementTargets.length !== editedImageFiles.length) {
+      return res.status(400).json({ message: 'Chaque photo éditée doit cibler une image existante.' });
+    }
+    const uniqueTargets = new Set(replacementTargets);
+    if (uniqueTargets.size !== replacementTargets.length) {
+      return res.status(400).json({ message: 'Une image ne peut être remplacée qu’une fois.' });
+    }
+    const currentImages = Array.isArray(product.images) ? [...product.images] : [];
+    if (replacementTargets.some((target) => !currentImages.includes(target))) {
+      return res.status(400).json({ message: 'Une image à remplacer ne fait plus partie de ce produit.' });
+    }
+    try {
+      const uploaded = await Promise.all(editedImageFiles.map(uploadProductMedia));
+      replacementTargets.forEach((target, index) => {
+        const imageIndex = currentImages.indexOf(target);
+        currentImages[imageIndex] = uploaded[index];
+      });
+      product.images = currentImages;
+      const previousMetadata = Array.isArray(product.imageStudioMetadata) ? product.imageStudioMetadata : [];
+      product.imageStudioMetadata = [
+        ...previousMetadata,
+        ...uploaded.map((editedImage, index) => ({
+          ...(studioMetadata[index] && typeof studioMetadata[index] === 'object' ? studioMetadata[index] : {}),
+          originalImage: replacementTargets[index],
+          editedImage,
+          editedAt: new Date(),
+          editedBy: req.user.id
+        }))
+      ].slice(-100);
+    } catch (error) {
+      console.error('Erreur remplacement Image Studio', error);
+      return res.status(500).json({ message: 'Erreur lors de l’enregistrement des photos éditées.' });
     }
   }
 
