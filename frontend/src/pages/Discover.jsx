@@ -216,7 +216,7 @@ export default function Discover() {
   return (
     <div className="min-h-screen bg-[#f5f2ee] text-[#231f1b]">
       <div className="mx-auto max-w-7xl px-3 pb-24 pt-3 sm:px-6 sm:pt-6 lg:px-8 md:pb-16">
-        <header className="rounded-2xl border border-[#e2dcd2] bg-white p-3 shadow-[0_3px_14px_rgba(35,31,27,0.05)] sm:p-5">
+        <header className="rounded-2xl border border-[#e2dcd2] bg-white p-3 shadow-sm sm:p-5">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
               <Compass className="h-5 w-5" />
@@ -278,9 +278,9 @@ export default function Discover() {
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
               {(loadingSections.shops ? Array.from({ length: 4 }) : shops).map((shop, index) =>
                 loadingSections.shops ? (
-                  <ShimmerSkeleton key={index} className="h-28 rounded-3xl" />
+                  <ShimmerSkeleton key={index} className="h-28 rounded-2xl" />
                 ) : (
-                  <Link key={shop._id || shop.slug} to={buildShopPath(shop)} className="rounded-2xl border border-[#e2dcd2] bg-white p-3 shadow-[0_3px_12px_rgba(35,31,27,0.04)] transition active:scale-[0.98]">
+                  <Link key={shop._id || shop.slug} to={buildShopPath(shop)} className="rounded-2xl border border-[#e2dcd2] bg-white p-3 shadow-sm transition active:scale-[0.98]">
                     <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-[#f5f2ee]">
                       {shop.shopLogo ? <img src={shop.shopLogo} alt="" className="h-full w-full object-cover" loading="lazy" /> : <Store className="h-5 w-5 text-[#8a8378]" />}
                     </div>

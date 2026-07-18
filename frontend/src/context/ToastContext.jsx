@@ -93,7 +93,7 @@ export const ToastProvider = ({ children }) => {
           return (
             <div
               key={toast.id}
-              className={`flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-sm transition-all ${style}`}
+              className={`flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-sm transition-all ${style}`}
             >
               <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full ${iconStyle}`}>
                 <span className="text-sm font-semibold">!</span>

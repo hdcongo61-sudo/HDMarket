@@ -84,7 +84,7 @@ export default function FounderNotificationsIntelligence() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-4 md:px-6">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+        <header className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">

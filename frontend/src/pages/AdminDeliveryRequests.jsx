@@ -875,9 +875,9 @@ export default function AdminDeliveryRequests() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100/70">
+    <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl space-y-4 px-3 pb-6 pt-3 sm:px-4 sm:pt-4">
-        <header className="-mx-3 border-b border-slate-200/80 bg-white/80 px-3 py-3 backdrop-blur-md sm:-mx-4 sm:px-4">
+        <header className="-mx-3 border-b border-slate-200/80 bg-white/80 px-3 py-3 sm:-mx-4 sm:px-4">
           <div className="mx-auto max-w-6xl">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -1971,7 +1971,7 @@ export default function AdminDeliveryRequests() {
         size="full"
         rootClassName="z-[140] p-3 sm:p-6"
         panelClassName="max-h-[92dvh] border-none bg-transparent shadow-none p-0 sm:max-w-[92vw]"
-        backdropClassName="bg-black/85 backdrop-blur-sm"
+        backdropClassName="bg-black/85"
         ariaLabel={proofPreview?.label || 'Preuve'}
       >
         <div className="relative mx-auto flex max-h-[92dvh] max-w-[92vw] items-center justify-center p-2 sm:p-4">
@@ -1994,7 +1994,7 @@ export default function AdminDeliveryRequests() {
           </button>
           <div
             className={`rounded-xl p-2 sm:p-3 ${
-              proofPreviewIsSignature ? 'bg-white shadow-2xl' : 'bg-black/20'
+              proofPreviewIsSignature ? 'bg-white shadow-sm' : 'bg-black/20'
             }`}
           >
             <img

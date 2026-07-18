@@ -218,7 +218,7 @@ export default function DeliveryProofUpload({
   const submitDisabled = loading || preparingFiles;
 
   return (
-    <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_18px_42px_rgba(117,75,36,0.09)]">
+    <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
@@ -371,7 +371,7 @@ export default function DeliveryProofUpload({
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-white">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#FFB000] to-[#e85d00] transition-all duration-200"
+              className="h-full rounded-full bg-[#FFB000] transition-all duration-200"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
@@ -383,7 +383,7 @@ export default function DeliveryProofUpload({
           type="button"
           onClick={submit}
           disabled={submitDisabled}
-          className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FFB000] to-[#e85d00] px-4 text-sm font-black text-white shadow-[0_16px_30px_-18px_rgba(255,106,0,0.9)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-56"
+          className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-full bg-[#FFB000] px-4 text-sm font-black text-white shadow-sm transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-56"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {loading

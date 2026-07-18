@@ -1647,7 +1647,7 @@ export default function Navbar() {
         {/* Recent Searches - Quick Access (Last 5) */}
         {user && hasRecentSearches && (
           <div className="border-b border-gray-100 dark:border-gray-700">
-            <div className="px-4 py-2.5 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20">
+            <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-900/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Clock size={14} className="text-[#0A0A0A]" />
@@ -1683,7 +1683,7 @@ export default function Navbar() {
         {/* Category Suggestions */}
         {topCategories.length > 0 && (
           <div className="border-b border-gray-100 dark:border-gray-700">
-            <div className="px-4 py-2.5 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20">
+            <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-900/20">
               <div className="flex items-center gap-2">
                 <Tag size={14} className="text-[#0A0A0A]" />
                 <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wide">
@@ -1961,7 +1961,7 @@ export default function Navbar() {
 
             {/* People Also Searched For */}
             {relatedSearches.length > 0 && (
-              <div className="border-t border-gray-100 dark:border-gray-700 bg-gradient-to-r from-neutral-100 to-white dark:from-gray-800/50 dark:to-gray-900/50">
+              <div className="border-t border-gray-100 dark:border-gray-700 bg-neutral-100 dark:bg-gray-800/50">
                 <div className="px-4 py-2.5">
                   <div className="flex items-center gap-2 mb-2">
                     <Users size={14} className="text-gray-500 dark:text-gray-400" />
@@ -2253,7 +2253,7 @@ export default function Navbar() {
 
             {/* People Also Searched For - Mobile */}
             {relatedSearches.length > 0 && (
-              <div className="border-t border-gray-100 dark:border-gray-700 bg-gradient-to-r from-neutral-100 to-white dark:from-gray-800/50 dark:to-gray-900/50">
+              <div className="border-t border-gray-100 dark:border-gray-700 bg-neutral-100 dark:bg-gray-800/50">
                 <div className="px-4 py-2.5">
                   <div className="flex items-center gap-2 mb-2">
                     <Users size={14} className="text-gray-500 dark:text-gray-400" />
@@ -2432,10 +2432,10 @@ export default function Navbar() {
     return (
       <div className="text-sm text-gray-900 dark:text-white">
         {/* Modern Gradient Header */}
-        <div className="bg-gradient-to-r from-neutral-600 via-neutral-600 to-neutral-600 px-4 py-3 rounded-t-2xl">
+        <div className="bg-neutral-600 px-4 py-3 rounded-t-2xl">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
+              <div className="p-1.5 bg-white/20 rounded-lg">
                 <Clock size={16} className="text-white" />
               </div>
               <div>
@@ -2490,7 +2490,7 @@ export default function Navbar() {
                   setTimeout(() => fetchSearchHistory(), 300);
                 }}
                 placeholder={t('nav.searchHistoryPlaceholder', "Rechercher dans l'historique...")}
-                className="w-full pl-9 pr-3 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder:text-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/30"
+                className="w-full pl-9 pr-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder:text-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/30"
               />
               {historySearchQuery && (
                 <button
@@ -2793,7 +2793,7 @@ export default function Navbar() {
             key={template.id}
             type="button"
             onClick={() => handleQuickFilterClick(template)}
-            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-neutral-100 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-900/20 border border-neutral-200 dark:border-neutral-800 rounded-xl hover:from-neutral-100 hover:to-neutral-100 dark:hover:from-neutral-900/30 dark:hover:to-neutral-900/30 transition-all group"
+            className="flex items-center gap-2 px-4 py-3 bg-neutral-100 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900/30 transition-all group"
           >
             <Icon size={18} className="text-neutral-900 dark:text-neutral-300 group-hover:scale-110 transition-transform" />
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{template.label}</span>
@@ -2945,7 +2945,7 @@ export default function Navbar() {
             {/* Bottom Sheet for Filters on Mobile */}
             {showBottomSheet && (
               <div className="hd-search-panel fixed inset-x-0 bottom-0 z-[101] max-h-[80vh] overflow-y-auto rounded-t-[30px] border-x-0 border-b-0">
-                <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-gray-50/95 px-4 py-3 backdrop-blur">
+                <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-gray-50/95 px-4 py-3">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white">{t('nav.filters', 'Filtres')}</h3>
                   <button
                     type="button"
@@ -2983,7 +2983,7 @@ export default function Navbar() {
               {desktopLogo || mobileLogo ? (
                 <>
                   <span
-                    className="inline-flex max-w-[136px] items-center truncate text-[27px] font-black leading-none tracking-normal text-[#e85d00] drop-shadow-[0_2px_8px_rgba(255,106,0,0.14)] sm:hidden"
+                    className="inline-flex max-w-[136px] items-center truncate text-[27px] font-black leading-none tracking-normal text-[#e85d00] drop-shadow-sm sm:hidden"
                     title={mobileBrandText}
                   >
                     {mobileBrandText}
@@ -2997,14 +2997,14 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#e85d00] rounded-xl flex items-center justify-center shadow-md sm:shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#e85d00] rounded-xl flex items-center justify-center shadow-md sm:shadow-sm group-hover:shadow-sm transition-all duration-300 group-hover:scale-105">
                     <span className="text-white font-black text-sm sm:text-base">HD</span>
                   </div>
                   <div className="hidden sm:flex flex-col">
                     <span className="text-xl font-black text-gray-900 dark:text-white">
                       {mobileBrandText}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 -mt-1">{t('nav.marketplacePremium', 'Marketplace Premium')}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 -mt-1">{t('nav.marketplacePremium', 'Marketplace HDMarket')}</span>
                   </div>
                 </>
               )}
@@ -3035,7 +3035,7 @@ export default function Navbar() {
                 >
                   <Bell size={18} />
                   {commentAlerts > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-[#e85d00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-lg">
+                    <span className="absolute -top-0.5 -right-0.5 bg-[#e85d00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
                       {commentAlerts > 99 ? '99+' : commentAlerts}
                     </span>
                   )}
@@ -3162,7 +3162,7 @@ export default function Navbar() {
                   </NavLink>
                   <NavLink
                     to="/register"
-                    className="px-3 py-2 rounded-xl bg-black text-white font-medium hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all duration-200"
+                    className="px-3 py-2 rounded-xl bg-black text-white font-medium hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all duration-200"
                   >
                     {t('nav.register', 'Inscription')}
                   </NavLink>
@@ -3177,7 +3177,7 @@ export default function Navbar() {
                         className="h-8 w-8 rounded-full object-cover ring-1 ring-black/5 dark:ring-white/10"
                       />
                     ) : (
-                      <div className="w-8 h-8 bg-gradient-to-br from-neutral-700 to-neutral-900 rounded-full flex items-center justify-center shadow-inner">
+                      <div className="w-8 h-8 bg-neutral-700 rounded-full flex items-center justify-center shadow-inner">
                         <span className="text-white font-semibold text-sm">
                           {user.name?.charAt(0)?.toUpperCase() || 'U'}
                         </span>
@@ -3201,7 +3201,7 @@ export default function Navbar() {
                             className="h-12 w-12 rounded-xl object-cover ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-600 to-neutral-800 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
+                          <div className="w-12 h-12 rounded-xl bg-neutral-600 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
                             {user.name?.charAt(0)?.toUpperCase() || 'U'}
                           </div>
                         )}
@@ -3600,7 +3600,7 @@ export default function Navbar() {
                                       onClick={() => setIsCategoryMenuOpen(false)}
                                       className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold transition ${
                                         isActive
-                                          ? 'bg-white text-[#e85d00] shadow-[inset_3px_0_0_0_#e85d00] dark:bg-gray-800'
+                                          ? 'bg-white text-[#e85d00] shadow-sm dark:bg-gray-800'
                                           : 'text-gray-700 hover:bg-white/70 dark:text-gray-200 dark:hover:bg-gray-800/60'
                                       }`}
                                     >
@@ -3879,7 +3879,7 @@ export default function Navbar() {
           className="md:hidden fixed inset-0 z-40 bg-stone-950/30"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
         >
-          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-[24px] border border-[#e2dcd2] bg-[#f5f2ee] shadow-[0_24px_60px_rgba(35,31,27,0.18)] dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-2xl border border-[#e2dcd2] bg-[#f5f2ee] shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="hd-mobile-menu-list h-full space-y-1 overflow-y-auto px-3 py-3 pb-32">
 
               {/* User avatar / profile card */}
@@ -4241,7 +4241,7 @@ export default function Navbar() {
                       <CheckCircle size={20} />
                       <span>{t('nav.verifyPayments', 'Vérifier paiements')}</span>
                       {waitingPayments > 0 && (
-                        <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-neutral-900 text-white text-xs font-bold rounded-full shadow-lg border-2 border-white dark:border-gray-800 animate-pulse">
+                        <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-neutral-900 text-white text-xs font-bold rounded-full shadow-sm border-2 border-white dark:border-gray-800 animate-pulse">
                           {waitingPayments > 99 ? '99+' : waitingPayments}
                         </span>
                       )}
@@ -4509,7 +4509,7 @@ export default function Navbar() {
 
       {/* BARRE DE NAVIGATION FIXE MOBILE - DESIGN MODERNE ET AMÉLIORÉE */}
       <div
-        className={`hd-mobile-tabbar ${isProductDetailRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[68px] border-t border-[#e2dcd2] bg-white/96 shadow-[0_-8px_24px_rgba(35,31,27,0.08)] backdrop-blur-xl transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-950/96 ${
+        className={`hd-mobile-tabbar ${isProductDetailRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[68px] border-t border-[#e2dcd2] bg-white/96 shadow-sm transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-950/96 ${
           bottomNavHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom))]' : 'translate-y-0'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', willChange: 'transform' }}
@@ -4526,7 +4526,7 @@ export default function Navbar() {
               triggerHaptic('medium');
             }}
           >
-            <div className="bg-[#e85d00] text-white p-1.5 rounded-full shadow-lg">
+            <div className="bg-[#e85d00] text-white p-1.5 rounded-full shadow-sm">
               <ChevronUp size={12} className="animate-bounce" />
             </div>
           </div>
@@ -4568,7 +4568,7 @@ export default function Navbar() {
                     </span>
                     {/* Quick Actions Menu */}
                     {enableBottomBarQuickActions && showQuickActions === item.id && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                         {getQuickActions(item.id).map((action, idx) => (
                           <button
                             key={idx}
@@ -4635,7 +4635,7 @@ export default function Navbar() {
                       )}
                       {/* Quick Actions Menu */}
                       {enableBottomBarQuickActions && showQuickActions === item.id && (
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                           {getQuickActions(item.id).map((action, idx) => (
                             <button
                               key={idx}
@@ -4722,7 +4722,7 @@ export default function Navbar() {
                                 strokeWidth={navIsActive ? 2.5 : 2}
                               />
                               {badge > 0 && (
-                                <span className={`absolute -top-1 -right-1 text-white text-[9px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center shadow-lg ${
+                                <span className={`absolute -top-1 -right-1 text-white text-[9px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center shadow-sm ${
                                   navIsActive ? 'bg-black' : 'bg-neutral-900'
                                 }`}>
                                   {badge > 99 ? '99+' : badge}
@@ -4737,7 +4737,7 @@ export default function Navbar() {
                             )}
                             {/* Quick Actions Menu */}
                             {enableBottomBarQuickActions && showQuickActions === item.id && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                                 {getQuickActions(item.id).map((action, idx) => (
                                   <button
                                     key={idx}

@@ -20,13 +20,12 @@ export const LightLogin = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900">
-      <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="pointer-events-none absolute left-0 right-0 top-0 h-48 bg-gradient-to-b from-blue-100 via-blue-50 to-transparent opacity-40 blur-3xl dark:from-blue-900/20 dark:via-blue-800/10" />
+    <div className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950">
+      <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
 
         <div className="relative p-6 sm:p-8">
           <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
               {logoSrc ? (
                 <img
                   src={logoSrc}
@@ -88,7 +87,7 @@ export const LightLogin = ({
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-gradient-to-t from-blue-600 via-blue-500 to-blue-400 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:from-blue-700 hover:via-blue-600 hover:to-blue-500 active:scale-[0.98] disabled:opacity-70"
+              className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-70"
             >
               {submitLabel}
             </button>

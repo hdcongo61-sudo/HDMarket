@@ -174,7 +174,7 @@ export default function MyListingDetail() {
       <div className="hd-my-flow hd-commerce-shell min-h-screen">
         <div className="mx-auto max-w-6xl px-4 py-5 space-y-4">
           <div className="h-10 w-full rounded-2xl bg-white border border-gray-100 animate-pulse" />
-          <div className="h-56 w-full rounded-3xl bg-white border border-gray-100 animate-pulse" />
+          <div className="h-56 w-full rounded-2xl bg-white border border-gray-100 animate-pulse" />
           <div className="h-40 w-full rounded-2xl bg-white border border-gray-100 animate-pulse" />
           <div className="h-96 w-full rounded-2xl bg-white border border-gray-100 animate-pulse" />
         </div>
@@ -186,7 +186,7 @@ export default function MyListingDetail() {
     return (
       <div className="hd-my-flow hd-commerce-shell min-h-screen">
         <div className="mx-auto max-w-xl px-4 py-10">
-          <div className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-red-100 bg-white p-6 shadow-sm">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
               <div className="space-y-4">
@@ -278,7 +278,7 @@ export default function MyListingDetail() {
 
   return (
     <div className="hd-my-flow hd-commerce-shell min-h-screen pb-28 md:pb-8">
-      <header className="border-b border-white/60 bg-white/80 backdrop-blur-xl">
+      <header className="border-b border-white/60 bg-white/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <button
             type="button"
@@ -301,7 +301,7 @@ export default function MyListingDetail() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pt-4 space-y-4">
-        <section className="rounded-3xl border border-gray-100 bg-white/95 p-3 shadow-sm sm:p-4">
+        <section className="rounded-2xl border border-gray-100 bg-white/95 p-3 shadow-sm sm:p-4">
           <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-[1.1fr,1fr]">
             <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-video">
               {mainImage ? (
@@ -428,7 +428,7 @@ export default function MyListingDetail() {
         </div>
       </main>
 
-      <div className="hd-my-sticky fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-3 backdrop-blur md:hidden">
+      <div className="hd-my-sticky fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-3 md:hidden">
         <div className="mx-auto flex max-w-6xl items-center gap-2">
           {productIdentifier ? (
             <Link

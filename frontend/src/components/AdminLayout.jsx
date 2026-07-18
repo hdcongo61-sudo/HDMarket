@@ -319,7 +319,7 @@ export default function AdminLayout() {
 
   return (
     <div className="hd-admin-flow hd-commerce-shell min-h-screen flex flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:flex-row lg:overflow-hidden">
-      <header className="lg:hidden flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/90">
+      <header className="lg:hidden flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
         <button
           type="button"
           onClick={() => setMobileMenuOpen((o) => !o)}
@@ -340,7 +340,7 @@ export default function AdminLayout() {
         />
       )}
       <aside
-        className={`lg:hidden fixed left-0 top-20 z-40 flex h-[calc(100vh-5rem)] w-72 max-w-[88vw] flex-col border-r border-neutral-200 bg-white/95 shadow-xl backdrop-blur-xl transition-transform duration-200 ease-out dark:border-neutral-800 dark:bg-neutral-950/95 ${
+        className={`lg:hidden fixed left-0 top-20 z-40 flex h-[calc(100vh-5rem)] w-72 max-w-[88vw] flex-col border-r border-neutral-200 bg-white/95 shadow-sm transition-transform duration-200 ease-out dark:border-neutral-800 dark:bg-neutral-950/95 ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -366,7 +366,7 @@ export default function AdminLayout() {
       </aside>
 
       <aside
-        className={`hidden shrink-0 flex-col border-r border-neutral-200 bg-white/92 backdrop-blur-xl transition-[width] duration-200 dark:border-neutral-800 dark:bg-neutral-950/92 lg:flex lg:h-full ${
+        className={`hidden shrink-0 flex-col border-r border-neutral-200 bg-white/92 transition-[width] duration-200 dark:border-neutral-800 dark:bg-neutral-950/92 lg:flex lg:h-full ${
           sidebarCollapsed ? 'w-[78px]' : 'w-[236px]'
         }`}
       >

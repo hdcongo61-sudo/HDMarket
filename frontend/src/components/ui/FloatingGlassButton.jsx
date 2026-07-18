@@ -15,7 +15,7 @@ export default function FloatingGlassButton({
     <button
       type="button"
       className={join(
-        'floating-glass-button min-h-[48px] rounded-xl px-4 py-3 text-sm font-semibold shadow-lg',
+        'floating-glass-button min-h-[48px] rounded-xl px-4 py-3 text-sm font-semibold shadow-sm',
         'inline-flex items-center justify-center gap-2 active:scale-95 transition-all duration-200',
         resolveGlassVariantClass(variant),
         className

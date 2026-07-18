@@ -209,7 +209,7 @@ export default function AdminBoostManagement() {
             onClick={() => setActiveTab(key)}
             className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
               activeTab === key
-                ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                ? 'bg-[#e85d00] text-white shadow-sm'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
             }`}
           >

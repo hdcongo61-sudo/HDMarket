@@ -146,7 +146,7 @@
     "darkMode": "Dark mode",
     "chatTemplates": "Chat templates",
     "appSettings": "App settings",
-    "marketplacePremium": "Premium marketplace",
+    "marketplacePremium": "HDMarket marketplace",
     "moreOptions": "More options",
     "boostPricing": "Boost pricing",
     "more": "More",
@@ -166,7 +166,7 @@
     "sectionFounder": "Founder"
   },
   "footer": {
-    "brandDescription": "Premium marketplace operated by ETS HD Tech Filial. Buy and sell with confidence across Congo.",
+    "brandDescription": "Marketplace operated by ETS HD Tech Filial. Buy and sell with confidence across Congo.",
     "navigation": "Navigation",
     "services": "Services",
     "deals": "Deals",

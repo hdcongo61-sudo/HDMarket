@@ -150,7 +150,7 @@ export default function PreviewableImage({
       />
 
       {showHint && previewEnabled ? (
-        <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.92] text-[#e85d00] shadow-[0_10px_20px_-14px_rgba(255,106,0,0.9)] ring-1 ring-gray-200 backdrop-blur-sm">
+        <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.92] text-[#e85d00] shadow-sm ring-1 ring-gray-200">
           <Expand className="h-3.5 w-3.5" />
         </span>
       ) : null}

@@ -407,7 +407,7 @@ const OrderProgress = ({ status }) => {
               <div key={step.id} className="flex items-start gap-4 relative">
                 <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                   reached
-                    ? `${colorClasses[step.color]} border-transparent text-white shadow-lg scale-110`
+                    ? `${colorClasses[step.color]} border-transparent text-white shadow-sm scale-110`
                     : 'border-gray-300 text-gray-400 bg-white'
                 }`}>
                   <Icon size={16} />
@@ -506,7 +506,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
       {/* Header with Progress Circle */}
       <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
@@ -859,7 +859,7 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
     <MotionLink
       {...riseIn(reduceMotion, Math.min(index, 6) * 0.06)}
       to={`/orders/detail/${order._id}`}
-      className="group block overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.05)] transition active:scale-[0.995] dark:border-neutral-800 dark:bg-neutral-950"
+      className="group block overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-sm transition active:scale-[0.995] dark:border-neutral-800 dark:bg-neutral-950"
     >
       {/* Seller + Status header */}
       <div className="flex items-center justify-between gap-2 px-3.5 pt-3 dark:border-neutral-800 sm:px-4">
@@ -1789,7 +1789,7 @@ export default function UserOrders() {
             </div>
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-[0_18px_42px_rgba(117,75,36,0.10)] sm:p-12">
+          <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
               <ClipboardList className="w-10 h-10 text-[#e85d00]" />
             </div>

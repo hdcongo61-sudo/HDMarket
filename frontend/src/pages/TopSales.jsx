@@ -92,7 +92,7 @@ export default function TopSales() {
     <div className="hd-products-flow">
       <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
         {/* Header */}
-        <header className="hd-products-hero rounded-3xl p-4 text-white sm:p-6 lg:p-8">
+        <header className="hd-products-hero rounded-2xl p-4 text-white sm:p-6 lg:p-8">
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
@@ -101,7 +101,7 @@ export default function TopSales() {
             Retour
           </button>
           <div className="flex items-center gap-3 sm:gap-4 mb-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-orange-500 rounded-2xl flex items-center justify-center shadow-sm">
               <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>

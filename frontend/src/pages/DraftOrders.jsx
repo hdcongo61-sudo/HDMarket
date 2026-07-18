@@ -80,7 +80,7 @@ export default function DraftOrders() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-neutral-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Chargement...</p>
@@ -90,10 +90,10 @@ export default function DraftOrders() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Header */}
-        <header className="bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-50 rounded-3xl p-6 sm:p-8 border-2 border-neutral-100 shadow-lg">
+        <header className="bg-neutral-50 rounded-2xl p-6 sm:p-8 border-2 border-neutral-100 shadow-sm">
           <Link
             to="/profile"
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
@@ -102,7 +102,7 @@ export default function DraftOrders() {
             <span className="font-medium text-sm">Retour au profil</span>
           </Link>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-neutral-500 to-neutral-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-neutral-500 rounded-2xl flex items-center justify-center shadow-sm">
               <ClipboardList size={24} className="text-white" />
             </div>
             <div>
@@ -122,8 +122,8 @@ export default function DraftOrders() {
         )}
 
         {drafts.length === 0 ? (
-          <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-xl p-8 sm:p-12 text-center">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
+          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-8 sm:p-12 text-center">
+            <div className="mx-auto w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
               <ClipboardList size={32} className="text-gray-400" />
             </div>
             <h2 className="text-2xl font-black text-gray-900 mb-3">Aucun brouillon</h2>
@@ -132,7 +132,7 @@ export default function DraftOrders() {
             </p>
             <Link
               to="/cart"
-              className="inline-flex items-center justify-center gap-2 rounded-3xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
             >
               <ShoppingCart size={18} />
               Voir mon panier
@@ -151,12 +151,12 @@ export default function DraftOrders() {
               return (
                 <div
                   key={draft._id}
-                  className="bg-white rounded-3xl border-2 border-gray-200 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300"
+                  className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm overflow-hidden hover:shadow-sm transition-all duration-300"
                 >
                   {/* Draft Header */}
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-b-2 border-amber-200 px-5 sm:px-6 py-4 flex items-center justify-between">
+                  <div className="bg-amber-50 border-b-2 border-amber-200 px-5 sm:px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center shadow-sm">
                         <Clock size={20} className="text-white" />
                       </div>
                       <div>
@@ -222,7 +222,7 @@ export default function DraftOrders() {
 
                     {/* Payment Info */}
                     {draftPayment.payerName || draftPayment.transactionCode ? (
-                      <div className="rounded-2xl border-2 border-neutral-200 bg-gradient-to-br from-neutral-50 to-neutral-50 p-4 space-y-2">
+                      <div className="rounded-2xl border-2 border-neutral-200 bg-neutral-50 p-4 space-y-2">
                         <h4 className="text-xs font-bold uppercase text-neutral-700 tracking-wide">Informations de paiement</h4>
                         {draftPayment.payerName && (
                           <p className="text-sm text-gray-700">
@@ -236,7 +236,7 @@ export default function DraftOrders() {
                         )}
                       </div>
                     ) : (
-                      <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 flex items-start gap-3">
+                      <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
                         <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
                         <p className="text-sm text-amber-800 font-medium">
                           Les informations de paiement n'ont pas encore été renseignées.
@@ -270,7 +270,7 @@ export default function DraftOrders() {
                     <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t-2 border-gray-200">
                       <Link
                         to="/orders/checkout"
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-3xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
+                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
                       >
                         <CreditCard size={18} />
                         Continuer la commande
@@ -278,7 +278,7 @@ export default function DraftOrders() {
                       <button
                         onClick={() => handleDeleteDraft(draft._id)}
                         disabled={deleting[draft._id]}
-                        className="inline-flex items-center justify-center gap-2 rounded-3xl border border-red-300 bg-white text-red-600 px-6 py-3.5 text-sm font-semibold hover:bg-red-50 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-300 bg-white text-red-600 px-6 py-3.5 text-sm font-semibold hover:bg-red-50 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
                       >
                         <Trash2 size={18} />
                         Supprimer

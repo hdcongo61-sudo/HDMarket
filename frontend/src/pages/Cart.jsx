@@ -275,7 +275,7 @@ export default function Cart() {
           onClose={() => setShowClearConfirm(false)}
         />
         <ModalBody className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-red-100">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-100">
             <TrashIcon className="h-8 w-8 text-red-600" />
           </div>
           <p className="text-sm font-medium text-gray-600">
@@ -365,7 +365,7 @@ export default function Cart() {
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:py-16">
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-14 text-center shadow-sm sm:py-16">
           <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-gray-200">
             <ShoppingBagIcon className="w-12 h-12 text-[#e85d00]" />
           </div>
@@ -416,7 +416,7 @@ export default function Cart() {
               return (
                 <div
                   key={cartItemKey}
-                  className={`group relative rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_12px_32px_rgba(117,75,36,0.07)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(117,75,36,0.11)] sm:p-5 ${isRemoving ? 'pointer-events-none opacity-50' : ''}`}
+                  className={`group relative rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm sm:p-5 ${isRemoving ? 'pointer-events-none opacity-50' : ''}`}
                 >
                   {/* One-tap remove — always visible in the corner */}
                   <button
@@ -425,7 +425,7 @@ export default function Cart() {
                     disabled={disableAll || isRemoving}
                     aria-label={t('cartPage.remove', 'Retirer du panier')}
                     title={t('cartPage.remove', 'Retirer du panier')}
-                    className="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-400 shadow-sm ring-1 ring-gray-200 backdrop-blur transition hover:bg-red-50 hover:text-red-600 hover:ring-red-200 active:scale-90 disabled:opacity-50"
+                    className="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-400 shadow-sm ring-1 ring-gray-200 transition hover:bg-red-50 hover:text-red-600 hover:ring-red-200 active:scale-90 disabled:opacity-50"
                   >
                     {isRemoving ? (
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
@@ -545,7 +545,7 @@ export default function Cart() {
 
           {/* Order Summary Enhanced */}
           <div className="space-y-4">
-            <div className="sticky top-6 rounded-2xl border border-[#e2dcd2] bg-white p-5 shadow-[0_18px_45px_rgba(117,75,36,0.09)] sm:p-6">
+            <div className="sticky top-6 rounded-2xl border border-[#e2dcd2] bg-white p-5 shadow-sm sm:p-6">
               <h2 className="mb-5 text-xl font-black text-[#231f1b]">{t('cartPage.summary', 'Résumé')}</h2>
               
               <div className="space-y-4">

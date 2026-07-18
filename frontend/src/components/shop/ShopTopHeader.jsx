@@ -16,7 +16,7 @@ export default function ShopTopHeader({
     'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-800 transition hover:bg-gray-200 active:scale-95 dark:bg-neutral-800 dark:text-white';
 
   return (
-    <div className="mx-0 mb-0 flex items-center gap-2 border-b border-gray-100 bg-white/95 px-3 py-2.5 backdrop-blur-xl sm:mb-4 sm:rounded-2xl sm:border sm:shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
+    <div className="mx-0 mb-0 flex items-center gap-2 border-b border-gray-100 bg-white/95 px-3 py-2.5 sm:mb-4 sm:rounded-2xl sm:border sm:shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
       <button
         type="button"
         onClick={onBack}
@@ -58,7 +58,7 @@ export default function ShopTopHeader({
             ? t('shop_profile.unfollow', 'Ne plus suivre')
             : t('shop_profile.follow', 'Suivre')
         }
-        className={`${iconBtn} ${isFollowing ? 'border-rose-300 bg-rose-50 text-rose-700 shadow-[0_10px_24px_rgba(244,63,94,0.16)]' : ''} ${followPending ? 'scale-95 ring-rose-200' : ''} ${followDisabled ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 shadow-none' : ''}`}
+        className={`${iconBtn} ${isFollowing ? 'border-rose-300 bg-rose-50 text-rose-700 shadow-sm' : ''} ${followPending ? 'scale-95 ring-rose-200' : ''} ${followDisabled ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 shadow-none' : ''}`}
       >
         {followPending ? (
           <Loader2 size={15} className="animate-spin" />

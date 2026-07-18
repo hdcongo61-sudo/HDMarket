@@ -39,7 +39,7 @@ const BOOST_META = {
   },
   HOMEPAGE_FEATURED: {
     title: 'À la une',
-    description: 'Présentez un produit dans les emplacements premium de la page d’accueil.',
+    description: 'Présentez un produit dans les emplacements mis en avant de la page d’accueil.',
     icon: Crown
   }
 };
@@ -58,7 +58,7 @@ const toPositiveNumber = (value, fallback = 0) => {
 function PlanCard({ icon: Icon, eyebrow, title, price, suffix, description, features, action, featured }) {
   return (
     <article
-      className={`relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-neutral-900 ${
+      className={`relative flex h-full flex-col overflow-hidden rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-sm dark:bg-neutral-900 ${
         featured
           ? 'border-orange-300 ring-1 ring-orange-100 dark:border-orange-700 dark:ring-orange-900/40'
           : 'border-gray-200 dark:border-neutral-800'
@@ -171,11 +171,8 @@ export default function Plans() {
   return (
     <main className="min-h-screen bg-[#f6f7f9] pb-20 text-gray-950 dark:bg-neutral-950 dark:text-white">
       <section className="relative overflow-hidden bg-gray-950 text-white">
-        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-orange-500/25 blur-3xl" />
-        <div className="absolute -bottom-28 left-1/4 h-64 w-64 rounded-full bg-amber-400/10 blur-3xl" />
         <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-orange-200 backdrop-blur">
-            <Sparkles size={14} />
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-orange-200">
             Plans et tarifs HDMarket
           </span>
           <h1 className="mt-5 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
@@ -255,7 +252,7 @@ export default function Plans() {
           </div>
 
           {!boostEnabled ? (
-            <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
               Les boosts sont temporairement indisponibles.
             </div>
           ) : (
@@ -280,7 +277,7 @@ export default function Plans() {
                           label: 'Se connecter pour continuer'
                         };
                 return (
-                  <article key={type} className="flex flex-col rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                  <article key={type} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-950 text-white dark:bg-white dark:text-neutral-950">
                         <Icon size={20} />
@@ -323,7 +320,7 @@ export default function Plans() {
           )}
         </section>
 
-        <section className="mt-14 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7 dark:border-neutral-800 dark:bg-neutral-900">
+        <section className="mt-14 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
               <Info size={20} />

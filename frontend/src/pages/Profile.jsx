@@ -1660,17 +1660,17 @@ export default function Profile() {
     <div className="hd-profile-flow hd-commerce-shell min-h-screen">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* En-tête */}
-        <section className="mb-5 overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-[#fff7ed] via-white to-[#ffe1c2] p-4 shadow-[0_18px_48px_rgba(255,106,0,0.12)] sm:mb-8 sm:p-6">
+        <section className="mb-5 overflow-hidden rounded-2xl border border-gray-200 bg-[#fff7ed] p-4 shadow-sm sm:mb-8 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               {profileImagePreview ? (
                 <img
                   src={profileImagePreview}
                   alt={form.name || 'Profil'}
-                  className="h-[72px] w-[72px] flex-shrink-0 rounded-2xl border-2 border-white object-cover shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+                  className="h-[72px] w-[72px] flex-shrink-0 rounded-2xl border-2 border-white object-cover shadow-sm"
                 />
               ) : (
-                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#e85d00] shadow-[0_10px_24px_rgba(255,106,0,0.22)]">
+                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#e85d00] shadow-sm">
                   <User className="h-9 w-9 text-white" />
                 </div>
               )}
@@ -1717,7 +1717,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl bg-gradient-to-r from-[#ff8a1f] to-[#e85d00] p-4 text-white shadow-[0_14px_30px_rgba(255,106,0,0.28)]">
+          <div className="mt-5 rounded-2xl bg-[#ff8a1f] p-4 text-white shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-2xl font-black leading-none">HD VIP</p>
@@ -1804,7 +1804,7 @@ export default function Profile() {
 
         {/* Navigation par onglets — mobile: sticky horizontal avec indicateur animé + progression */}
         {isMobile ? (
-          <div className="hd-profile-sticky -mx-4 px-4 pt-2 pb-3 mb-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm">
+          <div className="hd-profile-sticky -mx-4 px-4 pt-2 pb-3 mb-4 bg-white/95 dark:bg-gray-900/95 border-b border-gray-200/80 dark:border-gray-800/80 shadow-sm">
             {/* Barre de progression du profil */}
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs mb-1.5">
@@ -1856,7 +1856,7 @@ export default function Profile() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all flex-1 w-full text-left sm:text-center ${
                     activeTab === tab.id
-                      ? 'bg-neutral-900 text-white shadow-lg'
+                      ? 'bg-neutral-900 text-white shadow-sm'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
@@ -1871,7 +1871,7 @@ export default function Profile() {
         {/* Section Profil */}
         {activeTab === 'profile' && (
           <>
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
               <div className="w-2 h-6 bg-neutral-900 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
@@ -1904,7 +1904,7 @@ export default function Profile() {
                         </div>
                       )}
                       {profileImageUploadProgress !== null && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-black/65 text-white backdrop-blur-[1px]">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-black/65 text-white">
                           <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                           <span className="mt-1 text-[10px] font-black">
                             {profileImageUploadProgress > 0 ? `${profileImageUploadProgress}%` : '…'}
@@ -2836,7 +2836,7 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-neutral-900 text-white font-semibold rounded-xl hover:bg-neutral-800 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2 shadow-lg"
+                  className="px-8 py-3 bg-neutral-900 text-white font-semibold rounded-xl hover:bg-neutral-800 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2 shadow-sm"
                 >
                   {loading ? (
                     <>
@@ -2863,7 +2863,7 @@ export default function Profile() {
         {/* Section Statistiques - Dashboard Analytique (proposal §4) */}
         {activeTab === 'stats' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-6 bg-neutral-900 rounded-full" />
@@ -2906,7 +2906,7 @@ export default function Profile() {
                         setShowOrdersModal(true);
                         if (!ordersLoaded && !ordersLoading) fetchOrders();
                       }}
-                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-lg text-left hover:bg-neutral-800 active:scale-[0.98] transition-all cursor-pointer"
+                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm text-left hover:bg-neutral-800 active:scale-[0.98] transition-all cursor-pointer"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <ClipboardList className="w-7 h-7 opacity-90" />
@@ -2916,7 +2916,7 @@ export default function Profile() {
                       <p className="text-white/70 text-xs mt-1">Attente: {formatNumber(stats.orders?.purchases?.byStatus?.pending?.count || 0)} · Livrées: {formatNumber(stats.orders?.purchases?.byStatus?.delivered?.count || 0)}</p>
                     </button>
                     {user?.accountType === 'shop' ? (
-                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-lg">
+                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                           <DollarSign className="w-7 h-7 opacity-90" />
                           <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.sales?.totalAmount || 0) / 1000)}k</span>
@@ -2925,7 +2925,7 @@ export default function Profile() {
                         <p className="text-white/70 text-xs mt-1">{formatCurrency(stats.orders?.sales?.totalAmount || 0)}</p>
                       </div>
                     ) : (
-                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-lg">
+                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                           <DollarSign className="w-7 h-7 opacity-90" />
                           <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.purchases?.totalAmount || 0) / 1000)}k</span>
@@ -2936,7 +2936,7 @@ export default function Profile() {
                     )}
                     <Link
                       to="/my"
-                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-lg block hover:bg-neutral-800 active:scale-[0.98] transition-all"
+                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm block hover:bg-neutral-800 active:scale-[0.98] transition-all"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <Package className="w-7 h-7 opacity-90" />
@@ -2945,7 +2945,7 @@ export default function Profile() {
                       <p className="text-white/90 text-sm font-medium">Produits</p>
                       <p className="text-white/70 text-xs mt-1">Actifs: {formatNumber(stats.listings.approved)} · Attente: {formatNumber(stats.listings.pending)}</p>
                     </Link>
-                    <div className="bg-neutral-900 text-white rounded-2xl p-5 shadow-lg">
+                    <div className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
                         <TrendingUp className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.performance.views)}</span>
@@ -2953,7 +2953,7 @@ export default function Profile() {
                       <p className="text-white/90 text-sm font-medium">Vues</p>
                       <p className="text-white/70 text-xs mt-1">Vues totales</p>
                     </div>
-                    <div className="bg-neutral-600 text-white rounded-2xl p-5 shadow-lg">
+                    <div className="bg-neutral-600 text-white rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
                         <Heart className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.engagement.favoritesReceived)}</span>
@@ -2961,7 +2961,7 @@ export default function Profile() {
                       <p className="text-white/90 text-sm font-medium">Engagement</p>
                       <p className="text-white/70 text-xs mt-1">Favoris · WhatsApp: {formatNumber(stats.performance.clicks)}</p>
                     </div>
-                    <div className="bg-amber-600 text-white rounded-2xl p-5 shadow-lg">
+                    <div className="bg-amber-600 text-white rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
                         <Award className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">
@@ -3090,7 +3090,7 @@ export default function Profile() {
 
         {/* Section Performance (Nouvelle fonctionnalité) */}
         {activeTab === 'performance' && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
               <div className="w-2 h-6 bg-neutral-900 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Performance et Insights</h2>
@@ -3264,7 +3264,7 @@ export default function Profile() {
         </BaseModal>
 
         {activeTab === 'orders' && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
               <div>
                 <div className="flex items-center gap-2 text-sm font-semibold text-neutral-800">
@@ -3284,7 +3284,7 @@ export default function Profile() {
                 </Link>
                 <Link
                   to="/orders/draft"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 text-amber-700 text-sm font-semibold hover:from-amber-100 hover:to-orange-100 transition-all duration-200 active:scale-95 shadow-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-all duration-200 active:scale-95 shadow-sm"
                 >
                   <Clock className="w-4 h-4" />
                   Brouillons
@@ -3716,7 +3716,7 @@ export default function Profile() {
         {activeTab === 'shop' && user?.accountType === 'shop' && (
           <div className="space-y-6">
             {/* Prévisualisation — Aperçu de la boutique publique */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                 <h3 className="text-sm font-semibold text-gray-900">Prévisualisation</h3>
                 <p className="text-xs text-gray-500">Aperçu de votre boutique telle qu’elle apparaît aux acheteurs.</p>
@@ -3749,7 +3749,7 @@ export default function Profile() {
             </div>
 
             {/* Informations de la boutique */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">Informations de la boutique</h3>
               <p className="text-xs text-gray-500 mb-3">Nom, adresse, description.</p>
               <dl className="space-y-2 text-sm">
@@ -3772,7 +3772,7 @@ export default function Profile() {
             </div>
 
             {/* Logo et bannière — Galerie */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">Logo et bannière</h3>
               <p className="text-xs text-gray-500 mb-3">Upload avec preview. Gestion dans l’onglet Profil.</p>
               <div className="flex gap-3">
@@ -3809,7 +3809,7 @@ export default function Profile() {
             </div>
 
             {/* Horaires d'ouverture */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-500" />
                 Horaires d’ouverture
@@ -3839,7 +3839,7 @@ export default function Profile() {
 
             {/* Statistiques de la boutique (placeholder) */}
             {stats && (
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">Statistiques de la boutique</h3>
                 <p className="text-xs text-gray-500 mb-3">Vues, favoris, produits.</p>
                 <div className="grid grid-cols-3 gap-3">
@@ -3878,7 +3878,7 @@ export default function Profile() {
 
         {/* Onglet Notifications (mobile) */}
         {activeTab === 'notifications' && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col gap-3 mb-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-neutral-800">
                 <Bell className="w-4 h-4" />
@@ -3899,7 +3899,7 @@ export default function Profile() {
 
         {/* Onglet Sécurité (mobile) */}
         {activeTab === 'security' && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
               <div className="w-2 h-6 bg-emerald-600 rounded-full" />
               <h2 className="text-xl font-semibold text-gray-900">Mot de passe et authentification</h2>
@@ -4037,7 +4037,7 @@ export default function Profile() {
                     }}
                   />
                 ) : null}
-                <div className="pointer-events-none absolute inset-0 border-[3px] border-white/80 shadow-[inset_0_0_0_100vmax_rgba(0,0,0,0.18)]" />
+                <div className="pointer-events-none absolute inset-0 border-[3px] border-white/80 shadow-sm" />
                 <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/45 px-2 py-1 text-[11px] font-medium text-white">
                   <Move className="mr-1 inline h-3 w-3" />
                   Glisser

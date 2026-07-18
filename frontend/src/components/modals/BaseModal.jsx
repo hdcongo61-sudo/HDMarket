@@ -273,7 +273,7 @@ export default function BaseModal({
         tabIndex={-1}
         style={panelStyle}
         className={cx(
-          'ui-modal-panel glass-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-neutral-200 bg-white/95 text-neutral-950 shadow-2xl outline-none backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95 dark:text-neutral-100',
+          'ui-modal-panel glass-modal-panel relative z-[1] flex w-full flex-col overflow-hidden border border-neutral-200 bg-white/95 text-neutral-950 shadow-sm outline-none dark:border-neutral-800 dark:bg-neutral-950/95 dark:text-neutral-100',
           sizeClass,
           fullscreen ? 'rounded-none' : mobileSheet ? 'rounded-t-[28px] sm:rounded-2xl' : 'rounded-2xl',
           panelClassName
@@ -361,7 +361,7 @@ export function ModalFooter({ sticky = true, className = '', children }) {
       className={cx(
         'ui-modal-footer border-t border-neutral-200 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 sm:pb-4 dark:border-neutral-800',
         sticky
-          ? 'sticky bottom-0 bg-white/86 backdrop-blur-md dark:bg-neutral-950/86'
+          ? 'sticky bottom-0 bg-white/86 dark:bg-neutral-950/86'
           : 'bg-transparent',
         className
       )}

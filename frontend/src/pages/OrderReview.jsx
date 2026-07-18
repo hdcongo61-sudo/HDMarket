@@ -138,7 +138,7 @@ export default function OrderReview() {
   if (reviewQuery.isLoading) {
     return (
       <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-6">
-        <div className="mx-auto max-w-3xl rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
           <p className="text-sm text-gray-600">Chargement de la page d'avis...</p>
         </div>
       </main>
@@ -148,7 +148,7 @@ export default function OrderReview() {
   if (reviewQuery.error) {
     return (
       <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-6">
-        <div className="mx-auto max-w-3xl rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
           <p className="text-sm text-red-700">
             {reviewQuery.error?.response?.data?.message ||
               reviewQuery.error?.message ||
@@ -167,7 +167,7 @@ export default function OrderReview() {
   return (
     <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-4 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-4">
-        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
@@ -208,7 +208,7 @@ export default function OrderReview() {
           </div>
         </section>
 
-        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Produits achetés</h2>
@@ -226,7 +226,7 @@ export default function OrderReview() {
                   onClick={() => setSelectedProductId(item.productId)}
                   className={`rounded-2xl border p-3 text-left transition ${
                     active
-                      ? 'border-neutral-900 bg-neutral-900 text-white shadow-lg shadow-neutral-900/10'
+                      ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-neutral-900/10'
                       : 'border-gray-200 bg-gray-50 text-gray-900 hover:border-gray-300 hover:bg-white'
                   }`}
                 >
@@ -267,7 +267,7 @@ export default function OrderReview() {
         </section>
 
         {selectedItem ? (
-          <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <h2 className="text-xl font-black text-gray-900">{selectedItem.title}</h2>
@@ -344,7 +344,7 @@ export default function OrderReview() {
                   <label htmlFor="order-review-comment" className="text-sm font-semibold text-gray-800">
                     Votre commentaire
                   </label>
-                  <div className="mt-2 rounded-3xl border border-gray-200 bg-gray-50 p-3">
+                  <div className="mt-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
                     <textarea
                       id="order-review-comment"
                       value={comment}

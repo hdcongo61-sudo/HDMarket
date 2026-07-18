@@ -820,7 +820,7 @@ export default function AdminReports() {
   }, [activeSections, report]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-gray-50">
       <div className="mx-auto w-full max-w-7xl px-4 py-6 md:py-8 space-y-6">
         <header className="rounded-2xl bg-white border border-gray-200 p-4 md:p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

@@ -229,7 +229,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   };
 
   return (
-    <form onSubmit={handleSubmit} className="hd-form-card rounded-3xl p-3 sm:p-5">
+    <form onSubmit={handleSubmit} className="hd-form-card rounded-2xl p-3 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[#e85d00]" />
         <h3 className="text-base font-black text-slate-900 sm:text-lg">Nouvelle demande de boost</h3>
@@ -246,7 +246,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                 onClick={() => setBoostType(item.value)}
                 className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                   boostType === item.value
-                    ? 'border-[#e85d00] bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'border-[#e85d00] bg-[#e85d00] text-white shadow-sm'
                     : 'border-gray-200 bg-white text-slate-700'
                 }`}
               >
@@ -495,7 +495,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         </div>
       )}
 
-      <div className="sticky bottom-0 z-[2] -mx-3 mt-4 border-t border-gray-200 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:p-0">
+      <div className="sticky bottom-0 z-[2] -mx-3 mt-4 border-t border-gray-200 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:p-0">
         <button
           type="submit"
           disabled={submitting}

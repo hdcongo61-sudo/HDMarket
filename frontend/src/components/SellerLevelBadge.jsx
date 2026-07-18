@@ -1,15 +1,14 @@
 import React from 'react';
+import { Award, BadgeCheck } from 'lucide-react';
 
 /**
- * SellerLevelBadge — Visual badge showing seller level (🌱 → 💎).
+ * SellerLevelBadge — Compact badge showing the seller level.
  * Used on shop profiles, product cards, and seller listings.
  */
 
 const LEVEL_META = {
   diamant: {
     label: 'Diamant',
-    emoji: '💎',
-    icon: '💎',
     bgClass: 'bg-blue-50',
     textClass: 'text-blue-700',
     borderClass: 'border-blue-200',
@@ -17,8 +16,6 @@ const LEVEL_META = {
   },
   or: {
     label: 'Or',
-    emoji: '🥇',
-    icon: '🥇',
     bgClass: 'bg-amber-50',
     textClass: 'text-amber-700',
     borderClass: 'border-amber-200',
@@ -26,8 +23,6 @@ const LEVEL_META = {
   },
   avance: {
     label: 'Avancé',
-    emoji: '🌳',
-    icon: '🌳',
     bgClass: 'bg-gray-50',
     textClass: 'text-gray-700',
     borderClass: 'border-gray-200',
@@ -35,8 +30,6 @@ const LEVEL_META = {
   },
   confirme: {
     label: 'Confirmé',
-    emoji: '🌿',
-    icon: '🌿',
     bgClass: 'bg-green-50',
     textClass: 'text-green-700',
     borderClass: 'border-green-200',
@@ -44,8 +37,6 @@ const LEVEL_META = {
   },
   debutant: {
     label: 'Débutant',
-    emoji: '🌱',
-    icon: '🌱',
     bgClass: 'bg-gray-50',
     textClass: 'text-gray-500',
     borderClass: 'border-gray-100',
@@ -73,10 +64,10 @@ export default function SellerLevelBadge({
       className={`inline-flex items-center rounded-full border font-medium ${meta.bgClass} ${meta.textClass} ${meta.borderClass} ${sizeClasses} ${className}`}
       title={`Niveau ${meta.label}${verified ? ' · Vérifié' : ''}`}
     >
-      <span className="leading-none">{meta.emoji}</span>
+      <Award className="h-3.5 w-3.5" aria-hidden="true" />
       {showLabel && <span>{meta.label}</span>}
       {verified && (
-        <span className="ml-0.5 text-[10px]" title="Boutique vérifiée">✓</span>
+        <BadgeCheck className="ml-0.5 h-3.5 w-3.5" aria-label="Boutique vérifiée" />
       )}
     </span>
   );

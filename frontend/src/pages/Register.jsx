@@ -409,7 +409,9 @@ export default function Register() {
           city: form.city,
           commune: form.commune || '',
           gender: form.gender,
-          address: form.address.trim()
+          address: form.address.trim(),
+          acceptedLegalTerms: true,
+          legalVersion: '2026-07-18'
         });
         setSuccessPayload(data || null);
         return;
@@ -427,6 +429,8 @@ export default function Register() {
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
       payload.append('verificationCode', (verificationCode && verificationCode.trim()) || '');
+      payload.append('acceptedLegalTerms', 'true');
+      payload.append('legalVersion', '2026-07-18');
 
       const { data } = await api.post('/auth/register', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -843,11 +847,11 @@ export default function Register() {
                         />
                         <span>
                           {copy.termsLead}{' '}
-                          <Link to="/help" className="font-semibold hover:underline">
+                          <Link to="/conditions-utilisation" target="_blank" className="font-semibold hover:underline">
                             {copy.terms}
                           </Link>{' '}
                           {isFrench ? 'et' : 'and'}{' '}
-                          <Link to="/help" className="font-semibold hover:underline">
+                          <Link to="/confidentialite" target="_blank" className="font-semibold hover:underline">
                             {copy.privacy}
                           </Link>
                           .

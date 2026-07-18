@@ -1061,7 +1061,7 @@ export default function UserDashboard() {
     <div className="min-h-screen bg-[#f5f2ee] text-[#231f1b] dark:bg-neutral-950">
 
       {/* ── TAOBAO STICKY HEADER ── */}
-      <header className="border-b border-[#e2dcd2] bg-white/96 shadow-[0_2px_10px_rgba(35,31,27,0.04)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-950">
+      <header className="border-b border-[#e2dcd2] bg-white/96 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3"
           style={{ paddingTop: 'calc(env(safe-area-inset-top,0px) + 10px)' }}>
           <div className="min-w-0">
@@ -1141,7 +1141,7 @@ export default function UserDashboard() {
         {!loading && (promoAnalyticsLoading || promoAnalytics) && (
           <div className="mb-8 hidden space-y-4 md:block">
             {promoAnalytics?.gamification?.isMostGenerousOfMonth ? (
-              <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 p-4">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
                     <Award className="w-5 h-5 text-white" />
@@ -1458,7 +1458,7 @@ export default function UserDashboard() {
 
         {/* ── TAOBAO SEARCH + FILTER BAR ── */}
         {!loading && items.length > 0 && (
-          <div className="rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_3px_14px_rgba(35,31,27,0.05)]">
+          <div className="rounded-2xl border border-[#e2dcd2] bg-white shadow-sm">
             {/* Search input */}
             <div className="px-4 pt-3 pb-2">
               <div className="relative">
@@ -1760,7 +1760,7 @@ export default function UserDashboard() {
 
                   return (
                     <div key={productId}
-                      className={`relative overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_3px_14px_rgba(35,31,27,0.05)] ${
+                      className={`relative overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-sm ${
                         isRecentlyCreated ? 'bg-sky-50/30' : isSelected ? 'bg-[#fff8f5]' : ''
                       }`}>
 
@@ -1904,7 +1904,7 @@ export default function UserDashboard() {
                 return (
                   <div
                     key={productId}
-                    className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden relative ${
+                    className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-sm transition-all duration-300 overflow-hidden relative ${
                       isRecentlyCreated
                         ? 'border-sky-400 ring-2 ring-sky-200'
                         : isSelected
@@ -1918,13 +1918,13 @@ export default function UserDashboard() {
                   >
                     <div className="absolute top-3 right-3 z-20 flex flex-col gap-2">
                       {isRecentlyCreated && (
-                        <div className="px-2 py-1 rounded-lg bg-sky-500 text-white text-xs font-bold shadow-lg inline-flex items-center gap-1">
+                        <div className="px-2 py-1 rounded-lg bg-sky-500 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1">
                           <Sparkles className="w-3 h-3" />
                           Nouveau
                         </div>
                       )}
                       {isTopPerformer && (
-                        <div className="px-2 py-1 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-xs font-bold shadow-lg flex items-center gap-1">
+                        <div className="px-2 py-1 rounded-lg bg-yellow-400 text-white text-xs font-bold shadow-sm flex items-center gap-1">
                           <TrendingUp className="w-3 h-3" />
                           Top
                         </div>
@@ -1945,9 +1945,9 @@ export default function UserDashboard() {
                           e.stopPropagation();
                           e.preventDefault();
                         }}
-                        className={`p-2.5 rounded-lg backdrop-blur-sm transition-all cursor-pointer ${
+                        className={`p-2.5 rounded-lg transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-neutral-600 text-white hover:bg-neutral-700 shadow-lg'
+                            ? 'bg-neutral-600 text-white hover:bg-neutral-700 shadow-sm'
                             : 'bg-black/60 text-white hover:bg-black/80'
                         }`}
                         style={{ pointerEvents: 'auto' }}
@@ -1981,7 +1981,7 @@ export default function UserDashboard() {
                       )}
                       {/* Status Badge */}
                       <div className="absolute top-3 right-3 flex flex-col gap-2">
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${statusStyle.badge} text-white shadow-lg backdrop-blur-sm`}>
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${statusStyle.badge} text-white shadow-sm`}>
                           <StatusIcon className="w-3.5 h-3.5" />
                           <span className="text-xs font-bold uppercase tracking-wide">
                             {STATUS_LABELS[product.status] || product.status}
@@ -1989,7 +1989,7 @@ export default function UserDashboard() {
                         </div>
                         {/* Boosted Badge */}
                         {product.boosted && (
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-neutral-500 to-neutral-600 text-white shadow-lg backdrop-blur-sm">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-500 text-white shadow-sm">
                             <Zap className="w-3.5 h-3.5" />
                             <span className="text-xs font-bold uppercase tracking-wide">Boosté</span>
                           </div>
@@ -1998,7 +1998,7 @@ export default function UserDashboard() {
                       {/* Image Count Badge */}
                       {product.images?.length > 1 && (
                         <div className="absolute top-3 left-3">
-                          <div className="px-2 py-1 rounded-lg bg-black/50 backdrop-blur-sm text-white text-xs font-bold">
+                          <div className="px-2 py-1 rounded-lg bg-black/50 text-white text-xs font-bold">
                             {product.images.length} photo{product.images.length > 1 ? 's' : ''}
                           </div>
                         </div>
@@ -2209,7 +2209,7 @@ export default function UserDashboard() {
       {isMobile && sellingEnabled && (
         <button type="button"
           onClick={() => { setEditingProduct(null); setProductModalOpen(true); }}
-          className="fixed bottom-24 right-4 z-30 w-14 h-14 rounded-full bg-[#e85d00] text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform"
+          className="fixed bottom-24 right-4 z-30 w-14 h-14 rounded-full bg-[#e85d00] text-white shadow-sm flex items-center justify-center active:scale-90 transition-transform"
           style={{ boxShadow: '0 8px 24px rgba(255,106,0,0.45)' }}
           aria-label="Publier une annonce">
           <Plus className="w-6 h-6" />
@@ -2228,14 +2228,14 @@ export default function UserDashboard() {
         panelClassName={
           isMobile
             ? 'min-h-0 h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-gray-50 sm:rounded-none'
-            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-3xl border-gray-200 bg-gray-50'
+            : 'sm:max-w-5xl sm:max-h-[90vh] sm:rounded-2xl border-gray-200 bg-gray-50'
         }
       >
             {/* Modal Header */}
             <div className={`hd-my-hero text-white flex-shrink-0 ${isMobile ? 'px-4 py-4 safe-area-top' : 'px-6 py-5'}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`rounded-xl bg-white/20 backdrop-blur-sm flex-shrink-0 ${isMobile ? 'p-2.5' : 'p-3'}`}>
+                  <div className={`rounded-xl bg-white/20 flex-shrink-0 ${isMobile ? 'p-2.5' : 'p-3'}`}>
                     {editingProduct ? (
                       <Edit className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
                     ) : (
@@ -2259,7 +2259,7 @@ export default function UserDashboard() {
                 <button
                   type="button"
                   onClick={handleModalClose}
-                  className={`rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 active:bg-white/30 transition-all touch-manipulation flex-shrink-0 ${isMobile ? 'min-w-[44px] min-h-[44px] w-11 h-11' : 'h-10 w-10'}`}
+                  className={`rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 active:bg-white/30 transition-all touch-manipulation flex-shrink-0 ${isMobile ? 'min-w-[44px] min-h-[44px] w-11 h-11' : 'h-10 w-10'}`}
                   aria-label="Fermer"
                 >
                   <X size={20} />

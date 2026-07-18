@@ -245,7 +245,7 @@ export default function Suggestions() {
   return (
     <div className="hd-products-flow min-h-screen">
       <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 lg:px-8 md:pb-16">
-        <header className="hd-products-hero rounded-2xl p-5 text-white shadow-[0_18px_46px_rgba(255,106,0,0.14)] sm:p-7">
+        <header className="hd-products-hero rounded-2xl p-5 text-white shadow-sm sm:p-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/20">
@@ -346,7 +346,7 @@ export default function Suggestions() {
 
         {/* Empty State - No Views */}
         {!preferredCategories.length && !loading && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
               <Search className="w-10 h-10 text-[#e85d00]" />
             </div>
@@ -375,7 +375,7 @@ export default function Suggestions() {
 
         {/* Empty State - No Items but has Categories */}
         {!loading && items.length === 0 && preferredCategories.length > 0 && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-12">
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
               <Zap className="w-10 h-10 text-[#e85d00]" />
             </div>

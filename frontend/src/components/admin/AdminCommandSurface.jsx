@@ -137,7 +137,7 @@ export function AdminSegmentedControl({ options = [], value, onChange, className
               onClick={() => onChange?.(option.value)}
               className={`flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl px-3.5 py-2 text-sm font-bold transition active:scale-[0.98] ${
                 active
-                  ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+                  ? 'bg-[#e85d00] text-white shadow-sm'
                   : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900'
               }`}
             >

@@ -389,7 +389,7 @@ export default function ShopConversionRequest() {
   if (!user) {
     return (
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
             <Store className="h-8 w-8" />
           </div>
@@ -435,7 +435,7 @@ export default function ShopConversionRequest() {
 
         {/* Existing Requests */}
         {requests.length > 0 && (
-          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-wide text-[#e85d00]">Suivi</p>
@@ -477,11 +477,11 @@ export default function ShopConversionRequest() {
 
         {/* Form */}
         {!shopConversionEnabled ? (
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 text-sm font-bold text-amber-800 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 text-sm font-bold text-amber-800 shadow-sm">
             Les demandes Devenir Boutique sont temporairement désactivées par l’administration.
           </div>
         ) : !hasPendingRequest ? (
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
+          <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             {error && (
               <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4">
                 <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
@@ -869,7 +869,7 @@ export default function ShopConversionRequest() {
             </div>
           </form>
         ) : (
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm">
             <div className="flex items-start gap-3">
               <Clock className="mt-0.5 flex-shrink-0 text-amber-600" size={20} />
               <div>

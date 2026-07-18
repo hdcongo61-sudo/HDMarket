@@ -69,7 +69,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
             <>
               {/* Metrics Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
+                <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 rounded-lg bg-neutral-500 text-white">
                       <Heart className="w-4 h-4" />
@@ -82,7 +82,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
                   <p className="text-xs text-neutral-600 dark:text-neutral-400">Utilisateurs qui ont aimé</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 rounded-lg bg-green-500 text-white">
                       <MessageCircle className="w-4 h-4" />
@@ -95,7 +95,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
                   <p className="text-xs text-green-600 dark:text-green-400">Contacts générés</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/20 dark:to-neutral-800/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
+                <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 rounded-lg bg-neutral-500 text-white">
                       <ShoppingCart className="w-4 h-4" />

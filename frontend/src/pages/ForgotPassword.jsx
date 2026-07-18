@@ -255,7 +255,7 @@ export default function ForgotPassword() {
     <main className="glass-page-shell min-h-screen px-4 py-6 sm:py-10">
       <div className="mx-auto w-full max-w-6xl">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-6">
-          <section className="glass-card rounded-3xl p-5 shadow-sm sm:p-7">
+          <section className="glass-card rounded-2xl p-5 shadow-sm sm:p-7">
             {success ? (
               <AuthSuccessCard
                 variant="login"

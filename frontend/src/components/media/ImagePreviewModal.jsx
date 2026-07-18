@@ -472,7 +472,7 @@ export default function ImagePreviewModal({
       mobileSheet={false}
       ariaLabel="Aperçu image"
       rootClassName="sm:!p-0"
-      backdropClassName="!bg-[#070707]/94 backdrop-blur-md"
+      backdropClassName="!bg-[#070707]/94"
       panelClassName="sm:max-w-6xl !border-0 !bg-[#0b0b0b] text-white shadow-none sm:rounded-2xl"
     >
       <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#0b0b0b] sm:rounded-2xl">
@@ -483,7 +483,7 @@ export default function ImagePreviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
             aria-label="Fermer l'aperçu"
           >
             <X className="h-5 w-5" />
@@ -491,7 +491,7 @@ export default function ImagePreviewModal({
 
           <div className="min-w-0 flex-1 text-center">
             {canNavigate ? (
-              <span className="inline-flex rounded-full bg-white/14 px-3 py-1.5 text-xs font-black text-white ring-1 ring-white/10 backdrop-blur-xl">
+              <span className="inline-flex rounded-full bg-white/14 px-3 py-1.5 text-xs font-black text-white ring-1 ring-white/10">
                 {currentIndex + 1} / {safeImages.length}
               </span>
             ) : null}
@@ -501,7 +501,7 @@ export default function ImagePreviewModal({
             <button
               type="button"
               onClick={handleShare}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
               aria-label="Partager"
             >
               <Share2 className="h-5 w-5" />
@@ -509,13 +509,13 @@ export default function ImagePreviewModal({
             <button
               type="button"
               onClick={() => setMenuOpen((prev) => !prev)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
               aria-label="Actions image"
             >
               <MoreHorizontal className="h-5 w-5" />
             </button>
             {menuOpen ? (
-              <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 text-slate-900 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
+              <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 text-slate-900 shadow-sm">
                 <button
                   type="button"
                   onClick={handleShare}
@@ -550,7 +550,7 @@ export default function ImagePreviewModal({
           <button
             type="button"
             onClick={zoomOut}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
             aria-label="Zoom arrière"
           >
             <ZoomOut className="h-5 w-5" />
@@ -558,7 +558,7 @@ export default function ImagePreviewModal({
           <button
             type="button"
             onClick={zoomIn}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
             aria-label="Zoom avant"
           >
             <ZoomIn className="h-5 w-5" />
@@ -570,7 +570,7 @@ export default function ImagePreviewModal({
             <button
               type="button"
               onClick={() => moveIndex(-1)}
-              className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95 sm:inline-flex"
+              className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95 sm:inline-flex"
               aria-label="Image précédente"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -578,7 +578,7 @@ export default function ImagePreviewModal({
             <button
               type="button"
               onClick={() => moveIndex(1)}
-              className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-xl transition hover:bg-white/20 active:scale-95 sm:inline-flex"
+              className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95 sm:inline-flex"
               aria-label="Image suivante"
             >
               <ChevronRight className="h-5 w-5" />
@@ -625,7 +625,7 @@ export default function ImagePreviewModal({
                   }}
                   className={`h-14 w-14 shrink-0 overflow-hidden rounded-2xl border-2 bg-white/10 transition active:scale-95 sm:h-16 sm:w-16 ${
                     index === currentIndex
-                      ? 'border-[#e85d00] shadow-[0_0_0_2px_rgba(255,106,0,0.25)]'
+                      ? 'border-[#e85d00] shadow-sm'
                       : 'border-white/18 opacity-70 hover:opacity-100'
                   }`}
                   aria-label={`Afficher image ${index + 1}`}
@@ -641,7 +641,7 @@ export default function ImagePreviewModal({
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-white/10 bg-white/12 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+          <div className="rounded-2xl border border-white/10 bg-white/12 p-3 shadow-sm">
             <div className="mb-2.5 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-white">{title || 'Image produit'}</p>
@@ -666,7 +666,7 @@ export default function ImagePreviewModal({
                   disabled={favoritePending}
                   className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:cursor-wait ${
                     favoriteActive
-                      ? 'bg-[#e85d00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.35)]'
+                      ? 'bg-[#e85d00] text-white shadow-sm'
                       : 'bg-white/14 text-white ring-1 ring-white/10 hover:bg-white/20'
                   } ${favoritePending ? 'opacity-70' : ''}`}
                   aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -721,7 +721,7 @@ export default function ImagePreviewModal({
           <div className="absolute inset-0 z-30 flex items-end bg-black/55 p-2 sm:p-5">
             <form
               onSubmit={handleReportSubmit}
-              className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-xl"
+              className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-sm"
             >
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>

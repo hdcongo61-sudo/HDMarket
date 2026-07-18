@@ -773,7 +773,7 @@ export default function AdminAppSettings() {
         </header>
 
         {/* Navigation d'ancres : la page fait 8 sections, on saute au lieu de scroller à l'aveugle */}
-        <nav className="rounded-2xl border border-gray-200 bg-white/90 px-2 py-2 shadow-sm backdrop-blur-md">
+        <nav className="rounded-2xl border border-gray-200 bg-white/90 px-2 py-2 shadow-sm">
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               ['#identite', 'Identité'],

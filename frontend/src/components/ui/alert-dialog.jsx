@@ -80,7 +80,7 @@ const AlertDialogOverlay = React.forwardRef(function AlertDialogOverlay(
     <div
       ref={ref}
       className={cn(
-        'fixed inset-0 z-[1200] bg-black/70 backdrop-blur-sm animate-in fade-in-0',
+        'fixed inset-0 z-[1200] bg-black/70 animate-in fade-in-0',
         className
       )}
       {...props}
@@ -117,7 +117,7 @@ const AlertDialogContent = React.forwardRef(function AlertDialogContent(
         aria-modal="true"
         className={cn(
           'fixed left-1/2 top-1/2 z-[1201] grid w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2',
-          'gap-4 rounded-2xl border border-white/25 bg-white/95 p-5 shadow-2xl dark:border-white/10 dark:bg-slate-900/95',
+          'gap-4 rounded-2xl border border-white/25 bg-white/95 p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/95',
           'max-h-[calc(100%-3rem)] overflow-y-auto',
           className
         )}

@@ -544,7 +544,7 @@ export default function AdminProducts() {
             </button>
             <Link
               to="/admin/product-boosts"
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-xs font-black text-white shadow-sm transition active:scale-[0.97]"
             >
               <Sparkles size={16} />
               Boosts
@@ -621,7 +621,7 @@ export default function AdminProducts() {
                     }}
                     className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition active:scale-[0.97] ${
                       active
-                        ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                        ? 'bg-[#e85d00] text-white shadow-sm'
                         : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
                     }`}
                   >

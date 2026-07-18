@@ -540,9 +540,7 @@ export default function HelpPage() {
 
   return (
     <div className="min-h-screen bg-[#f7f3ee] text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-orange-100/80 via-[#fff4e8] to-transparent dark:from-orange-950/20 dark:via-neutral-950" />
-
-      <header className="border-b border-gray-200/80 bg-white/85 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-950/80">
+      <header className="border-b border-gray-200/80 bg-white/85 dark:border-neutral-800/70 dark:bg-neutral-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] text-[#e85d00]">
@@ -566,7 +564,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={UserCog}
@@ -680,7 +678,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.24, ease: 'easeOut' }}
-              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={CircleHelp}
@@ -729,7 +727,7 @@ export default function HelpPage() {
                       onClick={() => setContentFormat(format)}
                       className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
                         contentFormat === format
-                          ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.20)]'
+                          ? 'bg-[#e85d00] text-white shadow-sm'
                           : 'border border-gray-200 bg-gray-100 text-orange-700 hover:bg-orange-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
                       }`}
                     >
@@ -809,7 +807,7 @@ export default function HelpPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#e85d00] px-4 py-2 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#e85d00] px-4 py-2 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#f05f00] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <SendHorizonal className="h-4 w-4" />
                     {submitting ? 'Envoi...' : 'Envoyer la demande'}
@@ -824,7 +822,7 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.26, ease: 'easeOut' }}
-              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+              className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
                 icon={FileText}
@@ -917,7 +915,7 @@ export default function HelpPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+            className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
             <SectionTitle icon={CircleHelp} title="Contact support" />
             <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">
@@ -940,7 +938,7 @@ export default function HelpPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.24, ease: 'easeOut' }}
-            className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] backdrop-blur-sm dark:border-neutral-800 dark:bg-neutral-900/70"
+            className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
             <SectionTitle icon={FileText} title="Bonnes pratiques" />
             <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">

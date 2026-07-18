@@ -11,7 +11,7 @@ export default function DeliveryActionFooter({
   secondaryDisabled = false
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur-xl sm:px-5">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 sm:px-5">
       <div className="mx-auto flex w-full max-w-4xl gap-2">
         {secondaryLabel ? (
           <button

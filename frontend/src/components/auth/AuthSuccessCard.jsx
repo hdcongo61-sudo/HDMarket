@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 
 const join = (...parts) => parts.filter(Boolean).join(' ');
 
@@ -12,12 +12,10 @@ export default function AuthSuccessCard({
   actions = [],
   statusText = 'Préparation de votre espace...'
 }) {
-  const Icon = variant === 'register' ? Sparkles : CheckCircle2;
-
   return (
     <section className="glass-fade-in rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-7">
       <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-100">
-        <Icon size={26} />
+        <CheckCircle2 size={26} />
       </div>
       <h2 className="mt-4 text-xl font-black text-gray-900 dark:text-white">{title}</h2>
       <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">{description}</p>

@@ -1750,7 +1750,7 @@ export default function AdminOrders() {
           isOpen={createOpen}
           onClose={() => setCreateOpen(false)}
           size="full"
-          panelClassName="ui-card ui-card-lg max-h-[85dvh] overflow-auto p-4 shadow-xl sm:max-w-5xl sm:p-6"
+          panelClassName="ui-card ui-card-lg max-h-[85dvh] overflow-auto p-4 shadow-sm sm:max-w-5xl sm:p-6"
           ariaLabel="Créer une commande"
         >
             <div className="flex items-center justify-between gap-3 mb-4">
@@ -1966,7 +1966,7 @@ export default function AdminOrders() {
           isOpen={assignOpen}
           onClose={closeAssignModal}
           size="sm"
-          panelClassName="ui-card ui-card-lg p-6 shadow-xl sm:max-w-md"
+          panelClassName="ui-card ui-card-lg p-6 shadow-sm sm:max-w-md"
           ariaLabel="Assigner un livreur"
         >
             <div className="flex items-center justify-between gap-3 mb-4">
@@ -2074,7 +2074,7 @@ export default function AdminOrders() {
           isOpen={Boolean(statusUpdateInfo)}
           onClose={() => setStatusUpdateInfo(null)}
           size="sm"
-          panelClassName="ui-card ui-card-lg p-6 text-center shadow-xl sm:max-w-sm"
+          panelClassName="ui-card ui-card-lg p-6 text-center shadow-sm sm:max-w-sm"
           ariaLabel="Statut de commande mis à jour"
         >
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
@@ -2099,7 +2099,7 @@ export default function AdminOrders() {
           isOpen={viewOrderOpen}
           onClose={() => setViewOrderOpen(false)}
           size="lg"
-          panelClassName="ui-card ui-card-lg max-h-[85dvh] overflow-auto p-4 shadow-xl sm:max-w-2xl sm:p-6"
+          panelClassName="ui-card ui-card-lg max-h-[85dvh] overflow-auto p-4 shadow-sm sm:max-w-2xl sm:p-6"
           ariaLabel="Aperçu commande"
         >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -2239,7 +2239,7 @@ export default function AdminOrders() {
           }}
           closeOnBackdrop={!deleteLoading}
           size="sm"
-          panelClassName="ui-card ui-card-lg p-6 shadow-xl sm:max-w-sm"
+          panelClassName="ui-card ui-card-lg p-6 shadow-sm sm:max-w-sm"
           ariaLabel="Supprimer la commande"
         >
             <div className="flex items-center gap-3 mb-4">
@@ -2285,7 +2285,7 @@ export default function AdminOrders() {
           }}
           closeOnBackdrop={!actionSaving}
           size="md"
-          panelClassName="ui-card ui-card-lg p-5 shadow-xl sm:max-w-lg sm:p-6"
+          panelClassName="ui-card ui-card-lg p-5 shadow-sm sm:max-w-lg sm:p-6"
           ariaLabel="Action administrative commande"
         >
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -2399,7 +2399,7 @@ export default function AdminOrders() {
           mobileSheet={false}
           size="full"
           rootClassName="z-[125] items-stretch justify-end p-0"
-          panelClassName="h-full w-full max-h-none max-w-xl overflow-y-auto rounded-none border-l border-gray-200 bg-white p-4 shadow-2xl sm:p-6 sm:rounded-none"
+          panelClassName="h-full w-full max-h-none max-w-xl overflow-y-auto rounded-none border-l border-gray-200 bg-white p-4 shadow-sm sm:p-6 sm:rounded-none"
           ariaLabel="Timeline commande"
         >
             <div className="mb-4 flex items-start justify-between gap-3">

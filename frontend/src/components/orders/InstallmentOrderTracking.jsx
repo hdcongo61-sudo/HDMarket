@@ -6,7 +6,7 @@ const clamp = (value) => Math.max(0, Math.min(100, Number(value) || 0));
 const ProgressBar = ({ value, locked = false }) => (
   <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
     <div
-      className={`h-full rounded-full transition-[width] duration-700 ${locked ? 'bg-gray-300' : 'bg-gradient-to-r from-[#FFB000] to-[#e85d00]'}`}
+      className={`h-full rounded-full transition-[width] duration-700 ${locked ? 'bg-gray-300' : 'bg-[#FFB000]'}`}
       style={{ width: `${clamp(value)}%` }}
     />
   </div>

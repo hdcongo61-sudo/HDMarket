@@ -18,7 +18,7 @@ export default function DeliveryDetailTimeline({ currentStage = 'ASSIGNED' }) {
                 <span
                   className={`mt-0.5 inline-flex h-4 w-4 rounded-full border-2 transition ${
                     done ? 'border-emerald-400 bg-emerald-400' : 'border-gray-300 bg-white'
-                  } ${isCurrent ? 'shadow-[0_0_0_4px_rgba(16,185,129,0.12)]' : ''}`}
+                  } ${isCurrent ? 'shadow-sm' : ''}`}
                 />
                 {index < STAGE_ORDER.length - 1 ? (
                   <span className={`mt-1 h-6 w-px ${done ? 'bg-emerald-300' : 'bg-gray-200'}`} />

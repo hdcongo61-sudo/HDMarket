@@ -59,7 +59,7 @@ export default class GlobalErrorBoundary extends React.Component {
 
     return (
       <div className="min-h-screen bg-[#fff4e8] px-4 py-10 text-slate-950 dark:bg-neutral-950 dark:text-white">
-        <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-[0_24px_70px_-50px_rgba(15,23,42,0.8)] ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
+        <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#e85d00]">
             HDMarket
           </p>

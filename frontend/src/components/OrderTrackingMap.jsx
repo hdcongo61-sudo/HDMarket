@@ -48,7 +48,7 @@ export default function OrderTrackingMap({ trackingData }) {
           />
           {/* Overlay: Courier info */}
           {courierName && (
-            <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-3 py-1.5 shadow backdrop-blur-sm">
+            <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-3 py-1.5 shadow">
               <p className="text-xs font-semibold text-gray-800">
                 🚚 {courierName}
               </p>

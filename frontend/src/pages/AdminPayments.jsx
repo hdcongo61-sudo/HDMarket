@@ -713,7 +713,7 @@ export default function AdminPayments() {
             </Link>
             <Link
               to="/admin/payment-verification"
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-xs font-black text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] transition active:scale-[0.97]"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-xs font-black text-white shadow-sm transition active:scale-[0.97]"
             >
               <ShieldCheck className="h-4 w-4" />
               File de vérification
@@ -727,7 +727,7 @@ export default function AdminPayments() {
             type="button"
             onClick={() => setFilter('waiting')}
             className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition active:scale-[0.98] ${!isWalletAdminPanel
-              ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+              ? 'bg-[#e85d00] text-white shadow-sm'
               : 'text-slate-600 hover:bg-gray-100'}`}
           >
             <CreditCard className="h-4 w-4" />
@@ -737,7 +737,7 @@ export default function AdminPayments() {
             type="button"
             onClick={() => setFilter('wallet_overview')}
             className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition active:scale-[0.98] ${isWalletAdminPanel
-              ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)]'
+              ? 'bg-[#e85d00] text-white shadow-sm'
               : 'text-slate-600 hover:bg-gray-100'}`}
           >
             <Wallet className="h-4 w-4" />
@@ -748,7 +748,7 @@ export default function AdminPayments() {
 
       {!isWalletAdminPanel && (
         <>
-        <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <SectionHeader
             eyebrow="Vue ecommerce"
             title="Performance des paiements annonce"
@@ -852,7 +852,7 @@ export default function AdminPayments() {
                     onClick={() => setFilter(option.value)}
                     className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition active:scale-[0.97] ${
                       active
-                        ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                        ? 'bg-[#e85d00] text-white shadow-sm'
                         : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                     }`}
                   >
@@ -1326,7 +1326,7 @@ export default function AdminPayments() {
       )}
       {isWalletAdminPanel && (
         <section className="space-y-4">
-          <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionHeader
               eyebrow="Wallet command center"
               title="Portefeuille HDMarket"
@@ -1393,7 +1393,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_overview')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_overview'
-                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-sm'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1404,7 +1404,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_deposits')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_deposits'
-                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-sm'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1415,7 +1415,7 @@ export default function AdminPayments() {
                 onClick={() => setFilter('wallet_withdrawals')}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                   filter === 'wallet_withdrawals'
-                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-sm'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1425,7 +1425,7 @@ export default function AdminPayments() {
           </div>
 
           {filter === 'wallet_overview' && (
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <SectionHeader
                 eyebrow="Ledger"
                 title="Activité récente"
@@ -1498,7 +1498,7 @@ export default function AdminPayments() {
           />
         </section>
 
-        <section className="mt-4 space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="mt-4 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <SectionHeader
             eyebrow="File de validation"
             title="Dépôts Portefeuille HDMarket"
@@ -1537,7 +1537,7 @@ export default function AdminPayments() {
                 onClick={() => setWalletDepositStatus(option.value)}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                   walletDepositStatus === option.value
-                    ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.2)]'
+                    ? 'bg-[#e85d00] text-white shadow-sm'
                     : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1692,7 +1692,7 @@ export default function AdminPayments() {
             <DashboardCard label="Règle" value="Numéro du compte" hint="Le retrait doit aller au téléphone enregistré" icon={ShieldCheck} tone="indigo" />
           </section>
 
-          <section className="mt-4 space-y-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="mt-4 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionHeader
               eyebrow="Payout operations"
               title="Retraits Portefeuille HDMarket"
@@ -1811,7 +1811,7 @@ export default function AdminPayments() {
       {/* Proof image preview overlay */}
       {proofPreviewUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setProofPreviewUrl('')}
         >
 	          <button
@@ -1832,7 +1832,7 @@ export default function AdminPayments() {
 	          <img
 	            src={proofPreviewUrl}
 	            alt="Preuve de paiement"
-	            className="max-h-[90vh] max-w-full rounded-xl object-contain shadow-2xl"
+	            className="max-h-[90vh] max-w-full rounded-xl object-contain shadow-sm"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

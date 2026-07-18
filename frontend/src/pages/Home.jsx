@@ -172,12 +172,8 @@ const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
   return (
     <motion.section
       {...scrollReveal(reduceMotion)}
-      className={`hd-wallet-callout relative w-full overflow-hidden rounded-2xl bg-[#06281f] text-white shadow-[0_14px_34px_rgba(6,40,31,0.18)] ${compact ? 'p-4' : 'p-5'}`}
+      className={`hd-wallet-callout relative w-full overflow-hidden rounded-2xl bg-[#06281f] text-white shadow-sm ${compact ? 'p-4' : 'p-5'}`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(255,106,0,0.16),transparent_30%),linear-gradient(135deg,rgba(6,40,31,0.96),rgba(11,80,58,0.9))]" />
-      <div className="hd-wallet-shine pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/18 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-
       <div className="relative">
         <div className="flex items-center justify-between gap-2">
           <span className="inline-flex min-w-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/90">
@@ -273,7 +269,7 @@ const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
                       initial={{ scale: 0.6, rotate: -8 }}
                       animate={{ scale: 1, rotate: 0 }}
                       transition={{ duration: 0.32, ease: 'easeOut' }}
-                      className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gradient-to-br from-emerald-400 to-emerald-200 text-[#06281f] shadow-[0_8px_18px_rgba(16,185,129,0.28)]"
+                      className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-emerald-400 text-[#06281f] shadow-sm"
                     >
                       <ActiveBenefitIcon className="h-3.5 w-3.5" />
                     </motion.span>
@@ -377,7 +373,7 @@ const PourVousSection = ({ user, t, formatPrice, buildProductLink, externalLinkP
               key={`pourvous-${product._id || index}`}
               to={buildProductLink(product)}
               {...externalLinkProps}
-              className="w-[138px] shrink-0 snap-start overflow-hidden rounded-[14px] border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.05)] transition-transform active:scale-[0.98]"
+              className="w-[138px] shrink-0 snap-start overflow-hidden rounded-[14px] border border-[#eee8e0] bg-white shadow-sm transition-transform active:scale-[0.98]"
             >
               <div className="aspect-square overflow-hidden bg-[#f3f0ec]">
                 <PreviewableImage
@@ -925,7 +921,7 @@ const loadDiscountProducts = async () => {
       />
     );
     const wrapperClass =
-      "group block w-full overflow-hidden rounded-[16px] border border-[#E5E5EA] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] aspect-[16/9] sm:aspect-[21/7] lg:aspect-[24/7] dark:bg-[#1C1C1E] dark:border-[#38383A]";
+      "group block w-full overflow-hidden rounded-[16px] border border-[#E5E5EA] bg-white shadow-sm aspect-[16/9] sm:aspect-[21/7] lg:aspect-[24/7] dark:bg-[#1C1C1E] dark:border-[#38383A]";
     if (bannerLink) {
       if (bannerLink.startsWith('/')) {
         return (
@@ -1397,7 +1393,7 @@ const loadDiscountProducts = async () => {
         />
 
         {(user || showFullPaymentHomeBanner) ? (
-          <section className="order-[-1] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.05)]">
+          <section className="order-[-1] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-sm">
             {user ? (
               <Link
                 to="/profile"
@@ -1442,12 +1438,12 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className={`group block bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] ${
+                className={`group block bg-emerald-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] ${
                   user ? 'border-t border-gray-200' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_20px_rgba(16,185,129,0.18)]">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
                     <Truck className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -1470,10 +1466,10 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/cart"
                 {...externalLinkProps}
-                className="group block border-t border-gray-200 bg-gradient-to-r from-amber-50 via-white to-orange-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:border-neutral-800 dark:from-amber-950/40 dark:via-neutral-950 dark:to-orange-950/30"
+                className="group block border-t border-gray-200 bg-amber-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:border-neutral-800 dark:bg-amber-950/40"
               >
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_10px_20px_rgba(255,106,0,0.18)]">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
                     <Users className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -1497,9 +1493,8 @@ const loadDiscountProducts = async () => {
 
         <WalletHomeCallout compact user={user} t={t} walletEnabled={walletFeatureEnabled} />
 
-        <section className="order-first -mx-2.5 overflow-hidden rounded-b-[24px] bg-[#e85d00] text-white shadow-[0_16px_34px_rgba(232,93,0,0.18)] max-[375px]:-mx-2">
+        <section className="order-first -mx-2.5 overflow-hidden rounded-b-[24px] bg-[#e85d00] text-white shadow-sm max-[375px]:-mx-2">
           <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
-            <div className="pointer-events-none absolute -right-8 top-3 h-24 w-24 rounded-full bg-white/15 blur-2xl" />
             <div className="pointer-events-none absolute left-32 -top-8 h-16 w-16 rounded-full bg-amber-200/20 blur-xl" />
             <div className="relative flex items-center justify-between gap-3">
               <Link to="/" className="flex items-center gap-2" {...externalLinkProps}>
@@ -1508,7 +1503,7 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/cities"
                 {...externalLinkProps}
-                className="inline-flex min-w-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1.5 text-xs font-semibold backdrop-blur"
+                className="inline-flex min-w-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1.5 text-xs font-semibold"
               >
                 <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="max-w-[86px] truncate">{effectiveUserCity || 'Local'}</span>
@@ -1530,7 +1525,7 @@ const loadDiscountProducts = async () => {
               ))}
             </div>
 
-            <div className="relative mt-4 flex h-[54px] items-center gap-2 rounded-full border-2 border-white bg-white px-3 shadow-[0_10px_26px_rgba(123,42,0,0.18)]">
+            <div className="relative mt-4 flex h-[54px] items-center gap-2 rounded-full border-2 border-white bg-white px-3 shadow-sm">
               <button
                 type="button"
                 onClick={() => setCategoryModalOpen(true)}
@@ -1549,7 +1544,7 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="inline-flex h-11 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,90,31,0.28)] active:scale-95"
+                className="inline-flex h-11 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white shadow-sm active:scale-95"
                 aria-label="Rechercher"
               >
                 <Search className="h-6 w-6" />
@@ -1558,7 +1553,7 @@ const loadDiscountProducts = async () => {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_10px_28px_rgba(23,23,23,0.06)]">
+        <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
           <div className="grid grid-cols-5 gap-2">
             {shortcutItems.map(({ label, icon: Icon, to }, index) => (
               <Link
@@ -1567,7 +1562,7 @@ const loadDiscountProducts = async () => {
                 {...externalLinkProps}
                 className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-center active:scale-95"
               >
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[#eee8e0] bg-white text-[#e85d00] shadow-[0_2px_8px_rgba(117,75,36,0.06)]">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[#eee8e0] bg-white text-[#e85d00] shadow-sm">
                   <Icon className="h-5 w-5" />
                 </span>
                 <span className="max-w-full truncate text-[11px] font-bold text-slate-800">{label}</span>
@@ -1577,7 +1572,7 @@ const loadDiscountProducts = async () => {
         </section>
 
         {heroProducts.length > 0 ? (
-          <section className="overflow-hidden rounded-[18px] border border-[#eee8e0] bg-white shadow-[0_2px_10px_rgba(117,75,36,0.07)]">
+          <section className="overflow-hidden rounded-[18px] border border-[#eee8e0] bg-white shadow-sm">
             <div>
               <Link
                 to="/top-deals"
@@ -1615,7 +1610,7 @@ const loadDiscountProducts = async () => {
         ) : null}
 
         {/* Mobile Categories Module */}
-        <section className="hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_14px_34px_rgba(117,75,36,0.08)] max-[375px]:p-2.5">
+        <section className="hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-sm max-[375px]:p-2.5">
           <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 max-[375px]:gap-1.5">
               <div className="inline-flex h-7 w-7 max-[375px]:h-6 max-[375px]:w-6 items-center justify-center rounded-xl bg-[#e85d00] shadow-sm">
@@ -1635,7 +1630,7 @@ const loadDiscountProducts = async () => {
             <Link
               to="/products"
               {...externalLinkProps}
-              className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#e85d00] text-white text-xs max-[375px]:text-[11px] font-black leading-none whitespace-nowrap shadow-[0_8px_18px_rgba(255,106,0,0.22)] tap-feedback transition-transform"
+              className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#e85d00] text-white text-xs max-[375px]:text-[11px] font-black leading-none whitespace-nowrap shadow-sm tap-feedback transition-transform"
             >
               <LayoutGrid className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
               <span className="block truncate">{t('home.all', 'Tout')}</span>
@@ -1688,14 +1683,14 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="inline-flex items-center rounded-xl bg-white px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-neutral-950 shadow-[0_8px_18px_rgba(0,0,0,0.18)] transition-all duration-200 hover:bg-neutral-100 active:scale-[0.98]"
+                className="inline-flex items-center rounded-xl bg-white px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-neutral-950 shadow-sm transition-all duration-200 hover:bg-neutral-100 active:scale-[0.98]"
               >
                 Explorer <ChevronRight className="ml-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
               </Link>
               {sellingEnabled && (
                 <Link
                   to="/my"
-                  className="inline-flex items-center rounded-xl border border-white/25 bg-white/10 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.16)] backdrop-blur transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
+                  className="inline-flex items-center rounded-xl border border-white/25 bg-white/10 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-sm transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
                 >
                   <Zap className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
                   Publier
@@ -1795,7 +1790,7 @@ const loadDiscountProducts = async () => {
 
         {/* ⚡ Flash Sales — Countdown Deals (Proposal 2) */}
         {!activeFlashSalesLoading && activeFlashSales.length > 0 && (
-          <motion.section {...scrollReveal(reduceMotionHome)} className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50/40 to-orange-50/40 p-3">
+          <motion.section {...scrollReveal(reduceMotionHome)} className="rounded-2xl border border-red-100 bg-red-50/40 p-3">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500">
@@ -2327,7 +2322,7 @@ const loadDiscountProducts = async () => {
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-neutral-500 to-neutral-600 flex items-center justify-center shadow-md shadow-black/20">
+              <div className="w-8 h-8 rounded-xl bg-neutral-500 flex items-center justify-center shadow-md shadow-black/20">
                 <ShoppingBag className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -2491,7 +2486,7 @@ const loadDiscountProducts = async () => {
             {user ? (
               <Link
                 to="/profile"
-                className="group flex min-w-0 items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-[0_14px_34px_rgba(117,75,36,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-200"
+                className="group flex min-w-0 items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-200"
               >
                 <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200">
                   <MapPin className="h-5 w-5" />
@@ -2523,9 +2518,9 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-orange-50 px-4 py-3 shadow-[0_14px_34px_rgba(16,185,129,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200"
+                className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200"
               >
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)]">
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
                   <Truck className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -2550,7 +2545,7 @@ const loadDiscountProducts = async () => {
           <Link
             to="/products"
             {...externalLinkProps}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e85d00] text-white text-sm font-black whitespace-nowrap shadow-[0_10px_22px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e85d00] text-white text-sm font-black whitespace-nowrap shadow-sm hover:bg-[#e85f00] transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
             Tout
@@ -2594,32 +2589,32 @@ const loadDiscountProducts = async () => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
           {/* Hero Banner */}
           <div className="flex flex-col gap-4">
-            <section className="relative bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 rounded-2xl overflow-hidden shadow-lg" style={{ minHeight: '300px' }}>
+            <section className="relative bg-neutral-900 rounded-2xl overflow-hidden shadow-sm" style={{ minHeight: '300px' }}>
               {heroBanner && (
                 <div className="absolute inset-0">
                   <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-neutral-950/70 via-neutral-950/70 to-neutral-950/70" />
+                  <div className="absolute inset-0 bg-neutral-950/70" />
                 </div>
               )}
               <div className="relative z-10 px-6 py-8 lg:py-10 text-left">
-                <div className="inline-flex items-center px-3 py-1.5 bg-white/15 backdrop-blur-md rounded-full border border-white/30 mb-4 shadow-lg">
+                <div className="inline-flex items-center px-3 py-1.5 bg-white/15 rounded-full border border-white/30 mb-4 shadow-sm">
                   <Star className="w-3.5 h-3.5 text-neutral-300 mr-1.5" fill="currentColor" />
-                  <span className="text-xs text-white font-semibold">{t('nav.marketplacePremium', 'Marketplace Premium')}</span>
+                  <span className="text-xs text-white font-semibold">{t('nav.marketplacePremium', 'Marketplace HDMarket')}</span>
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-black text-white mb-3 leading-tight">
                   Votre Marché
-                  <span className="block bg-gradient-to-r from-neutral-300 via-neutral-400 to-neutral-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
+                  <span className="block bg-neutral-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
                 </h1>
                 <p className="text-sm text-neutral-200 mb-5 max-w-md leading-relaxed">
                   {desktopHeroDescription}
                 </p>
                 <div className="flex gap-3">
                   {sellingEnabled && (
-                    <Link to="/my" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-[0_10px_24px_rgba(0,0,0,0.16)] backdrop-blur active:scale-[0.99]">
+                    <Link to="/my" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-sm active:scale-[0.99]">
                       <Zap className="w-4 h-4 mr-1.5" /> Publier
                     </Link>
                   )}
-                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-white text-neutral-950 font-semibold rounded-xl hover:bg-neutral-100 transition-all text-sm shadow-[0_10px_24px_rgba(0,0,0,0.18)] active:scale-[0.99]">
+                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-white text-neutral-950 font-semibold rounded-xl hover:bg-neutral-100 transition-all text-sm shadow-sm active:scale-[0.99]">
                     Explorer <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
@@ -2803,7 +2798,7 @@ const loadDiscountProducts = async () => {
                       showHint={false}
                     />
                     {idx < 3 && (
-                      <span className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg ${
+                      <span className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${
                         idx === 0 ? 'bg-neutral-500' : idx === 1 ? 'bg-gray-400' : 'bg-neutral-600'
                       }`}>
                         {idx + 1}
@@ -3071,7 +3066,7 @@ const loadDiscountProducts = async () => {
                         </span>
                         {/* Tier price badge */}
                         {tierPrice && tierPrice !== product.price && (
-                          <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+                          <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white">
                             Dès {formatPrice(tierPrice)}/u
                           </span>
                         )}
@@ -3175,7 +3170,7 @@ const loadDiscountProducts = async () => {
                             {duration > 0 ? `${duration}J` : 'TRANCHE'}
                           </span>
                           {minAmount > 0 && (
-                            <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 backdrop-blur-sm px-2.5 py-1 text-[10px] font-bold text-white">
+                            <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white">
                               Dès {formatPrice(minAmount)}
                             </span>
                           )}
@@ -3442,7 +3437,7 @@ const loadDiscountProducts = async () => {
               return (
                 <article
                   key={group.id}
-                  className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)]"
+                  className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
                 >
                   <Link
                     to={`/categories/${firstOption}`}

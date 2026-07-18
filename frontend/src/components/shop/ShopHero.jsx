@@ -52,17 +52,16 @@ export default function ShopHero({
           <div
             className="h-full w-full dark:opacity-80"
             style={{
-              background:
-                'radial-gradient(circle at 18% 18%, rgba(255,255,255,0.82), transparent 28%), linear-gradient(135deg, var(--shop-color) 0%, color-mix(in srgb, var(--shop-color) 72%, white) 56%, color-mix(in srgb, var(--shop-color) 18%, white) 100%)'
+              background: 'var(--shop-color)'
             }}
           />
         )}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
-        <button type="button" onClick={onBack} className="absolute left-2.5 top-2.5 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur" aria-label={t('common.back', 'Retour')}><ArrowLeft size={18} /></button>
-        <button type="button" onClick={onShare} className="absolute right-2.5 top-2.5 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur" aria-label={t('shop_profile.share', 'Partager')}><Share2 size={17} /></button>
+        <button type="button" onClick={onBack} className="absolute left-2.5 top-2.5 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white" aria-label={t('common.back', 'Retour')}><ArrowLeft size={18} /></button>
+        <button type="button" onClick={onShare} className="absolute right-2.5 top-2.5 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white" aria-label={t('shop_profile.share', 'Partager')}><Share2 size={17} /></button>
         <div className="hidden">
           {isCertifiedShop && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1.5 text-[11px] font-black text-emerald-700 shadow-sm ring-1 ring-white/60 backdrop-blur">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1.5 text-[11px] font-black text-emerald-700 shadow-sm ring-1 ring-white/60">
               <ShieldCheck size={13} />
               {t('shop_profile.verified', 'Boutique vérifiée')}
             </span>
@@ -76,7 +75,7 @@ export default function ShopHero({
         </div>
         <div className="hidden">
           <div className="flex items-end gap-3">
-            <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-xl ring-1 ring-black/5 dark:border-neutral-950 dark:bg-neutral-900 dark:ring-white/10">
+            <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-sm ring-1 ring-black/5 dark:border-neutral-950 dark:bg-neutral-900 dark:ring-white/10">
               {shop?.shopLogo ? (
                 <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" />
               ) : (
@@ -106,7 +105,7 @@ export default function ShopHero({
 
       <div className="relative px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
         <div className="flex items-end gap-3 -mt-8">
-          <div className="z-[1] h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-[0_8px_20px_rgba(0,0,0,0.12)] dark:border-neutral-950 dark:bg-neutral-900">
+          <div className="z-[1] h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-sm dark:border-neutral-950 dark:bg-neutral-900">
             {shop?.shopLogo ? <img src={shop.shopLogo} alt={`Logo ${shop.shopName}`} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-2xl font-black text-[var(--shop-color)]">{String(shop?.shopName || 'B').charAt(0).toUpperCase()}</div>}
           </div>
           <div className="z-[1] min-w-0 flex-1 pb-1">

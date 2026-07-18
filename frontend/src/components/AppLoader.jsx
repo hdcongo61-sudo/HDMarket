@@ -19,7 +19,7 @@ export default function AppLoader({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-white/95 backdrop-blur-sm"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-white/95"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -27,7 +27,7 @@ export default function AppLoader({
       <div className="relative flex flex-col items-center">
         <div className="absolute -inset-6 rounded-full border border-neutral-200/70 motion-safe:animate-ping motion-reduce:animate-none" />
         <div className="absolute -inset-10 rounded-full border border-neutral-100/80 motion-safe:animate-pulse motion-reduce:animate-none" />
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-white shadow-xl">
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-white shadow-sm">
           {resolvedLogo ? (
             <img
               src={resolvedLogo}

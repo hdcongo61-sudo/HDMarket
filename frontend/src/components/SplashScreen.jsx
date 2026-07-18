@@ -44,7 +44,7 @@ export default function SplashScreen({ splashImage, splashDurationSeconds = DEFA
         <button
           type="button"
           onClick={handleSkip}
-          className="flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg hover:bg-white transition-colors"
+          className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-white transition-colors"
           aria-label="Passer"
         >
           <span>Passer</span>

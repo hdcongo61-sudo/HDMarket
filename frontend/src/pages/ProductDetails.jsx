@@ -1603,7 +1603,7 @@ export default function ProductDetails() {
     }
   };
 
-  // 📱 GESTION WHATSAPP
+  // Gestion WhatsApp
   const handleWhatsappClick = async (event) => {
     if (!product) return;
 
@@ -2410,24 +2410,24 @@ export default function ProductDetails() {
           </div>
           <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
             <button type="button" onClick={handleZoomButtonClick}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm active:scale-95"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white active:scale-95"
               aria-label="Agrandir">
               <ZoomIn size={18} />
             </button>
           </div>
           {galleryImages.length > 1 && (
-            <span className="absolute bottom-3 right-3 z-20 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+            <span className="absolute bottom-3 right-3 z-20 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-bold text-white">
               {selectedImage + 1}/{galleryImages.length}
             </span>
           )}
           {galleryImages.length > 1 && (
             <>
               <button type="button" onClick={(e) => { e.stopPropagation(); goToPrevImage(); }}
-                className="absolute left-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm active:scale-95">
+                className="absolute left-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white active:scale-95">
                 <ChevronLeft size={20} />
               </button>
               <button type="button" onClick={(e) => { e.stopPropagation(); goToNextImage(); }}
-                className="absolute right-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm active:scale-95">
+                className="absolute right-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white active:scale-95">
                 <ChevronRight size={20} />
               </button>
             </>
@@ -3127,7 +3127,7 @@ export default function ProductDetails() {
                   ? 'bg-gray-200 text-gray-400'
                   : isOptionSelectionBlocked
                     ? 'bg-black text-white'
-                    : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
+                    : 'bg-[#e85d00] text-white shadow-sm'}`}>
                 <Zap size={16} className="flex-shrink-0" fill="currentColor" />
                 <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
               </button>
@@ -3272,7 +3272,7 @@ export default function ProductDetails() {
                   disabled={addingToCart || isPurchaseOutOfStock || isOptionSelectionBlocked}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isPurchaseOutOfStock || isOptionSelectionBlocked
                     ? 'bg-gray-200 text-gray-400'
-                    : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.28)]'}`}>
+                    : 'bg-[#e85d00] text-white shadow-sm'}`}>
                   {isPurchaseOutOfStock ? 'Rupture' : addingToCart ? '...' : 'Acheter'}
                 </button>
               </div>
@@ -3283,12 +3283,12 @@ export default function ProductDetails() {
 
       {/* Cart / share feedback toasts */}
       {cartFeedback && (
-        <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-semibold shadow-lg ${cartFeedback.includes('✅') ? 'bg-gray-800 text-white' : 'bg-gray-900 text-white'}`}>
+        <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-semibold shadow-sm ${cartFeedback.includes('✅') ? 'bg-gray-800 text-white' : 'bg-gray-900 text-white'}`}>
           {cartFeedback}
         </div>
       )}
       {shareFeedback && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-sm">
           {shareFeedback}
         </div>
       )}
@@ -3304,7 +3304,7 @@ export default function ProductDetails() {
       className="product-detail-page product-detail-commerce min-h-screen bg-gray-50 dark:bg-black"
     >
       {/* 🎯 NAVIGATION ENHANCED */}
-      <nav className="product-detail-subnav border-b border-neutral-200/80 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
+      <nav className="product-detail-subnav border-b border-neutral-200/80 bg-white/80 dark:border-neutral-800 dark:bg-neutral-950/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
@@ -3414,7 +3414,7 @@ export default function ProductDetails() {
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1.2fr_1fr] lg:gap-12">
           {/* 🖼️ GALERIE D'IMAGES ENHANCED */}
           <div className="space-y-4">
-            <div className="product-detail-gallery rounded-3xl border border-gray-100 bg-white p-3 shadow-xl shadow-gray-200/50">
+            <div className="product-detail-gallery rounded-2xl border border-gray-100 bg-white p-3 shadow-sm shadow-gray-200/50">
               <div className={desktopGalleryLayoutClass}>
                 {hasMultipleGalleryImages && (
                   <div className="order-2 flex gap-2 overflow-x-auto pb-1 lg:order-1 lg:max-h-[620px] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -3490,7 +3490,7 @@ export default function ProductDetails() {
                         event.stopPropagation();
                         handleFavoriteToggle();
                       }}
-                      className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-white/20 shadow-lg backdrop-blur-md transition-all duration-200 active:scale-90 hover:bg-white/30"
+                      className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-white/20 shadow-sm transition-all duration-200 active:scale-90 hover:bg-white/30"
                     >
                       <Heart
                         size={20}
@@ -3502,20 +3502,20 @@ export default function ProductDetails() {
 
                     <div className="absolute left-4 top-4 z-20 flex flex-wrap gap-2">
                       {hasDiscount && (
-                        <span className="rounded-full backdrop-blur-md bg-neutral-900/80 border border-white/10 px-3 py-2 text-xs font-black text-white shadow-lg">
+                        <span className="rounded-full bg-neutral-900/80 border border-white/10 px-3 py-2 text-xs font-black text-white shadow-sm">
                           -{discountPercentage}%
                         </span>
                       )}
                       {isNewProduct && (
-                        <span className="rounded-full backdrop-blur-md bg-neutral-800/80 border border-white/10 px-3 py-2 text-xs font-black text-white shadow-lg">
+                        <span className="rounded-full bg-neutral-800/80 border border-white/10 px-3 py-2 text-xs font-black text-white shadow-sm">
                           Nouveau
                         </span>
                       )}
-                      <span className={`${conditionColor.replace('bg-', 'bg-').replace('text-', 'text-')} rounded-full backdrop-blur-md border border-white/10 px-3 py-2 text-xs font-black text-white shadow-lg`}>
+                      <span className={`${conditionColor.replace('bg-', 'bg-').replace('text-', 'text-')} rounded-full border border-white/10 px-3 py-2 text-xs font-black text-white shadow-sm`}>
                         {conditionLabel}
                       </span>
                       {product.certified && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full backdrop-blur-md bg-white/90 border border-white/40 px-3 py-2 text-xs font-black text-neutral-900 shadow-lg">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 border border-white/40 px-3 py-2 text-xs font-black text-neutral-900 shadow-sm">
                           <Shield className="h-4 w-4" />
                           Certifié HDMarket
                         </span>
@@ -3530,7 +3530,7 @@ export default function ProductDetails() {
                             event.stopPropagation();
                             goToPrevImage();
                           }}
-                          className="absolute left-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-lg backdrop-blur-md transition active:scale-95 hover:bg-white/30"
+                          className="absolute left-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-sm transition active:scale-95 hover:bg-white/30"
                           aria-label="Image précédente"
                         >
                           <ChevronLeft size={20} className="drop-shadow-md" />
@@ -3541,7 +3541,7 @@ export default function ProductDetails() {
                             event.stopPropagation();
                             goToNextImage();
                           }}
-                          className="absolute right-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-lg backdrop-blur-md transition active:scale-95 hover:bg-white/30"
+                          className="absolute right-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-sm transition active:scale-95 hover:bg-white/30"
                           aria-label="Image suivante"
                         >
                           <ChevronRight size={20} className="drop-shadow-md" />
@@ -3550,7 +3550,7 @@ export default function ProductDetails() {
                     )}
 
                     {hasMultipleGalleryImages && (
-                      <div className="absolute bottom-4 left-4 z-20 rounded-full bg-white/20 border border-white/40 shadow-lg px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">
+                      <div className="absolute bottom-4 left-4 z-20 rounded-full bg-white/20 border border-white/40 shadow-sm px-3 py-1.5 text-xs font-bold text-white">
                         {selectedImage + 1} / {galleryImages.length}
                       </div>
                     )}
@@ -3558,7 +3558,7 @@ export default function ProductDetails() {
                     <button
                       type="button"
                       onClick={handleZoomButtonClick}
-                      className="absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white opacity-0 group-hover:opacity-100 shadow-lg backdrop-blur-md transition-all duration-300 active:scale-90 hover:bg-white/30"
+                      className="absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white opacity-0 group-hover:opacity-100 shadow-sm transition-all duration-300 active:scale-90 hover:bg-white/30"
                     >
                       <ZoomIn size={20} className="drop-shadow-md" />
                     </button>
@@ -3567,10 +3567,10 @@ export default function ProductDetails() {
               </div>
             </div>
             {product.video && (
-              <div className="overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-[0_18px_42px_rgba(117,75,36,0.09)]">
-                <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-[#fff2e6] via-white to-orange-50 px-5 py-4 dark:from-neutral-900 dark:via-neutral-900 dark:to-orange-950/30">
+              <div className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
+                <div className="flex items-center justify-between gap-4 bg-[#fff2e6] px-5 py-4 dark:bg-neutral-900">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)]">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
                       <Video className="h-6 w-6" />
                     </span>
                     <div>
@@ -3593,7 +3593,7 @@ export default function ProductDetails() {
                 </div>
               </div>
             )}
-            {renderSocialVideoSection({ rounded: 'rounded-[28px]' })}
+            {renderSocialVideoSection({ rounded: 'rounded-2xl' })}
           </div>
 
           {/* 📋 INFORMATIONS PRODUIT ENHANCED - STICKY */}
@@ -3748,7 +3748,7 @@ export default function ProductDetails() {
 
               {/* 🏪 INFORMATION VENDEUR ENHANCED */}
               {product.user && (
-                <section className="product-shop-card relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.45)]">
+                <section className="product-shop-card relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="relative space-y-5">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -3907,7 +3907,7 @@ export default function ProductDetails() {
                         ? 'cursor-not-allowed bg-slate-200 text-slate-500 opacity-70'
                         : isOptionSelectionBlocked
                           ? 'bg-black text-white hover:bg-neutral-800'
-                          : 'bg-[#e85d00] text-white shadow-[0_18px_34px_-22px_rgba(255,106,0,0.9)] hover:bg-[#f45f00]'
+                          : 'bg-[#e85d00] text-white shadow-sm hover:bg-[#f45f00]'
                         }`}
                     >
                       <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isPurchaseOutOfStock ? 'bg-slate-300' : 'bg-white/15 text-white'
@@ -3946,7 +3946,7 @@ export default function ProductDetails() {
 
                   {whatsappLink && (
                     <p className="text-center text-sm text-gray-500">
-                      {whatsappClicks > 0 ? `📞 Contacté ${whatsappClicks} fois via WhatsApp` : '🚀 Soyez le premier à contacter ce vendeur'}
+                      {whatsappClicks > 0 ? `Contacté ${whatsappClicks} fois via WhatsApp` : 'Soyez le premier à contacter ce vendeur'}
                     </p>
                   )}
                 </div>
@@ -4010,7 +4010,7 @@ export default function ProductDetails() {
                 </>
               )}
 
-              {/* 📱 SOCIAL MEDIA SHARE BUTTONS */}
+              {/* Boutons de partage */}
               <div className="bg-neutral-50 rounded-2xl p-4 border border-gray-200">
                 <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
                   <Share2 size={16} className="text-neutral-800" />
@@ -4283,9 +4283,9 @@ export default function ProductDetails() {
                   </div>
 
                   {/* SECTION COMMENTAIRES ENHANCED */}
-                  <div className="bg-neutral-50 rounded-2xl p-6 sm:p-8 border border-neutral-200 shadow-lg">
+                  <div className="bg-neutral-50 rounded-2xl p-6 sm:p-8 border border-neutral-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-lg">
+                      <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-sm">
                         <MessageCircle className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -4512,7 +4512,7 @@ export default function ProductDetails() {
                   key={relatedProduct._id}
                   to={buildProductPath(relatedProduct)}
                   {...externalLinkProps}
-                  className="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all hover:shadow-lg hover:border-neutral-300"
+                  className="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all hover:shadow-sm hover:border-neutral-300"
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                     <img
@@ -4616,7 +4616,7 @@ export default function ProductDetails() {
               </div>
               <Link
                 to={`/products?category=${product.category}`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white font-bold rounded-xl hover:bg-neutral-800 transition-all shadow-md hover:shadow-lg text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white font-bold rounded-xl hover:bg-neutral-800 transition-all shadow-md hover:shadow-sm text-sm"
               >
                 Voir tout <ChevronRight size={18} />
               </Link>
@@ -4641,7 +4641,7 @@ export default function ProductDetails() {
                   key={relatedProduct._id}
                   to={buildProductPath(relatedProduct)}
                   {...externalLinkProps}
-                  className="group block bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-all hover:-translate-y-1"
+                  className="group block bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-sm hover:border-neutral-300 transition-all hover:-translate-y-1"
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                     <img
@@ -4672,13 +4672,13 @@ export default function ProductDetails() {
   const productOptionsPanel = hasProductOptions ? (
     <div
       id="product-purchase-options"
-      className={`rounded-3xl border bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4 transition-colors ${
+      className={`rounded-2xl border bg-white p-4 shadow-sm space-y-4 transition-colors ${
         isOptionSelectionBlocked ? 'border-[#e85d00]/40 ring-1 ring-[#e85d00]/20' : 'border-slate-200/80'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_10px_22px_rgba(255,106,0,0.28)]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
             <SlidersHorizontal size={18} />
           </span>
           <div className="min-w-0">
@@ -4846,7 +4846,7 @@ export default function ProductDetails() {
   const specPreviewRows = specificationRows.slice(0, 4);
   const visibleProductSpecsPanel =
     specPreviewRows.length > 0 || variantRows.length > 0 ? (
-      <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_28px_-22px_rgba(15,23,42,0.55)] space-y-4">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-slate-900">Détails essentiels</p>
@@ -5033,14 +5033,14 @@ export default function ProductDetails() {
         mobileSheet={false}
         fullscreen
         ariaLabel="Image produit"
-        backdropClassName="!bg-black backdrop-blur-sm"
+        backdropClassName="!bg-black"
         panelClassName="!border-0 !bg-black text-white"
       >
           <div className="relative flex h-full w-full flex-col bg-black">
             {/* Top bar: page counter + actions */}
             <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between p-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:p-4">
               {galleryImages.length > 1 ? (
-                <span className="rounded-full bg-white/10 px-3 py-1 text-[13px] font-bold tabular-nums text-white backdrop-blur-md">
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[13px] font-bold tabular-nums text-white">
                   {safeSelectedImage + 1} / {galleryImages.length}
                 </span>
               ) : (
@@ -5054,7 +5054,7 @@ export default function ProductDetails() {
                       e.stopPropagation();
                       setReportModal({ isOpen: true, type: 'photo', commentId: null, photoUrl: displayedImage });
                     }}
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-90"
                     title="Signaler cette photo"
                   >
                     <Flag size={18} />
@@ -5064,7 +5064,7 @@ export default function ProductDetails() {
                   type="button"
                   onClick={closeImageModal}
                   aria-label="Fermer"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-90"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-90"
                 >
                   <X size={20} />
                 </button>
@@ -5114,7 +5114,7 @@ export default function ProductDetails() {
                   type="button"
                   onClick={handleModalPrev}
                   aria-label="Image précédente"
-                  className="absolute left-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 sm:flex"
+                  className="absolute left-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:flex"
                 >
                   <ChevronLeft size={22} />
                 </button>
@@ -5122,7 +5122,7 @@ export default function ProductDetails() {
                   type="button"
                   onClick={handleModalNext}
                   aria-label="Image suivante"
-                  className="absolute right-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 sm:flex"
+                  className="absolute right-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:flex"
                 >
                   <ChevronRight size={22} />
                 </button>
@@ -5132,7 +5132,7 @@ export default function ProductDetails() {
             {/* Bottom thumbnail rail */}
             {galleryImages.length > 1 && (
               <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
-                <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl bg-white/10 px-2.5 py-2 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl bg-white/10 px-2.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {galleryImages.map((item, index) => (
                     <button
                       key={`modal-thumb-${item.src || index}`}
@@ -5216,7 +5216,7 @@ function CommentThread({
   return (
     <div
       id={`comment-${comment?._id}`}
-      className={`bg-white rounded-2xl border overflow-hidden shadow-lg transition-shadow hover:shadow-md ${
+      className={`bg-white rounded-2xl border overflow-hidden shadow-sm transition-shadow hover:shadow-md ${
         isHighlightedComment ? 'border-neutral-500 ring-2 ring-neutral-300' : 'border-gray-200'
       }`}
     >
@@ -5228,10 +5228,10 @@ function CommentThread({
               <img
                 src={resolveUserProfileImage(comment.user)}
                 alt={comment.user?.name || 'Utilisateur'}
-                className="h-12 w-12 rounded-2xl object-cover shadow-lg ring-2 ring-white"
+                className="h-12 w-12 rounded-2xl object-cover shadow-sm ring-2 ring-white"
               />
             ) : (
-              <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white">
+              <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-sm ring-2 ring-white">
                 <span className="text-white text-base font-black">
                   {comment.user?.name?.charAt(0) || 'U'}
                 </span>
@@ -5414,7 +5414,7 @@ function RelatedProducts({ relatedProducts, product }) {
         </div>
         <Link
           to={`/products?category=${product.category}`}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white font-bold rounded-xl hover:bg-neutral-800 transition-all shadow-md hover:shadow-lg text-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white font-bold rounded-xl hover:bg-neutral-800 transition-all shadow-md hover:shadow-sm text-sm"
         >
           Voir tout <ChevronRight size={18} />
         </Link>
@@ -5426,7 +5426,7 @@ function RelatedProducts({ relatedProducts, product }) {
             key={relatedProduct._id}
             to={buildProductPath(relatedProduct)}
             {...externalLinkProps}
-            className="group block bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-neutral-300 transition-all hover:-translate-y-1"
+            className="group block bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-sm hover:border-neutral-300 transition-all hover:-translate-y-1"
           >
             <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
               <img

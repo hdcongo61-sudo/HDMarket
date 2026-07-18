@@ -293,19 +293,19 @@ export default function ProductPreview() {
   return (
     <div className="min-h-screen bg-[#f6f3ee] text-slate-950">
       <div className="mx-auto w-full max-w-7xl pb-24">
-        <header className="border-b border-gray-200/80 bg-gray-50/95 px-3 py-3 backdrop-blur-xl">
+        <header className="border-b border-gray-200/80 bg-gray-50/95 px-3 py-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => navigate(-1)}
               aria-label="Retour"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-gray-200 active:scale-95"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 active:scale-95"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <Link
               to="/products"
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2.5 text-sm font-black text-slate-500 shadow-[0_8px_20px_rgba(117,75,36,0.08)] ring-1 ring-gray-200"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2.5 text-sm font-black text-slate-500 shadow-sm ring-1 ring-gray-200"
             >
               <Eye className="h-4 w-4 text-[#e85d00]" />
               <span className="truncate">Explorer HDMarket</span>
@@ -316,7 +316,7 @@ export default function ProductPreview() {
         <main className="space-y-3 px-2.5 pt-3">
         {loading ? (
           <div className="space-y-3">
-            <div className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+            <div className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-sm">
               <div className="aspect-[4/3] bg-orange-100/70" />
               <div className="space-y-3 p-4">
                 <div className="h-4 w-3/4 rounded-full bg-stone-200" />
@@ -335,7 +335,7 @@ export default function ProductPreview() {
             </div>
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-red-100 bg-white p-8 text-center shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+          <div className="rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
               <Zap className="h-7 w-7 text-red-500" />
             </div>
@@ -350,7 +350,7 @@ export default function ProductPreview() {
           </div>
         ) : product ? (
           <div className="space-y-3">
-            <section className="overflow-hidden rounded-2xl bg-white shadow-[0_18px_40px_rgba(117,75,36,0.10)]">
+            <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
               <Link to={productLink} state={{ previewBackPath }} className="group block">
                 <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                   <img
@@ -360,11 +360,11 @@ export default function ProductPreview() {
                   />
                   <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
                   {hasProductDiscount ? (
-                    <span className="absolute left-3 top-3 rounded-full bg-[#e85d00] px-2.5 py-1 text-xs font-black text-white shadow-lg">
+                    <span className="absolute left-3 top-3 rounded-full bg-[#e85d00] px-2.5 py-1 text-xs font-black text-white shadow-sm">
                       -{product.discount}%
                     </span>
                   ) : null}
-                  <span className="absolute bottom-3 right-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-black text-white backdrop-blur">
+                  <span className="absolute bottom-3 right-3 rounded-full bg-black/55 px-2.5 py-1 text-xs font-black text-white">
                     Aperçu
                   </span>
                 </div>
@@ -443,7 +443,7 @@ export default function ProductPreview() {
                 <Link
                   to={productLink}
                   state={{ previewBackPath }}
-                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ffb000] to-[#ff4d16] text-sm font-black text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)] active:scale-[0.98]"
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-[#ffb000] text-sm font-black text-white shadow-sm active:scale-[0.98]"
                 >
                   Voir le produit
                   <ChevronRight className="h-4 w-4" />
@@ -451,14 +451,14 @@ export default function ProductPreview() {
               </div>
             </section>
 
-            <section className="rounded-2xl bg-white p-3 shadow-[0_16px_36px_rgba(117,75,36,0.08)]">
+            <section className="rounded-2xl bg-white p-3 shadow-sm">
               <div className="mb-3 flex items-center justify-between px-1">
                 <div>
                   <h2 className="text-lg font-black text-slate-950">Produits à découvrir</h2>
                   <p className="text-xs font-semibold text-gray-500">Sélection rapide en 3 colonnes</p>
                 </div>
                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1.5 text-[11px] font-black text-gray-500 ring-1 ring-gray-200">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Eye className="h-3.5 w-3.5" />
                   Découverte
                 </span>
               </div>
@@ -488,7 +488,7 @@ export default function ProductPreview() {
                         key={`${pick.product?._id || 'product'}-${pick.image}-${index}`}
                         to={buildPreviewLink(pick.product)}
                         state={{ previewBackPath }}
-                        className="group overflow-hidden rounded-2xl bg-white p-1.5 shadow-[0_8px_18px_rgba(117,75,36,0.07)] ring-1 ring-gray-100 transition active:scale-[0.97]"
+                        className="group overflow-hidden rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-gray-100 transition active:scale-[0.97]"
                       >
                         <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
                           <img
@@ -525,9 +525,9 @@ export default function ProductPreview() {
                   })}
                 </div>
               ) : (
-                <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#e85d00] shadow-sm">
-                    <Sparkles className="h-7 w-7" />
+                    <Store className="h-7 w-7" />
                   </div>
                   <p className="text-sm font-black text-slate-800">Aucune inspiration pour le moment</p>
                   <p className="mt-1 text-xs font-semibold text-gray-500">

@@ -18,7 +18,7 @@ export const Card = React.forwardRef(function Card(
       className={cn(
         'rounded-2xl border p-4 shadow-sm transition-all duration-200 sm:p-5',
         CARD_VARIANTS[variant] || CARD_VARIANTS.default,
-        interactive && 'hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]',
+        interactive && 'hover:border-neutral-300',
         className
       )}
       {...props}

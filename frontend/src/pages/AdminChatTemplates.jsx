@@ -303,8 +303,8 @@ export default function AdminChatTemplates() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 bg-[#f7f3ee] px-4 pb-8 pt-1 dark:bg-neutral-950">
-      <header className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_55px_rgba(17,24,39,0.08)] dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="bg-gradient-to-br from-[#e85d00] via-[#ff7a1a] to-[#f04423] px-5 py-5 text-white">
+      <header className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="bg-[#e85d00] px-5 py-5 text-white">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/75">Centre assistant</p>
           <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-tight">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/18 ring-1 ring-white/25">
@@ -319,7 +319,7 @@ export default function AdminChatTemplates() {
       </header>
 
       {isAdmin && (
-        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -387,7 +387,7 @@ export default function AdminChatTemplates() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <h2 className="mb-3 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">
             {editingId ? 'Modifier le nœud' : 'Nouveau nœud'}
           </h2>
@@ -542,7 +542,7 @@ export default function AdminChatTemplates() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-[#e85d00] px-4 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(255,106,0,0.24)] transition hover:bg-[#f05f00] disabled:opacity-60"
+                className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-[#e85d00] px-4 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#f05f00] disabled:opacity-60"
               >
                 {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 {saving ? 'Enregistrement...' : editingId ? 'Mettre à jour' : 'Créer'}
@@ -560,7 +560,7 @@ export default function AdminChatTemplates() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_40px_rgba(17,24,39,0.06)] dark:border-neutral-800 dark:bg-neutral-950">
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <h2 className="mb-3 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">Arborescence</h2>
           {loading ? (
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Chargement...</p>

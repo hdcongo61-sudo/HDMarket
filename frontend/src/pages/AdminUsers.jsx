@@ -1863,7 +1863,7 @@ export default function AdminUsers() {
                           <ChevronDown size={12} />
                         </button>
                         {restrictionMenuOpen === user.id && (
-                          <div className="absolute right-0 mt-1 w-48 rounded-lg border bg-white shadow-lg z-20">
+                          <div className="absolute right-0 mt-1 w-48 rounded-lg border bg-white shadow-sm z-20">
                             {RESTRICTION_TYPES.filter((rt) => !rt.shopOnly || user.accountType === 'shop').map((rt) => {
                               const isActive = user.restrictions?.[rt.key]?.isActive;
                               const IconComponent = rt.icon;
@@ -2316,7 +2316,7 @@ export default function AdminUsers() {
                                 <ChevronDown size={10} />
                               </button>
                               {restrictionMenuOpen === user.id && (
-                                <div className="absolute right-0 mt-1 w-52 rounded-lg border bg-white shadow-lg z-20">
+                                <div className="absolute right-0 mt-1 w-52 rounded-lg border bg-white shadow-sm z-20">
                                   <div className="px-3 py-2 border-b text-xs font-semibold text-gray-500">Restrictions</div>
                                   {RESTRICTION_TYPES.filter((rt) => !rt.shopOnly || user.accountType === 'shop').map((rt) => {
                                     const isActive = user.restrictions?.[rt.key]?.isActive;
@@ -2460,7 +2460,7 @@ export default function AdminUsers() {
             ariaLabel="Gestion de restriction utilisateur"
           >
               {/* Header */}
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-6 py-4">
+              <div className="bg-amber-50 border-b border-amber-200 px-6 py-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     <div className={`p-2.5 rounded-xl ${isActive ? 'bg-red-100' : 'bg-gray-100'}`}>
@@ -2491,13 +2491,13 @@ export default function AdminUsers() {
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Status Toggle */}
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border-2 border-dashed border-gray-200">
+                <div className="bg-gray-50 rounded-xl p-5 border-2 border-dashed border-gray-200">
                   <label className="flex items-center justify-between cursor-pointer group">
                     <div className="flex items-center gap-3">
                       <div className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
                         isActive ? 'bg-red-500' : 'bg-gray-300'
                       }`}>
-                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${
+                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${
                           isActive ? 'translate-x-6' : 'translate-x-0'
                         }`} />
                       </div>
@@ -2634,10 +2634,10 @@ export default function AdminUsers() {
                     type="button"
                     onClick={handleApplyRestriction}
                     disabled={restrictionLoading}
-                    className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                      isActive 
-                        ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' 
-                        : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                    className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-sm hover:shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isActive
+                        ? 'bg-red-600 hover:bg-red-700'
+                        : 'bg-green-600 hover:bg-green-700'
                     }`}
                   >
                     {restrictionLoading ? (

@@ -45,10 +45,20 @@ export default function Footer() {
   ];
 
   const serviceLinks = [
+    { to: '/installer-application', label: t('footer.installApp', 'Installer l’application') },
     { to: '/avantages', label: t('nav.benefits', 'Pourquoi HDMarket') },
     { to: '/plans', label: t('nav.plans', 'Plans & tarifs') },
     { to: '/shops/free-delivery', label: t('footer.freeDelivery', 'Livraison offerte') },
     { to: '/top-deals', label: t('footer.deals', 'Bons plans') }
+  ];
+
+  const legalLinks = [
+    { to: '/conditions-utilisation', label: 'Conditions d’utilisation' },
+    { to: '/conditions-vente', label: 'Conditions de vente' },
+    { to: '/confidentialite', label: 'Confidentialité' },
+    { to: '/retours-remboursements', label: 'Retours et remboursements' },
+    { to: '/mentions-legales', label: 'Mentions légales' },
+    { to: '/cookies', label: 'Cookies' }
   ];
 
   const trustItems = [
@@ -67,7 +77,7 @@ export default function Footer() {
               className="inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00] focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-950"
               aria-label={t('nav.home', 'Accueil')}
             >
-              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.28)]">
+              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5 shadow-sm">
                 <img src={logoSrc} alt="" className="h-full w-full object-contain" />
               </span>
               <span id="footer-brand-title" className="text-2xl font-black tracking-[-0.04em]">
@@ -78,7 +88,7 @@ export default function Footer() {
             <p className="mt-5 max-w-sm text-sm font-medium leading-6 text-neutral-400">
               {t(
                 'footer.brandDescription',
-                'Marketplace premium opérée par ETS HD Tech Filial. Achetez et vendez en toute confiance, partout au Congo.'
+                'Marketplace opérée par ETS HD Tech Filial. Achetez et vendez en toute confiance, partout au Congo.'
               )}
             </p>
 
@@ -149,6 +159,9 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 border-t border-white/10 pt-5 md:mt-12">
+          <div className="mb-5 flex flex-wrap gap-x-5 gap-y-3">
+            {legalLinks.map((item) => <Link key={item.to} to={item.to} className="text-xs font-bold text-neutral-400 hover:text-white">{item.label}</Link>)}
+          </div>
           <div className="flex flex-col gap-3 text-xs font-semibold text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
             <p>
               {t('footer.rights', `© ${year} ETS HD Tech Filial — Tous droits réservés.`).replace(

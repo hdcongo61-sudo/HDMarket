@@ -60,6 +60,13 @@ const userSchema = new mongoose.Schema(
     theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
     profileImage: { type: String, trim: true, default: '' },
     address: { type: String, trim: true, default: '' },
+    legalAcceptance: {
+      accepted: { type: Boolean, default: false },
+      termsVersion: { type: String, trim: true, default: '' },
+      privacyVersion: { type: String, trim: true, default: '' },
+      acceptedAt: { type: Date, default: null },
+      source: { type: String, trim: true, default: '' }
+    },
     /** Geolocation for simple user (person) - delivery address position [longitude, latitude] */
     location: {
       type: {

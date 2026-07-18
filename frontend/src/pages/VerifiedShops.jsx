@@ -343,7 +343,7 @@ export default function VerifiedShops() {
 
   return (
     <div className="min-h-screen bg-[#f5f2ee] text-[#231f1b]">
-      <header className="verified-shops-header border-b border-[#e2dcd2] bg-white/96 backdrop-blur-xl transition-[visibility] duration-150">
+      <header className="verified-shops-header border-b border-[#e2dcd2] bg-white/96 transition-[visibility] duration-150">
         <div className="mx-auto max-w-5xl px-3 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
@@ -419,7 +419,7 @@ export default function VerifiedShops() {
         {loading && !shops.length ? (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {[1, 2, 3].map((item) => (
-              <article key={item} className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+              <article key={item} className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex animate-pulse items-center gap-3">
                   <div className="h-14 w-14 rounded-full bg-orange-100" />
                   <div className="flex-1 space-y-2">
@@ -436,7 +436,7 @@ export default function VerifiedShops() {
             ))}
           </div>
         ) : error && !shops.length ? (
-          <section className="rounded-2xl border border-red-100 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <section className="rounded-2xl border border-red-100 bg-white p-6 text-center shadow-sm">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
               <Shield className="h-7 w-7" />
             </div>
@@ -444,7 +444,7 @@ export default function VerifiedShops() {
             <p className="mt-2 text-sm font-semibold leading-6 text-red-700">{error}</p>
           </section>
         ) : !shops.length ? (
-          <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+          <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
               <Store className="h-8 w-8" />
             </div>
@@ -485,7 +485,7 @@ export default function VerifiedShops() {
               return (
                 <article
                   key={shop._id}
-                  className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_3px_14px_rgba(35,31,27,0.05)] transition active:scale-[0.995]"
+                  className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-sm transition active:scale-[0.995]"
                 >
                   <div className="p-4 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
@@ -589,7 +589,7 @@ export default function VerifiedShops() {
         )}
 
         {isAdmin && !loading && !error && pendingShops.length > 0 ? (
-          <section className="mt-6 rounded-2xl border border-amber-100 bg-white p-4 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-5">
+          <section className="mt-6 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-wide text-[#e85d00]">
@@ -693,7 +693,7 @@ export default function VerifiedShops() {
                       setAllShopsModalOpen(false);
                       setAllShopsSearch('');
                     }}
-                    className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_28px_rgba(117,75,36,0.08)] transition hover:-translate-y-0.5"
+                    className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5"
                   >
                     <div className="flex items-start gap-3">
                       <img

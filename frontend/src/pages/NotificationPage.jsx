@@ -684,7 +684,7 @@ export default function NotificationPage() {
     return (
       <main className="hd-commerce-shell min-h-screen px-5 py-16 text-center">
         <div className="mx-auto max-w-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-[0_16px_34px_rgba(255,106,0,0.24)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
             <Bell className="h-7 w-7" />
           </div>
           <h1 className="mt-5 text-2xl font-semibold text-neutral-950 dark:text-neutral-100">{t('notifications.title', 'Notifications')}</h1>
@@ -698,7 +698,7 @@ export default function NotificationPage() {
 
   return (
     <main className="hd-commerce-shell min-h-screen text-neutral-900 dark:text-neutral-100">
-      <header className="border-b border-[#f5f2ee] bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
+      <header className="border-b border-[#f5f2ee] bg-white/95 dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto flex min-h-[60px] max-w-3xl items-center px-2">
           <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b] dark:text-white" aria-label={t('common.back', 'Retour')}><ArrowLeft className="h-5 w-5" /></button>
           <h1 className="min-w-0 flex-1 text-[17px] font-black text-[#231f1b] dark:text-white">{t('notifications.title', 'Notifications')} <span className="text-[#8a8378]">({unreadCount})</span></h1>
@@ -900,7 +900,7 @@ export default function NotificationPage() {
           </div>
           ) : (
             <div className="mt-14 text-center">
-              <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+              <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
                   <Bell className="h-6 w-6" />
                 </div>
@@ -916,7 +916,7 @@ export default function NotificationPage() {
         </section>
       </div>
       {undoDelete && (
-        <div className="fixed inset-x-4 bottom-5 z-50 mx-auto flex max-w-md items-center justify-between rounded-2xl bg-neutral-950 px-4 py-3 text-white shadow-2xl">
+        <div className="fixed inset-x-4 bottom-5 z-50 mx-auto flex max-w-md items-center justify-between rounded-2xl bg-neutral-950 px-4 py-3 text-white shadow-sm">
           <span className="text-sm font-bold">Notification supprimée</span>
           <button type="button" onClick={restoreLastDeleted} className="rounded-xl bg-white/15 px-3 py-2 text-xs font-black text-orange-300">Annuler</button>
         </div>

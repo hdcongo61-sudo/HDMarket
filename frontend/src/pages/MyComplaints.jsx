@@ -266,7 +266,7 @@ export default function MyComplaints() {
   if (!user) {
     return (
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
             <User className="h-8 w-8" />
           </div>
@@ -291,7 +291,7 @@ export default function MyComplaints() {
           Retour au profil
         </Link>
 
-        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_14px_34px_rgba(117,75,36,0.08)]">
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="hd-products-hero p-5 text-white sm:p-6">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
                 <ShieldAlert className="h-5 w-5" />
@@ -442,7 +442,7 @@ export default function MyComplaints() {
           </form>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_14px_34px_rgba(117,75,36,0.08)] sm:p-6">
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="mb-4">
             <p className="text-xs font-black uppercase tracking-wide text-[#e85d00]">Suivi</p>
             <h2 className="mt-1 text-xl font-black text-gray-900">Historique des réclamations</h2>

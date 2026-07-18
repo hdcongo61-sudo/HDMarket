@@ -252,7 +252,7 @@ export default function SellerPromoCodes() {
 
         {/* ── Creation form ── */}
         {showForm && (
-          <form onSubmit={handleCreate} className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/30 to-white p-4 space-y-3">
+          <form onSubmit={handleCreate} className="rounded-2xl border border-purple-100 bg-purple-50/30 p-4 space-y-3">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
               <Sparkles size={14} className="text-purple-500" />
               Nouveau code promo

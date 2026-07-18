@@ -139,7 +139,7 @@ export default function Benefits() {
       </section>
 
       {/* ── ANCHOR NAV (sticky) ── */}
-      <nav className="border-b border-gray-100 bg-white/90 px-3 py-2 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-900/90">
+      <nav className="border-b border-gray-100 bg-white/90 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900/90">
         <div className="mx-auto flex max-w-3xl gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {navChips.map((chip) => (
             <a
@@ -380,7 +380,7 @@ export default function Benefits() {
         </div>
 
         {/* ── CTA FINAL ── */}
-        <section className="mt-10 rounded-2xl bg-[#e85d00] p-6 text-center text-white shadow-[0_16px_34px_rgba(255,106,0,0.22)]">
+        <section className="mt-10 rounded-2xl bg-[#e85d00] p-6 text-center text-white shadow-sm">
           <h2 className="text-xl font-black tracking-tight">Prêt à essayer ?</h2>
           <p className="mx-auto mt-1 max-w-sm text-sm font-medium text-white/85">
             Créez votre compte gratuitement et découvrez tout ça par vous-même.

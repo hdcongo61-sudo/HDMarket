@@ -567,7 +567,7 @@ export default function OrderMessages() {
 
   return (
     <div className="min-h-screen bg-[#fff4e8] text-slate-950 dark:bg-neutral-950 dark:text-white">
-      <header className="border-b border-gray-200/70 bg-gray-50/95 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95">
+      <header className="border-b border-gray-200/70 bg-gray-50/95 dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 text-[12px] font-black text-slate-500 [scrollbar-width:none] dark:text-gray-400 [&::-webkit-scrollbar]:hidden">
             <Link to="/" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-800">Accueil</Link>
@@ -576,7 +576,7 @@ export default function OrderMessages() {
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e85d00] text-white shadow-[0_16px_32px_-20px_rgba(255,106,0,0.95)]">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e85d00] text-white shadow-sm">
                 <MessageCircle className="h-6 w-6" />
               </div>
               <div className="min-w-0">
@@ -615,7 +615,7 @@ export default function OrderMessages() {
           </section>
         )}
         {/* Toolbar: search + filters */}
-        <div className="mb-3 rounded-2xl bg-white p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800">
+        <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#e85d00]" />
@@ -643,7 +643,7 @@ export default function OrderMessages() {
               onClick={() => { setPage(1); setActiveFilter('all'); }}
               className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'all'
-                  ? 'bg-[#e85d00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
+                  ? 'bg-[#e85d00] text-white shadow-sm'
                   : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
@@ -657,7 +657,7 @@ export default function OrderMessages() {
               onClick={() => { setPage(1); setActiveFilter('unread'); }}
               className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'unread'
-                  ? 'bg-[#e85d00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
+                  ? 'bg-[#e85d00] text-white shadow-sm'
                   : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
@@ -676,7 +676,7 @@ export default function OrderMessages() {
               onClick={() => { setPage(1); setActiveFilter('archived'); }}
               className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
                 activeFilter === 'archived'
-                  ? 'bg-[#e85d00] text-white shadow-[0_12px_24px_-18px_rgba(255,106,0,0.9)]'
+                  ? 'bg-[#e85d00] text-white shadow-sm'
                   : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
               }`}
             >
@@ -710,7 +710,7 @@ export default function OrderMessages() {
           {/* Conversations list */}
           <div className={`${selectedOrder ? 'hidden lg:block lg:w-[400px] xl:w-[420px] flex-shrink-0' : 'w-full'} flex flex-col`}>
             {filteredConversations.length === 0 ? (
-              <div className="rounded-2xl bg-white p-8 text-center shadow-[0_18px_60px_-42px_rgba(15,23,42,0.7)] ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800 sm:p-12">
+              <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800 sm:p-12">
                 <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-50 ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                   <MessageCircle className="h-10 w-10 text-[#e85d00]" />
                 </div>
@@ -782,7 +782,7 @@ export default function OrderMessages() {
                   onKeyDown={(e) => e.key === 'Enter' && openConversation(conversation)}
                   className={`group cursor-pointer rounded-2xl transition-all duration-200 ${
                     isSelected
-                      ? 'bg-white ring-2 ring-[#e85d00]/35 shadow-[0_18px_40px_-34px_rgba(255,106,0,0.9)] dark:bg-neutral-950'
+                      ? 'bg-white ring-2 ring-[#e85d00]/35 shadow-sm dark:bg-neutral-950'
                       : hasUnread
                         ? 'bg-white shadow-sm ring-1 ring-gray-200/80 hover:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800'
                         : 'bg-white shadow-sm ring-1 ring-gray-200 hover:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800'

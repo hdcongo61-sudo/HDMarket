@@ -314,7 +314,7 @@ export default function CategoryProducts() {
     return (
       <div className="hd-products-flow">
         <div className="mx-auto max-w-7xl space-y-5 px-3 py-5 pb-24 sm:space-y-7 sm:px-6 sm:py-8 md:px-8 md:pb-16">
-          <div className="hd-products-hero rounded-2xl border border-neutral-200 p-4 text-white shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
+          <div className="hd-products-hero rounded-2xl border border-neutral-200 p-4 text-white shadow-sm sm:p-5">
             <p className="mb-1 text-xs font-bold uppercase tracking-wide text-white/78">Catégories</p>
             <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">Chargement de la catégorie…</h1>
             <p className="mt-1 text-sm text-white/82">Nous préparons les produits disponibles.</p>
@@ -336,7 +336,7 @@ export default function CategoryProducts() {
             Cette catégorie n’existe pas ou n’est plus disponible. Parcourez nos univers populaires ci-dessous.
           </p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_18px_45px_rgba(117,75,36,0.08)] sm:p-5">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categoryGroups.map((groupItem) => (
               <div key={groupItem.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
@@ -402,7 +402,7 @@ export default function CategoryProducts() {
           <span className="text-gray-900 font-semibold">{categoryMeta.label}</span>
         </nav>
 
-        <div className="hd-products-hero rounded-2xl border border-neutral-200 p-4 text-white shadow-[0_14px_38px_rgba(15,23,42,0.07)] sm:p-5">
+        <div className="hd-products-hero rounded-2xl border border-neutral-200 p-4 text-white shadow-sm sm:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="min-w-0">
               <p className="mb-1 text-xs font-bold uppercase tracking-wide text-white/78">

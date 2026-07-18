@@ -177,7 +177,7 @@ export default function Favorites() {
   return (
     <div className="min-h-screen bg-[#f5f2ee] text-[#231f1b]">
       <div className="mx-auto max-w-7xl space-y-4 px-3 py-3 pb-24 sm:space-y-5 sm:px-6 sm:py-6 lg:px-8 md:pb-16">
-      <header className="rounded-2xl border border-[#e2dcd2] bg-white px-3 py-3 shadow-[0_3px_14px_rgba(35,31,27,0.05)] sm:px-5 sm:py-4">
+      <header className="rounded-2xl border border-[#e2dcd2] bg-white px-3 py-3 shadow-sm sm:px-5 sm:py-4">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -201,14 +201,14 @@ export default function Favorites() {
       </header>
 
       {loading ? (
-        <div className="rounded-2xl border border-[#e2dcd2] bg-white px-6 py-12 text-center shadow-[0_3px_14px_rgba(35,31,27,0.05)]">
+        <div className="rounded-2xl border border-[#e2dcd2] bg-white px-6 py-12 text-center shadow-sm">
           <div className="mx-auto mb-4 h-6 w-6 animate-spin rounded-full border-2 border-[#e85d00] border-t-transparent" />
           <p className="font-semibold text-gray-600">{t('market.loadingFavorites', 'Chargement de vos favoris…')}</p>
         </div>
       ) : hasFavorites ? (
         <>
           {/* Filters — Category & Price */}
-          <div className="rounded-2xl border border-[#e2dcd2] bg-white p-2.5 shadow-[0_3px_14px_rgba(35,31,27,0.05)]">
+          <div className="rounded-2xl border border-[#e2dcd2] bg-white p-2.5 shadow-sm">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <div className="flex items-center gap-2 text-sm font-black text-[#231f1b]">
               <Filter className="w-4 h-4 text-[#e85d00]" />
@@ -289,7 +289,7 @@ export default function Favorites() {
           )}
         </>
       ) : (
-        <div className="rounded-2xl border border-[#e2dcd2] bg-white px-6 py-14 text-center shadow-[0_3px_14px_rgba(35,31,27,0.05)]">
+        <div className="rounded-2xl border border-[#e2dcd2] bg-white px-6 py-14 text-center shadow-sm">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff0e4] text-[#e85d00]">
             <Heart className="h-7 w-7" />
           </div>

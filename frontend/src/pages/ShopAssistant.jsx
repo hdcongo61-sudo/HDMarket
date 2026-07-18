@@ -1279,7 +1279,7 @@ export default function ShopAssistant() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-100 bg-white/95 backdrop-blur">
+      <div className="border-b border-gray-100 bg-white/95">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/my" className="rounded-lg p-2 hover:bg-gray-100" aria-label="Retour">

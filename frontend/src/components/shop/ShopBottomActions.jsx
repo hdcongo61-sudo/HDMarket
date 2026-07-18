@@ -20,7 +20,7 @@ export default function ShopBottomActions({
     'inline-flex min-h-[46px] w-full items-center justify-center gap-1.5 rounded px-3 text-xs font-black transition active:scale-95';
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/96 px-3 py-2 backdrop-blur-xl [padding-bottom:calc(env(safe-area-inset-bottom)+0.5rem)] dark:border-neutral-800 dark:bg-neutral-950/96">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/96 px-3 py-2 [padding-bottom:calc(env(safe-area-inset-bottom)+0.5rem)] dark:border-neutral-800 dark:bg-neutral-950/96">
       <div className="grid grid-cols-[1fr_1fr_1.45fr] gap-2">
         <button
           type="button"
@@ -55,7 +55,7 @@ export default function ShopBottomActions({
         <button
           type="button"
           onClick={onPrimaryAction}
-          className={`${btnBase} bg-[var(--shop-color)] text-[var(--shop-color-contrast)] shadow-lg hover:brightness-95`}
+          className={`${btnBase} bg-[var(--shop-color)] text-[var(--shop-color-contrast)] shadow-sm hover:brightness-95`}
         >
           <Store size={15} />
           <span className="truncate">{t('shop_profile.view_products', 'Produits')}</span>

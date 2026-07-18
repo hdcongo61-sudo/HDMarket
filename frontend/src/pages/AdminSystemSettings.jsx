@@ -2417,7 +2417,7 @@ export default function AdminSystemSettings() {
       </div>
       </div>
       {isMobile ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2.5 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/95">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2.5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
           <div className="mx-auto flex w-full max-w-6xl items-center gap-2.5">
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-neutral-400">

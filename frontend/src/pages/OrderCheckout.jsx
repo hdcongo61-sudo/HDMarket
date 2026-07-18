@@ -1331,7 +1331,7 @@ export default function OrderCheckout() {
     return (
       <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-black flex items-center justify-center px-4 py-10">
         <div className="max-w-md w-full text-center">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6 shadow-lg border border-neutral-200">
+          <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6 shadow-sm border border-neutral-200">
             <ClipboardList size={32} className="text-neutral-900" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">{t('checkout.emptyTitle', 'Votre panier est vide')}</h1>
@@ -1479,7 +1479,7 @@ export default function OrderCheckout() {
           </div>
           
           <form id="order-checkout-form" className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-3 rounded-2xl border border-[#eee8e0] bg-white p-4 shadow-[0_2px_10px_rgba(117,75,36,0.05)]">
+            <div className="space-y-3 rounded-2xl border border-[#eee8e0] bg-white p-4 shadow-sm">
               <p className="text-[15px] font-black text-[#231f1b]">{t('checkout.delivery', 'Livraison')}</p>
               <div className="grid grid-cols-2 gap-0 rounded-xl bg-[#f5f2ee] p-1">
                 <button
@@ -1597,7 +1597,7 @@ export default function OrderCheckout() {
             </div>
 
             {paymentModeCards.length > 0 && (
-              <div className="rounded-2xl border border-[#eee8e0] bg-white p-4 shadow-[0_2px_10px_rgba(117,75,36,0.05)]">
+              <div className="rounded-2xl border border-[#eee8e0] bg-white p-4 shadow-sm">
                 <h3 className="mb-3 text-[15px] font-black text-[#231f1b]">
                   {t('checkout.paymentMode', 'Mode de paiement')}
                 </h3>
@@ -2037,8 +2037,8 @@ export default function OrderCheckout() {
               disabled={loading}
               className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-black text-white transition active:scale-[0.98] disabled:opacity-60 sm:text-xl ${
                 paysWithWallet
-                  ? 'bg-emerald-600 shadow-[0_14px_32px_rgba(16,185,129,0.28)] hover:bg-emerald-700'
-                  : 'bg-[#e85d00] shadow-[0_14px_32px_rgba(255,106,0,0.28)] hover:bg-[#f05f00]'
+                  ? 'bg-emerald-600 shadow-sm hover:bg-emerald-700'
+                  : 'bg-[#e85d00] shadow-sm hover:bg-[#f05f00]'
               }`}
             >
               {loading ? (
@@ -2056,7 +2056,7 @@ export default function OrderCheckout() {
           </form>
         </section>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-slate-200 bg-white/95 px-5 py-5 shadow-[0_-16px_36px_rgba(15,23,42,0.14)] backdrop-blur lg:hidden safe-area-bottom">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-slate-200 bg-white/95 px-5 py-5 shadow-sm lg:hidden safe-area-bottom">
         <div className="mx-auto flex max-w-7xl items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">
@@ -2072,8 +2072,8 @@ export default function OrderCheckout() {
             disabled={loading}
             className={`inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl px-7 text-lg font-black text-white active:scale-[0.97] disabled:opacity-60 ${
               paysWithWallet
-                ? 'bg-emerald-600 shadow-[0_14px_28px_rgba(16,185,129,0.30)]'
-                : 'bg-[#e85d00] shadow-[0_14px_28px_rgba(255,106,0,0.30)]'
+                ? 'bg-emerald-600 shadow-sm'
+                : 'bg-[#e85d00] shadow-sm'
             }`}
           >
             {loading ? (

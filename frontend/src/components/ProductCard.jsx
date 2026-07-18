@@ -38,7 +38,7 @@ function ProductDetailLink({ disabled = false, children, onClick, to, target, re
 
 /**
  * 🎨 PRODUCT CARD PREMIUM HDMarket
- * Design aligné avec la page d'accueil premium
+ * Design aligné avec la page d'accueil HDMarket.
  * Éléments visuels modernes avec dégradés et SVG
  * Interactions utilisateur optimisées
  * Mobile-first et responsive
@@ -658,8 +658,8 @@ function ProductCard({
           ref={cardRef}
           className={`hd-product-card group relative flex h-full min-w-0 overflow-hidden transition duration-200 hover:-translate-y-0.5 dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
             useCommerceMobileCard
-              ? 'border-0 bg-white shadow-[0_1px_0_rgba(117,75,36,0.04)] hover:shadow-[0_8px_24px_rgba(117,75,36,0.1)]'
-              : 'border hover:shadow-[0_18px_44px_rgba(117,75,36,0.14)]'
+              ? 'border-0 bg-white shadow-sm hover:shadow-sm'
+              : 'border hover:shadow-sm'
           } ${
             isListCard ? 'flex-row' : 'flex-col'
           }`}
@@ -710,9 +710,9 @@ function ProductCard({
               type="button"
               onClick={handleFavoriteToggle}
               disabled={favoritePending}
-              className={`absolute right-1.5 top-1.5 items-center justify-center rounded-full shadow-sm backdrop-blur transition active:scale-95 disabled:cursor-wait sm:right-2 sm:top-2 ${
+              className={`absolute right-1.5 top-1.5 items-center justify-center rounded-full shadow-sm transition active:scale-95 disabled:cursor-wait sm:right-2 sm:top-2 ${
                 favoriteActive
-                  ? 'bg-[#e85d00] text-white shadow-[0_10px_22px_rgba(232,93,0,0.24)]'
+                  ? 'bg-[#e85d00] text-white shadow-sm'
                   : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-950/90 dark:text-neutral-200'
               } inline-flex ${
                 isShopProfileCompact ? 'h-8 w-8' : 'h-11 w-11'
@@ -726,7 +726,7 @@ function ProductCard({
             </button>
 
             {productCity && !useCommerceMobileCard ? (
-              <span className="absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full bg-white/92 px-2 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-sm backdrop-blur dark:bg-neutral-950/90 dark:text-neutral-200 sm:bottom-2 sm:left-2 sm:px-2.5 sm:py-1 sm:text-[11px]">
+              <span className="absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full bg-white/92 px-2 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-sm dark:bg-neutral-950/90 dark:text-neutral-200 sm:bottom-2 sm:left-2 sm:px-2.5 sm:py-1 sm:text-[11px]">
                 <MapPin className="h-3 w-3 shrink-0" />
                 <span className="truncate">{productCity}</span>
               </span>
@@ -1010,13 +1010,13 @@ function ProductCard({
             )}
 
             {longPressPreviewEnabled ? (
-              <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm">
+              <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white">
                 <Expand className="h-3.5 w-3.5" />
               </span>
             ) : null}
 
             {/* Carousel Indicators - Only for multiple images */}
-            <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30 bg-black/40 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
+            <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 z-30 bg-black/40 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
               {productImages.map((_, index) => (
                 <button
                   key={index}
@@ -1031,8 +1031,8 @@ function ProductCard({
                     }
                   }}
                   className={`rounded-full transition-all duration-300 ${
-                    index === currentImageIndex 
-                      ? 'w-2 h-2 max-[375px]:w-1.5 max-[375px]:h-1.5 sm:w-2.5 sm:h-2.5 bg-white shadow-lg' 
+                    index === currentImageIndex
+                      ? 'w-2 h-2 max-[375px]:w-1.5 max-[375px]:h-1.5 sm:w-2.5 sm:h-2.5 bg-white shadow-sm'
                       : 'w-1.5 h-1.5 max-[375px]:w-1 max-[375px]:h-1 sm:w-2 sm:h-2 bg-white/60 hover:bg-white/80'
                   }`}
                   aria-label={`Go to image ${index + 1}`}
@@ -1049,7 +1049,7 @@ function ProductCard({
                   e.stopPropagation();
                   goToPreviousImage();
                 }}
-                className="absolute left-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="Previous image"
               >
                 <ChevronLeft className="h-3 w-3 text-gray-700" />
@@ -1061,7 +1061,7 @@ function ProductCard({
                   e.stopPropagation();
                   goToNextImage();
                 }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="Next image"
               >
                 <ChevronRight className="h-3 w-3 text-gray-700" />
@@ -1091,7 +1091,7 @@ function ProductCard({
             />
 
             {longPressPreviewEnabled ? (
-              <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm">
+              <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white">
                 <Expand className="h-3.5 w-3.5" />
               </span>
             ) : null}
@@ -1106,7 +1106,7 @@ function ProductCard({
           <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 z-20 flex flex-col gap-1 sm:gap-1.5">
           {/* Badge Promo code (boutique/produit) */}
           {hasActivePromo && !hideDenseMobileBadges && (
-            <div className="bg-black text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
+            <div className="bg-black text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-sm border border-white/20">
               Promo {promoScopeLabel} -{promoPercentLabel}%
             </div>
           )}
@@ -1118,7 +1118,7 @@ function ProductCard({
           )}
           {/* Badge Promotion Principal */}
           {hasDiscount && !hideDenseMobileBadges && (
-            <div className="bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-lg border border-white/20">
+            <div className="bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] font-black shadow-sm border border-white/20">
               -{p.discount}%
             </div>
           )}
@@ -1170,10 +1170,10 @@ function ProductCard({
             type="button"
             onClick={(event) => handleFavoriteToggle(event)}
             disabled={favoritePending}
-            className={`absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 shadow-lg backdrop-blur-sm transition-all duration-150 tap-feedback sm:min-h-0 sm:min-w-0 sm:p-1.5 ${
+            className={`absolute top-1.5 sm:top-2 right-1.5 sm:right-2 z-30 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 shadow-sm transition-all duration-150 tap-feedback sm:min-h-0 sm:min-w-0 sm:p-1.5 ${
               favoriteActive
-                ? 'bg-[#e85d00] text-white shadow-[0_12px_24px_rgba(255,106,0,0.3)]'
-                : 'bg-white/95 text-gray-600 hover:scale-110 hover:bg-gray-100 hover:text-[#e85d00] hover:shadow-xl'
+                ? 'bg-[#e85d00] text-white shadow-sm'
+                : 'bg-white/95 text-gray-600 hover:scale-110 hover:bg-gray-100 hover:text-[#e85d00] hover:shadow-sm'
             } ${favoritePending ? 'scale-95 cursor-wait opacity-85' : ''}`}
             aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
@@ -1196,7 +1196,7 @@ function ProductCard({
             <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
               {/* Badge Vendu/Engagement */}
               {salesCount > 0 && (
-                <div className="bg-black/70 backdrop-blur-sm text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold">
+                <div className="bg-black/70 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold">
                   {hasRealSalesData ? 'Vendu' : 'Engagement'} {formatSalesCount(salesCount)}
                 </div>
               )}

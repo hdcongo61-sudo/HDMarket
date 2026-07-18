@@ -362,7 +362,7 @@ export default function DeliveryAssignmentDetail() {
     <div className="mx-auto w-full max-w-4xl space-y-4 px-3 pb-28 pt-2 sm:px-5">
       <OfflineBanner offline={isOffline} />
 
-      <header className="-mx-3 border-b border-gray-100/70 bg-white/80 px-3 pb-3 pt-2 backdrop-blur-xl sm:-mx-5 sm:px-5">
+      <header className="-mx-3 border-b border-gray-100/70 bg-white/80 px-3 pb-3 pt-2 sm:-mx-5 sm:px-5">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
@@ -803,7 +803,7 @@ export default function DeliveryAssignmentDetail() {
         size="full"
         rootClassName="z-[140] p-3 sm:p-6"
         panelClassName="max-h-[92dvh] border-none bg-transparent p-0 shadow-none sm:max-w-[92vw]"
-        backdropClassName="bg-black/85 backdrop-blur-sm"
+        backdropClassName="bg-black/85"
         ariaLabel={proofPreview?.label || 'Aperçu preuve'}
       >
         <div className="relative mx-auto flex max-h-[92dvh] max-w-[92vw] items-center justify-center p-2 sm:p-4">
@@ -826,7 +826,7 @@ export default function DeliveryAssignmentDetail() {
           </button>
           <div
             className={`rounded-xl p-2 sm:p-3 ${
-              proofPreviewIsSignature ? 'bg-white shadow-2xl' : 'bg-black/20'
+              proofPreviewIsSignature ? 'bg-white shadow-sm' : 'bg-black/20'
             }`}
           >
             <img

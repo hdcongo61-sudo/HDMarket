@@ -419,7 +419,7 @@ const ChatBox = () => {
           <button
             type="button"
             onClick={isButtonCollapsed ? handleExpandButton : handleShowChat}
-            className={`flex items-center justify-center gap-2 rounded-full bg-[#e85d00] text-white shadow-[0_16px_40px_rgba(255,106,0,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
+            className={`flex items-center justify-center gap-2 rounded-full bg-[#e85d00] text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
               isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-4 py-2.5 pl-4 pr-12'
             }`}
             title="Afficher l'assistant"
@@ -465,11 +465,11 @@ const ChatBox = () => {
       style={fabContainerStyle}
     >
       {isOpen && (
-        <div className="mb-3 w-[380px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-[0_24px_70px_rgba(17,24,39,0.20)] ring-1 ring-white/80 dark:border-orange-950/60 dark:bg-neutral-950">
-          <div className="sticky top-0 z-10 border-b border-gray-200/80 bg-gradient-to-br from-[#e85d00] via-[#ff7a1a] to-[#f04423] px-4 pb-3 pt-4 text-white dark:border-orange-950/60">
+        <div className="mb-3 w-[380px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm ring-1 ring-white/80 dark:border-orange-950/60 dark:bg-neutral-950">
+          <div className="sticky top-0 z-10 border-b border-gray-200/80 bg-[#e85d00] px-4 pb-3 pt-4 text-white dark:border-orange-950/60">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/18 text-white shadow-inner ring-1 ring-white/25 backdrop-blur">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/18 text-white shadow-inner ring-1 ring-white/25">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
@@ -499,7 +499,7 @@ const ChatBox = () => {
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white/16 px-3 py-2 text-xs font-semibold text-white/90 ring-1 ring-white/20 backdrop-blur">
+            <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white/16 px-3 py-2 text-xs font-semibold text-white/90 ring-1 ring-white/20">
               <Shield className="h-3.5 w-3.5" />
               <span>Réponses officielles · Parcours guidé</span>
             </div>
@@ -527,7 +527,7 @@ const ChatBox = () => {
                   <div
                     className={`max-w-[86%] rounded-2xl px-3 py-2 text-sm ${
                       isUser
-                        ? 'bg-[#e85d00] text-white shadow-[0_10px_24px_rgba(255,106,0,0.20)]'
+                        ? 'bg-[#e85d00] text-white shadow-sm'
                         : 'bg-white text-neutral-800 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800'
                     }`}
                   >
@@ -598,7 +598,7 @@ const ChatBox = () => {
                 <button
                   type="button"
                   onClick={() => openLink(hasActionLink)}
-                  className="ml-auto inline-flex min-h-9 items-center gap-1 rounded-full bg-[#e85d00] px-3 text-xs font-bold text-white shadow-[0_8px_20px_rgba(255,106,0,0.22)] transition hover:bg-[#f05f00]"
+                  className="ml-auto inline-flex min-h-9 items-center gap-1 rounded-full bg-[#e85d00] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#f05f00]"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Ouvrir
@@ -638,7 +638,7 @@ const ChatBox = () => {
         <button
           type="button"
           onClick={isButtonCollapsed ? handleExpandButton : () => setIsOpen((prev) => !prev)}
-          className={`group relative flex items-center justify-center gap-2 rounded-full bg-[#e85d00] text-white shadow-[0_18px_45px_rgba(255,106,0,0.34)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
+          className={`group relative flex items-center justify-center gap-2 rounded-full bg-[#e85d00] text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
             isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-5 py-3 pl-5 pr-12'
           }`}
           title={isButtonCollapsed ? "Afficher l'assistant" : isOpen ? 'Fermer' : 'Assistant'}

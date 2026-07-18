@@ -83,7 +83,7 @@ export default function SellerBoosts() {
               Retour
             </Link>
             <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#FFB000] to-[#e85d00] text-white shadow-sm">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#FFB000] text-white shadow-sm">
                 <Sparkles className="h-5 w-5" />
               </span>
               <div className="min-w-0 space-y-0.5">

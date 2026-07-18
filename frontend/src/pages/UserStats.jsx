@@ -198,7 +198,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, accent = 'default', tren
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(15,23,42,0.09)]">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${accentMap[accent] || accentMap.default}`}>
           <Icon className="h-4 w-4" />
@@ -255,7 +255,7 @@ const ProgressRow = ({ label, value, helper, tone = 'neutral' }) => {
 };
 
 const InsightCard = ({ icon: Icon, title, children, actionLabel, to }) => (
-  <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+  <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
     <div className="mb-4 flex items-center gap-3">
       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-950 text-white">
         <Icon className="h-4 w-4" />
@@ -875,7 +875,7 @@ export default function UserStats() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
         <div className="max-w-md w-full text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-600 flex items-center justify-center shadow-xl">
+          <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-600 flex items-center justify-center shadow-sm">
             <BarChart3 className="w-10 h-10 text-white" />
           </div>
           <div>
@@ -884,7 +884,7 @@ export default function UserStats() {
           </div>
           <Link
             to="/login"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all duration-200"
           >
             <ArrowLeft className="w-4 h-4" />
             Se connecter
@@ -949,7 +949,7 @@ export default function UserStats() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
         <DebugPanel />
-        <div className="max-w-md w-full bg-white rounded-2xl border border-neutral-200 shadow-xl p-8 text-center">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-neutral-200 shadow-sm p-8 text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
             <X className="w-8 h-8 text-neutral-800" />
           </div>
@@ -969,7 +969,7 @@ export default function UserStats() {
   return (
     <div className="min-h-screen bg-[#f7f5f0]">
       <DebugPanel />
-      <div className="border-b border-neutral-200 bg-[#f7f5f0]/90 backdrop-blur-xl">
+      <div className="border-b border-neutral-200 bg-[#f7f5f0]/90">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -982,7 +982,7 @@ export default function UserStats() {
                 Retour
               </button>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-950 text-white shadow-lg">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-950 text-white shadow-sm">
                   <BarChart3 className="h-5 w-5" />
                 </div>
                 <div>
@@ -1034,7 +1034,7 @@ export default function UserStats() {
 
       <div className="mx-auto max-w-7xl px-4 py-6 pb-12 sm:px-6 lg:px-8">
         <section className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.07)] sm:p-6">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-semibold text-neutral-500">Score de santé</p>
@@ -1821,7 +1821,7 @@ export default function UserStats() {
             <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                  <div className="p-3 rounded-xl bg-white/20">
                     <Store className="w-6 h-6" />
                   </div>
                   <div>
@@ -1834,7 +1834,7 @@ export default function UserStats() {
                 <button
                   type="button"
                   onClick={() => setShowFollowedModal(false)}
-                  className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
                   aria-label="Fermer"
                 >
                   <X size={20} />
@@ -1856,7 +1856,7 @@ export default function UserStats() {
                     <Link
                       key={shop._id || shop.id}
                       to={buildShopPath(shop)}
-                      className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-lg transition-all duration-200"
+                      className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-sm transition-all duration-200"
                       onClick={() => setShowFollowedModal(false)}
                     >
                       <div className="relative flex-shrink-0">
@@ -1905,7 +1905,7 @@ export default function UserStats() {
                   <p className="text-sm text-gray-500 mb-6">Commencez à suivre vos boutiques préférées pour les retrouver facilement</p>
                   <Link
                     to="/shops/verified"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all"
                     onClick={() => setShowFollowedModal(false)}
                   >
                     <Store className="w-4 h-4" />
@@ -1929,7 +1929,7 @@ export default function UserStats() {
             <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                  <div className="p-3 rounded-xl bg-white/20">
                     <ShoppingBag className="w-6 h-6" />
                   </div>
                   <div>
@@ -1947,7 +1947,7 @@ export default function UserStats() {
                 <button
                   type="button"
                   onClick={() => setShowOrdersModal(false)}
-                  className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
                   aria-label="Fermer"
                 >
                   <X size={20} />
@@ -1975,7 +1975,7 @@ export default function UserStats() {
                 <div className="space-y-3">
                   {orderedProducts.map((product, index) => {
                     const content = (
-                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-lg transition-all duration-200">
+                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-sm transition-all duration-200">
                         <div className="flex-shrink-0">
                           <div className="w-12 h-12 rounded-lg bg-neutral-600 flex items-center justify-center text-white font-bold text-sm">
                             #{index + 1}
@@ -2033,7 +2033,7 @@ export default function UserStats() {
                   <p className="text-sm text-gray-500 mb-6">Vos produits commandés apparaîtront ici</p>
                   <Link
                     to="/orders"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all"
                     onClick={() => setShowOrdersModal(false)}
                   >
                     <ShoppingBag className="w-4 h-4" />
@@ -2057,7 +2057,7 @@ export default function UserStats() {
             <div className="bg-neutral-600 text-white px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                  <div className="p-3 rounded-xl bg-white/20">
                     <TrendingUp className="w-6 h-6" />
                   </div>
                   <div>
@@ -2075,7 +2075,7 @@ export default function UserStats() {
                 <button
                   type="button"
                   onClick={() => setShowSalesModal(false)}
-                  className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                  className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
                   aria-label="Fermer"
                 >
                   <X size={20} />
@@ -2103,7 +2103,7 @@ export default function UserStats() {
                 <div className="space-y-3">
                   {soldProducts.map((product, index) => {
                     const content = (
-                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-lg transition-all duration-200">
+                      <div className="group flex items-center gap-4 rounded-xl border-2 border-gray-100 bg-white p-4 hover:border-neutral-300 hover:shadow-sm transition-all duration-200">
                         <div className="flex-shrink-0">
                           <div className="w-12 h-12 rounded-lg bg-neutral-600 flex items-center justify-center text-white font-bold text-sm">
                             #{index + 1}
@@ -2161,7 +2161,7 @@ export default function UserStats() {
                   <p className="text-sm text-gray-500 mb-6">Vos produits vendus apparaîtront ici une fois que vous recevrez des commandes</p>
                   <Link
                     to="/seller/orders"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-lg hover:shadow-xl transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all"
                     onClick={() => setShowSalesModal(false)}
                   >
                     <TrendingUp className="w-4 h-4" />

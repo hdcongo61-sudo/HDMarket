@@ -140,7 +140,7 @@ export default function FounderIntelligence() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-neutral-50 px-3 py-4 dark:bg-neutral-950 sm:px-4 sm:py-6 md:px-6">
       <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
-        <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-[0_18px_55px_rgba(15,23,42,0.08)] dark:border-neutral-800 dark:bg-neutral-950 sm:p-6">
+        <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-6">
           <div className="relative flex flex-col gap-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">

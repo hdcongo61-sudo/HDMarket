@@ -630,8 +630,8 @@ export default function AdminProductBoosts() {
             disabled={savingId === product._id}
             className={`w-full min-h-[42px] rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
               product.boosted
-                ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg'
-                : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] hover:bg-[#f05f00]'
+                ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-sm'
+                : 'bg-[#e85d00] text-white shadow-sm hover:bg-[#f05f00]'
             } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
           >
             {savingId === product._id ? (
@@ -791,8 +791,8 @@ export default function AdminProductBoosts() {
             disabled={savingShopId === shop._id}
             className={`w-full min-h-[42px] rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
               isShopCurrentlyBoosted(shop)
-                ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg'
-                : 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.24)] hover:bg-[#f05f00]'
+                ? 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-sm'
+                : 'bg-[#e85d00] text-white shadow-sm hover:bg-[#f05f00]'
             } disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
           >
             {savingShopId === shop._id ? (
@@ -896,7 +896,7 @@ export default function AdminProductBoosts() {
       {/* Header */}
       <header className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-3 sm:gap-4">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-neutral-500 to-neutral-600 shadow-lg">
+          <div className="p-3 rounded-2xl bg-neutral-500 shadow-sm">
             <Sparkles className="h-8 w-8 text-white" />
           </div>
           <div>
@@ -910,7 +910,7 @@ export default function AdminProductBoosts() {
           <button
             type="button"
             onClick={() => setShowUserManager(!showUserManager)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 font-semibold text-white shadow-md transition-all hover:bg-neutral-700 hover:shadow-lg sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 font-semibold text-white shadow-md transition-all hover:bg-neutral-700 hover:shadow-sm sm:w-auto"
           >
             <Users className="h-5 w-5" />
             <span>Gérer les permissions</span>
@@ -933,7 +933,7 @@ export default function AdminProductBoosts() {
         </div>
       ) : stats ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
                 <Zap className="h-5 w-5" />
@@ -951,7 +951,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
+          <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
                 <Package className="h-5 w-5" />
@@ -969,7 +969,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-emerald-50 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-emerald-500 text-white">
                 <Calendar className="h-5 w-5" />
@@ -987,7 +987,7 @@ export default function AdminProductBoosts() {
             </p>
           </div>
 
-          <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-gradient-to-br !from-amber-50 !to-amber-100 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
+          <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-amber-50 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-amber-500 text-white">
                 <Users className="h-5 w-5" />
@@ -1018,7 +1018,7 @@ export default function AdminProductBoosts() {
             {stats.boostedByCategory.map((cat, idx) => (
               <div
                 key={cat._id || idx}
-                className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 border border-gray-200 dark:border-gray-600"
+                className="p-4 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
               >
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 truncate">
                   {cat._id || 'Non catégorisé'}
@@ -1319,7 +1319,7 @@ export default function AdminProductBoosts() {
           </div>
         ) : shopStats ? (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-gradient-to-br !from-emerald-50 !to-emerald-100 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
+            <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-emerald-50 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-emerald-500 text-white">
                   <Zap className="h-5 w-5" />
@@ -1337,7 +1337,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
+            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
                   <Store className="h-5 w-5" />
@@ -1355,7 +1355,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-gradient-to-br !from-amber-50 !to-amber-100 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
+            <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-amber-50 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-amber-500 text-white">
                   <Calendar className="h-5 w-5" />
@@ -1373,7 +1373,7 @@ export default function AdminProductBoosts() {
               </p>
             </div>
 
-            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-gradient-to-br !from-neutral-50 !to-neutral-100 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
+            <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
                   <Heart className="h-5 w-5" />

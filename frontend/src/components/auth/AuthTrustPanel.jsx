@@ -67,7 +67,7 @@ export default function AuthTrustPanel({ compact = false }) {
   }
 
   return (
-    <aside className="glass-card hidden rounded-3xl p-6 lg:block">
+    <aside className="glass-card hidden rounded-2xl p-6 lg:block">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
         {isFrench ? 'Votre compte est sécurisé' : 'Your account is secure'}
       </p>

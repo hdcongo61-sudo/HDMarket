@@ -147,7 +147,7 @@ export default function NotificationItem({
               onPointerLeave={cancelLongPress}
               className={`group relative flex w-full items-start gap-3 overflow-hidden rounded-[16px] border px-3.5 py-3.5 text-left transition duration-200 sm:px-4 ${
                 isActionsOpen
-                  ? 'border-red-200 bg-white/25 backdrop-blur-sm'
+                  ? 'border-red-200 bg-white/25'
                   : isUnread
                     ? 'border-orange-200 bg-white'
                     : 'border-[#eee8e0] bg-[#faf8f5] opacity-80'
@@ -325,14 +325,14 @@ export default function NotificationItem({
       <AnimatePresence>
         {menuOpen && (
           <motion.div
-            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]"
+            className="fixed inset-0 z-40 bg-black/30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setMenuOpen(false)}
           >
             <motion.div
-                className="absolute inset-x-4 bottom-4 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl"
+                className="absolute inset-x-4 bottom-4 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm"
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}

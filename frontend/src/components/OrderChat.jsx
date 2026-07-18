@@ -1310,12 +1310,12 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="relative inline-flex min-h-11 items-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white shadow-[0_16px_30px_-20px_rgba(255,106,0,0.95)] transition-all hover:bg-[#f45f00] active:scale-[0.98]"
+        className="relative inline-flex min-h-11 items-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm transition-all hover:bg-[#f45f00] active:scale-[0.98]"
       >
         <MessageCircle className="w-4 h-4" />
         <span>{buttonText}</span>
         {unreadCount > 0 && (
-          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center animate-pulse shadow-lg">
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center animate-pulse shadow-sm">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -1344,13 +1344,13 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
       isOpen={isOpen}
       onClose={closeChat}
       size="md"
-      panelClassName="w-full h-full sm:h-[88vh] sm:max-h-[740px] sm:max-w-lg overflow-hidden border-0 bg-[#fff4e8] shadow-2xl ring-1 ring-gray-200 animate-in slide-in-from-bottom-4 duration-300 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-[30px]"
+      panelClassName="w-full h-full sm:h-[88vh] sm:max-h-[740px] sm:max-w-lg overflow-hidden border-0 bg-[#fff4e8] shadow-sm ring-1 ring-gray-200 animate-in slide-in-from-bottom-4 duration-300 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-2xl"
       rootClassName="z-[130] p-0 sm:p-4"
       ariaLabel="Conversation commande"
     >
       <div className="flex h-full w-full flex-col">
         <header
-          className="flex-shrink-0 border-b border-gray-200/80 bg-gray-50/96 shadow-[0_10px_34px_-28px_rgba(255,106,0,0.85)] backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/96"
+          className="flex-shrink-0 border-b border-gray-200/80 bg-gray-50/96 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/96"
           style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -1428,7 +1428,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                 {showChatMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} aria-hidden="true" />
-                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl bg-white p-1.5 shadow-2xl ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
                       {hasProductLink && (
                         <Link
                           to={productPath}
@@ -1523,7 +1523,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Search panel */}
         {showSearch && (
-          <div className="flex-shrink-0 border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 border-b border-gray-200 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#e85d00]" />
               <input
@@ -1554,7 +1554,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Info panel — product, order ref */}
         {showInfo && (
-          <div className="flex-shrink-0 space-y-4 border-b border-gray-200 bg-white/90 px-4 py-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 space-y-4 border-b border-gray-200 bg-white/90 px-4 py-4 dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="flex items-center gap-4">
               {productImage && (
                 <img src={productImage} alt={productName} className="h-16 w-16 flex-shrink-0 rounded-xl object-cover ring-1 ring-gray-200 dark:ring-neutral-800" />
@@ -1708,7 +1708,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
                         <div
                           className={`max-w-[80%] sm:max-w-[75%] group ${
                             isOwnMessage
-                              ? 'rounded-2xl rounded-br-md bg-gradient-to-r from-[#FFB000] to-[#e85d00] text-white shadow-[0_14px_28px_-20px_rgba(255,106,0,0.85)]'
+                              ? 'rounded-2xl rounded-br-md bg-[#FFB000] text-white shadow-sm'
                               : 'rounded-2xl rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
                           } relative px-4 py-2.5 ${isPending ? 'opacity-80' : ''}`}
                         >
@@ -1954,7 +1954,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             size="full"
             rootClassName="z-[140] p-4 sm:p-6"
             panelClassName="max-h-[92dvh] sm:max-w-[92vw] border-none bg-transparent shadow-none p-0"
-            backdropClassName="bg-black/90 backdrop-blur-sm"
+            backdropClassName="bg-black/90"
             ariaLabel="Image du message"
           >
             <button
@@ -1978,7 +1978,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
         {/* Quick replies */}
         {showQuickReplies && (
-          <div className="flex-shrink-0 border-t border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
             <p className="mb-2 text-xs font-black uppercase tracking-wide text-[#e85d00]">Réponses rapides</p>
             <div className="flex flex-wrap gap-2">
               {QUICK_REPLIES.map((reply, index) => (

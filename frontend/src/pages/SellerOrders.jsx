@@ -461,7 +461,7 @@ const OrderProgress = ({ status }) => {
                 <div
                   className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                     reached
-                      ? `${stepColor} border-transparent text-white shadow-lg scale-110`
+                      ? `${stepColor} border-transparent text-white shadow-sm scale-110`
                       : 'border-gray-300 text-gray-400 bg-white'
                   }`}
                 >
@@ -546,7 +546,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
   return (
     <motion.article
       {...riseIn(reduceMotion, Math.min(index, 6) * 0.06)}
-      className={`group block overflow-hidden rounded-2xl bg-white transition dark:bg-neutral-950 ${expanded ? 'border-[1.5px] border-[#e2dcd2] shadow-[0_4px_16px_rgba(117,75,36,0.08)]' : 'border border-[#eee8e0] shadow-[0_2px_10px_rgba(117,75,36,0.05)]'}`}
+      className={`group block overflow-hidden rounded-2xl bg-white transition dark:bg-neutral-950 ${expanded ? 'border-[1.5px] border-[#e2dcd2] shadow-sm' : 'border border-[#eee8e0] shadow-sm'}`}
     >
       <button type="button" onClick={() => setExpanded((value) => !value)} className={`flex w-full items-center justify-between gap-2 px-3.5 py-3 text-left sm:px-4 ${expanded ? 'border-b border-[#f5f2ee]' : ''}`} aria-expanded={expanded}>
         <div className="flex items-center gap-1.5 min-w-0">
@@ -714,7 +714,7 @@ const SellerMobileOrderCard = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
       {/* Header with Progress Circle */}
       <div className="px-4 py-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
@@ -1903,7 +1903,7 @@ export default function SellerOrders() {
 
         {!installmentAnalyticsLoading && installmentAnalytics.totalInstallmentSales > 0 && (
           <div className="mb-5 hidden grid-cols-1 gap-3 sm:mb-8 md:grid md:grid-cols-3 md:gap-6">
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_32px_rgba(117,75,36,0.08)] sm:rounded-2xl sm:p-6">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-[#e85d00]">
                   <CreditCard className="w-5 h-5 text-white" />
@@ -1924,7 +1924,7 @@ export default function SellerOrders() {
                 Terminées: {installmentAnalytics.completedOrders} • Retard: {installmentAnalytics.overdueOrders}
               </p>
             </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_32px_rgba(117,75,36,0.08)] sm:rounded-2xl sm:p-6">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-[#e85d00]">
                   <DollarSign className="w-5 h-5 text-white" />
@@ -1938,7 +1938,7 @@ export default function SellerOrders() {
                 Déjà collecté: {formatCurrency(installmentAnalytics.collectedAmount)}
               </p>
             </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_14px_32px_rgba(117,75,36,0.08)] sm:rounded-2xl sm:p-6">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-[#e85d00]">
                   <AlertCircle className="w-5 h-5 text-white" />
@@ -1979,7 +1979,7 @@ export default function SellerOrders() {
             </div>
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-[0_18px_42px_rgba(117,75,36,0.10)] sm:p-12">
+          <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
               <ClipboardList className="w-10 h-10 text-[#e85d00]" />
             </div>
@@ -2063,7 +2063,7 @@ export default function SellerOrders() {
                       cancelReason.trim().length < 5 ||
                       Number(cancelOrder?.paidAmount || 0) > 0
                     }
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-700 text-white text-sm font-semibold hover:bg-red-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-700 text-white text-sm font-semibold hover:bg-red-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {cancelOrderMutation.isReliablePending
                       ? t('orders.cancelling', 'Annulation...')

@@ -3232,7 +3232,7 @@ export default function ProductForm(props) {
                               <button
                                 type="button"
                                 onClick={() => removeImage(index)}
-                                className="bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-all"
+                                className="bg-red-500 text-white p-1.5 rounded-full shadow-sm hover:bg-red-600 transition-all"
                                 aria-label="Supprimer l'image"
                                 title="Supprimer"
                               >
@@ -3336,7 +3336,7 @@ export default function ProductForm(props) {
               </label>
             ) : null}
             {isCompressingVideo && (
-              <div className="space-y-3 p-4 rounded-xl border-2 border-neutral-300 bg-gradient-to-br from-neutral-50 to-neutral-50 shadow-sm">
+              <div className="space-y-3 p-4 rounded-xl border-2 border-neutral-300 bg-neutral-50 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 border-3 border-neutral-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
@@ -3357,7 +3357,7 @@ export default function ProductForm(props) {
                 <div className="space-y-1">
                   <div className="w-full rounded-full bg-gray-200 h-3 overflow-hidden shadow-inner">
                     <div
-                      className="h-full bg-gradient-to-r from-neutral-500 via-neutral-500 to-teal-500 transition-all duration-300 ease-out shadow-lg relative"
+                      className="h-full bg-neutral-500 transition-all duration-300 ease-out shadow-sm relative"
                       style={{ width: `${compressionProgress}%` }}
                     >
                       {/* Subtle animated shine effect */}
@@ -3444,7 +3444,7 @@ export default function ProductForm(props) {
                 </div>
                 <div className="w-full rounded-full bg-gray-100 h-2 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-neutral-600 to-neutral-600 transition-all duration-200"
+                    className="h-full bg-neutral-600 transition-all duration-200"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -3754,8 +3754,8 @@ export default function ProductForm(props) {
           <div
             className={
               isEmbeddedMobile
-                ? 'sticky bottom-0 z-30 mt-4 border-t border-neutral-200/80 bg-white/95 px-0 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] backdrop-blur-md safe-area-pb'
-                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f6f6f3]/95 backdrop-blur-xl border-t border-neutral-200/70 safe-area-pb'
+                ? 'sticky bottom-0 z-30 mt-4 border-t border-neutral-200/80 bg-white/95 px-0 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] safe-area-pb'
+                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f6f6f3]/95 border-t border-neutral-200/70 safe-area-pb'
             }
           >
             {isEmbeddedMobile && onCancel ? (
@@ -3827,9 +3827,9 @@ export default function ProductForm(props) {
             ariaLabel="Recadrer image"
             rootClassName={isMobile ? '!p-0' : ''}
             panelClassName="border-0 bg-transparent shadow-none sm:max-w-none"
-            backdropClassName="!bg-black/90 backdrop-blur-sm"
+            backdropClassName="!bg-black/90"
           >
-            <div className={`bg-[#1a1a1a] shadow-2xl overflow-hidden flex flex-col ${isMobile ? 'w-full h-full max-h-none rounded-none' : 'rounded-2xl max-w-2xl w-full max-h-[95vh]'}`}>
+            <div className={`bg-[#1a1a1a] shadow-sm overflow-hidden flex flex-col ${isMobile ? 'w-full h-full max-h-none rounded-none' : 'rounded-2xl max-w-2xl w-full max-h-[95vh]'}`}>
 
               {/* ── Header ── */}
               <div className={`flex items-center justify-between bg-[#1a1a1a] border-b border-white/10 flex-shrink-0 ${isMobile ? 'px-4 py-3 safe-area-top' : 'px-4 py-3'}`}>
@@ -3863,7 +3863,7 @@ export default function ProductForm(props) {
                   <button key={label} type="button" onClick={() => applyCropAspectPreset(key)}
                     className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all touch-manipulation ${
                       cropAspect === key
-                        ? 'bg-[#e85d00] text-white shadow-[0_4px_12px_rgba(255,106,0,0.4)]'
+                        ? 'bg-[#e85d00] text-white shadow-sm'
                         : 'bg-white/10 text-white/70 active:bg-white/20'
                     }`}>
                     {label}

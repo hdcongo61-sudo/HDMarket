@@ -3216,3 +3216,95 @@ input[type="radio"] {
   > :where(input, select, textarea) {
   padding-left: 1rem !important;
 }
+
+/* ==========================================================================
+   HDMARKET RESTRAINED UI
+   A final, deliberately plain layer: solid surfaces, modest radii and shadows,
+   and no decorative glow. Functional media overlays and status colors remain.
+   ========================================================================== */
+:root {
+  --hd-app-bg: #f7f7f8;
+  --hd-app-bg-soft: #f7f7f8;
+  --hd-surface: #ffffff;
+  --hd-surface-solid: #ffffff;
+  --hd-surface-raised: #ffffff;
+  --hd-surface-muted: #f5f5f6;
+  --hd-radius-sm: 10px;
+  --hd-radius: 14px;
+  --hd-radius-lg: 16px;
+  --hd-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --hd-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.07);
+  --hd-shadow-md: 0 4px 14px rgba(15, 23, 42, 0.09);
+  --ui-card-radius: 14px;
+  --ui-card-radius-lg: 16px;
+  --ui-card-shadow: var(--hd-shadow-xs);
+  --ui-card-shadow-hover: var(--hd-shadow-sm);
+}
+
+body,
+.app-main-shell,
+.glass-page-shell,
+.shop-shell {
+  background: var(--hd-app-bg) !important;
+}
+
+.ui-glass-header,
+.hd-main-nav,
+.hd-secondary-nav,
+.hd-mobile-tabbar,
+.glass-header,
+.shop-glass-head,
+.floating-glass-button {
+  background: var(--hd-surface-solid) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.ui-card,
+.apple-card,
+.shop-panel,
+.glass-card,
+.glass-modal-panel,
+.apple-inset-group {
+  border-radius: 14px !important;
+  background: var(--hd-surface-solid) !important;
+  box-shadow: var(--hd-shadow-xs) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.ui-card:hover,
+.apple-card:hover,
+.ui-card-interactive:hover {
+  transform: none !important;
+  box-shadow: var(--hd-shadow-sm) !important;
+}
+
+body .rounded-3xl,
+body .rounded-\[24px\],
+body .rounded-\[26px\],
+body .rounded-\[28px\],
+body .rounded-\[30px\],
+body .rounded-\[32px\],
+body .rounded-\[36px\],
+body .rounded-\[38px\],
+body .rounded-\[40px\] {
+  border-radius: 16px !important;
+}
+
+body .shadow-2xl,
+body .shadow-xl,
+body .shadow-lg {
+  box-shadow: var(--hd-shadow-sm) !important;
+}
+
+body :where(.blur-2xl, .blur-3xl) {
+  display: none !important;
+}
+
+.ui-btn-primary,
+.apple-btn-primary,
+.ui-btn {
+  box-shadow: none !important;
+}

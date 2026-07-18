@@ -427,7 +427,7 @@ export default function WalletPage() {
 
   return (
     <div className="hd-profile-flow hd-commerce-shell min-h-screen bg-[#f5f7fb] text-slate-950">
-      <header className="border-b border-slate-200/70 bg-white/92 backdrop-blur-xl">
+      <header className="border-b border-slate-200/70 bg-white/92">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/profile" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-[#e85d00]/40 hover:text-[#e85d00] sm:h-10 sm:w-10">
@@ -462,16 +462,16 @@ export default function WalletPage() {
               </button>
             </div>
           ) : wallet ? (
-            <div className="overflow-hidden rounded-2xl bg-[#e85d00] text-white shadow-[0_18px_46px_rgba(255,106,0,0.22)] sm:rounded-2xl">
+            <div className="overflow-hidden rounded-2xl bg-[#e85d00] text-white shadow-sm sm:rounded-2xl">
               <div className="relative p-4 sm:p-6">
                 <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10" />
                 <div className="absolute -bottom-20 left-1/2 h-44 w-44 rounded-full bg-amber-200/20" />
 	                <div className="relative flex items-center justify-between gap-2">
-	                  <div className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/14 px-3 py-1.5 text-[11px] font-black backdrop-blur sm:text-xs">
+	                  <div className="inline-flex min-w-0 items-center gap-2 rounded-full bg-white/14 px-3 py-1.5 text-[11px] font-black sm:text-xs">
 	                    <Wallet size={15} />
 	                    <span className="truncate">Solde disponible</span>
 	                  </div>
-	                  <span className="shrink-0 rounded-full bg-white/14 px-2.5 py-1.5 text-[10px] font-bold backdrop-blur sm:px-3 sm:text-[11px]">
+	                  <span className="shrink-0 rounded-full bg-white/14 px-2.5 py-1.5 text-[10px] font-bold sm:px-3 sm:text-[11px]">
 	                    {recentPendingCount > 0 ? `${recentPendingCount} en attente` : 'A jour'}
 	                  </span>
 	                </div>
@@ -482,11 +482,11 @@ export default function WalletPage() {
                     {formatPrice(availableBalance)}
                   </p>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4">
-                    <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+                    <div className="rounded-2xl bg-white/12 p-3">
                       <p className="text-[10px] font-bold uppercase text-white/65">En attente</p>
                       <p className="mt-1 text-sm font-black">{formatPrice(pendingBalance)}</p>
                     </div>
-                    <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+                    <div className="rounded-2xl bg-white/12 p-3">
                       <p className="text-[10px] font-bold uppercase text-white/65">Total</p>
                       <p className="mt-1 text-sm font-black">{formatPrice(totalBalance)}</p>
                     </div>
@@ -597,7 +597,7 @@ export default function WalletPage() {
                     onClick={() => setTxnCategoryFilter(filter.id)}
                     className={`shrink-0 rounded-full px-3 py-2 text-[11px] font-black transition sm:text-xs ${
                       active
-                        ? 'bg-[#e85d00] text-white shadow-[0_8px_18px_rgba(255,106,0,0.22)]'
+                        ? 'bg-[#e85d00] text-white shadow-sm'
                         : 'bg-slate-50 text-slate-600 hover:bg-gray-100 hover:text-[#e85d00]'
                     }`}
                   >
@@ -771,7 +771,7 @@ export default function WalletPage() {
       {/* Withdraw Modal */}
       {withdrawModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4" onClick={() => setWithdrawModal(false)}>
-          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-sm sm:rounded-2xl sm:p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-slate-950">{t('wallet.withdrawTitle', 'Retirer vers Mobile Money')}</h3>
@@ -818,7 +818,7 @@ export default function WalletPage() {
                 </p>
               </div>
             </div>
-            <div className="sticky bottom-0 -mx-4 mt-4 flex gap-2 border-t border-slate-100 bg-white/95 px-4 pb-[max(0rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
+            <div className="sticky bottom-0 -mx-4 mt-4 flex gap-2 border-t border-slate-100 bg-white/95 px-4 pb-[max(0rem,env(safe-area-inset-bottom))] pt-3 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
               <button
                 onClick={() => setWithdrawModal(false)}
                 className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-black text-slate-600"
@@ -839,7 +839,7 @@ export default function WalletPage() {
       {/* Deposit Modal */}
       {depositModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4" onClick={() => setDepositModal(false)}>
-          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-sm sm:rounded-2xl sm:p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-slate-950">{t('wallet.depositTitle', 'Déposer sur mon portefeuille')}</h3>
@@ -940,7 +940,7 @@ export default function WalletPage() {
                 )}
               </div>
             </div>
-            <div className="sticky bottom-0 -mx-4 mt-4 flex gap-2 border-t border-slate-100 bg-white/95 px-4 pb-[max(0rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
+            <div className="sticky bottom-0 -mx-4 mt-4 flex gap-2 border-t border-slate-100 bg-white/95 px-4 pb-[max(0rem,env(safe-area-inset-bottom))] pt-3 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0">
               <button
                 onClick={() => setDepositModal(false)}
                 className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-black text-slate-600"

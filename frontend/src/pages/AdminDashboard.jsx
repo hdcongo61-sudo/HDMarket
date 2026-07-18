@@ -1663,7 +1663,7 @@ export default function AdminDashboard() {
         )}
 
       {isFounder && (
-        <section className="glass-card rounded-3xl p-4 shadow-sm sm:p-5">
+        <section className="glass-card rounded-2xl p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="soft-card soft-card-purple inline-flex h-9 w-9 items-center justify-center rounded-xl text-purple-900 dark:text-purple-100">
@@ -1728,7 +1728,7 @@ export default function AdminDashboard() {
           <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
               <Activity size={20} className="text-neutral-600" />
             </div>
             <div>
@@ -2075,7 +2075,7 @@ export default function AdminDashboard() {
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
                   <ShoppingCart size={20} className="text-emerald-600" />
                 </div>
                 <div>
@@ -2205,7 +2205,7 @@ export default function AdminDashboard() {
             <>
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
                     <MessageSquare size={20} className="text-neutral-600" />
                   </div>
                   <div>
@@ -2276,7 +2276,7 @@ export default function AdminDashboard() {
 
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
                     <Phone size={20} className="text-neutral-600" />
                   </div>
                   <div>
@@ -2522,7 +2522,7 @@ export default function AdminDashboard() {
           {canViewStats && (
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-100">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
                   <BarChart3 size={20} className="text-neutral-600" />
                 </div>
                 <div>
@@ -3158,7 +3158,7 @@ export default function AdminDashboard() {
       {canManageUsers && shouldShowSection('users') && (
         <section className="rounded-2xl border border-gray-200/80 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           {/* Desktop: header strip with icon and primary action */}
-          <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 dark:border-slate-700 lg:bg-gradient-to-r lg:from-gray-50/80 lg:to-white">
+          <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 dark:border-slate-700 lg:bg-gray-50/80">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
                 <Users size={22} strokeWidth={2} />
@@ -3753,7 +3753,7 @@ export default function AdminDashboard() {
       {canManagePayments && shouldShowSection('payments') && (
         <section className="rounded-2xl border border-gray-200/80 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           {/* Desktop: header strip with icon and description */}
-          <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 dark:border-slate-700 lg:bg-gradient-to-r lg:from-gray-50/80 lg:to-white">
+          <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 dark:border-slate-700 lg:bg-gray-50/80">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                 <DollarSign size={22} strokeWidth={2} />

@@ -83,7 +83,9 @@ export const schemas = {
     city: Joi.string().trim().min(2).max(80).required(),
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     gender: Joi.string().valid('homme', 'femme').required(),
-    country: Joi.string().valid('République du Congo').optional()
+    country: Joi.string().valid('République du Congo').optional(),
+    acceptedLegalTerms: Joi.boolean().valid(true).required(),
+    legalVersion: Joi.string().valid('2026-07-18').required()
   }),
   registerSendCode: Joi.object({
     email: Joi.string().email(),
@@ -105,7 +107,9 @@ export const schemas = {
     address: Joi.string().min(4).max(200).required(),
     city: Joi.string().trim().min(2).max(80).required(),
     commune: Joi.string().trim().min(2).max(80).allow('', null),
-    gender: Joi.string().valid('homme', 'femme').required()
+    gender: Joi.string().valid('homme', 'femme').required(),
+    acceptedLegalTerms: Joi.boolean().valid(true).required(),
+    legalVersion: Joi.string().valid('2026-07-18').required()
   }),
   appleProviderLogin: Joi.object({
     idToken: Joi.string().min(100).required()
@@ -117,7 +121,9 @@ export const schemas = {
     address: Joi.string().min(4).max(200).required(),
     city: Joi.string().trim().min(2).max(80).required(),
     commune: Joi.string().trim().min(2).max(80).allow('', null),
-    gender: Joi.string().valid('homme', 'femme').required()
+    gender: Joi.string().valid('homme', 'femme').required(),
+    acceptedLegalTerms: Joi.boolean().valid(true).required(),
+    legalVersion: Joi.string().valid('2026-07-18').required()
   }),
   passwordForgot: Joi.object({
     email: Joi.string().email(),

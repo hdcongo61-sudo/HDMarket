@@ -33,7 +33,7 @@ export default function BundleDeal({ bundleData, onAddAll }) {
   };
 
   return (
-    <div className="rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/40 to-emerald-50/40 p-4">
+    <div className="rounded-2xl border border-green-100 bg-green-50/40 p-4">
       <div className="mb-3 flex items-center gap-2">
         <Package size={16} className="text-green-600" />
         <h3 className="text-sm font-bold text-gray-900">

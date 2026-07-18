@@ -137,12 +137,12 @@ const providerLogin = async (req, res, providerName) => {
 };
 
 const providerRegister = async (req, res, providerName) => {
-  const { idToken, phone, city, commune, address, gender } = req.body || {};
+  const { idToken, phone, city, commune, address, gender, acceptedLegalTerms, legalVersion } = req.body || {};
   const decoded = await verifyProviderCredential(idToken, providerName);
   const normalizedEmail = String(decoded.email).toLowerCase().trim();
   const name = String(req.body?.name || decoded.name || '').trim();
 
-  if (!name || !phone || !city || !address?.trim() || !gender) {
+  if (!name || !phone || !city || !address?.trim() || !gender || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
     return res.status(400).json({ message: 'Missing fields', code: 'PROFILE_FIELDS_REQUIRED' });
   }
   const existingUser = await User.findOne({
@@ -190,7 +190,8 @@ const providerRegister = async (req, res, providerName) => {
     commune: String(commune || '').trim(),
     gender,
     profileImage: String(decoded.picture || '').trim(),
-    authProviders: { [providerName]: { uid: decoded.uid, linkedAt: new Date() } }
+    authProviders: { [providerName]: { uid: decoded.uid, linkedAt: new Date() } },
+    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: providerName }
   });
   const token = genToken(user);
   return res.status(201).json(buildAuthResponse(user, token));
@@ -212,9 +213,11 @@ export const register = asyncHandler(async (req, res) => {
     commune,
     address,
     gender,
-    verificationCode
+    verificationCode,
+    acceptedLegalTerms,
+    legalVersion
   } = req.body;
-  if (!name || !email || !password || !phone || !city || !gender || !address?.trim()) {
+  if (!name || !email || !password || !phone || !city || !gender || !address?.trim() || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
     return res.status(400).json({ message: 'Missing fields' });
   }
   // Skip email verification only when email is not configured (local dev without SMTP)
@@ -302,7 +305,8 @@ export const register = asyncHandler(async (req, res) => {
     address: address.trim(),
     city,
     commune: String(commune || '').trim(),
-    gender
+    gender,
+    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: 'email' }
   });
   const token = genToken(user);
   res.status(201).json(buildAuthResponse(user, token));

@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
 import ScrollToTop from './components/ScrollToTop';
 import AnalyticsTracker from './components/AnalyticsTracker';
+import CookieConsent from './components/CookieConsent';
 import PendingActionHandler from './components/PendingActionHandler';
 import AppButtonFeedback from './components/AppButtonFeedback';
 import { useAppSettings } from './context/AppSettingsContext';
@@ -20,6 +21,7 @@ import { hasAnyPermission } from './utils/permissions';
 import { applyAppBranding } from './utils/appIcon';
 import { queryClient } from './lib/queryClient';
 import useAppBrandLogo from './hooks/useAppBrandLogo';
+import pwaInstallService from './services/pwaInstallService';
 
 const Home = lazy(() => import('./pages/Home'));
 const Discover = lazy(() => import('./pages/Discover'));
@@ -71,6 +73,8 @@ const Notifications = lazy(() => import('./pages/Notifications'));
 const Favorites = lazy(() => import('./pages/Favorites'));
 const ShopProfile = lazy(() => import('./pages/ShopProfile'));
 const HelpCenter = lazy(() => import('./pages/HelpCenter'));
+const MobileAppGuide = lazy(() => import('./pages/MobileAppGuide'));
+const LegalPage = lazy(() => import('./pages/LegalPage'));
 const UserSettings = lazy(() => import('./pages/UserSettings'));
 const VerifiedShops = lazy(() => import('./pages/VerifiedShops'));
 const FreeDeliveryShops = lazy(() => import('./pages/FreeDeliveryShops'));
@@ -614,6 +618,7 @@ function AppContent() {
         <PushNotificationsManager />
       </Suspense>
       <AnalyticsTracker />
+      <CookieConsent />
       <ScrollToTop />
       {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
@@ -631,7 +636,7 @@ function AppContent() {
         <Suspense
           fallback={
             <div className="mx-auto max-w-7xl px-4 py-6">
-              <div className="h-28 animate-pulse rounded-3xl bg-neutral-100 dark:bg-neutral-900" />
+              <div className="h-28 animate-pulse rounded-2xl bg-neutral-100 dark:bg-neutral-900" />
             </div>
           }
         >
@@ -660,6 +665,13 @@ function AppContent() {
           <Route path="/shops/verified" element={<VerifiedShops />} />
           <Route path="/shops/free-delivery" element={<FreeDeliveryShops />} />
           <Route path="/help" element={<HelpCenter />} />
+          <Route path="/installer-application" element={<MobileAppGuide />} />
+          <Route path="/conditions-utilisation" element={<LegalPage type="conditions-utilisation" />} />
+          <Route path="/conditions-vente" element={<LegalPage type="conditions-vente" />} />
+          <Route path="/confidentialite" element={<LegalPage type="confidentialite" />} />
+          <Route path="/mentions-legales" element={<LegalPage type="mentions-legales" />} />
+          <Route path="/retours-remboursements" element={<LegalPage type="retours-remboursements" />} />
+          <Route path="/cookies" element={<LegalPage type="cookies" />} />
           <Route
             path="/courier/dashboard"
             element={
@@ -1311,6 +1323,10 @@ function AppContent() {
 export default function App() {
   usePreventNewTabOnMobile();
   const { language } = useAppSettings();
+
+  useEffect(() => {
+    pwaInstallService.start();
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;

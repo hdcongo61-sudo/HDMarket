@@ -440,7 +440,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     return (
       <div className="hd-my-flow max-w-2xl mx-auto">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">Statut de paiement</h2>
@@ -521,7 +521,7 @@ export default function PaymentForm({ product, onSubmitted }) {
   return (
     <div className="hd-my-flow max-w-2xl mx-auto">
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-neutral-500 to-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <CreditCard className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">Validation de l'annonce</h1>
@@ -529,7 +529,7 @@ export default function PaymentForm({ product, onSubmitted }) {
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 space-y-6">
-        <div className="rounded-2xl border border-neutral-100 bg-gradient-to-r from-neutral-50 to-neutral-50 p-4 dark:border-slate-700 dark:from-slate-900/70 dark:to-slate-900/50">
+        <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4 dark:border-slate-700 dark:bg-slate-900/70">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-neutral-900 dark:text-slate-100">Commission de publication</h3>

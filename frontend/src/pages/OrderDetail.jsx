@@ -1443,7 +1443,7 @@ export default function OrderDetail() {
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
         <section className="space-y-3 md:hidden">
-          <article className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-[0_4px_16px_rgba(35,31,27,0.06)]">
+          <article className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-sm">
             <div className="border-b border-[#eee8e0] px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1626,13 +1626,13 @@ export default function OrderDetail() {
 
         <motion.div
           {...riseIn(reduceMotion, 0)}
-          className="hidden overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-[0_18px_48px_rgba(117,75,36,0.10)] md:block"
+          className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:block"
         >
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#e85d00] via-[#e85d00] to-[#ff8a1f] px-5 py-5 text-white sm:px-7 sm:py-6">
+          <div className="relative overflow-hidden bg-[#e85d00] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 shadow-[0_12px_26px_rgba(90,32,0,0.18)] ring-1 ring-white/25 backdrop-blur-sm">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 shadow-sm ring-1 ring-white/25">
                   <StatusIcon className="w-6 h-6" />
                 </div>
                 <div>
@@ -1689,7 +1689,7 @@ export default function OrderDetail() {
                 </div>
                 <div className="relative h-1.5 rounded-full bg-gray-100 dark:bg-neutral-800">
                   <motion.div
-                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-gradient-to-r from-[#FFB000] to-[#e85d00]'}`}
+                    className={`absolute inset-y-0 left-0 rounded-full ${cancelled ? 'bg-rose-300' : 'bg-[#FFB000]'}`}
                     initial={reduceMotion ? { width: `${fillPct}%` } : { width: 0 }}
                     animate={{ width: `${fillPct}%` }}
                     transition={{ duration: reduceMotion ? 0 : 0.9, ease: 'easeOut', delay: reduceMotion ? 0 : 0.3 }}
@@ -1801,7 +1801,7 @@ export default function OrderDetail() {
               </div>
             )}
 
-            <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+            <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
@@ -1860,7 +1860,7 @@ export default function OrderDetail() {
 
             {!hideDeliveryDetails && (
             <motion.div {...riseIn(reduceMotion, 0.16)} className="grid grid-cols-1 gap-4">
-              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
                     <MapPin className="w-4 h-4 text-[#e85d00]" /> {pickupOrder ? 'Adresse boutique' : 'Adresse de livraison'}
@@ -1938,7 +1938,7 @@ export default function OrderDetail() {
             {(hasDeliveryEvidence || order.deliveryStatus === 'submitted' ||
               order.deliveryStatus === 'verified' ||
               order.status === 'delivery_proof_submitted') && (
-              <div className="space-y-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_12px_30px_rgba(16,185,129,0.08)]">
+              <div className="space-y-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                 <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" /> {pickupOrder ? 'Preuve de retrait' : 'Preuve de livraison'}
                 </h4>
@@ -2073,7 +2073,7 @@ export default function OrderDetail() {
               </div>
             )}
 
-            <motion.section {...riseIn(reduceMotion, 0.22)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+            <motion.section {...riseIn(reduceMotion, 0.22)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCard className="w-4 h-4 text-[#e85d00]" /> Paiement</h4>
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3">
@@ -2142,7 +2142,7 @@ export default function OrderDetail() {
                         <div>
                           <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
                             <div
-                              className="h-full bg-gradient-to-r from-[#ffb000] to-[#ff4d16] transition-all duration-300"
+                              className="h-full bg-[#ffb000] transition-all duration-300"
                               style={{ width: `${installmentProgressPercent}%` }}
                             />
                           </div>
@@ -2228,7 +2228,7 @@ export default function OrderDetail() {
             )}
 
             {isInstallmentOrder && (
-              <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+              <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
                   <CreditCard className="w-4 h-4 text-[#e85d00]" /> Échéancier et preuves transactionnelles
                 </h4>
@@ -2490,7 +2490,7 @@ export default function OrderDetail() {
             )}
 
             {visibleBuyerPrimaryAction ? (
-              <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_12px_30px_rgba(117,75,36,0.07)]">
+              <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-gray-500" />
                   <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
@@ -2527,8 +2527,8 @@ export default function OrderDetail() {
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
               {isOrderFulfilmentComplete(order) &&
                 order.items?.length > 0 && (
-                <button type="button" onClick={handleReorder} disabled={reordering} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-6 py-3 font-black text-white shadow-[0_12px_24px_rgba(255,106,0,0.22)] hover:bg-[#e85f00] disabled:opacity-50">
-                  {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                <button type="button" onClick={handleReorder} disabled={reordering} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-6 py-3 font-black text-white shadow-sm hover:bg-[#e85f00] disabled:opacity-50">
+                  {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Package className="w-5 h-5" />}
                   <span>{reordering ? 'Ajout au panier...' : 'Commander à nouveau'}</span>
                 </button>
               )}
@@ -2549,7 +2549,7 @@ export default function OrderDetail() {
         </motion.div>
 
         {aiRecommendationsEnabled && (
-          <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_12px_30px_rgba(117,75,36,0.07)] sm:mt-8 sm:p-4">
+          <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:mt-8 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
               <h3 className="flex min-w-0 items-center gap-2 text-sm font-black text-gray-900 sm:text-base">
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
@@ -2622,7 +2622,7 @@ export default function OrderDetail() {
         size="full"
         rootClassName="z-[140] p-3 sm:p-6"
         panelClassName="max-h-[92dvh] border-none bg-transparent p-0 shadow-none sm:max-w-[92vw]"
-        backdropClassName="bg-black/85 backdrop-blur-sm"
+        backdropClassName="bg-black/85"
         ariaLabel={proofPreview?.label || 'Aperçu preuve'}
       >
         <div className="relative mx-auto flex max-h-[92dvh] max-w-[92vw] items-center justify-center p-2 sm:p-4">
@@ -2645,7 +2645,7 @@ export default function OrderDetail() {
           </button>
           <div
             className={`rounded-xl p-2 sm:p-3 ${
-              proofPreviewIsSignature ? 'bg-white shadow-2xl' : 'bg-black/20'
+              proofPreviewIsSignature ? 'bg-white shadow-sm' : 'bg-black/20'
             }`}
           >
             <img

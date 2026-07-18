@@ -40,7 +40,7 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
     >
       <Link
         to={buildProductPath(product)}
-        className="block overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(117,75,36,0.06)] ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(117,75,36,0.12)] hover:ring-gray-200"
+        className="block overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm hover:ring-gray-200"
       >
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
           <img
@@ -52,20 +52,20 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
           />
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 via-black/15 to-transparent pointer-events-none" />
           {hasVideo && (
-            <div className="absolute top-2 left-2 rounded-full bg-black/50 backdrop-blur-sm px-2 py-0.5 text-[9px] font-extrabold text-white flex items-center gap-1">
+            <div className="absolute top-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[9px] font-extrabold text-white flex items-center gap-1">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>Vidéo
             </div>
           )}
           {discountPercent > 0 && (
-            <div className={`absolute top-2 ${hasVideo ? 'left-16' : 'left-2'} rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-black text-white shadow-lg`}>
+            <div className={`absolute top-2 ${hasVideo ? 'left-16' : 'left-2'} rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-black text-white shadow-sm`}>
               -{discountPercent}%
             </div>
           )}
-          <div className="absolute bottom-2.5 left-2.5 rounded-full bg-white/95 px-3 py-1.5 text-sm font-black text-[#e85d00] shadow-[0_4px_14px_rgba(0,0,0,0.15)] backdrop-blur-sm">
+          <div className="absolute bottom-2.5 left-2.5 rounded-full bg-white/95 px-3 py-1.5 text-sm font-black text-[#e85d00] shadow-sm">
             {formatPrice(product?.price || 0)}
           </div>
           {product?.boosted && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 px-2 py-0.5 text-[9px] font-black text-amber-900 shadow-lg">
+            <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-black text-amber-900 shadow-sm">
               <Sparkles className="h-2.5 w-2.5" />Boost
             </div>
           )}
@@ -96,7 +96,7 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
       <button
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onFavoriteToggle(product?._id); }}
-        className={`absolute bottom-[76px] right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 active:scale-90 ${
+        className={`absolute bottom-[76px] right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow-sm transition-all duration-200 active:scale-90 ${
           isFavorited ? 'bg-red-500 text-white ring-2 ring-red-200' : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500 ring-1 ring-white/60'
         }`}
         aria-label={isFavorited ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -196,11 +196,11 @@ export default function Explorer() {
     <div className="min-h-screen bg-[#f6f3ee] dark:bg-neutral-950">
       
       {/* ── Hero Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#e85d00] via-[#e85d00] to-[#ff8a1f] px-5 py-6 text-white shadow-[0_18px_48px_rgba(255,106,0,0.18)] sm:px-7 sm:py-8">
+      <div className="relative overflow-hidden bg-[#e85d00] px-5 py-6 text-white shadow-sm sm:px-7 sm:py-8">
         <div className="absolute inset-x-0 top-0 h-px bg-white/30" />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 shadow-[0_10px_24px_rgba(90,32,0,0.20)] ring-1 ring-white/25 backdrop-blur-sm">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 shadow-sm ring-1 ring-white/25">
               <Sparkles className="h-6 w-6" />
             </div>
             <div>
@@ -219,7 +219,7 @@ export default function Explorer() {
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm transition hover:bg-white/25 active:scale-95"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -228,14 +228,14 @@ export default function Explorer() {
 
       {/* ── Category Chips ── */}
       {categoryChips.length > 0 && (
-        <div className="border-b border-gray-200/60 bg-[#f6f3ee]/90 backdrop-blur-xl dark:bg-neutral-950/90">
+        <div className="border-b border-gray-200/60 bg-[#f6f3ee]/90 dark:bg-neutral-950/90">
           <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-2.5 scrollbar-hide">
             <button
               type="button"
               onClick={() => setActiveCategory('')}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                 !activeCategory
-                  ? 'bg-[#e85d00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
+                  ? 'bg-[#e85d00] text-white shadow-sm'
                   : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-500'
               }`}
             >
@@ -249,7 +249,7 @@ export default function Explorer() {
                 onClick={() => setActiveCategory(activeCategory === cat ? '' : cat)}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                   activeCategory === cat
-                    ? 'bg-[#e85d00] text-white shadow-[0_6px_16px_rgba(255,106,0,0.25)]'
+                    ? 'bg-[#e85d00] text-white shadow-sm'
                     : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-500'
                 }`}
               >
@@ -271,7 +271,7 @@ export default function Explorer() {
             </div>
             <h3 className="text-lg font-black text-gray-900">{t('explorer.errorTitle', 'Oups !')}</h3>
             <p className="mt-2 text-sm text-gray-500 max-w-xs">{t('explorer.errorMessage', 'Recommandations momentanément indisponibles.')}</p>
-            <button type="button" onClick={handleRefresh} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-[0_8px_20px_rgba(255,106,0,0.25)] transition active:scale-95">
+            <button type="button" onClick={handleRefresh} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-sm transition active:scale-95">
               <RefreshCw className="h-3.5 w-3.5" />{t('explorer.retry', 'Réessayer')}
             </button>
           </div>
@@ -293,7 +293,7 @@ export default function Explorer() {
                 {t('explorer.showAll', 'Voir tout')}
               </button>
             ) : (
-              <Link to="/products" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-[0_8px_20px_rgba(255,106,0,0.25)] transition active:scale-95">
+              <Link to="/products" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-sm transition active:scale-95">
                 {t('explorer.browseProducts', 'Parcourir les produits')}<ChevronRight className="h-4 w-4" />
               </Link>
             )}
