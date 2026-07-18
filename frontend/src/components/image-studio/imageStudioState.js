@@ -69,7 +69,9 @@ const createAdjustments = () => Object.fromEntries(
 
 export const createInitialImageStudioState = (overrides = {}) => ({
   version: 1,
-  aspectRatio: '1:1',
+  // Keep the complete camera photo visible initially. Sellers can opt into a
+  // marketplace crop after they have checked the composition.
+  aspectRatio: 'free',
   rotation: 0,
   flipX: false,
   flipY: false,

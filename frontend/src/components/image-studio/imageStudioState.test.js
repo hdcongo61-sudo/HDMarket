@@ -9,6 +9,10 @@ import {
 } from './imageStudioState';
 
 describe('Image Studio state', () => {
+  it('opens new phone photos without forcing a square crop', () => {
+    expect(createInitialImageStudioState().aspectRatio).toBe('free');
+  });
+
   it('keeps edits non-destructive through undo and redo', () => {
     const initial = createInitialImageStudioState();
     const changed = historyReducer(createHistoryState(initial), {

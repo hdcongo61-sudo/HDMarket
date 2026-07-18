@@ -50,7 +50,7 @@ const firstValidationMessage = (err) => {
   return String(first?.message || 'Les données envoyées sont invalides.');
 };
 
-const toClientError = (err) => {
+export const toClientError = (err) => {
   const normalizedName = String(err?.name || '');
   const status = Number(err?.status || err?.statusCode || 0);
 
@@ -86,6 +86,19 @@ const toClientError = (err) => {
   }
   if (normalizedName === 'RateLimitError' || status === 429) {
     return { status: 429, code: 'RATE_LIMIT_ERROR', message: 'Trop de requêtes. Réessayez plus tard.', expose: true };
+  }
+  if (status === 502 || status === 503) {
+    const isImageStudioError = String(err?.code || '').startsWith('IMAGE_STUDIO_');
+    return {
+      status,
+      code: err?.code || (status === 503 ? 'SERVICE_UNAVAILABLE' : 'UPSTREAM_SERVICE_ERROR'),
+      message: isImageStudioError
+        ? err.message
+        : status === 503
+          ? 'Ce service est temporairement indisponible.'
+          : 'Le service de traitement n’a pas pu terminer la demande.',
+      expose: true
+    };
   }
   if (status >= 400 && status < 500) {
     return {

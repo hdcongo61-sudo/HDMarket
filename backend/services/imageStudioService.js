@@ -27,9 +27,9 @@ export class ImageStudioService {
       operations: {
         enhance: providerConfigured,
         'smart-crop': providerConfigured,
-        shadow: providerConfigured,
-        relight: providerConfigured,
-        upscale: providerConfigured,
+        shadow: false,
+        relight: false,
+        upscale: false,
         'background-remove': generativeEnabled,
         'object-remove': generativeEnabled
       },
@@ -63,34 +63,43 @@ export class ImageStudioService {
       error.code = 'IMAGE_STUDIO_CAPABILITY_UNAVAILABLE';
       throw error;
     }
-    const job = await imageProcessingQueue.add(operation, async (reportProgress) => {
-      reportProgress(45);
-      const options = { transformation: transformationFor(operation, parameters), quality_analysis: true };
-      if (operation === 'background-remove') options.background_removal = 'cloudinary_ai';
-      const uploaded = await uploadToCloudinary({
-        buffer: file.buffer,
-        resourceType: 'image',
-        folder: getCloudinaryFolder(['image-studio', String(userId || 'seller')]),
-        options
+    let job;
+    try {
+      job = await imageProcessingQueue.add(operation, async (reportProgress) => {
+        reportProgress(45);
+        const options = { transformation: transformationFor(operation, parameters), quality_analysis: true };
+        if (operation === 'background-remove') options.background_removal = 'cloudinary_ai';
+        const uploaded = await uploadToCloudinary({
+          buffer: file.buffer,
+          resourceType: 'image',
+          folder: getCloudinaryFolder(['image-studio', String(userId || 'seller')]),
+          options
+        });
+        const stored = await imageStudioStorageService.storeProcessedImage({
+          sourceUrl: uploaded.secure_url || uploaded.url,
+          userId,
+          operation,
+          contentType: `image/${uploaded.format === 'jpg' ? 'jpeg' : uploaded.format || 'webp'}`
+        });
+        reportProgress(90);
+        return {
+          imageUrl: stored.url,
+          storage: stored.storage,
+          storageObjectPath: stored.objectPath,
+          providerAssetId: uploaded.public_id,
+          width: uploaded.width,
+          height: uploaded.height,
+          bytes: uploaded.bytes,
+          format: uploaded.format
+        };
       });
-      const stored = await imageStudioStorageService.storeProcessedImage({
-        sourceUrl: uploaded.secure_url || uploaded.url,
-        userId,
-        operation,
-        contentType: `image/${uploaded.format === 'jpg' ? 'jpeg' : uploaded.format || 'webp'}`
-      });
-      reportProgress(90);
-      return {
-        imageUrl: stored.url,
-        storage: stored.storage,
-        storageObjectPath: stored.objectPath,
-        providerAssetId: uploaded.public_id,
-        width: uploaded.width,
-        height: uploaded.height,
-        bytes: uploaded.bytes,
-        format: uploaded.format
-      };
-    });
+    } catch (cause) {
+      const error = new Error('Le service de traitement d’image n’a pas pu terminer cette opération. Réessayez dans un instant.');
+      error.statusCode = 502;
+      error.code = 'IMAGE_STUDIO_PROCESSING_FAILED';
+      error.details = { operation, providerCode: cause?.http_code || cause?.code };
+      throw error;
+    }
     return {
       jobId: job.id,
       status: job.status,

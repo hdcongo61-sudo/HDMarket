@@ -6,7 +6,81 @@ const DEFAULT_IMAGE_OPTIONS = Object.freeze({
   minSavingsRatio: 0.08
 });
 
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif']);
+const IMAGE_TYPE_BY_EXTENSION = Object.freeze({
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  jfif: 'image/jpeg',
+  pjpeg: 'image/jpeg',
+  pjp: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  bmp: 'image/bmp',
+  gif: 'image/gif'
+});
+const NATIVE_IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif']);
+const HEIC_IMAGE_TYPES = new Set(['image/heic', 'image/heif']);
+const CONVERT_TO_WEB_TYPES = new Set(['image/bmp', 'image/gif']);
+const IMAGE_TYPE_ALIASES = Object.freeze({
+  'image/jpg': 'image/jpeg',
+  'image/pjpeg': 'image/jpeg',
+  'image/x-png': 'image/png',
+  'image/x-ms-bmp': 'image/bmp',
+  'image/heic-sequence': 'image/heic',
+  'image/heif-sequence': 'image/heif'
+});
+
+export const PRODUCT_IMAGE_ACCEPT = '.jpg,.jpeg,.jfif,.pjpeg,.pjp,.png,.webp,.avif,.heic,.heif,.bmp,.gif,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,image/bmp,image/gif';
+
+const extensionOf = (file) => String(file?.name || '').split('.').pop()?.toLowerCase() || '';
+const inferImageType = (file) => {
+  const declared = String(file?.type || '').split(';')[0].trim().toLowerCase();
+  const normalizedDeclared = IMAGE_TYPE_ALIASES[declared] || declared;
+  return normalizedDeclared.startsWith('image/') ? normalizedDeclared : IMAGE_TYPE_BY_EXTENSION[extensionOf(file)] || '';
+};
+
+export const isSupportedProductImageFile = (file) => {
+  const type = inferImageType(file);
+  return NATIVE_IMAGE_TYPES.has(type) || HEIC_IMAGE_TYPES.has(type) || CONVERT_TO_WEB_TYPES.has(type);
+};
+
+const withNormalizedIdentity = (file, type) => {
+  const extension = extensionOf(file);
+  const jpegAlias = ['jfif', 'pjpeg', 'pjp'].includes(extension);
+  const name = jpegAlias ? String(file.name).replace(/\.[^.]+$/, '.jpg') : file.name;
+  if (file.type === type && name === file.name) return file;
+  return new File([file], name || `image.${type === 'image/jpeg' ? 'jpg' : extension || 'bin'}`, {
+    type,
+    lastModified: file.lastModified || Date.now()
+  });
+};
+
+export const normalizeProductImageFile = async (file) => {
+  if (!(file instanceof File) || !isSupportedProductImageFile(file)) {
+    throw new Error(`Format non pris en charge${file?.name ? ` : ${file.name}` : ''}. Utilisez JPG, PNG, WEBP, AVIF, HEIC, HEIF, BMP ou GIF.`);
+  }
+  const type = inferImageType(file);
+  if (!HEIC_IMAGE_TYPES.has(type)) {
+    return { file: withNormalizedIdentity(file, type), converted: false, forceWebConversion: CONVERT_TO_WEB_TYPES.has(type) };
+  }
+
+  try {
+    const { default: heic2any } = await import('heic2any');
+    const output = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+    const blob = Array.isArray(output) ? output[0] : output;
+    if (!(blob instanceof Blob) || !blob.size) throw new Error('Résultat HEIC vide');
+    const baseName = String(file.name || 'photo').replace(/\.[^.]+$/, '');
+    return {
+      file: new File([blob], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: file.lastModified || Date.now() }),
+      converted: true,
+      forceWebConversion: false
+    };
+  } catch {
+    throw new Error(`Impossible de convertir ${file.name || 'cette photo'} depuis HEIC/HEIF. Essayez de l’exporter en JPG.`);
+  }
+};
 
 export const formatFileSize = (bytes = 0) => {
   const value = Number(bytes || 0);
@@ -22,7 +96,12 @@ const canUseCanvas = () =>
 
 const loadImageBitmap = async (file) => {
   if (typeof createImageBitmap === 'function') {
-    return createImageBitmap(file, { imageOrientation: 'from-image' });
+    try {
+      return await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch {
+      // Some desktop engines expose createImageBitmap but do not decode every
+      // image type it accepts. The HTMLImageElement path is more permissive.
+    }
   }
 
   const url = URL.createObjectURL(file);
@@ -44,11 +123,11 @@ const canvasToBlob = (canvas, type, quality) =>
     canvas.toBlob((blob) => resolve(blob), type, quality);
   });
 
-export const shouldOptimizeImageFile = (file) =>
-  Boolean(file instanceof File && IMAGE_TYPES.has(file.type) && file.size > 180 * 1024);
+export const shouldOptimizeImageFile = (file, { force = false } = {}) =>
+  Boolean(file instanceof File && (NATIVE_IMAGE_TYPES.has(file.type) || CONVERT_TO_WEB_TYPES.has(file.type)) && (force || file.size > 180 * 1024));
 
 export const optimizeImageFile = async (file, options = {}) => {
-  if (!shouldOptimizeImageFile(file) || !canUseCanvas()) {
+  if (!shouldOptimizeImageFile(file, options) || !canUseCanvas()) {
     return { file, optimized: false, originalSize: file?.size || 0, outputSize: file?.size || 0 };
   }
 
@@ -74,18 +153,22 @@ export const optimizeImageFile = async (file, options = {}) => {
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
 
-  const blob = await canvasToBlob(canvas, config.type, config.quality);
+  let blob = await canvasToBlob(canvas, config.type, config.quality);
+  if (!blob && config.type !== 'image/jpeg') {
+    blob = await canvasToBlob(canvas, 'image/jpeg', config.quality);
+  }
   if (!blob) return { file, optimized: false, originalSize: file.size, outputSize: file.size };
 
   const savingsRatio = 1 - blob.size / file.size;
-  if (blob.size >= file.size || savingsRatio < config.minSavingsRatio) {
+  if (!config.force && (blob.size >= file.size || savingsRatio < config.minSavingsRatio)) {
     return { file, optimized: false, originalSize: file.size, outputSize: file.size };
   }
 
   const baseName = String(file.name || 'image').replace(/\.[^.]+$/, '');
-  const extension = config.type === 'image/webp' ? 'webp' : 'jpg';
+  const outputType = blob.type || config.type;
+  const extension = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/avif': 'avif' }[outputType] || 'jpg';
   const optimizedFile = new File([blob], `${baseName}.${extension}`, {
-    type: blob.type || config.type,
+    type: outputType,
     lastModified: Date.now()
   });
 
@@ -102,19 +185,29 @@ export const optimizeImageFile = async (file, options = {}) => {
 export const optimizeImageFiles = async (files = [], options = {}) => {
   const list = Array.from(files || []);
   const results = [];
+  const errors = [];
   let savedBytes = 0;
 
   for (const file of list) {
-    const result = await optimizeImageFile(file, options);
-    results.push(result);
-    savedBytes += Math.max(0, Number(result.originalSize || 0) - Number(result.outputSize || 0));
+    try {
+      const normalized = await normalizeProductImageFile(file);
+      const result = await optimizeImageFile(normalized.file, {
+        ...options,
+        force: normalized.forceWebConversion || options.force
+      });
+      results.push({ ...result, converted: normalized.converted || normalized.forceWebConversion });
+      savedBytes += Math.max(0, Number(file.size || 0) - Number(result.outputSize || 0));
+    } catch (error) {
+      errors.push({ file, message: error?.message || `Impossible de lire ${file?.name || 'cette photo'}.` });
+    }
   }
 
   return {
     files: results.map((item) => item.file),
     results,
+    errors,
     savedBytes,
-    optimizedCount: results.filter((item) => item.optimized).length
+    optimizedCount: results.filter((item) => item.optimized || item.converted).length
   };
 };
 

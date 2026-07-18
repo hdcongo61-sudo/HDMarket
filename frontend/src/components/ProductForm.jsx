@@ -12,7 +12,7 @@ import BaseModal from './modals/BaseModal';
 import { appAlert } from '../utils/appDialog';
 import { getHighestProductPrice, hydrateImageVariantsFromAttributes, normalizeProductAttributes } from '../utils/productAttributes';
 import { isValidSocialVideoUrl } from '../utils/socialVideo';
-import { formatFileSize, optimizeImageFiles } from '../utils/mediaOptimizer';
+import { formatFileSize, optimizeImageFiles, PRODUCT_IMAGE_ACCEPT } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
 
 const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
@@ -306,14 +306,23 @@ export default function ProductForm(props) {
     try {
       optimizationResult = await optimizeImageFiles(limitedFiles);
       optimizedFiles = optimizationResult.files;
-    } catch {
-      optimizedFiles = limitedFiles;
+      if (optimizationResult.errors?.length) {
+        setImageError(optimizationResult.errors.map((entry) => entry.message).join(' '));
+      }
+    } catch (error) {
+      optimizedFiles = [];
+      setImageError(error?.message || 'Impossible de préparer les photos sélectionnées.');
     } finally {
       setMediaOptimization({
         active: false,
         optimizedCount: optimizationResult?.optimizedCount || 0,
         savedBytes: optimizationResult?.savedBytes || 0
       });
+    }
+
+    if (!optimizedFiles.length) {
+      e.target.value = '';
+      return;
     }
 
     const newItems = optimizedFiles.map((f) => ({ file: f, cropped: false, leftAsIs: false }));
@@ -3182,7 +3191,7 @@ export default function ProductForm(props) {
                     multiple
                     onChange={handleImageChange}
                     className="hidden"
-                    accept="image/*"
+                    accept={PRODUCT_IMAGE_ACCEPT}
                   />
                 </label>
                 {imageError && (
