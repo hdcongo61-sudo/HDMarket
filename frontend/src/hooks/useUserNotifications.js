@@ -83,6 +83,38 @@ const buildInitialState = () => ({
   preferences: buildDefaultPreferences()
 });
 
+// A notification cannot become unread again. Realtime refreshes can finish after
+// a mark-as-read mutation and briefly return the older database/cache snapshot.
+// Preserve read state already observed by this client while accepting every
+// other field from the newest server response.
+export const mergeNotificationSnapshot = (previousState, serverState) => {
+  const previousAlerts = Array.isArray(previousState?.alerts) ? previousState.alerts : [];
+  const serverAlerts = Array.isArray(serverState?.alerts) ? serverState.alerts : [];
+  const locallyReadById = new Map(
+    previousAlerts
+      .filter((alert) => alert?._id && alert?.isNew === false)
+      .map((alert) => [String(alert._id), alert])
+  );
+  let staleUnreadCount = 0;
+  const alerts = serverAlerts.map((alert) => {
+    const locallyRead = locallyReadById.get(String(alert?._id || ''));
+    if (!locallyRead || alert?.isNew === false) return alert;
+    staleUnreadCount += 1;
+    return {
+      ...alert,
+      isNew: false,
+      readAt: locallyRead.readAt || alert?.readAt || new Date().toISOString()
+    };
+  });
+
+  return {
+    ...serverState,
+    alerts,
+    unreadCount: Math.max(0, Number(serverState?.unreadCount || 0) - staleUnreadCount),
+    commentAlerts: Math.max(0, Number(serverState?.commentAlerts || 0) - staleUnreadCount)
+  };
+};
+
 const applyNotificationsPatch = (prev, patch = {}) => {
   const state = prev && typeof prev === 'object' ? prev : buildInitialState();
   const alerts = Array.isArray(state.alerts) ? state.alerts : [];
@@ -117,6 +149,25 @@ const applyNotificationsPatch = (prev, patch = {}) => {
       ),
       unreadCount: Math.max(0, Number(state.unreadCount || 0) - unreadToMark),
       commentAlerts: Math.max(0, Number(state.commentAlerts || 0) - unreadToMark)
+    };
+  }
+
+  if (patchType === 'markReadRollback') {
+    const ids = Array.isArray(patch.notificationIds)
+      ? patch.notificationIds.map((id) => String(id))
+      : [];
+    if (!ids.length) return state;
+    const idSet = new Set(ids);
+    const readToRestore = alerts.filter(
+      (alert) => idSet.has(String(alert?._id)) && alert?.isNew === false
+    ).length;
+    return {
+      ...state,
+      alerts: alerts.map((alert) =>
+        idSet.has(String(alert?._id)) ? { ...alert, isNew: true, readAt: null } : alert
+      ),
+      unreadCount: Number(state.unreadCount || 0) + readToRestore,
+      commentAlerts: Number(state.commentAlerts || 0) + readToRestore
     };
   }
 
@@ -187,7 +238,10 @@ export default function useUserNotifications(enabled, options = {}) {
     }
     setLoading(true);
     try {
-      const { data } = await api.get('/users/notifications', { skipCache: true });
+      const { data } = await api.get('/users/notifications', {
+        skipCache: true,
+        headers: { 'x-skip-cache': '1' }
+      });
       const unread =
         typeof data?.unreadCount === 'number'
           ? data.unreadCount
@@ -201,7 +255,7 @@ export default function useUserNotifications(enabled, options = {}) {
         alerts,
         preferences: normalizePreferences(data?.preferences)
       };
-      setCounts(nextState);
+      setCounts((previousState) => mergeNotificationSnapshot(previousState, nextState));
       setError('');
       return nextState;
     } catch (e) {
@@ -397,7 +451,7 @@ export default function useUserNotifications(enabled, options = {}) {
       }
       if (
         patchType &&
-        ['markRead', 'markAllRead', 'delete', 'reset'].includes(patchType) &&
+        ['markRead', 'markReadRollback', 'markAllRead', 'delete', 'reset'].includes(patchType) &&
         detail?.refetch !== true
       ) {
         return;

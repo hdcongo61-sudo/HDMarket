@@ -493,6 +493,9 @@ export default function NotificationPage() {
 
     // Optimistic update — update count immediately before server confirms
     const idSet = new Set(normalizedIds);
+    const optimisticUnreadCount = alerts.filter(
+      (alert) => idSet.has(String(alert?._id)) && alert?.isNew
+    ).length;
     updateCounts((prev) => {
       const previousAlerts = Array.isArray(prev?.alerts) ? prev.alerts : [];
       const markedUnread = previousAlerts.filter((alert) => idSet.has(String(alert?._id)) && alert.isNew).length;
@@ -526,11 +529,15 @@ export default function NotificationPage() {
         return {
           ...prev,
           alerts: nextAlerts,
-          unreadCount: Number(prev?.unreadCount || 0) + idSet.size,
-          commentAlerts: Number(prev?.commentAlerts || 0) + idSet.size
+          unreadCount: Number(prev?.unreadCount || 0) + optimisticUnreadCount,
+          commentAlerts: Number(prev?.commentAlerts || 0) + optimisticUnreadCount
         };
       });
-      triggerNotificationsRefresh({ type: 'markRead', notificationIds: normalizedIds, refetch: false });
+      triggerNotificationsRefresh({
+        type: 'markReadRollback',
+        notificationIds: normalizedIds,
+        refetch: false
+      });
       setActionError(
         requestError?.response?.data?.message ||
           requestError?.message ||
@@ -844,6 +851,9 @@ export default function NotificationPage() {
                               isExpanded={isExpanded}
                               actions={actions}
                               onToggleExpand={() => {
+                                if (!isExpanded && isUnread) {
+                                  void handleMarkRead([alert._id]);
+                                }
                                 setExpandedIds((prev) => {
                                   const next = new Set(prev);
                                   if (next.has(alert._id)) {
