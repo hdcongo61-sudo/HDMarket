@@ -201,6 +201,7 @@ const allowedOrigins = new Set([
   'capacitor://localhost',
   'ionic://localhost',
   'https://hdmarket.onrender.com',
+  'https://www.hdmarket.store',
   ...devOrigins,
   ...envOrigins
 ]);
@@ -387,7 +388,7 @@ if (Number.isFinite(headersTimeoutMs) && headersTimeoutMs > 0) {
   httpServer.headersTimeout = Math.round(headersTimeoutMs);
 }
 const socketCors = {
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: [...allowedOrigins],
   credentials: true
 };
 
