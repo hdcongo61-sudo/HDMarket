@@ -17,6 +17,7 @@ import { useAppSettings } from "../context/AppSettingsContext";
 import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
 import useNetworkProfile from "../hooks/useNetworkProfile";
 import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
+import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 
 const normalizeCityName = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -761,8 +762,10 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       }
     };
     loadHeroBanner();
+    const unsubscribe = subscribeToSettingsRefresh(loadHeroBanner);
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
@@ -787,8 +790,10 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       }
     };
     loadPromoBanner();
+    const unsubscribe = subscribeToSettingsRefresh(loadPromoBanner);
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 

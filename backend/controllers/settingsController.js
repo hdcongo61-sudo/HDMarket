@@ -37,9 +37,9 @@ const toValueType = (value) => {
   return 'string';
 };
 
-const invalidateAllSettingsCaches = () => {
+const invalidateAllSettingsCaches = async () => {
   invalidateSettingsResolverCache();
-  invalidateSettingsCache();
+  await invalidateSettingsCache();
 };
 
 const ensureSingleDefaultCurrency = async (currencyCode, actorId) => {
@@ -459,7 +459,7 @@ export const updateAdminSetting = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_fee_updated',
     previousValue,
@@ -520,7 +520,7 @@ export const createAdminCurrency = asyncHandler(async (req, res) => {
     }
   }
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_currency_created',
     previousValue: null,
@@ -585,7 +585,7 @@ export const updateAdminCurrency = asyncHandler(async (req, res) => {
     }
   }
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_currency_updated',
     previousValue: previousCurrency,
@@ -655,7 +655,7 @@ export const patchAdminLanguages = asyncHandler(async (req, res) => {
     )
   ]);
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_languages_updated',
     previousValue: previousLanguages,
@@ -705,7 +705,7 @@ export const createAdminCity = asyncHandler(async (req, res) => {
     }
   }
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_city_created',
     previousValue: null,
@@ -771,7 +771,7 @@ export const updateAdminCity = asyncHandler(async (req, res) => {
     }
   }
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_city_updated',
     previousValue: previousCity,
@@ -832,7 +832,7 @@ export const deleteAdminCity = asyncHandler(async (req, res) => {
     ]);
   }
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_city_deleted',
     previousValue: deletedCity,
@@ -902,7 +902,7 @@ export const createAdminCommune = asyncHandler(async (req, res) => {
     updatedBy: req.user.id
   });
 
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_commune_created',
     previousValue: null,
@@ -958,7 +958,7 @@ export const updateAdminCommune = asyncHandler(async (req, res) => {
 
   commune.updatedBy = req.user.id;
   await commune.save();
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_commune_updated',
     previousValue: previousCommune,
@@ -979,7 +979,7 @@ export const deleteAdminCommune = asyncHandler(async (req, res) => {
   const deletedCommune = toCommuneAuditPayload(commune);
 
   await commune.deleteOne();
-  invalidateAllSettingsCaches();
+  await invalidateAllSettingsCaches();
   await writeSystemSettingsAudit(req, {
     actionType: 'admin_system_settings_commune_deleted',
     previousValue: deletedCommune,

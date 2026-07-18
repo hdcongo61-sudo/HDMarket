@@ -22,6 +22,7 @@ import { applyAppBranding } from './utils/appIcon';
 import { queryClient } from './lib/queryClient';
 import useAppBrandLogo from './hooks/useAppBrandLogo';
 import pwaInstallService from './services/pwaInstallService';
+import { subscribeToSettingsRefresh } from './utils/settingsRefresh';
 
 const Home = lazy(() => import('./pages/Home'));
 const Discover = lazy(() => import('./pages/Discover'));
@@ -354,8 +355,8 @@ function AppContent() {
   useEffect(() => {
     // Fetched once on mount (not just on '/') so the launch-splash toggle applies
     // on every route. The promo splash still only shows on '/' (see showSplash).
-    api
-      .get('/settings/splash')
+    const loadSplashSettings = () => api
+      .get('/settings/splash', { skipCache: true, headers: { 'x-skip-cache': '1' } })
       .then((res) => {
         const data = res.data || null;
         setSplashConfig(data);
@@ -381,6 +382,8 @@ function AppContent() {
         }
       })
       .catch(() => setSplashConfig(null));
+    loadSplashSettings();
+    return subscribeToSettingsRefresh(loadSplashSettings);
   }, []);
 
   useEffect(() => {

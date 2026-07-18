@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 
 const FALLBACK_NETWORKS = [
   { _id: 'fallback-network-mtn', name: 'MTN', phoneNumber: '069822930', isActive: true, order: 0 },
@@ -32,6 +33,7 @@ export function useNetworks() {
 
   useEffect(() => {
     fetchNetworks();
+    return subscribeToSettingsRefresh(fetchNetworks);
   }, []);
 
   return {

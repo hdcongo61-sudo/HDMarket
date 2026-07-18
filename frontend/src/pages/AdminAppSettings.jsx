@@ -4,6 +4,7 @@ import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkl
 import api, { clearCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { appConfirm } from '../utils/appDialog';
+import { emitSettingsRefresh } from '../utils/settingsRefresh';
 
 const formatDateInput = (value) => {
   if (!value) return '';
@@ -443,6 +444,8 @@ export default function AdminAppSettings() {
       if (data?.splashImage != null) setSplashImagePreview(data.splashImage || '');
       if (data?.splashDurationSeconds != null) setSplashDurationSeconds(data.splashDurationSeconds);
       if (data?.splashEnabled !== undefined) setSplashEnabled(data.splashEnabled);
+      await clearCache('/settings/splash');
+      emitSettingsRefresh();
       setSplashImageFile(null);
       setSplashSuccess('Écran de démarrage mis à jour.');
       showToast('Écran de démarrage mis à jour.', { variant: 'success' });
@@ -473,6 +476,8 @@ export default function AdminAppSettings() {
       if (data?.bootSplashDesktopDurationSeconds != null) setBootSplashDesktopDuration(data.bootSplashDesktopDurationSeconds);
       if (data?.bootSplashMobileEnabled !== undefined) setBootSplashMobileEnabled(data.bootSplashMobileEnabled);
       if (data?.bootSplashMobileDurationSeconds != null) setBootSplashMobileDuration(data.bootSplashMobileDurationSeconds);
+      await clearCache('/settings/splash');
+      emitSettingsRefresh();
       setBootSplashSuccess('Splash animé mis à jour.');
       showToast('Splash animé mis à jour.', { variant: 'success' });
     } catch (err) {
@@ -499,6 +504,8 @@ export default function AdminAppSettings() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setHeroBannerPreview(data?.heroBanner ?? heroBannerPreview);
+      await clearCache('/settings/hero-banner');
+      emitSettingsRefresh();
       setHeroBannerFile(null);
       setHeroBannerSuccess('Bannière mise à jour avec succès.');
       showToast('Bannière HERO mise à jour.', { variant: 'success' });
@@ -542,7 +549,8 @@ export default function AdminAppSettings() {
       setPromoBannerLink(data?.promoBannerLink ?? promoBannerLink);
       setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
       setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
-      clearCache('/settings/promo-banner').catch(() => {});
+      await clearCache('/settings/promo-banner');
+      emitSettingsRefresh();
       setPromoBannerFile(null);
       setPromoBannerMobileFile(null);
       setPromoBannerSuccess('Bannière publicitaire mise à jour avec succès.');
@@ -575,6 +583,7 @@ export default function AdminAppSettings() {
       setAppLogoDesktopFile(null);
       clearCache('/settings/app-logo').catch(() => {});
       emitAppLogoUpdated({ appLogoDesktop: nextDesktopLogo });
+      emitSettingsRefresh();
       setAppLogoDesktopSuccess('Logo desktop mis à jour avec succès.');
       showToast('Logo desktop mis à jour.', { variant: 'success' });
     } catch (err) {
@@ -605,6 +614,7 @@ export default function AdminAppSettings() {
       setAppLogoMobileFile(null);
       clearCache('/settings/app-logo').catch(() => {});
       emitAppLogoUpdated({ appLogoMobile: nextMobileLogo });
+      emitSettingsRefresh();
       setAppLogoMobileSuccess('Logo mobile mis à jour avec succès.');
       showToast('Logo mobile mis à jour.', { variant: 'success' });
     } catch (err) {
@@ -635,6 +645,7 @@ export default function AdminAppSettings() {
       setAppIconFile(null);
       clearCache('/settings/app-logo').catch(() => {});
       emitAppLogoUpdated({ appIcon: nextIcon });
+      emitSettingsRefresh();
       setAppIconSuccess('Icône mise à jour avec succès.');
       showToast('Icône mise à jour.', { variant: 'success' });
     } catch (err) {
@@ -665,6 +676,7 @@ export default function AdminAppSettings() {
       setAppFaviconFile(null);
       clearCache('/settings/app-logo').catch(() => {});
       emitAppLogoUpdated({ appFavicon: nextFavicon });
+      emitSettingsRefresh();
       setAppFaviconSuccess('Favicon mis à jour avec succès.');
       showToast('Favicon mis à jour.', { variant: 'success' });
     } catch (err) {
@@ -1253,6 +1265,7 @@ export default function AdminAppSettings() {
                 try {
                   const res = await api.post('/admin/networks', newNetwork);
                   setNetworks([...networks, res.data]);
+                  emitSettingsRefresh();
                   setNewNetwork({ name: '', phoneNumber: '', isActive: true, order: 0 });
                   showToast('Réseau ajouté avec succès.', { variant: 'success' });
                 } catch (err) {
@@ -1359,6 +1372,7 @@ export default function AdminAppSettings() {
                               phoneNumber
                             });
                             setNetworks(networks.map((n) => (n._id === network._id ? res.data : n)));
+                            emitSettingsRefresh();
                             setEditingNetworkId(null);
                             showToast('Réseau mis à jour.', { variant: 'success' });
                           } catch (err) {
@@ -1397,6 +1411,7 @@ export default function AdminAppSettings() {
                               try {
                                 await api.delete(`/admin/networks/${network._id}`);
                                 setNetworks(networks.filter((n) => n._id !== network._id));
+                                emitSettingsRefresh();
                                 showToast('Réseau supprimé.', { variant: 'success' });
                               } catch (err) {
                                 setNetworkError(err.response?.data?.message || 'Erreur lors de la suppression.');

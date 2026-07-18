@@ -15,6 +15,7 @@ import { hasAnyPermission } from "../utils/permissions";
 import { resolveUserProfileImage } from "../utils/userAvatar";
 import { useAppSettings } from "../context/AppSettingsContext";
 import useCategories from '../hooks/useCategories';
+import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 import {
   ShoppingCart,
   Bell,
@@ -2737,7 +2738,7 @@ export default function Navbar() {
     let cancelled = false;
     const loadAppLogos = async () => {
       try {
-        const { data } = await api.get("/settings/app-logo", { silentGlobalError: true });
+        const { data } = await api.get("/settings/app-logo", { silentGlobalError: true, skipCache: true, headers: { 'x-skip-cache': '1' } });
         if (cancelled) return;
         setAppLogos({
           desktop: data?.appLogoDesktop || "",
@@ -2764,9 +2765,11 @@ export default function Navbar() {
     }
 
     const timer = window.setTimeout(loadAppLogos, 900);
+    const unsubscribe = subscribeToSettingsRefresh(loadAppLogos);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      unsubscribe();
       if (typeof window !== 'undefined') {
         window.removeEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
       }
