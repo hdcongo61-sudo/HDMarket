@@ -107,6 +107,11 @@ export const AppSettingsProvider = ({ children }) => {
   const [theme, setThemeState] = useState('system');
   const [assistantChatEnabled, setAssistantChatEnabledState] = useState(true);
   const [resources, setResources] = useState({});
+  const darkThemeEnabled = toBoolean(
+    publicSettings.runtime?.enable_dark_theme,
+    true
+  );
+  const effectiveTheme = darkThemeEnabled ? theme : 'light';
 
   const normalizePublicPayload = useCallback((payload = {}) => {
     const normalizedCurrencies = Array.isArray(payload.currencies) ? payload.currencies : [];
@@ -271,7 +276,10 @@ export const AppSettingsProvider = ({ children }) => {
   }, [loadPublicSettings, user?.preferredLanguage, user?.preferredCurrency, user?.preferredCity, user?.city, user?.theme]);
 
   useEffect(() => {
-    applyThemeClass(theme);
+    applyThemeClass(effectiveTheme);
+  }, [effectiveTheme]);
+
+  useEffect(() => {
     storage.set(STORAGE_KEYS.theme, theme);
   }, [theme]);
 
@@ -471,7 +479,8 @@ export const AppSettingsProvider = ({ children }) => {
       language,
       currencyCode,
       city,
-      theme,
+      theme: effectiveTheme,
+      darkThemeEnabled,
       assistantChatEnabled,
       selectedCurrency,
       t,
@@ -481,7 +490,10 @@ export const AppSettingsProvider = ({ children }) => {
       setLanguage: (value) => persistPreferences({ preferredLanguage: value }),
       setCurrency: (value) => persistPreferences({ preferredCurrency: value }),
       setCity: (value) => persistPreferences({ preferredCity: value }),
-      setTheme: (value) => persistPreferences({ theme: value }),
+      setTheme: (value) =>
+        darkThemeEnabled
+          ? persistPreferences({ theme: value })
+          : Promise.resolve({ theme: 'light' }),
       setAssistantChatEnabled,
       updatePreferences: persistPreferences,
       isFeatureEnabled
@@ -503,7 +515,8 @@ export const AppSettingsProvider = ({ children }) => {
       language,
       currencyCode,
       city,
-      theme,
+      effectiveTheme,
+      darkThemeEnabled,
       assistantChatEnabled,
       selectedCurrency,
       t,

@@ -124,6 +124,13 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  enable_dark_theme: {
+    category: 'ui',
+    description: 'Autorise les utilisateurs à activer le thème sombre dans l’application.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
   rapid_3g_products_page_size: {
     category: 'ui',
     description: 'Nombre max de produits chargés par requête catalogue en mode Rapide 3G.',

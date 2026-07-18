@@ -135,6 +135,8 @@ export default function AdminAppSettings() {
   const [appFaviconSaving, setAppFaviconSaving] = useState(false);
   const [appFaviconError, setAppFaviconError] = useState('');
   const [appFaviconSuccess, setAppFaviconSuccess] = useState('');
+  const [darkThemeEnabled, setDarkThemeEnabled] = useState(true);
+  const [darkThemeSaving, setDarkThemeSaving] = useState(false);
 
   const [heroBannerFile, setHeroBannerFile] = useState(null);
   const [heroBannerPreview, setHeroBannerPreview] = useState('');
@@ -195,13 +197,17 @@ export default function AdminAppSettings() {
     const load = async () => {
       setLoading(true);
       try {
-        const [heroRes, logoRes, promoRes, prohibitedRes, splashRes, networksRes] = await Promise.all([
+        const [heroRes, logoRes, promoRes, prohibitedRes, splashRes, networksRes, runtimeRes] = await Promise.all([
           api.get('/settings/hero-banner'),
           api.get('/settings/app-logo', { skipCache: true }),
           api.get('/settings/promo-banner', { skipCache: true, headers: { 'x-skip-cache': '1' } }),
           api.get('/admin/prohibited-words').catch(() => ({ data: [] })),
           api.get('/settings/splash').catch(() => ({ data: null })),
-          api.get('/admin/networks').catch(() => ({ data: [] }))
+          api.get('/admin/networks').catch(() => ({ data: [] })),
+          api.get('/settings/runtime', {
+            skipCache: true,
+            headers: { 'x-skip-cache': '1' }
+          }).catch(() => ({ data: { values: {} } }))
         ]);
         loadReports();
         if (!active) return;
@@ -227,6 +233,7 @@ export default function AdminAppSettings() {
           setBootSplashMobileDuration(clampBoot(splashRes.data.bootSplashMobileDurationSeconds));
         }
         setNetworks(Array.isArray(networksRes?.data) ? networksRes.data : []);
+        setDarkThemeEnabled(runtimeRes?.data?.values?.enable_dark_theme !== false);
       } catch (err) {
         if (!active) return;
         showToast(err.response?.data?.message || 'Erreur chargement paramètres.', { variant: 'error' });
@@ -236,6 +243,27 @@ export default function AdminAppSettings() {
     };
     load();
     return () => { active = false; };
+  }, [showToast]);
+
+  const saveDarkThemeSetting = useCallback(async (enabled) => {
+    const nextValue = Boolean(enabled);
+    setDarkThemeSaving(true);
+    try {
+      await api.patch('/admin/config/runtime/enable_dark_theme', { value: nextValue });
+      setDarkThemeEnabled(nextValue);
+      await clearCache('/settings');
+      emitSettingsRefresh();
+      showToast(
+        nextValue ? 'Thème sombre autorisé.' : 'Thème sombre désactivé pour l’application.',
+        { variant: 'success' }
+      );
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Impossible de modifier le thème sombre.', {
+        variant: 'error'
+      });
+    } finally {
+      setDarkThemeSaving(false);
+    }
   }, [showToast]);
 
   const loadReports = useCallback(async () => {
@@ -784,10 +812,11 @@ export default function AdminAppSettings() {
           </div>
         </header>
 
-        {/* Navigation d'ancres : la page fait 8 sections, on saute au lieu de scroller à l'aveugle */}
+        {/* Navigation d'ancres : accès direct aux principales sections de la page. */}
         <nav className="rounded-2xl border border-gray-200 bg-white/90 px-2 py-2 shadow-sm">
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
+              ['#apparence', 'Apparence'],
               ['#identite', 'Identité'],
               ['#banniere-hero', 'Bannière hero'],
               ['#banniere-pub', 'Bannière pub'],
@@ -809,6 +838,41 @@ export default function AdminAppSettings() {
         </nav>
 
         <section className="space-y-8">
+          <div id="apparence" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gray-900 text-white">
+                  <Monitor size={20} />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-gray-900">Thème sombre</h2>
+                  <p className="mt-1 max-w-xl text-sm font-medium text-gray-500">
+                    Autorisez les utilisateurs à choisir le mode sombre. Si cette option est désactivée,
+                    toute l’application utilise immédiatement le thème clair.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={darkThemeEnabled}
+                disabled={darkThemeSaving}
+                onClick={() => saveDarkThemeSetting(!darkThemeEnabled)}
+                className={`inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl px-5 text-sm font-black text-white transition disabled:cursor-wait disabled:opacity-60 ${
+                  darkThemeEnabled
+                    ? 'bg-gray-900 hover:bg-black'
+                    : 'bg-gray-400 hover:bg-gray-500'
+                }`}
+              >
+                {darkThemeSaving
+                  ? 'Enregistrement…'
+                  : darkThemeEnabled
+                    ? 'Thème sombre autorisé'
+                    : 'Thème sombre désactivé'}
+              </button>
+            </div>
+          </div>
+
           {/* App Logos & Icon */}
           <div id="identite" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">

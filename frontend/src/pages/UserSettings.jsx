@@ -103,6 +103,7 @@ export default function UserSettings() {
   const { showToast } = useToast();
   const {
     theme,
+    darkThemeEnabled,
     setTheme,
     formatPrice,
     savingPreferences,
@@ -377,34 +378,36 @@ export default function UserSettings() {
           </div>
         </SectionCard>
 
-        <SectionCard
-          icon={Palette}
-          title={t('settings.appearance', 'Apparence')}
-          subtitle={t('settings.appearanceDescription', 'Choisissez le thème de l’application.')}
-        >
-          <div className="grid grid-cols-3 gap-2">
-            {themeOptions.map((item) => {
-              const ItemIcon = item.icon;
-              const active = theme === item.value;
-              return (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setTheme(item.value)}
-                  aria-pressed={active}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border py-3.5 text-xs font-bold transition active:scale-[0.97] ${
-                    active
-                      ? 'border-[#e85d00] bg-[#e85d00]/10 text-[#e85d00]'
-                      : 'border-gray-200 text-gray-600 hover:bg-black/[0.03] dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <ItemIcon size={20} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </SectionCard>
+        {darkThemeEnabled ? (
+          <SectionCard
+            icon={Palette}
+            title={t('settings.appearance', 'Apparence')}
+            subtitle={t('settings.appearanceDescription', 'Choisissez le thème de l’application.')}
+          >
+            <div className="grid grid-cols-3 gap-2">
+              {themeOptions.map((item) => {
+                const ItemIcon = item.icon;
+                const active = theme === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setTheme(item.value)}
+                    aria-pressed={active}
+                    className={`flex flex-col items-center justify-center gap-2 rounded-xl border py-3.5 text-xs font-bold transition active:scale-[0.97] ${
+                      active
+                        ? 'border-[#e85d00] bg-[#e85d00]/10 text-[#e85d00]'
+                        : 'border-gray-200 text-gray-600 hover:bg-black/[0.03] dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <ItemIcon size={20} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </SectionCard>
+        ) : null}
 
         <SectionCard
           icon={Bot}

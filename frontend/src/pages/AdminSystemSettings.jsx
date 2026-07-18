@@ -99,6 +99,11 @@ const NOTIFICATION_RUNTIME_FLAGS = [
 
 const NETWORK_RUNTIME_QUICK_FLAGS = [
   {
+    key: 'enable_dark_theme',
+    label: 'Thème sombre de l’application',
+    fallbackDescription: 'Autorise ou masque le mode sombre pour tous les utilisateurs.'
+  },
+  {
     key: 'enable_rapid_3g_mode',
     label: 'Mode Rapide 3G',
     fallbackDescription: 'Allège le chargement sur connexions lentes et mode économie de données.'
@@ -1556,10 +1561,10 @@ export default function AdminSystemSettings() {
                 </div>
                 <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-900/60 dark:bg-sky-950/20">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
-                    Réseau & Offline
+                    Apparence, réseau & hors ligne
                   </p>
                   <p className="mb-3 text-xs text-sky-700/90 dark:text-sky-200/90">
-                    Accès rapide aux flags runtime qui pilotent le mode Rapide 3G et la navigation hors ligne.
+                    Contrôlez le thème sombre, le mode Rapide 3G et la navigation hors ligne.
                   </p>
                   <div className="space-y-2.5">
                     {networkRuntimeQuickFlags.map((entry) => {

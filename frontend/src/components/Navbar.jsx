@@ -146,7 +146,7 @@ export default function Navbar() {
     location.pathname.startsWith('/product/') || location.pathname.startsWith('/product-preview/');
   const { user, logout } = useContext(AuthContext);
   const { categoryGroups } = useCategories();
-  const { theme, setTheme, t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
+  const { theme, setTheme, darkThemeEnabled, t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
@@ -4465,13 +4465,15 @@ export default function Navbar() {
               </NavLink>
 
               {/* Mode sombre mobile */}
-              <button
-                onClick={() => setTheme(darkMode ? 'light' : 'dark')}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              >
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-                {darkMode ? t('nav.lightMode', 'Mode clair') : t('nav.darkMode', 'Mode sombre')}
-              </button>
+              {darkThemeEnabled ? (
+                <button
+                  onClick={() => setTheme(darkMode ? 'light' : 'dark')}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                  {darkMode ? t('nav.lightMode', 'Mode clair') : t('nav.darkMode', 'Mode sombre')}
+                </button>
+              ) : null}
 
               {/* Authentification mobile */}
               {!user ? (
