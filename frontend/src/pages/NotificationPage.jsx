@@ -516,7 +516,7 @@ export default function NotificationPage() {
     // Confirm with server (non-blocking for UX)
     try {
       await fetchMarkRead(normalizedIds);
-      await clearCache('/users/notifications');
+      void clearCache('/users/notifications');
     } catch (requestError) {
       // Revert optimistic update on failure
       updateCounts((prev) => {
@@ -851,9 +851,6 @@ export default function NotificationPage() {
                               isExpanded={isExpanded}
                               actions={actions}
                               onToggleExpand={() => {
-                                if (!isExpanded && isUnread) {
-                                  void handleMarkRead([alert._id]);
-                                }
                                 setExpandedIds((prev) => {
                                   const next = new Set(prev);
                                   if (next.has(alert._id)) {
@@ -882,10 +879,9 @@ export default function NotificationPage() {
                                 const notificationId = String(alert?._id || '');
                                 if (!notificationId || !to) return;
 
-                                // Clicking a notification must never wait for analytics or
-                                // read-state persistence before opening its destination.
+                                // Read persistence is completed by NotificationItem before
+                                // this destination callback runs.
                                 void api.post(`/users/notifications/${notificationId}/click`).catch(() => {});
-                                if (isUnread) void handleMarkRead([notificationId]);
 
                                 if (/^https?:\/\//i.test(String(to || ''))) {
                                   window.location.assign(to);

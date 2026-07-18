@@ -107,6 +107,9 @@ export default function NotificationItem({
       didLongPress.current = false;
       return;
     }
+    if (isUnread) {
+      void onMarkRead?.();
+    }
     onToggleExpand?.();
   };
 
@@ -114,6 +117,11 @@ export default function NotificationItem({
     if (!to || navigatingTo) return;
     setNavigatingTo(String(to));
     try {
+      // Persist the read state before leaving this screen. Immediate navigation
+      // can otherwise cancel the request on mobile browsers or external links.
+      if (isUnread) {
+        await onMarkRead?.();
+      }
       await onNavigateAction?.(to);
     } finally {
       setNavigatingTo('');
