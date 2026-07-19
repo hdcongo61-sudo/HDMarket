@@ -19,6 +19,10 @@ import {
 } from '../utils/cache.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
 import { findShopNameConflict, normalizeShopName } from '../utils/shopNameUtils.js';
+import {
+  buildBroadcastRecipientFilter,
+  buildBroadcastShopLink
+} from '../utils/broadcastNotification.js';
 
 const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
 
@@ -36,9 +40,13 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
       phone: user.phone,
       role: user.role,
       accountType: user.accountType,
+      gender: user.gender || '',
+      city: user.city || '',
+      preferredCity: user.preferredCity || '',
       accountTypeChangedBy: user.accountTypeChangedBy,
       accountTypeChangedAt: user.accountTypeChangedAt,
       shopName: user.shopName || '',
+      slug: user.slug || '',
       shopAddress: user.shopAddress || '',
       shopLogo: user.shopLogo || '',
       profileImage: user.profileImage || '',
@@ -1051,7 +1059,14 @@ export const listUsers = asyncHandler(async (req, res) => {
 
   if (search) {
     const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    query.$or = [{ name: regex }, { email: regex }, { phone: regex }];
+    query.$or = [
+      { name: regex },
+      { shopName: regex },
+      { slug: regex },
+      { city: regex },
+      { email: regex },
+      { phone: regex }
+    ];
   }
 
   const numericLimit = Number(limit) || 25;
@@ -1061,7 +1076,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType shopName shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+      'name email phone role accountType gender city preferredCity shopName slug shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -2412,23 +2427,55 @@ export const toggleHelpCenterEditor = asyncHandler(async (req, res) => {
   });
 });
 
-/** Broadcast a notification to all users (or filtered by accountType). Admin only. */
+/** Broadcast a notification to a safely filtered audience. Admin only. */
 export const broadcastNotification = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
-  const { message, title, target = 'all' } = req.body;
-  if (!message || typeof message !== 'string' || !message.trim()) {
+  const {
+    message,
+    title,
+    target = 'all',
+    gender = 'all',
+    city = '',
+    shopId = '',
+    actionLabel = '',
+    dryRun = false
+  } = req.body;
+  if (!dryRun && (!message || typeof message !== 'string' || !message.trim())) {
     return res.status(400).json({ message: 'Le message de la notification est requis.' });
   }
-  const filter = { role: { $in: ['user', 'manager'] } };
-  if (target === 'person') {
-    filter.accountType = 'person';
-  } else if (target === 'shop') {
-    filter.accountType = 'shop';
+  const filter = buildBroadcastRecipientFilter({ target, gender, city });
+  const actorId = String(req.user.id);
+  const recipientQuery = { ...filter, _id: { $ne: req.user.id } };
+
+  let linkedShop = null;
+  if (shopId) {
+    linkedShop = await User.findOne({ _id: shopId, accountType: 'shop', isActive: { $ne: false } })
+      .select('_id shopName name slug')
+      .lean();
+    if (!linkedShop) {
+      return res.status(400).json({ message: 'La boutique sélectionnée est introuvable ou inactive.' });
+    }
   }
-  const users = await User.find(filter).select('_id').lean();
-  const actorId = req.user.id;
+
+  const matched = await User.countDocuments(recipientQuery);
+  if (dryRun) {
+    return res.json({
+      success: true,
+      dryRun: true,
+      matched,
+      filters: { target, gender, city: String(city || '').trim() },
+      linkedShop: linkedShop
+        ? { id: String(linkedShop._id), name: linkedShop.shopName || linkedShop.name || '' }
+        : null
+    });
+  }
+
+  const users = await User.find(recipientQuery).select('_id').lean();
   const trimmedMessage = message.trim();
   const trimmedTitle = title && typeof title === 'string' ? title.trim() : 'HDMarketCG';
+  const trimmedActionLabel = String(actionLabel || '').trim();
+  const shopLink = buildBroadcastShopLink(linkedShop);
+  const resolvedActionLabel = linkedShop ? trimmedActionLabel || 'Voir la boutique' : '';
   const recipients = users.filter((u) => String(u._id) !== actorId);
   // Batch to bound concurrent DB/push writes instead of firing thousands at once.
   const BROADCAST_BATCH_SIZE = 200;
@@ -2441,16 +2488,51 @@ export const broadcastNotification = asyncHandler(async (req, res) => {
           userId: u._id,
           actorId,
           type: 'admin_broadcast',
-          metadata: { message: trimmedMessage, title: trimmedTitle }
+          metadata: {
+            message: trimmedMessage,
+            title: trimmedTitle,
+            actionLabel: resolvedActionLabel,
+            deepLink: shopLink,
+            shopId: linkedShop ? String(linkedShop._id) : '',
+            shopSlug: linkedShop?.slug || '',
+            shopName: linkedShop?.shopName || linkedShop?.name || '',
+            audienceFilters: { target, gender, city: String(city || '').trim() }
+          },
+          title: trimmedTitle,
+          message: trimmedMessage,
+          actionLabel: resolvedActionLabel,
+          deepLink: shopLink,
+          actionLink: shopLink,
+          entityType: linkedShop ? 'shop' : '',
+          entityId: linkedShop ? String(linkedShop._id) : ''
         })
       )
     );
     sent += results.filter(Boolean).length;
   }
+  await createAuditLogEntry({
+    performedBy: actorId,
+    actionType: 'ADMIN_NOTIFICATION_BROADCAST_SENT',
+    req,
+    newValue: {
+      title: trimmedTitle,
+      messagePreview: trimmedMessage.slice(0, 160),
+      sent,
+      matched,
+      filters: { target, gender, city: String(city || '').trim() },
+      linkedShopId: linkedShop ? String(linkedShop._id) : '',
+      shopLink
+    },
+    meta: { module: 'notifications', scope: 'global_broadcast' }
+  }).catch(() => {});
   res.json({
     success: true,
     sent,
-    total: users.length,
+    total: matched,
+    filters: { target, gender, city: String(city || '').trim() },
+    linkedShop: linkedShop
+      ? { id: String(linkedShop._id), name: linkedShop.shopName || linkedShop.name || '', link: shopLink }
+      : null,
     message: `Notification envoyée à ${sent} utilisateur(s).`
   });
 });

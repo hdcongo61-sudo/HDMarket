@@ -30,3 +30,17 @@ describe('order notification links', () => {
     })).toBe(`/orders/detail/${ORDER_ID}`);
   });
 });
+
+describe('global broadcast links', () => {
+  it('opens the shop selected by the admin from in-app and push notifications', () => {
+    const shopPath = '/shop/ma-boutique';
+    expect(resolveNotificationLink({
+      type: 'admin_broadcast',
+      actionLink: shopPath,
+      metadata: { shopSlug: 'ma-boutique' }
+    })).toBe(shopPath);
+    expect(resolvePushPayloadLink({
+      data: { type: 'admin_broadcast', actionLink: shopPath, shopSlug: 'ma-boutique' }
+    })).toBe(shopPath);
+  });
+});

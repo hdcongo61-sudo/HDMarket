@@ -18,3 +18,22 @@ describe('enable_dark_theme runtime setting', () => {
     });
   });
 });
+
+describe('authentication provider runtime settings', () => {
+  it('exposes independent public login and registration switches', () => {
+    const keys = ['email', 'google', 'apple'].flatMap((provider) => [
+      `auth_${provider}_login_enabled`,
+      `auth_${provider}_registration_enabled`
+    ]);
+
+    for (const key of keys) {
+      expect(getRuntimeSettingMetadata(key)).toMatchObject({
+        category: 'authentication',
+        valueType: 'boolean',
+        defaultValue: true,
+        isPublic: true
+      });
+      expect(validateSettingValue(key, false)).toMatchObject({ ok: true, value: false });
+    }
+  });
+});

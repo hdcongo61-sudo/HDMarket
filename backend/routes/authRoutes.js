@@ -7,6 +7,8 @@ import {
   googleProviderRegister,
   appleProviderLogin,
   appleProviderRegister,
+  googleProviderRegistrationProfile,
+  appleProviderRegistrationProfile,
   sendRegisterCode,
   sendPasswordResetCode,
   resetPassword,
@@ -17,6 +19,7 @@ import {
 import { validate, schemas } from '../middlewares/validate.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { upload } from '../utils/upload.js';
+import { requireAuthProvider } from '../middlewares/authProviderAvailability.js';
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -33,13 +36,15 @@ const authLimiter = rateLimit({
 
 const router = express.Router();
 
-router.post('/register', upload.single('shopLogo'), validate(schemas.register), register);
-router.post('/register/send-code', authLimiter, validate(schemas.registerSendCode), sendRegisterCode);
-router.post('/login', authLimiter, validate(schemas.login), login);
-router.post('/provider/google', authLimiter, validate(schemas.googleProviderLogin), googleProviderLogin);
-router.post('/provider/google/register', authLimiter, validate(schemas.googleProviderRegister), googleProviderRegister);
-router.post('/provider/apple', authLimiter, validate(schemas.appleProviderLogin), appleProviderLogin);
-router.post('/provider/apple/register', authLimiter, validate(schemas.appleProviderRegister), appleProviderRegister);
+router.post('/register', requireAuthProvider('auth_email_registration_enabled', 'La création de compte par email'), upload.single('shopLogo'), validate(schemas.register), register);
+router.post('/register/send-code', authLimiter, requireAuthProvider('auth_email_registration_enabled', 'La création de compte par email'), validate(schemas.registerSendCode), sendRegisterCode);
+router.post('/login', authLimiter, requireAuthProvider('auth_email_login_enabled', 'La connexion par mot de passe'), validate(schemas.login), login);
+router.post('/provider/google', authLimiter, requireAuthProvider('auth_google_login_enabled', 'La connexion avec Google'), validate(schemas.googleProviderLogin), googleProviderLogin);
+router.post('/provider/google/register', authLimiter, requireAuthProvider('auth_google_registration_enabled', 'La création de compte avec Google'), validate(schemas.googleProviderRegister), googleProviderRegister);
+router.post('/provider/google/registration-profile', authLimiter, requireAuthProvider('auth_google_registration_enabled', 'La création de compte avec Google'), validate(schemas.googleProviderLogin), googleProviderRegistrationProfile);
+router.post('/provider/apple', authLimiter, requireAuthProvider('auth_apple_login_enabled', 'La connexion avec Apple'), validate(schemas.appleProviderLogin), appleProviderLogin);
+router.post('/provider/apple/register', authLimiter, requireAuthProvider('auth_apple_registration_enabled', 'La création de compte avec Apple'), validate(schemas.appleProviderRegister), appleProviderRegister);
+router.post('/provider/apple/registration-profile', authLimiter, requireAuthProvider('auth_apple_registration_enabled', 'La création de compte avec Apple'), validate(schemas.appleProviderLogin), appleProviderRegistrationProfile);
 router.post('/password/forgot', authLimiter, validate(schemas.passwordForgot), sendPasswordResetCode);
 router.post('/password/reset', authLimiter, validate(schemas.passwordReset), resetPassword);
 router.post('/password/forgot-link', authLimiter, validate(schemas.passwordForgotLink), requestPasswordResetLink);

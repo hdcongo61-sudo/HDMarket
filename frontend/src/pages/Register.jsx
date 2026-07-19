@@ -10,6 +10,7 @@ import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
 import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 import AppleAuthButton from '../components/auth/AppleAuthButton';
 import { signInWithApple, signInWithGoogle } from '../services/providerAuth';
+import { resolveAuthProviderAvailability } from '../utils/authProviderAvailability';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -25,6 +26,9 @@ const mapRegisterErrorMessage = (error, isFrench = true) => {
     return isFrench
       ? 'Un compte existe déjà avec cet email ou ce téléphone.'
       : 'An account already exists with this email or phone.';
+  }
+  if (status === 403 && code === 'AUTH_PROVIDER_DISABLED' && error?.response?.data?.message) {
+    return error.response.data.message;
   }
   if (status >= 500) {
     return isFrench
@@ -55,7 +59,7 @@ const strengthLabelOf = (score) => {
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
-  const { cities, communes, language } = useAppSettings();
+  const { cities, communes, language, runtime } = useAppSettings();
   const { isMobile, logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
@@ -64,6 +68,9 @@ export default function Register() {
   const isFrench = String(language || 'fr')
     .toLowerCase()
     .startsWith('fr');
+  const authAvailability = useMemo(() => resolveAuthProviderAvailability(runtime), [runtime]);
+  const hasProviderRegistration = authAvailability.google.registration || authAvailability.apple.registration;
+  const hasRegistration = authAvailability.email.registration || hasProviderRegistration;
 
   const copy = {
     appBadge: 'HDMarket',
@@ -191,6 +198,13 @@ export default function Register() {
     };
   }, []);
 
+  useEffect(() => {
+    if (providerAuth && !authAvailability[providerAuth.provider]?.registration) {
+      setProviderAuth(null);
+      setFormError(isFrench ? 'Cette méthode de création de compte est désactivée.' : 'This account creation method is disabled.');
+    }
+  }, [authAvailability, isFrench, providerAuth]);
+
   const cityRecords = useMemo(
     () =>
       Array.isArray(cities) && cities.length
@@ -270,6 +284,7 @@ export default function Register() {
   }, [successPayload]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendVerificationCode = async () => {
+    if (!authAvailability.email.registration) return;
     if (!form.email.trim()) {
       setCodeError(copy.emailRequired);
       return;
@@ -290,17 +305,12 @@ export default function Register() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (loading || providerLoading) return;
+    if (!authAvailability.google.registration || loading || providerLoading) return;
     setFormError('');
     setProviderLoading('google');
     try {
       const idToken = await signInWithGoogle();
-      const { data } = await api.post('/auth/provider/google', { idToken });
-      if (!data?.profileRequired) {
-        await login(data);
-        nav(from, { replace: true });
-        return;
-      }
+      const { data } = await api.post('/auth/provider/google/registration-profile', { idToken });
       const nextProviderAuth = { provider: 'google', idToken, profile: data.profile };
       setProviderAuth(nextProviderAuth);
       setForm((previous) => ({
@@ -326,17 +336,12 @@ export default function Register() {
   };
 
   const handleAppleSignIn = async () => {
-    if (loading || providerLoading) return;
+    if (!authAvailability.apple.registration || loading || providerLoading) return;
     setFormError('');
     setProviderLoading('apple');
     try {
       const appleCredential = await signInWithApple();
-      const { data } = await api.post('/auth/provider/apple', { idToken: appleCredential.idToken });
-      if (!data?.profileRequired) {
-        await login(data);
-        nav(from, { replace: true });
-        return;
-      }
+      const { data } = await api.post('/auth/provider/apple/registration-profile', { idToken: appleCredential.idToken });
       const profile = {
         ...data.profile,
         name: appleCredential.profile?.name || data.profile?.name || '',
@@ -367,7 +372,7 @@ export default function Register() {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (loading || successPayload) return;
+    if (loading || successPayload || (!providerAuth && !authAvailability.email.registration)) return;
     setFormError('');
 
     if (!form.city || !form.gender) {
@@ -504,28 +509,29 @@ export default function Register() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <GoogleAuthButton
+                    {hasProviderRegistration ? <div className="grid gap-2 sm:grid-cols-2">
+                      {authAvailability.google.registration ? <GoogleAuthButton
                         label={copy.google}
                         loading={providerLoading === 'google'}
                         disabled={loading || Boolean(providerLoading)}
                         onClick={handleGoogleSignIn}
-                      />
-                      <AppleAuthButton
+                      /> : null}
+                      {authAvailability.apple.registration ? <AppleAuthButton
                         label={copy.apple}
                         loading={providerLoading === 'apple'}
                         disabled={loading || Boolean(providerLoading)}
                         onClick={handleAppleSignIn}
-                      />
-                    </div>
-                    <div className="my-5 flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      /> : null}
+                    </div> : null}
+                    {hasProviderRegistration && authAvailability.email.registration ? <div className="my-5 flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
                       {copy.divider}
                       <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
-                    </div>
+                    </div> : null}
                   </>
                 )}
 
+                {providerAuth || authAvailability.email.registration ? <>
                 <div className="mb-5 grid grid-cols-2 gap-2">
                   <div className={`rounded px-3 py-2 text-xs font-black ${step === 1 ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
                     {copy.step1}
@@ -890,6 +896,15 @@ export default function Register() {
                     </>
                   )}
                 </form>
+                </> : hasRegistration ? (
+                  <div role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-100">
+                    {isFrench ? 'Choisissez Google ou Apple ci-dessus pour créer votre compte.' : 'Choose Google or Apple above to create your account.'}
+                  </div>
+                ) : (
+                  <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100">
+                    {isFrench ? 'La création de compte est temporairement désactivée.' : 'Account creation is temporarily disabled.'}
+                  </div>
+                )}
 
                 <footer className="mt-6 border-t border-gray-100 pt-4 text-sm text-gray-600 dark:border-neutral-800 dark:text-slate-300">
                   <p>

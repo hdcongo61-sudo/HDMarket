@@ -252,7 +252,20 @@ router.post(
   '/notifications/broadcast',
   protect,
   requireRole(['admin']),
-  validate(Joi.object({ message: Joi.string().min(1).max(2000).required(), title: Joi.string().max(200).allow(''), target: Joi.string().valid('all', 'person', 'shop') })),
+  validate(Joi.object({
+    message: Joi.when('dryRun', {
+      is: true,
+      then: Joi.string().max(2000).allow(''),
+      otherwise: Joi.string().min(1).max(2000).required()
+    }),
+    title: Joi.string().max(200).allow(''),
+    target: Joi.string().valid('all', 'person', 'shop').default('all'),
+    gender: Joi.string().valid('all', 'homme', 'femme').default('all'),
+    city: Joi.string().trim().max(100).allow('').default(''),
+    shopId: Joi.string().hex().length(24).allow('').default(''),
+    actionLabel: Joi.string().trim().max(80).allow('').default(''),
+    dryRun: Joi.boolean().default(false)
+  })),
   broadcastNotification
 );
 

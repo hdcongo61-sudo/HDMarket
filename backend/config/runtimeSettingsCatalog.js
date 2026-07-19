@@ -131,6 +131,48 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  auth_email_login_enabled: {
+    category: 'authentication',
+    description: 'Autorise la connexion par email ou numéro de téléphone avec mot de passe.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  auth_email_registration_enabled: {
+    category: 'authentication',
+    description: 'Autorise la création de compte par email et mot de passe.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  auth_google_login_enabled: {
+    category: 'authentication',
+    description: 'Autorise la connexion avec Google.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  auth_google_registration_enabled: {
+    category: 'authentication',
+    description: 'Autorise la création de compte avec Google.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  auth_apple_login_enabled: {
+    category: 'authentication',
+    description: 'Autorise la connexion avec Apple.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  auth_apple_registration_enabled: {
+    category: 'authentication',
+    description: 'Autorise la création de compte avec Apple.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
   rapid_3g_products_page_size: {
     category: 'ui',
     description: 'Nombre max de produits chargés par requête catalogue en mode Rapide 3G.',

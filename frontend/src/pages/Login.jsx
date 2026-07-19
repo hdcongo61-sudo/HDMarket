@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
@@ -19,6 +19,7 @@ import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
 import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 import AppleAuthButton from '../components/auth/AppleAuthButton';
 import { signInWithApple, signInWithGoogle } from '../services/providerAuth';
+import { resolveAuthProviderAvailability } from '../utils/authProviderAvailability';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -76,6 +77,9 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
       : 'The email address, phone number, or password is incorrect, or this account does not exist.';
   }
   if (status === 403) {
+    if (code === 'AUTH_PROVIDER_DISABLED' && error?.response?.data?.message) {
+      return error.response.data.message;
+    }
     return isFrench
       ? 'La connexion à ce compte est actuellement impossible. Contactez le support.'
       : 'This account cannot currently sign in. Contact support.';
@@ -92,7 +96,7 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
 
 export default function Login() {
   const { user, login } = useContext(AuthContext);
-  const { language } = useAppSettings();
+  const { language, runtime } = useAppSettings();
   const { isMobile, logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
@@ -111,6 +115,10 @@ export default function Login() {
   const isFrench = String(language || 'fr')
     .toLowerCase()
     .startsWith('fr');
+  const authAvailability = useMemo(() => resolveAuthProviderAvailability(runtime), [runtime]);
+  const hasProviderLogin = authAvailability.google.login || authAvailability.apple.login;
+  const hasRegistration = Object.values(authAvailability).some((provider) => provider.registration);
+  const hasLogin = authAvailability.email.login || hasProviderLogin;
 
   const copy = {
     appBadge: 'HDMarket',
@@ -150,13 +158,17 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (loading || providerLoading) return;
+    if (!authAvailability.google.login || loading || providerLoading) return;
     setError('');
     setProviderLoading('google');
     try {
       const idToken = await signInWithGoogle();
       const { data } = await api.post('/auth/provider/google', { idToken });
       if (data?.profileRequired) {
+        if (!authAvailability.google.registration) {
+          setError(isFrench ? 'La création de compte avec Google est désactivée.' : 'Account creation with Google is disabled.');
+          return;
+        }
         nav('/register', {
           state: { from, providerAuth: { provider: 'google', idToken, profile: data.profile } }
         });
@@ -166,24 +178,26 @@ export default function Login() {
       nav(from, { replace: true });
     } catch (requestError) {
       if (requestError?.code === 'auth/popup-closed-by-user') return;
-      setError(
-        isFrench
-          ? 'La connexion avec Google a échoué. Veuillez réessayer.'
-          : 'Google sign-in failed. Please try again.'
-      );
+      setError(requestError?.response ? mapLoginErrorMessage(requestError, isFrench) : (
+        isFrench ? 'La connexion avec Google a échoué. Veuillez réessayer.' : 'Google sign-in failed. Please try again.'
+      ));
     } finally {
       setProviderLoading('');
     }
   };
 
   const handleAppleSignIn = async () => {
-    if (loading || providerLoading) return;
+    if (!authAvailability.apple.login || loading || providerLoading) return;
     setError('');
     setProviderLoading('apple');
     try {
       const appleCredential = await signInWithApple();
       const { data } = await api.post('/auth/provider/apple', { idToken: appleCredential.idToken });
       if (data?.profileRequired) {
+        if (!authAvailability.apple.registration) {
+          setError(isFrench ? 'La création de compte avec Apple est désactivée.' : 'Account creation with Apple is disabled.');
+          return;
+        }
         nav('/register', {
           state: {
             from,
@@ -204,11 +218,9 @@ export default function Login() {
       nav(from, { replace: true });
     } catch (requestError) {
       if (requestError?.code === 'auth/popup-closed-by-user') return;
-      setError(
-        isFrench
-          ? 'La connexion avec Apple a échoué. Veuillez réessayer.'
-          : 'Apple sign-in failed. Please try again.'
-      );
+      setError(requestError?.response ? mapLoginErrorMessage(requestError, isFrench) : (
+        isFrench ? 'La connexion avec Apple a échoué. Veuillez réessayer.' : 'Apple sign-in failed. Please try again.'
+      ));
     } finally {
       setProviderLoading('');
     }
@@ -222,7 +234,7 @@ export default function Login() {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (loading) return;
+    if (!authAvailability.email.login || loading) return;
 
     setError('');
     if (!form.phone.trim()) {
@@ -306,27 +318,27 @@ export default function Login() {
                     </p>
                   </header>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <GoogleAuthButton
+                  {hasProviderLogin ? <div className="grid gap-2 sm:grid-cols-2">
+                    {authAvailability.google.login ? <GoogleAuthButton
                       label={copy.google}
                       loading={providerLoading === 'google'}
                       disabled={loading || Boolean(providerLoading)}
                       onClick={handleGoogleSignIn}
-                    />
-                    <AppleAuthButton
+                    /> : null}
+                    {authAvailability.apple.login ? <AppleAuthButton
                       label={copy.apple}
                       loading={providerLoading === 'apple'}
                       disabled={loading || Boolean(providerLoading)}
                       onClick={handleAppleSignIn}
-                    />
-                  </div>
-                  <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    /> : null}
+                  </div> : null}
+                  {hasProviderLogin && authAvailability.email.login ? <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-400">
                     <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
                     {copy.divider}
                     <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
-                  </div>
+                  </div> : null}
 
-                  <form onSubmit={submit} className="space-y-4">
+                  {authAvailability.email.login ? <form onSubmit={submit} className="space-y-4">
                     {error ? (
                       <motion.div
                         initial={{ opacity: 0, y: -4 }}
@@ -434,15 +446,21 @@ export default function Login() {
                         {copy.slowNetwork}
                       </p>
                     ) : null}
-                  </form>
+                  </form> : null}
+
+                  {!hasLogin ? (
+                    <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100">
+                      {isFrench ? 'Les connexions sont temporairement désactivées. Contactez le support.' : 'Sign-in is temporarily disabled. Contact support.'}
+                    </div>
+                  ) : null}
 
                   <footer className="mt-6 grid gap-2 border-t border-gray-100 pt-5 text-sm text-gray-600 dark:border-neutral-800 dark:text-neutral-300">
-                    <p>
+                    {hasRegistration ? <p>
                       {copy.noAccount}{' '}
                       <Link to="/register" className="font-black text-[#e85d00] transition hover:text-[#e85f00] dark:text-orange-100">
                         {copy.createAccount}
                       </Link>
-                    </p>
+                    </p> : null}
                     <p className="inline-flex items-center gap-1.5">
                       <HelpCircle size={15} />
                       {copy.supportLead}{' '}

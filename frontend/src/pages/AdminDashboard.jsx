@@ -282,7 +282,7 @@ function AdminQuickKpiCard({ label, value }) {
 }
 
 export default function AdminDashboard() {
-  const { t, language } = useAppSettings();
+  const { t, language, cities } = useAppSettings();
   const [payments, setPayments] = useState([]);
   const [filter, setFilter] = useState('waiting');
   const [paymentsPage, setPaymentsPage] = useState(1);
@@ -355,6 +355,15 @@ export default function AdminDashboard() {
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState('all');
+  const [broadcastGender, setBroadcastGender] = useState('all');
+  const [broadcastCity, setBroadcastCity] = useState('');
+  const [broadcastShopId, setBroadcastShopId] = useState('');
+  const [broadcastActionLabel, setBroadcastActionLabel] = useState('');
+  const [broadcastShops, setBroadcastShops] = useState([]);
+  const [broadcastShopSearch, setBroadcastShopSearch] = useState('');
+  const [broadcastShopsLoading, setBroadcastShopsLoading] = useState(false);
+  const [broadcastAudienceCount, setBroadcastAudienceCount] = useState(null);
+  const [broadcastPreviewing, setBroadcastPreviewing] = useState(false);
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastError, setBroadcastError] = useState('');
   const [broadcastSuccess, setBroadcastSuccess] = useState('');
@@ -376,6 +385,38 @@ export default function AdminDashboard() {
   const canManagePayments = isAdmin || isManager || isFounder;
   const canManageComplaints = isAdmin || isManager || isFounder;
   const pageTitle = t('admin.dashboard.title', 'Tableau de bord');
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setBroadcastShopsLoading(true);
+      api.get('/admin/users', {
+        params: {
+          accountType: 'shop',
+          search: broadcastShopSearch.trim() || undefined,
+          limit: broadcastShopSearch.trim() ? 30 : 100
+        }
+      })
+        .then(({ data }) => {
+          if (!cancelled) setBroadcastShops(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {
+          if (!cancelled) setBroadcastShops([]);
+        })
+        .finally(() => {
+          if (!cancelled) setBroadcastShopsLoading(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [broadcastShopSearch, isAdmin]);
+
+  useEffect(() => {
+    setBroadcastAudienceCount(null);
+  }, [broadcastTarget, broadcastGender, broadcastCity, broadcastShopId]);
   const availableTabs = useMemo(() => {
     const tabs = [];
     if (canViewStats) tabs.push({ key: 'overview', label: t('admin.dashboard.overview', 'Vue globale') });
@@ -791,7 +832,11 @@ export default function AdminDashboard() {
       const { data } = await api.post('/admin/notifications/broadcast', {
         message: msg,
         title: broadcastTitle.trim() || undefined,
-        target: broadcastTarget
+        target: broadcastTarget,
+        gender: broadcastGender,
+        city: broadcastCity.trim(),
+        shopId: broadcastShopId,
+        actionLabel: broadcastActionLabel.trim()
       });
       setBroadcastSuccess(data?.message || `Envoyé à ${data?.sent ?? 0} utilisateur(s).`);
       setBroadcastMessage('');
@@ -804,7 +849,37 @@ export default function AdminDashboard() {
     } finally {
       setBroadcastSending(false);
     }
-  }, [broadcastMessage, broadcastTitle, broadcastTarget, showToast]);
+  }, [
+    broadcastActionLabel,
+    broadcastCity,
+    broadcastGender,
+    broadcastMessage,
+    broadcastShopId,
+    broadcastTarget,
+    broadcastTitle,
+    showToast
+  ]);
+
+  const previewBroadcastAudience = useCallback(async () => {
+    setBroadcastPreviewing(true);
+    setBroadcastError('');
+    try {
+      const { data } = await api.post('/admin/notifications/broadcast', {
+        dryRun: true,
+        message: '',
+        target: broadcastTarget,
+        gender: broadcastGender,
+        city: broadcastCity.trim(),
+        shopId: broadcastShopId,
+        actionLabel: broadcastActionLabel.trim()
+      });
+      setBroadcastAudienceCount(Number(data?.matched || 0));
+    } catch (e) {
+      setBroadcastError(e.response?.data?.message || e.message || 'Impossible de calculer l’audience.');
+    } finally {
+      setBroadcastPreviewing(false);
+    }
+  }, [broadcastActionLabel, broadcastCity, broadcastGender, broadcastShopId, broadcastTarget]);
 
   const handleExportPhones = useCallback(async () => {
     setExportLoading(true);
@@ -2210,24 +2285,74 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Notification globale</h2>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Envoyer une notification à tous les utilisateurs ou filtrer par type de compte</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Ciblez précisément l’audience et ajoutez une action vers une boutique.</p>
                   </div>
                 </div>
                 <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-6 shadow-sm">
                   {broadcastError && <p className="text-sm text-red-600 mb-3">{broadcastError}</p>}
                   {broadcastSuccess && <p className="text-sm text-emerald-600 mb-3">{broadcastSuccess}</p>}
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Destinataires</label>
-                      <select
-                        value={broadcastTarget}
-                        onChange={(e) => setBroadcastTarget(e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-                      >
-                        <option value="all">Tous les utilisateurs</option>
-                        <option value="person">Particuliers uniquement</option>
-                        <option value="shop">Boutiques uniquement</option>
-                      </select>
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+                      <p className="mb-3 text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">Audience</p>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Type de compte</label>
+                          <select
+                            value={broadcastTarget}
+                            onChange={(e) => setBroadcastTarget(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                          >
+                            <option value="all">Tous les comptes</option>
+                            <option value="person">Particuliers</option>
+                            <option value="shop">Boutiques</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Genre</label>
+                          <select
+                            value={broadcastGender}
+                            onChange={(e) => setBroadcastGender(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                          >
+                            <option value="all">Tous les genres</option>
+                            <option value="homme">Hommes</option>
+                            <option value="femme">Femmes</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Ville</label>
+                          <input
+                            type="text"
+                            list="broadcast-city-options"
+                            value={broadcastCity}
+                            onChange={(e) => setBroadcastCity(e.target.value)}
+                            placeholder="Toutes les villes"
+                            maxLength={100}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                          />
+                          <datalist id="broadcast-city-options">
+                            {(cities || []).map((cityItem) => (
+                              <option key={cityItem?._id || cityItem?.name} value={cityItem?.name || ''} />
+                            ))}
+                          </datalist>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={previewBroadcastAudience}
+                          disabled={broadcastPreviewing}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                        >
+                          {broadcastPreviewing ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />}
+                          Calculer l’audience
+                        </button>
+                        {broadcastAudienceCount !== null ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                            {formatNumber(broadcastAudienceCount)} destinataire(s) éligible(s)
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Titre (optionnel)</label>
@@ -2251,6 +2376,46 @@ export default function AdminDashboard() {
                         className="w-full rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                       />
                       <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{broadcastMessage.length} / 2000</p>
+                    </div>
+                    <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-4 dark:border-orange-900/60 dark:bg-orange-950/20">
+                      <label className="mb-1 block text-sm font-bold text-gray-800 dark:text-slate-100">Lien vers une boutique (optionnel)</label>
+                      <p className="mb-2 text-xs text-gray-500 dark:text-slate-400">Ajoute un bouton fiable dans la notification et dans la notification push.</p>
+                      <input
+                        type="search"
+                        value={broadcastShopSearch}
+                        onChange={(e) => setBroadcastShopSearch(e.target.value)}
+                        placeholder="Rechercher une boutique par nom, ville…"
+                        className="mb-2 w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-slate-900"
+                      />
+                      <select
+                        value={broadcastShopId}
+                        onChange={(e) => {
+                          setBroadcastShopId(e.target.value);
+                          if (!e.target.value) setBroadcastActionLabel('');
+                        }}
+                        disabled={broadcastShopsLoading}
+                        className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-slate-900"
+                      >
+                        <option value="">Aucune boutique liée</option>
+                        {broadcastShops.map((shop) => (
+                          <option key={shop.id || shop._id} value={shop.id || shop._id}>
+                            {shop.shopName || shop.name || 'Boutique'}{shop.city ? ` · ${shop.city}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {broadcastShopId ? (
+                        <div className="mt-3">
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Texte du bouton</label>
+                          <input
+                            type="text"
+                            value={broadcastActionLabel}
+                            onChange={(e) => setBroadcastActionLabel(e.target.value)}
+                            placeholder="Voir la boutique"
+                            maxLength={80}
+                            className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-slate-900"
+                          />
+                        </div>
+                      ) : null}
                     </div>
                     <button
                       type="button"

@@ -13,6 +13,16 @@ const formatDateInput = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
+const AUTH_PROVIDER_CONTROLS = [
+  { id: 'email', label: 'E-mail / téléphone', detail: 'Mot de passe', loginKey: 'auth_email_login_enabled', registrationKey: 'auth_email_registration_enabled' },
+  { id: 'google', label: 'Google', detail: 'Compte Google', loginKey: 'auth_google_login_enabled', registrationKey: 'auth_google_registration_enabled' },
+  { id: 'apple', label: 'Apple', detail: 'Compte Apple', loginKey: 'auth_apple_login_enabled', registrationKey: 'auth_apple_registration_enabled' }
+];
+
+const DEFAULT_AUTH_SETTINGS = Object.fromEntries(
+  AUTH_PROVIDER_CONTROLS.flatMap((provider) => [[provider.loginKey, true], [provider.registrationKey, true]])
+);
+
 function LogoUploadTile({
   icon,
   label,
@@ -137,6 +147,8 @@ export default function AdminAppSettings() {
   const [appFaviconSuccess, setAppFaviconSuccess] = useState('');
   const [darkThemeEnabled, setDarkThemeEnabled] = useState(true);
   const [darkThemeSaving, setDarkThemeSaving] = useState(false);
+  const [authProviderSettings, setAuthProviderSettings] = useState(DEFAULT_AUTH_SETTINGS);
+  const [authProviderSavingKey, setAuthProviderSavingKey] = useState('');
 
   const [heroBannerFile, setHeroBannerFile] = useState(null);
   const [heroBannerPreview, setHeroBannerPreview] = useState('');
@@ -234,6 +246,9 @@ export default function AdminAppSettings() {
         }
         setNetworks(Array.isArray(networksRes?.data) ? networksRes.data : []);
         setDarkThemeEnabled(runtimeRes?.data?.values?.enable_dark_theme !== false);
+        setAuthProviderSettings(Object.fromEntries(
+          Object.keys(DEFAULT_AUTH_SETTINGS).map((key) => [key, runtimeRes?.data?.values?.[key] !== false])
+        ));
       } catch (err) {
         if (!active) return;
         showToast(err.response?.data?.message || 'Erreur chargement paramètres.', { variant: 'error' });
@@ -263,6 +278,22 @@ export default function AdminAppSettings() {
       });
     } finally {
       setDarkThemeSaving(false);
+    }
+  }, [showToast]);
+
+  const saveAuthProviderSetting = useCallback(async (key, enabled) => {
+    const nextValue = Boolean(enabled);
+    setAuthProviderSavingKey(key);
+    try {
+      await api.patch(`/admin/config/runtime/${key}`, { value: nextValue });
+      setAuthProviderSettings((current) => ({ ...current, [key]: nextValue }));
+      await clearCache('/settings');
+      emitSettingsRefresh();
+      showToast('Méthode d’authentification mise à jour.', { variant: 'success' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Impossible de modifier cette méthode.', { variant: 'error' });
+    } finally {
+      setAuthProviderSavingKey('');
     }
   }, [showToast]);
 
@@ -817,6 +848,7 @@ export default function AdminAppSettings() {
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               ['#apparence', 'Apparence'],
+              ['#authentification', 'Authentification'],
               ['#identite', 'Identité'],
               ['#banniere-hero', 'Bannière hero'],
               ['#banniere-pub', 'Bannière pub'],
@@ -871,6 +903,57 @@ export default function AdminAppSettings() {
                     : 'Thème sombre désactivé'}
               </button>
             </div>
+          </div>
+
+          <div id="authentification" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e85d00] text-white">
+                <Shield size={20} />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-gray-900">Connexion et création de compte</h2>
+                <p className="mt-1 max-w-2xl text-sm font-medium text-gray-500">
+                  Activez séparément la connexion et l’inscription pour chaque fournisseur. Le blocage est appliqué dans l’interface et sur l’API.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-2 bg-gray-50 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-gray-500">
+                <span>Fournisseur</span>
+                <span className="text-center">Connexion</span>
+                <span className="text-center">Création</span>
+              </div>
+              {AUTH_PROVIDER_CONTROLS.map((provider) => (
+                <div key={provider.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center gap-2 border-t border-gray-100 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-gray-900">{provider.label}</p>
+                    <p className="truncate text-xs font-medium text-gray-500">{provider.detail}</p>
+                  </div>
+                  {[provider.loginKey, provider.registrationKey].map((key) => {
+                    const checked = authProviderSettings[key] !== false;
+                    const saving = authProviderSavingKey === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        role="switch"
+                        aria-checked={checked}
+                        aria-label={`${checked ? 'Désactiver' : 'Activer'} ${provider.label}`}
+                        disabled={Boolean(authProviderSavingKey)}
+                        onClick={() => saveAuthProviderSetting(key, !checked)}
+                        className={`mx-auto inline-flex h-7 w-12 items-center rounded-full p-1 transition disabled:cursor-wait disabled:opacity-60 ${checked ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                      >
+                        <span className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'} ${saving ? 'animate-pulse' : ''}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs font-semibold text-amber-700">
+              Attention : gardez au moins une méthode de connexion active pour éviter de bloquer l’accès aux comptes.
+            </p>
           </div>
 
           {/* App Logos & Icon */}

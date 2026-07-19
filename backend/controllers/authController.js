@@ -197,10 +197,35 @@ const providerRegister = async (req, res, providerName) => {
   return res.status(201).json(buildAuthResponse(user, token));
 };
 
+const providerRegistrationProfile = async (req, res, providerName) => {
+  const decoded = await verifyProviderCredential(req.body?.idToken, providerName);
+  const normalizedEmail = String(decoded.email).toLowerCase().trim();
+  const existingUser = await User.exists({
+    $or: [{ [`authProviders.${providerName}.uid`]: decoded.uid }, { email: normalizedEmail }]
+  });
+  if (existingUser) {
+    return res.status(409).json({
+      message: 'Un compte existe déjà avec cet email. Utilisez la page de connexion.',
+      code: 'ACCOUNT_EXISTS'
+    });
+  }
+  return res.json({
+    profileRequired: true,
+    provider: providerName,
+    profile: {
+      name: String(decoded.name || '').trim(),
+      email: normalizedEmail,
+      picture: String(decoded.picture || '').trim()
+    }
+  });
+};
+
 export const googleProviderLogin = asyncHandler((req, res) => providerLogin(req, res, 'google'));
 export const googleProviderRegister = asyncHandler((req, res) => providerRegister(req, res, 'google'));
 export const appleProviderLogin = asyncHandler((req, res) => providerLogin(req, res, 'apple'));
 export const appleProviderRegister = asyncHandler((req, res) => providerRegister(req, res, 'apple'));
+export const googleProviderRegistrationProfile = asyncHandler((req, res) => providerRegistrationProfile(req, res, 'google'));
+export const appleProviderRegistrationProfile = asyncHandler((req, res) => providerRegistrationProfile(req, res, 'apple'));
 
 export const register = asyncHandler(async (req, res) => {
   const {
