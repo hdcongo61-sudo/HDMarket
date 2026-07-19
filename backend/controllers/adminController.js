@@ -2427,7 +2427,7 @@ export const toggleHelpCenterEditor = asyncHandler(async (req, res) => {
   });
 });
 
-/** Broadcast a notification to a safely filtered audience. Admin only. */
+/** Broadcast a notification to a safely filtered audience. Admin or founder only. */
 export const broadcastNotification = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
   const {

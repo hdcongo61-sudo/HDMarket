@@ -384,10 +384,11 @@ export default function AdminDashboard() {
   const canManageUsers = isAdmin || isFounder;
   const canManagePayments = isAdmin || isManager || isFounder;
   const canManageComplaints = isAdmin || isManager || isFounder;
+  const canBroadcastNotifications = isAdmin || isFounder;
   const pageTitle = t('admin.dashboard.title', 'Tableau de bord');
 
   useEffect(() => {
-    if (!isAdmin) return undefined;
+    if (!canBroadcastNotifications) return undefined;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setBroadcastShopsLoading(true);
@@ -412,7 +413,7 @@ export default function AdminDashboard() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [broadcastShopSearch, isAdmin]);
+  }, [broadcastShopSearch, canBroadcastNotifications]);
 
   useEffect(() => {
     setBroadcastAudienceCount(null);
@@ -2276,7 +2277,7 @@ export default function AdminDashboard() {
             )}
           </section>
 
-          {isAdmin && (
+          {canBroadcastNotifications && (
             <>
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
