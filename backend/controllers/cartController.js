@@ -322,7 +322,11 @@ export const removeItem = asyncHandler(async (req, res) => {
   );
 
   if (cart.items.length === beforeLength) {
-    return res.status(404).json({ message: 'Item not found in cart' });
+    // DELETE is idempotent: a repeated request must report the already-current
+    // cart instead of turning a successful first removal into a visible error.
+    await invalidateUserCache(req.user.id, ['cart']);
+    const populated = await populateCart(req.user.id);
+    return res.json(formatCart(populated));
   }
 
   await cart.save();

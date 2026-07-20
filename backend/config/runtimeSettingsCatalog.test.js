@@ -37,3 +37,23 @@ describe('authentication provider runtime settings', () => {
     }
   });
 });
+
+describe('app_information runtime setting', () => {
+  it('is public and validates the managed application identity', () => {
+    const metadata = getRuntimeSettingMetadata('app_information');
+    expect(metadata).toMatchObject({
+      category: 'app_identity',
+      valueType: 'json',
+      isPublic: true
+    });
+    expect(validateSettingValue('app_information', metadata.defaultValue)).toMatchObject({ ok: true });
+    expect(validateSettingValue('app_information', {
+      ...metadata.defaultValue,
+      supportEmail: 'invalid-email'
+    })).toMatchObject({ ok: false });
+    expect(validateSettingValue('app_information', {
+      ...metadata.defaultValue,
+      facebook: 'javascript:alert(1)'
+    })).toMatchObject({ ok: false });
+  });
+});

@@ -23,6 +23,81 @@ const DEFAULT_AUTH_SETTINGS = Object.fromEntries(
   AUTH_PROVIDER_CONTROLS.flatMap((provider) => [[provider.loginKey, true], [provider.registrationKey, true]])
 );
 
+const DEFAULT_APP_INFORMATION = {
+  appName: 'HDMarket',
+  companyName: 'ETS HD Tech Filial',
+  tagline: 'Marketplace sécurisée pour les vendeurs et acheteurs congolais.',
+  description: 'Achetez et vendez en toute confiance, partout au Congo.',
+  supportEmail: 'support@hdmarket.cg',
+  legalEmail: 'support@hdmarket.cg',
+  supportPhone: '',
+  whatsappPhone: '',
+  address: '',
+  city: 'Brazzaville',
+  country: 'République du Congo',
+  website: 'https://www.hdmarket.store',
+  rccm: '',
+  niu: '',
+  director: '',
+  host: '',
+  facebook: '',
+  instagram: '',
+  tiktok: '',
+  youtube: '',
+  linkedin: ''
+};
+
+const APP_INFORMATION_GROUPS = [
+  {
+    title: 'Identité',
+    fields: [
+      ['appName', 'Nom de l’application'],
+      ['companyName', 'Raison sociale'],
+      ['tagline', 'Slogan'],
+      ['description', 'Description publique', 'textarea']
+    ]
+  },
+  {
+    title: 'Contacts',
+    fields: [
+      ['supportEmail', 'E-mail support', 'email'],
+      ['legalEmail', 'E-mail juridique', 'email'],
+      ['supportPhone', 'Téléphone support', 'tel'],
+      ['whatsappPhone', 'Numéro WhatsApp', 'tel'],
+      ['website', 'Site web', 'url'],
+      ['address', 'Adresse complète'],
+      ['city', 'Ville'],
+      ['country', 'Pays']
+    ]
+  },
+  {
+    title: 'Informations légales',
+    fields: [
+      ['rccm', 'Numéro RCCM'],
+      ['niu', 'Numéro NIU'],
+      ['director', 'Directeur de publication'],
+      ['host', 'Hébergeur et adresse', 'textarea']
+    ]
+  },
+  {
+    title: 'Réseaux sociaux',
+    fields: [
+      ['facebook', 'Facebook', 'url'],
+      ['instagram', 'Instagram', 'url'],
+      ['tiktok', 'TikTok', 'url'],
+      ['youtube', 'YouTube', 'url'],
+      ['linkedin', 'LinkedIn', 'url']
+    ]
+  }
+];
+
+const normalizeAppInformation = (value = {}) => Object.fromEntries(
+  Object.keys(DEFAULT_APP_INFORMATION).map((key) => [
+    key,
+    String(value?.[key] ?? DEFAULT_APP_INFORMATION[key]).trim()
+  ])
+);
+
 function LogoUploadTile({
   icon,
   label,
@@ -149,6 +224,8 @@ export default function AdminAppSettings() {
   const [darkThemeSaving, setDarkThemeSaving] = useState(false);
   const [authProviderSettings, setAuthProviderSettings] = useState(DEFAULT_AUTH_SETTINGS);
   const [authProviderSavingKey, setAuthProviderSavingKey] = useState('');
+  const [appInformation, setAppInformation] = useState(DEFAULT_APP_INFORMATION);
+  const [appInformationSaving, setAppInformationSaving] = useState(false);
 
   const [heroBannerFile, setHeroBannerFile] = useState(null);
   const [heroBannerPreview, setHeroBannerPreview] = useState('');
@@ -249,6 +326,7 @@ export default function AdminAppSettings() {
         setAuthProviderSettings(Object.fromEntries(
           Object.keys(DEFAULT_AUTH_SETTINGS).map((key) => [key, runtimeRes?.data?.values?.[key] !== false])
         ));
+        setAppInformation(normalizeAppInformation(runtimeRes?.data?.values?.app_information));
       } catch (err) {
         if (!active) return;
         showToast(err.response?.data?.message || 'Erreur chargement paramètres.', { variant: 'error' });
@@ -296,6 +374,27 @@ export default function AdminAppSettings() {
       setAuthProviderSavingKey('');
     }
   }, [showToast]);
+
+  const saveAppInformation = useCallback(async (event) => {
+    event?.preventDefault?.();
+    const payload = normalizeAppInformation(appInformation);
+    if (!payload.appName || !payload.companyName || !payload.supportEmail) {
+      showToast('Le nom de l’application, la raison sociale et l’e-mail support sont requis.', { variant: 'error' });
+      return;
+    }
+    setAppInformationSaving(true);
+    try {
+      await api.patch('/admin/config/runtime/app_information', { value: payload });
+      setAppInformation(payload);
+      await clearCache('/settings');
+      emitSettingsRefresh();
+      showToast('Informations de l’application mises à jour.', { variant: 'success' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Impossible d’enregistrer les informations.', { variant: 'error' });
+    } finally {
+      setAppInformationSaving(false);
+    }
+  }, [appInformation, showToast]);
 
   const loadReports = useCallback(async () => {
     setReportsLoading(true);
@@ -848,6 +947,7 @@ export default function AdminAppSettings() {
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               ['#apparence', 'Apparence'],
+              ['#informations-app', 'Informations'],
               ['#authentification', 'Authentification'],
               ['#identite', 'Identité'],
               ['#banniere-hero', 'Bannière hero'],
@@ -903,6 +1003,60 @@ export default function AdminAppSettings() {
                     : 'Thème sombre désactivé'}
               </button>
             </div>
+          </div>
+
+          <div id="informations-app" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e85d00] text-white">
+                <Globe size={20} />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-gray-900">Informations de l’application</h2>
+                <p className="mt-1 max-w-2xl text-sm font-medium text-gray-500">
+                  Gérez au même endroit l’identité, les contacts, les mentions légales et les réseaux sociaux affichés publiquement.
+                </p>
+              </div>
+            </div>
+            <form onSubmit={saveAppInformation} className="space-y-6">
+              {APP_INFORMATION_GROUPS.map((group) => (
+                <fieldset key={group.title} className="rounded-xl border border-gray-100 bg-gray-50/70 p-4">
+                  <legend className="px-2 text-xs font-black uppercase tracking-wide text-gray-600">{group.title}</legend>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    {group.fields.map(([key, label, type = 'text']) => (
+                      <label key={key} className={`grid gap-1.5 text-xs font-bold text-gray-600 ${type === 'textarea' ? 'sm:col-span-2' : ''}`}>
+                        {label}
+                        {type === 'textarea' ? (
+                          <textarea
+                            rows={3}
+                            value={appInformation[key] || ''}
+                            onChange={(e) => setAppInformation((current) => ({ ...current, [key]: e.target.value }))}
+                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-[#e85d00]"
+                          />
+                        ) : (
+                          <input
+                            type={type}
+                            value={appInformation[key] || ''}
+                            required={['appName', 'companyName', 'supportEmail'].includes(key)}
+                            onChange={(e) => setAppInformation((current) => ({ ...current, [key]: e.target.value }))}
+                            className="min-h-10 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-[#e85d00]"
+                          />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={appInformationSaving}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-5 text-sm font-black text-white transition hover:bg-[#c94f00] disabled:cursor-wait disabled:opacity-60"
+                >
+                  <Save size={16} />
+                  {appInformationSaving ? 'Enregistrement…' : 'Enregistrer les informations'}
+                </button>
+              </div>
+            </form>
           </div>
 
           <div id="authentification" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

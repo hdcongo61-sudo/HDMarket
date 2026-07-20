@@ -48,6 +48,18 @@ export const updateCityAdmin = asyncHandler(async (req, res) => {
 
   const { name, isActive, isDefault, order, deliveryAvailable, boostMultiplier } = req.body || {};
 
+  if (order !== undefined && (!Number.isFinite(Number(order)) || Number(order) < 0)) {
+    return res.status(400).json({ message: 'L’ordre doit être positif ou égal à zéro.' });
+  }
+  if (
+    boostMultiplier !== undefined &&
+    (!Number.isFinite(Number(boostMultiplier)) || Number(boostMultiplier) < 0)
+  ) {
+    return res.status(400).json({
+      message: 'Le multiplicateur boost doit être positif ou égal à zéro.'
+    });
+  }
+
   if (name !== undefined) {
     const trimmed = String(name || '').trim();
     if (!trimmed) {
@@ -69,9 +81,9 @@ export const updateCityAdmin = asyncHandler(async (req, res) => {
     }
     city.isDefault = Boolean(isDefault);
   }
-  if (order !== undefined) city.order = Number.isFinite(Number(order)) ? Number(order) : 0;
+  if (order !== undefined) city.order = Number(order);
   if (deliveryAvailable !== undefined) city.deliveryAvailable = Boolean(deliveryAvailable);
-  if (boostMultiplier !== undefined) city.boostMultiplier = Math.max(0, Number(boostMultiplier || 1));
+  if (boostMultiplier !== undefined) city.boostMultiplier = Number(boostMultiplier);
   city.updatedBy = req.user?._id || null;
 
   await city.save();

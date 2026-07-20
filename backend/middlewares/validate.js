@@ -47,6 +47,17 @@ const physicalSchema = Joi.object({
     unit: Joi.string().valid('cm').allow('', null)
   }).optional()
 });
+const imageStudioArrayPayload = Joi.string()
+  .max(1_000_000)
+  .custom((value, helpers) => {
+    try {
+      const parsed = JSON.parse(value || '[]');
+      return Array.isArray(parsed) ? value : helpers.error('any.invalid');
+    } catch {
+      return helpers.error('any.invalid');
+    }
+  }, 'Image Studio JSON array validation')
+  .messages({ 'any.invalid': 'Les métadonnées Image Studio doivent être un tableau JSON valide.' });
 const transactionCodeSchema = Joi.string()
   .pattern(/^\d{10}$/)
   .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' });
@@ -193,6 +204,7 @@ export const schemas = {
       physicalSchema
     ).optional(),
     socialVideoUrl: Joi.string().max(500).allow('', null).optional(),
+    newImageStudioMetadata: imageStudioArrayPayload.optional(),
     payWithWallet: Joi.boolean().truthy('true').falsy('false').optional(),
     promoCode: Joi.string().max(60).allow('', null).optional()
   }).or('category', 'categoryId', 'subcategoryId'),
@@ -241,7 +253,10 @@ export const schemas = {
       Joi.string().allow('', null),
       physicalSchema
     ),
-    removeImages: Joi.array().items(Joi.string().max(500)).max(3).single(),
+    removeImages: Joi.array().items(Joi.string().max(500)).max(20).single(),
+    newImageStudioMetadata: imageStudioArrayPayload.optional(),
+    imageReplacementTargets: imageStudioArrayPayload.optional(),
+    imageStudioMetadata: imageStudioArrayPayload.optional(),
     removeVideo: Joi.boolean().truthy('true').falsy('false'),
     removePdf: Joi.boolean().truthy('true').falsy('false'),
     socialVideoUrl: Joi.string().max(500).allow('', null)

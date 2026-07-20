@@ -22,10 +22,36 @@ const contactClassName =
   'group flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-neutral-200 transition hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]';
 
 const normalizePhoneHref = (value = '') => `tel:${String(value).replace(/[^+\d]/g, '')}`;
+const normalizeExternalUrl = (value = '') => {
+  try {
+    const url = new URL(String(value || '').trim());
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
+  } catch {
+    return '';
+  }
+};
 
 export default function Footer() {
   const year = new Date().getFullYear();
-  const { t } = useAppSettings();
+  const { t, app } = useAppSettings();
+  const appInformation = app?.information || {};
+  const appName = String(appInformation.appName || 'HDMarket');
+  const companyName = String(appInformation.companyName || 'ETS HD Tech Filial');
+  const supportEmail = String(appInformation.supportEmail || 'support@hdmarket.cg');
+  const supportPhone = String(appInformation.supportPhone || '').trim();
+  const location = [appInformation.city, appInformation.country].filter(Boolean).join(', ') || 'Brazzaville, Congo';
+  const brandDescription = String(
+    appInformation.description || `Marketplace opérée par ${companyName}. Achetez et vendez en toute confiance, partout au Congo.`
+  );
+  const tagline = String(appInformation.tagline || 'Marketplace sécurisée pour les vendeurs et acheteurs congolais.');
+  const website = normalizeExternalUrl(appInformation.website);
+  const socialLinks = [
+    ['Facebook', appInformation.facebook],
+    ['Instagram', appInformation.instagram],
+    ['TikTok', appInformation.tiktok],
+    ['YouTube', appInformation.youtube],
+    ['LinkedIn', appInformation.linkedin]
+  ].map(([label, value]) => ({ label, href: normalizeExternalUrl(value) })).filter((item) => item.href);
   const { logoSrc } = useAppBrandLogo();
   const { networks, loading } = useNetworks();
   const supportNetworks = useMemo(
@@ -81,15 +107,12 @@ export default function Footer() {
                 <img src={logoSrc} alt="" className="h-full w-full object-contain" />
               </span>
               <span id="footer-brand-title" className="text-2xl font-black tracking-[-0.04em]">
-                HDMarket
+                {appName}
               </span>
             </Link>
 
             <p className="mt-5 max-w-sm text-sm font-medium leading-6 text-neutral-400">
-              {t(
-                'footer.brandDescription',
-                'Marketplace opérée par ETS HD Tech Filial. Achetez et vendez en toute confiance, partout au Congo.'
-              )}
+              {brandDescription}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3" aria-label={t('footer.trust', 'Nos engagements')}>
@@ -100,6 +123,15 @@ export default function Footer() {
                 </span>
               ))}
             </div>
+            {socialLinks.length ? (
+              <div className="mt-5 flex flex-wrap gap-2" aria-label="Réseaux sociaux">
+                {socialLinks.map((item) => (
+                  <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-bold text-neutral-300 transition hover:border-white/30 hover:text-white">
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </section>
 
           <FooterLinkGroup
@@ -117,10 +149,24 @@ export default function Footer() {
               {t('footer.support', 'Support')}
             </p>
             <div className="mt-4 grid gap-2">
-              <a href="mailto:support@hdmarket.cg" className={contactClassName}>
+              <a href={`mailto:${supportEmail}`} className={contactClassName}>
                 <Mail className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                <span className="min-w-0 truncate">support@hdmarket.cg</span>
+                <span className="min-w-0 truncate">{supportEmail}</span>
               </a>
+
+              {supportPhone ? (
+                <a href={normalizePhoneHref(supportPhone)} className={contactClassName}>
+                  <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{supportPhone}</span>
+                </a>
+              ) : null}
+
+              {website ? (
+                <a href={website} target="_blank" rel="noreferrer" className={contactClassName}>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                </a>
+              ) : null}
 
               {supportNetworks.map((network) => (
                 <a
@@ -137,7 +183,7 @@ export default function Footer() {
 
               <div className={contactClassName}>
                 <MapPin className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                <span>{t('footer.location', 'Brazzaville, Congo')}</span>
+                <span>{location}</span>
               </div>
             </div>
 
@@ -164,14 +210,11 @@ export default function Footer() {
           </div>
           <div className="flex flex-col gap-3 text-xs font-semibold text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              {t('footer.rights', `© ${year} ETS HD Tech Filial — Tous droits réservés.`).replace(
-                '{year}',
-                String(year)
-              )}
+              © {year} {companyName} — Tous droits réservés.
             </p>
             <p className="inline-flex items-center gap-2 text-neutral-400">
               <ShoppingBag className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-              {t('footer.tagline', 'HDMarket, marketplace sécurisée pour les vendeurs et acheteurs congolais.')}
+              {appName}, {tagline}
             </p>
           </div>
         </div>

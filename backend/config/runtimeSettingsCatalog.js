@@ -173,6 +173,35 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  app_information: {
+    category: 'app_identity',
+    description: 'Identité publique, contacts, informations légales et liens sociaux de l’application.',
+    valueType: 'json',
+    defaultValue: {
+      appName: 'HDMarket',
+      companyName: 'ETS HD Tech Filial',
+      tagline: 'Marketplace sécurisée pour les vendeurs et acheteurs congolais.',
+      description: 'Achetez et vendez en toute confiance, partout au Congo.',
+      supportEmail: 'support@hdmarket.cg',
+      legalEmail: 'support@hdmarket.cg',
+      supportPhone: '',
+      whatsappPhone: '',
+      address: '',
+      city: 'Brazzaville',
+      country: 'République du Congo',
+      website: 'https://www.hdmarket.store',
+      rccm: '',
+      niu: '',
+      director: '',
+      host: '',
+      facebook: '',
+      instagram: '',
+      tiktok: '',
+      youtube: '',
+      linkedin: ''
+    },
+    isPublic: true
+  },
   rapid_3g_products_page_size: {
     category: 'ui',
     description: 'Nombre max de produits chargés par requête catalogue en mode Rapide 3G.',
@@ -1241,6 +1270,37 @@ export const validateSettingValue = (key, value) => {
   }
 
   const coerced = coerceSettingValue(key, value);
+
+  if (key === 'app_information') {
+    const allowedKeys = Object.keys(metadata.defaultValue || {});
+    const normalized = Object.fromEntries(
+      allowedKeys.map((field) => [field, String(coerced?.[field] ?? metadata.defaultValue?.[field] ?? '').trim()])
+    );
+    if (!normalized.appName || !normalized.companyName || !normalized.supportEmail) {
+      return { ok: false, message: 'appName, companyName and supportEmail are required.' };
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.supportEmail)) {
+      return { ok: false, message: 'supportEmail must be a valid email address.' };
+    }
+    if (normalized.legalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.legalEmail)) {
+      return { ok: false, message: 'legalEmail must be a valid email address.' };
+    }
+    const urlFields = ['website', 'facebook', 'instagram', 'tiktok', 'youtube', 'linkedin'];
+    for (const field of urlFields) {
+      if (!normalized[field]) continue;
+      try {
+        const parsed = new URL(normalized[field]);
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid protocol');
+      } catch {
+        return { ok: false, message: `${field} must be a valid HTTP(S) URL.` };
+      }
+    }
+    const oversizedField = Object.entries(normalized).find(([, fieldValue]) => fieldValue.length > 1000);
+    if (oversizedField) {
+      return { ok: false, message: `${oversizedField[0]} length must be <= 1000.` };
+    }
+    return { ok: true, value: normalized, metadata };
+  }
 
   if (metadata.valueType === 'number') {
     if (!Number.isFinite(Number(coerced))) {

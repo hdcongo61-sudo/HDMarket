@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CheckCircle2, Cookie, FileText, LockKeyhole, RotateCcw, Scale } from 'lucide-react';
 import { setPrivacyPreference } from '../services/privacyPreferences';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const VERSION = '2026-07-18';
-const operator = {
+const ENV_OPERATOR = {
   name: import.meta.env.VITE_LEGAL_COMPANY_NAME || 'ETS HD Tech Filial',
   address: import.meta.env.VITE_LEGAL_ADDRESS || '',
   rccm: import.meta.env.VITE_LEGAL_RCCM || '',
@@ -14,7 +15,7 @@ const operator = {
   email: import.meta.env.VITE_LEGAL_EMAIL || 'support@hdmarket.cg'
 };
 
-const documents = {
+const buildDocuments = (operator) => ({
   'conditions-utilisation': {
     title: "Conditions générales d’utilisation",
     summary: 'Règles applicables à l’accès à HDMarket et à l’utilisation des comptes acheteur, vendeur et livreur.',
@@ -102,10 +103,24 @@ const documents = {
       ['Durée et modification', 'Votre choix est conservé sur cet appareil jusqu’à sa modification ou la suppression des données du navigateur. Vous pouvez modifier votre choix ci-dessous à tout moment.']
     ]
   }
-};
+});
 
 export default function LegalPage({ type }) {
   const params = useParams();
+  const { app } = useAppSettings();
+  const operator = useMemo(() => {
+    const information = app?.information || {};
+    return {
+      name: String(information.companyName || ENV_OPERATOR.name),
+      address: String(information.address || ENV_OPERATOR.address),
+      rccm: String(information.rccm || ENV_OPERATOR.rccm),
+      niu: String(information.niu || ENV_OPERATOR.niu),
+      director: String(information.director || ENV_OPERATOR.director),
+      host: String(information.host || ENV_OPERATOR.host),
+      email: String(information.legalEmail || information.supportEmail || ENV_OPERATOR.email)
+    };
+  }, [app?.information]);
+  const documents = useMemo(() => buildDocuments(operator), [operator]);
   const key = type || params.type || 'conditions-utilisation';
   const document = documents[key] || documents['conditions-utilisation'];
   const Icon = document.icon;
@@ -119,7 +134,7 @@ export default function LegalPage({ type }) {
           <div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#e85d00]"><Icon className="h-6 w-6" /></span><div><p className="text-xs font-black uppercase tracking-[0.14em] text-[#e85d00]">Informations légales</p><h1 className="mt-1 text-2xl font-black sm:text-4xl">{document.title}</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600">{document.summary}</p><p className="mt-3 text-xs font-semibold text-neutral-500">Version {VERSION} · Dernière mise à jour : 18 juillet 2026</p></div></div>
         </header>
 
-        {missingLegalIdentity ? <div className="mt-4 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Action obligatoire avant lancement :</strong> renseignez l’adresse, le RCCM, le NIU, le directeur de publication et l’hébergeur dans les variables <code>VITE_LEGAL_*</code>.</p></div> : null}
+        {missingLegalIdentity ? <div className="mt-4 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Action obligatoire avant lancement :</strong> renseignez l’adresse, le RCCM, le NIU, le directeur de publication et l’hébergeur dans Admin → Paramètres de l’application → Informations.</p></div> : null}
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[220px_1fr]">
           <nav className="h-fit rounded-xl border border-neutral-200 bg-white p-3 lg:sticky lg:top-28" aria-label="Documents légaux">

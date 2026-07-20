@@ -32,6 +32,7 @@ export const CartProvider = ({ children }) => {
   const [error, setError] = useState('');
   const mutationSeqRef = useRef(0);
   const latestItemMutationRef = useRef(new Map());
+  const pendingRemovalPromisesRef = useRef(new Map());
 
   const handleResponse = useCallback((data) => {
     if (!data) {
@@ -117,7 +118,8 @@ export const CartProvider = ({ children }) => {
         if (quantity <= 0) {
           const { data } = await api.delete(`/cart/items/${productId}`, {
             params: selectionKey ? { selectionKey } : undefined,
-            data: { selectionKey, selectedAttributes }
+            data: { selectionKey, selectedAttributes },
+            silentGlobalError: true
           });
           if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
             handleResponse(data);
@@ -134,6 +136,10 @@ export const CartProvider = ({ children }) => {
         }
         setError('');
       } catch (e) {
+        if (quantity <= 0 && Number(e.response?.status || 0) === 404) {
+          setError('');
+          return;
+        }
         if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
           setCart(rollbackCart);
           setError(e.response?.data?.message || e.message || 'Impossible de mettre à jour le panier.');
@@ -149,9 +155,12 @@ export const CartProvider = ({ children }) => {
   );
 
   const removeItem = useCallback(
-    async (productId, selectedAttributes = [], selectionKey = '') => {
+    (productId, selectedAttributes = [], selectionKey = '') => {
       if (!user) return;
       const mutationKey = buildCartItemMutationKey({ productId, selectionKey, selectedAttributes });
+      const pendingRemoval = pendingRemovalPromisesRef.current.get(mutationKey);
+      if (pendingRemoval) return pendingRemoval;
+
       const mutationSeq = mutationSeqRef.current + 1;
       mutationSeqRef.current = mutationSeq;
       latestItemMutationRef.current.set(mutationKey, mutationSeq);
@@ -167,26 +176,45 @@ export const CartProvider = ({ children }) => {
         setCart((current) => removeCartItem(current, itemToRemove));
       }
       setError('');
-      try {
-        const { data } = await api.delete(`/cart/items/${productId}`, {
-          params: selectionKey ? { selectionKey } : undefined,
-          data: { selectionKey, selectedAttributes }
-        });
-        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
-          handleResponse(data);
+
+      const removalPromise = (async () => {
+        try {
+          const { data } = await api.delete(`/cart/items/${productId}`, {
+            params: selectionKey ? { selectionKey } : undefined,
+            data: { selectionKey, selectedAttributes },
+            silentGlobalError: true
+          });
+          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+            handleResponse(data);
+          }
+          setError('');
+        } catch (e) {
+          // Older API instances may still answer 404 after another identical
+          // request succeeded. The desired end state is already achieved.
+          if (Number(e.response?.status || 0) === 404) {
+            setError('');
+            return;
+          }
+          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+            setCart(rollbackCart);
+            setError(e.response?.data?.message || e.message || 'Impossible de retirer l’article.');
+          }
+          throw e;
+        } finally {
+          if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
+            latestItemMutationRef.current.delete(mutationKey);
+          }
         }
-        setError('');
-      } catch (e) {
-        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
-          setCart(rollbackCart);
-          setError(e.response?.data?.message || e.message || 'Impossible de retirer l’article.');
+      })();
+
+      pendingRemovalPromisesRef.current.set(mutationKey, removalPromise);
+      const clearPendingRemoval = () => {
+        if (pendingRemovalPromisesRef.current.get(mutationKey) === removalPromise) {
+          pendingRemovalPromisesRef.current.delete(mutationKey);
         }
-        throw e;
-      } finally {
-        if (latestItemMutationRef.current.get(mutationKey) === mutationSeq) {
-          latestItemMutationRef.current.delete(mutationKey);
-        }
-      }
+      };
+      void removalPromise.then(clearPendingRemoval, clearPendingRemoval);
+      return removalPromise;
     },
     [cart, handleResponse, user]
   );

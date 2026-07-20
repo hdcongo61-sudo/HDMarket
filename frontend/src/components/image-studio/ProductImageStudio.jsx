@@ -24,6 +24,18 @@ const TOOLS = [
   { id: 'export', label: 'Exporter', icon: Download }
 ];
 
+// Mobile rail: task-based tools only. 'auto' is an instant action (no panel).
+const MOBILE_TOOLS = [
+  { id: 'auto', label: 'Auto', icon: Sparkles },
+  { id: 'crop', label: 'Cadre', icon: Crop },
+  { id: 'filters', label: 'Filtres', icon: Blend },
+  { id: 'background', label: 'Fond', icon: Layers3 },
+  { id: 'watermark', label: 'Filigrane', icon: Stamp },
+  { id: 'adjust', label: 'Réglages', icon: SlidersHorizontal }
+];
+
+const MOBILE_ADJUST_KEYS = ['brightness', 'contrast', 'saturation', 'sharpness'];
+
 const AI_TOOLS = [
   { id: 'background-remove', label: 'Retirer le fond', description: 'Détection précise du produit', icon: Layers3 },
   { id: 'enhance', label: 'Améliorer', description: 'Détails, couleurs et balance', icon: Sparkles, local: true },
@@ -159,12 +171,49 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
   const originalCanvasRef = useRef(null);
   const dragRef = useRef(null);
   const state = history.present;
-  const activeToolConfig = TOOLS.find((tool) => tool.id === activeTool) || TOOLS[0];
+  const activeMobileTool = MOBILE_TOOLS.find((tool) => tool.id === activeTool);
   const currentImage = images[selectedIndex] || image;
   const source = resolveSource(currentImage);
   const draftKey = `hdmarket:image-studio:draft:${currentImage?.name || currentImage?.url || selectedIndex}`;
 
   const change = useCallback((updater) => dispatch({ type: 'CHANGE', payload: updater }), []);
+
+  const runAutoOptimize = useCallback(() => {
+    change((prev) => applySmartOptimization(prev, shopName));
+    setMessage(`Photo optimisée : cadrage carré, fond blanc, netteté renforcée, ombre douce${shopName ? ', filigrane boutique' : ''}.`);
+  }, [change, shopName]);
+
+  const applyTemplate = useCallback((template) => change((prev) => ({
+    ...prev,
+    aspectRatio: template.aspectRatio,
+    background: { id: `template-${template.id}`, value: template.background, customUrl: '' },
+    shadow: { ...prev.shadow, type: template.shadow }
+  })), [change]);
+
+  // Real preset thumbnails rendered from the loaded photo (mobile filters panel).
+  const filterThumbs = useMemo(() => {
+    if (!isOpen || !loadedImage?.naturalWidth) return {};
+    const size = 96;
+    const thumbs = {};
+    Object.entries(FILTER_PRESETS).forEach(([name, preset]) => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.filter = getCanvasFilter({ ...createInitialImageStudioState().adjustments, ...preset });
+        const scale = Math.max(size / loadedImage.naturalWidth, size / loadedImage.naturalHeight);
+        const drawWidth = loadedImage.naturalWidth * scale;
+        const drawHeight = loadedImage.naturalHeight * scale;
+        ctx.drawImage(loadedImage, (size - drawWidth) / 2, (size - drawHeight) / 2, drawWidth, drawHeight);
+        thumbs[name] = canvas.toDataURL('image/jpeg', 0.72);
+      } catch {
+        // Keep the gray placeholder when the image cannot be sampled (CORS).
+      }
+    });
+    return thumbs;
+  }, [isOpen, loadedImage]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -281,6 +330,13 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
+
+  // Mobile toasts clear themselves; the close button remains for impatient users.
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = window.setTimeout(() => setMessage(''), 4000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   const exportFile = useCallback(async () => {
     const canvas = document.createElement('canvas');
@@ -452,40 +508,97 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
     return <div className="space-y-5"><PanelTitle title="Optimisation & export" subtitle="WEBP offre le meilleur équilibre pour HDMarket." /><SelectField label="Format" value={state.output.format} options={[['image/webp','WEBP — recommandé'],['image/jpeg','JPEG'],['image/png','PNG'],['image/avif','AVIF']]} onChange={(format) => change((prev) => ({ ...prev, output: { ...prev.output, format } }))} /><SelectField label="Compression" value={state.output.compression} options={[['low','Faible — qualité maximale'],['medium','Moyenne — recommandée'],['high','Élevée — fichier léger']]} onChange={(compression) => change((prev) => ({ ...prev, output: { ...prev.output, compression } }))} /><div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><span className="block text-xs font-bold text-emerald-700">Taille finale estimée</span><span className="mt-1 block text-2xl font-black text-emerald-950">{estimate ? formatFileSize(estimate) : 'Calcul…'}</span></div><QualityPanel quality={quality} /><button type="button" onClick={handleSave} disabled={!loadedImage || saving} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#231f1b] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#3a342f] disabled:cursor-not-allowed disabled:opacity-50">{saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}{saving ? 'Enregistrement…' : 'Enregistrer la photo'}</button></div>;
   };
 
+  // Simplified task-based panels for the mobile rail (desktop keeps renderPanel).
+  const renderMobilePanel = () => {
+    if (activeTool === 'crop') return <div className="space-y-4">
+      <div>
+        <p className="mb-2 text-xs font-black text-stone-500">Format — <span className="text-[#b94700]">Carré 1:1 recommandé pour la boutique</span></p>
+        <div className="flex flex-wrap gap-2">{ASPECT_RATIOS.map((ratio) => <StudioButton key={ratio.id} active={state.aspectRatio === ratio.id} onClick={() => change((prev) => ({ ...prev, aspectRatio: ratio.id }))}>{ratio.label}{ratio.id === '1:1' ? ' ★' : ''}</StudioButton>)}</div>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        <StudioButton icon={Maximize2} onClick={() => change((prev) => ({ ...prev, aspectRatio: 'free', zoom: 1, pan: { x: 0, y: 0 } }))}>Adapter</StudioButton>
+        <StudioButton icon={RotateCw} onClick={() => change((prev) => ({ ...prev, rotation: (prev.rotation + 90) % 360 }))}>Tourner</StudioButton>
+        <StudioButton icon={FlipHorizontal} active={state.flipX} onClick={() => change((prev) => ({ ...prev, flipX: !prev.flipX }))}>Miroir H</StudioButton>
+        <StudioButton icon={FlipVertical} active={state.flipY} onClick={() => change((prev) => ({ ...prev, flipY: !prev.flipY }))}>Miroir V</StudioButton>
+      </div>
+      <Range label="Zoom" value={state.zoom} min={0.7} max={3} step={0.01} display={`${Math.round(state.zoom * 100)}%`} onChange={(zoom) => change((prev) => ({ ...prev, zoom }))} />
+    </div>;
+    if (activeTool === 'filters') return <div className="grid grid-cols-3 gap-2">
+      {Object.keys(FILTER_PRESETS).map((name) => <button key={name} type="button" onClick={() => change((prev) => applyPreset(prev, name))} className={`overflow-hidden rounded-xl border-2 text-left transition ${state.preset === name ? 'border-[#e85d00]' : 'border-[#e2dcd2]'}`}>
+        {filterThumbs[name] ? <img src={filterThumbs[name]} alt="" className="block aspect-square w-full object-cover" /> : <span className="block aspect-square w-full bg-stone-200" />}
+        <span className="block bg-white px-1.5 py-1 text-center text-[10px] font-black">{name}</span>
+      </button>)}
+    </div>;
+    if (activeTool === 'background') return <div className="space-y-4">
+      <div className="grid grid-cols-4 gap-2">{BACKGROUNDS.map((background) => <button key={background.id} type="button" onClick={() => change((prev) => ({ ...prev, background }))} className={`rounded-xl border p-1.5 ${state.background.id === background.id ? 'border-[#e85d00] ring-2 ring-[#fff0e4]' : 'border-[#e2dcd2]'}`}><span className="block aspect-square rounded-lg border border-black/5" style={{ background: background.value || 'repeating-conic-gradient(#e5e7eb 0 25%,#fff 0 50%) 0/12px 12px' }} /><span className="mt-1 block text-[10px] font-bold">{background.label}</span></button>)}</div>
+      <label className="flex items-center gap-3"><span className="shrink-0 text-xs font-black">Couleur personnalisée</span><input type="color" className="h-10 flex-1 rounded-xl border border-[#e2dcd2] bg-white" value={state.background.value?.startsWith('#') ? state.background.value : '#ffffff'} onChange={(event) => change((prev) => ({ ...prev, background: { id: 'custom', value: event.target.value, customUrl: '' } }))} /></label>
+      <div>
+        <p className="mb-2 text-xs font-black text-stone-500">Modèles — mise en scène en un geste</p>
+        <div className="flex flex-wrap gap-2">{TEMPLATES.map((template) => <StudioButton key={template.id} onClick={() => applyTemplate(template)}>{template.label}</StudioButton>)}</div>
+      </div>
+    </div>;
+    if (activeTool === 'watermark') return <div className="space-y-4">
+      <label className="flex min-h-12 items-center justify-between rounded-xl border border-[#e2dcd2] bg-white px-3"><span className="text-sm font-black">Afficher le filigrane</span><input type="checkbox" checked={state.watermark.enabled} onChange={(event) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, enabled: event.target.checked } }))} className="h-5 w-5 accent-[#e85d00]" /></label>
+      {state.watermark.enabled ? <>
+        <label className="block"><span className="mb-1 block text-xs font-black">Texte du filigrane</span><input value={state.watermark.text} placeholder={shopName || 'Nom de votre boutique'} onChange={(event) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, text: event.target.value } }))} className="min-h-11 w-full rounded-xl border border-[#e2dcd2] bg-white px-3 text-sm" /></label>
+        <div><span className="mb-2 block text-xs font-black">Position</span><div className="grid grid-cols-2 gap-2">{[['top-left', 'En haut à gauche'], ['top-right', 'En haut à droite'], ['bottom-left', 'En bas à gauche'], ['bottom-right', 'En bas à droite']].map(([value, label]) => <StudioButton key={value} active={state.watermark.position === value} onClick={() => change((prev) => ({ ...prev, watermark: { ...prev.watermark, position: value } }))}>{label}</StudioButton>)}</div></div>
+        <Range label="Opacité" value={state.watermark.opacity} min={10} max={100} step={1} display={`${state.watermark.opacity}%`} onChange={(opacity) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, opacity } }))} />
+      </> : null}
+    </div>;
+    if (activeTool === 'adjust') return <div className="space-y-4">
+      {ADJUSTMENT_DEFINITIONS.filter((item) => MOBILE_ADJUST_KEYS.includes(item.key)).map((item) => <Range key={item.key} label={item.label} value={state.adjustments[item.key]} min={item.min} max={item.max} step={1} display={`${state.adjustments[item.key]}${item.unit}`} onChange={(value) => change((prev) => ({ ...prev, preset: 'Personnalisé', adjustments: { ...prev.adjustments, [item.key]: value } }))} />)}
+      <button type="button" onClick={() => change((prev) => ({ ...prev, preset: 'Aucun', adjustments: { ...initialState.adjustments } }))} className="min-h-11 w-full rounded-xl border border-[#e2dcd2] bg-white text-xs font-black text-stone-600">Réinitialiser les réglages</button>
+    </div>;
+    return null;
+  };
+
   return <div className="fixed inset-0 z-[1000] flex flex-col overflow-hidden bg-[#201f1d] text-[#231f1b] lg:bg-[#f5f2ee]" role="dialog" aria-modal="true" aria-label="Studio photo produit">
     <header className="relative z-40 flex min-h-14 items-center gap-1.5 border-b border-white/10 bg-[#201f1d] px-2 pt-[env(safe-area-inset-top)] text-white lg:min-h-16 lg:gap-2 lg:border-[#e2dcd2] lg:bg-white lg:px-5 lg:text-[#231f1b]">
       <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10 lg:hover:bg-[#f5f2ee]" aria-label="Fermer"><ArrowLeft className="h-5 w-5" /></button>
       <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-black sm:text-base lg:text-lg"><span className="lg:hidden">Modifier la photo</span><span className="hidden lg:inline">Studio photo HDMarket</span></h2><p className="hidden text-xs text-stone-500 lg:block">Édition non destructive · Brouillon enregistré automatiquement</p></div>
       <button type="button" onClick={() => dispatch({ type: 'UNDO' })} disabled={!history.past.length} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-[#f5f2ee] disabled:opacity-30" aria-label="Annuler"><Undo2 className="h-5 w-5" /></button>
       <button type="button" onClick={() => dispatch({ type: 'REDO' })} disabled={!history.future.length} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-[#f5f2ee] disabled:opacity-30" aria-label="Rétablir"><Redo2 className="h-5 w-5" /></button>
-      <button type="button" onClick={handleSave} disabled={!loadedImage || saving} className="flex min-h-11 items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-sm font-black text-white shadow-sm disabled:opacity-50 lg:rounded-full lg:bg-[#231f1b] lg:px-4">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}<span className="hidden sm:inline">Enregistrer</span></button>
+      <button type="button" onClick={handleSave} disabled={!loadedImage || saving} className="hidden min-h-11 items-center gap-2 rounded-xl bg-[#e85d00] px-3 text-sm font-black text-white shadow-sm disabled:opacity-50 lg:flex lg:rounded-full lg:bg-[#231f1b] lg:px-4">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}<span className="hidden sm:inline">Enregistrer</span></button>
     </header>
     <div className="flex min-h-0 flex-1">
       <nav className="hidden w-24 shrink-0 border-r border-[#e2dcd2] bg-white py-3 lg:block">{TOOLS.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setActiveTool(id)} className={`mx-2 mb-1 flex min-h-[68px] w-20 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold ${activeTool === id ? 'bg-[#fff0e4] text-[#b94700]' : 'text-stone-600 hover:bg-[#f5f2ee]'}`}><Icon className="h-5 w-5" />{label}</button>)}</nav>
       <main className="relative flex min-w-0 flex-1 flex-col bg-[#302d2a]">
         <div className="absolute left-3 top-3 z-10 flex items-center gap-2"><button type="button" onClick={() => setCompare((value) => !value)} className={`min-h-9 rounded-full px-3 text-[11px] font-black shadow ${compare ? 'bg-[#e85d00] text-white' : 'bg-black/55 text-white lg:bg-white/90 lg:text-[#231f1b]'}`}>Avant / Après</button>{draftRestored ? <span className="hidden rounded-full bg-white/90 px-3 py-2 text-[11px] font-bold sm:inline"><Cloud className="mr-1 inline h-3.5 w-3.5 text-emerald-600" />Brouillon restauré</span> : null}</div>
-        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-3 pb-20 sm:p-8">
+        {quality.score > 0 && quality.score < 60 && quality.suggestions?.length ? <button type="button" onClick={() => { setActiveTool('adjust'); setMobilePanelOpen(true); }} className="absolute left-3 top-16 z-10 flex max-w-[80vw] items-center gap-1.5 rounded-full bg-amber-500 px-3 py-2 text-left text-[11px] font-black text-white shadow lg:hidden"><CircleGauge className="h-4 w-4 shrink-0" />{quality.suggestions[0]}</button> : null}
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-3 sm:p-8">
           <div className="relative max-h-full max-w-full overflow-hidden rounded-md bg-[repeating-conic-gradient(#ddd_0_25%,#fff_0_50%)] bg-[length:20px_20px] shadow-sm touch-none" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd}>
-            {compare ? <canvas ref={originalCanvasRef} className="block max-h-[calc(100dvh-10rem)] max-w-[calc(100vw-1.5rem)] lg:max-h-[62vh] lg:max-w-full" /> : null}<canvas ref={canvasRef} className={`block max-h-[calc(100dvh-10rem)] max-w-[calc(100vw-1.5rem)] lg:max-h-[62vh] lg:max-w-full ${compare ? 'absolute inset-0 [clip-path:inset(0_0_0_50%)]' : ''}`} />
+            {compare ? <canvas ref={originalCanvasRef} className="block max-h-full max-w-full lg:max-h-[62vh]" /> : null}<canvas ref={canvasRef} className={`block max-h-full max-w-full lg:max-h-[62vh] ${compare ? 'absolute inset-0 [clip-path:inset(0_0_0_50%)]' : ''}`} />
             {compare ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-0.5 bg-white shadow"><span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow"><PanelRightClose className="h-4 w-4" /></span></div> : null}
           </div>
         </div>
-        <div className="absolute bottom-20 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 p-1.5 text-white lg:bottom-3"><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.max(.7, prev.zoom - .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomOut className="h-4 w-4" /></button><span className="w-12 text-center text-xs font-black">{Math.round(state.zoom * 100)}%</span><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.min(3, prev.zoom + .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomIn className="h-4 w-4" /></button></div>
-        {!mobilePanelOpen ? <div className="absolute inset-x-3 bottom-[8.5rem] z-20 flex justify-center gap-2 lg:hidden"><button type="button" onClick={() => change((prev) => ({ ...prev, aspectRatio: 'free', zoom: 1, pan: { x: 0, y: 0 } }))} className="flex min-h-10 items-center gap-1.5 rounded-full bg-white/95 px-3 text-[11px] font-black shadow-sm"><Maximize2 className="h-4 w-4" />Adapter</button><button type="button" onClick={() => change((prev) => ({ ...prev, rotation: (prev.rotation + 90) % 360 }))} className="flex min-h-10 items-center gap-1.5 rounded-full bg-white/95 px-3 text-[11px] font-black shadow-sm"><RotateCw className="h-4 w-4" />Tourner</button><button type="button" onClick={() => change((prev) => applyPreset(prev, 'Studio'))} className="flex min-h-10 items-center gap-1.5 rounded-full bg-white/95 px-3 text-[11px] font-black shadow-sm"><Sparkles className="h-4 w-4 text-[#e85d00]" />Auto</button></div> : null}
-        {!mobilePanelOpen && images.length > 1 ? <div className="absolute inset-x-3 bottom-[12rem] z-20 flex justify-center gap-2 overflow-x-auto py-1 lg:hidden">{images.map((item, index) => <button key={item?.url || item?.name || index} type="button" onClick={() => setSelectedIndex(index)} className={`h-12 w-12 shrink-0 overflow-hidden rounded-xl border-2 bg-white shadow-sm ${selectedIndex === index ? 'border-[#e85d00]' : 'border-white'}`}><img src={resolveSource(item)} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" /></button>)}</div> : null}
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 p-1.5 text-white"><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.max(.7, prev.zoom - .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomOut className="h-4 w-4" /></button><span className="w-12 text-center text-xs font-black">{Math.round(state.zoom * 100)}%</span><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.min(3, prev.zoom + .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomIn className="h-4 w-4" /></button></div>
+        {images.length > 1 ? <div className="flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none] lg:hidden">{images.map((item, index) => <button key={item?.url || item?.name || index} type="button" onClick={() => setSelectedIndex(index)} className={`h-11 w-11 shrink-0 overflow-hidden rounded-xl border-2 bg-white shadow-sm ${selectedIndex === index ? 'border-[#e85d00]' : 'border-white'}`}><img src={resolveSource(item)} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" /></button>)}</div> : null}
       </main>
       <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-[#e2dcd2] bg-[#faf8f5] p-5 lg:block">{renderPanel()}</aside>
     </div>
-    <div className="absolute inset-x-0 bottom-0 z-30 bg-white pb-[env(safe-area-inset-bottom)] shadow-sm lg:hidden">
-      {mobilePanelOpen ? <div className="max-h-[62dvh] overflow-y-auto rounded-t-[28px] bg-[#faf8f5] px-4 pb-7"><div className="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-3 border-b border-[#e8e1d8] bg-[#faf8f5]/95 px-4 pb-3 pt-2"><button type="button" onClick={() => setMobilePanelOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm" aria-label="Réduire les outils"><ChevronDown className="h-5 w-5" /></button><div className="min-w-0 flex-1"><span className="block text-sm font-black">{activeToolConfig.label}</span><span className="block text-[11px] text-stone-500">Les modifications sont prévisualisées immédiatement</span></div><select value={applyScope} onChange={(event) => setApplyScope(event.target.value)} className="min-h-10 max-w-28 rounded-xl border border-[#e2dcd2] bg-white px-2 text-[10px] font-bold"><option value="selected">Cette photo</option><option value="all">Toutes</option><option value="product">Produit</option></select></div>{renderPanel()}</div> : null}
-      <div className="flex gap-1 overflow-x-auto border-t border-[#ebe5dd] px-2 py-2 [scrollbar-width:none]">{TOOLS.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => { if (activeTool === id) setMobilePanelOpen((open) => !open); else { setActiveTool(id); setMobilePanelOpen(true); } }} className={`relative flex min-h-[58px] min-w-[68px] flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-bold transition ${activeTool === id && mobilePanelOpen ? 'bg-[#fff0e4] text-[#b94700]' : 'text-stone-500'}`}><Icon className="h-5 w-5" />{label}{activeTool === id && mobilePanelOpen ? <span className="absolute -bottom-0.5 h-1 w-5 rounded-full bg-[#e85d00]" /> : null}</button>)}</div>
+    <div className="border-t border-[#e8e1d8] bg-white pb-[env(safe-area-inset-bottom)] shadow-sm lg:hidden">
+      {mobilePanelOpen && activeMobileTool ? <div className="max-h-[45dvh] overflow-y-auto bg-[#faf8f5] px-4 pb-4 pt-3">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-sm font-black">{activeMobileTool.label}</span>
+          <button type="button" onClick={() => setMobilePanelOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm" aria-label="Réduire les outils"><ChevronDown className="h-5 w-5" /></button>
+        </div>
+        {renderMobilePanel()}
+      </div> : null}
+      <div className="flex gap-1 overflow-x-auto px-2 py-2 [scrollbar-width:none]">{MOBILE_TOOLS.map(({ id, label, icon: Icon }) => id === 'auto'
+        ? <button key={id} type="button" onClick={runAutoOptimize} className="flex min-h-[58px] min-w-[64px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl bg-[#231f1b] text-[10px] font-bold text-white"><Icon className="h-5 w-5 text-[#ff8a3d]" />{label}</button>
+        : <button key={id} type="button" onClick={() => { if (activeTool === id) setMobilePanelOpen((open) => !open); else { setActiveTool(id); setMobilePanelOpen(true); } }} className={`relative flex min-h-[58px] min-w-[64px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-bold transition ${activeTool === id && mobilePanelOpen ? 'bg-[#fff0e4] text-[#b94700]' : 'text-stone-500'}`}><Icon className="h-5 w-5" />{label}{activeTool === id && mobilePanelOpen ? <span className="absolute -bottom-0.5 h-1 w-5 rounded-full bg-[#e85d00]" /> : null}</button>)}</div>
+      <div className="border-t border-[#ebe5dd] px-3 pb-2 pt-2">
+        {images.length > 1 ? <label className="mb-2 flex min-h-8 items-center gap-2 text-xs font-bold text-stone-600"><input type="checkbox" checked={applyScope === 'all'} onChange={(event) => setApplyScope(event.target.checked ? 'all' : 'selected')} className="h-4 w-4 accent-[#e85d00]" />Appliquer à toutes les photos</label> : null}
+        <button type="button" onClick={handleSave} disabled={!loadedImage || saving} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm transition active:bg-[#c94e00] disabled:cursor-not-allowed disabled:opacity-50">{saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}{saving ? 'Enregistrement…' : images.length > 1 && applyScope === 'all' ? 'Enregistrer toutes les photos' : 'Enregistrer la photo'}</button>
+        <p className="mt-1 text-center text-[10px] font-bold text-stone-400">{estimate ? `≈ ${formatFileSize(estimate)} · ` : ''}WEBP optimisé pour HDMarket</p>
+      </div>
     </div>
     <footer className="hidden min-h-14 items-center gap-3 border-t border-[#e2dcd2] bg-white px-3 pb-[env(safe-area-inset-bottom)] sm:px-5 lg:flex">
       {images.length > 1 ? <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto py-2">{images.map((item, index) => <button key={item?.url || item?.name || index} type="button" onClick={() => setSelectedIndex(index)} className={`h-11 w-11 shrink-0 overflow-hidden rounded-lg border-2 ${selectedIndex === index ? 'border-[#e85d00]' : 'border-transparent'}`}><img src={resolveSource(item)} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" /></button>)}</div> : <div className="flex-1 text-xs font-bold text-stone-500"><ImageIcon className="mr-1 inline h-4 w-4" />Photo {selectedIndex + 1}</div>}
       <select value={applyScope} onChange={(event) => setApplyScope(event.target.value)} className="min-h-11 rounded-xl border border-[#e2dcd2] bg-white px-3 text-xs font-bold"><option value="selected">Image sélectionnée</option><option value="all">Toutes les images</option><option value="product">Produit entier</option></select>
       <button type="button" onClick={() => dispatch({ type: 'RESET', payload: initialState })} className="hidden min-h-11 rounded-xl px-3 text-xs font-bold text-red-700 sm:block">Réinitialiser</button>
     </footer>
-    {message ? <div className="fixed bottom-24 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 rounded-full bg-[#231f1b] px-4 py-3 text-center text-xs font-bold text-white shadow-sm lg:bottom-20">{message}<button type="button" className="ml-3" onClick={() => setMessage('')}><X className="inline h-4 w-4" /></button></div> : null}
+    {message ? <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+4.5rem)] z-50 max-w-[90vw] -translate-x-1/2 rounded-full bg-[#231f1b] px-4 py-3 text-center text-xs font-bold text-white shadow-sm lg:bottom-20 lg:top-auto">{message}<button type="button" className="ml-3" onClick={() => setMessage('')}><X className="inline h-4 w-4" /></button></div> : null}
   </div>;
 }
 

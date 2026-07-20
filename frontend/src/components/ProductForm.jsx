@@ -3169,7 +3169,7 @@ export default function ProductForm(props) {
                               className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-neutral-950 px-3 text-xs font-black text-white transition hover:bg-neutral-800"
                             >
                               <SlidersHorizontal className="h-3.5 w-3.5" />
-                              Edit Photo
+                              Retoucher
                             </button>
                           </div>
                           {renderImageVariantFields(index)}
@@ -3245,10 +3245,10 @@ export default function ProductForm(props) {
                                 onClick={() => setStudioImageIndex(existingImages.length + index)}
                                 className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-neutral-950 px-2.5 text-xs font-black text-white transition-colors hover:bg-neutral-800"
                                 aria-label="Modifier cette image dans le Studio"
-                                title="Edit Photo"
+                                title="Retoucher la photo"
                               >
                                 <SlidersHorizontal className="w-3.5 h-3.5" />
-                                Edit Photo
+                                Retoucher
                               </button>
                               <button
                                 type="button"

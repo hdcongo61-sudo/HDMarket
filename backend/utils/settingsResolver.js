@@ -26,7 +26,8 @@ export const SETTING_KEYS = Object.freeze({
   FULL_PAYMENT_LABEL_TEXT: 'full_payment_label_text',
   FULL_PAYMENT_PROMOTION_ENABLED: 'full_payment_promotion_enabled',
   LANGUAGES: 'languages',
-  DEFAULT_LANGUAGE: 'defaultLanguage'
+  DEFAULT_LANGUAGE: 'defaultLanguage',
+  APP_INFORMATION: 'app_information'
 });
 
 export const DEFAULT_APP_SETTINGS = Object.freeze({
@@ -52,7 +53,30 @@ export const DEFAULT_APP_SETTINGS = Object.freeze({
   [SETTING_KEYS.LANGUAGES]: [
     { code: 'fr', name: 'Français', isActive: true },
     { code: 'en', name: 'English', isActive: true }
-  ]
+  ],
+  [SETTING_KEYS.APP_INFORMATION]: {
+    appName: 'HDMarket',
+    companyName: 'ETS HD Tech Filial',
+    tagline: 'Marketplace sécurisée pour les vendeurs et acheteurs congolais.',
+    description: 'Achetez et vendez en toute confiance, partout au Congo.',
+    supportEmail: 'support@hdmarket.cg',
+    legalEmail: 'support@hdmarket.cg',
+    supportPhone: '',
+    whatsappPhone: '',
+    address: '',
+    city: 'Brazzaville',
+    country: 'République du Congo',
+    website: 'https://www.hdmarket.store',
+    rccm: '',
+    niu: '',
+    director: '',
+    host: '',
+    facebook: '',
+    instagram: '',
+    tiktok: '',
+    youtube: '',
+    linkedin: ''
+  }
 });
 
 const normalizeSettingValue = (key, value) => {
@@ -229,7 +253,8 @@ export const resolvePublicSettings = async () => {
     SETTING_KEYS.FULL_PAYMENT_LABEL_TEXT,
     SETTING_KEYS.FULL_PAYMENT_PROMOTION_ENABLED,
     SETTING_KEYS.LANGUAGES,
-    SETTING_KEYS.DEFAULT_LANGUAGE
+    SETTING_KEYS.DEFAULT_LANGUAGE,
+    SETTING_KEYS.APP_INFORMATION
   ]);
   const [defaultCurrency, defaultCity, currencies, cities, communes, languagesConfig] = await Promise.all([
     getDefaultCurrency(),
@@ -257,7 +282,10 @@ export const resolvePublicSettings = async () => {
       showFullPaymentHomeBanner: Boolean(settings[SETTING_KEYS.SHOW_FULL_PAYMENT_HOME_BANNER]),
       fullPaymentBannerText: String(settings[SETTING_KEYS.FULL_PAYMENT_BANNER_TEXT] || ''),
       fullPaymentLabelText: String(settings[SETTING_KEYS.FULL_PAYMENT_LABEL_TEXT] || ''),
-      fullPaymentPromotionEnabled: Boolean(settings[SETTING_KEYS.FULL_PAYMENT_PROMOTION_ENABLED])
+      fullPaymentPromotionEnabled: Boolean(settings[SETTING_KEYS.FULL_PAYMENT_PROMOTION_ENABLED]),
+      information: settings[SETTING_KEYS.APP_INFORMATION] && typeof settings[SETTING_KEYS.APP_INFORMATION] === 'object'
+        ? settings[SETTING_KEYS.APP_INFORMATION]
+        : DEFAULT_APP_SETTINGS[SETTING_KEYS.APP_INFORMATION]
     },
     defaultLanguage: languagesConfig.defaultLanguage,
     languages: languagesConfig.languages.filter((item) => item.isActive),

@@ -1442,7 +1442,10 @@ export default function OrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
-        <section className="space-y-3 md:hidden">
+        {/* The compact legacy card is kept out of the rendered layout. The complete
+            order surface below is responsive and is now the single source of truth
+            for both mobile and desktop, preventing order information from diverging. */}
+        <section className="hidden" aria-hidden="true">
           <article className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-sm">
             <div className="border-b border-[#eee8e0] px-4 py-3">
               <div className="flex items-start justify-between gap-3">
@@ -1626,7 +1629,7 @@ export default function OrderDetail() {
 
         <motion.div
           {...riseIn(reduceMotion, 0)}
-          className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:block"
+          className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
         >
           <div className="relative overflow-hidden bg-[#e85d00] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
