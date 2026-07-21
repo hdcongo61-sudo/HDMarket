@@ -218,7 +218,15 @@ export const getHomeFeed = asyncHandler(async (req, res) => {
     listProducts({ filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
     listProducts({ filter: { condition: 'new' }, sort: { createdAt: -1 }, limit: secondaryLimit }),
     listProducts({ filter: { condition: 'used' }, sort: { createdAt: -1 }, limit: secondaryLimit }),
-    listProducts({ filter: { installmentEnabled: true }, sort: { createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({
+      filter: {
+        installmentEnabled: true,
+        installmentStartDate: { $lte: now },
+        installmentEndDate: { $gt: now }
+      },
+      sort: { createdAt: -1 },
+      limit: secondaryLimit
+    }),
     listProducts({ filter: { salesCount: { $gt: 0 } }, sort: { salesCount: -1, createdAt: -1 }, limit: secondaryLimit }),
     listProducts({ filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
     listVerifiedShops(secondaryLimit),

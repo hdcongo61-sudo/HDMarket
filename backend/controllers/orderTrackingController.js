@@ -30,8 +30,8 @@ export const getOrderTracking = asyncHandler(async (req, res) => {
   let deliveryRequest = null;
   if (order.platformDeliveryRequestId) {
     deliveryRequest = await DeliveryRequest.findById(order.platformDeliveryRequestId)
-      .select('status currentLocation courier timeline')
-      .populate('courier', 'name phone')
+      .select('status currentLocation currentLocationUpdatedAt assignedDeliveryGuyId timeline')
+      .populate('assignedDeliveryGuyId', 'name phone')
       .lean();
   }
 
@@ -81,8 +81,9 @@ export const getOrderTracking = asyncHandler(async (req, res) => {
     mapCenter,
     checkpoints,
     hasDeliveryRequest: !!deliveryRequest,
-    courierName: deliveryRequest?.courier?.name || null,
-    courierPhone: deliveryRequest?.courier?.phone || null
+    courierName: deliveryRequest?.assignedDeliveryGuyId?.name || null,
+    courierPhone: deliveryRequest?.assignedDeliveryGuyId?.phone || null,
+    currentPositionUpdatedAt: deliveryRequest?.currentLocationUpdatedAt || null
   });
 });
 

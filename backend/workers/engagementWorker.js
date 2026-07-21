@@ -15,6 +15,9 @@ import {
 import {
   sweepSellerLevels
 } from '../services/sellerReputationService.js';
+import { sweepReferralRewards } from '../services/referralService.js';
+import { sweepGroupBuys } from '../services/groupBuyService.js';
+import { sweepPurchasePoints } from '../services/rewardPointsService.js';
 
 let WorkerClass = null;
 let engagementWorker = null;
@@ -71,7 +74,16 @@ const JOB_HANDLERS = {
   },
 
   'recalculate-seller-levels': (data) =>
-    sweepSellerLevels({ limit: Number(data?.limit || 100) })
+    sweepSellerLevels({ limit: Number(data?.limit || 100) }),
+
+  'sweep-referral-rewards': (data) =>
+    sweepReferralRewards({ limit: Number(data?.limit || 200) }),
+
+  'sweep-group-buys': (data) =>
+    sweepGroupBuys({ limit: Number(data?.limit || 200) }),
+
+  'sweep-purchase-points': (data) =>
+    sweepPurchasePoints({ limit: Number(data?.limit || 300) })
 };
 
 const REDIS_ENABLED = Boolean(

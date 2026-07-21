@@ -96,7 +96,8 @@ export const schemas = {
     gender: Joi.string().valid('homme', 'femme').required(),
     country: Joi.string().valid('République du Congo').optional(),
     acceptedLegalTerms: Joi.boolean().valid(true).required(),
-    legalVersion: Joi.string().valid('2026-07-18').required()
+    legalVersion: Joi.string().valid('2026-07-18').required(),
+    referralCode: Joi.string().trim().max(20).allow('', null)
   }),
   registerSendCode: Joi.object({
     email: Joi.string().email(),
@@ -120,7 +121,8 @@ export const schemas = {
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     gender: Joi.string().valid('homme', 'femme').required(),
     acceptedLegalTerms: Joi.boolean().valid(true).required(),
-    legalVersion: Joi.string().valid('2026-07-18').required()
+    legalVersion: Joi.string().valid('2026-07-18').required(),
+    referralCode: Joi.string().trim().max(20).allow('', null)
   }),
   appleProviderLogin: Joi.object({
     idToken: Joi.string().min(100).required()
@@ -134,7 +136,8 @@ export const schemas = {
     commune: Joi.string().trim().min(2).max(80).allow('', null),
     gender: Joi.string().valid('homme', 'femme').required(),
     acceptedLegalTerms: Joi.boolean().valid(true).required(),
-    legalVersion: Joi.string().valid('2026-07-18').required()
+    legalVersion: Joi.string().valid('2026-07-18').required(),
+    referralCode: Joi.string().trim().max(20).allow('', null)
   }),
   passwordForgot: Joi.object({
     email: Joi.string().email(),

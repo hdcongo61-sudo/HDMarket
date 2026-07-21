@@ -23,6 +23,7 @@ import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import RewardPointsCard from '../components/RewardPointsCard';
 
 const TXN_ICONS = {
   deposit: ArrowDownLeft,
@@ -520,6 +521,8 @@ export default function WalletPage() {
               </div>
             </div>
           ) : null}
+
+          <RewardPointsCard />
 
           <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0">
             {[

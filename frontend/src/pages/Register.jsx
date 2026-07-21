@@ -11,6 +11,8 @@ import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 import AppleAuthButton from '../components/auth/AppleAuthButton';
 import { signInWithApple, signInWithGoogle } from '../services/providerAuth';
 import { resolveAuthProviderAvailability } from '../utils/authProviderAvailability';
+import { storage } from '../utils/storage';
+import { REFERRAL_CODE_STORAGE_KEY } from './ReferralLanding';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -180,6 +182,13 @@ export default function Register() {
   const [codeMessage, setCodeMessage] = useState('');
   const [codeError, setCodeError] = useState('');
   const [formError, setFormError] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+
+  useEffect(() => {
+    storage.get(REFERRAL_CODE_STORAGE_KEY).then((value) => {
+      if (value) setReferralCode(String(value));
+    });
+  }, []);
   const [successPayload, setSuccessPayload] = useState(null);
   const [finalizing, setFinalizing] = useState(false);
 
@@ -416,9 +425,11 @@ export default function Register() {
           gender: form.gender,
           address: form.address.trim(),
           acceptedLegalTerms: true,
-          legalVersion: '2026-07-18'
+          legalVersion: '2026-07-18',
+          referralCode
         });
         setSuccessPayload(data || null);
+        if (referralCode) storage.remove(REFERRAL_CODE_STORAGE_KEY);
         return;
       }
 
@@ -436,11 +447,13 @@ export default function Register() {
       payload.append('verificationCode', (verificationCode && verificationCode.trim()) || '');
       payload.append('acceptedLegalTerms', 'true');
       payload.append('legalVersion', '2026-07-18');
+      if (referralCode) payload.append('referralCode', referralCode);
 
       const { data } = await api.post('/auth/register', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setSuccessPayload(data || null);
+      if (referralCode) storage.remove(REFERRAL_CODE_STORAGE_KEY);
     } catch (requestError) {
       setFormError(mapRegisterErrorMessage(requestError, isFrench));
     } finally {

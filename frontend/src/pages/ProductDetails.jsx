@@ -59,6 +59,9 @@ import { isColorAttribute, resolveSwatchColor } from "../utils/colorSwatch";
 import VerifiedBadge from "../components/VerifiedBadge";
 import OrderChat from "../components/OrderChat";
 import BundleDeal from "../components/BundleDeal";
+import ProductQuestionsSection from "../components/ProductQuestionsSection";
+import GroupBuySection from "../components/GroupBuySection";
+import { useAppSettings } from "../context/AppSettingsContext";
 import ReportModal from "../components/ReportModal";
 import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
 import { useToast } from "../context/ToastContext";
@@ -88,6 +91,10 @@ export default function ProductDetails() {
   const { toggleFavorite, isFavorite } = useContext(FavoriteContext);
   const { showToast } = useToast();
   const authLoading = Boolean(authContextValue?.loading);
+  const { getRuntimeValue } = useAppSettings();
+  const groupBuyingEnabled = ['true', '1', 'yes', 'on'].includes(
+    String(getRuntimeValue('enable_group_buying', false)).trim().toLowerCase()
+  );
 
   const [product, setProduct] = useState(null);
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
@@ -127,6 +134,7 @@ export default function ProductDetails() {
   const [certifyError, setCertifyError] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [questionCount, setQuestionCount] = useState(0);
   const [isVariantSheetOpen, setIsVariantSheetOpen] = useState(false);
   const trackedProductViewsRef = useRef(new Set());
   const pendingFocusCommentIdRef = useRef('');
@@ -1785,6 +1793,21 @@ export default function ProductDetails() {
   const ratingAverage = Number(product?.ratingAverage || 0).toFixed(1);
   const ratingCount = product?.ratingCount || 0;
   const commentCount = product?.commentCount || 0;
+
+  useEffect(() => {
+    if (!product?._id) return;
+    let cancelled = false;
+    api
+      .get(`/product-questions/product/${product._id}`, { params: { limit: 1 } })
+      .then(({ data }) => {
+        if (!cancelled) setQuestionCount(Number(data?.total || 0));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [product?._id]);
+
   const cartCount = Array.isArray(cart?.items) ? cart.items.length : 0;
   const totalViews = Number(product?.viewsCount ?? product?.views ?? 0);
   const totalOrdersQty = Number(product?.salesCount || 0);
@@ -2726,6 +2749,7 @@ export default function ProductDetails() {
             { key: 'description', label: 'Description' },
             { key: 'specifications', label: 'Spécifications' },
             { key: 'reviews', label: `Avis (${commentCount})` },
+            { key: 'questions', label: `Questions (${questionCount})` },
           ].map(({ key, label }) => (
             <button key={key} type="button" onClick={() => setActiveTab(key)}
               className={`min-h-11 flex-1 py-3 text-[13px] font-semibold transition-colors ${activeTab === key
@@ -2903,6 +2927,11 @@ export default function ProductDetails() {
             )}
           </div>
         )}
+
+        {/* Questions tab */}
+        {activeTab === 'questions' && (
+          <ProductQuestionsSection productId={product._id} onCountChange={setQuestionCount} />
+        )}
       </div>
 
       {/* ── DIVIDER ── */}
@@ -2943,6 +2972,16 @@ export default function ProductDetails() {
             }
           </div>
         </section>
+      )}
+
+      {/* ── GROUP BUY ── */}
+      {groupBuyingEnabled && product?._id && (
+        <>
+          <div className="h-2 bg-[#f5f5f5]" />
+          <section className="bg-white px-4 py-4">
+            <GroupBuySection productId={product._id} enabled={groupBuyingEnabled} />
+          </section>
+        </>
       )}
 
       {/* ── BUNDLE DEALS ── */}

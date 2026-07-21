@@ -410,6 +410,8 @@ export default function Cart() {
             {items.map((item) => {
               const { product, quantity, lineTotal, unitPrice } = item;
               const discount = product.discount || 0;
+              const bundleApplied = Boolean(item.bundle?.applied);
+              const bundleDiscountPercent = Number(item.bundle?.discountPercent || 0);
               const cartItemKey = getCartItemKey(item);
               
               const isRemoving = Boolean(pending[cartItemKey]);
@@ -475,6 +477,11 @@ export default function Cart() {
                           
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
                           <p className="text-xs font-semibold text-[#8a8378]">{formatPrice(unitPrice)} / {t('cartPage.unit', 'unité')}</p>
+                          {bundleApplied && (
+                            <p className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700">
+                              🎁 {t('cartPage.bundleApplied', 'Prix du lot appliqué')} (-{bundleDiscountPercent}%)
+                            </p>
+                          )}
                         </div>
 
                         <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-end">

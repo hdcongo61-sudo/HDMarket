@@ -2,8 +2,10 @@ import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import Cart from '../models/cartModel.js';
 import Product from '../models/productModel.js';
+import Bundle from '../models/bundleModel.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { getWholesalePricing, normalizeWholesaleTiers } from '../utils/wholesaleUtils.js';
+import { applyBundleDiscounts } from '../services/bundleService.js';
 import { invalidateUserCache } from '../utils/cache.js';
 import {
   getVerifiedProductIds,
@@ -94,7 +96,7 @@ const ensureWritableCart = async (userId) => {
   return cart;
 };
 
-const formatCart = (cart) => {
+const formatCart = async (cart) => {
   if (!cart) {
     return {
       items: [],
@@ -193,6 +195,38 @@ const formatCart = (cart) => {
       };
     });
 
+  // Preview any active bundle discount here too, so the cart total already
+  // matches what checkout will actually charge (see bundleService).
+  const bundleSellerIds = Array.from(
+    new Set(items.map((it) => String(it.product?.user?._id || '')).filter(Boolean))
+  );
+  if (bundleSellerIds.length) {
+    const bundles = await Bundle.find({ sellerId: { $in: bundleSellerIds }, active: true }).lean();
+    if (bundles.length) {
+      const bundleProxies = items.map((it) => ({
+        product: it.product._id,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        lineTotal: it.lineTotal,
+        snapshot: { shopId: it.product?.user?._id || null, bundleApplied: false }
+      }));
+      applyBundleDiscounts(bundleProxies, bundles);
+      items.forEach((it, idx) => {
+        const proxy = bundleProxies[idx];
+        it.unitPrice = proxy.unitPrice;
+        it.lineTotal = proxy.lineTotal;
+        it.bundle = {
+          applied: Boolean(proxy.snapshot.bundleApplied),
+          discountPercent: Number(proxy.snapshot.bundleDiscountPercent || 0),
+          bundleId: proxy.snapshot.bundleId || null
+        };
+      });
+    }
+  }
+  items.forEach((it) => {
+    if (!it.bundle) it.bundle = { applied: false, discountPercent: 0, bundleId: null };
+  });
+
   const totals = items.reduce(
     (acc, item) => {
       acc.quantity += item.quantity;
@@ -211,7 +245,7 @@ const formatCart = (cart) => {
 
 export const getCart = asyncHandler(async (req, res) => {
   const cart = await ensureCart(req.user.id);
-  res.json(formatCart(cart));
+  res.json(await formatCart(cart));
 });
 
 export const addItem = asyncHandler(async (req, res) => {
@@ -258,7 +292,7 @@ export const addItem = asyncHandler(async (req, res) => {
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
   const populated = await populateCart(req.user.id);
-  res.status(201).json(formatCart(populated));
+  res.status(201).json(await formatCart(populated));
 });
 
 export const updateItem = asyncHandler(async (req, res) => {
@@ -298,7 +332,7 @@ export const updateItem = asyncHandler(async (req, res) => {
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
   const populated = await populateCart(req.user.id);
-  res.json(formatCart(populated));
+  res.json(await formatCart(populated));
 });
 
 export const removeItem = asyncHandler(async (req, res) => {
@@ -326,13 +360,13 @@ export const removeItem = asyncHandler(async (req, res) => {
     // cart instead of turning a successful first removal into a visible error.
     await invalidateUserCache(req.user.id, ['cart']);
     const populated = await populateCart(req.user.id);
-    return res.json(formatCart(populated));
+    return res.json(await formatCart(populated));
   }
 
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
   const populated = await populateCart(req.user.id);
-  res.json(formatCart(populated));
+  res.json(await formatCart(populated));
 });
 
 export const clearCart = asyncHandler(async (req, res) => {
@@ -340,5 +374,5 @@ export const clearCart = asyncHandler(async (req, res) => {
   cart.items = [];
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
-  res.json(formatCart(cart));
+  res.json(await formatCart(cart));
 });

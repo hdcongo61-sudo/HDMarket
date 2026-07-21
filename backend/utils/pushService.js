@@ -803,6 +803,21 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
           : 'Une action de validation est en attente dans HDMarket.';
       break;
     }
+    case 'product_question_asked':
+    case 'product_question_answered':
+    case 'points_earned':
+    case 'referral_joined':
+    case 'referral_reward_earned':
+    case 'group_buy_joined':
+    case 'group_buy_filled':
+    case 'group_buy_expired': {
+      title = metadata.title && String(metadata.title).trim() ? String(metadata.title).trim() : 'HDMarket';
+      body =
+        metadata.message && String(metadata.message).trim()
+          ? String(metadata.message).trim()
+          : `${actorName} a interagi avec votre compte.`;
+      break;
+    }
     default:
       title = 'Nouvelle notification';
       body = `${actorName} a interagi avec votre compte.`;

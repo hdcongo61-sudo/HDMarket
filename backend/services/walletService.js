@@ -1135,6 +1135,98 @@ export const submitDepositRequest = async ({
 };
 
 /**
+ * Idempotently credits a wallet from a Mobile Money provider callback.
+ *
+ * This is the integration point for automated top-up (TAOBAO_GAP_ANALYSIS_V2
+ * A.4): once a real aggregator (CinetPay/Flutterwave/a direct operator API)
+ * is contracted and its webhook is wired to a route, that handler should
+ * call this function on a successful-payment event instead of going through
+ * the manual submitDepositRequest -> approveDeposit review queue above.
+ * `submitDepositRequest`/`approveDeposit` remain the fallback path for
+ * providers without callbacks, exactly as intended.
+ *
+ * Idempotency key = providerTransactionId: a provider's at-least-once
+ * webhook delivery (retries, duplicate events) can never double-credit a
+ * wallet, since we check for a prior transaction with the same id first.
+ */
+export const creditWalletTopupFromGateway = async ({
+  userId,
+  amount,
+  gateway,
+  providerTransactionId,
+  rawPayload = null
+}) => {
+  if (!amount || amount <= 0) throw new Error('Le montant doit être supérieur à 0');
+  const txnRef = String(providerTransactionId || '').trim();
+  if (!txnRef) throw new Error('Identifiant de transaction du fournisseur requis.');
+
+  const wallet = await getOrCreateWallet(userId);
+
+  const alreadyCredited = wallet.transactions.some(
+    (t) => t.type === 'deposit' && t?.metadata?.providerTransactionId === txnRef
+  );
+  if (alreadyCredited) {
+    return {
+      status: 'duplicate',
+      balance: wallet.balance,
+      availableBalance: wallet.availableBalance,
+      totalBalance: wallet.totalBalance
+    };
+  }
+
+  const balanceBefore = wallet.balance;
+  wallet.balance = balanceBefore + Number(amount);
+  wallet.transactions.push({
+    type: 'deposit',
+    amount: Number(amount),
+    balanceBefore,
+    balanceAfter: wallet.balance,
+    reference: txnRef,
+    status: 'completed',
+    note: `Recharge instantanée via ${gateway || 'fournisseur'}`,
+    processedAt: new Date(),
+    metadata: {
+      role: 'wallet_topup_gateway',
+      gateway: gateway || 'unknown',
+      providerTransactionId: txnRef,
+      automated: true,
+      rawPayload
+    }
+  });
+
+  await wallet.save();
+
+  const lastTxn = wallet.transactions[wallet.transactions.length - 1];
+
+  createNotification({
+    userId: wallet.user,
+    actorId: wallet.user,
+    type: 'payment_validated',
+    allowSelf: true,
+    priority: 'HIGH',
+    pushEnabled: true,
+    metadata: {
+      amount,
+      title: 'Recharge instantanée réussie',
+      message: `Votre portefeuille a été crédité automatiquement de ${formatXAF(amount)}.`,
+      walletBalance: wallet.balance
+    },
+    entityType: 'payment',
+    entityId: String(lastTxn._id),
+    deepLink: '/wallet',
+    actionLink: '/wallet'
+  }).catch(() => {});
+
+  return {
+    status: 'completed',
+    transactionId: lastTxn._id,
+    balance: wallet.balance,
+    availableBalance: wallet.availableBalance,
+    totalBalance: wallet.totalBalance
+  };
+};
+
+/**
  * Get all pending deposit transactions across all wallets.
  */
 export const getPendingDeposits = async ({ page = 1, limit = 20, status = 'pending' } = {}) => {

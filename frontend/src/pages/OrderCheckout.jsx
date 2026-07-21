@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import api, { isApiPossiblyCommittedError, isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
@@ -24,6 +24,7 @@ import {
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
+import RewardPointsRedeemBox from '../components/RewardPointsRedeemBox';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -88,11 +89,23 @@ export default function OrderCheckout() {
   const { showToast } = useToast();
   const { cities = [], communes = [], getRuntimeValue, t } = useAppSettings();
   const navigate = useNavigate();
+  const location = useLocation();
+  const groupBuyId = location.state?.groupBuyId || '';
   const [payments, setPayments] = useState({});
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
   const [promoStates, setPromoStates] = useState({});
   const [promoLoadingBySeller, setPromoLoadingBySeller] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [groupBuyInfo, setGroupBuyInfo] = useState(null);
+
+  useEffect(() => {
+    if (!groupBuyId) return;
+    api
+      .get(`/group-buys/${groupBuyId}`)
+      .then(({ data }) => setGroupBuyInfo(data))
+      .catch(() => setGroupBuyInfo(null));
+  }, [groupBuyId]);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.STANDARD);
@@ -1072,6 +1085,8 @@ export default function OrderCheckout() {
           checkoutPromotionApplied: isFullPaymentSelected,
           deliveryMode,
           shippingAddress,
+          pointsToRedeem,
+          groupBuyId,
           payments: sellerGroups.map((group) => {
             const entry = payments[group.sellerId] || {};
             const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
@@ -1370,6 +1385,12 @@ export default function OrderCheckout() {
           </span>
       </header>
 
+      {groupBuyInfo?.status === 'filled' && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+          🎉 Prix groupé débloqué : {formatCurrency(groupBuyInfo.groupPrice)} au lieu de {formatCurrency(groupBuyInfo.originalPrice)}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-start">
         {/* Order Summary Enhanced */}
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24">
@@ -1388,7 +1409,7 @@ export default function OrderCheckout() {
             </span>
           </div>
           <div className="max-h-none divide-y divide-slate-100 lg:max-h-[42vh] lg:overflow-y-auto">
-            {items.map(({ product, quantity, unitPrice, lineTotal, selectedAttributes, selectionKey, variantImage }) => (
+            {items.map(({ product, quantity, unitPrice, lineTotal, selectedAttributes, selectionKey, variantImage, bundle }) => (
               <div key={`${product._id}-${selectionKey || 'default'}`} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 p-4 sm:grid-cols-[76px_minmax(0,1fr)_auto] sm:p-5">
                 <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-[76px] sm:w-[76px]">
                   <img
@@ -1417,6 +1438,11 @@ export default function OrderCheckout() {
                   <p className="mt-1 text-[11px] font-semibold text-slate-500">
                     {formatCurrency(unitPrice)} / {t('cartPage.unit', 'unité')}
                   </p>
+                  {bundle?.applied && (
+                    <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700">
+                      🎁 {t('cartPage.bundleApplied', 'Prix du lot appliqué')} (-{Number(bundle.discountPercent || 0)}%)
+                    </p>
+                  )}
                 </div>
                 <div className="hidden text-right sm:block">
                   <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{t('checkout.lineTotal', 'Total ligne')}</p>
@@ -1651,6 +1677,12 @@ export default function OrderCheckout() {
                 )}
               </div>
             )}
+
+            <RewardPointsRedeemBox
+              orderSubtotal={Number(totals.subtotal || 0)}
+              singleSeller={sellerGroups.length === 1}
+              onChange={setPointsToRedeem}
+            />
 
             {isInstallmentPayment && walletEligible && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">

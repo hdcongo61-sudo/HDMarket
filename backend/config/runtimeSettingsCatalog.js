@@ -435,9 +435,9 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
   },
   enable_live_location: {
     category: 'delivery_platform',
-    description: 'Activer le suivi live du livreur (préparation future).',
+    description: 'Activer le suivi live du livreur (position GPS en temps réel sur la carte de suivi).',
     valueType: 'boolean',
-    defaultValue: false,
+    defaultValue: true,
     isPublic: false
   },
   delivery_agent_must_accept: {
@@ -1167,6 +1167,126 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: 5,
     isPublic: false,
     hidden: true
+  },
+
+  // ── HDPoints buyer rewards (Taobao gap analysis B.2) ──────
+  enable_reward_points: {
+    category: 'engagement',
+    description: 'Activer le programme de points fidélité HDPoints (achats, avis, Q&A, check-in).',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  reward_points_per_1000_xaf: {
+    category: 'engagement',
+    description: 'Points HDPoints gagnés par tranche de 1000 XAF dépensée (commande livrée).',
+    valueType: 'number',
+    defaultValue: 10,
+    isPublic: true
+  },
+  reward_points_checkin_base: {
+    category: 'engagement',
+    description: 'Points HDPoints gagnés pour le check-in quotidien (avant bonus de série).',
+    valueType: 'number',
+    defaultValue: 5,
+    isPublic: true
+  },
+  reward_points_checkin_streak_bonus: {
+    category: 'engagement',
+    description: 'Points HDPoints bonus par jour de série de check-in consécutive (plafonné à 7 jours).',
+    valueType: 'number',
+    defaultValue: 2,
+    isPublic: true
+  },
+  reward_points_review: {
+    category: 'engagement',
+    description: 'Points HDPoints gagnés pour un avis produit vérifié.',
+    valueType: 'number',
+    defaultValue: 20,
+    isPublic: true
+  },
+  reward_points_qa_answer: {
+    category: 'engagement',
+    description: 'Points HDPoints gagnés pour une réponse à une question produit (vendeur ou acheteur vérifié).',
+    valueType: 'number',
+    defaultValue: 15,
+    isPublic: true
+  },
+  reward_points_conversion_xaf: {
+    category: 'engagement',
+    description: 'Valeur en XAF d’un point HDPoints à la conversion (utilisation au paiement).',
+    valueType: 'number',
+    defaultValue: 1,
+    isPublic: true
+  },
+  reward_points_max_order_percent: {
+    category: 'engagement',
+    description: 'Pourcentage maximum du montant de la commande payable en points HDPoints.',
+    valueType: 'number',
+    defaultValue: 20,
+    isPublic: true
+  },
+
+  // ── Referral program / parrainage (Taobao gap analysis B.3) ──
+  enable_referral_program: {
+    category: 'engagement',
+    description: 'Activer le programme de parrainage (récompense au premier achat livré du filleul).',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  referral_reward_xaf: {
+    category: 'engagement',
+    description: 'Crédit portefeuille (XAF) versé au parrain ET au filleul à la première commande livrée du filleul.',
+    valueType: 'number',
+    defaultValue: 500,
+    isPublic: true
+  },
+
+  // ── Group buying / achat groupé (Taobao gap analysis B.1) ──
+  enable_group_buying: {
+    category: 'engagement',
+    description: 'Activer les achats groupés (prix débloqué quand N acheteurs rejoignent avant l’échéance).',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  group_buy_default_target_size: {
+    category: 'engagement',
+    description: 'Nombre d’acheteurs par défaut pour débloquer le prix groupé.',
+    valueType: 'number',
+    defaultValue: 3,
+    isPublic: true
+  },
+  group_buy_default_duration_hours: {
+    category: 'engagement',
+    description: 'Durée par défaut (heures) avant expiration d’un achat groupé.',
+    valueType: 'number',
+    defaultValue: 24,
+    isPublic: true
+  },
+  group_buy_discount_percent: {
+    category: 'engagement',
+    description: 'Remise (%) appliquée au prix groupé par rapport au prix individuel.',
+    valueType: 'number',
+    defaultValue: 20,
+    isPublic: true
+  },
+  group_buy_max_active_per_product: {
+    category: 'engagement',
+    description: 'Nombre maximum d’achats groupés actifs simultanés par produit.',
+    valueType: 'number',
+    defaultValue: 5,
+    isPublic: false
+  },
+
+  // ── Product Q&A (Taobao gap analysis B.4) ──
+  enable_product_qa: {
+    category: 'engagement',
+    description: 'Activer les questions/réponses sur la fiche produit.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
   }
 });
 
@@ -1225,10 +1345,10 @@ export const FEATURE_FLAG_DEFAULTS = Object.freeze({
     description: 'Expérience chat premium en temps réel.'
   },
   enable_ai_recommendations: {
-    enabled: false,
-    rolesAllowed: ['admin', 'founder'],
+    enabled: true,
+    rolesAllowed: ['user', 'shop', 'admin', 'manager', 'founder'],
     rolloutPercentage: 5,
-    description: 'Recommendations pilotées IA (progressif).'
+    description: 'Recommandations pilotées IA sur la page d\'accueil (déploiement progressif : 5% -> 25% -> 100%).'
   }
 });
 

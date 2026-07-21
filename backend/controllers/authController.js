@@ -19,6 +19,8 @@ import {
 } from '../utils/firebaseVerification.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { getFirebaseAdminAuth } from '../utils/firebaseAdmin.js';
+import { resolveReferrerForRegistration } from '../services/referralService.js';
+import { createNotification } from '../utils/notificationService.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -137,7 +139,7 @@ const providerLogin = async (req, res, providerName) => {
 };
 
 const providerRegister = async (req, res, providerName) => {
-  const { idToken, phone, city, commune, address, gender, acceptedLegalTerms, legalVersion } = req.body || {};
+  const { idToken, phone, city, commune, address, gender, acceptedLegalTerms, legalVersion, referralCode } = req.body || {};
   const decoded = await verifyProviderCredential(idToken, providerName);
   const normalizedEmail = String(decoded.email).toLowerCase().trim();
   const name = String(req.body?.name || decoded.name || '').trim();
@@ -176,6 +178,8 @@ const providerRegister = async (req, res, providerName) => {
     return res.status(403).json({ message: 'Ce numéro est blacklisté.', code: 'PHONE_BLACKLISTED' });
   }
 
+  const referrer = await resolveReferrerForRegistration({ referralCode, newUserPhone: normalizedPhone });
+
   const user = await User.create({
     name,
     email: normalizedEmail,
@@ -189,10 +193,29 @@ const providerRegister = async (req, res, providerName) => {
     city,
     commune: String(commune || '').trim(),
     gender,
+    referredBy: referrer?._id || null,
     profileImage: String(decoded.picture || '').trim(),
     authProviders: { [providerName]: { uid: decoded.uid, linkedAt: new Date() } },
     legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: providerName }
   });
+  if (referrer) {
+    createNotification({
+      userId: referrer._id,
+      actorId: user._id,
+      type: 'referral_joined',
+      allowSelf: false,
+      priority: 'LOW',
+      pushEnabled: true,
+      metadata: {
+        title: 'Un filleul a rejoint HDMarket',
+        message: `${name} s’est inscrit avec votre code de parrainage. La récompense arrive après sa première commande livrée.`
+      },
+      entityType: 'user',
+      entityId: String(user._id),
+      deepLink: '/referrals',
+      actionLink: '/referrals'
+    }).catch(() => {});
+  }
   const token = genToken(user);
   return res.status(201).json(buildAuthResponse(user, token));
 };
@@ -240,7 +263,8 @@ export const register = asyncHandler(async (req, res) => {
     gender,
     verificationCode,
     acceptedLegalTerms,
-    legalVersion
+    legalVersion,
+    referralCode
   } = req.body;
   if (!name || !email || !password || !phone || !city || !gender || !address?.trim() || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
     return res.status(400).json({ message: 'Missing fields' });
@@ -318,6 +342,8 @@ export const register = asyncHandler(async (req, res) => {
     }
   }
 
+  const referrer = await resolveReferrerForRegistration({ referralCode, newUserPhone: normalizedPhone });
+
   const user = await User.create({
     name,
     email: normalizedEmail,
@@ -331,8 +357,27 @@ export const register = asyncHandler(async (req, res) => {
     city,
     commune: String(commune || '').trim(),
     gender,
+    referredBy: referrer?._id || null,
     legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: 'email' }
   });
+  if (referrer) {
+    createNotification({
+      userId: referrer._id,
+      actorId: user._id,
+      type: 'referral_joined',
+      allowSelf: false,
+      priority: 'LOW',
+      pushEnabled: true,
+      metadata: {
+        title: 'Un filleul a rejoint HDMarket',
+        message: `${name} s’est inscrit avec votre code de parrainage. La récompense arrive après sa première commande livrée.`
+      },
+      entityType: 'user',
+      entityId: String(user._id),
+      deepLink: '/referrals',
+      actionLink: '/referrals'
+    }).catch(() => {});
+  }
   const token = genToken(user);
   res.status(201).json(buildAuthResponse(user, token));
 });

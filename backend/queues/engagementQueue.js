@@ -138,6 +138,29 @@ export const ensureEngagementSchedules = async () => {
     { jobId: 'schedule:recalculate-seller-levels', repeat: { every: every6h } }
   );
 
+  // Referral rewards — grant once a referred buyer's first order clears the
+  // 72h dispute window undisputed — every hour
+  await queue.add(
+    'sweep-referral-rewards',
+    { source: 'schedule' },
+    { jobId: 'schedule:sweep-referral-rewards', repeat: { every: everyHour } }
+  );
+
+  // Group buy expiry — start/fill/expire sweep — every 5 minutes
+  await queue.add(
+    'sweep-group-buys',
+    { source: 'schedule' },
+    { jobId: 'schedule:sweep-group-buys', repeat: { every: every5m } }
+  );
+
+  // HDPoints purchase awards — every 15 minutes
+  const every15m = 15 * 60 * 1000;
+  await queue.add(
+    'sweep-purchase-points',
+    { source: 'schedule' },
+    { jobId: 'schedule:sweep-purchase-points', repeat: { every: every15m } }
+  );
+
   return true;
 };
 

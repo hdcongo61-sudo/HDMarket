@@ -24,6 +24,9 @@ import {
 } from '../utils/marketplacePromoCodeService.js';
 import { DELIVERY_FEE_SOURCE, resolveDeliveryPricing } from '../utils/deliveryPricing.js';
 import { getWholesalePricing } from '../utils/wholesaleUtils.js';
+import { applyBundleDiscountsForSellers } from '../services/bundleService.js';
+import { redeemPointsForOrder, awardPoints } from '../services/rewardPointsService.js';
+import { applyGroupBuyPricing } from '../services/groupBuyService.js';
 import {
   findUsedTransactionCodes,
   isTransactionCodeAlreadyUsed,
@@ -1277,6 +1280,11 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
     orderItems.push(orderItem);
   }
 
+  // Re-derive any active bundle discount server-side from the cart's actual
+  // contents — never trust a client-shown "bundle price" (see bundleService).
+  await applyBundleDiscountsForSellers(orderItems);
+  totalAmount = orderItems.reduce((sum, oi) => sum + Number(oi.lineTotal || 0), 0);
+
   // ── Apply promo codes per shop ──────────────────────────
   if (promoEntriesMap.size > 0) {
     // Group order items by shop
@@ -1468,7 +1476,8 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     checkoutPromotionApplied,
     deliveryMode: rawDeliveryMode,
     shippingAddress,
-    sponsorship
+    sponsorship,
+    groupBuyId
   } = req.body;
   const userId = req.user?.id || req.user?._id;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
@@ -1584,6 +1593,16 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Aucun vendeur associé à la commande.' });
   }
 
+  // Group buy price override — only applies if the buyer is a member of a
+  // `filled` team for one of these products (see groupBuyService).
+  if (groupBuyId) {
+    await applyGroupBuyPricing({ orderItems, groupBuyId, userId });
+  }
+
+  // Re-derive any active bundle discount server-side from the cart's actual
+  // contents — never trust a client-shown "bundle price" (see bundleService).
+  await applyBundleDiscountsForSellers(orderItems);
+
   const hasPickupOnlyInCart = orderItems.some((item) =>
     isPickupOnlyProduct({
       deliveryAvailable: item?.snapshot?.deliveryAvailable,
@@ -1594,6 +1613,19 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     return res.status(400).json({
       message:
         'Votre panier contient un produit disponible uniquement en retrait boutique. Passez en mode retrait.'
+    });
+  }
+
+  // HDPoints redemption — single-seller carts only for now: splitting one
+  // points redemption proportionally across several seller orders isn't
+  // implemented yet, so a multi-seller cart simply ignores pointsToRedeem.
+  const requestedPointsToRedeem = Math.max(0, Number(req.body?.pointsToRedeem || 0));
+  let pointsRedemption = { pointsRedeemed: 0, xafValue: 0 };
+  if (requestedPointsToRedeem > 0 && itemsBySeller.size === 1) {
+    pointsRedemption = await redeemPointsForOrder({
+      userId,
+      requestedPoints: requestedPointsToRedeem,
+      orderSubtotal: calculateOrderItemsSubtotal(orderItems)
     });
   }
 
@@ -1726,6 +1758,10 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           }
         }
 
+        if (pointsRedemption.xafValue > 0) {
+          discountedSubtotal = Math.max(0, discountedSubtotal - pointsRedemption.xafValue);
+        }
+
         const discountTotal = Math.max(0, Number(itemsSubtotal || 0) - Number(discountedSubtotal || 0));
         const deliveryPricing = resolveDeliveryPricing({
           deliveryMode,
@@ -1809,6 +1845,14 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           rollbackConsumedMarketplacePromo({ promoId: entry.promoId, clientId: entry.clientId })
         )
       );
+    }
+    if (pointsRedemption.pointsRedeemed > 0) {
+      await awardPoints({
+        userId,
+        reason: 'redeem',
+        amount: pointsRedemption.pointsRedeemed,
+        note: 'Remboursement — la commande n’a pas pu être créée'
+      }).catch(() => {});
     }
     if (error?.status) {
       return res.status(error.status).json({ message: error.message, reason: error.reason || undefined });

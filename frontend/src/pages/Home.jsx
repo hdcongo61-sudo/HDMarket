@@ -6,6 +6,7 @@ import FlashSaleCard from "../components/FlashSaleCard";
 import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
+import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
 import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet, Pencil, Users, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -18,6 +19,7 @@ import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModa
 import useNetworkProfile from "../hooks/useNetworkProfile";
 import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
+import { filterActiveInstallmentProducts } from '../utils/installmentAvailability';
 
 const normalizeCityName = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -475,6 +477,7 @@ export default function Home() {
   const [topProductsTab, setTopProductsTab] = useState('favorites');
   const [installmentProducts, setInstallmentProducts] = useState([]);
   const [installmentLoading, setInstallmentLoading] = useState(false);
+  const [installmentNow, setInstallmentNow] = useState(() => Date.now());
   const [wholesaleProducts, setWholesaleProducts] = useState([]);
   const [wholesaleLoading, setWholesaleLoading] = useState(false);
   const [homeFeedLoaded, setHomeFeedLoaded] = useState(false);
@@ -553,6 +556,7 @@ const payForOtherBannerText =
     ) || ''
   ).trim() || 'Un proche peut régler votre commande — proposez-le au moment du paiement.';
 const walletFeatureEnabled = normalizeSettingBoolean(getRuntimeValue('enable_digital_wallet', false), false);
+const groupBuyingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_group_buying', false), false);
 const reduceMotionHome = useReducedMotion();
 const primaryPageLimit = compactProductsPageSize || 12;
 const secondarySectionLimit = compactSecondaryLimit || 6;
@@ -1266,6 +1270,30 @@ const loadDiscountProducts = async () => {
   }, [homeSnapshotKey, items, shouldUseOfflineSnapshot, totalPages, totalProducts]);
 
   const cityHighlights = highlights.cityHighlights || {};
+  const installmentSectionProducts = useMemo(
+    () => installmentProducts.length
+      ? installmentProducts
+      : highlights.installmentProducts,
+    [highlights.installmentProducts, installmentProducts]
+  );
+  const activeInstallmentProducts = useMemo(
+    () => filterActiveInstallmentProducts(installmentSectionProducts, installmentNow),
+    [installmentNow, installmentSectionProducts]
+  );
+  useEffect(() => {
+    const nextExpiry = installmentSectionProducts.reduce((nearest, product) => {
+      const expiry = new Date(product?.installmentEndDate || '').getTime();
+      if (!Number.isFinite(expiry) || expiry <= installmentNow) return nearest;
+      return nearest === null || expiry < nearest ? expiry : nearest;
+    }, null);
+    if (nextExpiry === null) return undefined;
+
+    const timer = window.setTimeout(
+      () => setInstallmentNow(Date.now()),
+      Math.min(Math.max(25, nextExpiry - Date.now() + 25), 2_147_483_647)
+    );
+    return () => window.clearTimeout(timer);
+  }, [installmentNow, installmentSectionProducts]);
   const cityFallbackProductsByCity = useMemo(() => {
     const map = new Map();
     const seenByCity = new Map();
@@ -1396,6 +1424,8 @@ const loadDiscountProducts = async () => {
           buildProductLink={buildHomeProductLink}
           externalLinkProps={externalLinkProps}
         />
+
+        <GroupBuyHomeSection enabled={groupBuyingEnabled} />
 
         {(user || showFullPaymentHomeBanner) ? (
           <section className="order-[-1] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-sm">
@@ -2290,15 +2320,15 @@ const loadDiscountProducts = async () => {
                 <div key={`is-reserve-${i}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-100" />
               ))}
             </div>
-          ) : installmentLoading && !installmentProducts.length ? (
+          ) : installmentLoading && !activeInstallmentProducts.length ? (
             <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={`installment-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
               ))}
             </div>
-          ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
+          ) : activeInstallmentProducts.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
-              {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
+              {activeInstallmentProducts
                 .slice(0, 4)
                 .map((product) => (
                   <div key={`installment-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white">
@@ -3135,7 +3165,7 @@ const loadDiscountProducts = async () => {
               </Link>
             </div>
 
-            {installmentLoading && !installmentProducts.length ? (
+            {installmentLoading && !activeInstallmentProducts.length ? (
               <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={`idsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
@@ -3148,9 +3178,9 @@ const loadDiscountProducts = async () => {
                   </div>
                 ))}
               </div>
-            ) : (installmentProducts.length || highlights.installmentProducts?.length) > 0 ? (
+            ) : activeInstallmentProducts.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
-                {(installmentProducts.length ? installmentProducts : highlights.installmentProducts)
+                {activeInstallmentProducts
                   .slice(0, 4)
                   .map((product, idx) => {
                     const duration = product?.installmentDuration || 0;

@@ -34,6 +34,8 @@ const SellerAnalyticsV2 = lazy(() => import('./pages/SellerAnalyticsV2'));
 const SellerPromoCodes = lazy(() => import('./pages/SellerPromoCodes'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const ReferralLanding = lazy(() => import('./pages/ReferralLanding'));
+const Referrals = lazy(() => import('./pages/Referrals'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const MyListingDetail = lazy(() => import('./pages/MyListingDetail'));
@@ -657,6 +659,8 @@ function AppContent() {
           <Route path="/seller/assistant/workspace" element={<ShopAssistant />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/r/:code" element={<ReferralLanding />} />
+          <Route path="/referrals" element={<Referrals />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ForgotPassword />} />
           <Route path="/user-stats" element={<Navigate to="/stats" replace />} />

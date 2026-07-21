@@ -280,6 +280,43 @@ export default function CourierDashboard() {
   const selectedPreviewItem =
     allItems.find((item) => String(item?._id || '') === String(selectedAssignmentId || '')) || nextDelivery;
 
+  // Live GPS: while this courier has a delivery in transit, share position so
+  // the buyer's order-tracking map moves. Foreground-only, throttled client-side.
+  const activeTrackedAssignment = useMemo(
+    () => sortedAllItems.find((item) => ['PICKUP', 'ON_ROUTE'].includes(workflowStatusOf(item))) || null,
+    [sortedAllItems]
+  );
+
+  useEffect(() => {
+    if (isOffline || !bootstrapQuery.data?.enableLiveLocation) return undefined;
+    const assignmentId = activeTrackedAssignment?._id;
+    if (!assignmentId || typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
+
+    const LOCATION_PING_INTERVAL_MS = 15_000;
+    let lastSentAt = 0;
+
+    const sendPing = (position) => {
+      const now = Date.now();
+      if (now - lastSentAt < LOCATION_PING_INTERVAL_MS) return;
+      lastSentAt = now;
+      api
+        .post(`${apiPrefix}/location/ping`, {
+          jobId: assignmentId,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        })
+        .catch(() => {});
+    };
+
+    const watchId = navigator.geolocation.watchPosition(sendPing, () => {}, {
+      enableHighAccuracy: true,
+      maximumAge: 10_000,
+      timeout: 20_000
+    });
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [isOffline, bootstrapQuery.data?.enableLiveLocation, activeTrackedAssignment?._id, apiPrefix]);
+
   const updateDeliveryListCache = (updater) => {
     queryClient.setQueriesData({ queryKey: ['delivery', 'list'] }, (previous) =>
       updateInfiniteDataItems(previous, updater)

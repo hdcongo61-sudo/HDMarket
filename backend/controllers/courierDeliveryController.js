@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import crypto from 'crypto';
 import DeliveryRequest from '../models/deliveryRequestModel.js';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
+import DeliveryLog from '../models/deliveryLogModel.js';
 import City from '../models/cityModel.js';
 import Commune from '../models/communeModel.js';
 import Order from '../models/orderModel.js';
@@ -1452,6 +1453,7 @@ export const getCourierModeBootstrap = asyncHandler(async (req, res) => {
       .lean();
     return res.json({
       enabled: Boolean(runtime.enableDeliveryAgents),
+      enableLiveLocation: Boolean(runtime.enableLiveLocation),
       previewMode: true,
       deliveryGuy: null,
       availableDeliveryGuys: availableDeliveryGuys.map((entry) => {
@@ -1475,6 +1477,7 @@ export const getCourierModeBootstrap = asyncHandler(async (req, res) => {
   const publicDeliveryGuy = toPublicDeliveryGuy(deliveryGuy);
   return res.json({
     enabled: Boolean(runtime.enableDeliveryAgents),
+    enableLiveLocation: Boolean(runtime.enableLiveLocation),
     previewMode: false,
     deliveryGuy: {
       _id: publicDeliveryGuy?._id || deliveryGuy._id,
@@ -1505,6 +1508,7 @@ export const getDeliveryAgentMe = asyncHandler(async (req, res) => {
       enableDeliveryAgents: Boolean(runtime.enableDeliveryAgents),
       courierMustAcceptAssignment: Boolean(runtime.courierMustAcceptAssignment),
       enableProofUpload: Boolean(runtime.enableProofUpload),
+      enableLiveLocation: Boolean(runtime.enableLiveLocation),
       enableDeliveryPinCode: Boolean(runtime.enableDeliveryPinCode),
       locationLockEnabled: Boolean(runtime.locationLockEnabled),
       locationLockDistanceMeters: Number(runtime.locationLockDistanceMeters || 0),
@@ -1667,6 +1671,29 @@ export const pingDeliveryAgentLocation = asyncHandler(async (req, res) => {
   }
 
   assignment.mapAccess = mapAccess;
+
+  if (runtime.enableLiveLocation) {
+    assignment.currentLocation = { type: 'Point', coordinates: [lng, lat] };
+    assignment.currentLocationUpdatedAt = now;
+
+    const breadcrumbThrottleMs = 15_000;
+    const lastBreadcrumb = await DeliveryLog.findOne({
+      orderId: assignment.orderId,
+      actionType: 'LOCATION_PING'
+    })
+      .sort({ timestamp: -1 })
+      .select('timestamp')
+      .lean();
+    if (!lastBreadcrumb || now.getTime() - new Date(lastBreadcrumb.timestamp).getTime() >= breadcrumbThrottleMs) {
+      await DeliveryLog.create({
+        orderId: assignment.orderId,
+        sellerId: assignment.sellerId,
+        timestamp: now,
+        location: { latitude: lat, longitude: lng },
+        actionType: 'LOCATION_PING'
+      });
+    }
+  }
 
   if (lockedChanged) {
     appendTimeline(assignment, {

@@ -100,7 +100,15 @@ const notificationSchema = new mongoose.Schema(
       'sponsorship_request',
       'sponsorship_accepted',
       'sponsorship_declined',
-      'sponsorship_expired'
+      'sponsorship_expired',
+      'product_question_asked',
+      'product_question_answered',
+      'points_earned',
+      'referral_joined',
+      'referral_reward_earned',
+      'group_buy_joined',
+      'group_buy_filled',
+      'group_buy_expired'
     ],
       required: true
     },

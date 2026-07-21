@@ -13,7 +13,7 @@ const deliveryLogSchema = new mongoose.Schema(
     },
     actionType: {
       type: String,
-      enum: ['PROOF_UPLOADED', 'SIGNATURE_CAPTURED', 'CONFIRMED'],
+      enum: ['PROOF_UPLOADED', 'SIGNATURE_CAPTURED', 'CONFIRMED', 'LOCATION_PING'],
       required: true
     },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} }

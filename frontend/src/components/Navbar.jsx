@@ -70,7 +70,8 @@ import {
   Grid3x3,
   Plus,
   Compass,
-  BadgePercent
+  BadgePercent,
+  Gift
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -160,6 +161,7 @@ export default function Navbar() {
     );
   const sellingEnabled = isTruthyFlag(getRuntimeValue('enable_selling', true));
   const shopConversionEnabled = isTruthyFlag(getRuntimeValue('enable_shop_conversion', true));
+  const referralProgramEnabled = isTruthyFlag(getRuntimeValue('enable_referral_program', false));
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -751,6 +753,7 @@ export default function Navbar() {
     { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
+    { id: 'referrals', label: t('nav.referrals', 'Parrainage'), path: '/referrals', icon: Gift, badge: null, visible: user ? referralProgramEnabled : false, order: 14.5 },
     { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: BadgePercent, badge: null, visible: true, order: 15 }
   ];
 

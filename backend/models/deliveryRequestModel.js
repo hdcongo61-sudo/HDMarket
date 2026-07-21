@@ -142,6 +142,8 @@ const deliveryRequestSchema = new mongoose.Schema(
     expiresAt: { type: Date, default: null, index: true },
     timeline: { type: [timelineEventSchema], default: [] },
     mapAccess: { type: mapAccessSchema, default: () => ({}) },
+    currentLocation: { type: geoPointSchema, default: null },
+    currentLocationUpdatedAt: { type: Date, default: null },
     // Legacy compatibility: productSnapshot remains source of truth for existing UI.
     itemsSnapshot: { type: [productSnapshotSchema], default: [] },
     pickupProof: { type: proofArtifactSchema, default: () => ({}) },
@@ -160,6 +162,7 @@ deliveryRequestSchema.index({ buyerId: 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ 'pickup.communeId': 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ 'dropoff.communeId': 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ 'pickup.cityId': 1, 'dropoff.cityId': 1, createdAt: -1 });
+deliveryRequestSchema.index({ currentLocation: '2dsphere' });
 
 deliveryRequestSchema.pre('validate', function syncSnapshots(next) {
   const normalizeItems = (items = []) =>

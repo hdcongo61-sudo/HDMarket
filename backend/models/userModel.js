@@ -332,7 +332,10 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.add({
-  slug: { type: String, unique: true, index: true, lowercase: true, trim: true }
+  slug: { type: String, unique: true, index: true, lowercase: true, trim: true },
+  referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  referralRewardGranted: { type: Boolean, default: false }
 });
 userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
 userSchema.index({ accountType: 1, shopVerified: 1, createdAt: -1 });
@@ -389,6 +392,26 @@ userSchema.pre('validate', async function (next) {
   }
 
   return next();
+});
+
+userSchema.pre('validate', async function (next) {
+  if (this.referralCode) return next();
+  try {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid ambiguity
+    let candidate = '';
+    let attempts = 0;
+    do {
+      candidate = Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
+      // eslint-disable-next-line no-await-in-loop
+      const conflict = await this.constructor.findOne({ referralCode: candidate }).select('_id').lean();
+      if (!conflict) break;
+      attempts += 1;
+    } while (attempts < 10);
+    this.referralCode = candidate;
+  } catch (error) {
+    return next(error);
+  }
+  next();
 });
 
 userSchema.pre('save', async function (next) {
