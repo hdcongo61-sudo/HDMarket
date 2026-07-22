@@ -80,21 +80,6 @@ import {
   getBuyerOrderReviewPage,
   updateBuyerOrderReviewReminder
 } from '../controllers/reviewReminderController.js';
-import {
-  getOrderMessages,
-  sendOrderMessage,
-  getUnreadCount,
-  getAllOrderConversations,
-  archiveOrderConversation,
-  unarchiveOrderConversation,
-  deleteOrderConversation,
-  uploadOrderMessageAttachment,
-  addOrderMessageReaction,
-  removeOrderMessageReaction,
-  deleteOrderMessage,
-  updateOrderMessage
-} from '../controllers/orderMessageController.js';
-import { chatUpload } from '../utils/chatUpload.js';
 import { deliveryProofUpload } from '../utils/deliveryProofUpload.js';
 import { upload } from '../utils/upload.js';
 
@@ -303,13 +288,6 @@ router.post(
   validate(schemas.sellerCancelOrder),
   sellerCancelOrder
 );
-// Order messages routes (must be before /:id routes to avoid conflicts)
-router.get('/messages/conversations', getAllOrderConversations);
-router.get('/messages/unread', getUnreadCount);
-router.post('/:id/archive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), archiveOrderConversation);
-router.post('/:id/unarchive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), unarchiveOrderConversation);
-router.post('/:id/delete', validate(schemas.idParam, 'params'), idempotencyMiddleware(), deleteOrderConversation);
-
 router.get('/', orderCacheUser(45000), userListOrders);
 router.get('/:id/review-reminder-check', validate(schemas.idParam, 'params'), checkOrderReviewReminderStatus);
 router.get('/:id/review', validate(schemas.idParam, 'params'), getBuyerOrderReviewPage);
@@ -320,24 +298,5 @@ router.post(
   idempotencyMiddleware(),
   updateBuyerOrderReviewReminder
 );
-
-// Order messages routes for specific order
-router.get('/:orderId/messages', getOrderMessages);
-router.post(
-  '/:orderId/messages',
-  idempotencyMiddleware(),
-  validate(schemas.orderMessage),
-  sendOrderMessage
-);
-router.patch(
-  '/:orderId/messages/:messageId',
-  idempotencyMiddleware(),
-  validate(schemas.orderMessageUpdate, 'body'),
-  updateOrderMessage
-);
-router.delete('/:orderId/messages/:messageId', idempotencyMiddleware(), deleteOrderMessage);
-router.post('/messages/upload', chatUpload.single('file'), uploadOrderMessageAttachment);
-router.post('/messages/:messageId/reactions', idempotencyMiddleware(), addOrderMessageReaction);
-router.delete('/messages/:messageId/reactions', idempotencyMiddleware(), removeOrderMessageReaction);
 
 export default router;

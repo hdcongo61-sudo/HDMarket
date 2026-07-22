@@ -21,11 +21,11 @@ import {
 } from '../utils/cache.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
 
-const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
+export const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
-const normalizeText = (value = '') => String(value || '').trim();
+export const normalizeText = (value = '') => String(value || '').trim();
 const normalizePhoneToDigits = (value = '') => String(value || '').replace(/\D/g, '');
-const isObjectId = (value = '') => OBJECT_ID_REGEX.test(normalizeText(value));
+export const isObjectId = (value = '') => OBJECT_ID_REGEX.test(normalizeText(value));
 const pickFirstText = (...values) => {
   for (const value of values) {
     const text = normalizeText(value);
@@ -62,12 +62,12 @@ const toPublicDeliveryGuy = (value = {}) => {
     active: isActive
   };
 };
-const DELIVERY_GUY_POPULATE = {
+export const DELIVERY_GUY_POPULATE = {
   path: 'assignedDeliveryGuyId',
   select: '_id userId fullName name phone isActive active photoUrl',
   populate: { path: 'userId', select: '_id name shopLogo' }
 };
-const hashPinCode = (value = '') =>
+export const hashPinCode = (value = '') =>
   crypto
     .createHash('sha256')
     .update(String(value || ''))
@@ -80,7 +80,7 @@ const DELIVERY_PIN_KEY = DELIVERY_PIN_SECRET
   ? crypto.createHash('sha256').update(DELIVERY_PIN_SECRET).digest()
   : null;
 
-const encryptDeliveryPin = (value = '') => {
+export const encryptDeliveryPin = (value = '') => {
   const pin = normalizeText(value);
   if (!pin) return '';
   if (!DELIVERY_PIN_KEY) return pin;
@@ -91,7 +91,7 @@ const encryptDeliveryPin = (value = '') => {
   return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
 };
 
-const decryptDeliveryPin = (payload = '') => {
+export const decryptDeliveryPin = (payload = '') => {
   const value = normalizeText(payload);
   if (!value) return '';
   // If no encryption key is configured, we store the pin in clear text.
@@ -115,7 +115,7 @@ const decryptDeliveryPin = (payload = '') => {
   }
 };
 
-const resolveVisibleDeliveryPin = ({
+export const resolveVisibleDeliveryPin = ({
   encryptedPin = '',
   legacyDeliveryCode = '',
   exposeDeliveryPin = true,
@@ -149,7 +149,7 @@ const STAGE_TO_ORDER_STATUS = Object.freeze({
   FAILED: 'CANCELED'
 });
 
-const ALLOWED_STAGE_TRANSITIONS = Object.freeze({
+export const ALLOWED_STAGE_TRANSITIONS = Object.freeze({
   ASSIGNED: ['ACCEPTED', 'FAILED'],
   ACCEPTED: ['PICKUP_STARTED', 'FAILED'],
   PICKUP_STARTED: ['PICKED_UP', 'FAILED'],
@@ -160,12 +160,12 @@ const ALLOWED_STAGE_TRANSITIONS = Object.freeze({
   FAILED: []
 });
 
-const normalizeStage = (value = '') => {
+export const normalizeStage = (value = '') => {
   const stage = String(value || '').trim().toUpperCase();
   return Object.prototype.hasOwnProperty.call(ALLOWED_STAGE_TRANSITIONS, stage) ? stage : '';
 };
 
-const appendTimeline = (requestDoc, event) => {
+export const appendTimeline = (requestDoc, event) => {
   const timeline = Array.isArray(requestDoc.timeline) ? requestDoc.timeline : [];
   timeline.push({
     type: String(event.type || '').trim() || 'COURIER_EVENT',
@@ -176,7 +176,7 @@ const appendTimeline = (requestDoc, event) => {
   requestDoc.timeline = timeline;
 };
 
-const hasProofContent = (proof = {}) => {
+export const hasProofContent = (proof = {}) => {
   const submittedAt = proof?.submittedAt ? new Date(proof.submittedAt) : null;
   const hasValidSubmittedAt = submittedAt instanceof Date && !Number.isNaN(submittedAt.getTime());
   return Boolean(
@@ -199,7 +199,7 @@ const getManagerRecipients = async (runtime) => {
   return list.map((entry) => String(entry._id));
 };
 
-const emitNotificationBatch = async ({
+export const emitNotificationBatch = async ({
   actorId,
   recipients = [],
   type,
@@ -248,12 +248,12 @@ const STAGE_RANK = Object.freeze({
   FAILED: 8
 });
 
-const toFiniteNumber = (value, fallback = null) => {
+export const toFiniteNumber = (value, fallback = null) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 };
 
-const extractLngLatFromGeoPoint = (geoPoint = null) => {
+export const extractLngLatFromGeoPoint = (geoPoint = null) => {
   const coords = Array.isArray(geoPoint?.coordinates) ? geoPoint.coordinates : null;
   if (!coords || coords.length !== 2) return null;
   const lng = toFiniteNumber(coords[0], null);
@@ -262,7 +262,7 @@ const extractLngLatFromGeoPoint = (geoPoint = null) => {
   return { lng, lat };
 };
 
-const haversineMeters = (from, to) => {
+export const haversineMeters = (from, to) => {
   if (!from || !to) return null;
   const toRad = (deg) => (deg * Math.PI) / 180;
   const R = 6371e3;
@@ -609,6 +609,7 @@ const toCourierAssignment = (requestDoc = {}, locationMaps = null, options = {})
     assignmentAcceptedAt: raw.assignmentAcceptedAt || null,
     assignmentRejectedAt: raw.assignmentRejectedAt || null,
     assignmentRejectReason: raw.assignmentRejectReason || '',
+    assignedDeliveryGuyId: raw.assignedDeliveryGuyId?._id || raw.assignedDeliveryGuyId || null,
     deliveryPinCode: visibleDeliveryPin || '',
     deliveryPinCodeExpiresAt: pinExpiresAt || null,
     timeline: Array.isArray(raw.timeline) ? raw.timeline : [],
@@ -698,6 +699,40 @@ const toCourierAssignmentResolved = async (entry, options = {}) => {
   return list[0] || toCourierAssignment(entry, null, { exposeDeliveryPin: options?.exposeDeliveryPin !== false });
 };
 
+const redactClaimableAssignment = (item = {}) => ({
+  ...item,
+  claimable: true,
+  deliveryPinCode: '',
+  pickup: {
+    ...(item.pickup || {}),
+    address: '',
+    coordinates: null,
+    locationVisible: false
+  },
+  dropoff: {
+    ...(item.dropoff || {}),
+    address: '',
+    coordinates: null,
+    locationVisible: false
+  },
+  seller: item.seller ? { ...item.seller, phone: '' } : null,
+  buyer: item.buyer
+    ? { ...item.buyer, name: 'Client HDMarket', phone: '', address: '' }
+    : null
+});
+
+const getOpenCourierPoolFilter = (now = new Date()) => ({
+  assignedDeliveryGuyId: null,
+  status: 'ACCEPTED',
+  assignmentStatus: 'PENDING',
+  currentStage: 'ASSIGNED',
+  $or: [
+    { expiresAt: null },
+    { expiresAt: { $exists: false } },
+    { expiresAt: { $gt: now } }
+  ]
+});
+
 const canUseCourierMode = (user = {}) => {
   const role = String(user?.role || '').toLowerCase();
   return (
@@ -714,7 +749,7 @@ const canUseCourierMode = (user = {}) => {
 const isStrictDeliveryPortalRequest = (req = {}) =>
   String(req?.baseUrl || '').toLowerCase().includes('/api/delivery');
 
-const resolveCourierContext = async (req, { requireAgentFlag = true, allowAdminPreview = true } = {}) => {
+export const resolveCourierContext = async (req, { requireAgentFlag = true, allowAdminPreview = true } = {}) => {
   const runtime = await assertPlatformDeliveryEnabled();
   if (requireAgentFlag && !runtime.enableDeliveryAgents) {
     const err = new Error('Le mode livreur est désactivé.');
@@ -794,7 +829,7 @@ const resolveCourierContext = async (req, { requireAgentFlag = true, allowAdminP
   return { runtime, deliveryGuy, previewMode: false };
 };
 
-const ensureAssignedToCourier = (requestDoc, deliveryGuyId) => {
+export const ensureAssignedToCourier = (requestDoc, deliveryGuyId) => {
   const assignedRaw = requestDoc?.assignedDeliveryGuyId;
   const assigned = String(
     (assignedRaw && typeof assignedRaw === 'object' ? assignedRaw?._id : assignedRaw) || ''
@@ -818,6 +853,7 @@ export const listCourierAssignments = asyncHandler(async (req, res) => {
     allowAdminPreview
   });
   const {
+    scope = 'assigned',
     status = '',
     date = '',
     pickupCommune = '',
@@ -838,7 +874,20 @@ export const listCourierAssignments = asyncHandler(async (req, res) => {
     });
   }
 
-  const filter = { assignedDeliveryGuyId: deliveryGuy._id };
+  const normalizedScope = ['assigned', 'pool', 'all'].includes(String(scope || '').toLowerCase())
+    ? String(scope).toLowerCase()
+    : 'assigned';
+  const openPoolFilter = getOpenCourierPoolFilter();
+  const filter = normalizedScope === 'pool'
+    ? { ...openPoolFilter }
+    : normalizedScope === 'all'
+      ? {
+          $or: [
+            { assignedDeliveryGuyId: deliveryGuy._id },
+            openPoolFilter
+          ]
+        }
+      : { assignedDeliveryGuyId: deliveryGuy._id };
   const normalizedStatus = normalizeText(status).toUpperCase();
   if (normalizedStatus && normalizedStatus !== 'ALL') {
     if (['PENDING', 'ACCEPTED', 'REJECTED'].includes(normalizedStatus)) {
@@ -883,8 +932,16 @@ export const listCourierAssignments = asyncHandler(async (req, res) => {
     DeliveryRequest.countDocuments(filter)
   ]);
 
+  const serializedItems = await toCourierAssignments(items, { runtime, exposeDeliveryPin: !previewMode });
+  const courierId = String(deliveryGuy._id);
+  const safeItems = serializedItems.map((item) =>
+    !item.assignedDeliveryGuyId || String(item.assignedDeliveryGuyId) !== courierId
+      ? redactClaimableAssignment(item)
+      : { ...item, claimable: false }
+  );
+
   return res.json({
-    items: await toCourierAssignments(items, { runtime, exposeDeliveryPin: !previewMode }),
+    items: safeItems,
     total,
     page: pageNumber,
     pageSize,
@@ -917,18 +974,72 @@ export const acceptCourierAssignment = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Demande de livraison invalide.' });
   }
 
-  const assignment = await loadCourierAssignmentById(requestId);
+  let assignment = await loadCourierAssignmentById(requestId);
   if (!assignment) {
     return res.status(404).json({ message: 'Demande introuvable.' });
-  }
-  if (!ensureAssignedToCourier(assignment, deliveryGuy._id)) {
-    return res.status(403).json({ message: 'Accès refusé à cette demande.' });
   }
   if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(String(assignment.status || '').toUpperCase())) {
     return res.status(409).json({ message: 'Cette demande est déjà clôturée.' });
   }
 
-  if (String(assignment.assignmentStatus || '').toUpperCase() === 'ACCEPTED') {
+  let claimedFromPool = false;
+  if (!assignment.assignedDeliveryGuyId) {
+    const acceptedAt = new Date();
+    const visibilityUntil = new Date(
+      acceptedAt.getTime() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
+    );
+    const claimed = await DeliveryRequest.findOneAndUpdate(
+      {
+        _id: requestId,
+        ...getOpenCourierPoolFilter(acceptedAt)
+      },
+      {
+        $set: {
+          assignedDeliveryGuyId: deliveryGuy._id,
+          assignmentStatus: 'ACCEPTED',
+          assignmentAcceptedAt: acceptedAt,
+          assignmentRejectedAt: null,
+          assignmentRejectReason: '',
+          status: 'ACCEPTED',
+          currentStage: 'ACCEPTED',
+          mapAccess: {
+            sellerVisibleUntil: visibilityUntil,
+            buyerVisibleUntil: visibilityUntil,
+            lockedAfterDistanceMeters: Number(runtime.locationLockDistanceMeters || 120),
+            lockedAfterStatus: String(runtime.locationLockOnStatus || 'DELIVERED').toUpperCase(),
+            sellerLockedAt: null,
+            buyerLockedAt: null
+          }
+        },
+        $push: {
+          timeline: {
+            type: 'COURIER_CLAIMED',
+            by: req.user.id,
+            at: acceptedAt,
+            meta: {
+              courierId: String(deliveryGuy._id),
+              courierName: deliveryGuy.fullName || deliveryGuy.name || ''
+            }
+          }
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!claimed) {
+      return res.status(409).json({
+        message: 'Cette livraison vient d’être prise par un autre livreur.'
+      });
+    }
+    claimedFromPool = true;
+    assignment = await loadCourierAssignmentById(requestId);
+  }
+
+  if (!ensureAssignedToCourier(assignment, deliveryGuy._id)) {
+    return res.status(409).json({ message: 'Cette livraison est déjà attribuée à un autre livreur.' });
+  }
+
+  if (!claimedFromPool && String(assignment.assignmentStatus || '').toUpperCase() === 'ACCEPTED') {
     return res.json({
       message: 'Affectation déjà acceptée.',
       idempotent: true,
@@ -936,37 +1047,38 @@ export const acceptCourierAssignment = asyncHandler(async (req, res) => {
     });
   }
 
-  assignment.assignmentStatus = 'ACCEPTED';
-  assignment.assignmentAcceptedAt = new Date();
-  assignment.assignmentRejectedAt = null;
-  assignment.assignmentRejectReason = '';
-  assignment.status = 'ACCEPTED';
-  assignment.currentStage = 'ACCEPTED';
-  assignment.mapAccess = {
-    ...(assignment.mapAccess || {}),
-    sellerVisibleUntil: new Date(
-      Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
-    ),
-    buyerVisibleUntil: new Date(
-      Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
-    ),
-    lockedAfterDistanceMeters: Number(runtime.locationLockDistanceMeters || 120),
-    lockedAfterStatus: String(runtime.locationLockOnStatus || 'DELIVERED').toUpperCase(),
-    sellerLockedAt: null,
-    buyerLockedAt: null
-  };
-  appendTimeline(assignment, {
-    type: 'COURIER_ACCEPTED',
-    by: req.user.id,
-    meta: {
-      courierId: String(deliveryGuy._id),
-      courierName: deliveryGuy.fullName || deliveryGuy.name || ''
-    }
-  });
+  if (!claimedFromPool) {
+    assignment.assignmentStatus = 'ACCEPTED';
+    assignment.assignmentAcceptedAt = new Date();
+    assignment.assignmentRejectedAt = null;
+    assignment.assignmentRejectReason = '';
+    assignment.status = 'ACCEPTED';
+    assignment.currentStage = 'ACCEPTED';
+    assignment.mapAccess = {
+      ...(assignment.mapAccess || {}),
+      sellerVisibleUntil: new Date(
+        Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
+      ),
+      buyerVisibleUntil: new Date(
+        Date.now() + Number(runtime.locationVisibilityMinutesAfterAccept || 90) * 60 * 1000
+      ),
+      lockedAfterDistanceMeters: Number(runtime.locationLockDistanceMeters || 120),
+      lockedAfterStatus: String(runtime.locationLockOnStatus || 'DELIVERED').toUpperCase(),
+      sellerLockedAt: null,
+      buyerLockedAt: null
+    };
+    appendTimeline(assignment, {
+      type: 'COURIER_ACCEPTED',
+      by: req.user.id,
+      meta: {
+        courierId: String(deliveryGuy._id),
+        courierName: deliveryGuy.fullName || deliveryGuy.name || ''
+      }
+    });
 
-  // Delivery PIN is owned by seller flow. Courier no longer auto-generates it on accept.
-
-  await assignment.save();
+    // Delivery PIN is owned by seller flow. Courier no longer auto-generates it on accept.
+    await assignment.save();
+  }
 
   await updateOrderPlatformDeliveryState({
     orderId: assignment.orderId?._id || assignment.orderId,
@@ -1032,7 +1144,7 @@ export const acceptCourierAssignment = asyncHandler(async (req, res) => {
 
   const hydrated = await loadCourierAssignmentById(requestId);
   return res.json({
-    message: 'Affectation acceptée.',
+    message: claimedFromPool ? 'Livraison ajoutée à vos missions.' : 'Affectation acceptée.',
     item: await toCourierAssignmentResolved(hydrated, { runtime })
   });
 });

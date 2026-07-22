@@ -810,7 +810,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
     case 'referral_reward_earned':
     case 'group_buy_joined':
     case 'group_buy_filled':
-    case 'group_buy_expired': {
+    case 'group_buy_expired':
+    case 'parcel_request_assigned':
+    case 'parcel_pickup_started':
+    case 'parcel_request_delivered':
+    case 'parcel_request_cancelled': {
       title = metadata.title && String(metadata.title).trim() ? String(metadata.title).trim() : 'HDMarket';
       body =
         metadata.message && String(metadata.message).trim()

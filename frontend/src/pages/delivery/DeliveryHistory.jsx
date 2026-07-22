@@ -21,8 +21,8 @@ import {
 } from '../../utils/deliveryUi';
 
 const DATE_FILTERS = [
-  { key: 'today', label: 'Today' },
-  { key: 'all', label: 'All' }
+  { key: 'today', label: 'Aujourd’hui' },
+  { key: 'all', label: 'Toutes' }
 ];
 
 const PAGE_SIZE = 16;
@@ -127,8 +127,8 @@ export default function DeliveryHistory() {
         subtitle="Livraisons terminees et incidents"
         online={!isOffline}
         actions={[
-          { key: 'back', label: 'Dashboard', to: `${routePrefix}/dashboard`, icon: ArrowLeft },
-          { key: 'profile', label: 'Profile', to: buildProfileRoute(routePrefix) }
+          { key: 'back', label: 'Missions', to: `${routePrefix}/dashboard`, icon: ArrowLeft },
+          { key: 'profile', label: 'Profil', to: buildProfileRoute(routePrefix) }
         ]}
       />
 
@@ -142,15 +142,15 @@ export default function DeliveryHistory() {
       >
         <div className="grid grid-cols-3 gap-2">
           <article className="soft-card soft-card-green rounded-xl p-3 text-center">
-            <p className="text-xs text-green-700 dark:text-green-100">Completed</p>
+            <p className="text-xs text-green-700 dark:text-green-100">Terminées</p>
             <p className="mt-1 text-lg font-semibold text-green-800 dark:text-green-100">{completedCount}</p>
           </article>
           <article className="glass-card rounded-xl p-3 text-center">
-            <p className="text-xs text-slate-600 dark:text-slate-300">Failed</p>
+            <p className="text-xs text-slate-600 dark:text-slate-300">Échecs</p>
             <p className="mt-1 text-lg font-semibold text-slate-800 dark:text-white">{failedCount}</p>
           </article>
           <article className="soft-card soft-card-purple rounded-xl p-3 text-center">
-            <p className="text-xs text-purple-700 dark:text-purple-100">Earnings</p>
+            <p className="text-xs text-purple-700 dark:text-purple-100">Revenus</p>
             <p className="mt-1 text-sm font-semibold text-purple-800 dark:text-purple-100">{formatCurrency(earnings)}</p>
           </article>
         </div>

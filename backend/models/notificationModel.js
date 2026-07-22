@@ -108,7 +108,11 @@ const notificationSchema = new mongoose.Schema(
       'referral_reward_earned',
       'group_buy_joined',
       'group_buy_filled',
-      'group_buy_expired'
+      'group_buy_expired',
+      'parcel_request_assigned',
+      'parcel_pickup_started',
+      'parcel_request_delivered',
+      'parcel_request_cancelled'
     ],
       required: true
     },

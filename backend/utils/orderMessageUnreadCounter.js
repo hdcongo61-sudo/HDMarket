@@ -41,7 +41,7 @@ export const syncOrderUnreadState = async (userId) => {
     },
     {
       $group: {
-        _id: '$order',
+        _id: '$conversation',
         count: { $sum: 1 }
       }
     }

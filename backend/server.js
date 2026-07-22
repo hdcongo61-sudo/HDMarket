@@ -27,6 +27,7 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import conversationRoutes from './routes/conversationRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
@@ -49,12 +50,15 @@ import productQuestionRoutes from './routes/productQuestionRoutes.js';
 import rewardPointsRoutes from './routes/rewardPointsRoutes.js';
 import referralRoutes from './routes/referralRoutes.js';
 import groupBuyRoutes from './routes/groupBuyRoutes.js';
+import parcelRequestRoutes from './routes/parcelRequestRoutes.js';
+import courierParcelRoutes from './routes/courierParcelRoutes.js';
 import shopAssistantRoutes from './routes/shopAssistantRoutes.js';
 import homeRoutes from './routes/homeRoutes.js';
 import imageStudioRoutes from './routes/imageStudioRoutes.js';
 
 import User from './models/userModel.js';
-import Order from './models/orderModel.js';
+import Conversation from './models/conversationModel.js';
+import { resolveConversationAccess } from './services/conversationService.js';
 import ChatMessage from './models/chatMessageModel.js';
 import { createNotification } from './utils/notificationService.js';
 import {
@@ -206,6 +210,8 @@ const allowedOrigins = new Set([
   'ionic://localhost',
   'https://hdmarket.onrender.com',
   'https://www.hdmarket.store',
+  'https://api.pawapay.io',
+  'https://api.sandbox.pawapay.io',
   ...devOrigins,
   ...envOrigins
 ]);
@@ -267,6 +273,7 @@ const limiter = rateLimit({
   },
   skip: (req) =>
     req.originalUrl?.startsWith('/api/users/notifications/stream') ||
+    req.originalUrl?.startsWith('/api/payments/pawapay/callbacks/') ||
     (process.env.NODE_ENV === 'development' && req.ip === '::1')
 });
 app.use(limiter);
@@ -284,7 +291,16 @@ app.use(
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
-app.use(express.json({ limit: '2mb' }));
+app.use(
+  express.json({
+    limit: '2mb',
+    verify: (req, _res, buffer) => {
+      if (req.originalUrl?.startsWith('/api/payments/pawapay/callbacks/')) {
+        req.rawBody = Buffer.from(buffer);
+      }
+    }
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(requestTimeoutMiddleware);
@@ -360,6 +376,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
@@ -382,6 +399,8 @@ app.use('/api/product-questions', productQuestionRoutes);
 app.use('/api/rewards', rewardPointsRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/group-buys', groupBuyRoutes);
+app.use('/api/parcels', parcelRequestRoutes);
+app.use('/api/courier/parcel-jobs', courierParcelRoutes);
 app.use('/api/*', notFoundApiHandler);
 
 app.use(globalErrorHandler);
@@ -458,16 +477,14 @@ io.on('connection', (socket) => {
     if (!targetId || isGuest) return;
 
     try {
-      const order = await Order.findById(targetId).select('customer items.snapshot.shopId').lean();
-      if (!order) return;
+      const conversation = await Conversation.findById(targetId).select('buyerId sellerId').lean();
+      if (!conversation) return;
 
-      const isCustomer = String(order.customer) === String(socketUserId);
-      const isSeller = Array.isArray(order.items)
-        ? order.items.some((item) => String(item?.snapshot?.shopId) === String(socketUserId))
-        : false;
       const isAdmin = socketRole === 'admin' || socketRole === 'manager';
-
-      if (!isCustomer && !isSeller && !isAdmin) return;
+      if (!isAdmin) {
+        const access = await resolveConversationAccess({ userId: socketUserId, conversation });
+        if (!access.canAccess) return;
+      }
 
       const roomName = buildOrderConversationRoom(targetId);
       socket.join(roomName);

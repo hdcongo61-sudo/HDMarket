@@ -1,7 +1,7 @@
 import express from 'express';
 import Joi from 'joi';
 import { protect } from '../middlewares/authMiddleware.js';
-import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess } from '../middlewares/roleMiddleware.js';
+import { requireRole, requireFeedbackAccess, requirePaymentVerification, requireBoostManagement, requireComplaintAccess, requireDeliveryAccess } from '../middlewares/roleMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import { upload } from '../utils/upload.js';
@@ -340,8 +340,17 @@ router.patch(
   toggleComplaintManager
 );
 
-// All other admin routes - require admin or manager role
-router.use(protect, requireRole(['admin', 'manager']));
+// All other admin routes require admin/manager access. Delivery managers may only
+// enter the delivery-request workflow and read the courier directory used for assignment.
+router.use(protect, (req, res, next) => {
+  const path = String(req.path || '');
+  const isDeliveryRequestPath = /^\/delivery-requests(?:\/|$)/.test(path);
+  const isCourierDirectoryRead = req.method === 'GET' && path === '/delivery-guys';
+  if (isDeliveryRequestPath || isCourierDirectoryRead) {
+    return requireDeliveryAccess(req, res, next);
+  }
+  return requireRole(['admin', 'manager'])(req, res, next);
+});
 router.get('/analytics/sales-trends', cacheMiddleware({ ttl: 300000 }), getSalesTrends);
 router.get('/analytics/order-heatmap', cacheMiddleware({ ttl: 300000 }), getOrderHeatmap);
 router.get('/analytics/conversion', cacheMiddleware({ ttl: 300000 }), getConversionMetrics);

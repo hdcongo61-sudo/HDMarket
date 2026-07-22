@@ -13,8 +13,21 @@ import {
   rejectPayment
 } from '../controllers/paymentController.js';
 import { validatePromoCodeForSeller } from '../controllers/promoCodeController.js';
+import {
+  receivePawaPayCallback,
+  verifyPawaPayContentDigest,
+  verifyPawaPaySignature
+} from '../controllers/pawapayController.js';
 
 const router = express.Router();
+
+// Public provider callbacks. PawaPay does not send an HDMarket user token.
+// Keep these routes above all authenticated payment routes.
+const pawaPayCallbackMiddleware = [verifyPawaPayContentDigest, verifyPawaPaySignature];
+router.post('/pawapay/callbacks/checkouts', ...pawaPayCallbackMiddleware, receivePawaPayCallback('checkout'));
+router.post('/pawapay/callbacks/deposits', ...pawaPayCallbackMiddleware, receivePawaPayCallback('deposit'));
+router.post('/pawapay/callbacks/payouts', ...pawaPayCallbackMiddleware, receivePawaPayCallback('payout'));
+router.post('/pawapay/callbacks/refunds', ...pawaPayCallbackMiddleware, receivePawaPayCallback('refund'));
 
 const promoValidationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

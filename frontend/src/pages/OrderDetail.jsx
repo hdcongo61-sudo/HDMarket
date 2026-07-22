@@ -510,34 +510,61 @@ export default function OrderDetail() {
     const nextOrder = buyerOrderDetailQuery.data?.order || null;
     setOrder(nextOrder);
     setUnreadCount(Number(buyerOrderDetailQuery.data?.unreadCount || 0));
-
-    // Fetch tracking data when order is loaded
-    if (nextOrder?._id && nextOrder?.status !== 'cancelled') {
-      api.get(`/orders/${nextOrder._id}/tracking`)
-        .then(({ data }) => setTrackingData(data))
-        .catch(() => {
-          // Show basic fallback with order timeline
-          setTrackingData({
-            orderId: nextOrder._id,
-            status: nextOrder.status,
-            createdAt: nextOrder.createdAt,
-            currentPosition: null,
-            mapCenter: { lat: -4.2634, lng: 15.2429 },
-            checkpoints: [{
-              type: 'placed',
-              icon: '🛒',
-              label: 'Commande passée',
-              time: nextOrder.createdAt,
-              description: 'Suivi en attente de mise à jour par le vendeur.',
-              active: true,
-              isCurrent: true
-            }],
-            hasDeliveryRequest: false,
-            courierName: null
-          });
-        });
-    }
   }, [buyerOrderDetailQuery.data]);
+
+  useEffect(() => {
+    const nextOrder = buyerOrderDetailQuery.data?.order || null;
+    if (!nextOrder?._id || nextOrder.status === 'cancelled') {
+      setTrackingData(null);
+      return undefined;
+    }
+
+    let active = true;
+    const fetchTracking = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      try {
+        const { data } = await api.get(`/orders/${nextOrder._id}/tracking`);
+        if (active) setTrackingData(data);
+      } catch {
+        if (!active) return;
+        setTrackingData((previous) => previous || {
+          orderId: nextOrder._id,
+          status: nextOrder.status,
+          createdAt: nextOrder.createdAt,
+          currentPosition: null,
+          mapCenter: { lat: -4.2634, lng: 15.2429 },
+          checkpoints: [{
+            type: 'placed',
+            icon: '🛒',
+            label: 'Commande passée',
+            time: nextOrder.createdAt,
+            description: 'Suivi en attente de mise à jour par le vendeur.',
+            active: true,
+            isCurrent: true
+          }],
+          hasDeliveryRequest: false,
+          courierName: null
+        });
+      }
+    };
+
+    fetchTracking();
+    const terminal = ['cancelled', 'delivered', 'completed'].includes(
+      String(nextOrder.status || '').toLowerCase()
+    );
+    const shouldPollLiveLocation = Boolean(nextOrder.platformDeliveryRequestId) && !terminal;
+    const interval = shouldPollLiveLocation ? window.setInterval(fetchTracking, 15_000) : null;
+
+    return () => {
+      active = false;
+      if (interval) window.clearInterval(interval);
+    };
+  }, [
+    buyerOrderDetailQuery.data?.order?._id,
+    buyerOrderDetailQuery.data?.order?.createdAt,
+    buyerOrderDetailQuery.data?.order?.platformDeliveryRequestId,
+    buyerOrderDetailQuery.data?.order?.status
+  ]);
 
   useOrderRealtimeSync({
     scope: 'user',

@@ -2,7 +2,11 @@ import mongoose from 'mongoose';
 
 const orderMessageSchema = new mongoose.Schema(
   {
-    order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
+    // Every message now belongs to a Conversation first — `order` is kept as
+    // optional denormalized context (still handy for order-scoped queries)
+    // rather than the required anchor it used to be. See conversationModel.js.
+    conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true, index: true },
+    order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null, index: true },
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: false, trim: true },

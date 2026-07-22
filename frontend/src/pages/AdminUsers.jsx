@@ -1524,47 +1524,53 @@ export default function AdminUsers() {
 
       {/* ─── Role Distribution + Filters ─── */}
       <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
-        {/* Role Pills */}
+        {/* Role Filter — single control, doubles as the role distribution readout */}
         {roleFilterOptions.length > 1 && (
           <div className="border-b border-neutral-100 px-4 py-3 sm:px-5">
             <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">Rôles</p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                type="button"
+                onClick={() => setRoleFilter('all')}
+                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                  roleFilter === 'all'
+                    ? 'bg-neutral-900 text-white shadow-sm'
+                    : 'border border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-100'
+                }`}
+              >
+                Tous
+                <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                  roleFilter === 'all' ? 'bg-white/20' : 'bg-neutral-200 text-neutral-500'
+                }`}>
+                  {formatNumber(stats.total)}
+                </span>
+              </button>
               {roleFilterOptions
                 .filter((option) => option.value !== 'all')
                 .map((option) => {
                   const count = Number(stats.roleBuckets?.[option.value] || 0);
+                  const active = roleFilter === option.value;
                   return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setRoleFilter(option.value)}
-                      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
-                        roleFilter === option.value
-                          ? `${getRoleBadgeClass(option.value)} shadow-sm`
+                      onClick={() => setRoleFilter(active ? 'all' : option.value)}
+                      aria-pressed={active}
+                      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                        active
+                          ? `${getRoleBadgeClass(option.value)} shadow-sm ring-1 ring-inset ring-current/25`
                           : 'border border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-100'
                       }`}
                     >
                       {option.label}
                       <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
-                        roleFilter === option.value
-                          ? 'bg-white/30'
-                          : 'bg-neutral-200 text-neutral-500'
+                        active ? 'bg-white/30' : 'bg-neutral-200 text-neutral-500'
                       }`}>
                         {count}
                       </span>
                     </button>
                   );
                 })}
-              {roleFilter !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => setRoleFilter('all')}
-                  className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-2 py-1 text-[10px] font-semibold text-neutral-400 hover:text-neutral-600 transition"
-                >
-                  <X size={12} />
-                  Effacer
-                </button>
-              )}
             </div>
           </div>
         )}
@@ -1606,19 +1612,6 @@ export default function AdminUsers() {
                   }`}
                 >
                   {statusFilterOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
-                    roleFilter !== 'all'
-                      ? `${getRoleBadgeClass(roleFilter)} border-transparent`
-                      : 'border-neutral-200 bg-white text-neutral-700'
-                  }`}
-                >
-                  {roleFilterOptions.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
@@ -1677,7 +1670,6 @@ export default function AdminUsers() {
               {[
                 { label: 'Type', options: accountFilterOptions, value: accountTypeFilter, setter: setAccountTypeFilter, activeClass: 'bg-neutral-900 text-white' },
                 { label: 'Statut', options: statusFilterOptions, value: statusFilter, setter: setStatusFilter, activeClass: 'bg-neutral-900 text-white' },
-                { label: 'Rôle', options: roleFilterOptions, value: roleFilter, setter: setRoleFilter, activeClass: '' },
                 { label: 'Restriction', options: restrictionFilterOptions, value: restrictionFilter, setter: setRestrictionFilter, activeClass: 'bg-amber-600 text-white' },
                 { label: 'Conversion', options: conversionFilterOptions, value: conversionFilter, setter: setConversionFilter, activeClass: 'bg-teal-600 text-white' }
               ].map((group) => (

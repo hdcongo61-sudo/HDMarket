@@ -1,5 +1,5 @@
 const normalizeUserKey = (userId) => String(userId || 'anon');
-const normalizeOrderKey = (orderId) => String(orderId || 'none');
+const normalizeConversationKey = (conversationId) => String(conversationId || 'none');
 
 export const orderChatKeys = {
   all: ['order-chat'],
@@ -14,12 +14,12 @@ export const orderChatKeys = {
     }
   ],
   unread: (userId) => [...orderChatKeys.user(userId), 'unread'],
-  messagesRoot: (userId, orderId) => [
+  messagesRoot: (userId, conversationId) => [
     ...orderChatKeys.user(userId),
     'messages',
-    normalizeOrderKey(orderId)
+    normalizeConversationKey(conversationId)
   ],
-  messages: (userId, orderId) => [...orderChatKeys.messagesRoot(userId, orderId), 'infinite']
+  messages: (userId, conversationId) => [...orderChatKeys.messagesRoot(userId, conversationId), 'infinite']
 };
 
 export default orderChatKeys;

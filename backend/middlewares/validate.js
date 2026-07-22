@@ -654,6 +654,11 @@ export const schemas = {
   orderInquiry: Joi.object({
     productId: Joi.string().hex().length(24).required()
   }),
+  startConversation: Joi.object({
+    orderId: Joi.string().hex().length(24),
+    sellerId: Joi.string().hex().length(24),
+    productId: Joi.string().hex().length(24)
+  }).xor('orderId', 'sellerId'),
   orderCheckout: Joi.alternatives()
     .try(
       Joi.object({
@@ -991,6 +996,7 @@ export const schemas = {
     }).optional()
   }).min(1),
   courierAssignmentsListQuery: Joi.object({
+    scope: Joi.string().valid('assigned', 'pool', 'all').default('assigned'),
     status: Joi.string().trim().max(40).allow('', null),
     date: Joi.string().valid('today', 'all', '').allow(null),
     pickupCommune: Joi.string().trim().allow('', null),

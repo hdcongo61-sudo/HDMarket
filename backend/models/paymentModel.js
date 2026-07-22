@@ -58,7 +58,7 @@ const gatewaySchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      enum: ['MTN', 'AIRTEL', 'CINETPAY', 'FLUTTERWAVE', 'PAYDUNYA', 'NONE'],
+      enum: ['MTN', 'AIRTEL', 'CINETPAY', 'FLUTTERWAVE', 'PAYDUNYA', 'PAWAPAY', 'NONE'],
       default: 'NONE'
     },
     externalTransactionId: { type: String, trim: true, default: '' },

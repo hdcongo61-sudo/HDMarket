@@ -130,9 +130,21 @@ export const AppSettingsProvider = ({ children }) => {
     const defaultCity =
       payload.defaultCity || cities.find((item) => item?.isDefault) || cities[0] || FALLBACK_CITY;
 
+    const runtime = payload.runtime || {};
+    const runtimeAppInformation =
+      runtime.app_information && typeof runtime.app_information === 'object'
+        ? runtime.app_information
+        : null;
+    const app = payload.app && typeof payload.app === 'object' ? payload.app : {};
     const safe = {
-      app: payload.app || {},
-      runtime: payload.runtime || {},
+      app: {
+        ...app,
+        information:
+          app.information && typeof app.information === 'object'
+            ? app.information
+            : runtimeAppInformation || {}
+      },
+      runtime,
       featureFlags: payload.featureFlags || {},
       ui: payload.ui || {},
       defaultLanguage: payload.defaultLanguage || 'fr',
@@ -196,6 +208,13 @@ export const AppSettingsProvider = ({ children }) => {
       if (runtimeResult.status === 'fulfilled' && runtimeResult.value?.data) {
         const runtimeResponse = runtimeResult.value.data;
         fallbackPayload.runtime = runtimeResponse?.values || {};
+        fallbackPayload.app = {
+          information:
+            runtimeResponse?.values?.app_information &&
+            typeof runtimeResponse.values.app_information === 'object'
+              ? runtimeResponse.values.app_information
+              : {}
+        };
         fallbackPayload.featureFlags = runtimeResponse?.featureFlags || {};
         fallbackPayload.ui = runtimeResponse?.byCategory?.ui || {};
       }

@@ -27,7 +27,7 @@ export default function DeliveryListItem({
 
   const assignmentStatus = String(item?.assignmentStatus || '').toUpperCase();
   const canAccept = assignmentStatus === 'PENDING' && !acceptDisabled && !actionsDisabled;
-  const canReject = assignmentStatus === 'PENDING' && !rejectDisabled && !actionsDisabled;
+  const canReject = !item?.claimable && assignmentStatus === 'PENDING' && !rejectDisabled && !actionsDisabled;
 
   const firstItem = Array.isArray(item?.itemsSnapshot) ? item.itemsSnapshot[0] : null;
   const routeText = useMemo(
@@ -65,22 +65,22 @@ export default function DeliveryListItem({
       <div className="pointer-events-none absolute inset-0 flex">
         <div className="flex flex-1 items-center justify-start soft-card soft-card-green pl-4 text-emerald-700 dark:text-emerald-100">
           <span className="inline-flex items-center gap-1 text-xs font-semibold">
-            <Check size={12} /> Swipe to accept
+            <Check size={12} /> {item?.claimable ? 'Glisser pour prendre' : 'Glisser pour accepter'}
           </span>
         </div>
         <div className="flex flex-1 items-center justify-end soft-card soft-card-red pr-4 text-red-700 dark:text-red-100">
           <span className="inline-flex items-center gap-1 text-xs font-semibold">
-            Swipe to reject <X size={12} />
+            {item?.claimable ? 'Utilisez le bouton' : 'Glisser pour refuser'} <X size={12} />
           </span>
         </div>
       </div>
 
       <LiquidGlassCard
-        role="button"
-        tabIndex={0}
-        onClick={() => onOpen?.(item)}
+        role={item?.claimable ? 'group' : 'button'}
+        tabIndex={item?.claimable ? -1 : 0}
+        onClick={() => !item?.claimable && onOpen?.(item)}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') onOpen?.(item);
+          if (event.key === 'Enter' && !item?.claimable) onOpen?.(item);
         }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -103,7 +103,7 @@ export default function DeliveryListItem({
             </p>
           </div>
           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(item)}`}>
-            {workflowLabelOf(item)}
+            {item?.claimable ? 'Disponible' : workflowLabelOf(item)}
           </span>
         </div>
 
@@ -126,6 +126,20 @@ export default function DeliveryListItem({
           </div>
           <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">{formatCurrency(item?.deliveryPrice, item?.currency)}</p>
         </div>
+
+        {item?.claimable ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onAccept?.(item);
+            }}
+            disabled={!canAccept}
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm disabled:opacity-60"
+          >
+            <Check size={15} /> Prendre cette livraison
+          </button>
+        ) : null}
       </LiquidGlassCard>
     </div>
   );

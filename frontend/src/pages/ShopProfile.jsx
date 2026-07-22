@@ -603,13 +603,24 @@ export default function ShopProfile() {
       navigate('/login', { state: { from: `/shop/${slug}` } });
       return;
     }
-    const firstProduct = products[0];
-    if (firstProduct?._id) {
-      navigate('/orders/messages', { state: { inquireProduct: firstProduct } });
+    if (!shop?._id) {
+      navigate('/orders/messages');
       return;
     }
-    navigate('/orders/messages');
-  }, [navigate, products, slug, user]);
+    const firstProduct = products[0];
+    navigate('/orders/messages', {
+      state: {
+        startConversation: {
+          sellerId: shop._id,
+          sellerName: shop.shopName || shop.name,
+          productId: firstProduct?._id,
+          productTitle: firstProduct?.title,
+          productImage: Array.isArray(firstProduct?.images) ? firstProduct.images[0] : firstProduct?.image,
+          productSlug: firstProduct?.slug
+        }
+      }
+    });
+  }, [navigate, products, shop, slug, user]);
 
   const shopLocation = useMemo(
     () => parseGeoPoint(shop?.location || shop?.shopLocation),

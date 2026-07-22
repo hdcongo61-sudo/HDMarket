@@ -36,6 +36,9 @@ const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const ReferralLanding = lazy(() => import('./pages/ReferralLanding'));
 const Referrals = lazy(() => import('./pages/Referrals'));
+const RequestDelivery = lazy(() => import('./pages/RequestDelivery'));
+const MyParcelRequests = lazy(() => import('./pages/MyParcelRequests'));
+const ParcelRequestDetail = lazy(() => import('./pages/ParcelRequestDetail'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const MyListingDetail = lazy(() => import('./pages/MyListingDetail'));
@@ -45,10 +48,13 @@ const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
 const AdminDeliveryGuys = lazy(() => import('./pages/AdminDeliveryGuys'));
 const AdminDeliveryRequests = lazy(() => import('./pages/AdminDeliveryRequests'));
+const AdminParcelRequests = lazy(() => import('./pages/AdminParcelRequests'));
 const CourierDashboard = lazy(() => import('./pages/CourierDashboard'));
+const ParcelJobs = lazy(() => import('./pages/delivery/ParcelJobs'));
 const DeliveryAssignmentDetail = lazy(() => import('./pages/delivery/DeliveryAssignmentDetail'));
 const DeliveryHistory = lazy(() => import('./pages/delivery/DeliveryHistory'));
 const DeliveryProfile = lazy(() => import('./pages/delivery/DeliveryProfile'));
+const DeliveryAppShell = lazy(() => import('./components/delivery/DeliveryAppShell'));
 const TopDeals = lazy(() => import('./pages/TopDeals'));
 const TopRanking = lazy(() => import('./pages/TopRanking'));
 const TopFavorites = lazy(() => import('./pages/TopFavorites'));
@@ -628,7 +634,9 @@ function AppContent() {
       {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
       <main
-        className="app-main-shell pt-[calc(env(safe-area-inset-top,0px)+4rem)] pb-24 md:pb-0 lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] main-content mobile-nav-safe no-ios-callout"
+        className={isCourierRoute
+          ? 'app-main-shell min-h-[100dvh] p-0 main-content no-ios-callout'
+          : 'app-main-shell pt-[calc(env(safe-area-inset-top,0px)+4rem)] pb-24 md:pb-0 lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] main-content mobile-nav-safe no-ios-callout'}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -661,6 +669,9 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
           <Route path="/r/:code" element={<ReferralLanding />} />
           <Route path="/referrals" element={<Referrals />} />
+          <Route path="/parcels/new" element={<RequestDelivery />} />
+          <Route path="/parcels/:id" element={<ParcelRequestDetail />} />
+          <Route path="/parcels" element={<MyParcelRequests />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ForgotPassword />} />
           <Route path="/user-stats" element={<Navigate to="/stats" replace />} />
@@ -720,66 +731,6 @@ function AppContent() {
             }
           />
           <Route
-            path="/delivery/dashboard"
-            element={
-              <ProtectedRoute
-                permissions={[
-                  'courier_view_assignments',
-                  'courier_accept_assignment',
-                  'courier_update_status',
-                  'courier_upload_proof'
-                ]}
-              >
-                <CourierDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/delivery/assignment/:id"
-            element={
-              <ProtectedRoute
-                permissions={[
-                  'courier_view_assignments',
-                  'courier_accept_assignment',
-                  'courier_update_status',
-                  'courier_upload_proof'
-                ]}
-              >
-                <DeliveryAssignmentDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/delivery/history"
-            element={
-              <ProtectedRoute
-                permissions={[
-                  'courier_view_assignments',
-                  'courier_accept_assignment',
-                  'courier_update_status',
-                  'courier_upload_proof'
-                ]}
-              >
-                <DeliveryHistory />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/delivery/profile"
-            element={
-              <ProtectedRoute
-                permissions={[
-                  'courier_view_assignments',
-                  'courier_accept_assignment',
-                  'courier_update_status',
-                  'courier_upload_proof'
-                ]}
-              >
-                <DeliveryProfile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/delivery"
             element={
               <ProtectedRoute
@@ -790,10 +741,17 @@ function AppContent() {
                   'courier_upload_proof'
                 ]}
               >
-                <CourierEntryRedirect />
+                <DeliveryAppShell />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<CourierEntryRedirect />} />
+            <Route path="dashboard" element={<CourierDashboard />} />
+            <Route path="assignment/:id" element={<DeliveryAssignmentDetail />} />
+            <Route path="parcels" element={<ParcelJobs />} />
+            <Route path="history" element={<DeliveryHistory />} />
+            <Route path="profile" element={<DeliveryProfile />} />
+          </Route>
           <Route
             path="/settings/categories"
             element={
@@ -1151,6 +1109,7 @@ function AppContent() {
               path="delivery-requests"
               element={platformDeliveryEnabled ? <AdminDeliveryRequests /> : <Navigate to="/admin" replace />}
             />
+            <Route path="parcel-requests" element={<AdminParcelRequests />} />
             <Route
               path="complaints"
               element={

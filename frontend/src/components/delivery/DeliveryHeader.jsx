@@ -6,7 +6,7 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
     <header className="-mx-3 border-b border-white/40 glass-header px-3 pb-3 pt-2 sm:-mx-5 sm:px-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">Delivery mode</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">HDMarket Delivery</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h1>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">{subtitle}</p>
         </div>

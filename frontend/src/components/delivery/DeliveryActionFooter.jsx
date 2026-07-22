@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 export default function DeliveryActionFooter({
   primaryLabel,
@@ -10,8 +11,11 @@ export default function DeliveryActionFooter({
   onSecondary,
   secondaryDisabled = false
 }) {
+  const { pathname } = useLocation();
+  const insideDeliveryApp = pathname.startsWith('/delivery');
+
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 sm:px-5">
+    <div className={`fixed inset-x-0 z-40 border-t border-gray-200 bg-white/95 px-3 py-3 backdrop-blur-xl sm:px-5 ${insideDeliveryApp ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+70px)] lg:bottom-0 lg:pl-64' : 'bottom-0 pb-[calc(env(safe-area-inset-bottom,0px)+12px)]'}`}>
       <div className="mx-auto flex w-full max-w-4xl gap-2">
         {secondaryLabel ? (
           <button

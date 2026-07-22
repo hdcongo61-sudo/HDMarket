@@ -1287,6 +1287,57 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     valueType: 'boolean',
     defaultValue: true,
     isPublic: true
+  },
+
+  // ── Parcel pickup / errand delivery (Lalamove-style, standalone from marketplace orders) ──
+  enable_parcel_delivery: {
+    category: 'delivery_platform',
+    description: 'Activer la demande de livraison de colis (course/errand) indépendante des commandes.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  parcel_delivery_base_price: {
+    category: 'delivery_platform',
+    description: 'Prix de base (XAF) d’une course colis quand la distance GPS est connue.',
+    valueType: 'number',
+    defaultValue: 1000,
+    isPublic: true
+  },
+  parcel_delivery_price_per_km: {
+    category: 'delivery_platform',
+    description: 'Prix (XAF) par kilomètre au-delà de la base, quand la distance GPS est connue.',
+    valueType: 'number',
+    defaultValue: 150,
+    isPublic: true
+  },
+  parcel_delivery_min_price: {
+    category: 'delivery_platform',
+    description: 'Prix minimum (XAF) d’une course colis, quelle que soit la distance.',
+    valueType: 'number',
+    defaultValue: 1000,
+    isPublic: true
+  },
+  parcel_delivery_same_commune_price: {
+    category: 'delivery_platform',
+    description: 'Prix forfaitaire (XAF) quand la distance GPS est inconnue et que le retrait/dépôt sont dans la même commune.',
+    valueType: 'number',
+    defaultValue: 1500,
+    isPublic: true
+  },
+  parcel_delivery_cross_commune_price: {
+    category: 'delivery_platform',
+    description: 'Prix forfaitaire (XAF) quand la distance GPS est inconnue et que le retrait/dépôt sont dans des communes différentes.',
+    valueType: 'number',
+    defaultValue: 2500,
+    isPublic: true
+  },
+  parcel_delivery_max_distance_km: {
+    category: 'delivery_platform',
+    description: 'Distance maximale (km) autorisée entre retrait et dépôt pour une course colis.',
+    valueType: 'number',
+    defaultValue: 30,
+    isPublic: true
   }
 });
 

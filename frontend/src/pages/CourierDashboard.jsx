@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, ChevronRight, History, Loader2, LogOut, RefreshCcw, User } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight, History, Loader2, LogOut, Package, RefreshCcw, User } from 'lucide-react';
 import api from '../services/api';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import AuthContext from '../context/AuthContext';
@@ -13,6 +13,7 @@ import DeliverySkeleton from '../components/delivery/DeliverySkeleton';
 import DeliveryTabs from '../components/delivery/DeliveryTabs';
 import NextDeliveryCard from '../components/delivery/NextDeliveryCard';
 import OfflineBanner from '../components/delivery/OfflineBanner';
+import DeliveryLiveTrackingCard from '../components/delivery/DeliveryLiveTrackingCard';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import LiquidGlassCard from '../components/ui/liquid-notification';
 import {
@@ -30,14 +31,15 @@ import {
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 
 const FEED_TABS = [
-  { key: 'new', label: 'New' },
-  { key: 'active', label: 'Active' },
-  { key: 'done', label: 'Done' }
+  { key: 'available', label: 'Disponibles' },
+  { key: 'new', label: 'Nouvelles' },
+  { key: 'active', label: 'En cours' },
+  { key: 'done', label: 'Terminées' }
 ];
 
 const DATE_FILTERS = [
-  { key: 'today', label: 'Today' },
-  { key: 'all', label: 'All' }
+  { key: 'today', label: 'Aujourd’hui' },
+  { key: 'all', label: 'Toutes' }
 ];
 
 const PAGE_SIZE = 12;
@@ -58,11 +60,12 @@ const getWeekStart = (value = Date.now()) => {
   return date.getTime();
 };
 
-const buildListParams = ({ dateFilter, page = 1, limit = PAGE_SIZE, deliveryGuyId = '' } = {}) => {
+const buildListParams = ({ dateFilter, page = 1, limit = PAGE_SIZE, deliveryGuyId = '', scope = 'all' } = {}) => {
   const params = new URLSearchParams();
   params.set('date', dateFilter || 'today');
   params.set('page', String(page || 1));
   params.set('limit', String(limit || PAGE_SIZE));
+  params.set('scope', scope);
   if (deliveryGuyId) params.set('deliveryGuyId', String(deliveryGuyId));
   return params.toString();
 };
@@ -94,8 +97,8 @@ export default function CourierDashboard() {
     [location.pathname]
   );
 
-  const [feedTab, setFeedTab] = useState('new');
-  const [dateFilter, setDateFilter] = useState('today');
+  const [feedTab, setFeedTab] = useState('available');
+  const [dateFilter, setDateFilter] = useState('all');
   const [selectedDeliveryGuyId, setSelectedDeliveryGuyId] = useState('');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
   const [pullDistance, setPullDistance] = useState(0);
@@ -103,6 +106,7 @@ export default function CourierDashboard() {
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   );
+  const [liveTracking, setLiveTracking] = useState({ status: 'standby', lastSentAt: null, accuracy: null });
 
   const touchStartYRef = useRef(null);
   const loadMoreRef = useRef(null);
@@ -166,6 +170,7 @@ export default function CourierDashboard() {
         dateFilter,
         page: pageParam,
         limit: PAGE_SIZE,
+        scope: previewMode ? 'assigned' : 'all',
         deliveryGuyId: previewMode && selectedDeliveryGuyId ? selectedDeliveryGuyId : ''
       });
       const endpoint = useLegacyCourierApi ? `/assignments?${params}` : `/jobs?${params}`;
@@ -191,9 +196,23 @@ export default function CourierDashboard() {
   const allItems = useMemo(() => mergeInfiniteItems(assignmentsQuery.data), [assignmentsQuery.data]);
 
   const filteredItems = useMemo(
-    () => allItems.filter((item) => isItemInTab(item, feedTab)),
+    () => allItems.filter((item) =>
+      feedTab === 'available'
+        ? Boolean(item?.claimable)
+        : !item?.claimable && isItemInTab(item, feedTab)
+    ),
     [allItems, feedTab]
   );
+
+  useEffect(() => {
+    if (
+      assignmentsQuery.isLoading
+      || assignmentsQuery.isFetchingNextPage
+      || filteredItems.length > 0
+      || !assignmentsQuery.hasNextPage
+    ) return;
+    assignmentsQuery.fetchNextPage();
+  }, [assignmentsQuery, filteredItems.length]);
 
   const fetchRevenueItems = async ({ date = 'today' } = {}) => {
     const collected = [];
@@ -247,8 +266,12 @@ export default function CourierDashboard() {
   });
 
   const counts = useMemo(() => {
-    const base = { new: 0, active: 0, done: 0 };
+    const base = { available: 0, new: 0, active: 0, done: 0 };
     return allItems.reduce((acc, item) => {
+      if (item?.claimable) {
+        acc.available += 1;
+        return acc;
+      }
       if (isItemInTab(item, 'new')) acc.new += 1;
       if (isItemInTab(item, 'active')) acc.active += 1;
       if (isItemInTab(item, 'done')) acc.done += 1;
@@ -273,7 +296,11 @@ export default function CourierDashboard() {
 
   const sortedAllItems = useMemo(() => sortByPriority(allItems), [allItems]);
   const nextDelivery = useMemo(
-    () => sortedAllItems.find((item) => !isDoneDelivery(item)) || sortedAllItems[0] || null,
+    () =>
+      sortedAllItems.find((item) => !item?.claimable && !isDoneDelivery(item))
+      || sortedAllItems.find((item) => item?.claimable)
+      || sortedAllItems[0]
+      || null,
     [sortedAllItems]
   );
 
@@ -288,12 +315,28 @@ export default function CourierDashboard() {
   );
 
   useEffect(() => {
-    if (isOffline || !bootstrapQuery.data?.enableLiveLocation) return undefined;
+    if (isOffline) {
+      setLiveTracking((previous) => ({ ...previous, status: 'offline' }));
+      return undefined;
+    }
+    if (!bootstrapQuery.data?.enableLiveLocation) {
+      setLiveTracking({ status: 'disabled', lastSentAt: null, accuracy: null });
+      return undefined;
+    }
     const assignmentId = activeTrackedAssignment?._id;
-    if (!assignmentId || typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
+    if (!assignmentId) {
+      setLiveTracking({ status: 'standby', lastSentAt: null, accuracy: null });
+      return undefined;
+    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLiveTracking({ status: 'unavailable', lastSentAt: null, accuracy: null });
+      return undefined;
+    }
 
     const LOCATION_PING_INTERVAL_MS = 15_000;
     let lastSentAt = 0;
+    let active = true;
+    setLiveTracking({ status: 'requesting', lastSentAt: null, accuracy: null });
 
     const sendPing = (position) => {
       const now = Date.now();
@@ -305,16 +348,38 @@ export default function CourierDashboard() {
           lat: position.coords.latitude,
           lng: position.coords.longitude
         })
-        .catch(() => {});
+        .then(() => {
+          if (!active) return;
+          setLiveTracking({
+            status: 'live',
+            lastSentAt: new Date().toISOString(),
+            accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null
+          });
+        })
+        .catch(() => {
+          if (active) setLiveTracking((previous) => ({ ...previous, status: 'unavailable' }));
+        });
     };
 
-    const watchId = navigator.geolocation.watchPosition(sendPing, () => {}, {
+    const handleLocationError = (error) => {
+      if (!active) return;
+      setLiveTracking({
+        status: Number(error?.code) === 1 ? 'denied' : 'unavailable',
+        lastSentAt: null,
+        accuracy: null
+      });
+    };
+
+    const watchId = navigator.geolocation.watchPosition(sendPing, handleLocationError, {
       enableHighAccuracy: true,
       maximumAge: 10_000,
       timeout: 20_000
     });
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      active = false;
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [isOffline, bootstrapQuery.data?.enableLiveLocation, activeTrackedAssignment?._id, apiPrefix]);
 
   const updateDeliveryListCache = (updater) => {
@@ -338,6 +403,7 @@ export default function CourierDashboard() {
           ? {
               ...item,
               assignmentStatus: 'ACCEPTED',
+              claimable: false,
               status: item?.status === 'PENDING' ? 'ACCEPTED' : item?.status,
               currentStage: item?.currentStage === 'ASSIGNED' ? 'ACCEPTED' : item?.currentStage,
               updatedAt: new Date().toISOString()
@@ -348,6 +414,12 @@ export default function CourierDashboard() {
     },
     onError: (_error, _variables, context) => {
       (context?.previous || []).forEach(([key, data]) => queryClient.setQueryData(key, data));
+    },
+    onSuccess: (data) => {
+      if (!data?.item?._id) return;
+      updateDeliveryListCache((item) =>
+        String(item?._id || '') === String(data.item._id) ? data.item : item
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['delivery'] });
@@ -438,6 +510,15 @@ export default function CourierDashboard() {
 
   const nextCardActions = useMemo(() => {
     if (!nextDelivery?._id) return { primaryLabel: 'Aucune action', onPrimary: undefined };
+    if (nextDelivery.claimable) {
+      return {
+        primaryLabel: 'Prendre la livraison',
+        onPrimary: () => acceptMutation.mutate({ id: nextDelivery._id }),
+        primaryDisabled: acceptMutation.isPending || isOffline,
+        secondaryLabel: '',
+        onSecondary: undefined
+      };
+    }
     const workflow = workflowStatusOf(nextDelivery);
     if (workflow === 'NEW') {
       return {
@@ -503,27 +584,33 @@ export default function CourierDashboard() {
         ]
       : []),
     {
+      key: 'parcels',
+      label: 'Colis',
+      to: `${routePrefix}/parcels`,
+      icon: Package
+    },
+    {
       key: 'history',
-      label: 'History',
+      label: 'Historique',
       to: buildHistoryRoute(routePrefix),
       icon: History
     },
     {
       key: 'profile',
-      label: 'Profile',
+      label: 'Profil',
       to: buildProfileRoute(routePrefix),
       icon: User
     },
     {
       key: 'refresh',
-      label: 'Refresh',
+      label: 'Actualiser',
       onClick: handleRefresh,
       icon: RefreshCcw,
       disabled: assignmentsQuery.isFetching
     },
     {
       key: 'logout',
-      label: 'Logout',
+      label: 'Déconnexion',
       onClick: handleLogout,
       icon: LogOut,
       tone: 'danger'
@@ -580,8 +667,14 @@ export default function CourierDashboard() {
 
   const kpiItems = [
     {
+      key: 'available',
+      label: 'Disponibles',
+      value: counts.available,
+      toneClass: 'bg-orange-100 text-orange-700'
+    },
+    {
       key: 'todo',
-      label: 'A faire',
+      label: 'À faire',
       value: counts.new,
       toneClass: 'bg-yellow-100 text-yellow-700'
     },
@@ -593,7 +686,7 @@ export default function CourierDashboard() {
     },
     {
       key: 'done',
-      label: 'Terminees',
+      label: 'Terminées',
       value: counts.done,
       toneClass: 'bg-green-100 text-green-700'
     },
@@ -640,6 +733,12 @@ export default function CourierDashboard() {
       <DeliveryKpiRow
         items={kpiItems}
         loading={bootstrapQuery.isLoading || todayRevenueQuery.isLoading || weekRevenueQuery.isLoading}
+      />
+
+      <DeliveryLiveTrackingCard
+        tracking={liveTracking}
+        assignment={activeTrackedAssignment}
+        onOpenAssignment={() => activeTrackedAssignment && openDetail(activeTrackedAssignment)}
       />
 
       {previewMode ? (
@@ -691,7 +790,7 @@ export default function CourierDashboard() {
         <div className="lg:hidden">
           <NextDeliveryCard
             assignment={nextDelivery}
-            title="Next delivery"
+            title="Prochaine livraison"
             primaryLabel={nextCardActions.primaryLabel}
             secondaryLabel={nextCardActions.secondaryLabel}
             onPrimary={nextCardActions.onPrimary}
@@ -712,7 +811,7 @@ export default function CourierDashboard() {
             borderRadius="16px"
             className="p-3 shadow-sm"
           >
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Date filter</p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Période</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {DATE_FILTERS.map((filter) => (
                 <button
@@ -733,6 +832,12 @@ export default function CourierDashboard() {
 
           <DeliveryTabs value={feedTab} onChange={setFeedTab} tabs={FEED_TABS} />
 
+          {acceptMutation.isError ? (
+            <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
+              {extractMessage(acceptMutation.error, 'Impossible de prendre cette livraison.')}
+            </p>
+          ) : null}
+
           {bootstrapQuery.isLoading || assignmentsQuery.isLoading ? (
             <DeliverySkeleton count={4} />
           ) : hardError ? (
@@ -752,8 +857,8 @@ export default function CourierDashboard() {
                     : 'Unable to load deliveries right now.'
                 }
                 onRetry={handleRefresh}
-                retryLabel="Retry"
-                refreshLabel="Refresh page"
+                retryLabel="Réessayer"
+                refreshLabel="Actualiser la page"
               />
             </LiquidGlassCard>
           ) : !modeEnabled ? (
@@ -788,7 +893,7 @@ export default function CourierDashboard() {
               className="p-8 text-center shadow-sm"
             >
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                {feedTab === 'done' ? 'All caught up' : 'No deliveries yet'}
+                {feedTab === 'done' ? 'Historique à jour' : 'Aucune livraison pour le moment'}
               </p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                 {feedTab === 'done'
@@ -802,7 +907,7 @@ export default function CourierDashboard() {
                 <DeliveryListItem
                   key={item._id}
                   item={item}
-                  onOpen={openDetail}
+                  onOpen={(item) => item?.claimable ? undefined : openDetail(item)}
                   onAccept={() => acceptMutation.mutate({ id: item._id })}
                   onReject={() => openRejectDialog(item)}
                   acceptDisabled={acceptMutation.isPending}
@@ -838,7 +943,7 @@ export default function CourierDashboard() {
           <div className="sticky top-[120px] space-y-4">
             <NextDeliveryCard
               assignment={selectedPreviewItem}
-              title="Next delivery"
+              title="Prochaine livraison"
               primaryLabel={nextCardActions.primaryLabel}
               secondaryLabel={nextCardActions.secondaryLabel}
               onPrimary={nextCardActions.onPrimary}
@@ -855,20 +960,20 @@ export default function CourierDashboard() {
               borderRadius="16px"
               className="p-4 shadow-sm"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Mini stats</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Performance</p>
               <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-100">
-                <p className="flex items-center justify-between"><span>Completed</span><strong>{statsQuery.data?.delivered ?? '—'}</strong></p>
-                <p className="flex items-center justify-between"><span>Failed</span><strong>{statsQuery.data?.failed ?? '—'}</strong></p>
-                <p className="flex items-center justify-between"><span>Acceptance rate</span><strong>{statsQuery.data ? `${statsQuery.data.acceptanceRate || 0}%` : '—'}</strong></p>
-                <p className="flex items-center justify-between"><span>Avg delivery time</span><strong>{statsQuery.data?.avgPickupToDeliveredMinutes ? `${statsQuery.data.avgPickupToDeliveredMinutes} min` : '—'}</strong></p>
-                <p className="flex items-center justify-between"><span>Total earnings</span><strong>{statsQuery.data ? formatCurrency(statsQuery.data.deliveryFeeRevenue || 0) : '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Terminées</span><strong>{statsQuery.data?.delivered ?? '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Échecs</span><strong>{statsQuery.data?.failed ?? '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Taux d’acceptation</span><strong>{statsQuery.data ? `${statsQuery.data.acceptanceRate || 0}%` : '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Durée moyenne</span><strong>{statsQuery.data?.avgPickupToDeliveredMinutes ? `${statsQuery.data.avgPickupToDeliveredMinutes} min` : '—'}</strong></p>
+                <p className="flex items-center justify-between"><span>Revenus totaux</span><strong>{statsQuery.data ? formatCurrency(statsQuery.data.deliveryFeeRevenue || 0) : '—'}</strong></p>
               </div>
               {selectedPreviewItem?._id ? (
                 <Link
                   to={buildAssignmentRoute({ basePath: routePrefix, id: selectedPreviewItem._id })}
                   className="soft-card soft-card-purple mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl px-3 text-sm font-semibold text-purple-900 dark:text-purple-100"
                 >
-                  Open selected
+                  Ouvrir la mission
                   <ChevronRight size={14} />
                 </Link>
               ) : null}

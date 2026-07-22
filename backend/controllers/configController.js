@@ -97,6 +97,17 @@ export const patchAdminRuntimeSetting = asyncHandler(async (req, res) => {
     syncLegacyAlias: true
   });
 
+  // app_information is the canonical identity editor. Keep the legacy public
+  // app_name setting aligned so older surfaces update during the same save.
+  let synchronizedAppName = null;
+  if (result?.key === 'app_information' && result?.value?.appName) {
+    synchronizedAppName = await setRuntimeConfig('app_name', result.value.appName, {
+      environment,
+      updatedBy: req.user?.id || null,
+      syncLegacyAlias: true
+    });
+  }
+
   await invalidatePublicSettingsProjection();
   await writeConfigAudit(req, {
     actionType: 'admin_system_settings_runtime_updated',
@@ -109,7 +120,11 @@ export const patchAdminRuntimeSetting = asyncHandler(async (req, res) => {
     }
   });
 
-  return res.json({ message: 'Setting updated.', item: result });
+  return res.json({
+    message: 'Setting updated.',
+    item: result,
+    synchronized: synchronizedAppName ? [synchronizedAppName] : []
+  });
 });
 
 export const patchAdminRuntimeSettingsBulk = asyncHandler(async (req, res) => {

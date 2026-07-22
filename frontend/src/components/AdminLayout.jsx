@@ -120,6 +120,18 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
         u?.canManageDelivery ||
         hasAnyPermission(u, ['manage_delivery']))
   },
+  {
+    to: '/admin/parcel-requests',
+    label: t('nav.parcelRequests', 'Courses colis'),
+    icon: Truck,
+    group: 'operations',
+    show: (u) =>
+      u?.role === 'admin' ||
+      u?.role === 'manager' ||
+      u?.role === 'founder' ||
+      u?.canManageDelivery ||
+      hasAnyPermission(u, ['manage_delivery'])
+  },
   { to: '/delivery/dashboard', label: t('nav.courierMode', 'Mode livreur'), icon: Truck, show: (u) => {
       const role = String(u?.role || '').toLowerCase();
       return (

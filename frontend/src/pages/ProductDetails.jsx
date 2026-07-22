@@ -36,6 +36,7 @@ import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
 import FavoriteContext from "../context/FavoriteContext";
 import api, { getApiErrorMessage, isApiPossiblyCommittedError } from "../services/api";
+import { startConversation as startConversationRequest } from "../queries/orderChatApi";
 import { buildWhatsappLink } from "../utils/whatsapp";
 import { parseSocialVideo } from "../utils/socialVideo";
 import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/links";
@@ -153,6 +154,39 @@ export default function ProductDetails() {
   const [inquiryOrder, setInquiryOrder] = useState(null);
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [inquiryError, setInquiryError] = useState("");
+
+  // Starts (or resolves) a pre-sale conversation with the seller — replaces
+  // the old fake-draft-order "inquiry" hack now that a conversation doesn't
+  // need an order to exist.
+  const startSellerInquiry = async () => {
+    if (!product?._id || !product?.user?._id) return;
+    setInquiryError("");
+    setInquiryLoading(true);
+    try {
+      const data = await startConversationRequest({ sellerId: product.user._id, productId: product._id });
+      setInquiryOrder({
+        _id: data.conversationId,
+        conversationId: data.conversationId,
+        items: [
+          {
+            product: product._id,
+            snapshot: {
+              shopId: product.user._id,
+              shopName: product.user.shopName || product.user.name,
+              title: product.title,
+              image: Array.isArray(product.images) ? product.images[0] : product.image,
+              slug: product.slug
+            }
+          }
+        ],
+        customer: user?._id ? { _id: String(user._id) } : undefined
+      });
+    } catch (err) {
+      setInquiryError(err.response?.data?.message || "Impossible d'ouvrir la conversation.");
+    } finally {
+      setInquiryLoading(false);
+    }
+  };
   const [reportModal, setReportModal] = useState({ isOpen: false, type: null, commentId: null, photoUrl: null });
   const [deletingCommentId, setDeletingCommentId] = useState(null);
   const {
@@ -3052,19 +3086,7 @@ export default function ProductDetails() {
             {user ? (
               <>
                 <button type="button" disabled={inquiryLoading}
-                  onClick={async () => {
-                    if (!product?._id) return;
-                    setInquiryError('');
-                    setInquiryLoading(true);
-                    try {
-                      const { data } = await api.post('/orders/inquiry', { productId: product._id });
-                      setInquiryOrder(data);
-                    } catch (err) {
-                      setInquiryError(err.response?.data?.message || "Impossible d'ouvrir la conversation.");
-                    } finally {
-                      setInquiryLoading(false);
-                    }
-                  }}
+                  onClick={startSellerInquiry}
                   className="flex items-center justify-center gap-2 w-full rounded border border-gray-200 bg-gray-50 py-3 text-sm font-medium text-gray-700 active:scale-[0.98] transition-all disabled:opacity-60">
                   <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#e85d00]" />
                   <span>{inquiryLoading ? 'Ouverture...' : 'Des questions ? Contacter le vendeur'}</span>
@@ -4015,19 +4037,7 @@ export default function ProductDetails() {
                     <button
                       type="button"
                       disabled={inquiryLoading}
-                      onClick={async () => {
-                        if (!product?._id) return;
-                        setInquiryError("");
-                        setInquiryLoading(true);
-                        try {
-                          const { data } = await api.post("/orders/inquiry", { productId: product._id });
-                          setInquiryOrder(data);
-                        } catch (err) {
-                          setInquiryError(err.response?.data?.message || "Impossible d'ouvrir la conversation.");
-                        } finally {
-                          setInquiryLoading(false);
-                        }
-                      }}
+                      onClick={startSellerInquiry}
                       className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 hover:border-neutral-200 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed w-full"
                     >
                       <MessageCircle className="w-4 h-4 flex-shrink-0" />
@@ -5213,6 +5223,7 @@ export default function ProductDetails() {
       {inquiryOrder && (
         <OrderChat
           order={inquiryOrder}
+          conversationId={inquiryOrder?.conversationId}
           onClose={() => setInquiryOrder(null)}
           defaultOpen
           buttonText="Contacter le vendeur"

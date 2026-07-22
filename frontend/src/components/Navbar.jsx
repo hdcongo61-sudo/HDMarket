@@ -71,7 +71,8 @@ import {
   Plus,
   Compass,
   BadgePercent,
-  Gift
+  Gift,
+  Bike
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -162,6 +163,7 @@ export default function Navbar() {
   const sellingEnabled = isTruthyFlag(getRuntimeValue('enable_selling', true));
   const shopConversionEnabled = isTruthyFlag(getRuntimeValue('enable_shop_conversion', true));
   const referralProgramEnabled = isTruthyFlag(getRuntimeValue('enable_referral_program', false));
+  const parcelDeliveryEnabled = isTruthyFlag(getRuntimeValue('enable_parcel_delivery', true));
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -295,7 +297,8 @@ export default function Navbar() {
   const desktopLogo = appLogos.desktop || appLogos.mobile || defaultAppLogo;
   const mobileLogo = appLogos.mobile || appLogos.desktop || defaultMobileAppLogo;
   const mobileBrandText = String(
-    app?.app_name ||
+    app?.information?.appName ||
+      app?.app_name ||
       app?.name ||
       app?.brandName ||
       app?.brand_name ||
@@ -754,15 +757,40 @@ export default function Navbar() {
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
     { id: 'referrals', label: t('nav.referrals', 'Parrainage'), path: '/referrals', icon: Gift, badge: null, visible: user ? referralProgramEnabled : false, order: 14.5 },
+    { id: 'parcels', label: t('nav.parcels', 'Envoyer un colis'), path: '/parcels/new', icon: Bike, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.7 },
     { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: BadgePercent, badge: null, visible: true, order: 15 }
   ];
 
-  const navItems = (customNavItems || defaultNavItems).map((item) => {
+  const customItems = Array.isArray(customNavItems) ? customNavItems : [];
+  const customItemsById = new Map(customItems.map((item) => [item?.id, item]));
+  const mergedDefaultItems = defaultNavItems.map((defaultItem) => {
+    const customItem = customItemsById.get(defaultItem.id);
+    if (!customItem) return defaultItem;
+    return {
+      ...defaultItem,
+      ...customItem,
+      icon: defaultItem.icon,
+      path: customItem.path || defaultItem.path
+    };
+  });
+  const additionalCustomItems = customItems
+    .filter((item) => item?.id && !defaultNavItems.some((defaultItem) => defaultItem.id === item.id))
+    .map((item) => ({ ...item, icon: item.icon || Compass }));
+
+  const navItems = [...mergedDefaultItems, ...additionalCustomItems].map((item) => {
     if (item?.id === 'suggestions') {
       return { ...item, visible: Boolean(item.visible) && aiRecommendationsEnabled };
     }
     if (item?.id === 'messages') {
       return { ...item, visible: Boolean(item.visible) && chatEnabled };
+    }
+    if (item?.id === 'parcels') {
+      return {
+        ...item,
+        label: t('nav.parcels', 'Envoyer un colis'),
+        path: '/parcels/new',
+        visible: Boolean(user) && parcelDeliveryEnabled
+      };
     }
     return item;
   });

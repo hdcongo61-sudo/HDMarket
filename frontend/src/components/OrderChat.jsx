@@ -41,7 +41,7 @@ import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import { encrypt, decrypt, getSharedSecret } from '../utils/chatEncryption.js';
 import { orderChatKeys } from '../queries/orderChatKeys';
-import { fetchOrderMessagePage } from '../queries/orderChatApi';
+import { fetchOrderMessagePage, startConversation as startConversationRequest } from '../queries/orderChatApi';
 import BaseModal from './modals/BaseModal';
 import { appConfirm } from '../utils/appDialog';
 import useReliableMutation from '../hooks/useReliableMutation';
@@ -168,7 +168,7 @@ const QUICK_REPLIES = [
 
 const CHAT_PAGE_SIZE = 20;
 
-export default function OrderChat({ order, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete }) {
+export default function OrderChat({ order, conversationId: conversationIdProp = null, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete }) {
   const { user } = useContext(AuthContext);
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -233,7 +233,40 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
   const isSeller = seller && user?._id && String(user._id) === String(seller._id);
   const isAdmin = user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager';
 
-  const orderId = order?._id != null ? String(order._id) : (order?.id != null ? String(order.id) : null);
+  const rawOrderId = order?._id != null ? String(order._id) : (order?.id != null ? String(order.id) : null);
+  const [resolvedConversationId, setResolvedConversationId] = useState(
+    conversationIdProp ? String(conversationIdProp) : null
+  );
+
+  useEffect(() => {
+    if (conversationIdProp) {
+      setResolvedConversationId(String(conversationIdProp));
+    }
+  }, [conversationIdProp]);
+
+  // Resolve-or-create the conversation for a real order when the caller
+  // didn't already resolve one (e.g. OrderDetail/SellerOrderDetail pass a
+  // plain order document, not a conversation).
+  useEffect(() => {
+    if (!isOpen || conversationIdProp || resolvedConversationId || !rawOrderId) return;
+    let cancelled = false;
+    startConversationRequest({ orderId: rawOrderId })
+      .then((data) => {
+        if (cancelled) return;
+        const nextId = data?.conversationId || data?.conversation?._id;
+        if (nextId) setResolvedConversationId(String(nextId));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err.response?.data?.message || "Impossible d'ouvrir la conversation.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, conversationIdProp, resolvedConversationId, rawOrderId]);
+
+  // Conversation identifier used throughout (query keys, API paths, socket rooms).
+  const orderId = resolvedConversationId;
   const userScopeId = user?._id || user?.id;
   const { rapid3GActive, shouldUseOfflineSnapshot, offlineBannerText, rapid3GBannerText } =
     useNetworkProfile();
@@ -471,7 +504,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const sendMessageMutation = useReliableMutation({
     mutationFn: async ({ payload, idempotencyKey }) => {
-      const { data } = await api.post(`/orders/${orderId}/messages`, payload, {
+      const { data } = await api.post(`/conversations/${orderId}/messages`, payload, {
         silentGlobalError: true,
         headers: {
           'Idempotency-Key': idempotencyKey
@@ -481,7 +514,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     },
     verifyFn: async ({ clientMessageId }) => {
       if (!orderId || !clientMessageId) return false;
-      const { data } = await api.get(`/orders/${orderId}/messages`, {
+      const { data } = await api.get(`/conversations/${orderId}/messages`, {
         params: {
           withMeta: true,
           limit: 25
@@ -572,7 +605,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
     for (const action of queue) {
       try {
         if (action?.type === 'send' && action?.payload) {
-          const { data } = await api.post(`/orders/${orderId}/messages`, action.payload, {
+          const { data } = await api.post(`/conversations/${orderId}/messages`, action.payload, {
             headers: {
               'Idempotency-Key': action.idempotencyKey || createIdempotencyKey('chat-msg-replay')
             }
@@ -589,14 +622,14 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
             return upsertMessageInPages(next, serverMessage);
           });
         } else if (action?.type === 'addReaction' && action?.messageId && action?.emoji) {
-          const { data } = await api.post(`/orders/messages/${action.messageId}/reactions`, {
+          const { data } = await api.post(`/conversations/messages/${action.messageId}/reactions`, {
             emoji: action.emoji
           });
           queryClient.setQueryData(messageQueryKey, (old) =>
             upsertMessageInPages(old, normalizeMessage(data))
           );
         } else if (action?.type === 'removeReaction' && action?.messageId) {
-          const { data } = await api.delete(`/orders/messages/${action.messageId}/reactions`);
+          const { data } = await api.delete(`/conversations/messages/${action.messageId}/reactions`);
           queryClient.setQueryData(messageQueryKey, (old) =>
             upsertMessageInPages(old, normalizeMessage(data))
           );
@@ -778,7 +811,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
         const formData = new FormData();
         formData.append('file', file);
 
-        const { data } = await api.post('/orders/messages/upload', formData, {
+        const { data } = await api.post('/conversations/messages/upload', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           },
@@ -836,7 +869,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
         formData.append('file', blob, 'voice-message.webm');
 
         try {
-          const { data } = await api.post('/orders/messages/upload', formData, {
+          const { data } = await api.post('/conversations/messages/upload', formData, {
             headers: {
               'Content-Type': 'multipart/form-data'
             }
@@ -893,7 +926,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const addReactionMutation = useMutation({
     mutationFn: async ({ messageId, emoji }) => {
-      const { data } = await api.post(`/orders/messages/${messageId}/reactions`, { emoji });
+      const { data } = await api.post(`/conversations/messages/${messageId}/reactions`, { emoji });
       return normalizeMessage(data);
     },
     onMutate: async ({ messageId, emoji }) => {
@@ -928,7 +961,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const removeReactionMutation = useMutation({
     mutationFn: async ({ messageId }) => {
-      const { data } = await api.delete(`/orders/messages/${messageId}/reactions`);
+      const { data } = await api.delete(`/conversations/messages/${messageId}/reactions`);
       return normalizeMessage(data);
     },
     onMutate: async ({ messageId }) => {
@@ -1021,7 +1054,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const deleteMessageMutation = useMutation({
     mutationFn: async ({ messageId }) => {
-      await api.delete(`/orders/${orderId}/messages/${messageId}`);
+      await api.delete(`/conversations/${orderId}/messages/${messageId}`);
       return { messageId };
     },
     onMutate: async ({ messageId }) => {
@@ -1069,7 +1102,7 @@ export default function OrderChat({ order, onClose, unreadCount = 0, buttonText 
 
   const updateMessageMutation = useMutation({
     mutationFn: async ({ messageId, text }) => {
-      const { data } = await api.patch(`/orders/${orderId}/messages/${messageId}`, { text });
+      const { data } = await api.patch(`/conversations/${orderId}/messages/${messageId}`, { text });
       return normalizeMessage(data);
     },
     onMutate: async ({ messageId, text }) => {

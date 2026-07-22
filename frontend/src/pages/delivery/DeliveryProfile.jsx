@@ -175,9 +175,9 @@ export default function DeliveryProfile() {
         subtitle="Coordonnees, securite et performance"
         online={!isOffline}
         actions={[
-          { key: 'back', label: 'Dashboard', to: `${routePrefix}/dashboard`, icon: ArrowLeft },
-          { key: 'history', label: 'History', to: `${routePrefix}/history`, icon: History },
-          { key: 'logout', label: 'Logout', onClick: handleLogout, icon: LogOut, tone: 'danger' }
+          { key: 'back', label: 'Missions', to: `${routePrefix}/dashboard`, icon: ArrowLeft },
+          { key: 'history', label: 'Historique', to: `${routePrefix}/history`, icon: History },
+          { key: 'logout', label: 'Déconnexion', onClick: handleLogout, icon: LogOut, tone: 'danger' }
         ]}
       />
 

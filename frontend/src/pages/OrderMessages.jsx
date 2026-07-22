@@ -34,7 +34,11 @@ import OrderChat from '../components/OrderChat';
 import BaseModal, { ModalBody } from '../components/modals/BaseModal';
 import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
-import { fetchOrderConversations, fetchOrderUnreadCount } from '../queries/orderChatApi';
+import {
+  fetchOrderConversations,
+  fetchOrderUnreadCount,
+  startConversation as startConversationRequest
+} from '../queries/orderChatApi';
 import { orderChatKeys } from '../queries/orderChatKeys';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
@@ -90,8 +94,9 @@ export default function OrderMessages() {
     () => ['order-messages', userScopeId || 'guest', activeFilter, page].join(':'),
     [activeFilter, page, userScopeId]
   );
-  const requestedOrderId = useMemo(() => {
-    const value = new URLSearchParams(location.search).get('orderId');
+  const requestedConversationId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const value = params.get('conversationId') || params.get('orderId');
     return String(value || '').trim();
   }, [location.search]);
 
@@ -186,19 +191,19 @@ export default function OrderMessages() {
   }, [conversations, meta.total, meta.totalPages, shouldUseOfflineSnapshot, snapshotKey, totalUnread]);
 
   const archiveConversationMutation = useMutation({
-    mutationFn: async (orderId) => {
-      await api.post(`/orders/${String(orderId)}/archive`);
-      return String(orderId);
+    mutationFn: async (conversationId) => {
+      await api.post(`/conversations/${String(conversationId)}/archive`);
+      return String(conversationId);
     },
-    onMutate: async (orderId) => {
-      const targetId = String(orderId);
+    onMutate: async (conversationId) => {
+      const targetId = String(conversationId);
       await queryClient.cancelQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
       const snapshots = queryClient.getQueriesData({
         queryKey: orderChatKeys.conversationsRoot(userScopeId)
       });
       queryClient.setQueriesData({ queryKey: orderChatKeys.conversationsRoot(userScopeId) }, (old) => {
         if (!old || !Array.isArray(old.items)) return old;
-        const nextItems = old.items.filter((item) => String(item.orderId) !== targetId);
+        const nextItems = old.items.filter((item) => String(item.conversationId) !== targetId);
         if (nextItems.length === old.items.length) return old;
         return {
           ...old,
@@ -208,7 +213,7 @@ export default function OrderMessages() {
       });
       return { snapshots };
     },
-    onError: (err, _orderId, context) => {
+    onError: (err, _conversationId, context) => {
       context?.snapshots?.forEach(([key, data]) => {
         queryClient.setQueryData(key, data);
       });
@@ -221,19 +226,19 @@ export default function OrderMessages() {
   });
 
   const unarchiveConversationMutation = useMutation({
-    mutationFn: async (orderId) => {
-      await api.post(`/orders/${String(orderId)}/unarchive`);
-      return String(orderId);
+    mutationFn: async (conversationId) => {
+      await api.post(`/conversations/${String(conversationId)}/unarchive`);
+      return String(conversationId);
     },
-    onMutate: async (orderId) => {
-      const targetId = String(orderId);
+    onMutate: async (conversationId) => {
+      const targetId = String(conversationId);
       await queryClient.cancelQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
       const snapshots = queryClient.getQueriesData({
         queryKey: orderChatKeys.conversationsRoot(userScopeId)
       });
       queryClient.setQueriesData({ queryKey: orderChatKeys.conversationsRoot(userScopeId) }, (old) => {
         if (!old || !Array.isArray(old.items)) return old;
-        const nextItems = old.items.filter((item) => String(item.orderId) !== targetId);
+        const nextItems = old.items.filter((item) => String(item.conversationId) !== targetId);
         if (nextItems.length === old.items.length) return old;
         return {
           ...old,
@@ -243,7 +248,7 @@ export default function OrderMessages() {
       });
       return { snapshots };
     },
-    onError: (err, _orderId, context) => {
+    onError: (err, _conversationId, context) => {
       context?.snapshots?.forEach(([key, data]) => {
         queryClient.setQueryData(key, data);
       });
@@ -256,19 +261,19 @@ export default function OrderMessages() {
   });
 
   const deleteConversationMutation = useMutation({
-    mutationFn: async (orderId) => {
-      await api.post(`/orders/${String(orderId)}/delete`);
-      return String(orderId);
+    mutationFn: async (conversationId) => {
+      await api.post(`/conversations/${String(conversationId)}/delete`);
+      return String(conversationId);
     },
-    onMutate: async (orderId) => {
-      const targetId = String(orderId);
+    onMutate: async (conversationId) => {
+      const targetId = String(conversationId);
       await queryClient.cancelQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
       const snapshots = queryClient.getQueriesData({
         queryKey: orderChatKeys.conversationsRoot(userScopeId)
       });
       queryClient.setQueriesData({ queryKey: orderChatKeys.conversationsRoot(userScopeId) }, (old) => {
         if (!old || !Array.isArray(old.items)) return old;
-        const nextItems = old.items.filter((item) => String(item.orderId) !== targetId);
+        const nextItems = old.items.filter((item) => String(item.conversationId) !== targetId);
         if (nextItems.length === old.items.length) return old;
         return {
           ...old,
@@ -278,7 +283,7 @@ export default function OrderMessages() {
       });
       return { snapshots };
     },
-    onError: (err, _orderId, context) => {
+    onError: (err, _conversationId, context) => {
       context?.snapshots?.forEach(([key, data]) => {
         queryClient.setQueryData(key, data);
       });
@@ -290,44 +295,55 @@ export default function OrderMessages() {
     }
   });
 
-  const createInquiryMutation = useMutation({
-    mutationFn: async (productId) => {
-      const { data } = await api.post('/orders/inquiry', { productId });
-      return data;
-    },
-    onSuccess: (data) => {
-      setSelectedOrder(data);
-      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
-      queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
-    },
+  const buildOrderFromStart = useCallback(
+    (conversationId, { sellerId, sellerName, productId, productTitle, productImage, productSlug } = {}) => ({
+      _id: conversationId,
+      conversationId,
+      items: [
+        {
+          product: productId,
+          snapshot: { shopId: sellerId, shopName: sellerName, title: productTitle, image: productImage, slug: productSlug }
+        }
+      ],
+      customer: user?._id ? { _id: String(user._id) } : undefined,
+      status: null,
+      deliveryCode: null
+    }),
+    [user?._id]
+  );
+
+  const startConversationMutation = useMutation({
+    mutationFn: async ({ sellerId, productId }) => startConversationRequest({ sellerId, productId }),
     onError: (err) => {
       setError(err.response?.data?.message || 'Impossible de démarrer la conversation.');
     }
   });
 
-  // Alibaba-style: start a conversation with product context when coming from product page
+  // Start a conversation with a seller from a shop/product page — replaces
+  // the old fake-draft-order "inquiry" hack now that a conversation doesn't
+  // need an order to exist.
   useEffect(() => {
-    const inquireProduct = location.state?.inquireProduct;
-    if (!inquireProduct?._id || !user) return;
+    const startRequest = location.state?.startConversation;
+    if (!startRequest?.sellerId || !user) return;
 
     let cancelled = false;
-    const createAndOpenInquiry = async () => {
+    const openStartedConversation = async () => {
       setError('');
       try {
-        const data = await createInquiryMutation.mutateAsync(inquireProduct._id);
+        const data = await startConversationMutation.mutateAsync(startRequest);
         if (cancelled) return;
-        setSelectedOrder(data);
-        navigate(location.pathname, { replace: true, state: {} });
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.response?.data?.message || 'Impossible de démarrer la conversation.');
-        }
-        navigate(location.pathname, { replace: true, state: {} });
+        setSelectedOrder(buildOrderFromStart(data.conversationId, startRequest));
+        queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+        queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
+      } catch {
+        // Error already surfaced via mutation onError.
+      } finally {
+        if (!cancelled) navigate(location.pathname, { replace: true, state: {} });
       }
     };
-    createAndOpenInquiry();
+    openStartedConversation();
     return () => { cancelled = true; };
-  }, [location.state?.inquireProduct?._id, user]);
+  }, [location.state?.startConversation, user]);
 
   const formatTimestamp = (date) => {
     if (!date) return '';
@@ -370,6 +386,7 @@ export default function OrderMessages() {
     const customerId = conv.customerId?._id ?? conv.customerId;
     return {
       _id: conv.orderId != null ? String(conv.orderId) : conv.orderId,
+      conversationId: conv.conversationId,
       items: [{ snapshot: conv.productInfo }],
       customer: customerId != null ? { _id: String(customerId) } : undefined,
       status: conv.status,
@@ -383,26 +400,26 @@ export default function OrderMessages() {
     queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
   };
 
-  const handleArchive = async (orderId) => {
-    if (!orderId) return;
+  const handleArchive = async (conversationId) => {
+    if (!conversationId) return;
     setError('');
-    await archiveConversationMutation.mutateAsync(orderId).catch(() => {});
+    await archiveConversationMutation.mutateAsync(conversationId).catch(() => {});
     setSelectedOrder(null);
   };
 
-  const handleUnarchive = async (orderId, e) => {
-    if (!orderId) return;
+  const handleUnarchive = async (conversationId, e) => {
+    if (!conversationId) return;
     e?.stopPropagation();
     setError('');
-    await unarchiveConversationMutation.mutateAsync(orderId).catch(() => {});
+    await unarchiveConversationMutation.mutateAsync(conversationId).catch(() => {});
     setActiveFilter('all');
     setPage(1);
   };
 
-  const handleDelete = async (orderId) => {
-    if (!orderId) return;
+  const handleDelete = async (conversationId) => {
+    if (!conversationId) return;
     setError('');
-    await deleteConversationMutation.mutateAsync(orderId).catch(() => {});
+    await deleteConversationMutation.mutateAsync(conversationId).catch(() => {});
     setSelectedOrder(null);
   };
 
@@ -412,16 +429,18 @@ export default function OrderMessages() {
   };
 
   useEffect(() => {
-    if (!requestedOrderId || !effectiveConversations.length) return;
-    if (handledQueryOrderRef.current === requestedOrderId) return;
+    if (!requestedConversationId || !effectiveConversations.length) return;
+    if (handledQueryOrderRef.current === requestedConversationId) return;
     const matchedConversation = effectiveConversations.find(
-      (conversation) => String(conversation?.orderId || '') === requestedOrderId
+      (conversation) =>
+        String(conversation?.conversationId || '') === requestedConversationId ||
+        String(conversation?.orderId || '') === requestedConversationId
     );
     if (!matchedConversation) return;
-    handledQueryOrderRef.current = requestedOrderId;
+    handledQueryOrderRef.current = requestedConversationId;
     setSelectedOrder(buildOrderFromConversation(matchedConversation));
     setError('');
-  }, [requestedOrderId, effectiveConversations, buildOrderFromConversation]);
+  }, [requestedConversationId, effectiveConversations, buildOrderFromConversation]);
 
   useEffect(() => {
     if (!user?._id) {
@@ -466,7 +485,7 @@ export default function OrderMessages() {
               return {
                 ...old,
                 items: old.items.map((conv) =>
-                  String(conv.orderId) === String(payload.conversationId)
+                  String(conv.conversationId) === String(payload.conversationId)
                     ? { ...conv, unreadCount: Number(payload?.conversationUnread || 0) }
                     : conv
                 )
@@ -484,14 +503,14 @@ export default function OrderMessages() {
           { queryKey: orderChatKeys.conversationsRoot(userScopeId) },
           (old) => {
             if (!old || !Array.isArray(old.items)) return old;
-            if (!old.items.some((conv) => String(conv.orderId) === conversationId)) {
+            if (!old.items.some((conv) => String(conv.conversationId) === conversationId)) {
               return old;
             }
             return {
               ...old,
               items: old.items
                 .map((conv) => {
-                  if (String(conv.orderId) !== conversationId) return conv;
+                  if (String(conv.conversationId) !== conversationId) return conv;
                   return {
                     ...conv,
                     latestMessage: latestMessage
@@ -528,7 +547,7 @@ export default function OrderMessages() {
     };
   }, [queryClient, userScopeId]);
 
-  const inquiryLoading = createInquiryMutation.isPending;
+  const inquiryLoading = startConversationMutation.isPending;
 
   if ((loading && effectiveConversations.length === 0 && !offlineSnapshotActive) || inquiryLoading) {
     return (
@@ -771,11 +790,12 @@ export default function OrderMessages() {
                 ? buildProductPath(conversation.productInfo)
                 : null;
 
-              const isSelected = selectedOrder && String(selectedOrder._id) === String(conversation.orderId);
+              const isSelected =
+                selectedOrder && String(selectedOrder.conversationId) === String(conversation.conversationId);
 
               return (
                 <div
-                  key={conversation.orderId}
+                  key={conversation.conversationId}
                   role="button"
                   tabIndex={0}
                   onClick={() => openConversation(conversation)}
@@ -838,7 +858,7 @@ export default function OrderMessages() {
                               )}
                               <span>{partnerName}</span>
                             </span>{' '}
-                            · #{conversation.orderCode || String(conversation.orderId || '').slice(-6)}
+                            · #{conversation.orderCode || String(conversation.conversationId || '').slice(-6)}
                           </p>
                         </div>
                         <div className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black ${statusStyle}`}>
@@ -859,7 +879,7 @@ export default function OrderMessages() {
                       {activeFilter === 'archived' && (
                         <button
                           type="button"
-                          onClick={(e) => handleUnarchive(conversation.orderId, e)}
+                          onClick={(e) => handleUnarchive(conversation.conversationId, e)}
                           className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1.5 text-xs font-black text-[#e85d00] ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
                         >
                           <ArchiveRestore className="w-3.5 h-3.5" />
@@ -919,6 +939,7 @@ export default function OrderMessages() {
       {selectedOrder && (
         <OrderChat
           order={selectedOrder}
+          conversationId={selectedOrder?.conversationId}
           onClose={closeChat}
           defaultOpen
           buttonText="Contacter"
