@@ -420,7 +420,7 @@ export default function Navbar() {
 
     const fetchUnreadOrderMessages = async () => {
       try {
-        const { data } = await api.get('/orders/messages/unread', {
+        const { data } = await api.get('/conversations/unread', {
           skipCache: true,
           headers: { 'x-skip-cache': '1' }
         });
