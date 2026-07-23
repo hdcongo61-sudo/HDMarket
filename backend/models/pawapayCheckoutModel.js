@@ -57,7 +57,8 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     },
     autoValidationError: { type: String, trim: true, default: '' },
     autoValidatedAt: { type: Date, default: null },
-    completionResult: { type: mongoose.Schema.Types.Mixed, default: null }
+    completionResult: { type: mongoose.Schema.Types.Mixed, default: null },
+    lastProviderStatusCheckAt: { type: Date, default: null }
   },
   { timestamps: true }
 );

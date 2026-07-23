@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import api, { abortPendingRequests } from './services/api';
 import Navbar from './components/Navbar';
@@ -23,6 +23,7 @@ import { queryClient } from './lib/queryClient';
 import useAppBrandLogo from './hooks/useAppBrandLogo';
 import pwaInstallService from './services/pwaInstallService';
 import { subscribeToSettingsRefresh } from './utils/settingsRefresh';
+import { useToast } from './context/ToastContext';
 
 const Home = lazy(() => import('./pages/Home'));
 const Discover = lazy(() => import('./pages/Discover'));
@@ -343,6 +344,8 @@ const readBootSplashPref = () => {
 
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const { pathname } = location;
   const { user } = useContext(AuthContext);
   const { isFeatureEnabled, getRuntimeValue, assistantChatEnabled } = useAppSettings();
@@ -359,6 +362,29 @@ function AppContent() {
   const previousPathRef = useRef(pathname);
   const isShopRoute = isShopProfileRoute(pathname);
   const showShopProfileLoader = isShopRoute && shopLoad?.isShopProfileLoading;
+
+  useEffect(() => {
+    const notice = location.state?.pawaPayNotice;
+    if (!notice?.message) return;
+
+    showToast(notice.message, {
+      variant: notice.status === 'failed' ? 'error' : 'info',
+      duration: 8000
+    });
+    const nextState = { ...(location.state || {}) };
+    delete nextState.pawaPayNotice;
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: nextState
+    });
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    navigate,
+    showToast
+  ]);
 
   useEffect(() => {
     // Fetched once on mount (not just on '/') so the launch-splash toggle applies

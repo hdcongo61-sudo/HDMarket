@@ -1,11 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Clock3, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import api from '../services/api';
 import { getPawaPayFailure, getPawaPayRequestError } from '../utils/pawapayErrors';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 const FAILED_STATUSES = new Set(['FAILED', 'EXPIRED', 'CANCELLED']);
+const safeInternalPath = (value, fallback = '/orders') => {
+  const path = String(value || '').trim();
+  return path.startsWith('/') && !path.startsWith('//') && !path.includes('://')
+    ? path
+    : fallback;
+};
+
+export const getPawaPaySuccessPath = (checkout) => {
+  const completion = checkout?.completionResult || {};
+  if (completion.successPath) return safeInternalPath(completion.successPath);
+
+  const actionKind = String(checkout?.actionKind || completion.actionKind || '').toUpperCase();
+  const orderIds = Array.isArray(completion.orderIds)
+    ? completion.orderIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+  const entityId = String(completion.entityId || '').trim();
+
+  if (actionKind === 'ORDER_CHECKOUT') {
+    return orderIds.length === 1
+      ? `/order/detail/${encodeURIComponent(orderIds[0])}`
+      : '/orders';
+  }
+  if (actionKind === 'INSTALLMENT_CHECKOUT' || actionKind === 'INSTALLMENT_PAYMENT') {
+    const orderId = orderIds[0] || entityId;
+    return orderId ? `/order/detail/${encodeURIComponent(orderId)}` : '/orders';
+  }
+  if (actionKind === 'SPONSORSHIP_ACCEPT' || actionKind === 'SPONSORSHIP_PAY_SELF') {
+    return '/sponsorships';
+  }
+  if (actionKind === 'BOOST_REQUEST') return '/seller/boosts';
+
+  return safeInternalPath(checkout?.returnPath, '/orders');
+};
+
+export const getPawaPayErrorPath = (checkout) =>
+  safeInternalPath(checkout?.returnPath, '/orders');
 
 const isTerminalCheckout = (checkout) => {
   const status = String(checkout?.status || '');
@@ -23,6 +59,7 @@ const isTerminalCheckout = (checkout) => {
 };
 
 export default function PawaPayReturn() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const checkoutId = searchParams.get('checkoutId') || '';
   const [checkout, setCheckout] = useState(null);
@@ -94,7 +131,36 @@ export default function PawaPayReturn() {
       ? 'Le paiement est confirmé, mais le crédit du portefeuille nécessite une vérification.'
       : 'Le paiement n’a pas pu être finalisé.'
   );
-  const returnPath = checkout?.returnPath || '/orders';
+  const successPath = getPawaPaySuccessPath(checkout);
+  const errorPath = getPawaPayErrorPath(checkout);
+  const failureMessage = creditFailed
+    ? failure.message
+    : checkout?.autoValidationError || failure.message || 'Le paiement PawaPay a échoué.';
+
+  useEffect(() => {
+    if (!completed) return undefined;
+    const timer = setTimeout(() => {
+      navigate(successPath, { replace: true });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [completed, navigate, successPath]);
+
+  useEffect(() => {
+    if (!failed) return undefined;
+    const timer = setTimeout(() => {
+      navigate(errorPath, {
+        replace: true,
+        state: {
+          pawaPayNotice: {
+            status: 'failed',
+            checkoutId,
+            message: failureMessage
+          }
+        }
+      });
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [checkoutId, errorPath, failed, failureMessage, navigate]);
 
   return (
     <main className="min-h-[70vh] bg-[#f7f5f2] px-4 py-10">
@@ -131,7 +197,7 @@ export default function PawaPayReturn() {
               : listingValidationFailed
                 ? checkout?.autoValidationError || 'Le paiement est confirmé, mais la validation de l’annonce nécessite une vérification.'
                 : completed
-                  ? `Paiement de ${formatPriceWithStoredSettings(checkout.amount)} confirmé par PawaPay.`
+                  ? `Paiement de ${formatPriceWithStoredSettings(checkout.amount)} confirmé par PawaPay. Redirection automatique…`
               : failed
                 ? failure.message
                 : 'PawaPay confirme encore la transaction. Cette page se met à jour automatiquement.')}
@@ -143,7 +209,18 @@ export default function PawaPayReturn() {
         <div className="mt-6 space-y-2">
           {completed || failed ? (
             <Link
-              to={returnPath}
+              to={completed ? successPath : errorPath}
+              state={
+                failed
+                  ? {
+                      pawaPayNotice: {
+                        status: 'failed',
+                        checkoutId,
+                        message: failureMessage
+                      }
+                    }
+                  : undefined
+              }
               className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#0b6b4f] px-4 text-sm font-black text-white"
             >
               {completed ? 'Continuer dans HDMarket' : creditFailed ? 'Retourner dans HDMarket' : 'Réessayer le paiement'}

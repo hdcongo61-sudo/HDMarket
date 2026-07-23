@@ -6,6 +6,7 @@ import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
 import {
+  getPawaPayCheckoutStatus,
   getPawaPayPublicKeys,
   initiatePawaPayCheckout
 } from '../services/pawapayService.js';
@@ -235,10 +236,10 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
 });
 
 export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
-  const checkout = await PawaPayCheckout.findOne({
+  let checkout = await PawaPayCheckout.findOne({
     checkoutId: String(req.params.checkoutId || ''),
     user: req.user._id
-  }).lean();
+  });
   if (!checkout) {
     return sendPawaPayError(
       res,
@@ -248,6 +249,8 @@ export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
       { providerCode: 'NOT_FOUND', retryable: false, action: 'RETURN' }
     );
   }
+
+  checkout = await reconcileCheckoutStatusFromProvider(checkout);
 
   const failure = checkout.failureReason
     ? getPawaPayFailurePresentation(checkout.failureReason)
@@ -513,6 +516,85 @@ const reconcilePawaPayCheckout = async ({ resourceType, resourceId, status, amou
   return claimed;
 };
 
+const reconcileCheckoutStatusFromProvider = async (checkout) => {
+  if (!checkout) return checkout;
+
+  const runAutomaticCompletion = async (current) => {
+    if (
+      current?.status !== 'COMPLETED' ||
+      current?.paymentState !== 'CONFIRMED' ||
+      current?.autoValidationState === 'COMPLETED'
+    ) {
+      return;
+    }
+    try {
+      if (current.actionContext?.kind) {
+        await autoCompleteCheckoutAction(current);
+      } else if (current.purpose === 'LISTING_FEE_FUNDING') {
+        await autoValidateListingCheckout(current);
+      }
+    } catch {
+      // The completion helpers persist a user-safe FAILED state. Return that
+      // state to the client instead of turning a successful status check into 500.
+    }
+  };
+
+  if (checkout.status === 'COMPLETED' && checkout.paymentState === 'CONFIRMED') {
+    await runAutomaticCompletion(checkout);
+    return PawaPayCheckout.findById(checkout._id);
+  }
+  if (FINAL_FAILURE.has(String(checkout.status || '').toUpperCase())) return checkout;
+
+  const now = new Date();
+  const claimed = await PawaPayCheckout.findOneAndUpdate(
+    {
+      _id: checkout._id,
+      status: { $in: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING'] },
+      $or: [
+        { lastProviderStatusCheckAt: null },
+        { lastProviderStatusCheckAt: { $exists: false } },
+        { lastProviderStatusCheckAt: { $lt: new Date(now.getTime() - 4_000) } }
+      ]
+    },
+    { $set: { lastProviderStatusCheckAt: now } },
+    { new: true }
+  );
+  if (!claimed) return PawaPayCheckout.findById(checkout._id);
+
+  try {
+    const providerResult = await getPawaPayCheckoutStatus(claimed.checkoutId, {
+      timeoutMs: 12_000
+    });
+    if (
+      String(providerResult?.status || '').toUpperCase() !== 'FOUND' ||
+      !providerResult?.data
+    ) {
+      return PawaPayCheckout.findById(claimed._id);
+    }
+
+    const providerCheckout = providerResult.data;
+    const reconciled = await reconcilePawaPayCheckout({
+      resourceType: 'checkout',
+      resourceId: claimed.checkoutId,
+      status: String(providerCheckout.status || '').trim().toUpperCase(),
+      amount: normalizedAmount(providerCheckout),
+      currency: String(
+        providerCheckout.currency ||
+        providerCheckout.deposit?.currency ||
+        providerCheckout.amounts?.[0]?.currency ||
+        ''
+      ).trim().toUpperCase(),
+      payload: sanitizePayload(providerCheckout)
+    });
+    await runAutomaticCompletion(reconciled);
+  } catch {
+    // Callbacks remain the primary source. A temporary status endpoint failure
+    // must not replace a legitimate pending payment with an application error.
+  }
+
+  return PawaPayCheckout.findById(claimed._id);
+};
+
 const invokeCompletionController = async ({ handler, checkout, body = {}, params = {} }) => {
   const actor = await User.findById(checkout.user).lean();
   if (!actor) throw new Error('Utilisateur introuvable pendant la finalisation PawaPay.');
@@ -618,7 +700,13 @@ const autoCompleteCheckoutAction = async (checkout) => {
   const claimed = await PawaPayCheckout.findOneAndUpdate(
     {
       _id: checkout._id,
-      autoValidationState: { $in: ['PENDING', 'FAILED'] }
+      $or: [
+        { autoValidationState: { $in: ['PENDING', 'FAILED'] } },
+        {
+          autoValidationState: 'PROCESSING',
+          updatedAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) }
+        }
+      ]
     },
     {
       $set: {
@@ -636,6 +724,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
     let message = `Un paiement PawaPay de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été finalisé automatiquement.`;
     let deepLink = '/admin/payment-verification?status=verified';
     let entityId = claimed.checkoutId;
+    let successPath = claimed.returnPath || '/orders';
     const action = claimed.actionContext || {};
 
     if (action.kind === 'ORDER_CHECKOUT') {
@@ -655,6 +744,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
       message = `Une commande de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été payée et créée automatiquement avec PawaPay.`;
       deepLink = firstOrderId ? `/admin/orders?orderId=${encodeURIComponent(String(firstOrderId))}` : '/admin/orders';
       entityId = firstOrderId || claimed.checkoutId;
+      successPath = firstOrderId ? `/order/detail/${encodeURIComponent(String(firstOrderId))}` : '/orders';
     } else if (action.kind === 'INSTALLMENT_CHECKOUT') {
       result = await invokeCompletionController({
         handler: checkoutInstallmentOrder,
@@ -677,6 +767,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
       message = `Le premier versement PawaPay de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été validé automatiquement.`;
       deepLink = orderId ? `/admin/orders?orderId=${encodeURIComponent(String(orderId))}` : '/admin/orders';
       entityId = orderId || claimed.checkoutId;
+      successPath = orderId ? `/order/detail/${encodeURIComponent(String(orderId))}` : '/orders';
     } else if (action.kind === 'INSTALLMENT_PAYMENT') {
       result = await invokeCompletionController({
         handler: uploadInstallmentPaymentProof,
@@ -696,6 +787,9 @@ const autoCompleteCheckoutAction = async (checkout) => {
       message = `Une tranche de ${Number(action.amount || claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été validée automatiquement avec PawaPay.`;
       deepLink = `/admin/orders?orderId=${encodeURIComponent(String(action.orderId || ''))}`;
       entityId = action.orderId || claimed.checkoutId;
+      successPath = action.orderId
+        ? `/order/detail/${encodeURIComponent(String(action.orderId))}`
+        : '/orders';
     } else if (action.kind === 'SPONSORSHIP_ACCEPT') {
       result = await invokeCompletionController({
         handler: respondSponsorship,
@@ -711,6 +805,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
       message = `Un paiement sponsorisé de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été accepté automatiquement.`;
       deepLink = '/admin/orders';
       entityId = action.groupId || claimed.checkoutId;
+      successPath = '/sponsorships';
     } else if (action.kind === 'BOOST_REQUEST') {
       result = await invokeCompletionController({
         handler: createBoostRequest,
@@ -730,6 +825,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
         ? `/admin/product-boosts?requestId=${encodeURIComponent(String(boostId))}`
         : '/admin/product-boosts';
       entityId = boostId || claimed.checkoutId;
+      successPath = '/seller/boosts';
     } else if (action.kind === 'SPONSORSHIP_PAY_SELF') {
       result = await invokeCompletionController({
         handler: paySelfSponsorship,
@@ -744,6 +840,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
       message = `Le demandeur a payé lui-même ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA avec PawaPay.`;
       deepLink = '/admin/orders';
       entityId = action.groupId || claimed.checkoutId;
+      successPath = '/sponsorships';
     } else {
       throw new Error('Action automatique PawaPay inconnue.');
     }
@@ -754,6 +851,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
     claimed.completionResult = {
       actionKind: action.kind,
       entityId: String(entityId || ''),
+      successPath,
       orderIds: Array.isArray(result?.orders)
         ? result.orders.map((order) => String(order?._id || order?.id || '')).filter(Boolean).slice(0, 20)
         : [],
@@ -846,7 +944,13 @@ const autoValidateListingCheckout = async (checkout) => {
   const claimed = await PawaPayCheckout.findOneAndUpdate(
     {
       _id: checkout._id,
-      autoValidationState: { $in: ['PENDING', 'FAILED'] }
+      $or: [
+        { autoValidationState: { $in: ['PENDING', 'FAILED'] } },
+        {
+          autoValidationState: 'PROCESSING',
+          updatedAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) }
+        }
+      ]
     },
     {
       $set: {
@@ -876,6 +980,13 @@ const autoValidateListingCheckout = async (checkout) => {
       claimed.autoValidationState = 'COMPLETED';
       claimed.autoValidatedPayment = existingPayment._id;
       claimed.autoValidatedAt = new Date();
+      claimed.completionResult = {
+        actionKind: 'LISTING_FEE_FUNDING',
+        entityId: String(product._id),
+        successPath: claimed.returnPath || `/my/annonce/${product.slug || product._id}`,
+        orderIds: [],
+        message: 'Annonce validée automatiquement avec PawaPay.'
+      };
       await claimed.save();
       await notifyListingPaymentValidated({
         checkout: claimed,
@@ -990,6 +1101,13 @@ const autoValidateListingCheckout = async (checkout) => {
     claimed.autoValidatedPayment = payment._id;
     claimed.autoValidatedAt = new Date();
     claimed.autoValidationError = '';
+    claimed.completionResult = {
+      actionKind: 'LISTING_FEE_FUNDING',
+      entityId: String(product._id),
+      successPath: claimed.returnPath || `/my/annonce/${product.slug || product._id}`,
+      orderIds: [],
+      message: 'Annonce validée automatiquement avec PawaPay.'
+    };
     await claimed.save();
 
     await notifyListingPaymentValidated({

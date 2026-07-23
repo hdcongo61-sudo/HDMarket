@@ -139,6 +139,9 @@ export const pawapayRequest = async (
 export const initiatePawaPayCheckout = (payload, options) =>
   pawapayRequest('checkouts', { method: 'POST', body: payload, rejectProviderFailure: true, ...options });
 
+export const getPawaPayCheckoutStatus = (checkoutId, options) =>
+  pawapayRequest(`checkouts/${encodeURIComponent(String(checkoutId || '').trim())}`, options);
+
 export const initiatePawaPayDeposit = (payload, options) =>
   pawapayRequest('deposits', { method: 'POST', body: payload, rejectProviderFailure: true, ...options });
 

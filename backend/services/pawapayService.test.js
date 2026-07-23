@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  getPawaPayCheckoutStatus,
   getPawaPayConfig,
   initiatePawaPayDeposit,
   predictPawaPayProvider
@@ -110,6 +111,26 @@ describe('PawaPay recipient validation', () => {
         method: 'POST',
         body: JSON.stringify({ phoneNumber: '+242 06 000 00 00' })
       })
+    );
+  });
+});
+
+describe('PawaPay checkout reconciliation', () => {
+  it('checks the provider checkout status using the stored checkout id', async () => {
+    process.env.PAWAPAY_ENABLED = 'true';
+    process.env.PAWAPAY_API_TOKEN = 'test-token';
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: 'FOUND', data: { status: 'COMPLETED' } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+
+    await getPawaPayCheckoutStatus('checkout-123');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.sandbox.pawapay.io/v2/checkouts/checkout-123',
+      expect.objectContaining({ method: 'GET' })
     );
   });
 });
