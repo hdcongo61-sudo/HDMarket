@@ -30,8 +30,6 @@ import {
   isTransactionCodeAlreadyUsed,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
-import { getRuntimeConfig } from '../services/configService.js';
-import { purchaseFromWallet, refundToWallet } from '../services/walletService.js';
 import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -355,11 +353,12 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
 
   const duration = Math.max(1, Number(req.body?.duration || 1));
   const productIds = parseProductIds(req.body?.productIds);
-  const paymentMethod = String(req.body?.paymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
-    ? 'wallet'
-    : 'mobile_money';
+  const paymentMethod =
+    String(req.body?.paymentMethod || '').trim().toLowerCase() === 'pawapay' && req.pawaPayCheckout
+      ? 'pawapay'
+      : 'mobile_money';
   const pawaPayOnly = getPawaPayConfig().exclusiveMode;
-  if (pawaPayOnly && paymentMethod !== 'wallet') {
+  if (pawaPayOnly && paymentMethod !== 'pawapay') {
     return res.status(403).json({
       code: 'PAWAPAY_ONLY',
       message: 'Les preuves et identifiants de transaction sont désactivés. Payez avec PawaPay.'
@@ -412,12 +411,7 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
       }
     }
   } else {
-    const walletEnabled =
-      pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
-    if (!walletEnabled) {
-      return res.status(403).json({ message: 'Le portefeuille HDMarket est désactivé.' });
-    }
-    resolvedPaymentOperator = 'HDMarket Wallet';
+    resolvedPaymentOperator = 'PawaPay';
   }
 
   let ownedProducts = [];
@@ -493,6 +487,12 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
   if (!Number.isFinite(computed.totalPrice) || computed.totalPrice <= 0) {
     return res.status(400).json({ message: 'Impossible de calculer le prix de cette demande.' });
   }
+  if (
+    paymentMethod === 'pawapay' &&
+    Math.abs(Number(req.pawaPayCheckout?.amount || 0) - computed.totalPrice) > 0.01
+  ) {
+    return res.status(400).json({ message: 'Le montant confirmé par PawaPay est invalide.' });
+  }
 
   const paymentProofImage = req.file ? await uploadPaymentProofImage(req.file) : undefined;
   const boostRequest = await BoostRequest.create({
@@ -510,36 +510,13 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
     seasonalCampaignName: seasonalCampaign?.name || '',
     totalPrice: computed.totalPrice,
     paymentMethod,
-    paymentStatus: paymentMethod === 'wallet' ? 'paid' : 'pending_admin_validation',
+    paymentStatus: paymentMethod === 'pawapay' ? 'paid' : 'pending_admin_validation',
     paymentOperator: resolvedPaymentOperator,
-    paymentSenderName: paymentMethod === 'wallet' ? (seller.shopName || seller.name || 'Portefeuille HDMarket') : paymentSenderName,
-    paymentTransactionId: paymentMethod === 'wallet' ? '' : paymentTransactionId,
+    paymentSenderName: paymentMethod === 'pawapay' ? 'PawaPay' : paymentSenderName,
+    paymentTransactionId: paymentMethod === 'pawapay' ? req.pawaPayCheckout.checkoutId : paymentTransactionId,
     paymentProofImage,
     status: BOOST_REQUEST_STATUSES.PENDING
   });
-
-  if (paymentMethod === 'wallet') {
-    try {
-      const walletPayment = await purchaseFromWallet({
-        userId: sellerId,
-        amount: computed.totalPrice,
-        orderId: String(boostRequest._id),
-        reference: `boost-${boostRequest._id}`,
-        purpose: 'boost',
-        note: `Paiement boost annonce — ${boostType}`,
-        metadata: {
-          boostRequestId: String(boostRequest._id),
-          boostType,
-          role: 'boost_payment'
-        }
-      });
-      boostRequest.walletTransactionId = String(walletPayment?.transactionId || '');
-      await boostRequest.save();
-    } catch (error) {
-      await BoostRequest.deleteOne({ _id: boostRequest._id }).catch(() => {});
-      throw error;
-    }
-  }
 
   await notifyBoostManagers({
     actorId: sellerId,
@@ -557,8 +534,8 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
 
   return res.status(201).json({
     message:
-      paymentMethod === 'wallet'
-        ? 'Demande de boost envoyée et payée avec le portefeuille HDMarket. En attente de validation.'
+      paymentMethod === 'pawapay'
+        ? 'Demande de boost envoyée et payée avec PawaPay. En attente de validation.'
         : 'Demande de boost envoyée. En attente de validation.',
     boostRequest: buildBoostRequestResponse(boostRequest),
     breakdown: buildPricingBreakdown({
@@ -1040,18 +1017,6 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
   }
 
   if (nextStatus === BOOST_REQUEST_STATUSES.REJECTED) {
-    let walletRefunded = false;
-    if (request.paymentMethod === 'wallet' && request.paymentStatus === 'paid' && Number(request.totalPrice || 0) > 0) {
-      const refund = await refundToWallet({
-        userId: request.sellerId,
-        amount: Number(request.totalPrice || 0),
-        orderId: String(request._id),
-        processedBy: adminId,
-        note: `Remboursement boost rejeté — ${request.boostType}`
-      });
-      walletRefunded = !refund?.alreadyRefunded;
-      request.paymentStatus = 'refunded';
-    }
     request.status = BOOST_REQUEST_STATUSES.REJECTED;
     request.rejectedBy = adminId;
     request.rejectedAt = now;
@@ -1066,8 +1031,8 @@ export const updateBoostRequestStatusAdmin = asyncHandler(async (req, res) => {
       metadata: {
         title: 'Boost rejeté',
         message: request.rejectionReason
-          ? `Votre demande de boost a été rejetée : ${request.rejectionReason}.${walletRefunded ? ' Le paiement portefeuille a été remboursé.' : ''}`
-          : `Votre demande de boost a été rejetée.${walletRefunded ? ' Le paiement portefeuille a été remboursé.' : ''}`,
+          ? `Votre demande de boost a été rejetée : ${request.rejectionReason}.`
+          : 'Votre demande de boost a été rejetée.',
         boostRequestId: request._id,
         status: request.status
       },

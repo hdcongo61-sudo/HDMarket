@@ -793,63 +793,6 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
     metadata: { resolutionType, favor: favor || null, nextStatus }
   });
 
-  // Refund wallet payments when a dispute is resolved in the client's favor.
-  if (resolutionType === 'refund_full' && nextStatus === 'RESOLVED_CLIENT') {
-    try {
-      const order = await Order.findById(dispute.orderId)
-        .select('totalAmount paidAmount customer paymentSource paymentType installmentPlan items')
-        .lean();
-      const installmentWalletAmount =
-        String(order?.paymentType || '').toLowerCase() === 'installment'
-          ? (order?.installmentPlan?.schedule || []).reduce(
-              (sum, entry) =>
-                entry?.status === 'paid' && entry?.transactionProof?.paymentMethod === 'wallet'
-                  ? sum + Number(entry?.transactionProof?.amount || entry?.amount || 0)
-                  : sum,
-              0
-            )
-          : 0;
-      const refundAmount = installmentWalletAmount ||
-        (order?.paymentSource === 'wallet' ? Number(order?.paidAmount || order?.totalAmount || 0) : 0);
-      if (order && refundAmount > 0) {
-        const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
-        await refundToWallet({
-          userId: dispute.clientId,
-          amount: refundAmount,
-          orderId: String(dispute.orderId),
-          processedBy: req.user.id,
-          note: `Remboursement automatique — litige ${dispute._id} résolu en faveur du client`
-        });
-
-        const sellerAmounts = new Map();
-        (order.items || []).forEach((item) => {
-          const sid = String(item?.snapshot?.shopId || '');
-          if (sid) sellerAmounts.set(sid, (sellerAmounts.get(sid) || 0) + Number(item.lineTotal || 0));
-        });
-        const lineSubtotal = Array.from(sellerAmounts.values()).reduce((sum, value) => sum + Number(value || 0), 0);
-        const singleSellerRefund = sellerAmounts.size === 1;
-        await Promise.all(
-          Array.from(sellerAmounts.entries()).map(([sellerId, amount]) => {
-            const reversalAmount = singleSellerRefund
-              ? refundAmount
-              : lineSubtotal > 0
-                ? Math.round((Number(amount || 0) / lineSubtotal) * refundAmount)
-                : 0;
-            if (!sellerId || reversalAmount <= 0) return Promise.resolve();
-            return reverseSellerCredit({
-              userId: sellerId,
-              amount: reversalAmount,
-              orderId: String(dispute.orderId),
-              processedBy: req.user.id
-            });
-          })
-        );
-      }
-    } catch (error) {
-      console.error('[disputeResolve] Wallet refund/reversal failed:', error?.message);
-    }
-  }
-
   await Promise.allSettled([
     createNotification({
       userId: dispute.clientId,

@@ -34,6 +34,25 @@ export const fetchOrderUnreadCount = async () => {
   };
 };
 
+export const fetchOrderUnreadCounts = async (orderIds = []) => {
+  const uniqueOrderIds = [...new Set(
+    orderIds.map((orderId) => String(orderId || '').trim()).filter(Boolean)
+  )];
+  if (uniqueOrderIds.length === 0) return {};
+
+  const { data } = await api.get('/conversations/unread/orders', {
+    params: { orderIds: uniqueOrderIds.join(',') },
+    skipCache: true,
+    headers: { 'x-skip-cache': '1' }
+  });
+  const serverCounts = data?.byOrder && typeof data.byOrder === 'object' ? data.byOrder : {};
+
+  return uniqueOrderIds.reduce((counts, orderId) => {
+    counts[orderId] = Math.max(0, Number(serverCounts[orderId] || 0));
+    return counts;
+  }, {});
+};
+
 export const fetchOrderMessagePage = async ({ conversationId, before = null, limit = 20 }) => {
   const params = {
     limit: Number(limit || 20),

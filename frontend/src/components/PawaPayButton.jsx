@@ -7,12 +7,13 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 
 export default function PawaPayButton({
   amount,
-  purpose = 'WALLET_TOPUP',
+  purpose = 'CHECKOUT_FUNDING',
   productId = '',
   promoCode = '',
   actionContext = null,
-  returnPath = '/wallet',
+  returnPath = '/orders',
   label = 'Payer avec PawaPay',
+  onBeforeStart = null,
   className = ''
 }) {
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,19 @@ export default function PawaPayButton({
     setError('');
     setErrorHint('');
     try {
+      if (onBeforeStart) {
+        const validation = await onBeforeStart();
+        if (validation === false || typeof validation === 'string') {
+          setError(
+            typeof validation === 'string'
+              ? validation
+              : 'Vérifiez les informations avant de continuer.'
+          );
+          setErrorHint('');
+          setLoading(false);
+          return;
+        }
+      }
       const { data } = await api.post(
         '/payments/pawapay/checkouts',
         {

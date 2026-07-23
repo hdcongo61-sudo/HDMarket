@@ -1997,8 +1997,6 @@ export const getNotifications = asyncHandler(async (req, res) => {
           Boolean(productLabel);
         if (isListingPayment) {
           message = `${actorName} a payé${amountText ? ` ${amountText}` : ''} pour faire valider son annonce${productLabel}. Vérifiez le paiement et l'annonce${waitingSuffix}.`;
-        } else if (metadata.role === 'wallet_deposit_request' || metadata.walletId) {
-          message = `${actorName} a soumis un dépôt portefeuille${amountText ? ` de ${amountText}` : ''}. Vérifiez la preuve avant de créditer le solde.`;
         } else {
           message = `${actorName} a soumis une preuve de paiement${amountText ? ` de ${amountText}` : ''}. Consultez la section "Vérification des paiements"${waitingSuffix}.`;
         }

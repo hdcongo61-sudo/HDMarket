@@ -207,13 +207,6 @@ const TEMPLATES = {
         actionLabel: 'Vérifier l\'annonce'
       };
     }
-    if (metadata.role === 'wallet_deposit_request' || metadata.walletId) {
-      return {
-        title: 'Dépôt portefeuille à vérifier',
-        message: `${actorName} a soumis un dépôt portefeuille${amount ? ` de ${amount}` : ''}. Vérifiez la preuve avant de créditer le solde.`,
-        actionLabel: 'Vérifier le dépôt'
-      };
-    }
     return {
       title: 'Preuve de paiement reçue',
       message: `${actorName} a envoyé une preuve de paiement${amount ? ` de ${amount}` : ''}. Vérifiez-la dans le centre de validation.`,
@@ -227,13 +220,13 @@ const TEMPLATES = {
       return {
         title: pickFirst(metadata.title, 'Paiement confirmé'),
         message: customMessage,
-        actionLabel: metadata.paymentMethod === 'wallet' && metadata.productId ? 'Voir le paiement' : 'Voir le détail'
+        actionLabel: metadata.paymentMethod === 'pawapay' && metadata.productId ? 'Voir le paiement' : 'Voir le détail'
       };
     }
     return {
       title: 'Paiement confirmé',
       message: `Votre paiement${amount ? ` de ${amount}` : ''} a été validé. Le traitement peut continuer.`,
-      actionLabel: metadata.paymentMethod === 'wallet' && metadata.productId ? 'Voir le paiement' : 'Voir la commande'
+      actionLabel: metadata.paymentMethod === 'pawapay' && metadata.productId ? 'Voir le paiement' : 'Voir la commande'
     };
   },
   order_full_payment_waived: ({ metadata }) => ({

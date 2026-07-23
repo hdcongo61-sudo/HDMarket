@@ -8,6 +8,7 @@ import {
   getConversationMessages,
   sendConversationMessage,
   getUnreadCount,
+  getUnreadCountsByOrder,
   getAllOrderConversations,
   archiveOrderConversation,
   unarchiveOrderConversation,
@@ -23,6 +24,7 @@ const router = express.Router();
 
 router.use(protect);
 
+router.get('/unread/orders', getUnreadCountsByOrder);
 router.get('/unread', getUnreadCount);
 router.get('/', getAllOrderConversations);
 router.post('/', idempotencyMiddleware(), validate(schemas.startConversation), postStartConversation);

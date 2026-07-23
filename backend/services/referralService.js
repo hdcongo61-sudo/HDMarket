@@ -3,13 +3,13 @@
  * Invite code is captured at registration (`User.referredBy`); the reward is
  * only granted once the invitee's first order has been delivered AND stayed
  * undisputed past the existing 72h dispute window — never at registration,
- * to avoid fake-account farming. Reward = wallet credit to both sides.
+ * to avoid fake-account farming. Reward = HDPoints for both sides.
  */
 import User from '../models/userModel.js';
 import Order from '../models/orderModel.js';
 import Dispute from '../models/disputeModel.js';
 import { getRuntimeConfig } from './configService.js';
-import { deposit } from './walletService.js';
+import { awardPoints } from './rewardPointsService.js';
 import { createNotification } from '../utils/notificationService.js';
 
 const DISPUTE_WINDOW_MS = 72 * 60 * 60 * 1000;
@@ -91,21 +91,23 @@ export const sweepReferralRewards = async ({ limit = 200 } = {}) => {
     if (!claimed.modifiedCount) continue; // another sweep tick already claimed it
 
     // eslint-disable-next-line no-await-in-loop
-    const rewardXaf = Number(await getRuntimeConfig('referral_reward_xaf', { fallback: 500 }));
-    if (rewardXaf > 0) {
+    const rewardPoints = Number(await getRuntimeConfig('referral_reward_points', { fallback: 500 }));
+    if (rewardPoints > 0) {
       // eslint-disable-next-line no-await-in-loop
       await Promise.all([
-        deposit({
+        awardPoints({
           userId: invitee.referredBy,
-          amount: rewardXaf,
-          reference: `referral-${invitee._id}`,
-          note: 'Récompense de parrainage — filleul livré'
+          amount: rewardPoints,
+          reason: 'referral',
+          note: 'Récompense de parrainage — filleul livré',
+          metadata: { inviteeId: String(invitee._id) }
         }),
-        deposit({
+        awardPoints({
           userId: invitee._id,
-          amount: rewardXaf,
-          reference: `referral-welcome-${invitee._id}`,
-          note: 'Récompense de bienvenue — première commande livrée'
+          amount: rewardPoints,
+          reason: 'referral',
+          note: 'Récompense de bienvenue — première commande livrée',
+          metadata: { referrerId: String(invitee.referredBy) }
         })
       ]);
     }
@@ -121,13 +123,13 @@ export const sweepReferralRewards = async ({ limit = 200 } = {}) => {
         pushEnabled: true,
         metadata: {
           title: 'Récompense de parrainage reçue',
-          message: `${invitee.name} a reçu sa première commande. Votre portefeuille a été crédité.`,
-          amount: rewardXaf
+          message: `${invitee.name} a reçu sa première commande. Vos HDPoints ont été crédités.`,
+          points: rewardPoints
         },
         entityType: 'user',
         entityId: String(invitee._id),
-        deepLink: '/wallet',
-        actionLink: '/wallet'
+        deepLink: '/rewards',
+        actionLink: '/rewards'
       }).catch(() => {}),
       createNotification({
         userId: invitee._id,
@@ -138,13 +140,13 @@ export const sweepReferralRewards = async ({ limit = 200 } = {}) => {
         pushEnabled: true,
         metadata: {
           title: 'Récompense de bienvenue reçue',
-          message: 'Merci pour votre première commande ! Votre portefeuille a été crédité.',
-          amount: rewardXaf
+          message: 'Merci pour votre première commande ! Vos HDPoints ont été crédités.',
+          points: rewardPoints
         },
         entityType: 'user',
         entityId: String(invitee._id),
-        deepLink: '/wallet',
-        actionLink: '/wallet'
+        deepLink: '/rewards',
+        actionLink: '/rewards'
       }).catch(() => {})
     ]);
 

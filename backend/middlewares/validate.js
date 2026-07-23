@@ -208,7 +208,6 @@ export const schemas = {
     ).optional(),
     socialVideoUrl: Joi.string().max(500).allow('', null).optional(),
     newImageStudioMetadata: imageStudioArrayPayload.optional(),
-    payWithWallet: Joi.boolean().truthy('true').falsy('false').optional(),
     promoCode: Joi.string().max(60).allow('', null).optional()
   }).or('category', 'categoryId', 'subcategoryId'),
   productUpdate: Joi.object({
@@ -356,7 +355,7 @@ export const schemas = {
   }),
   paymentCreate: Joi.object({
     productId: Joi.string().hex().length(24).required(),
-    paymentMethod: Joi.string().valid('mobile_money', 'wallet', 'promo').default('wallet'),
+    paymentMethod: Joi.string().valid('mobile_money', 'promo').default('mobile_money'),
     promoCode: Joi.string().trim().uppercase().max(40).allow('', null),
     payerName: Joi.string().min(2).max(120).allow('', null),
     transactionNumber: Joi.string()
@@ -475,21 +474,18 @@ export const schemas = {
     ),
     city: Joi.string().trim().min(2).max(80).allow('', null),
     duration: Joi.number().integer().min(1).max(365).default(1),
-    paymentMethod: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    paymentMethod: Joi.string().valid('mobile_money').default('mobile_money'),
     paymentOperator: Joi.when('paymentMethod', {
-      is: 'wallet',
-      then: Joi.string().trim().max(40).allow('', null),
-      otherwise: Joi.string().trim().min(2).max(40).required()
+      is: 'mobile_money',
+      then: Joi.string().trim().min(2).max(40).required()
     }),
     paymentSenderName: Joi.when('paymentMethod', {
-      is: 'wallet',
-      then: Joi.string().trim().max(120).allow('', null),
-      otherwise: Joi.string().trim().min(2).max(120).required()
+      is: 'mobile_money',
+      then: Joi.string().trim().min(2).max(120).required()
     }),
     paymentTransactionId: Joi.when('paymentMethod', {
-      is: 'wallet',
-      then: Joi.string().trim().allow('', null),
-      otherwise: Joi.string()
+      is: 'mobile_money',
+      then: Joi.string()
         .pattern(/^\d{10}$/)
         .required()
         .messages({ 'string.pattern.base': 'L’ID de transaction doit contenir exactement 10 chiffres.' })
@@ -694,7 +690,7 @@ export const schemas = {
     .required(),
   sponsorshipRespond: Joi.object({
     action: Joi.string().valid('accept', 'decline').required(),
-    paymentMode: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    paymentMode: Joi.string().valid('mobile_money').default('mobile_money'),
     paymentOption: Joi.string().valid('deposit', 'full').default('deposit'),
     payerName: Joi.string().min(2).max(120).allow('', null),
     transactionCode: transactionCodeSchema.allow('', null)
@@ -704,7 +700,7 @@ export const schemas = {
     message: Joi.string().trim().max(280).allow('', null)
   }),
   sponsorshipPaySelf: Joi.object({
-    paymentMode: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    paymentMode: Joi.string().valid('mobile_money').default('mobile_money'),
     paymentOption: Joi.string().valid('deposit', 'full').default('deposit'),
     payerName: Joi.string().min(2).max(120).allow('', null),
     transactionCode: transactionCodeSchema.allow('', null)
@@ -713,7 +709,7 @@ export const schemas = {
 	    productId: Joi.string().hex().length(24).required(),
 	    quantity: Joi.number().integer().min(1).default(1),
 	    firstPaymentAmount: Joi.number().positive().required(),
-	    paymentMethod: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+	    paymentMethod: Joi.string().valid('mobile_money').default('mobile_money'),
 	    payerName: Joi.string().min(2).max(120).allow('', null),
     transactionCode: Joi.string()
       .pattern(/^\d{10}$/)
@@ -744,7 +740,7 @@ export const schemas = {
 	    }).allow(null)
 	  }),
   installmentPaymentProofSubmit: Joi.object({
-    paymentMethod: Joi.string().valid('mobile_money', 'wallet').default('mobile_money'),
+    paymentMethod: Joi.string().valid('mobile_money').default('mobile_money'),
     payerName: Joi.string().min(2).max(120).allow('', null),
     transactionCode: Joi.string()
       .pattern(/^\d{10}$/)
@@ -896,7 +892,7 @@ export const schemas = {
       'any.required': 'La raison de l\'annulation est requise.'
     }),
     issueRefund: Joi.boolean().truthy('true').falsy('false').default(false),
-    refundMethod: Joi.string().valid('wallet', 'mobile_money', '').allow(null),
+    refundMethod: Joi.string().valid('mobile_money', '').allow(null),
     refundTransactionNumber: Joi.string().trim().allow('', null),
     refundSenderName: Joi.string().trim().max(120).allow('', null)
   }),

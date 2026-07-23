@@ -308,13 +308,9 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
           resolvedPaymentChannel: {
             $cond: [
               {
-                $or: [
-                  { $eq: ['$paymentMethod', 'wallet'] },
-                  { $eq: ['$operator', 'HDMARKET_WALLET'] },
-                  { $ne: [{ $ifNull: ['$walletTransactionId', ''] }, ''] }
-                ]
+                $eq: ['$paymentMethod', 'pawapay']
               },
-              'wallet',
+              'pawapay',
               'mobile_money'
             ]
           }
@@ -381,7 +377,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     Payment.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('payerName amount status operator paymentMethod walletTransactionId createdAt validatedAt')
+      .select('payerName amount status operator paymentMethod createdAt validatedAt')
       .populate('product', 'title')
       .populate('user', 'name')
       .populate('validatedBy', 'name')
@@ -474,11 +470,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   });
   const paymentChannels = {
     mobileMoney: emptyPaymentChannel(),
-    wallet: emptyPaymentChannel(),
+    pawapay: emptyPaymentChannel(),
     total: emptyPaymentChannel()
   };
   paymentChannelAgg.forEach((entry) => {
-    const key = entry?._id === 'wallet' ? 'wallet' : 'mobileMoney';
+    const key = entry?._id === 'pawapay' ? 'pawapay' : 'mobileMoney';
     const normalized = {
       count: Number(entry?.count || 0),
       amount: Number(entry?.amount || 0),
@@ -557,7 +553,6 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     status: payment.status,
     operator: payment.operator,
     paymentMethod: payment.paymentMethod || '',
-    walletTransactionId: payment.walletTransactionId || '',
     product: payment.product ? payment.product.title : null,
     user: payment.user ? payment.user.name : null,
     validator: payment.validatedBy ? payment.validatedBy.name : null,

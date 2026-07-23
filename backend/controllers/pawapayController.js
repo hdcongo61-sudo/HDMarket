@@ -3,10 +3,8 @@ import asyncHandler from 'express-async-handler';
 import Payment from '../models/paymentModel.js';
 import PawaPayEvent from '../models/pawapayEventModel.js';
 import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
-import Wallet from '../models/walletModel.js';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
-import { creditWalletTopupFromGateway, purchaseFromWallet } from '../services/walletService.js';
 import {
   getPawaPayPublicKeys,
   initiatePawaPayCheckout
@@ -22,7 +20,7 @@ import { getHighestProductPrice } from '../utils/productAttributes.js';
 import {
   paySelfSponsorship,
   respondSponsorship,
-  walletCheckoutOrder
+  pawaPayCheckoutOrder
 } from './orderController.js';
 import {
   checkoutInstallmentOrder,
@@ -40,12 +38,10 @@ const RESOURCE_CONFIG = {
 const FINAL_SUCCESS = new Set(['COMPLETED', 'SUCCESSFUL']);
 const FINAL_FAILURE = new Set(['FAILED', 'CANCELLED', 'EXPIRED', 'REJECTED']);
 const CHECKOUT_PURPOSES = new Set([
-  'WALLET_TOPUP',
   'CHECKOUT_FUNDING',
   'LISTING_FEE_FUNDING',
   'INSTALLMENT_FUNDING',
-  'BOOST_FUNDING',
-  'SHOP_CONVERSION_FUNDING'
+  'BOOST_FUNDING'
 ]);
 const ACTION_CONTEXT_KINDS = new Set([
   'ORDER_CHECKOUT',
@@ -65,8 +61,8 @@ const sendPawaPayError = (res, status, code, message, details = {}) =>
   });
 
 const normalizeReturnPath = (value) => {
-  const path = String(value || '/wallet').trim();
-  if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) return '/wallet';
+  const path = String(value || '/orders').trim();
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) return '/orders';
   return path.slice(0, 300);
 };
 
@@ -99,9 +95,9 @@ const checkoutReturnUrl = (checkoutId) => {
   return url.toString();
 };
 
-export const createPawaPayWalletCheckout = asyncHandler(async (req, res) => {
+export const createPawaPayCheckout = asyncHandler(async (req, res) => {
   const amount = Number(req.body?.amount);
-  const purpose = String(req.body?.purpose || 'WALLET_TOPUP').trim().toUpperCase();
+  const purpose = String(req.body?.purpose || 'CHECKOUT_FUNDING').trim().toUpperCase();
   const returnPath = normalizeReturnPath(req.body?.returnPath);
   const productId = String(req.body?.productId || '').trim();
   const promoCode = normalizePromoCode(req.body?.promoCode);
@@ -264,7 +260,7 @@ export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
     purpose: checkout.purpose,
     actionKind: checkout.actionContext?.kind || '',
     status: checkout.status,
-    creditState: checkout.creditState,
+    paymentState: checkout.paymentState,
     autoValidationState: checkout.autoValidationState,
     autoValidatedPayment: checkout.autoValidatedPayment || null,
     completionResult: checkout.completionResult || null,
@@ -452,7 +448,7 @@ const normalizedAmount = (payload) => {
   return Number.isFinite(amount) ? amount : null;
 };
 
-const reconcileWalletCheckout = async ({ resourceType, resourceId, status, amount, currency, payload }) => {
+const reconcilePawaPayCheckout = async ({ resourceType, resourceId, status, amount, currency, payload }) => {
   if (resourceType !== 'checkout') return null;
   const checkout = await PawaPayCheckout.findOne({ checkoutId: resourceId });
   if (!checkout) return null;
@@ -492,31 +488,24 @@ const reconcileWalletCheckout = async ({ resourceType, resourceId, status, amoun
     {
       _id: checkout._id,
       $or: [
-        { creditState: 'PENDING' },
+        { paymentState: 'PENDING' },
         {
-          creditState: 'PROCESSING',
+          paymentState: 'PROCESSING',
           updatedAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) }
         }
       ]
     },
-    { $set: { creditState: 'PROCESSING' } },
+    { $set: { paymentState: 'PROCESSING' } },
     { new: true }
   );
   if (!claimed) return checkout;
 
   try {
-    await creditWalletTopupFromGateway({
-      userId: claimed.user,
-      amount: claimed.amount,
-      gateway: 'PawaPay',
-      providerTransactionId: claimed.checkoutId,
-      rawPayload: sanitizePayload(payload)
-    });
-    claimed.creditState = 'CREDITED';
-    claimed.creditedAt = new Date();
+    claimed.paymentState = 'CONFIRMED';
+    claimed.confirmedAt = new Date();
     await claimed.save();
   } catch (error) {
-    claimed.creditState = 'PENDING';
+    claimed.paymentState = 'PENDING';
     await claimed.save();
     throw error;
   }
@@ -542,6 +531,7 @@ const invokeCompletionController = async ({ handler, checkout, body = {}, params
     query: {},
     files: {},
     file: null,
+    pawaPayCheckout: checkout,
     ip: 'pawapay-callback',
     headers: {
       'user-agent': 'PawaPay callback completion',
@@ -624,7 +614,7 @@ const notifyPaymentCompletionToStaff = async ({ checkout, title, message, deepLi
 
 const autoCompleteCheckoutAction = async (checkout) => {
   const context = checkout?.actionContext;
-  if (!context?.kind || checkout.creditState !== 'CREDITED') return null;
+  if (!context?.kind || checkout.paymentState !== 'CONFIRMED') return null;
   const claimed = await PawaPayCheckout.findOneAndUpdate(
     {
       _id: checkout._id,
@@ -650,13 +640,14 @@ const autoCompleteCheckoutAction = async (checkout) => {
 
     if (action.kind === 'ORDER_CHECKOUT') {
       result = await invokeCompletionController({
-        handler: walletCheckoutOrder,
+        handler: pawaPayCheckoutOrder,
         checkout: claimed,
         body: {
           items: action.items,
           deliveryMode: action.deliveryMode,
           shippingAddress: action.shippingAddress,
-          promoEntries: action.promoEntries
+          promoEntries: action.promoEntries,
+          pointsToRedeem: action.pointsToRedeem
         }
       });
       const firstOrderId = result?.orders?.[0]?._id || result?.orders?.[0]?.id || '';
@@ -673,7 +664,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
           quantity: action.quantity,
           selectedAttributes: action.selectedAttributes,
           firstPaymentAmount: action.firstPaymentAmount,
-          paymentMethod: 'wallet',
+          paymentMethod: 'pawapay',
           payerName: '',
           transactionCode: '',
           guarantor: action.guarantor,
@@ -695,7 +686,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
           scheduleIndex: String(action.scheduleIndex)
         },
         body: {
-          paymentMethod: 'wallet',
+          paymentMethod: 'pawapay',
           payerName: '',
           transactionCode: '',
           amount: Number(action.amount || 0)
@@ -712,7 +703,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
         params: { groupId: String(action.groupId || '') },
         body: {
           action: 'accept',
-          paymentMode: 'wallet',
+          paymentMode: 'pawapay',
           paymentOption: action.paymentOption || 'full'
         }
       });
@@ -729,7 +720,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
           duration: String(action.duration || ''),
           city: action.city || '',
           productIds: JSON.stringify(action.productIds || []),
-          paymentMethod: 'wallet'
+          paymentMethod: 'pawapay'
         }
       });
       const boostId = result?._id || result?.request?._id || '';
@@ -745,7 +736,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
         checkout: claimed,
         params: { groupId: String(action.groupId || '') },
         body: {
-          paymentMode: 'wallet',
+          paymentMode: 'pawapay',
           paymentOption: action.paymentOption || 'full'
         }
       });
@@ -847,7 +838,7 @@ const autoValidateListingCheckout = async (checkout) => {
     !checkout ||
     checkout.purpose !== 'LISTING_FEE_FUNDING' ||
     !checkout.product ||
-    checkout.creditState !== 'CREDITED'
+    checkout.paymentState !== 'CONFIRMED'
   ) {
     return null;
   }
@@ -939,10 +930,10 @@ const autoValidateListingCheckout = async (checkout) => {
       promoCodeValue: normalizedPromo || '',
       promoDiscountType: promoPreview?.promo?.discountType || null,
       promoDiscountValue: Number(promoPreview?.promo?.discountValue || 0),
-      operator: 'HDMARKET_WALLET',
+      operator: 'OTHER',
       paymentType: 'LISTING_FEE',
       verificationMethod: 'WEBHOOK',
-      paymentMethod: dueAmount > 0 ? 'wallet' : 'promo',
+      paymentMethod: dueAmount > 0 ? 'pawapay' : 'promo',
       status: 'verified',
       verifiedBy: claimed.user,
       verifiedAt: new Date(),
@@ -982,28 +973,6 @@ const autoValidateListingCheckout = async (checkout) => {
             promoConsumptionWarning: String(promoError?.message || promoError).slice(0, 300)
           };
         }
-      }
-      if (dueAmount > 0) {
-        const walletPayment = await purchaseFromWallet({
-          userId: claimed.user,
-          amount: dueAmount,
-          orderId: String(payment._id),
-          reference: `listing-payment-${payment._id}`,
-          purpose: 'listing_fee',
-          note: `Paiement PawaPay validation annonce — ${product.title || product._id}`,
-          metadata: {
-            paymentId: String(payment._id),
-            productId: String(product._id),
-            checkoutId: claimed.checkoutId,
-            role: 'listing_fee_payment',
-            gateway: 'PAWAPAY'
-          }
-        });
-        payment.walletTransactionId = String(walletPayment?.transactionId || '');
-        payment.metadata = {
-          ...(payment.metadata || {}),
-          walletTransactionId: payment.walletTransactionId
-        };
       }
       await payment.save();
     } catch (error) {
@@ -1080,38 +1049,6 @@ const reconcilePayment = async ({ resourceType, resourceId, status, amount, curr
   return { payment, reconciliationStatus: 'MATCHED' };
 };
 
-const reconcileWalletPayout = async ({ resourceType, resourceId, status, payload }) => {
-  if (resourceType !== 'payout') return null;
-  const wallet = await Wallet.findOne({
-    transactions: { $elemMatch: { type: 'withdrawal', 'metadata.payoutId': resourceId } }
-  });
-  if (!wallet) return null;
-  const transaction = wallet.transactions.find(
-    (entry) => entry.type === 'withdrawal' && String(entry?.metadata?.payoutId || '') === resourceId
-  );
-  if (!transaction || transaction.status !== 'pending') return transaction || null;
-
-  if (FINAL_SUCCESS.has(status)) {
-    transaction.status = 'completed';
-    transaction.processedAt = new Date();
-    transaction.note = 'Retrait envoyé via PawaPay';
-    transaction.metadata = { ...transaction.metadata, providerStatus: status };
-  } else if (FINAL_FAILURE.has(status)) {
-    wallet.balance += Number(transaction.amount || 0);
-    transaction.status = 'failed';
-    transaction.processedAt = new Date();
-    transaction.balanceAfter = wallet.balance;
-    transaction.note = 'Retrait PawaPay échoué — montant recrédité';
-    transaction.metadata = {
-      ...transaction.metadata,
-      providerStatus: status,
-      failureReason: sanitizePayload(payload?.failureReason || null)
-    };
-  }
-  await wallet.save();
-  return transaction;
-};
-
 export const receivePawaPayCallback = (resourceType) =>
   asyncHandler(async (req, res) => {
     const config = RESOURCE_CONFIG[resourceType];
@@ -1132,7 +1069,7 @@ export const receivePawaPayCallback = (resourceType) =>
     const payload = sanitizePayload(req.body);
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}));
     const payloadDigest = crypto.createHash('sha256').update(rawBody).digest('hex');
-    const walletCheckout = await reconcileWalletCheckout({
+    const pawaPayCheckout = await reconcilePawaPayCheckout({
       resourceType,
       resourceId,
       status,
@@ -1140,20 +1077,19 @@ export const receivePawaPayCallback = (resourceType) =>
       currency,
       payload
     });
-    const walletPayout = await reconcileWalletPayout({ resourceType, resourceId, status, payload });
     const reconciliation = await reconcilePayment({ resourceType, resourceId, status, amount, currency, payload });
-    if (walletCheckout && FINAL_SUCCESS.has(status)) {
-      if (walletCheckout.actionContext?.kind) {
-        await autoCompleteCheckoutAction(walletCheckout);
-      } else if (walletCheckout.purpose === 'LISTING_FEE_FUNDING') {
-        await autoValidateListingCheckout(walletCheckout);
+    if (pawaPayCheckout && FINAL_SUCCESS.has(status)) {
+      if (pawaPayCheckout.actionContext?.kind) {
+        await autoCompleteCheckoutAction(pawaPayCheckout);
+      } else if (pawaPayCheckout.purpose === 'LISTING_FEE_FUNDING') {
+        await autoValidateListingCheckout(pawaPayCheckout);
       } else {
         await notifyPaymentCompletionToStaff({
-          checkout: walletCheckout,
+          checkout: pawaPayCheckout,
           title: 'Paiement PawaPay confirmé',
-          message: `Un paiement PawaPay de ${Number(walletCheckout.amount || 0).toLocaleString('fr-FR')} FCFA a été confirmé pour ${walletCheckout.purpose}.`,
+          message: `Un paiement PawaPay de ${Number(pawaPayCheckout.amount || 0).toLocaleString('fr-FR')} FCFA a été confirmé pour ${pawaPayCheckout.purpose}.`,
           deepLink: '/admin/payment-verification?status=verified',
-          entityId: walletCheckout.checkoutId
+          entityId: pawaPayCheckout.checkoutId
         });
       }
     }
@@ -1173,7 +1109,7 @@ export const receivePawaPayCallback = (resourceType) =>
           payloadDigest,
           lastReceivedAt: new Date(),
           matchedPayment: reconciliation.payment?._id || null,
-          reconciliationStatus: walletCheckout || walletPayout ? 'MATCHED' : reconciliation.reconciliationStatus
+          reconciliationStatus: pawaPayCheckout ? 'MATCHED' : reconciliation.reconciliationStatus
         },
         $setOnInsert: { firstReceivedAt: new Date() },
         $inc: { callbackCount: 1 }

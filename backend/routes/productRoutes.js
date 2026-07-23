@@ -146,7 +146,7 @@ router.post('/bulk/delete', protect, productMutationIdempotency, validate(schema
 // Admin
 router.get('/admin/all', protect, requireRole(['admin']), getAllProductsAdmin);
 
-// Promo code preview for listing fee (wallet payment)
+// Promo code preview for listing fees
 router.post('/promo-preview', protect, async (req, res) => {
   try {
     const { code, price } = req.body || {};

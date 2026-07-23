@@ -15,7 +15,7 @@ import {
 import { validatePromoCodeForSeller } from '../controllers/promoCodeController.js';
 import {
   receivePawaPayCallback,
-  createPawaPayWalletCheckout,
+  createPawaPayCheckout,
   getMyPawaPayCheckout,
   verifyPawaPayContentDigest,
   verifyPawaPaySignature
@@ -26,8 +26,7 @@ const router = express.Router();
 
 const rejectLegacyPaymentWhenPawaPayOnly = (req, res, next) => {
   if (!getPawaPayConfig().exclusiveMode) return next();
-  const paymentMethod = String(req.body?.paymentMethod || '').trim().toLowerCase();
-  if (paymentMethod === 'wallet' || Number(req.body?.amount || 0) === 0) return next();
+  if (Number(req.body?.amount || 0) === 0) return next();
   return res.status(403).json({
     code: 'PAWAPAY_ONLY',
     message: 'Les paiements manuels et les identifiants de transaction sont désactivés. Utilisez PawaPay.'
@@ -69,7 +68,7 @@ router.post(
   protect,
   paymentSubmissionLimiter,
   idempotencyMiddleware({ ttlMs: 15 * 60 * 1000 }),
-  createPawaPayWalletCheckout
+  createPawaPayCheckout
 );
 router.get('/pawapay/checkouts/:checkoutId', protect, getMyPawaPayCheckout);
 

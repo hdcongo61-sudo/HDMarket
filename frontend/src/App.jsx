@@ -28,7 +28,6 @@ const Home = lazy(() => import('./pages/Home'));
 const Discover = lazy(() => import('./pages/Discover'));
 const Explorer = lazy(() => import('./pages/Explorer'));
 const FlashSales = lazy(() => import('./pages/FlashSales'));
-const Wallet = lazy(() => import('./pages/Wallet'));
 const Sponsorships = lazy(() => import('./pages/Sponsorships'));
 const SellerAnalyticsV2 = lazy(() => import('./pages/SellerAnalyticsV2'));
 const SellerPromoCodes = lazy(() => import('./pages/SellerPromoCodes'));
@@ -661,7 +660,6 @@ function AppContent() {
           <Route path="/benefits" element={<Benefits />} />
           <Route path="/explore" element={<Explorer />} />
           <Route path="/flash-sales" element={<FlashSales />} />
-          <Route path="/wallet" element={<Wallet />} />
           <Route
             path="/payment/pawapay/return"
             element={

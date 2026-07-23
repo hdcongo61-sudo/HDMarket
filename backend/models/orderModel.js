@@ -63,10 +63,9 @@ const installmentTransactionProofSchema = new mongoose.Schema(
     transactionCode: { type: String, trim: true, default: '' },
     paymentMethod: {
       type: String,
-      enum: ['mobile_money', 'wallet', ''],
+      enum: ['mobile_money', 'pawapay', ''],
       default: ''
     },
-    walletTransactionId: { type: String, trim: true, default: '' },
     amount: { type: Number, default: 0, min: 0 },
     submittedAt: { type: Date, default: null },
     submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
@@ -294,7 +293,7 @@ const orderSchema = new mongoose.Schema(
     paymentTransactionCode: { type: String, trim: true, default: '' },
     paymentSource: {
       type: String,
-      enum: ['mobile_money', 'wallet', 'cod', ''],
+      enum: ['mobile_money', 'pawapay', 'cod', ''],
       default: ''
     },
     confirmedAt: { type: Date },
@@ -329,7 +328,7 @@ const orderSchema = new mongoose.Schema(
     refundAmount: { type: Number, default: 0, min: 0 },
     refundRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     refundRequestedAt: { type: Date, default: null },
-    refundMethod: { type: String, enum: ['', 'wallet', 'mobile_money'], default: '' },
+    refundMethod: { type: String, enum: ['', 'mobile_money'], default: '' },
     refundProof: { type: String, trim: true, default: '' },
     refundTransactionNumber: { type: String, trim: true, default: '' },
     refundSenderName: { type: String, trim: true, default: '' },

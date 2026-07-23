@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 
 /**
- * HDPoints widget for the Wallet page: balance, daily check-in with streak,
+ * HDPoints widget: balance, daily check-in with streak,
  * and a short recent-transactions list.
  */
 export default function RewardPointsCard() {

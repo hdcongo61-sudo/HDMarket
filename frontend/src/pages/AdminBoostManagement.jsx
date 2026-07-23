@@ -490,7 +490,7 @@ export default function AdminBoostManagement() {
                       <p>
                         Paiement:{' '}
                         <span className="font-semibold text-gray-800">
-                          {item.paymentMethod === 'wallet' ? 'Portefeuille HDMarket' : 'Mobile Money'}
+                          {item.paymentMethod === 'pawapay' ? 'PawaPay' : 'Mobile Money'}
                         </span>
                       </p>
                       <p>

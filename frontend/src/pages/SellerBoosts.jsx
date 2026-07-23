@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Clock3, Smartphone, Sparkles, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowLeft, Clock3, CreditCard, Smartphone, Sparkles, TrendingUp } from 'lucide-react';
 import api from '../services/api';
 import BoostRequestForm from '../components/BoostRequestForm';
 import { useToast } from '../context/ToastContext';
@@ -172,25 +172,25 @@ export default function SellerBoosts() {
                   </div>
 
                   {(() => {
-                    const isWallet = item.paymentMethod === 'wallet';
+                    const isPawaPay = item.paymentMethod === 'pawapay';
                     const payStatusStyle = item.paymentStatus === 'paid'
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       : item.paymentStatus === 'refunded'
                         ? 'border-gray-200 bg-gray-100 text-gray-600'
                         : 'border-amber-200 bg-amber-50 text-amber-700';
                     return (
-                      <div className={`mt-3 rounded-lg border p-2.5 ${isWallet ? 'border-orange-100 bg-orange-50' : 'border-indigo-100 bg-indigo-50'}`}>
+                      <div className={`mt-3 rounded-lg border p-2.5 ${isPawaPay ? 'border-orange-100 bg-orange-50' : 'border-indigo-100 bg-indigo-50'}`}>
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-black text-white ${isWallet ? 'bg-[#e85d00]' : 'bg-indigo-600'}`}>
-                            {isWallet ? <Wallet className="h-3.5 w-3.5" /> : <Smartphone className="h-3.5 w-3.5" />}
-                            {isWallet ? 'Portefeuille HDMarket' : 'Mobile Money'}
+                          <span className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-black text-white ${isPawaPay ? 'bg-[#e85d00]' : 'bg-indigo-600'}`}>
+                            {isPawaPay ? <CreditCard className="h-3.5 w-3.5" /> : <Smartphone className="h-3.5 w-3.5" />}
+                            {isPawaPay ? 'PawaPay' : 'Mobile Money'}
                           </span>
                           <span className={`inline-flex shrink-0 items-center rounded border px-2 py-0.5 text-[11px] font-bold ${payStatusStyle}`}>
                             {item.paymentStatus === 'paid' ? 'Payé' : item.paymentStatus === 'refunded' ? 'Remboursé' : 'À valider'}
                           </span>
                         </div>
-                        {isWallet ? (
-                          <p className="mt-2 text-xs font-medium text-gray-600">Montant débité directement de votre portefeuille HDMarket.</p>
+                        {isPawaPay ? (
+                          <p className="mt-2 text-xs font-medium text-gray-600">Paiement confirmé directement par PawaPay.</p>
                         ) : (
                           <div className="mt-2 grid grid-cols-1 gap-1.5 text-xs text-gray-600 sm:grid-cols-2">
                             <p>Opérateur: <span className="font-semibold text-gray-800">{item.paymentOperator || '-'}</span></p>

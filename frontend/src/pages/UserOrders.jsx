@@ -74,6 +74,7 @@ import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import useBuyerOrdersListQuery from '../hooks/useBuyerOrdersListQuery';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 import { appAlert, appConfirm } from '../utils/appDialog';
+import { fetchOrderUnreadCounts } from '../queries/orderChatApi';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement en attente',
@@ -184,7 +185,7 @@ const normalizeStatusFilter = (value) => {
 
 const orderMatchesBuyerFilter = (order, filterKey) => {
   if (!filterKey || filterKey === 'all') return true;
-  if (filterKey === 'wallet') return String(order?.paymentSource || '') === 'wallet';
+  if (filterKey === 'pawapay') return String(order?.paymentSource || '') === 'pawapay';
   if (isOrderGroupKey('buyer', filterKey)) {
     return getOrderGroupStatuses('buyer', filterKey).includes(String(order?.status || '').trim().toLowerCase());
   }
@@ -1249,24 +1250,7 @@ export default function UserOrders() {
   const loadUnreadCounts = async (orderIds) => {
     if (!orderIds || orderIds.length === 0 || !user?._id) return {};
     try {
-      const counts = await Promise.all(
-        orderIds.map(async (orderId) => {
-          try {
-            const { data } = await api.get(`/orders/${orderId}/messages`);
-            const unread = Array.isArray(data) ? data.filter(
-              (msg) => String(msg.recipient?._id) === String(user._id) && !msg.readAt
-            ) : [];
-            return { orderId, count: unread.length };
-          } catch (err) {
-            console.warn('[UserOrders] Failed to fetch unread messages for order', orderId, err);
-            return { orderId, count: 0 };
-          }
-        })
-      );
-      return counts.reduce((acc, { orderId, count }) => {
-        acc[orderId] = count;
-        return acc;
-      }, {});
+      return await fetchOrderUnreadCounts(orderIds);
     } catch (err) {
       console.warn('[UserOrders] Failed to fetch unread message counts', err);
       return {};

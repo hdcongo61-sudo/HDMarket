@@ -10,14 +10,12 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     purpose: {
       type: String,
       enum: [
-        'WALLET_TOPUP',
         'CHECKOUT_FUNDING',
         'LISTING_FEE_FUNDING',
         'INSTALLMENT_FUNDING',
-        'BOOST_FUNDING',
-        'SHOP_CONVERSION_FUNDING'
+        'BOOST_FUNDING'
       ],
-      default: 'WALLET_TOPUP'
+      default: 'CHECKOUT_FUNDING'
     },
     product: {
       type: mongoose.Schema.Types.ObjectId,
@@ -27,16 +25,16 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     },
     promoCode: { type: String, trim: true, uppercase: true, default: '' },
     actionContext: { type: mongoose.Schema.Types.Mixed, default: null },
-    returnPath: { type: String, default: '/wallet', trim: true },
+    returnPath: { type: String, default: '/orders', trim: true },
     status: {
       type: String,
       enum: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING', 'COMPLETED', 'FAILED', 'EXPIRED', 'CANCELLED'],
       default: 'CREATED',
       index: true
     },
-    creditState: {
+    paymentState: {
       type: String,
-      enum: ['PENDING', 'PROCESSING', 'CREDITED', 'FAILED'],
+      enum: ['PENDING', 'PROCESSING', 'CONFIRMED', 'FAILED'],
       default: 'PENDING'
     },
     redirectUrl: { type: String, default: '' },
@@ -45,7 +43,7 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     providerTransactionId: { type: String, default: '' },
     failureReason: { type: mongoose.Schema.Types.Mixed, default: null },
     callbackPayload: { type: mongoose.Schema.Types.Mixed, default: null },
-    creditedAt: { type: Date, default: null },
+    confirmedAt: { type: Date, default: null },
     autoValidationState: {
       type: String,
       enum: ['NOT_APPLICABLE', 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],

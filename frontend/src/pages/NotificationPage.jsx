@@ -257,28 +257,7 @@ const buildOrderNotificationPath = (alert, user) => {
   return `/orders/detail/${orderId}`;
 };
 
-const isWalletAction = (alert, to = '') => {
-  const type = String(alert?.type || '').trim();
-  const metadata = alert?.metadata || {};
-  const link = String(to || alert?.actionLink || alert?.deepLink || metadata?.deepLink || '').trim().toLowerCase();
-  const message = String(alert?.message || metadata?.message || '').trim().toLowerCase();
-  // App/platform-wallet alerts resolve to an /admin route — those are not a
-  // personal "open wallet" action, so let the admin label take over.
-  if (link.startsWith('/admin')) return false;
-  return (
-    link === '/wallet' ||
-    link.startsWith('/wallet?') ||
-    String(alert?.entityType || '').trim().toLowerCase() === 'wallet' ||
-    Boolean(metadata.walletId || metadata.walletBalance !== undefined || metadata.pendingBalance !== undefined || metadata.availableBalance !== undefined) ||
-    String(metadata.role || '').toLowerCase().includes('wallet') ||
-    message.includes('portefeuille') ||
-    message.includes('hdmarket wallet') ||
-    type.startsWith('wallet_')
-  );
-};
-
 const getPrimaryActionLabel = (alert, to, t) => {
-  if (isWalletAction(alert, to)) return t('notifications.openWallet', 'Ouvrir portefeuille');
   if (String(alert?.type || '') === 'validation_required') return t('notifications.openTask', 'Ouvrir tâche');
   if (String(to || '').includes('/admin/payment-verification')) return t('notifications.verifyPayment', 'Vérifier paiement');
   if (String(to || '').includes('/orders') || String(to || '').includes('/seller/orders')) {
@@ -308,7 +287,6 @@ const getNotificationActions = (alert, user, t) => {
   if (disputePath) actions.push({ to: disputePath, label: t('notifications.viewDispute', 'Voir litige') });
   if (
     alert?.type === 'payment_pending' &&
-    !isWalletAction(alert, primaryLink) &&
     (user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager')
   ) {
     actions.push({ to: '/admin/payment-verification', label: t('notifications.verifyPayment', 'Vérifier paiement') });

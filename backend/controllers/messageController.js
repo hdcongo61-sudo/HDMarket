@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import OrderMessage from '../models/orderMessageModel.js';
+import Conversation from '../models/conversationModel.js';
 import User from '../models/userModel.js';
 import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
@@ -411,6 +412,49 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
   emitOrderUnreadUpdate({ userId: String(userId), totalUnread });
 
   res.json({ unreadCount: totalUnread });
+});
+
+/**
+ * Unread message counts grouped by order. This keeps order-list badges
+ * read-only; fetching a conversation's messages marks those messages read.
+ */
+export const getUnreadCountsByOrder = asyncHandler(async (req, res) => {
+  const userId = req.user?.id || req.user?._id;
+  const orderIds = [...new Set(
+    String(req.query?.orderIds || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => mongoose.isValidObjectId(value))
+  )].slice(0, 100);
+
+  if (orderIds.length === 0) {
+    return res.json({ byOrder: {} });
+  }
+
+  const { byConversation } = await syncOrderUnreadState(userId);
+  const unreadConversationIds = Object.keys(byConversation)
+    .filter((conversationId) => Number(byConversation[conversationId] || 0) > 0);
+
+  if (unreadConversationIds.length === 0) {
+    return res.json({ byOrder: {} });
+  }
+
+  const conversations = await Conversation.find({
+    _id: { $in: unreadConversationIds },
+    orderId: { $in: orderIds }
+  })
+    .select('_id orderId')
+    .lean();
+
+  const byOrder = conversations.reduce((counts, conversation) => {
+    const orderId = String(conversation.orderId || '');
+    if (!orderId) return counts;
+    counts[orderId] = Number(counts[orderId] || 0)
+      + Number(byConversation[String(conversation._id)] || 0);
+    return counts;
+  }, {});
+
+  return res.json({ byOrder });
 });
 
 export const archiveOrderConversation = asyncHandler(async (req, res) => {

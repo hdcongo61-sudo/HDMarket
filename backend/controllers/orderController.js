@@ -124,11 +124,6 @@ const ORDER_STATUS_GROUPS = {
 
 const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } = {}) => {
   const normalizedStatusGroup = String(statusGroup || '').trim();
-  if (normalizedStatusGroup === 'wallet') {
-    filter.paymentSource = 'wallet';
-    return filter;
-  }
-
   if (status && ORDER_STATUS.includes(status)) {
     if (INSTALLMENT_SALE_STATUS_FILTERS.has(status)) {
       filter.$and = [
@@ -153,13 +148,6 @@ const applyOrderStatusFilter = (filter, { status, statusGroup, role = 'buyer' } 
   return filter;
 };
 
-const WALLET_ESCROW_RELEASE_STATUSES = new Set([
-  'picked_up_confirmed',
-  'delivered',
-  'confirmed_by_client',
-  'completed'
-]);
-
 const isOrderFulfilmentFinal = (order) =>
   ['delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(
     String(order?.status || '').toLowerCase()
@@ -168,20 +156,6 @@ const isOrderFulfilmentFinal = (order) =>
     ['delivered', 'picked_up_confirmed'].includes(
       String(order?.installmentSaleStatus || '').toLowerCase()
     ));
-
-const getWalletPaidAmountForOrder = (order) => {
-  if (String(order?.paymentType || '').toLowerCase() === 'installment') {
-    return (order?.installmentPlan?.schedule || []).reduce(
-      (sum, entry) =>
-        entry?.status === 'paid' && entry?.transactionProof?.paymentMethod === 'wallet'
-          ? sum + Number(entry?.transactionProof?.amount || entry?.amount || 0)
-          : sum,
-      0
-    );
-  }
-  if (order?.paymentSource !== 'wallet') return 0;
-  return Number(order?.paidAmount || order?.totalAmount || 0);
-};
 
 const getOrderSellerIds = (order) =>
   Array.from(
@@ -206,28 +180,6 @@ const emitOrderLifecycleUpdate = ({ order, updatedBy, updatedAt = new Date() }) 
       ? new Date().toISOString()
       : normalizedUpdatedAt.toISOString()
   });
-};
-
-const releaseWalletEscrowForOrder = async (order, processedBy = null) => {
-  if (!order) return [];
-  const sellerIds = getOrderSellerIds(order);
-  if (!sellerIds.length) return [];
-
-  try {
-    const { releaseSellerWalletSale } = await import('../services/walletService.js');
-    return await Promise.all(
-      sellerIds.map((sellerId) =>
-        releaseSellerWalletSale({
-          userId: sellerId,
-          orderId: String(order._id),
-          processedBy
-        })
-      )
-    );
-  } catch (err) {
-    console.error('[walletEscrowRelease] Failed:', err?.message || err);
-    throw err;
-  }
 };
 
 const SELLER_ACCOUNT_ROLES = new Set(['seller', 'vendeur', 'boutique_owner']);
@@ -1167,18 +1119,15 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
   res.status(201).json(buildOrderResponse(populated));
 });
 
-// ─── Wallet Checkout (Proposal 6) ────────────────────────
-
-export const walletCheckoutOrder = asyncHandler(async (req, res) => {
+// ─── PawaPay checkout completion ─────────────────────────
+// This handler is called only after a signed PawaPay callback confirms payment.
+export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
   const { items, deliveryMode: rawDeliveryMode, shippingAddress, promoEntries } = req.body;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
 
-  // Verify wallet payment is enabled
-  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
-  const walletEnabled = pawaPayOnly || await getRuntimeConfig('enable_wallet_payment', { fallback: false });
-  if (!walletEnabled) {
-    return res.status(403).json({ message: 'Le paiement par portefeuille est désactivé.' });
+  if (!req.pawaPayCheckout || req.pawaPayCheckout.status !== 'COMPLETED') {
+    return res.status(403).json({ message: 'Confirmation PawaPay requise.' });
   }
 
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -1186,12 +1135,7 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Load wallet
-    const { getOrCreateWallet } = await import('../services/walletService.js');
-    const [wallet, customer] = await Promise.all([
-      getOrCreateWallet(userId),
-      User.findById(userId).select('name email phone address city commune restrictions')
-    ]);
+    const customer = await User.findById(userId).select('name email phone address city commune restrictions');
     if (!customer) {
       return res.status(404).json({ message: 'Client introuvable.' });
     }
@@ -1230,40 +1174,9 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  // Hoist: fetch wallet shop eligibility config once
-  const enabledPhonesStr = await getRuntimeConfig('wallet_enabled_shops', { fallback: '' });
-  const enabledPhones = enabledPhonesStr
-    ? String(enabledPhonesStr).split(',').map((s) => s.trim()).filter(Boolean)
-    : [];
-
-  // Batch: fetch all shop phones at once
-  const shopIdsSet = new Set();
-  items.forEach((i) => {
-    const p = productMap.get(String(i.productId));
-    if (p) shopIdsSet.add(String(p.user || p.shopId || ''));
-  });
-  shopIdsSet.delete('');
-  const shopIds = [...shopIdsSet];
-  const shopPhoneMap = new Map();
-  if (enabledPhones.length > 0 && shopIds.length > 0) {
-    const shops = await User.find({ _id: { $in: shopIds } }).select('phone').lean();
-    shops.forEach((s) => shopPhoneMap.set(String(s._id), String(s.phone || '').trim()));
-  }
-
   for (const item of items) {
     const product = productMap.get(String(item.productId));
     if (!product) continue;
-
-    // Check per-shop wallet eligibility (batched, no per-item DB call)
-    const shopId = String(product.user || product.shopId || '');
-    if (enabledPhones.length > 0) {
-      const shopPhone = shopPhoneMap.get(shopId) || '';
-      if (!shopPhone || !enabledPhones.includes(shopPhone)) {
-        return res.status(400).json({
-          message: `Le paiement par portefeuille n'est pas disponible pour la boutique de "${product.title}".`
-        });
-      }
-    }
 
     const selectedAttributesValidation = validateSelectedAttributesForProduct({
       productAttributes: product.attributes,
@@ -1328,36 +1241,12 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Apply wallet discount if configured
-  const rawDiscountPercent = Number(await getRuntimeConfig('wallet_discount_percent', { fallback: 0 }));
-  const walletDiscountPct = Math.min(100, Math.max(0, Number.isFinite(rawDiscountPercent) ? rawDiscountPercent : 0));
-  const discountAmount = walletDiscountPct > 0 ? Math.round(totalAmount * (walletDiscountPct / 100)) : 0;
-  const finalAmount = totalAmount - discountAmount;
-
-  // Wallet must have enough balance for the discounted payment
-  if (wallet.availableBalance < finalAmount) {
+  const finalAmount = totalAmount;
+  if (Math.abs(Number(req.pawaPayCheckout.amount || 0) - finalAmount) > 0.01) {
     return res.status(400).json({
-      message: 'Solde portefeuille insuffisant pour finaliser cette commande.'
+      message: 'Le montant confirmé par PawaPay ne correspond plus au total de la commande.'
     });
   }
-
-  // Deduct from wallet (discounted amount)
-  const { purchaseFromWallet, creditSellerWalletSale } = await import('../services/walletService.js');
-  await purchaseFromWallet({
-    userId,
-    amount: finalAmount,
-    reference: 'wallet-checkout',
-    metadata: {
-      products: orderItems.map((item) => ({
-        productId: String(item.product?._id || item.product || ''),
-        title: item.snapshot?.title || 'Produit',
-        image: item.snapshot?.image || '',
-        quantity: Number(item.quantity || 1),
-        unitPrice: Number(item.unitPrice ?? item.snapshot?.price ?? 0),
-        selectedAttributes: Array.isArray(item.selectedAttributes) ? item.selectedAttributes : []
-      }))
-    }
-  });
 
   // Create order(s) — one per shop
   const shopGroups = new Map();
@@ -1367,14 +1256,10 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
     shopGroups.get(sid).push(oi);
   });
 
-  // Distribute discount proportionally across shop groups
-  const discountRate = totalAmount > 0 ? discountAmount / totalAmount : 0;
-
   const createdOrders = [];
-  for (const [sellerId, sellerItems] of shopGroups) {
+  for (const sellerItems of shopGroups.values()) {
     const sellerSubtotal = sellerItems.reduce((s, i) => s + i.lineTotal, 0);
-    const sellerDiscount = Math.round(sellerSubtotal * discountRate);
-    const sellerTotal = sellerSubtotal - sellerDiscount;
+    const sellerTotal = sellerSubtotal;
 
     const order = await Order.create({
       customer: userId,
@@ -1386,7 +1271,7 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
       status: 'paid',
       paymentType: 'full',
       paymentMode: 'FULL_PAYMENT',
-      paymentSource: 'wallet',
+      paymentSource: 'pawapay',
       paymentStatus: 'PAID_FULL',
       paymentCompletedAt: new Date(),
       deliveryMode,
@@ -1395,25 +1280,16 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
       deliveryFeeLocked: true,
       itemsSubtotal: sellerSubtotal,
       deliveryFeeTotal: 0,
-      discountTotal: sellerDiscount,
+      discountTotal: 0,
       totalAmount: sellerTotal,
       paidAmount: sellerTotal,
       remainingAmount: 0
     });
     createdOrders.push(order);
-    if (sellerId && sellerId !== 'unknown' && sellerTotal > 0) {
-      await creditSellerWalletSale({
-        userId: sellerId,
-        amount: sellerTotal,
-        orderId: String(order._id),
-        buyerId: userId,
-        reference: 'wallet-checkout'
-      });
-    }
   }
 
   res.status(201).json({
-    message: 'Commande payée via portefeuille HDMarket.',
+    message: 'Commande payée avec PawaPay.',
     orders: createdOrders.map(buildOrderResponse)
   });
 
@@ -1436,7 +1312,7 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
           itemCount: order.items?.length || 1,
           totalAmount: Number(order.totalAmount || 0),
           paymentMode: 'FULL_PAYMENT',
-          paymentSource: 'wallet'
+          paymentSource: 'pawapay'
         }
       }).catch(() => {});
     }
@@ -1451,18 +1327,18 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
         deliveryAddress: order.deliveryAddress,
         status: 'paid',
         paymentMode: 'FULL_PAYMENT',
-        paymentSource: 'wallet',
+        paymentSource: 'pawapay',
         deliveryFeeWaived: Boolean(order.deliveryFeeWaived)
       }
     }).catch(() => {});
   });
   } catch (err) {
-    console.error('[walletCheckout] Error:', err?.message || err, err?.stack);
+    console.error('[pawaPayCheckout] Error:', err?.message || err, err?.stack);
     const statusCode = Number(err?.statusCode || err?.status || 500);
     return res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500).json({
       message: statusCode < 500
         ? err.message
-        : 'Erreur interne lors du paiement portefeuille. Veuillez réessayer.',
+        : 'Erreur interne lors de la finalisation PawaPay. Veuillez réessayer.',
       error: process.env.NODE_ENV !== 'production' ? String(err?.message || err) : undefined
     });
   }
@@ -2233,8 +2109,8 @@ const reviveSponsoredOrder = (order) => {
   order.cancellationReason = '';
 };
 
-// Capture payment (mobile money code or wallet) across a sponsorship group's orders.
-// Throws { status, message, code } on validation/balance failure. Shared by the
+// Capture payment across a sponsorship group's orders.
+// Throws { status, message, code } on validation failure. Shared by the
 // designated-payer accept flow and the requester "pay myself" flow.
 const captureGroupPayment = async ({
   orders,
@@ -2244,57 +2120,37 @@ const captureGroupPayment = async ({
   paymentOption = 'deposit',
   payerName,
   transactionCode,
-  sponsoredStatus
+  sponsoredStatus,
+  pawaPayCheckout = null
 }) => {
-  if (getPawaPayConfig().exclusiveMode && paymentMode !== 'wallet') {
+  if (getPawaPayConfig().exclusiveMode && paymentMode !== 'pawapay') {
     throw Object.assign(
       new Error('Les paiements manuels sont désactivés. Utilisez PawaPay.'),
       { status: 403, code: 'PAWAPAY_ONLY' }
     );
   }
   const now = new Date();
-  const groupId = orders[0]?.sponsoredPayment?.requestGroupId || '';
-  if (paymentMode === 'wallet') {
+  if (paymentMode === 'pawapay') {
     const total = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
-    const { getOrCreateWallet, purchaseFromWallet, creditSellerWalletSale } = await import(
-      '../services/walletService.js'
-    );
-    const wallet = await getOrCreateWallet(payerUserId);
-    if (Number(wallet.availableBalance || 0) < total) {
-      throw Object.assign(new Error('Solde portefeuille insuffisant pour régler cette commande.'), {
-        status: 400,
-        code: 'wallet_insufficient_funds'
+    if (!pawaPayCheckout || Math.abs(Number(pawaPayCheckout.amount || 0) - total) > 0.01) {
+      throw Object.assign(new Error('Le montant confirmé par PawaPay est invalide.'), {
+        status: 400
       });
     }
-    await purchaseFromWallet({ userId: payerUserId, amount: total, reference: `sponsor-${groupId}` });
     await Promise.all(
       orders.map((order) => {
-        const sellerId = String(order.items?.[0]?.snapshot?.shopId || '');
-        const sellerCredit = Math.max(0, Number(order.totalAmount || 0) - Number(order.deliveryFeeTotal || 0));
         reviveSponsoredOrder(order);
         order.status = 'paid';
         order.paymentStatus = 'PAID_FULL';
-        order.paymentSource = 'wallet';
+        order.paymentSource = 'pawapay';
         order.paymentCompletedAt = now;
         order.paidAmount = Number(order.totalAmount || 0);
         order.remainingAmount = 0;
-        order.paymentName = payerUser?.name || payerUser?.shopName || 'Portefeuille HDMarket';
+        order.paymentName = 'PawaPay';
+        order.paymentTransactionCode = pawaPayCheckout.checkoutId;
         order.sponsoredPayment.status = sponsoredStatus;
         order.sponsoredPayment.respondedAt = now;
         order.sponsoredPayment.paidBy = payerUserId;
-        if (sellerId && sellerId !== 'unknown' && sellerCredit > 0) {
-          void safeAsync(
-            () =>
-              creditSellerWalletSale({
-                userId: sellerId,
-                amount: sellerCredit,
-                orderId: String(order._id),
-                buyerId: order.customer,
-                reference: `sponsor-${groupId}`
-              }),
-            { label: 'sponsor_credit_seller' }
-          );
-        }
         return order.save();
       })
     );
@@ -2345,7 +2201,8 @@ const settleSponsorshipGroup = async (
     payerName,
     transactionCode,
     sponsoredStatus,
-    defaultPayerNameToSelf = false
+    defaultPayerNameToSelf = false,
+    pawaPayCheckout = null
   }
 ) => {
   const payer = await User.findById(userId).select('name shopName restrictions');
@@ -2362,7 +2219,8 @@ const settleSponsorshipGroup = async (
       paymentOption,
       payerName: payerName || (defaultPayerNameToSelf ? payer?.name || payer?.shopName : ''),
       transactionCode,
-      sponsoredStatus
+      sponsoredStatus,
+      pawaPayCheckout
     });
   } catch (error) {
     res.status(error.status || 400).json({ message: error.message, code: error.code });
@@ -2600,7 +2458,8 @@ export const respondSponsorship = asyncHandler(async (req, res) => {
     paymentOption,
     payerName,
     transactionCode,
-    sponsoredStatus: 'accepted'
+    sponsoredStatus: 'accepted',
+    pawaPayCheckout: req.pawaPayCheckout || null
   });
   if (!payer) return;
 
@@ -2728,7 +2587,8 @@ export const paySelfSponsorship = asyncHandler(async (req, res) => {
     payerName,
     transactionCode,
     sponsoredStatus: 'self_paid',
-    defaultPayerNameToSelf: true
+    defaultPayerNameToSelf: true,
+    pawaPayCheckout: req.pawaPayCheckout || null
   });
   if (!buyer) return;
   res.json({ message: 'Commande réglée.', requestGroupId: groupId, status: 'self_paid' });
@@ -2956,57 +2816,6 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   await order.save();
-
-  if (status && WALLET_ESCROW_RELEASE_STATUSES.has(order.status)) {
-    try {
-      await releaseWalletEscrowForOrder(order, req.user.id);
-    } catch (err) {
-      return res.status(500).json({
-        message: 'Commande mise à jour, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
-      });
-    }
-  }
-
-  // ── Wallet refund on cancellation (seller) ─────────────
-  if (status === 'cancelled' && previousStatus !== 'cancelled') {
-    const refundAmount = getWalletPaidAmountForOrder(order);
-    if (refundAmount > 0) {
-      try {
-        const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
-        await refundToWallet({
-          userId: order.customer,
-          amount: refundAmount,
-          orderId: String(order._id),
-          processedBy: req.user.id,
-          note: `Remboursement — commande ${String(order._id).slice(-6)} annulée.`
-        });
-        const sellerAmounts = new Map();
-        (order.items || []).forEach((item) => {
-          const sid = String(item?.snapshot?.shopId || '');
-          if (sid) sellerAmounts.set(sid, (sellerAmounts.get(sid) || 0) + Number(item.lineTotal || 0));
-        });
-        const lineSubtotal = Array.from(sellerAmounts.values()).reduce((sum, value) => sum + Number(value || 0), 0);
-        const singleSellerRefund = sellerAmounts.size === 1;
-        for (const [sellerId, amount] of sellerAmounts) {
-          const reversalAmount = singleSellerRefund
-            ? refundAmount
-            : lineSubtotal > 0
-              ? Math.round((Number(amount || 0) / lineSubtotal) * refundAmount)
-              : 0;
-          if (reversalAmount > 0) {
-            await reverseSellerCredit({
-              userId: sellerId,
-              amount: reversalAmount,
-              orderId: String(order._id),
-              processedBy: req.user.id
-            });
-          }
-        }
-      } catch (err) {
-        console.error('[sellerCancelOrder] Wallet refund failed:', err?.message);
-      }
-    }
-  }
 
   await syncReviewReminderForOrderLifecycle(order);
   if (status && previousStatus !== order.status) {
@@ -3738,47 +3547,6 @@ export const userUpdateOrderStatus = asyncHandler(async (req, res) => {
 
   await order.save();
 
-  // ── Wallet refund on cancellation (buyer) ──────────────
-  if (status === 'cancelled' && previousStatus !== 'cancelled') {
-    const refundAmount = getWalletPaidAmountForOrder(order);
-    if (refundAmount > 0) {
-      try {
-        const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
-        await refundToWallet({
-          userId,
-          amount: refundAmount,
-          orderId: String(order._id),
-          processedBy: userId,
-          note: `Remboursement — commande ${String(order._id).slice(-6)} annulée par l'acheteur.`
-        });
-        const sellerAmounts = new Map();
-        (order.items || []).forEach((item) => {
-          const sid = String(item?.snapshot?.shopId || '');
-          if (sid) sellerAmounts.set(sid, (sellerAmounts.get(sid) || 0) + Number(item.lineTotal || 0));
-        });
-        const lineSubtotal = Array.from(sellerAmounts.values()).reduce((sum, value) => sum + Number(value || 0), 0);
-        const singleSellerRefund = sellerAmounts.size === 1;
-        for (const [sellerId, amount] of sellerAmounts) {
-          const reversalAmount = singleSellerRefund
-            ? refundAmount
-            : lineSubtotal > 0
-              ? Math.round((Number(amount || 0) / lineSubtotal) * refundAmount)
-              : 0;
-          if (reversalAmount > 0) {
-            await reverseSellerCredit({
-              userId: sellerId,
-              amount: reversalAmount,
-              orderId: String(order._id),
-              processedBy: userId
-            });
-          }
-        }
-      } catch (err) {
-        console.error('[buyerCancelOrder] Wallet refund failed:', err?.message);
-      }
-    }
-  }
-
   emitOrderLifecycleUpdate({
     order,
     updatedBy: userId,
@@ -4310,15 +4078,6 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     order.deliveredAt = now;
   }
   await order.save();
-  if (WALLET_ESCROW_RELEASE_STATUSES.has(order.status)) {
-    try {
-      await releaseWalletEscrowForOrder(order, actorId);
-    } catch (err) {
-      return res.status(500).json({
-        message: 'Preuve enregistrée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
-      });
-    }
-  }
   await syncReviewReminderForOrderLifecycle(order);
 
   const baseLog = {
@@ -4433,13 +4192,6 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
       order.status = 'delivered';
     }
     await order.save();
-    try {
-      await releaseWalletEscrowForOrder(order, userId);
-    } catch (err) {
-      return res.status(500).json({
-        message: 'Livraison confirmée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
-      });
-    }
     emitOrderLifecycleUpdate({
       order,
       updatedBy: userId,
@@ -4511,13 +4263,6 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     order.completedAt = now;
   }
   await order.save();
-  try {
-    await releaseWalletEscrowForOrder(order, userId);
-  } catch (err) {
-    return res.status(500).json({
-      message: 'Livraison confirmée, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
-    });
-  }
   emitOrderLifecycleUpdate({
     order,
     updatedBy: userId,
@@ -4529,21 +4274,6 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     if (item?.snapshot?.shopId) sellerIds.add(String(item.snapshot.shopId));
   });
 
-  // Deduct platform commission from seller wallets — fire-and-forget
-  const commissionRate = Number(process.env.PLATFORM_COMMISSION_RATE || 0.03);
-  if (commissionRate > 0 && sellerIds.size > 0) {
-    const { deductCommission } = await import('../services/walletService.js');
-    for (const sellerId of sellerIds) {
-      const sellerItems = (order.items || []).filter(
-        (item) => String(item?.snapshot?.shopId || '') === sellerId
-      );
-      const sellerTotal = sellerItems.reduce((sum, item) => sum + (Number(item?.lineTotal) || 0), 0);
-      const commission = Math.round(sellerTotal * commissionRate);
-      if (commission > 0) {
-        deductCommission({ userId: sellerId, amount: commission, orderId: String(order._id) }).catch(() => {});
-      }
-    }
-  }
 
   res.json({
     message: isPickupOrderConfirmation
@@ -5090,15 +4820,6 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
-  if (status && WALLET_ESCROW_RELEASE_STATUSES.has(order.status)) {
-    try {
-      await releaseWalletEscrowForOrder(order, actorId);
-    } catch (err) {
-      return res.status(500).json({
-        message: 'Commande mise à jour, mais la libération du paiement portefeuille a échoué. Veuillez réessayer.'
-      });
-    }
-  }
   const sellerIds = Array.isArray(order.items)
     ? order.items
         .map((item) => item?.snapshot?.shopId)
@@ -5430,17 +5151,8 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   let refundSenderName = '';
 
   if (refundAmount > 0) {
-    if (
-      getPawaPayConfig().exclusiveMode &&
-      refundMethod !== 'wallet'
-    ) {
-      return res.status(403).json({
-        code: 'PAWAPAY_ONLY',
-        message: 'Les remboursements manuels sont désactivés. Utilisez le remboursement HDMarket/PawaPay.'
-      });
-    }
-    if (!['wallet', 'mobile_money'].includes(refundMethod)) {
-      return res.status(400).json({ message: 'Choisissez le mode de remboursement : portefeuille ou Mobile Money.' });
+    if (refundMethod !== 'mobile_money') {
+      return res.status(400).json({ message: 'Choisissez le remboursement Mobile Money.' });
     }
     if (refundMethod === 'mobile_money') {
       refundTransactionNumber = normalizeTransactionCode(req.body?.refundTransactionNumber);
@@ -5464,26 +5176,6 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       } catch (error) {
         return res.status(500).json({ message: 'Impossible d’enregistrer la preuve de remboursement.' });
       }
-    } else {
-      try {
-        const { refundToWallet, reverseSellerCredit } = await import('../services/walletService.js');
-        await refundToWallet({
-          userId: order.customer,
-          amount: refundAmount,
-          orderId: String(order._id),
-          processedBy: actorId,
-          note: `Remboursement intégral — commande ${String(order._id).slice(-6)} annulée par le vendeur.`
-        });
-        await reverseSellerCredit({
-          userId: sellerId,
-          amount: refundAmount,
-          orderId: String(order._id),
-          processedBy: actorId
-        });
-        refundProofUrl = 'wallet-refund';
-      } catch (error) {
-        return res.status(400).json({ message: error.message || 'Remboursement portefeuille impossible.' });
-      }
     }
   }
 
@@ -5492,7 +5184,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   order.cancelledBy = actorId;
   order.cancellationReason = reason.trim();
   if (refundAmount > 0) {
-    order.refundStatus = refundMethod === 'wallet' ? 'processed' : 'pending';
+    order.refundStatus = 'pending';
     order.refundAmount = refundAmount;
     order.refundRequestedBy = actorId;
     order.refundRequestedAt = new Date();
@@ -5596,7 +5288,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       const reasonText = order.cancellationReason ? ` Raison: ${order.cancellationReason}` : '';
       const refundText =
         refundAmount > 0
-          ? ` Remboursement intégral envoyé: ${formatSmsAmount(refundAmount)} FCFA (${refundMethod === 'wallet' ? 'portefeuille' : 'Mobile Money'}).`
+          ? ` Remboursement intégral envoyé: ${formatSmsAmount(refundAmount)} FCFA (Mobile Money).`
           : '';
       const orderId = order._id ? String(order._id).slice(-6) : '';
       const message = `HDMarket : Votre commande ${orderId} a été annulée par le vendeur.${reasonText}${refundText} ${itemsSummary ? `| ${itemsSummary}` : ''} | Total: ${total} FCFA`;

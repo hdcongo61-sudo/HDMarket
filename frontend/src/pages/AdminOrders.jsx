@@ -13,6 +13,7 @@ import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
 import { appAlert } from '../utils/appDialog';
+import { fetchOrderUnreadCounts } from '../queries/orderChatApi';
 
 const STATUS_LABELS = {
   pending_payment: 'Paiement',
@@ -843,26 +844,7 @@ export default function AdminOrders() {
   const loadUnreadCounts = useCallback(async (orderIds) => {
     if (!orderIds || orderIds.length === 0 || !user?._id) return {};
     try {
-      // Load unread counts for all orders in parallel
-      const counts = await Promise.all(
-        orderIds.map(async (orderId) => {
-          try {
-            const { data } = await api.get(`/orders/${orderId}/messages`);
-            // Count unread messages for current user
-            const unread = Array.isArray(data) ? data.filter(
-              (msg) => String(msg.recipient?._id) === String(user._id) && !msg.readAt
-            ) : [];
-            return { orderId, count: unread.length };
-          } catch (err) {
-            console.warn('[AdminOrders] Unread messages fetch failed for order', orderId, err?.message || err);
-            return { orderId, count: 0 };
-          }
-        })
-      );
-      return counts.reduce((acc, { orderId, count }) => {
-        acc[orderId] = count;
-        return acc;
-      }, {});
+      return await fetchOrderUnreadCounts(orderIds);
     } catch (err) {
       console.warn('[AdminOrders] Unread count fetch failed:', err?.message || err);
       return {};

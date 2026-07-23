@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CreditCard, Hash, Loader2, Receipt, Sparkles, Upload, Wallet } from 'lucide-react';
+import { AlertCircle, CreditCard, Hash, Loader2, Receipt, Sparkles, Upload, ShieldCheck } from 'lucide-react';
 import api, { verifyTransactionCodeAvailability } from '../services/api';
 import { useNetworks } from '../hooks/useNetworks';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -38,12 +38,10 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   const [duration, setDuration] = useState(7);
   const [city, setCity] = useState(normalizedDefaultCity || cityOptions[0] || '');
   const [selectedProductIds, setSelectedProductIds] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const paymentMethod = 'mobile_money';
   const [paymentOperator, setPaymentOperator] = useState('');
   const [paymentSenderName, setPaymentSenderName] = useState('');
   const [paymentTransactionId, setPaymentTransactionId] = useState('');
-  const [walletInfo, setWalletInfo] = useState(null);
-  const [walletLoading, setWalletLoading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
@@ -93,25 +91,6 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   }, [activeNetworks, paymentMethod, paymentOperator]);
 
   useEffect(() => {
-    let alive = true;
-    const loadWallet = async () => {
-      setWalletLoading(true);
-      try {
-        const { data } = await api.get('/wallet');
-        if (alive) setWalletInfo(data || null);
-      } catch {
-        if (alive) setWalletInfo(null);
-      } finally {
-        if (alive) setWalletLoading(false);
-      }
-    };
-    loadWallet();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
     const loadPreview = async () => {
       if (!canPreview) {
         setPreview(null);
@@ -158,22 +137,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
     }
     const cleanSenderName = paymentSenderName.trim();
     const cleanTransactionId = String(paymentTransactionId || '').replace(/\D/g, '');
-    if (paymentMethod === 'wallet') {
-      const totalPrice = Number(preview?.totalPrice || 0);
-      const availableBalance = Number(walletInfo?.availableBalance || 0);
-      if (!walletInfo) {
-        setSubmitError('Portefeuille HDMarket indisponible. Rechargez ou réessayez plus tard.');
-        return;
-      }
-      if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
-        setSubmitError('Le prix du boost doit être calculé avant de payer par portefeuille.');
-        return;
-      }
-      if (availableBalance < totalPrice) {
-        setSubmitError(`Solde portefeuille insuffisant. Disponible: ${formatPrice(availableBalance)}.`);
-        return;
-      }
-    } else {
+    {
       if (!String(paymentOperator || '').trim()) {
         setSubmitError('Choisissez un opérateur Mobile Money.');
         return;
@@ -217,10 +181,8 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
       setPaymentSenderName('');
       setPaymentTransactionId('');
       setPaymentOperator(activeNetworks[0]?.name || '');
-      setPaymentMethod('wallet');
       setSelectedProductIds([]);
       setPreview(null);
-      api.get('/wallet').then(({ data: walletData }) => setWalletInfo(walletData || null)).catch(() => {});
       onSubmitted?.(data);
     } catch (error) {
       setSubmitError(error.response?.data?.message || 'Impossible d’envoyer la demande de boost.');
@@ -335,37 +297,27 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
             Montant à payer: <span className="text-base">{formatPrice(preview?.totalPrice || 0)}</span>
           </p>
           <p className="mt-1 text-xs text-neutral-700">
-            Le paiement Mobile Money est sécurisé par PawaPay puis débité automatiquement du portefeuille HDMarket.
+            Payez directement par MTN MoMo ou Airtel Money avec PawaPay.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-2">
           <div className="rounded-2xl border border-emerald-500 bg-emerald-50 p-3 text-left text-emerald-800 shadow-sm">
             <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              <p className="text-sm font-black">PawaPay · Portefeuille HDMarket</p>
+              <ShieldCheck className="h-4 w-4" />
+              <p className="text-sm font-black">Paiement sécurisé PawaPay</p>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {walletLoading
-                ? 'Lecture du solde...'
-                : walletInfo
-                  ? `Disponible: ${formatPrice(walletInfo.availableBalance || 0)}`
-                  : 'Payez avec MTN MoMo ou Airtel Money via PawaPay.'}
+              Payez avec MTN MoMo ou Airtel Money via PawaPay.
             </p>
           </div>
         </div>
 
-        {Math.max(
-          0,
-          Number(preview?.totalPrice || 0) - Number(walletInfo?.availableBalance || 0)
-        ) >= 10 && (
+        {Number(preview?.totalPrice || 0) >= 10 && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
             <p className="mb-2 text-xs font-black text-emerald-900">Paiement sécurisé PawaPay</p>
             <PawaPayButton
-              amount={Math.max(
-                0,
-                Number(preview?.totalPrice || 0) - Number(walletInfo?.availableBalance || 0)
-              )}
+              amount={Number(preview?.totalPrice || 0)}
               purpose="BOOST_FUNDING"
               actionContext={{
                 kind: 'BOOST_REQUEST',
@@ -374,20 +326,11 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                 city: requiresCity ? city : '',
                 productIds: selectedProductIds
               }}
-              returnPath={typeof window !== 'undefined' ? window.location.pathname : '/wallet'}
+              returnPath={typeof window !== 'undefined' ? window.location.pathname : '/seller/boosts'}
               label="Payer avec PawaPay"
             />
             <p className="mt-2 text-[11px] font-semibold text-emerald-800">
               Après confirmation PawaPay, la demande est envoyée automatiquement. Aucun ID ni preuve n’est nécessaire.
-            </p>
-          </div>
-        )}
-
-        {paymentMethod === 'wallet' && (
-          <div className="rounded-2xl border border-emerald-100 bg-white p-3 text-sm text-emerald-800">
-            <p className="font-semibold">Paiement instantané par portefeuille.</p>
-            <p className="mt-1 text-xs">
-              Si l’annonce boostée est refusée par l’admin, le montant est remboursé automatiquement dans le portefeuille.
             </p>
           </div>
         )}

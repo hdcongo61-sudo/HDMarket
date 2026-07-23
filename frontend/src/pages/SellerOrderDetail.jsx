@@ -12,7 +12,6 @@ import {
   X,
   AlertCircle,
   ArrowLeft,
-  DollarSign,
   Phone,
   Mail,
   Calendar,
@@ -129,10 +128,10 @@ const resolveOrderPaymentMode = (order) => {
   const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
   if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
-    paymentSource === 'wallet' ||
-    ['WALLET', 'HDMARKET_WALLET', 'PORTEFEUILLE_HDMARKET'].includes(explicitPaymentMode)
+    paymentSource === 'pawapay' ||
+    explicitPaymentMode === 'PAWAPAY'
   ) {
-    return 'WALLET';
+    return 'PAWAPAY';
   }
   if (
     explicitPaymentMode === 'FULL_PAYMENT' ||
@@ -145,8 +144,8 @@ const resolveOrderPaymentMode = (order) => {
 
 const getPaymentModeLabel = (mode) => {
   switch (mode) {
-    case 'WALLET':
-      return 'Portefeuille HDMarket';
+    case 'PAWAPAY':
+      return 'PawaPay';
     case 'INSTALLMENT':
       return 'Paiement par tranche';
     case 'FULL_PAYMENT':
@@ -374,7 +373,7 @@ export default function SellerOrderDetail() {
   const [statusUpdateFeedback, setStatusUpdateFeedback] = useState({ id: '', message: '', tone: 'error' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [cancelRefundMethod, setCancelRefundMethod] = useState('wallet');
+  const [cancelRefundMethod, setCancelRefundMethod] = useState('mobile_money');
   const [cancelRefundSenderName, setCancelRefundSenderName] = useState('');
   const [cancelRefundTransactionNumber, setCancelRefundTransactionNumber] = useState('');
   const [cancelRefundProof, setCancelRefundProof] = useState(null);
@@ -669,7 +668,7 @@ export default function SellerOrderDetail() {
     if (cancelLoading && !force) return;
     setCancelModalOpen(false);
     setCancelReason('');
-    setCancelRefundMethod('wallet');
+    setCancelRefundMethod('mobile_money');
     setCancelRefundSenderName('');
     setCancelRefundTransactionNumber('');
     setCancelRefundProof(null);
@@ -1049,7 +1048,7 @@ export default function SellerOrderDetail() {
     (hasPlatformDeliveryRequest || String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
     platformDeliveryStatus === 'DELIVERED';
   const canSendConfirmationReminder =
-    String(order.paymentSource || '').toLowerCase() === 'wallet' &&
+    String(order.paymentSource || '').toLowerCase() === 'pawapay' &&
     !isPickupOrder &&
     !platformDeliveryAutoConfirmed &&
     ['delivery_proof_submitted', 'delivered'].includes(String(order.status || '').toLowerCase()) &&
@@ -2409,7 +2408,7 @@ export default function SellerOrderDetail() {
                 {Number(order.refundAmount || 0) > 0 && (
                   <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-4 text-sm text-emerald-900">
                     <p className="font-bold">Remboursement intégral: {formatCurrency(order.refundAmount)}</p>
-                    <p>Mode: {order.refundMethod === 'wallet' ? 'Portefeuille HDMarket' : 'Mobile Money'}</p>
+                    <p>Mode: Mobile Money</p>
                     {order.refundSenderName && <p>Expéditeur: {order.refundSenderName}</p>}
                     {order.refundTransactionNumber && <p>ID transaction: {order.refundTransactionNumber}</p>}
                     {order.refundProof && /^https?:\/\//i.test(order.refundProof) && (

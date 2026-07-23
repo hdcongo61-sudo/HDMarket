@@ -8,7 +8,6 @@ import {
   CreditCard,
   ShieldCheck,
   CheckCircle,
-  Check,
   ClipboardList,
   ArrowLeft,
   ShoppingBag,
@@ -18,7 +17,6 @@ import {
   Truck,
   Store,
   MapPin,
-  Wallet,
   Users
 } from 'lucide-react';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -44,7 +42,7 @@ const PAYMENT_MODES = Object.freeze({
   STANDARD: 'standard',
   INSTALLMENT: 'installment',
   FULL_PAYMENT: 'full_payment',
-  WALLET: 'wallet',
+  PAWAPAY: 'pawapay',
   SPONSOR: 'sponsor'
 });
 
@@ -99,7 +97,6 @@ export default function OrderCheckout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [groupBuyInfo, setGroupBuyInfo] = useState(null);
-  const [walletInfo, setWalletInfo] = useState(null);
 
   useEffect(() => {
     if (!groupBuyId) return;
@@ -108,17 +105,10 @@ export default function OrderCheckout() {
       .then(({ data }) => setGroupBuyInfo(data))
       .catch(() => setGroupBuyInfo(null));
   }, [groupBuyId]);
-  useEffect(() => {
-    if (!user?._id && !user?.id) return;
-    api
-      .get('/wallet', { skipCache: true, skipDedupe: true })
-      .then(({ data }) => setWalletInfo(data || null))
-      .catch(() => setWalletInfo(null));
-  }, [user?._id, user?.id]);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState('');
-  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.WALLET);
-  const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState('wallet');
+  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.PAWAPAY);
+  const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState('pawapay');
   const [sponsorPhone, setSponsorPhone] = useState('');
   const [sponsorMessage, setSponsorMessage] = useState('');
   const [sponsorResolved, setSponsorResolved] = useState(null); // { found, name }
@@ -160,16 +150,11 @@ export default function OrderCheckout() {
     paymentMode === PAYMENT_MODES.FULL_PAYMENT &&
     fullPaymentPromotionEnabled &&
     fullPaymentFreeDeliveryEnabled;
-  const isWalletPayment = paymentMode === PAYMENT_MODES.WALLET;
-  const paysWithWallet = isWalletPayment || (isInstallmentPayment && installmentPaymentMethod === 'wallet');
+  const isPawaPayPayment = paymentMode === PAYMENT_MODES.PAWAPAY;
+  const paysWithPawaPay = isPawaPayPayment || (isInstallmentPayment && installmentPaymentMethod === 'pawapay');
   const isSponsorPayment = paymentMode === PAYMENT_MODES.SPONSOR;
-  const isStandardPayment =
-    !isInstallmentPayment && !isFullPaymentSelected && !isWalletPayment && !isSponsorPayment;
   const payForOtherEnabled = normalizeBoolean(getRuntimeValue('enable_pay_for_other', false), false);
   const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
-  const walletAvailableBalance = Number(
-    walletInfo?.availableBalance ?? walletInfo?.balance ?? 0
-  );
 
   // Resolve the entered payer phone → confirm which HDMarket user it belongs to.
   useEffect(() => {
@@ -354,9 +339,9 @@ export default function OrderCheckout() {
 
   const effectiveDeliveryFeePreviewTotal = useMemo(() => {
     if (deliveryMode !== 'DELIVERY') return 0;
-    if (isFullPaymentSelected || isWalletPayment) return 0;
+    if (isFullPaymentSelected || isPawaPayPayment) return 0;
     return Number(deliveryFeePreviewTotal || 0);
-  }, [deliveryMode, isFullPaymentSelected, isWalletPayment, deliveryFeePreviewTotal]);
+  }, [deliveryMode, isFullPaymentSelected, isPawaPayPayment, deliveryFeePreviewTotal]);
 
   const checkoutTotalWithDelivery = useMemo(
     () =>
@@ -374,13 +359,13 @@ export default function OrderCheckout() {
   const remainingAmount = Math.max(0, Number(checkoutTotalWithDelivery || 0) - depositAmount);
   const summaryPaidAmount = isInstallmentPayment
     ? installmentFirstPaymentAmount
-    : isFullPaymentSelected || isWalletPayment
+    : isFullPaymentSelected || isPawaPayPayment
       ? checkoutTotalWithDelivery
       : depositAmount;
   const summaryRemainingAmount =
     isInstallmentPayment
       ? Math.max(0, Number(totals.subtotal || 0) - installmentFirstPaymentAmount)
-      : isFullPaymentSelected || isWalletPayment
+      : isFullPaymentSelected || isPawaPayPayment
         ? 0
         : remainingAmount;
   const summaryOrderTotal = isInstallmentPayment
@@ -393,52 +378,34 @@ export default function OrderCheckout() {
     ? t('checkout.firstPayment', 'Premier paiement')
     : isFullPaymentSelected
       ? t('checkout.fullPayment', 'Paiement intégral')
-      : isWalletPayment
-        ? t('checkout.walletPayment', 'Paiement portefeuille')
+      : isPawaPayPayment
+        ? 'Paiement PawaPay'
         : t('checkout.deposit25', 'Acompte (25%)');
   const paymentModeDescription = isInstallmentPayment
     ? t('checkout.installmentDescription', 'Cette commande sera traitée en paiement par tranche après validation du vendeur.')
     : isFullPaymentSelected
       ? t('checkout.fullDescription', 'Vous payez le montant total maintenant pour confirmer la commande.')
-      : isWalletPayment
-        ? t('checkout.walletDescription', 'Aucun acompte ni code transaction requis. Le paiement est traité automatiquement.')
+      : isPawaPayPayment
+        ? 'PawaPay s’ouvre à la confirmation pour un paiement sécurisé par Mobile Money.'
         : t('checkout.depositDescription', 'Un acompte de 25% est requis pour confirmer votre commande.');
   const paymentCommitmentMessage = isInstallmentPayment
-    ? installmentPaymentMethod === 'wallet'
-      ? `${formatCurrency(summaryPaidAmount)} seront débités de votre portefeuille pour activer l’échéancier.`
+    ? installmentPaymentMethod === 'pawapay'
+      ? `${formatCurrency(summaryPaidAmount)} seront réglés avec PawaPay pour activer l’échéancier.`
       : `Merci de payer le premier montant de ${formatCurrency(summaryPaidAmount)} puis de suivre l’échéancier.`
     : isFullPaymentSelected
       ? `Paiement intégral demandé : ${formatCurrency(summaryPaidAmount)}.`
-      : isWalletPayment
-        ? 'Paiement portefeuille: aucun acompte à saisir. La validation se fait côté HDMarket.'
+      : isPawaPayPayment
+        ? 'Après confirmation, PawaPay s’ouvre pour finaliser la commande.'
         : sellerGroups.length > 1
           ? 'Merci de payer l’acompte indiqué pour chaque vendeur avant validation.'
           : `Merci de payer exactement ${formatCurrency(depositAmount)} avant validation.`;
   const showFullPaymentOption = fullPaymentPromotionEnabled && fullPaymentFreeDeliveryEnabled;
-  const walletPaymentEnabled = normalizeBoolean(
-    getRuntimeValue('enable_wallet_payment', false),
-    false
-  );
-  const digitalWalletEnabled = normalizeBoolean(
-    getRuntimeValue('enable_digital_wallet', false),
-    false
-  );
-  const walletEnabledShopsStr = String(getRuntimeValue('wallet_enabled_shops', '') || '').trim();
-  const walletEnabledPhones = walletEnabledShopsStr
-    ? walletEnabledShopsStr.split(',').map((value) => value.trim()).filter(Boolean)
-    : null;
-  const walletEligible = pawaPayOnlyMode || (
-    walletPaymentEnabled && digitalWalletEnabled && (
-      walletEnabledPhones === null ||
-      walletEnabledPhones.length === 0 ||
-      sellerGroups.every((group) => walletEnabledPhones.includes(String(group.sellerPhone || '').trim()))
-    )
-  );
+  const pawaPayEligible = true;
 
   const paymentModeCards = useMemo(() => {
     if (pawaPayOnlyMode) {
       const cards = [{
-        id: PAYMENT_MODES.WALLET,
+        id: PAYMENT_MODES.PAWAPAY,
         title: 'PawaPay',
         subtitle: 'Paiement sécurisé par MTN MoMo ou Airtel Money.',
         eyebrow: 'Sécurisé',
@@ -516,24 +483,20 @@ export default function OrderCheckout() {
       });
     }
 
-    // Wallet payment — Proposal 6 (full payment, per-shop eligibility)
-    if (walletEligible) {
+    if (pawaPayEligible) {
       baseCards.push({
-        id: PAYMENT_MODES.WALLET,
-        title: t('checkout.wallet', 'Portefeuille HDMarket'),
-        subtitle: t('checkout.walletSubtitle', 'Aucun acompte à payer dans le checkout.'),
+        id: PAYMENT_MODES.PAWAPAY,
+        title: 'PawaPay',
+        subtitle: 'Paiement sécurisé par MTN MoMo ou Airtel Money.',
         eyebrow: 'Auto',
-        icon: Wallet,
-        amountLabel: 'Acompte requis',
-        amount: 0,
-        amountDisplay: t('checkout.none', 'Aucun'),
-        remainingLabel: 'Code à saisir',
-        remaining: 0,
-        remainingDisplay: t('checkout.none', 'Aucun'),
+        icon: ShieldCheck,
+        amountLabel: 'À payer',
+        amount: checkoutTotalWithDelivery,
+        amountDisplay: formatCurrency(checkoutTotalWithDelivery),
         bullets: [
           'Aucun code transaction',
-          'Aucun acompte frontend',
-          'Validation côté HDMarket'
+          'Confirmation automatique',
+          'Paiement Mobile Money'
         ]
       });
     }
@@ -575,7 +538,7 @@ export default function OrderCheckout() {
     showFullPaymentOption,
     sellerGroups,
     t,
-    walletEligible,
+    pawaPayEligible,
     payForOtherEnabled,
     pawaPayOnlyMode
   ]);
@@ -583,12 +546,12 @@ export default function OrderCheckout() {
   useEffect(() => {
     if (
       pawaPayOnlyMode &&
-      ![PAYMENT_MODES.WALLET, PAYMENT_MODES.INSTALLMENT].includes(paymentMode)
+      ![PAYMENT_MODES.PAWAPAY, PAYMENT_MODES.INSTALLMENT].includes(paymentMode)
     ) {
-      setPaymentMode(PAYMENT_MODES.WALLET);
+      setPaymentMode(PAYMENT_MODES.PAWAPAY);
     }
-    if (pawaPayOnlyMode && installmentPaymentMethod !== 'wallet') {
-      setInstallmentPaymentMethod('wallet');
+    if (pawaPayOnlyMode && installmentPaymentMethod !== 'pawapay') {
+      setInstallmentPaymentMethod('pawapay');
     }
   }, [installmentPaymentMethod, pawaPayOnlyMode, paymentMode]);
 
@@ -711,9 +674,9 @@ export default function OrderCheckout() {
           .filter((code) => code.length === 10)
       )
     );
-    const canMatchByWallet =
-      String(paymentSource || '').toLowerCase() === 'wallet' || String(paymentType || '').toLowerCase() === 'full';
-    if (!normalizedCodes.length && !canMatchByWallet) {
+    const canMatchByPawaPay =
+      String(paymentSource || '').toLowerCase() === 'pawapay' || String(paymentType || '').toLowerCase() === 'full';
+    if (!normalizedCodes.length && !canMatchByPawaPay) {
       return {
         confirmed: false,
         matchedCount: 0,
@@ -750,8 +713,8 @@ export default function OrderCheckout() {
         const createdAtMs = new Date(order?.createdAt || 0).getTime();
         if (!Number.isFinite(createdAtMs) || now - createdAtMs > cutoffMs) return;
         const sourceMatched =
-          canMatchByWallet &&
-          String(order?.paymentSource || '').toLowerCase() === 'wallet' &&
+          canMatchByPawaPay &&
+          String(order?.paymentSource || '').toLowerCase() === 'pawapay' &&
           ['paid', 'paid_full'].includes(String(order?.paymentStatus || '').toLowerCase());
         const orderCode = String(order?.paymentTransactionCode || '').replace(/\D/g, '').trim();
         if ((orderCode && normalizedCodes.includes(orderCode)) || sourceMatched) {
@@ -759,7 +722,7 @@ export default function OrderCheckout() {
             matchedCodes.add(orderCode);
           }
           if (sourceMatched) {
-            matchedCodes.add(`wallet:${getOrderId(order) || createdAtMs}`);
+            matchedCodes.add(`pawapay:${getOrderId(order) || createdAtMs}`);
           }
           if (!orderId) {
             orderId = getOrderId(order);
@@ -784,13 +747,89 @@ export default function OrderCheckout() {
     }
   };
 
-  const clearCartAfterCheckout = () => {
-    Promise.resolve()
-      .then(() => clearCart())
-      .catch(() => {
-        // The order is already created; cart cleanup can be retried by the normal cart sync.
-      });
+  const validatePawaPayCheckout = () => {
+    let message = '';
+    if (!items.length) {
+      message = 'Votre panier est vide.';
+    } else if (deliveryMode === 'DELIVERY' && hasPickupOnlyProducts) {
+      message = 'Le mode livraison est indisponible car votre panier contient un produit retrait boutique uniquement.';
+    } else if (
+      deliveryMode === 'DELIVERY' &&
+      (!shippingAddress.cityId || !shippingAddress.communeId)
+    ) {
+      message = 'Sélectionnez la ville et la commune de livraison.';
+    } else if (deliveryMode === 'DELIVERY' && !shippingAddress.addressLine?.trim()) {
+      message = 'Renseignez une adresse de livraison.';
+    } else if (deliveryMode === 'DELIVERY' && !shippingAddress.phone?.trim()) {
+      message = 'Renseignez le numéro de téléphone pour la livraison.';
+    } else if (
+      sellerGroups.some((group) => !group.sellerId || group.sellerId === 'unknown')
+    ) {
+      message = 'Impossible de déterminer le vendeur pour certains articles.';
+    } else if (
+      sellerGroups.some((group) => {
+        const entry = payments[group.sellerId] || {};
+        const typedCode = String(entry.promoCode || '').trim().toUpperCase();
+        return typedCode && !isPromoAppliedForSeller(group.sellerId);
+      })
+    ) {
+      message = 'Veuillez appliquer/valider chaque code promo saisi avant de confirmer.';
+    } else if (isInstallmentPayment) {
+      const firstAmount = Number(installmentFirstPaymentAmount || 0);
+      if (!isInstallmentProductEligible || !installmentProduct) {
+        message = 'Le paiement par tranche n’est pas disponible pour cette commande.';
+      } else if (!Number.isFinite(firstAmount) || firstAmount < installmentMinAmount) {
+        message = `Le premier paiement minimum est de ${formatCurrency(installmentMinAmount)}.`;
+      } else if (firstAmount > Number(totals.subtotal || 0)) {
+        message = 'Le premier paiement ne peut pas dépasser le total de la commande.';
+      } else if (
+        installmentRequiresGuarantor &&
+        (!guarantor.fullName || !guarantor.phone || !guarantor.relation || !guarantor.address)
+      ) {
+        message = 'Les informations du garant sont requises pour ce produit.';
+      }
+    }
+
+    setError(message);
+    if (message) {
+      showToast(message, { variant: 'error' });
+      return message;
+    }
+    return true;
   };
+
+  const pawaPayActionContext = isInstallmentPayment
+    ? {
+        kind: 'INSTALLMENT_CHECKOUT',
+        productId: installmentProduct?._id,
+        quantity: Number(items[0]?.quantity || 1),
+        selectedAttributes: items[0]?.selectedAttributes || [],
+        firstPaymentAmount: Number(installmentFirstPaymentAmount || 0),
+        guarantor,
+        deliveryMode,
+        shippingAddress
+      }
+    : {
+        kind: 'ORDER_CHECKOUT',
+        items: items.map((item) => ({
+          productId: item.product?._id || item.product,
+          quantity: item.quantity,
+          selectedAttributes: item.selectedAttributes || []
+        })),
+        deliveryMode,
+        shippingAddress,
+        pointsToRedeem,
+        promoEntries: sellerGroups
+          .map((group) => {
+            const entry = payments[group.sellerId] || {};
+            const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
+            return {
+              sellerId: group.sellerId,
+              promoCode: isPromoAppliedForSeller(group.sellerId) ? normalizedPromoCode : ''
+            };
+          })
+          .filter((entry) => entry.promoCode)
+      };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -872,9 +911,9 @@ export default function OrderCheckout() {
         setError('Le premier paiement ne peut pas dépasser le total de la commande.');
         return;
       }
-      const installmentUsesWallet = installmentPaymentMethod === 'wallet';
+      const installmentUsesPawaPay = installmentPaymentMethod === 'pawapay';
       let cleanTransactionCode = '';
-      if (!installmentUsesWallet) {
+      if (!installmentUsesPawaPay) {
         if (!paymentEntry?.payerName?.trim() || !paymentEntry?.transactionCode?.trim()) {
           setError('Le nom du payeur et le code de transaction sont requis.');
           return;
@@ -921,7 +960,7 @@ export default function OrderCheckout() {
             selectedAttributes: items[0]?.selectedAttributes || [],
             firstPaymentAmount: Number(firstAmount),
             paymentMethod: installmentPaymentMethod,
-            payerName: installmentUsesWallet ? user?.name || '' : paymentEntry.payerName.trim(),
+            payerName: installmentUsesPawaPay ? 'PawaPay' : paymentEntry.payerName.trim(),
             transactionCode: cleanTransactionCode,
             guarantor,
             deliveryMode,
@@ -932,7 +971,7 @@ export default function OrderCheckout() {
         setOrderConfirmed(true);
         await clearCart();
         showToast(
-          installmentUsesWallet
+          installmentUsesPawaPay
             ? 'Premier paiement débité du portefeuille. En attente de validation vendeur.'
             : 'Commande en tranche créée. En attente de validation vendeur.',
           { variant: 'success' }
@@ -948,7 +987,7 @@ export default function OrderCheckout() {
             transactionCodes: [cleanTransactionCode],
             expectedCount: 1,
             paymentType: 'installment',
-            paymentSource: installmentUsesWallet ? 'wallet' : 'mobile_money'
+            paymentSource: installmentUsesPawaPay ? 'pawapay' : 'mobile_money'
           });
           if (reconciliation.confirmed) {
             setOrderConfirmed(true);
@@ -986,8 +1025,8 @@ export default function OrderCheckout() {
       setError('Impossible de déterminer le vendeur pour certains articles.');
       return;
     }
-    // Payer name + transaction code validation — skipped for wallet
-    if (!isWalletPayment) {
+    // Payer name + transaction code validation is skipped for PawaPay.
+    if (!isPawaPayPayment) {
       const missingPayment = sellerGroups.some((group) => {
         const entry = payments[group.sellerId] || {};
         return !entry.payerName?.trim() || !entry.transactionCode?.trim();
@@ -1051,79 +1090,17 @@ export default function OrderCheckout() {
     setLoading(true);
     setError('');
     setCheckoutStatus(
-      isWalletPayment
-        ? 'Validation du paiement portefeuille...'
+      isPawaPayPayment
+        ? 'Ouverture de PawaPay...'
         : isFullPaymentSelected
           ? 'Validation du paiement intégral...'
           : 'Confirmation de la commande...'
     );
 
-    // Wallet payment — backend owns balance checks and deductions.
-    if (paymentMode === PAYMENT_MODES.WALLET) {
-      try {
-        showToast('Paiement portefeuille en cours...', { variant: 'info' });
-        const promoEntries = sellerGroups
-          .map((group) => {
-            const entry = payments[group.sellerId] || {};
-            const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
-            const promoCode = isPromoAppliedForSeller(group.sellerId) ? normalizedPromoCode : '';
-            return { sellerId: group.sellerId, promoCode };
-          })
-          .filter((pe) => pe.promoCode); // Only send entries with an actual promo code
-        const { data } = await api.post('/orders/wallet-checkout', {
-          items: items.map((item) => ({
-            productId: item.product?._id || item.product,
-            quantity: item.quantity,
-            selectedAttributes: item.selectedAttributes || []
-          })),
-          deliveryMode,
-          shippingAddress,
-          promoEntries
-        });
-        const createdOrderId = extractFirstOrderId(data);
-        setOrderConfirmed(true);
-        setCheckoutStatus('Paiement confirmé. Redirection vers la commande...');
-        showToast(data?.message || 'Commande payée via portefeuille HDMarket.', { variant: 'success' });
-        clearCartAfterCheckout();
-        if (createdOrderId) {
-          navigate(`/order/detail/${createdOrderId}`, { replace: true });
-        } else {
-          navigate('/orders', { replace: true });
-        }
-      } catch (err) {
-        if (isApiTimeoutError(err) || isApiPossiblyCommittedError(err)) {
-          setCheckoutStatus('Vérification de la commande portefeuille...');
-          const reconciliation = await reconcileCheckoutAfterTimeout({
-            expectedCount: Math.max(1, sellerGroups.length || 1),
-            paymentType: 'full',
-            paymentSource: 'wallet'
-          });
-          if (reconciliation.confirmed) {
-            setOrderConfirmed(true);
-            setCheckoutStatus('Paiement confirmé. Redirection vers la commande...');
-            showToast('Commande payée via portefeuille HDMarket.', { variant: 'success' });
-            clearCartAfterCheckout();
-            if (reconciliation.orderId) {
-              navigate(`/order/detail/${reconciliation.orderId}`, { replace: true });
-            } else {
-              navigate('/orders', { replace: true });
-            }
-            return;
-          }
-          const timeoutMessage =
-            'Paiement portefeuille en cours de confirmation. Nous ouvrons vos commandes.';
-          setError(timeoutMessage);
-          showToast(timeoutMessage, { variant: 'warning' });
-          navigate('/orders', { replace: true });
-          return;
-        }
-        const message = err.response?.data?.message || 'Impossible de finaliser le paiement portefeuille.';
-        setError(message);
-        setCheckoutStatus('');
-        showToast(message, { variant: 'error' });
-      } finally {
-        setLoading(false);
-      }
+    if (paymentMode === PAYMENT_MODES.PAWAPAY) {
+      setLoading(false);
+      setCheckoutStatus('');
+      setError('Utilisez le bouton PawaPay pour confirmer le paiement.');
       return;
     }
 
@@ -1514,7 +1491,7 @@ export default function OrderCheckout() {
               <div className="flex items-center justify-between px-1 py-1">
                 <span className="text-base font-bold text-[#6b6459]">{t('checkout.delivery', 'Livraison')}</span>
                 <span className="text-lg font-black text-[#231f1b]">
-                  {(isFullPaymentSelected || isWalletPayment) ? t('checkout.offered', 'Offerte') : formatCurrency(effectiveDeliveryFeePreviewTotal)}
+                  {(isFullPaymentSelected || isPawaPayPayment) ? t('checkout.offered', 'Offerte') : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
               </div>
             )}
@@ -1526,7 +1503,7 @@ export default function OrderCheckout() {
                 </span>
               </div>
             )}
-            {!isWalletPayment && (
+            {!isPawaPayPayment && (
               <div className="flex items-center justify-between rounded-2xl border border-[#e2dcd2] bg-[#fff7f0] px-5 py-4">
                 <span className="text-base font-black text-[#6b6459]">
                   {summaryPrimaryPaymentLabel}
@@ -1728,79 +1705,20 @@ export default function OrderCheckout() {
               </div>
             )}
 
-            {walletEligible &&
-              Math.max(0, pawaPayRequiredAmount - walletAvailableBalance) > 0 && (
-              <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm sm:p-5">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">Nouveau · Mobile Money sécurisé</p>
-                    <h3 className="mt-1 text-base font-black text-slate-950">Payer avec PawaPay</h3>
-                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                      Payez avec MTN MoMo ou Airtel Money. Dès confirmation, la commande est créée automatiquement.
-                    </p>
-                  </div>
-                  <ShieldCheck size={22} className="shrink-0 text-emerald-700" />
-                </div>
-                <PawaPayButton
-                  amount={Math.max(
-                    10,
-                    Math.ceil(pawaPayRequiredAmount - walletAvailableBalance)
-                  )}
-                  purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
-                  actionContext={
-                    isInstallmentPayment
-                      ? {
-                          kind: 'INSTALLMENT_CHECKOUT',
-                          productId: installmentProduct?._id,
-                          quantity: Number(items[0]?.quantity || 1),
-                          selectedAttributes: items[0]?.selectedAttributes || [],
-                          firstPaymentAmount: Number(installmentFirstPaymentAmount || 0),
-                          guarantor,
-                          deliveryMode,
-                          shippingAddress
-                        }
-                      : {
-                          kind: 'ORDER_CHECKOUT',
-                          items: items.map((item) => ({
-                            productId: item.product?._id || item.product,
-                            quantity: item.quantity,
-                            selectedAttributes: item.selectedAttributes || []
-                          })),
-                          deliveryMode,
-                          shippingAddress,
-                          promoEntries: sellerGroups
-                            .map((group) => {
-                              const entry = payments[group.sellerId] || {};
-                              const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
-                              return {
-                                sellerId: group.sellerId,
-                                promoCode: isPromoAppliedForSeller(group.sellerId) ? normalizedPromoCode : ''
-                              };
-                            })
-                            .filter((entry) => entry.promoCode)
-                        }
-                  }
-                  returnPath="/orders/checkout"
-                  label="Payer avec PawaPay"
-                />
-                <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                  Le vendeur reçoit sa part dans son solde HDMarket après confirmation, puis peut la retirer vers son réseau MTN ou Airtel vérifié.
-                </p>
-              </div>
-            )}
-
             <RewardPointsRedeemBox
               orderSubtotal={Number(totals.subtotal || 0)}
               singleSeller={sellerGroups.length === 1}
               onChange={setPointsToRedeem}
             />
 
-            {isInstallmentPayment && walletEligible && (
+            {isInstallmentPayment && pawaPayEligible && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
-                  Payer le premier versement avec
-                </p>
-                <div className={`mt-3 grid gap-2 ${pawaPayOnlyMode ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                {!pawaPayOnlyMode ? (
+                  <>
+                    <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
+                      Payer le premier versement avec
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
                   {!pawaPayOnlyMode && <button
                     type="button"
                     onClick={() => setInstallmentPaymentMethod('mobile_money')}
@@ -1816,20 +1734,32 @@ export default function OrderCheckout() {
                   </button>}
                   <button
                     type="button"
-                    onClick={() => setInstallmentPaymentMethod('wallet')}
+                    onClick={() => setInstallmentPaymentMethod('pawapay')}
                     className={`rounded-2xl border px-3 py-3 text-left transition ${
-                      installmentPaymentMethod === 'wallet'
+                      installmentPaymentMethod === 'pawapay'
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-100'
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
-                    <Wallet size={18} />
+                    <CreditCard size={18} />
                     <p className="mt-2 text-sm font-black">
-                      {pawaPayOnlyMode ? 'PawaPay · Portefeuille HDMarket' : 'Portefeuille HDMarket'}
+                      PawaPay
                     </p>
-                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">{t('checkout.automaticWallet', 'Débit et validation automatiques')}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold opacity-70">Validation PawaPay automatique</p>
                   </button>
-                </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <ShieldCheck size={20} className="mt-0.5 shrink-0 text-emerald-700" />
+                    <div>
+                      <p className="text-sm font-black text-emerald-900">Premier versement avec PawaPay</p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-emerald-800">
+                        Le système PawaPay s’ouvrira lorsque vous confirmerez la commande.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1839,21 +1769,21 @@ export default function OrderCheckout() {
               const groupEffectiveSubtotal = getSellerEffectiveSubtotal(group);
               const groupDeliveryFee =
                 !isInstallmentPayment && deliveryMode === 'DELIVERY'
-                  ? (isFullPaymentSelected || isWalletPayment)
+                  ? (isFullPaymentSelected || isPawaPayPayment)
                     ? 0
                     : Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0)
                   : 0;
               const groupTotalWithDelivery = Number(groupEffectiveSubtotal || 0) + groupDeliveryFee;
               const groupDeposit = isInstallmentPayment
                 ? installmentFirstPaymentAmount
-                : isFullPaymentSelected || isWalletPayment
+                : isFullPaymentSelected || isPawaPayPayment
                   ? Number(groupTotalWithDelivery || 0)
                   : Math.round(Number(groupEffectiveSubtotal || 0) * 0.25);
-              const groupRemaining = isWalletPayment
+              const groupRemaining = isPawaPayPayment
                 ? 0
                 : Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
-              const installmentUsesWallet =
-                isInstallmentPayment && installmentPaymentMethod === 'wallet';
+              const installmentUsesPawaPay =
+                isInstallmentPayment && installmentPaymentMethod === 'pawapay';
               return (
                 <div
                   key={group.sellerId}
@@ -1885,7 +1815,7 @@ export default function OrderCheckout() {
                     </div>
                     <div className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-2 text-right">
                       <p className="text-base font-black text-[#e85d00] sm:text-lg">
-                        {isWalletPayment ? 'Automatique' : formatCurrency(groupDeposit)}
+                        {isPawaPayPayment ? 'Automatique' : formatCurrency(groupDeposit)}
                       </p>
                       <p className="text-xs font-black text-orange-800">
                         {summaryPrimaryPaymentLabel}
@@ -1894,8 +1824,8 @@ export default function OrderCheckout() {
                   </div>
                   
                   <div className="space-y-4">
-                    {/* Payer name + transaction code — not needed for wallet */}
-                    {paymentMode !== PAYMENT_MODES.WALLET && !installmentUsesWallet && !isSponsorPayment && (
+                    {/* Payer name + transaction code — not needed for PawaPay */}
+                    {paymentMode !== PAYMENT_MODES.PAWAPAY && !installmentUsesPawaPay && !isSponsorPayment && (
                       <>
                         <div>
                           <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">
@@ -1947,14 +1877,13 @@ export default function OrderCheckout() {
                       </>
                     )}
 
-                    {/* Wallet payment info */}
-                    {(paymentMode === PAYMENT_MODES.WALLET || installmentUsesWallet) && (
+                    {(paymentMode === PAYMENT_MODES.PAWAPAY || installmentUsesPawaPay) && (
                       <div className="space-y-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                         <p className="text-sm font-black text-emerald-800">
                           Paiement PawaPay
                         </p>
                         <p className="text-xs font-semibold text-emerald-700">
-                          {installmentUsesWallet
+                          {installmentUsesPawaPay
                             ? `${formatCurrency(groupDeposit)} seront débités automatiquement pour le premier versement.`
                             : 'Aucun identifiant de transaction requis. Le règlement est confirmé automatiquement par PawaPay.'}
                         </p>
@@ -2146,7 +2075,7 @@ export default function OrderCheckout() {
                         {summaryPrimaryPaymentLabel}
                       </span>
                       <span className="font-black text-neutral-900">
-                        {isWalletPayment ? 'Automatique' : formatCurrency(groupDeposit)}
+                        {isPawaPayPayment ? 'Automatique' : formatCurrency(groupDeposit)}
                       </span>
                     </div>
                     {groupRemaining > 0 && (
@@ -2177,27 +2106,39 @@ export default function OrderCheckout() {
                 <p className="text-sm font-bold text-emerald-800">{checkoutStatus}</p>
               </div>
             )}
-            <button
-              type="submit"
-              disabled={loading}
-              className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-black text-white transition active:scale-[0.98] disabled:opacity-60 sm:text-xl ${
-                paysWithWallet
-                  ? 'bg-emerald-600 shadow-sm hover:bg-emerald-700'
-                  : 'bg-[#e85d00] shadow-sm hover:bg-[#f05f00]'
-              }`}
-            >
-              {loading ? (
-                <>
-                  <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
-                  {checkoutStatus || (paysWithWallet ? t('checkout.walletValidating', 'Validation portefeuille...') : isFullPaymentSelected ? t('checkout.fullValidating', 'Paiement intégral...') : t('checkout.confirming', 'Confirmation...'))}
-                </>
-              ) : (
-                <>
-                  <Lock size={22} />
-                  {t('checkout.confirm', 'Confirmer la commande')}
-                </>
-              )}
-            </button>
+            {paysWithPawaPay ? (
+              <PawaPayButton
+                amount={Math.max(10, Math.ceil(pawaPayRequiredAmount))}
+                purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
+                actionContext={pawaPayActionContext}
+                returnPath="/orders/checkout"
+                label="Confirmer et payer avec PawaPay"
+                onBeforeStart={validatePawaPayCheckout}
+                className="rounded-2xl px-8 py-5 text-lg sm:text-xl"
+              />
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-black text-white transition active:scale-[0.98] disabled:opacity-60 sm:text-xl ${
+                  paysWithPawaPay
+                    ? 'bg-emerald-600 shadow-sm hover:bg-emerald-700'
+                    : 'bg-[#e85d00] shadow-sm hover:bg-[#f05f00]'
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
+                    {checkoutStatus || (paysWithPawaPay ? 'Validation PawaPay...' : isFullPaymentSelected ? t('checkout.fullValidating', 'Paiement intégral...') : t('checkout.confirming', 'Confirmation...'))}
+                  </>
+                ) : (
+                  <>
+                    <Lock size={22} />
+                    {t('checkout.confirm', 'Confirmer la commande')}
+                  </>
+                )}
+              </button>
+            )}
           </form>
         </section>
       </div>
@@ -2205,29 +2146,43 @@ export default function OrderCheckout() {
         <div className="mx-auto flex max-w-7xl items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-              {paysWithWallet ? t('checkout.walletPayment', 'Paiement portefeuille') : summaryPrimaryPaymentLabel}
+              {paysWithPawaPay ? 'Paiement PawaPay' : summaryPrimaryPaymentLabel}
             </p>
             <p className="truncate text-2xl font-black text-neutral-950">
-              {isWalletPayment ? 'Automatique' : formatCurrency(summaryPaidAmount)}
+              {formatCurrency(pawaPayRequiredAmount)}
             </p>
           </div>
-          <button
-            type="submit"
-            form="order-checkout-form"
-            disabled={loading}
-            className={`inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl px-7 text-lg font-black text-white active:scale-[0.97] disabled:opacity-60 ${
-              paysWithWallet
-                ? 'bg-emerald-600 shadow-sm'
-                : 'bg-[#e85d00] shadow-sm'
-            }`}
-          >
-            {loading ? (
-              <div className="h-6 w-6 rounded-full border-[3px] border-white border-t-transparent animate-spin" />
-            ) : (
-              <Lock size={20} />
-            )}
-            {loading ? t('checkout.validating', 'Validation...') : t('checkout.confirm', 'Confirmer la commande')}
-          </button>
+          {paysWithPawaPay ? (
+            <div className="min-w-[184px] shrink-0">
+              <PawaPayButton
+                amount={Math.max(10, Math.ceil(pawaPayRequiredAmount))}
+                purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
+                actionContext={pawaPayActionContext}
+                returnPath="/orders/checkout"
+                label="Payer avec PawaPay"
+                onBeforeStart={validatePawaPayCheckout}
+                className="min-h-[56px] rounded-2xl px-5 text-sm"
+              />
+            </div>
+          ) : (
+            <button
+              type="submit"
+              form="order-checkout-form"
+              disabled={loading}
+              className={`inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl px-7 text-lg font-black text-white active:scale-[0.97] disabled:opacity-60 ${
+                paysWithPawaPay
+                  ? 'bg-emerald-600 shadow-sm'
+                  : 'bg-[#e85d00] shadow-sm'
+              }`}
+            >
+              {loading ? (
+                <div className="h-6 w-6 rounded-full border-[3px] border-white border-t-transparent animate-spin" />
+              ) : (
+                <Lock size={20} />
+              )}
+              {loading ? t('checkout.validating', 'Validation...') : t('checkout.confirm', 'Confirmer la commande')}
+            </button>
+          )}
         </div>
       </div>
       </div>

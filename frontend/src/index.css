@@ -1905,77 +1905,6 @@ body.menu-open .verified-shops-header {
 .status-delivery-icon { animation: truckMove 1.4s ease-in-out infinite; }
 .status-completed-icon { animation: successBounce 0.5s ease-out; }
 
-@keyframes hdWalletFloat {
-  0%, 100% { transform: translate(-50%, -50%) translateY(0) rotate(-0.6deg); }
-  50% { transform: translate(-50%, -50%) translateY(-4px) rotate(0.8deg); }
-}
-
-@keyframes hdWalletRail {
-  0% { transform: translateX(-18%); opacity: 0.76; filter: saturate(1); }
-  50% { transform: translateX(92%); opacity: 1; filter: saturate(1.35); }
-  100% { transform: translateX(-18%); opacity: 0.76; filter: saturate(1); }
-}
-
-@keyframes hdWalletPop {
-  0%, 100% { opacity: 0.78; transform: translateY(0) scale(1); }
-  50% { opacity: 1; transform: translateY(-4px) scale(1.025); }
-}
-
-@keyframes hdWalletShine {
-  0% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
-  18% { opacity: 0.72; }
-  42% { transform: translateX(520%) skewX(-18deg); opacity: 0; }
-  100% { transform: translateX(520%) skewX(-18deg); opacity: 0; }
-}
-
-@keyframes hdWalletBenefitPulse {
-  0%, 100% { transform: translateY(0); border-color: rgba(255, 255, 255, 0.12); }
-  50% { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.24); }
-}
-
-@keyframes hdWalletBenefitRail {
-  0% { transform: translateX(-86%); opacity: 0.58; }
-  50% { transform: translateX(72%); opacity: 1; }
-  100% { transform: translateX(-86%); opacity: 0.58; }
-}
-
-.hd-wallet-float {
-  animation: hdWalletFloat 5.4s ease-in-out infinite;
-}
-
-.hd-wallet-rail {
-  animation: hdWalletRail 3.2s ease-in-out infinite;
-}
-
-.hd-wallet-pop {
-  animation: hdWalletPop 3.1s ease-in-out infinite;
-}
-
-.hd-wallet-shine {
-  animation: hdWalletShine 5.6s ease-in-out infinite;
-}
-
-.hd-wallet-benefit {
-  animation: hdWalletBenefitPulse 4.8s ease-in-out infinite;
-  animation-delay: var(--wallet-benefit-delay, 0s);
-}
-
-.hd-wallet-benefit-rail {
-  animation: hdWalletBenefitRail 3.4s ease-in-out infinite;
-  animation-delay: var(--wallet-benefit-delay, 0s);
-}
-
-.hd-wallet-stat-chip::after {
-  content: '';
-  position: absolute;
-  inset-inline: 8px;
-  bottom: 2px;
-  height: 1px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
-  opacity: 0.72;
-}
-
 /* Shop Profile v2 */
 .shop-shell {
   background:
@@ -2810,12 +2739,7 @@ input[type="radio"] {
   }
 
   .hd-click-pending::after,
-  .ui-btn-spinner,
-  .hd-wallet-float,
-  .hd-wallet-rail,
-  .hd-wallet-pop,
-  .hd-wallet-benefit,
-  .hd-wallet-benefit-rail {
+  .ui-btn-spinner {
     animation-duration: 1200ms;
     animation-iteration-count: 1;
   }

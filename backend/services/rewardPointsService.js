@@ -1,6 +1,6 @@
 /**
  * HDPoints — buyer rewards program (Taobao gap analysis B.2).
- * Points ledger sibling to walletModel: daily check-in (with streak bonus),
+ * Points ledger for daily check-in (with streak bonus),
  * points per 1000 XAF spent on a delivered order, points per verified review,
  * points per answered product question (feeds B.4). Spendable at checkout,
  * capped at a runtime-configured % of order value.
@@ -211,7 +211,7 @@ export const redeemPointsForOrder = async ({ userId, requestedPoints, orderSubto
  * Periodic sweep (see engagementQueue/'sweep-purchase-points'): awards
  * purchase points for orders that reached a delivered/completed status,
  * using Order.rewardPointsAwarded as the idempotency flag (cheaper than
- * scanning wallet-style transaction history per order). Deliberately kept
+ * scanning the points transaction history per order). Deliberately kept
  * out of orderController.js's status-transition call sites — this file is
  * ~5,700 lines and edited surgically per project convention.
  */

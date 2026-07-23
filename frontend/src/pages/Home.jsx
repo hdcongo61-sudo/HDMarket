@@ -8,7 +8,7 @@ import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, Wallet, Pencil, Users, Eye, EyeOff } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Pencil, Users } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -79,235 +79,6 @@ const scrollReveal = (reduceMotion) =>
         viewport: { once: true, margin: '-40px' },
         transition: { duration: 0.4, ease: 'easeOut' }
       };
-
-// Eased count-up for the wallet balance reveal.
-const useCountUp = (target, active, reduceMotion) => {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!active) return undefined;
-    const to = Number(target) || 0;
-    if (reduceMotion) {
-      setValue(to);
-      return undefined;
-    }
-    let frame;
-    const start = performance.now();
-    const duration = 900;
-    const tick = (now) => {
-      const progress = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(to * eased));
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [target, active, reduceMotion]);
-  return value;
-};
-
-// The wallet section as an honest bank card: real balance (masked by default)
-// for signed-in users, an activation pitch for guests. Module-level so its
-// fetch/state survive Home re-renders.
-const WALLET_BENEFIT_ROTATION_MS = 3500;
-
-const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
-  const reduceMotion = useReducedMotion();
-  const [balance, setBalance] = useState(null); // null = loading, number = ready
-  const [balanceVisible, setBalanceVisible] = useState(false);
-  const [benefitIndex, setBenefitIndex] = useState(0);
-
-  useEffect(() => {
-    if (!user || !walletEnabled) return undefined;
-    let cancelled = false;
-    api
-      .get('/wallet')
-      .then(({ data }) => {
-        if (!cancelled) setBalance(Number(data?.availableBalance || 0));
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user, walletEnabled]);
-
-  const animatedBalance = useCountUp(balance ?? 0, balanceVisible && balance !== null, reduceMotion);
-
-  const benefits = [
-    {
-      icon: Zap,
-      label: t('home.walletFastTitle', 'Paiement plus rapide'),
-      text: t('home.walletFastText', 'Validez vos achats en 1 clic, sans refaire un dépôt à chaque commande.')
-    },
-    {
-      icon: Shield,
-      label: t('home.walletProtectedTitle', 'Argent mieux suivi'),
-      text: t('home.walletProtectedText', 'Chaque dépôt, achat et retrait reste visible dans votre historique.')
-    },
-    {
-      icon: RefreshCcw,
-      label: t('home.walletRefundTitle', 'Remboursement facilité'),
-      text: t('home.walletRefundText', 'En cas d’annulation éligible, le remboursement revient sur votre solde.')
-    },
-    {
-      icon: Sparkles,
-      label: t('home.walletListingTitle', 'Annonces validées auto'),
-      text: t('home.walletListingText', 'Payez les frais de publication depuis le solde, votre annonce part sans attente.')
-    }
-  ];
-
-  // Auto-rotate the benefit spotlight; static list under reduced motion.
-  useEffect(() => {
-    if (reduceMotion || !walletEnabled) return undefined;
-    const timer = setInterval(
-      () => setBenefitIndex((prev) => (prev + 1) % benefits.length),
-      WALLET_BENEFIT_ROTATION_MS
-    );
-    return () => clearInterval(timer);
-  }, [reduceMotion, walletEnabled, benefits.length]);
-
-  if (!walletEnabled) return null;
-
-  const activeBenefit = benefits[benefitIndex % benefits.length];
-  const ActiveBenefitIcon = activeBenefit.icon;
-
-  return (
-    <motion.section
-      {...scrollReveal(reduceMotion)}
-      className={`hd-wallet-callout relative w-full overflow-hidden rounded-2xl bg-[#06281f] text-white shadow-sm ${compact ? 'p-4' : 'p-5'}`}
-    >
-      <div className="relative">
-        <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex min-w-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/90">
-            <Wallet className="h-3.5 w-3.5 shrink-0 text-emerald-200" />
-            <span className="truncate">{t('home.walletBadge', 'Portefeuille HDMarket')}</span>
-          </span>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-white/10 px-2 py-1 text-[9px] font-black uppercase text-emerald-100 ring-1 ring-white/15">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            {t('home.walletSecure', 'PawaPay disponible')}
-          </span>
-        </div>
-
-        {user ? (
-          <div className="mt-4">
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-100/70">
-                {t('home.walletBalancePreview', 'Solde disponible')}
-              </p>
-              <button
-                type="button"
-                onClick={() => setBalanceVisible((prev) => !prev)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-emerald-100 transition active:scale-95"
-                title={balanceVisible ? 'Masquer le solde' : 'Afficher le solde'}
-              >
-                {balanceVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-            <p className={`mt-1 font-black tracking-tight ${compact ? 'text-2xl' : 'text-3xl'}`}>
-              {balance === null ? (
-                <span className="inline-block h-7 w-32 animate-pulse rounded bg-white/15 align-middle" />
-              ) : balanceVisible ? (
-                formatPriceWithStoredSettings(animatedBalance)
-              ) : (
-                '••••••'
-              )}
-            </p>
-            <p className="mt-2 text-[11px] font-semibold leading-5 text-emerald-50/80">
-              {t('home.pawapayConnectedPitch', 'Rechargez instantanément par MTN MoMo ou Airtel Money avec PawaPay, puis payez sans recopier de code transaction.')}
-            </p>
-          </div>
-        ) : (
-          <div className="mt-4">
-            <h2 className={`font-black leading-tight tracking-tight ${compact ? 'text-lg' : 'text-xl'}`}>
-              {t('home.walletTitle', 'Payez plus vite, gardez le contrôle de votre argent.')}
-            </h2>
-            <p className="mt-1.5 text-[12px] font-medium leading-5 text-emerald-50/80">
-              {t('home.walletGuestPitch', 'Avec PawaPay, rechargez par MTN MoMo ou Airtel Money, payez en 1 clic et recevez vos remboursements sur votre solde.')}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-4 flex items-center gap-2">
-          <Link
-            to={user ? '/wallet' : '/login'}
-            className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded bg-white px-3 py-2.5 text-[12px] font-black text-[#06281f] transition hover:bg-emerald-50 active:scale-[0.98] sm:flex-none sm:px-4 sm:text-[13px]"
-          >
-            <span className="truncate">
-              {user ? t('home.walletOpen', 'Recharger avec PawaPay') : t('home.walletStart', 'Découvrir le paiement PawaPay')}
-            </span>
-            <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          </Link>
-        </div>
-
-        <div className="mt-4 border-t border-white/10 pt-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100/60">
-            {t('home.walletBenefitsTitle', 'Les bienfaits du portefeuille')}
-          </p>
-          {reduceMotion ? (
-            <div className="mt-2.5 space-y-2">
-              {benefits.map(({ icon: Icon, label, text }) => (
-                <div key={label} className="flex items-start gap-2.5">
-                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-400/15 text-emerald-300">
-                    <Icon className="h-3 w-3" />
-                  </span>
-                  <p className="text-[11px] leading-4 text-emerald-50/85">
-                    <span className="font-black text-white">{label}</span>
-                    {' — '}
-                    {text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className={`relative mt-2.5 overflow-hidden ${compact ? 'min-h-[58px]' : 'min-h-[52px]'}`}>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeBenefit.label}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -14 }}
-                    transition={{ duration: 0.32, ease: 'easeOut' }}
-                    className="flex items-start gap-2.5"
-                  >
-                    <motion.span
-                      initial={{ scale: 0.6, rotate: -8 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ duration: 0.32, ease: 'easeOut' }}
-                      className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-emerald-400 text-[#06281f] shadow-sm"
-                    >
-                      <ActiveBenefitIcon className="h-3.5 w-3.5" />
-                    </motion.span>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-black leading-4 text-white">{activeBenefit.label}</p>
-                      <p className="mt-0.5 text-[11px] font-medium leading-4 text-emerald-50/80">{activeBenefit.text}</p>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-              <div className="mt-2 flex items-center gap-1.5">
-                {benefits.map((benefit, index) => (
-                  <button
-                    key={benefit.label}
-                    type="button"
-                    onClick={() => setBenefitIndex(index)}
-                    aria-label={benefit.label}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                      index === benefitIndex % benefits.length
-                        ? 'w-5 bg-emerald-300'
-                        : 'w-1.5 bg-white/25 hover:bg-white/40'
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </motion.section>
-  );
-};
 
 const PourVousSection = ({ user, t, formatPrice, buildProductLink, externalLinkProps }) => {
   const [recommendedProducts, setRecommendedProducts] = useState([]);
@@ -558,7 +329,6 @@ const payForOtherBannerText =
       'Un proche peut régler votre commande — proposez-le au moment du paiement.'
     ) || ''
   ).trim() || 'Un proche peut régler votre commande — proposez-le au moment du paiement.';
-const walletFeatureEnabled = normalizeSettingBoolean(getRuntimeValue('enable_digital_wallet', false), false);
 const groupBuyingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_group_buying', false), false);
 const reduceMotionHome = useReducedMotion();
 const primaryPageLimit = compactProductsPageSize || 12;
@@ -1529,7 +1299,6 @@ const loadDiscountProducts = async () => {
           </section>
         ) : null}
 
-        <WalletHomeCallout compact user={user} t={t} walletEnabled={walletFeatureEnabled} />
 
         <section className="order-first -mx-2.5 overflow-hidden rounded-b-[24px] bg-[#e85d00] text-white shadow-sm max-[375px]:-mx-2">
           <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
@@ -2298,7 +2067,7 @@ const loadDiscountProducts = async () => {
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-600 text-white">
-                  <Wallet className="h-[18px] w-[18px]" />
+                  <CreditCard className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -2340,7 +2109,7 @@ const loadDiscountProducts = async () => {
                     </div>
                     <div className="flex items-center justify-between gap-1.5 border-t border-gray-100 px-2 py-1.5 max-[375px]:px-1.5">
                       <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-bold text-sky-700">
-                        <Wallet className="h-3 w-3 shrink-0" />
+                        <CreditCard className="h-3 w-3 shrink-0" />
                         <span className="truncate">Dès {formatPrice(product?.installmentMinAmount || product?.price || 0)}</span>
                       </span>
                       {product?.installmentDuration ? (
@@ -2577,7 +2346,6 @@ const loadDiscountProducts = async () => {
             ) : null}
           </section>
         ) : null}
-        <WalletHomeCallout user={user} t={t} walletEnabled={walletFeatureEnabled} />
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
           <Link
@@ -3148,7 +2916,7 @@ const loadDiscountProducts = async () => {
             <div className="relative flex items-center justify-between overflow-hidden border-b border-gray-100 bg-white px-5 py-4 text-gray-900">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl bg-sky-600 text-white">
-                  <Wallet className="h-5 w-5" />
+                  <CreditCard className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">

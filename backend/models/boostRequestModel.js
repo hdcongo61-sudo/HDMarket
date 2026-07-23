@@ -38,7 +38,7 @@ const boostRequestSchema = new mongoose.Schema(
     totalPrice: { type: Number, min: 0, required: true },
     paymentMethod: {
       type: String,
-      enum: ['mobile_money', 'wallet'],
+      enum: ['mobile_money', 'pawapay'],
       default: 'mobile_money',
       index: true
     },
@@ -51,7 +51,6 @@ const boostRequestSchema = new mongoose.Schema(
     paymentOperator: { type: String, trim: true, default: '' },
     paymentSenderName: { type: String, trim: true, default: '' },
     paymentTransactionId: { type: String, trim: true, default: '' },
-    walletTransactionId: { type: String, trim: true, default: '' },
     paymentProofImage: { type: boostPaymentProofSchema, default: () => ({}) },
     status: { type: String, enum: BOOST_REQUEST_STATUSES, default: 'PENDING', index: true },
     startDate: { type: Date, default: null, index: true },
@@ -87,16 +86,14 @@ boostRequestSchema.pre('validate', function validateBoostRequest(next) {
   this.paymentOperator = String(this.paymentOperator || '').trim();
   this.paymentSenderName = String(this.paymentSenderName || '').trim();
   this.paymentTransactionId = String(this.paymentTransactionId || '').replace(/\D/g, '');
-  this.walletTransactionId = String(this.walletTransactionId || '').trim();
-  if (this.paymentMethod === 'wallet') {
+  if (this.paymentMethod === 'pawapay') {
     if (this.isNew && this.paymentStatus === 'pending_admin_validation') {
       this.paymentStatus = 'paid';
     }
-    this.paymentOperator = this.paymentOperator || 'HDMarket Wallet';
-    this.paymentSenderName = this.paymentSenderName || 'Portefeuille HDMarket';
-    this.paymentTransactionId = '';
+    this.paymentOperator = this.paymentOperator || 'PawaPay';
+    this.paymentSenderName = this.paymentSenderName || 'PawaPay';
   }
-  if (this.isNew && this.paymentMethod !== 'wallet') {
+  if (this.isNew && this.paymentMethod !== 'pawapay') {
     if (!this.paymentOperator) {
       return next(new Error('L’opérateur Mobile Money est requis.'));
     }

@@ -4,6 +4,7 @@ import api from '../services/api';
 import { orderQueryKeys } from './useOrderQueryKeys';
 import useNetworkProfile from './useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
+import { fetchOrderUnreadCounts } from '../queries/orderChatApi';
 
 const ACTIVE_ORDER_STATUSES = new Set([
   'pending_payment',
@@ -20,14 +21,6 @@ const ACTIVE_ORDER_STATUSES = new Set([
   'delivering'
 ]);
 
-const computeUnread = (messages = [], userId = '') => {
-  if (!Array.isArray(messages) || !userId) return 0;
-  return messages.filter(
-    (message) =>
-      String(message?.recipient?._id || '') === String(userId) && !message?.readAt
-  ).length;
-};
-
 export const useSellerOrderDetailQuery = ({ orderId, userId, enabled = true } = {}) => {
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const { rapid3GActive, shouldUseOfflineSnapshot } = useNetworkProfile();
@@ -41,23 +34,19 @@ export const useSellerOrderDetailQuery = ({ orderId, userId, enabled = true } = 
     enabled: Boolean(enabled && orderId),
     queryFn: async () => {
       try {
-        const [orderResponse, messagesResponse] = await Promise.all([
+        const [orderResponse, unreadCounts] = await Promise.all([
           api.get(`/orders/seller/detail/${orderId}`, {
             skipCache: true,
             headers: { 'x-skip-cache': '1' }
           }),
-          api.get(`/orders/${orderId}/messages`, {
-            skipCache: true,
-            headers: { 'x-skip-cache': '1' }
-          })
+          fetchOrderUnreadCounts([orderId])
         ]);
         const order = orderResponse?.data || null;
-        const messages = Array.isArray(messagesResponse?.data) ? messagesResponse.data : [];
         setOfflineSnapshotActive(false);
         return {
           order,
-          unreadCount: computeUnread(messages, userId),
-          messages
+          unreadCount: Number(unreadCounts?.[orderId] || 0),
+          messages: []
         };
       } catch (error) {
         if (shouldUseOfflineSnapshot) {

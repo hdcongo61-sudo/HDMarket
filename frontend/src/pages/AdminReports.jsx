@@ -18,7 +18,6 @@ import {
   Save,
   Trash2,
   CopyPlus,
-  Wallet,
   Zap,
   Award,
   ShieldCheck,
@@ -63,7 +62,6 @@ const SECTION_CONFIG = [
   { id: 'metrics', label: 'Métriques clés', icon: TrendingUp, description: 'Taux globaux de performance' },
   { id: 'growth', label: 'Croissance', icon: TrendingUp, description: 'Evolution période vs précédente' },
   { id: 'content', label: 'Contenu', icon: FileText, description: 'Qualité des annonces et prix moyens' },
-  { id: 'wallet', label: 'Portefeuille', icon: Wallet, description: 'Soldes, dépôts, retraits et transactions' },
   { id: 'flashSales', label: 'Ventes Flash', icon: Zap, description: 'Performance des ventes flash' },
   { id: 'sellerReputation', label: 'Réputation Vendeurs', icon: Award, description: 'Niveaux, notes et classements' },
   { id: 'shopAssistant', label: 'Assistants Boutique', icon: ShieldCheck, description: 'Délégations et activité' },
@@ -207,8 +205,6 @@ const getSectionChartConfig = (report, id) => {
       );
     case 'content':
       return makeBar(topEntries(report.content?.avgPriceByCategory || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#4b5563');
-    case 'wallet':
-      return makeBar(topEntries(report.wallet?.byTransactionType || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#16a34a');
     case 'flashSales':
       return makeBar(topEntries(report.flashSales?.byStatus || {}, 8).map(([k, v]) => [humanizeKey(k), v]), '#f97316');
     case 'sellerReputation':
@@ -255,8 +251,6 @@ const hasSectionData = (report, id) => {
       return Boolean(report.growth);
     case 'content':
       return Boolean(report.content);
-    case 'wallet':
-      return Boolean(report.wallet);
     case 'flashSales':
       return Boolean(report.flashSales);
     case 'sellerReputation':
@@ -455,20 +449,6 @@ const getSectionRows = (report, id) => {
       ];
       topEntries(report.content?.avgPriceByCategory || {}, 8).forEach(([key, value]) => {
         rows.push([`Prix moyen ${humanizeKey(key)}`, formatCurrency(value)]);
-      });
-      return rows;
-    }
-    case 'wallet': {
-      const rows = [
-        ['Total portefeuilles', formatNumber(report.wallet?.totalWallets)],
-        ['Solde total', formatCurrency(report.wallet?.totalBalance)],
-        ['Dépôts (période)', formatCurrency(report.wallet?.totalDeposits)],
-        ['Retraits (période)', formatCurrency(report.wallet?.totalWithdrawals)],
-        ['Achats via wallet', formatCurrency(report.wallet?.totalPurchases)],
-        ['Commissions déduites', formatCurrency(report.wallet?.totalCommissions)]
-      ];
-      topEntries(report.wallet?.byTransactionType || {}, 6).forEach(([key, count]) => {
-        rows.push([`Transactions: ${humanizeKey(key)}`, formatNumber(count)]);
       });
       return rows;
     }
@@ -699,9 +679,6 @@ export default function AdminReports() {
     }
     if (selectedSections.messaging && report.messaging) {
       cards.push({ title: 'Messages', value: formatNumber(report.messaging.totalMessages), sub: `${formatNumber(report.messaging.unreadMessages)} non lus`, icon: MessageSquare });
-    }
-    if (selectedSections.wallet && report.wallet) {
-      cards.push({ title: 'Portefeuille', value: formatCurrency(report.wallet.totalBalance), sub: `${formatNumber(report.wallet.totalWallets)} portefeuilles`, icon: Wallet });
     }
     if (selectedSections.flashSales && report.flashSales) {
       cards.push({ title: 'Flash Sales', value: formatNumber(report.flashSales.active), sub: `${formatNumber(report.flashSales.total)} totales`, icon: Zap });

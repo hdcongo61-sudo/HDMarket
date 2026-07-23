@@ -10,7 +10,7 @@ const FAILED_STATUSES = new Set(['FAILED', 'EXPIRED', 'CANCELLED']);
 const isTerminalCheckout = (checkout) => {
   const status = String(checkout?.status || '');
   if (FAILED_STATUSES.has(status)) return true;
-  if (status !== 'COMPLETED' || !['CREDITED', 'FAILED'].includes(String(checkout?.creditState || ''))) {
+  if (status !== 'COMPLETED' || !['CONFIRMED', 'FAILED'].includes(String(checkout?.paymentState || ''))) {
     return false;
   }
   if (
@@ -77,12 +77,12 @@ export default function PawaPayReturn() {
   const actionPayment = Boolean(checkout?.actionKind);
   const actionCompleted = actionPayment && checkout?.autoValidationState === 'COMPLETED';
   const actionFailed = actionPayment && checkout?.autoValidationState === 'FAILED';
-  const paymentCompleted = checkout?.status === 'COMPLETED' && checkout?.creditState === 'CREDITED';
+  const paymentCompleted = checkout?.status === 'COMPLETED' && checkout?.paymentState === 'CONFIRMED';
   const completed =
     paymentCompleted &&
     (!listingPayment || listingValidated) &&
     (!actionPayment || actionCompleted);
-  const creditFailed = checkout?.status === 'COMPLETED' && checkout?.creditState === 'FAILED';
+  const creditFailed = checkout?.status === 'COMPLETED' && checkout?.paymentState === 'FAILED';
   const failed =
     FAILED_STATUSES.has(checkout?.status) ||
     creditFailed ||
@@ -94,7 +94,7 @@ export default function PawaPayReturn() {
       ? 'Le paiement est confirmé, mais le crédit du portefeuille nécessite une vérification.'
       : 'Le paiement n’a pas pu être finalisé.'
   );
-  const returnPath = checkout?.returnPath || '/wallet';
+  const returnPath = checkout?.returnPath || '/orders';
 
   return (
     <main className="min-h-[70vh] bg-[#f7f5f2] px-4 py-10">
@@ -162,9 +162,6 @@ export default function PawaPayReturn() {
               <RefreshCw size={16} /> Actualiser
             </button>
           )}
-          <Link to="/wallet" className="inline-flex min-h-10 items-center justify-center text-xs font-black text-slate-500">
-            Voir mon portefeuille
-          </Link>
         </div>
       </section>
     </main>

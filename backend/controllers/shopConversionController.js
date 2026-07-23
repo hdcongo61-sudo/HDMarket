@@ -18,8 +18,6 @@ import {
   normalizeShopName
 } from '../utils/shopNameUtils.js';
 import { getRuntimeConfig } from '../services/configService.js';
-import { purchaseFromWallet, refundToWallet } from '../services/walletService.js';
-import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const normalizeBoolean = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
@@ -117,16 +115,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
 
   const { shopName, shopAddress, shopDescription, paymentAmount, operator, transactionName, transactionNumber } =
     req.body;
-  const paymentMethod = String(req.body?.paymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
-    ? 'wallet'
-    : 'mobile_money';
-  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
-  if (pawaPayOnly && paymentMethod !== 'wallet') {
-    return res.status(403).json({
-      code: 'PAWAPAY_ONLY',
-      message: 'Les preuves et identifiants de transaction sont désactivés. Payez avec PawaPay.'
-    });
-  }
+  const paymentMethod = 'mobile_money';
   const normalizedShopName = normalizeShopName(shopName);
 
   // Validate required fields
@@ -184,12 +173,6 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     // Validate operator
     if (!operator || !['MTN', 'Airtel'].includes(operator)) {
       return res.status(400).json({ message: 'Veuillez sélectionner un opérateur (MTN ou Airtel).' });
-    }
-  } else {
-    const walletEnabled =
-      pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
-    if (!walletEnabled) {
-      return res.status(403).json({ message: 'Le portefeuille HDMarket est désactivé.' });
     }
   }
 
@@ -262,7 +245,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   }
 
   // Handle payment proof upload
-  let paymentProofUrl = paymentMethod === 'wallet' ? 'wallet-payment' : '';
+  let paymentProofUrl = '';
   const paymentProofFile = req.files?.paymentProof?.[0] || null;
   if (paymentMethod === 'mobile_money' && !paymentProofFile) {
     return res.status(400).json({ message: 'La preuve de paiement est requise.' });
@@ -292,34 +275,12 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     paymentProof: paymentProofUrl,
     paymentAmount: amount,
     paymentMethod,
-    paymentStatus: paymentMethod === 'wallet' ? 'paid' : 'pending_admin_validation',
-    operator: paymentMethod === 'wallet' ? 'HDMarket Wallet' : operator,
-    transactionName: paymentMethod === 'wallet' ? (user.name || 'Portefeuille HDMarket') : transactionName.trim(),
-    transactionNumber: paymentMethod === 'wallet' ? `wallet-${Date.now()}` : digitsOnly,
+    paymentStatus: 'pending_admin_validation',
+    operator,
+    transactionName: transactionName.trim(),
+    transactionNumber: digitsOnly,
     status: 'pending'
   });
-
-  if (paymentMethod === 'wallet') {
-    try {
-      const walletPayment = await purchaseFromWallet({
-        userId: user._id,
-        amount,
-        orderId: String(request._id),
-        reference: `shop-conversion-${request._id}`,
-        purpose: 'shop_conversion',
-        note: `Paiement Devenir Boutique — ${normalizedShopName}`,
-        metadata: {
-          shopConversionRequestId: String(request._id),
-          role: 'shop_conversion_payment'
-        }
-      });
-      request.walletTransactionId = String(walletPayment?.transactionId || '');
-      await request.save();
-    } catch (error) {
-      await ShopConversionRequest.deleteOne({ _id: request._id }).catch(() => {});
-      throw error;
-    }
-  }
 
   // Notify all admins about the new conversion request
   try {
@@ -376,10 +337,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   }
 
   res.status(201).json({
-    message:
-      paymentMethod === 'wallet'
-        ? 'Demande de conversion soumise et payée avec le portefeuille HDMarket. Traitement sous 48h.'
-        : 'Demande de conversion en boutique soumise avec succès. Traitement sous 48h.',
+    message: 'Demande de conversion en boutique soumise avec succès. Traitement sous 48h.',
     request: {
       _id: request._id,
       shopName: request.shopName,
@@ -551,16 +509,6 @@ export const rejectShopConversionRequest = asyncHandler(async (req, res) => {
   }
 
   request.status = 'rejected';
-  if (request.paymentMethod === 'wallet' && request.paymentStatus === 'paid' && Number(request.paymentAmount || 0) > 0) {
-    await refundToWallet({
-      userId: request.user,
-      amount: Number(request.paymentAmount || 0),
-      orderId: String(request._id),
-      processedBy: req.user.id,
-      note: 'Remboursement demande Devenir Boutique rejetée'
-    });
-    request.paymentStatus = 'refunded';
-  }
   request.processedBy = req.user.id;
   request.processedAt = new Date();
   request.rejectionReason = (rejectionReason || '').trim();

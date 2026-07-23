@@ -41,7 +41,6 @@ import {
   clientConfirmDelivery,
   getOrderDeliveryLogs,
   sellerUpdateOrderStatus,
-  walletCheckoutOrder,
   sellerCancelOrder,
   sellerDeliveryStatsOverview,
   sellerDeliveryStatsProducts,
@@ -124,11 +123,6 @@ router.post(
   idempotencyMiddleware(),
   validate(schemas.orderCheckout),
   userCheckoutOrder
-);
-router.post(
-  '/wallet-checkout',
-  idempotencyMiddleware(),
-  walletCheckoutOrder
 );
 // "Ask a friend to pay" (sponsored payment)
 router.get('/sponsor/resolve', resolveSponsorPayer);

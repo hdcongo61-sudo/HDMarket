@@ -428,7 +428,6 @@ export const buildBoostRequestResponse = (request) => {
     paymentOperator: request.paymentOperator || '',
     paymentSenderName: request.paymentSenderName || '',
     paymentTransactionId: request.paymentTransactionId || '',
-    walletTransactionId: request.walletTransactionId || '',
     paymentProofImage: request.paymentProofImage || null,
     status: request.status,
     startDate: request.startDate || null,

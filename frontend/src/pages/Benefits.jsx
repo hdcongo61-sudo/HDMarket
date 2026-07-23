@@ -6,7 +6,6 @@ import {
   Percent,
   Heart,
   Zap,
-  Wallet,
   CalendarClock,
   Users,
   Ticket,
@@ -92,7 +91,6 @@ export default function Benefits() {
   const isFlagOn = (key, fallback = false) =>
     ['true', '1', 'yes', 'on'].includes(String(getRuntimeValue(key, fallback)).trim().toLowerCase());
 
-  const walletEnabled = isFlagOn('enable_wallet_payment') || isFlagOn('enable_digital_wallet');
   const payForOtherEnabled = isFlagOn('enable_pay_for_other');
   const wholesaleEnabled = isFlagOn('enable_wholesale');
   const platformDeliveryEnabled = isFlagOn('enable_platform_delivery');
@@ -231,16 +229,6 @@ export default function Benefits() {
               'Suivez vos échéances dans le détail de la commande'
             ]}
           />
-          {walletEnabled && (
-            <FeatureCard
-              icon={Wallet}
-              title="Portefeuille HDMarket"
-              benefit="Rechargez une fois, payez en un geste. Votre solde est disponible immédiatement à chaque commande."
-              steps={['Rechargez votre portefeuille', 'Au paiement, choisissez « Portefeuille »']}
-              to="/wallet"
-              cta="Ouvrir mon portefeuille"
-            />
-          )}
           {payForOtherEnabled && (
             <FeatureCard
               icon={Users}

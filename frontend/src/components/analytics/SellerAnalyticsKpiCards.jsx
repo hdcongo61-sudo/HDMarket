@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, Package, Percent, Wallet } from 'lucide-react';
+import { Banknote, DollarSign, Package, Percent } from 'lucide-react';
 
 const Card = ({ icon: Icon, label, value, subtitle, tone = 'indigo' }) => {
   const toneMap = {
@@ -52,7 +52,7 @@ export default function SellerAnalyticsKpiCards({
         tone="amber"
       />
       <Card
-        icon={Wallet}
+        icon={Banknote}
         label="Tranches"
         value={`${formatCurrency(installment?.amountPaidSoFar || 0)} / ${formatCurrency(
           installment?.remainingAmount || 0

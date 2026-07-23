@@ -69,6 +69,7 @@ import useSellerOrdersListQuery from '../hooks/useSellerOrdersListQuery';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { createIdempotencyKey } from '../utils/idempotency';
+import { fetchOrderUnreadCounts } from '../queries/orderChatApi';
 import {
   enqueueOrderStatusOfflineAction,
   loadOrderStatusOfflineQueue,
@@ -196,7 +197,7 @@ const normalizeStatusFilter = (value) => {
 
 const orderMatchesSellerFilter = (order, filterKey) => {
   if (!filterKey || filterKey === 'all') return true;
-  if (filterKey === 'wallet') return String(order?.paymentSource || '') === 'wallet';
+  if (filterKey === 'pawapay') return String(order?.paymentSource || '') === 'pawapay';
   if (isOrderGroupKey('seller', filterKey)) {
     return getOrderGroupStatuses('seller', filterKey).includes(String(order?.status || '').trim().toLowerCase());
   }
@@ -1502,23 +1503,7 @@ export default function SellerOrders() {
   const loadUnreadCounts = async (orderIds) => {
     if (!orderIds || orderIds.length === 0 || !user?._id) return {};
     try {
-      const counts = await Promise.all(
-        orderIds.map(async (orderId) => {
-          try {
-            const { data } = await api.get(`/orders/${orderId}/messages`);
-            const unread = Array.isArray(data) ? data.filter(
-              (msg) => String(msg.recipient?._id) === String(user._id) && !msg.readAt
-            ) : [];
-            return { orderId, count: unread.length };
-          } catch {
-            return { orderId, count: 0 };
-          }
-        })
-      );
-      return counts.reduce((acc, { orderId, count }) => {
-        acc[orderId] = count;
-        return acc;
-      }, {});
+      return await fetchOrderUnreadCounts(orderIds);
     } catch {
       return {};
     }

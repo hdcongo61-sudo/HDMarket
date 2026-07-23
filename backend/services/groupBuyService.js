@@ -5,7 +5,7 @@
  * method to auto-charge members when a team fills, so — unlike Pinduoduo's
  * fully automatic conversion — joining a team is a free reservation, and the
  * group price only ever gets applied when a member completes a *normal*
- * checkout (COD / mobile money reference / wallet) while the team is
+ * checkout (COD / Mobile Money) while the team is
  * `filled`. This keeps the real growth mechanic (share a link, fill your
  * team, price unlocks) without inventing an auto-charge system the
  * platform's manual-payment reality can't actually support.

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import api, { verifyTransactionCodeAvailability } from '../services/api';
+import api from '../services/api';
 import {
   Package,
   Truck,
@@ -9,8 +9,6 @@ import {
   MapPin,
   Clock,
   ShieldCheck,
-  DollarSign,
-  User,
   Mail,
   Calendar,
   Download,
@@ -23,7 +21,6 @@ import {
   CreditCard,
   Receipt,
   ChevronRight,
-  Wallet,
   Copy,
   Check,
   Eye,
@@ -164,24 +161,16 @@ const DeliveryProofImage = ({ src, alt, className = '' }) => {
   return <img src={src} alt={alt} className={className} loading="eager" onError={() => setFailed(true)} />;
 };
 const normalizeAddressPart = (value) => (typeof value === 'string' ? value.trim() : '');
-const isEnabledFlag = (value, fallback = false) => {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
-  const normalized = String(value ?? '').trim().toLowerCase();
-  if (['true', '1', 'yes', 'oui', 'on'].includes(normalized)) return true;
-  if (['false', '0', 'no', 'non', 'off', ''].includes(normalized)) return false;
-  return fallback;
-};
 const resolveOrderPaymentMode = (order) => {
   const paymentSource = String(order?.paymentSource || '').trim().toLowerCase();
   const explicitPaymentMode = String(order?.paymentMode || '').trim().toUpperCase();
   if (order?.sponsoredPayment?.isSponsored) return 'SPONSOR';
   if (String(order?.paymentType || '').toLowerCase() === 'installment') return 'INSTALLMENT';
   if (
-    paymentSource === 'wallet' ||
-    ['WALLET', 'HDMARKET_WALLET', 'PORTEFEUILLE_HDMARKET'].includes(explicitPaymentMode)
+    paymentSource === 'pawapay' ||
+    explicitPaymentMode === 'PAWAPAY'
   ) {
-    return 'WALLET';
+    return 'PAWAPAY';
   }
   if (explicitPaymentMode === 'FULL_PAYMENT') return 'FULL_PAYMENT';
   if (explicitPaymentMode && explicitPaymentMode !== 'STANDARD') return explicitPaymentMode;
@@ -194,8 +183,8 @@ const shouldHideDeliveryDetailsForPaymentMode = (mode) =>
 
 const getPaymentModeLabel = (mode) => {
   switch (mode) {
-    case 'WALLET':
-      return 'Portefeuille HDMarket';
+    case 'PAWAPAY':
+      return 'PawaPay';
     case 'INSTALLMENT':
       return 'Paiement par tranche';
     case 'FULL_PAYMENT':
@@ -214,7 +203,7 @@ const PAYMENT_MODE_BADGE_CLASSES = {
   STANDARD: 'border-orange-200 bg-orange-50 text-[#B45309] dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300',
   FULL_PAYMENT: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
   INSTALLMENT: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
-  WALLET: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300',
+  PAWAPAY: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300',
   SPONSOR: 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-300'
 };
 const getPaymentModeBadgeClasses = (mode) => PAYMENT_MODE_BADGE_CLASSES[mode] || PAYMENT_MODE_BADGE_CLASSES.STANDARD;
@@ -326,16 +315,11 @@ export default function OrderDetail() {
   const { user } = React.useContext(AuthContext);
   const { addItem } = React.useContext(CartContext);
   const externalLinkProps = useDesktopExternalLink();
-  const { isFeatureEnabled, getRuntimeValue } = useAppSettings();
+  const { isFeatureEnabled } = useAppSettings();
   const { showToast } = useToast();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
-  const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
-  const walletFeatureEnabled =
-    pawaPayOnlyMode ||
-    (isEnabledFlag(getRuntimeValue('enable_digital_wallet', false), false) &&
-      isEnabledFlag(getRuntimeValue('enable_wallet_payment', false), false));
   const queryClient = useQueryClient();
   const { rapid3GActive, offlineBannerText, rapid3GBannerText, shouldUseOfflineSnapshot } =
     useNetworkProfile();
@@ -346,8 +330,6 @@ export default function OrderDetail() {
   const [skipLoadingId, setSkipLoadingId] = useState(null);
   const [reordering, setReordering] = useState(false);
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
-  const [installmentProofForms, setInstallmentProofForms] = useState({});
-  const [installmentUploadIndex, setInstallmentUploadIndex] = useState(-1);
   const [suggestionsProducts, setSuggestionsProducts] = useState([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [proofPreview, setProofPreview] = useState(null);
@@ -355,7 +337,6 @@ export default function OrderDetail() {
   const [deliveryQueueSyncing, setDeliveryQueueSyncing] = useState(false);
   const [deliveryCodeRevealed, setDeliveryCodeRevealed] = useState(false);
   const [copiedKey, setCopiedKey] = useState('');
-  const [walletInfo, setWalletInfo] = useState(null);
   const reduceMotion = useReducedMotion();
 
   const copyToClipboard = async (text, key) => {
@@ -466,17 +447,6 @@ export default function OrderDetail() {
     const message = encodeURIComponent(lines.join('\n'));
     window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener');
   };
-  const walletEnabledPhones = String(getRuntimeValue('wallet_enabled_shops', '') || '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  const orderSellerPhone = String(
-    order?.items?.[0]?.snapshot?.shopPhone || order?.items?.[0]?.product?.user?.phone || ''
-  ).trim();
-  const installmentWalletEnabled =
-    pawaPayOnlyMode ||
-    (walletFeatureEnabled &&
-      (walletEnabledPhones.length === 0 || walletEnabledPhones.includes(orderSellerPhone)));
   const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
     const value = String(url || '').trim();
@@ -516,14 +486,6 @@ export default function OrderDetail() {
     setOrder(nextOrder);
     setUnreadCount(Number(buyerOrderDetailQuery.data?.unreadCount || 0));
   }, [buyerOrderDetailQuery.data]);
-
-  useEffect(() => {
-    if (!installmentWalletEnabled || (!user?._id && !user?.id)) return;
-    api
-      .get('/wallet', { skipCache: true, skipDedupe: true })
-      .then(({ data }) => setWalletInfo(data || null))
-      .catch(() => setWalletInfo(null));
-  }, [installmentWalletEnabled, user?._id, user?.id]);
 
   useEffect(() => {
     const nextOrder = buyerOrderDetailQuery.data?.order || null;
@@ -753,84 +715,6 @@ export default function OrderDetail() {
       await invalidateOrderQueries();
     } catch (err) {
       throw err;
-    }
-  };
-
-  const handleInstallmentProofFieldChange = (index, field, value) => {
-    setInstallmentProofForms((prev) => ({
-      ...prev,
-      [index]: {
-        ...(prev[index] || {}),
-        [field]:
-          field === 'transactionCode'
-            ? String(value || '').replace(/\D/g, '').slice(0, 10)
-            : value
-      }
-    }));
-  };
-
-  const handleInstallmentProofUpload = async (index, entry) => {
-    if (!order) return;
-    const currentProof = installmentProofForms[index] || {
-      payerName: entry?.transactionProof?.senderName || user?.name || '',
-      transactionCode: entry?.transactionProof?.transactionCode || ''
-    };
-    const cleanPayerName = String(currentProof.payerName || '').trim();
-    const cleanTransactionCode = String(currentProof.transactionCode || '').replace(/\D/g, '');
-    const paymentMethod = 'wallet';
-    const amount = Number(entry?.amount || 0);
-
-    if (paymentMethod === 'mobile_money' && !cleanPayerName) {
-      appAlert('Le nom de l’expéditeur est requis.');
-      return;
-    }
-    if (paymentMethod === 'mobile_money' && cleanTransactionCode.length !== 10) {
-      appAlert('L’ID de transaction doit contenir exactement 10 chiffres.');
-      return;
-    }
-    if (paymentMethod === 'mobile_money') {
-      try {
-        const verification = await verifyTransactionCodeAvailability(cleanTransactionCode);
-        if (!verification.available) {
-          appAlert(verification.message || 'Ce code de transaction est déjà utilisé.');
-          return;
-        }
-      } catch (error) {
-        appAlert(error?.response?.data?.message || 'Impossible de vérifier le code de transaction.');
-        return;
-      }
-    }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      appAlert('Montant de tranche invalide.');
-      return;
-    }
-    setInstallmentUploadIndex(index);
-    try {
-      const { data } = await api.post(
-        `/orders/${order._id}/installment/payments/${index}/proof`,
-        {
-          paymentMethod,
-          payerName: paymentMethod === 'wallet' ? user?.name || '' : cleanPayerName,
-          transactionCode: paymentMethod === 'wallet' ? '' : cleanTransactionCode,
-          amount
-        }
-      );
-      applyOrderSnapshot(data);
-      setInstallmentProofForms((prev) => {
-        const next = { ...prev };
-        delete next[index];
-        return next;
-      });
-      appAlert(
-        paymentMethod === 'wallet'
-          ? 'Tranche payée avec le portefeuille HDMarket.'
-          : 'Preuve transactionnelle transmise au vendeur. En attente de validation.'
-      );
-      await invalidateOrderQueries();
-    } catch (err) {
-      appAlert(err.response?.data?.message || 'Impossible de transmettre la preuve.');
-    } finally {
-      setInstallmentUploadIndex(-1);
     }
   };
 
@@ -2286,24 +2170,6 @@ export default function OrderDetail() {
                       ['pending', 'overdue'].includes(entry?.status);
                     const transactionProof = entry?.transactionProof || {};
                     const hasTransactionProof = Boolean(transactionProof?.transactionCode);
-                    const proofDraftState = installmentProofForms[index] || {};
-                    const proofDraft = {
-                      payerName:
-                        proofDraftState?.payerName ??
-                        transactionProof?.senderName ??
-                        user?.name ??
-                        '',
-                      transactionCode:
-                        proofDraftState?.transactionCode ??
-                        transactionProof?.transactionCode ??
-                        '',
-                      paymentMethod: 'wallet'
-                    };
-                    const installmentFundingGap = Math.max(
-                      0,
-                      Number(entry?.amount || 0) -
-                        Number(walletInfo?.availableBalance ?? walletInfo?.balance ?? 0)
-                    );
                     return (
                       <div key={`${order._id}-installment-${index}`} className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2350,114 +2216,23 @@ export default function OrderDetail() {
                         )}
                         {canUploadProof && (
                           <div className="space-y-3">
-                            {installmentWalletEnabled && installmentFundingGap > 0 && (
-                              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                                <p className="mb-2 text-xs font-black text-emerald-900">
-                                  Recharge automatique pour cette tranche
-                                </p>
-                                <PawaPayButton
-                                  amount={Math.max(10, Math.ceil(installmentFundingGap))}
-                                  purpose="INSTALLMENT_FUNDING"
-                                  actionContext={{
-                                    kind: 'INSTALLMENT_PAYMENT',
-                                    orderId: order._id,
-                                    scheduleIndex: index,
-                                    amount: Number(entry?.amount || 0)
-                                  }}
-                                  returnPath={typeof window !== 'undefined' ? window.location.pathname : '/orders'}
-                                  label="Payer la tranche avec PawaPay"
-                                />
-                                <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                                  Après confirmation PawaPay, la tranche est validée automatiquement. Aucun ID n’est nécessaire.
-                                </p>
-                              </div>
-                            )}
-                            {installmentWalletEnabled && (
-                              <div className="rounded-xl border border-emerald-500 bg-emerald-50 p-3 text-left text-xs font-bold text-emerald-800">
-                                <Wallet size={16} className="mb-1.5" />
-                                PawaPay · aucun ID transaction
-                              </div>
-                            )}
-                            {proofDraft.paymentMethod === 'wallet' ? (
-                              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
-                                {formatCurrency(entry?.amount || 0)} seront débités et validés automatiquement.
-                              </div>
-                            ) : (
-                              <>
-                                <div>
-                                  <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
-                                    Nom de l’expéditeur
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={String(proofDraft.payerName ?? '')}
-                                    onChange={(event) =>
-                                      handleInstallmentProofFieldChange(index, 'payerName', event.target.value)
-                                    }
-                                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
-                                    placeholder="Nom affiché dans le transfert"
-                                  />
-                                </div>
-                                <div className="rounded-xl border border-neutral-100 bg-neutral-50/50 p-3 overflow-hidden">
-                                  <p className="text-xs font-bold uppercase text-neutral-800 mb-2">
-                                    Exemple: où trouver l'ID dans le SMS
-                                  </p>
-                                  <img
-                                    src="/images/transaction-id-sms-example-checkout.png"
-                                    alt="Exemple de SMS Mobile Money montrant l'ID de la transaction"
-                                    className="w-full max-w-sm mx-auto rounded-lg border border-gray-200 bg-white shadow-sm object-contain"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
-                                    ID transaction (10 chiffres)
-                                  </label>
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    maxLength={10}
-                                    value={String(proofDraft.transactionCode ?? '')}
-                                    onChange={(event) =>
-                                      handleInstallmentProofFieldChange(index, 'transactionCode', event.target.value)
-                                    }
-                                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs"
-                                    placeholder="Ex: 7232173826"
-                                  />
-                                </div>
-                              </>
-                            )}
-                            <div>
-                              <label className="block text-[11px] font-bold uppercase text-gray-700 mb-1">
-                                Montant de la tranche
-                              </label>
-                              <input
-                                type="text"
-                                value={formatCurrency(entry?.amount || 0)}
-                                readOnly
-                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700"
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                              <PawaPayButton
+                                amount={Math.max(10, Math.ceil(Number(entry?.amount || 0)))}
+                                purpose="INSTALLMENT_FUNDING"
+                                actionContext={{
+                                  kind: 'INSTALLMENT_PAYMENT',
+                                  orderId: order._id,
+                                  scheduleIndex: index,
+                                  amount: Number(entry?.amount || 0)
+                                }}
+                                returnPath={typeof window !== 'undefined' ? window.location.pathname : '/orders'}
+                                label="Payer la tranche avec PawaPay"
                               />
+                              <p className="mt-2 text-[11px] font-semibold text-emerald-800">
+                                Après confirmation PawaPay, la tranche est validée automatiquement.
+                              </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleInstallmentProofUpload(index, entry)}
-                              disabled={
-                                installmentUploadIndex === index ||
-                                (proofDraft.paymentMethod !== 'wallet' &&
-                                  (!String(proofDraft.payerName || '').trim() ||
-                                    String(proofDraft.transactionCode || '').replace(/\D/g, '').length !== 10))
-                              }
-                              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-60 ${
-                                proofDraft.paymentMethod === 'wallet'
-                                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-neutral-600 hover:bg-neutral-700'
-                              }`}
-                            >
-                              {installmentUploadIndex === index
-                                ? 'Traitement...'
-                                : proofDraft.paymentMethod === 'wallet'
-                                  ? 'Payer avec le portefeuille'
-                                  : 'Envoyer la preuve transactionnelle'}
-                            </button>
                           </div>
                         )}
                         {entry?.status === 'proof_uploaded' && (
@@ -2492,12 +2267,9 @@ export default function OrderDetail() {
                   <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-3 text-sm text-emerald-900">
                     <p className="font-bold">Remboursement intégral: {formatCurrency(order.refundAmount)}</p>
                     <p>
-                      Mode: {order.refundMethod === 'wallet' ? 'Portefeuille HDMarket' : 'Mobile Money'}
+                      Mode: Mobile Money
                     </p>
-                    {order.refundMethod === 'wallet' ? (
-                      <p className="text-xs font-semibold text-emerald-700">Le montant a été crédité dans votre portefeuille.</p>
-                    ) : (
-                      <>
+                    <>
                         {order.refundSenderName && <p>Expéditeur: {order.refundSenderName}</p>}
                         {order.refundTransactionNumber && <p>ID transaction: {order.refundTransactionNumber}</p>}
                         {order.refundProof && /^https?:\/\//i.test(order.refundProof) && (
@@ -2509,8 +2281,7 @@ export default function OrderDetail() {
                             />
                           </a>
                         )}
-                      </>
-                    )}
+                    </>
                   </div>
                 )}
               </div>

@@ -17,7 +17,7 @@ const shopConversionRequestSchema = new mongoose.Schema(
     paymentAmount: { type: Number, required: true, default: 50000 },
     paymentMethod: {
       type: String,
-      enum: ['mobile_money', 'wallet'],
+      enum: ['mobile_money'],
       default: 'mobile_money',
       index: true
     },
@@ -27,10 +27,9 @@ const shopConversionRequestSchema = new mongoose.Schema(
       default: 'pending_admin_validation',
       index: true
     },
-    operator: { type: String, enum: ['MTN', 'Airtel', 'HDMarket Wallet'], required: true, default: 'MTN' },
+    operator: { type: String, enum: ['MTN', 'Airtel'], required: true, default: 'MTN' },
     transactionName: { type: String, required: true, trim: true },
     transactionNumber: { type: String, required: true, trim: true },
-    walletTransactionId: { type: String, trim: true, default: '' },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

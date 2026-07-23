@@ -1,9 +1,4 @@
 import { buildProductPath, buildShopPath } from './links';
-import { hasAnyPermission } from './permissions';
-
-// Where admins / founders / granted users manage the platform ("app") wallet:
-// deposits to verify, withdrawals to process, platform balance.
-const APP_WALLET_PATH = '/admin/payments';
 
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
@@ -213,30 +208,6 @@ const BUYER_SIDE_ORDER_TYPES = new Set([
   'order_cancellation_window_skipped'
 ]);
 
-const SELLER_SIDE_ORDER_TYPES = new Set([
-  'order_received',
-  'order_accepted',
-  'order_rejected',
-  'order_reminder',
-  'payment_pending',
-  'payment_proof_submitted',
-  'installment_payment_submitted',
-  'installment_sale_confirmation_required',
-  'installment_sale_confirmed',
-  'order_address_updated',
-  'order_delivery_fee_updated',
-  'order_full_payment_received',
-  'order_full_payment_ready'
-]);
-
-const WALLET_LINK_TYPES = new Set([
-  'wallet_deposit',
-  'wallet_withdrawal',
-  'wallet_refund',
-  'wallet_credit',
-  'wallet_debit'
-]);
-
 const buildOrderPath = (alert, user, fallbackOrderId = '') => {
   const metadata = alert?.metadata || {};
   const orderId =
@@ -267,76 +238,6 @@ const buildOrderPath = (alert, user, fallbackOrderId = '') => {
     return `/seller/orders/detail/${orderId}`;
   }
   return `/orders/detail/${orderId}`;
-};
-
-const isWalletNotification = (alert) => {
-  const type = String(alert?.type || '').trim();
-  const metadata = alert?.metadata || {};
-  const entityType = String(alert?.entityType || '').trim().toLowerCase();
-  const link = String(alert?.actionLink || alert?.deepLink || metadata?.deepLink || '').trim().toLowerCase();
-  const message = String(metadata?.message || alert?.message || '').trim().toLowerCase();
-  const metadataValues = [
-    metadata.walletId,
-    metadata.walletBalance,
-    metadata.pendingBalance,
-    metadata.availableBalance,
-    metadata.transactionId,
-    metadata.paymentSource,
-    metadata.reference,
-    metadata.role
-  ]
-    .map((value) => String(value || '').trim().toLowerCase())
-    .join(' ');
-
-  return (
-    WALLET_LINK_TYPES.has(type) ||
-    entityType === 'wallet' ||
-    Boolean(metadata.walletId || metadata.walletBalance !== undefined || metadata.pendingBalance !== undefined || metadata.availableBalance !== undefined) ||
-    link.startsWith('/wallet') ||
-    link.includes('/wallet') ||
-    metadataValues.includes('wallet') ||
-    metadataValues.includes('portefeuille') ||
-    message.includes('portefeuille') ||
-    message.includes('hdmarket wallet')
-  );
-};
-
-// Can this recipient act on the platform/app wallet (verify deposits, process
-// withdrawals)? Founders + admins/managers, or anyone granted the permission.
-const userCanManageAppWallet = (user) =>
-  userIsBackoffice(user) ||
-  user?.canVerifyPayments === true ||
-  hasAnyPermission(user, ['verify_payments', 'manage_payments', 'manage_wallet']);
-
-// Distinguishes an "app/platform wallet" alert (a deposit/withdrawal the admin
-// must process, or any admin-scoped wallet alert) from a personal-wallet alert
-// (the recipient's own balance was credited/debited).
-const isAppWalletScopedNotification = (alert) => {
-  const metadata = alert?.metadata || {};
-  const explicitLink = normalizeNotificationLink(
-    alert?.actionLink || alert?.deepLink || metadata?.deepLink || ''
-  ).toLowerCase();
-  if (explicitLink.startsWith('/admin')) return true;
-  const role = String(metadata?.role || '').trim().toLowerCase();
-  if (role === 'wallet_deposit_request' || role === 'wallet_withdrawal_request') return true;
-  const scope = String(metadata?.walletScope || metadata?.scope || metadata?.walletType || '')
-    .trim()
-    .toLowerCase();
-  return scope === 'app' || scope === 'platform' || scope === 'admin';
-};
-
-const buildWalletPath = (alert, user) => {
-  if (!isWalletNotification(alert)) return '';
-  // App/platform-wallet alerts route privileged recipients to the app wallet
-  // (deposit/withdrawal verification) instead of their personal portefeuille.
-  // Personal-wallet alerts — and everyone without app-wallet access — go to /wallet.
-  if (isAppWalletScopedNotification(alert) && userCanManageAppWallet(user)) {
-    const explicit = normalizeNotificationLink(
-      alert?.actionLink || alert?.deepLink || alert?.metadata?.deepLink || ''
-    );
-    return explicit && explicit.toLowerCase().startsWith('/admin') ? explicit : APP_WALLET_PATH;
-  }
-  return '/wallet';
 };
 
 const buildOrderReviewPath = (alert) => {
@@ -475,9 +376,6 @@ export const resolveNotificationLink = (alert, user = null) => {
   const deepLink = normalizeNotificationLink(
     alert?.actionLink || alert?.deepLink || alert?.metadata?.deepLink || ''
   );
-  const walletPath = buildWalletPath(alert, user);
-  if (walletPath) return walletPath;
-
   if (type.startsWith('sponsorship_')) {
     return '/sponsorships';
   }

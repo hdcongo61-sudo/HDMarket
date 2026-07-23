@@ -15,7 +15,7 @@ import {
   Truck,
   CheckCircle2,
   Ban,
-  Wallet
+  Banknote
 } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -333,7 +333,7 @@ export default function AdminParcelRequests() {
             <StatCard icon={Truck} label="Assignées" value={stats.accepted + stats.inProgress} tone="bg-blue-100 text-blue-600" />
             <StatCard icon={CheckCircle2} label="Livrées" value={stats.delivered} tone="bg-emerald-100 text-emerald-600" />
             <StatCard icon={Ban} label="Annulées" value={stats.canceled} tone="bg-red-100 text-red-600" />
-            <StatCard icon={Wallet} label="Revenu" value={formatCurrency(stats.totalRevenue)} tone="bg-violet-100 text-violet-600" />
+            <StatCard icon={Banknote} label="Revenu" value={formatCurrency(stats.totalRevenue)} tone="bg-violet-100 text-violet-600" />
           </div>
         )}
 

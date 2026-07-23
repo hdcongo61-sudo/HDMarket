@@ -7,7 +7,7 @@ const HOUR_MS = 60 * 60 * 1000;
 
 // A listing-fee payment is considered "paid but untreated" once the seller has
 // submitted/paid for the annonce (status 'waiting') yet no moderator has verified
-// it, leaving the product in the 'pending' state. Wallet payments auto-approve and
+// it, leaving the product in the 'pending' state. PawaPay payments auto-approve and
 // never reach this state.
 const STALE_AFTER_HOURS = Number(process.env.LISTING_MODERATION_STALE_HOURS || 24);
 const REMINDER_COOLDOWN_HOURS = Number(process.env.LISTING_MODERATION_REMINDER_COOLDOWN_HOURS || 12);

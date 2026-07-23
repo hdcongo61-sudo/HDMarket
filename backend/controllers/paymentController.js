@@ -13,18 +13,15 @@ import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promo
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { getHighestProductPrice } from '../utils/productAttributes.js';
-import { purchaseFromWallet, refundToWallet } from '../services/walletService.js';
 import {
   isTransactionCodeAlreadyUsed,
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
-import { getPawaPayConfig } from '../services/pawapayService.js';
-
 const isCloseTo = (a, b, tolerance = 0.01) => Math.abs(a - b) <= tolerance;
 
 export const createPayment = asyncHandler(async (req, res) => {
-  const { productId, payerName, transactionNumber, amount, operator, promoCode, paymentMethod } = req.body;
+  const { productId, payerName, transactionNumber, amount, operator, promoCode } = req.body;
   if (!productId) return res.status(400).json({ message: 'Missing productId' });
 
   const product = await Product.findById(productId);
@@ -85,23 +82,9 @@ export const createPayment = asyncHandler(async (req, res) => {
 
   const normalizedTransaction = normalizeTransactionCode(transactionNumber);
   const hasCommissionDue = Number(commission.dueAmount || 0) > 0;
-  const normalizedPaymentMethod =
-    String(paymentMethod || '').trim().toLowerCase() === 'wallet' && hasCommissionDue
-      ? 'wallet'
-      : hasCommissionDue
-      ? 'mobile_money'
-      : 'promo';
-  const isWalletPayment = normalizedPaymentMethod === 'wallet';
+  const normalizedPaymentMethod = hasCommissionDue ? 'mobile_money' : 'promo';
 
-  if (isWalletPayment) {
-    const walletPaymentEnabled =
-      getPawaPayConfig().exclusiveMode ||
-      await getRuntimeConfig('enable_digital_wallet', { fallback: false });
-    if (!walletPaymentEnabled) {
-      return res.status(400).json({ message: 'Le paiement par portefeuille est temporairement indisponible.' });
-    }
-    received = Number(Number(commission.dueAmount || 0).toFixed(2));
-  } else if (hasCommissionDue) {
+  if (hasCommissionDue) {
     if (!payerName || !operator || normalizedTransaction.length !== 10) {
       return res.status(400).json({
         message:
@@ -128,18 +111,14 @@ export const createPayment = asyncHandler(async (req, res) => {
     buyer: req.user.id,
     seller: req.user.id,
     product: product._id,
-    payerName: isWalletPayment
-      ? req.user.name || 'Portefeuille HDMarket'
-      : hasCommissionDue
+    payerName: hasCommissionDue
       ? payerName
       : 'PROMO_WAIVER',
     payerPhoneNumber: '',
-    transactionNumber: isWalletPayment
-      ? `wallet-${Date.now()}`
-      : hasCommissionDue
+    transactionNumber: hasCommissionDue
       ? normalizedTransaction
       : '0000000000',
-    transactionId: isWalletPayment ? `wallet-${product._id}-${Date.now()}` : hasCommissionDue ? normalizedTransaction : undefined,
+    transactionId: hasCommissionDue ? normalizedTransaction : undefined,
     amount: received,
     expectedAmount: Number(commission.dueAmount || 0),
     amountPaid: received,
@@ -152,15 +131,11 @@ export const createPayment = asyncHandler(async (req, res) => {
     promoCodeValue: normalizedPromo || '',
     promoDiscountType: promoPreview?.promo?.discountType || null,
     promoDiscountValue: Number(promoPreview?.promo?.discountValue || 0),
-    operator: isWalletPayment ? 'HDMARKET_WALLET' : hasCommissionDue ? operator : 'Other',
+    operator: hasCommissionDue ? operator : 'Other',
     paymentType: 'LISTING_FEE',
-    verificationMethod: isWalletPayment ? 'WALLET' : 'MANUAL',
+    verificationMethod: 'MANUAL',
     paymentMethod: normalizedPaymentMethod,
-    status: isWalletPayment ? 'verified' : 'waiting',
-    verifiedBy: isWalletPayment ? req.user.id : undefined,
-    verifiedAt: isWalletPayment ? new Date() : undefined,
-    validatedBy: isWalletPayment ? req.user.id : undefined,
-    validatedAt: isWalletPayment ? new Date() : undefined
+    status: 'waiting'
   };
 
   let payment;
@@ -221,124 +196,12 @@ export const createPayment = asyncHandler(async (req, res) => {
     }
   }
 
-  if (isWalletPayment) {
-    try {
-      const walletPayment = await purchaseFromWallet({
-        userId: req.user.id,
-        amount: received,
-        orderId: String(payment._id),
-        reference: `listing-payment-${payment._id}`,
-        purpose: 'listing_fee',
-        note: `Paiement validation annonce — ${product.title || product._id}`,
-        metadata: {
-          paymentId: String(payment._id),
-          productId: String(product._id),
-          role: 'listing_fee_payment'
-        }
-      });
-      payment.walletTransactionId = String(walletPayment?.transactionId || '');
-      if (payment.walletTransactionId) {
-        payment.metadata = {
-          ...(payment.metadata || {}),
-          walletTransactionId: payment.walletTransactionId
-        };
-      }
-      await payment.save();
-    } catch (error) {
-      await Payment.deleteOne({ _id: payment._id }).catch(() => {});
-      throw error;
-    }
-  }
-
   product.payment = payment._id;
-  product.status = isWalletPayment ? 'approved' : 'pending';
+  product.status = 'pending';
   await product.save();
   invalidateVerifiedProductCache();
 
   res.status(201).json(payment);
-
-  if (isWalletPayment) {
-    const productTitle = String(product.title || '').trim();
-    const productSlug = String(product.slug || '').trim();
-    const paymentAdminLink = `/admin/payment-verification?status=verified&paymentId=${encodeURIComponent(String(payment._id))}&productId=${encodeURIComponent(String(product._id))}${productTitle ? `&search=${encodeURIComponent(productTitle)}` : ''}`;
-    const notification = {
-      userId: product.user,
-      actorId: req.user.id,
-      productId: product._id,
-      type: 'product_approval',
-      metadata: {
-        paymentId: payment._id,
-        paymentMethod: 'wallet'
-      }
-    };
-
-    void dispatchSideEffect(
-      'wallet-listing-payment-approved',
-      {
-        actorId: req.user.id,
-        paymentId: payment._id,
-        productId: product._id
-      },
-      async () => {
-        const moderators = await User.find({
-          $or: [
-            { role: { $in: ['admin', 'founder', 'manager'] } },
-            { canVerifyPayments: true },
-            { permissions: 'verify_payments' }
-          ],
-          isActive: { $ne: false }
-        })
-          .select('_id role canVerifyPayments permissions')
-          .lean();
-        const moderatorNotifications = moderators
-          .filter((moderator) => String(moderator._id) !== String(req.user.id))
-          .map((moderator) => {
-            const role = String(moderator.role || '').toLowerCase();
-            const hasVerifyPermission = Array.isArray(moderator.permissions) && moderator.permissions.includes('verify_payments');
-            const isVerifier = (Boolean(moderator.canVerifyPayments) || hasVerifyPermission) && !['admin', 'founder', 'manager'].includes(role);
-            return createNotification({
-              userId: moderator._id,
-              actorId: req.user.id,
-              productId: product._id,
-              type: 'payment_validated',
-              audience: isVerifier
-                ? 'ROLE_GROUP'
-                : role === 'founder'
-                ? 'FOUNDER'
-                : role === 'admin'
-                ? 'ADMIN'
-                : 'ROLE_GROUP',
-              targetRole: [String(moderator.role || '').toUpperCase()],
-              actionRequired: false,
-              actionStatus: 'DONE',
-              deepLink: paymentAdminLink,
-              actionLink: paymentAdminLink,
-              entityType: 'payment',
-              entityId: String(payment._id),
-              validationType: 'productValidation',
-              metadata: {
-                paymentId: String(payment._id),
-                productId: String(product._id),
-                productSlug,
-                productTitle,
-                amount: received,
-                paymentType: 'LISTING_FEE',
-                paymentMethod: 'wallet',
-                operator: 'HDMARKET_WALLET',
-                status: 'verified',
-                autoApproved: true,
-                deepLink: paymentAdminLink,
-                message: `${req.user.name || 'Un utilisateur'} a payé${received ? ` ${Number(received).toLocaleString('fr-FR')} FCFA` : ''} pour faire valider son annonce${productTitle ? ` "${productTitle}"` : ''}. Paiement portefeuille vérifié automatiquement.`
-              }
-            });
-          });
-        await invalidateProductCache();
-        await Promise.all([createNotification(notification), ...moderatorNotifications]);
-      },
-      { label: 'wallet_listing_payment_approval_side_effects' }
-    );
-    return;
-  }
 
   const moderatorNotificationMetadata = {
     paymentId: payment._id,
@@ -554,30 +417,11 @@ export const rejectPayment = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id).populate('product');
   if (!payment) return res.status(404).json({ message: 'Payment not found' });
 
-  const shouldRefundWallet =
-    payment.paymentMethod === 'wallet' &&
-    String(payment.status || '') === 'verified' &&
-    Number(payment.amount || payment.amountPaid || 0) > 0;
-
   payment.status = 'rejected';
   payment.validatedBy = req.user.id;
   payment.validatedAt = new Date();
   payment.rejectedBy = req.user.id;
   payment.rejectedAt = payment.validatedAt;
-
-  if (shouldRefundWallet) {
-    await refundToWallet({
-      userId: payment.user || payment.buyer,
-      amount: Number(payment.amount || payment.amountPaid || 0),
-      orderId: String(payment._id),
-      processedBy: req.user.id,
-      note: 'Remboursement validation annonce rejetée'
-    });
-    payment.metadata = {
-      ...(payment.metadata || {}),
-      walletRefundedAt: new Date()
-    };
-  }
 
   await payment.save();
 

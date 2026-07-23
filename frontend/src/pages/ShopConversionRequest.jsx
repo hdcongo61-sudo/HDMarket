@@ -16,11 +16,9 @@ import {
   Hash,
   DollarSign,
   FileImage,
-  Image as ImageIcon,
-  Wallet
+  Image as ImageIcon
 } from 'lucide-react';
 import { useNetworks } from '../hooks/useNetworks';
-import PawaPayButton from '../components/PawaPayButton';
 
 const readFileAsDataURL = (file) => {
   return new Promise((resolve, reject) => {
@@ -41,9 +39,7 @@ export default function ShopConversionRequest() {
   const [error, setError] = useState('');
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState('wallet');
-  const [walletInfo, setWalletInfo] = useState(null);
-  const [walletLoading, setWalletLoading] = useState(false);
+  const paymentMethod = 'mobile_money';
 
   // Get active networks sorted by order
   const activeNetworks = useMemo(
@@ -91,25 +87,6 @@ export default function ShopConversionRequest() {
       }
     }
   }, [networksLoading, activeNetworks, form.operator, paymentMethod]);
-
-  useEffect(() => {
-    let alive = true;
-    const loadWallet = async () => {
-      setWalletLoading(true);
-      try {
-        const { data } = await api.get('/wallet');
-        if (alive) setWalletInfo(data || null);
-      } catch {
-        if (alive) setWalletInfo(null);
-      } finally {
-        if (alive) setWalletLoading(false);
-      }
-    };
-    loadWallet();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const [shopLogoFile, setShopLogoFile] = useState(null);
   const [shopLogoPreview, setShopLogoPreview] = useState('');
@@ -251,17 +228,7 @@ export default function ShopConversionRequest() {
       setError(`Informations incomplètes. Veuillez ajouter : ${missingInformation.join(', ')}.`);
       return;
     }
-    if (paymentMethod === 'wallet') {
-      const availableBalance = Number(walletInfo?.availableBalance || 0);
-      if (!walletInfo) {
-        setError('Portefeuille HDMarket indisponible. Rechargez ou réessayez plus tard.');
-        return;
-      }
-      if (availableBalance < requiredAmount) {
-        setError(`Solde portefeuille insuffisant. Disponible: ${formatPrice(availableBalance)}.`);
-        return;
-      }
-    } else {
+    {
       if (!form.transactionName.trim()) {
         setError('Le nom de la transaction est requis.');
         return;
@@ -332,14 +299,12 @@ export default function ShopConversionRequest() {
         paymentAmount: String(requiredAmount),
         operator: activeNetworks.length > 0 ? activeNetworks[0].name : 'MTN'
       });
-      setPaymentMethod('wallet');
       setShopLogoFile(null);
       setShopLogoPreview('');
       setPaymentProofFile(null);
       setPaymentProofPreview('');
       setVerificationFiles({ shopPaper: null, shopInvoice: null, insidePhoto: null, outsidePhoto: null });
       setVerificationPreviews({});
-      api.get('/wallet').then(({ data: walletData }) => setWalletInfo(walletData || null)).catch(() => {});
       await loadRequests();
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Une erreur est survenue.';
@@ -586,52 +551,9 @@ export default function ShopConversionRequest() {
                     Montant requis: <span className="text-lg text-[#e85d00]">{requiredAmountLabel}</span>
                   </p>
                   <p className="text-xs font-semibold leading-5 text-gray-600">
-                    Payez avec MTN MoMo ou Airtel Money via PawaPay. Aucun ID de transaction ni reçu manuel.
+                    Effectuez le paiement Mobile Money puis renseignez l’ID de transaction ci-dessous.
                   </p>
                 </div>
-
-                <div className="mb-6 grid grid-cols-1 gap-3">
-                  <div className="rounded-2xl border border-emerald-500 bg-emerald-50 p-4 text-left text-emerald-800 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <Wallet size={18} />
-                      <p className="text-sm font-black">PawaPay · Portefeuille HDMarket</p>
-                    </div>
-                    <p className="mt-1 text-xs font-semibold text-gray-500">
-                      {walletLoading
-                        ? 'Lecture du solde...'
-                        : walletInfo
-                          ? `Disponible: ${formatPrice(walletInfo.availableBalance || 0)}`
-                          : 'Payez avec votre compte Mobile Money via PawaPay.'}
-                    </p>
-                  </div>
-                </div>
-
-                {Math.max(
-                  0,
-                  Number(requiredAmount || 0) - Number(walletInfo?.availableBalance || 0)
-                ) >= 10 && (
-                  <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <p className="mb-2 text-sm font-black text-emerald-900">Paiement sécurisé PawaPay</p>
-                    <PawaPayButton
-                      amount={Math.max(
-                        0,
-                        Number(requiredAmount || 0) - Number(walletInfo?.availableBalance || 0)
-                      )}
-                      purpose="SHOP_CONVERSION_FUNDING"
-                      returnPath="/shop-conversion-request"
-                      label="Payer avec PawaPay"
-                    />
-                    <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                      Après confirmation PawaPay, revenez envoyer la demande. Le paiement sera débité automatiquement.
-                    </p>
-                  </div>
-                )}
-
-                {paymentMethod === 'wallet' && (
-                  <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-                    Le paiement est débité immédiatement. Si la demande est refusée, le montant est remboursé automatiquement dans votre portefeuille.
-                  </div>
-                )}
 
                 {paymentMethod === 'mobile_money' && (
                   <>
