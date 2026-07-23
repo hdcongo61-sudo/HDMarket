@@ -644,6 +644,95 @@ export const clearMyCacheOnLogout = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
+export const deactivateMyAccount = asyncHandler(async (req, res) => {
+  const confirmation = String(req.body?.confirmation || '').trim().toUpperCase();
+  const reason = String(req.body?.reason || '').trim().slice(0, 500);
+  if (confirmation !== 'DESACTIVER') {
+    return res.status(400).json({
+      code: 'ACCOUNT_DEACTIVATION_CONFIRMATION_REQUIRED',
+      message: 'Saisissez DESACTIVER pour confirmer la désactivation du compte.'
+    });
+  }
+
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (!user.isActive) {
+    return res.status(409).json({
+      code: 'ACCOUNT_ALREADY_INACTIVE',
+      message: 'Ce compte est déjà désactivé.'
+    });
+  }
+
+  const now = new Date();
+  user.isActive = false;
+  user.deactivatedAt = now;
+  user.deactivationSource = 'self';
+  user.deactivationReason = reason;
+  user.reactivationRequest = {
+    status: 'none',
+    message: '',
+    requestedAt: null,
+    reviewedAt: null,
+    reviewedBy: null,
+    reviewNote: ''
+  };
+  user.sessionsInvalidatedAt = now;
+  await user.save();
+
+  await Promise.allSettled([
+    (async () => {
+      const products = await Product.find({
+        user: user._id,
+        status: { $ne: 'disabled' }
+      }).select('_id status');
+      if (!products.length) return;
+      await Product.bulkWrite(
+        products.map((product) => ({
+          updateOne: {
+            filter: { _id: product._id },
+            update: {
+              $set: {
+                lastStatusBeforeDisable: product.status,
+                status: 'disabled',
+                disabledByAccountDeactivation: true
+              }
+            }
+          }
+        }))
+      );
+    })(),
+    PushToken.updateMany(
+      { user: user._id, isActive: { $ne: false } },
+      { $set: { isActive: false, disabledReason: 'account_deactivated' } }
+    ),
+    AuditLog.create({
+      performedBy: user._id,
+      targetUser: user._id,
+      actionType: 'account_self_deactivated',
+      previousValue: { isActive: true },
+      newValue: { isActive: false, deactivatedAt: now, reason },
+      ip: getClientIp(req),
+      device: getClientDevice(req)
+    }),
+    invalidateUserCache(user._id, [
+      'users',
+      'products',
+      'orders',
+      'cart',
+      'notifications',
+      'dashboard',
+      'analytics'
+    ])
+  ]);
+
+  return res.json({
+    success: true,
+    code: 'ACCOUNT_DEACTIVATED',
+    message:
+      'Votre compte a été désactivé. Depuis la connexion, vous pourrez envoyer une demande de réactivation à l’administration.'
+  });
+});
+
 export const getProfileStats = asyncHandler(async (req, res) => {
   const stats = await collectUserStats(req.user.id);
   res.json(stats);

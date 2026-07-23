@@ -41,7 +41,8 @@ import {
   ZoomIn,
   ZoomOut,
   Move,
-  Palette
+  Palette,
+  UserX
 } from 'lucide-react';
 import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
@@ -96,6 +97,32 @@ const initialForm = {
   commune: '',
   gender: ''
 };
+
+const AccountDeactivationCard = ({ onOpen }) => (
+  <section className="rounded-2xl border border-red-200 bg-red-50/70 p-4 sm:p-5">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
+          <UserX className="h-5 w-5" />
+        </span>
+        <div>
+          <h3 className="text-sm font-black text-red-950">Désactiver mon compte</h3>
+          <p className="mt-1 max-w-xl text-xs font-medium leading-5 text-red-800">
+            Votre profil, votre boutique et vos annonces ne seront plus accessibles. Toutes vos
+            sessions seront déconnectées.
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-red-300 bg-white px-4 text-sm font-black text-red-700 transition hover:bg-red-100"
+      >
+        Désactiver le compte
+      </button>
+    </div>
+  </section>
+);
 
 const buildOrderStatusDefaults = (extraFields = {}) => ({
   pending: { count: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, items: 0, ...extraFields },
@@ -436,7 +463,7 @@ const createEditedProfileImageFile = async ({
 };
 
 export default function Profile() {
-  const { user, updateUser } = useContext(AuthContext);
+  const { user, updateUser, logout } = useContext(AuthContext);
   const { cities, communes, runtime } = useAppSettings();
   const { showToast } = useToast();
   const [form, setForm] = useState(initialForm);
@@ -495,6 +522,11 @@ export default function Profile() {
   const [passwordCodeError, setPasswordCodeError] = useState('');
   const [passwordCodeMessage, setPasswordCodeMessage] = useState('');
   const [activeTab, setActiveTab] = useState('profile');
+  const [deactivationModalOpen, setDeactivationModalOpen] = useState(false);
+  const [deactivationConfirmation, setDeactivationConfirmation] = useState('');
+  const [deactivationReason, setDeactivationReason] = useState('');
+  const [deactivationLoading, setDeactivationLoading] = useState(false);
+  const [deactivationError, setDeactivationError] = useState('');
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
@@ -516,6 +548,44 @@ export default function Profile() {
     () => normalizeMapProvider(runtime?.map_provider || runtime?.mapProvider),
     [runtime?.map_provider, runtime?.mapProvider]
   );
+
+  const closeDeactivationModal = () => {
+    if (deactivationLoading) return;
+    setDeactivationModalOpen(false);
+    setDeactivationConfirmation('');
+    setDeactivationReason('');
+    setDeactivationError('');
+  };
+
+  const deactivateAccount = async () => {
+    if (deactivationConfirmation.trim().toUpperCase() !== 'DESACTIVER') {
+      setDeactivationError('Saisissez DESACTIVER pour confirmer.');
+      return;
+    }
+    setDeactivationLoading(true);
+    setDeactivationError('');
+    try {
+      await api.post(
+        '/users/profile/deactivate',
+        {
+          confirmation: deactivationConfirmation,
+          reason: deactivationReason.trim()
+        },
+        {
+          skipCache: true,
+          skipDedupe: true,
+          silentGlobalError: true
+        }
+      );
+      await logout();
+    } catch (requestError) {
+      setDeactivationError(
+        requestError?.response?.data?.message ||
+          'Impossible de désactiver le compte pour le moment.'
+      );
+      setDeactivationLoading(false);
+    }
+  };
 
   const mobileTabs = useMemo(() => {
     const base = [
@@ -2816,6 +2886,10 @@ export default function Profile() {
                 </label>
               </div>
 
+              <div className="pt-6 border-t border-gray-100">
+                <AccountDeactivationCard onOpen={() => setDeactivationModalOpen(true)} />
+              </div>
+
               {/* Feedback et actions */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-100">
                 <div className="flex-1">
@@ -3999,9 +4073,92 @@ export default function Profile() {
                 <Lock className="w-4 h-4" />
                 Mettre à jour le mot de passe
               </button>
+              <AccountDeactivationCard onOpen={() => setDeactivationModalOpen(true)} />
             </div>
           </div>
         )}
+
+        <BaseModal
+          isOpen={deactivationModalOpen}
+          onClose={closeDeactivationModal}
+          size="sm"
+          mobileSheet={true}
+          closeOnEsc={!deactivationLoading}
+          closeOnBackdrop={!deactivationLoading}
+          ariaLabel="Confirmer la désactivation du compte"
+          rootClassName="hd-profile-flow"
+        >
+          <ModalHeader
+            title="Désactiver votre compte ?"
+            subtitle="Cette action vous déconnectera immédiatement de tous vos appareils."
+            onClose={closeDeactivationModal}
+          />
+          <ModalBody className="space-y-4">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-900">
+              Votre profil et vos annonces seront masqués. Vos données et l’historique de vos
+              commandes ne seront pas supprimés. Pour revenir, vous devrez contacter le support
+              HDMarket.
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-gray-600">
+                Mot de confirmation
+              </label>
+              <input
+                type="text"
+                value={deactivationConfirmation}
+                onChange={(event) => {
+                  setDeactivationConfirmation(event.target.value);
+                  setDeactivationError('');
+                }}
+                placeholder="Saisissez DESACTIVER"
+                autoComplete="off"
+                disabled={deactivationLoading}
+                data-autofocus
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold uppercase outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-50 disabled:opacity-60"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-gray-600">
+                Motif facultatif
+              </label>
+              <textarea
+                value={deactivationReason}
+                onChange={(event) => setDeactivationReason(event.target.value.slice(0, 500))}
+                rows={3}
+                maxLength={500}
+                disabled={deactivationLoading}
+                placeholder="Dites-nous pourquoi vous quittez HDMarket"
+                className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-50 disabled:opacity-60"
+              />
+            </div>
+            {deactivationError && (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                {deactivationError}
+              </p>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={closeDeactivationModal}
+              disabled={deactivationLoading}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={deactivateAccount}
+              disabled={
+                deactivationLoading ||
+                deactivationConfirmation.trim().toUpperCase() !== 'DESACTIVER'
+              }
+              className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {deactivationLoading ? 'Désactivation…' : 'Désactiver'}
+            </button>
+          </ModalFooter>
+        </BaseModal>
 
         <BaseModal
           isOpen={profileImageEditorOpen}

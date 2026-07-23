@@ -10,12 +10,18 @@ import DeliveryGuy from '../models/deliveryGuyModel.js';
 import ImprovementFeedback from '../models/improvementFeedbackModel.js';
 import AccountTypeChange from '../models/accountTypeChangeModel.js';
 import AdminAuditLog from '../models/adminAuditLogModel.js';
-import { createNotification } from '../utils/notificationService.js';
+import {
+  createNotification,
+  resolveValidationTaskNotifications
+} from '../utils/notificationService.js';
 import { updateProductSalesCount } from '../utils/salesCalculator.js';
 import { getRestrictionTypes, formatRestriction, getRestrictionLabel } from '../utils/restrictionCheck.js';
 import {
   getCacheStats as getCacheEngineStats,
-  getCacheSnapshotHistory
+  getCacheSnapshotHistory,
+  invalidateProductCache,
+  invalidateShopCache,
+  invalidateUserCache
 } from '../utils/cache.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
 import { findShopNameConflict, normalizeShopName } from '../utils/shopNameUtils.js';
@@ -98,6 +104,16 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
       isBlocked: Boolean(user.isBlocked),
       blockedAt: user.blockedAt || null,
       blockedReason: user.blockedReason || '',
+      isActive: user.isActive !== false,
+      deactivatedAt: user.deactivatedAt || null,
+      deactivationReason: user.deactivationReason || '',
+      reactivationRequest: {
+        status: user.reactivationRequest?.status || 'none',
+        message: user.reactivationRequest?.message || '',
+        requestedAt: user.reactivationRequest?.requestedAt || null,
+        reviewedAt: user.reactivationRequest?.reviewedAt || null,
+        reviewNote: user.reactivationRequest?.reviewNote || ''
+      },
       restrictions
     };
   };
@@ -1050,11 +1066,17 @@ export const getOrdersByHour = asyncHandler(async (req, res) => {
 
 export const listUsers = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
-  const { search = '', accountType, limit = 25 } = req.query;
+  const { search = '', accountType, reactivationStatus, limit = 25 } = req.query;
 
   const query = {};
   if (accountType && ['person', 'shop'].includes(accountType)) {
     query.accountType = accountType;
+  }
+  if (
+    reactivationStatus &&
+    ['none', 'pending', 'approved', 'rejected'].includes(reactivationStatus)
+  ) {
+    query['reactivationRequest.status'] = reactivationStatus;
   }
 
   if (search) {
@@ -1076,7 +1098,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType gender city preferredCity shopName slug shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+      'name email phone role accountType gender city preferredCity shopName slug shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isActive deactivatedAt deactivationReason reactivationRequest isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email');
 
@@ -1359,6 +1381,118 @@ export const unblockUser = asyncHandler(async (req, res) => {
   });
 
   res.json(toAdminUserResponse(user));
+});
+
+export const reviewAccountReactivation = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+  const decision = String(req.body?.decision || '').trim().toLowerCase();
+  const note = String(req.body?.note || '').trim().slice(0, 500);
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  if (!['approve', 'reject'].includes(decision)) {
+    return res.status(400).json({ message: 'Décision de réactivation invalide.' });
+  }
+
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (user.reactivationRequest?.status !== 'pending') {
+    return res.status(409).json({ message: 'Aucune demande de réactivation en attente.' });
+  }
+  if (decision === 'approve' && (user.isBlocked || user.isLocked)) {
+    return res.status(409).json({
+      message: 'Le compte est suspendu ou verrouillé. Retirez cette restriction avant de le réactiver.'
+    });
+  }
+
+  const now = new Date();
+  if (decision === 'approve') {
+    user.isActive = true;
+    user.deactivatedAt = null;
+    user.deactivationSource = '';
+    user.deactivationReason = '';
+    user.sessionsInvalidatedAt = now;
+  }
+  user.reactivationRequest.status = decision === 'approve' ? 'approved' : 'rejected';
+  user.reactivationRequest.reviewedAt = now;
+  user.reactivationRequest.reviewedBy = req.user.id;
+  user.reactivationRequest.reviewNote = note;
+  await user.save();
+
+  if (decision === 'approve') {
+    const products = await Product.find({
+      user: user._id,
+      status: 'disabled',
+      disabledByAccountDeactivation: true
+    }).select('_id lastStatusBeforeDisable');
+    const allowedStatuses = new Set(['pending', 'approved', 'rejected']);
+    if (products.length) {
+      await Product.bulkWrite(
+        products.map((product) => ({
+          updateOne: {
+            filter: { _id: product._id },
+            update: {
+              $set: {
+                status: allowedStatuses.has(product.lastStatusBeforeDisable)
+                  ? product.lastStatusBeforeDisable
+                  : 'approved',
+                lastStatusBeforeDisable: null,
+                disabledByAccountDeactivation: false
+              }
+            }
+          }
+        }))
+      );
+    }
+  }
+
+  await Promise.allSettled([
+    invalidateUserCache(user._id, ['users', 'products', 'dashboard', 'analytics']),
+    invalidateShopCache(user._id),
+    ...(decision === 'approve' ? [invalidateProductCache()] : []),
+    resolveValidationTaskNotifications({
+      entityType: 'user',
+      entityId: `account-reactivation:${user._id}`,
+      actionStatus: 'DONE',
+      actorId: req.user.id,
+      validationType: 'other'
+    }),
+    createAuditLog({
+      action:
+        decision === 'approve'
+          ? 'account_reactivation_approved'
+          : 'account_reactivation_rejected',
+      targetUser: user._id,
+      performedBy: req.user.id,
+      details: { userName: user.name, userEmail: user.email, note },
+      ipAddress: req.ip || req.connection?.remoteAddress
+    }),
+    createAuditLogEntry({
+      performedBy: req.user.id,
+      targetUser: user._id,
+      actionType:
+        decision === 'approve'
+          ? 'account_reactivation_approved'
+          : 'account_reactivation_rejected',
+      previousValue: { isActive: false, requestStatus: 'pending' },
+      newValue: {
+        isActive: decision === 'approve',
+        requestStatus: decision === 'approve' ? 'approved' : 'rejected',
+        note
+      },
+      req
+    })
+  ]);
+
+  const populated = await user.populate('shopVerifiedBy', 'name email');
+  return res.json({
+    message:
+      decision === 'approve'
+        ? 'Le compte a été réactivé.'
+        : 'La demande de réactivation a été refusée.',
+    user: toAdminUserResponse(populated)
+  });
 });
 
 export const updateShopVerification = asyncHandler(async (req, res) => {

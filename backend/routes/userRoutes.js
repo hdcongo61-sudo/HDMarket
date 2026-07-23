@@ -8,6 +8,7 @@ import { cacheMiddleware } from '../utils/cache.js';
 import {
   getProfile,
   clearMyCacheOnLogout,
+  deactivateMyAccount,
   getProfileStats,
   updateProfile,
   updateShopLocation,
@@ -68,11 +69,22 @@ const shopLocationRateLimiter = rateLimit({
     code: 'SHOP_LOCATION_RATE_LIMIT'
   }
 });
+const accountDeactivationRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    code: 'ACCOUNT_DEACTIVATION_RATE_LIMIT',
+    message: 'Trop de tentatives. Réessayez plus tard.'
+  }
+});
 
 router.use(protect);
 
 router.get('/profile', cacheMiddleware({ domain: 'users', scope: 'user', ttl: 60000 }), getProfile);
 router.post('/logout-cache', clearMyCacheOnLogout);
+router.post('/profile/deactivate', accountDeactivationRateLimiter, deactivateMyAccount);
 router.patch('/preferences', validate(schemas.userPreferencesUpdate), updateUserPreferences);
 router.get(
   '/profile/stats',

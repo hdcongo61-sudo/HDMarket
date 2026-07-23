@@ -95,6 +95,7 @@ const productSchema = new mongoose.Schema(
     salesCount: { type: Number, default: 0, min: 0 },
     disabledByAdmin: { type: Boolean, default: false },
     disabledBySuspension: { type: Boolean, default: false },
+    disabledByAccountDeactivation: { type: Boolean, default: false },
     boosted: { type: Boolean, default: false, alias: 'isBoosted' },
     boostScore: { type: Number, default: 0 },
     boostedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

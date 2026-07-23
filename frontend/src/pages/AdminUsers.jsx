@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, AlertCircle, MapPin, Truck, Clock } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, UserX, AlertCircle, MapPin, Truck, Clock } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -189,6 +189,8 @@ const accountFilterOptions = [
 const statusFilterOptions = [
   { value: 'all', label: 'Tous les statuts' },
   { value: 'active', label: 'Actifs' },
+  { value: 'inactive', label: 'Désactivés' },
+  { value: 'reactivation_pending', label: 'Réactivation demandée' },
   { value: 'blocked', label: 'Suspendus' }
 ];
 const restrictionFilterOptions = [
@@ -209,6 +211,7 @@ const conversionFilterOptions = [
 
 export default function AdminUsers() {
   const { user: authUser } = useContext(AuthContext);
+  const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -217,7 +220,12 @@ export default function AdminUsers() {
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [accountTypeFilter, setAccountTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const requestedStatus = searchParams.get('status');
+    return statusFilterOptions.some((option) => option.value === requestedStatus)
+      ? requestedStatus
+      : 'all';
+  });
   const [roleFilter, setRoleFilter] = useState('all');
   const [restrictionFilter, setRestrictionFilter] = useState('all');
   const [conversionFilter, setConversionFilter] = useState('all');
@@ -289,6 +297,14 @@ export default function AdminUsers() {
   const [locationTimelineLoading, setLocationTimelineLoading] = useState(false);
 
   useEffect(() => {
+    const requestedStatus = searchParams.get('status');
+    if (statusFilterOptions.some((option) => option.value === requestedStatus)) {
+      setStatusFilter(requestedStatus);
+      setPage(1);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const controller = new AbortController();
     let isMounted = true;
 
@@ -299,12 +315,26 @@ export default function AdminUsers() {
         const params = { limit: 100 };
         if (searchTerm) params.search = searchTerm;
         if (accountTypeFilter !== 'all') params.accountType = accountTypeFilter;
-        const { data } = await api.get('/admin/users', {
-          params,
-          signal: controller.signal
-        });
+        const [{ data }, { data: pendingData }] = await Promise.all([
+          api.get('/admin/users', {
+            params,
+            signal: controller.signal
+          }),
+          api.get('/admin/users', {
+            params: { limit: 100, reactivationStatus: 'pending' },
+            signal: controller.signal
+          })
+        ]);
         if (isMounted) {
-          setUsers(Array.isArray(data) ? data.map(normalizeUserRow) : []);
+          const merged = new Map();
+          for (const item of [
+            ...(Array.isArray(pendingData) ? pendingData : []),
+            ...(Array.isArray(data) ? data : [])
+          ]) {
+            const normalized = normalizeUserRow(item);
+            merged.set(normalized.id, normalized);
+          }
+          setUsers(Array.from(merged.values()));
         }
       } catch (e) {
         if (!isMounted || e.name === 'CanceledError' || e.name === 'AbortError') return;
@@ -363,7 +393,13 @@ export default function AdminUsers() {
     if (statusFilter === 'blocked') {
       filtered = filtered.filter((user) => user.isBlocked);
     } else if (statusFilter === 'active') {
-      filtered = filtered.filter((user) => !user.isBlocked);
+      filtered = filtered.filter((user) => !user.isBlocked && user.isActive !== false);
+    } else if (statusFilter === 'inactive') {
+      filtered = filtered.filter((user) => user.isActive === false);
+    } else if (statusFilter === 'reactivation_pending') {
+      filtered = filtered.filter(
+        (user) => user.reactivationRequest?.status === 'pending'
+      );
     }
 
     if (roleFilter !== 'all') {
@@ -397,7 +433,7 @@ export default function AdminUsers() {
 
   const stats = useMemo(() => {
     const total = users.length;
-    const active = users.filter((user) => !user.isBlocked).length;
+    const active = users.filter((user) => !user.isBlocked && user.isActive !== false).length;
     const blocked = users.filter((user) => user.isBlocked).length;
     const shops = users.filter((user) => user.accountType === 'shop').length;
     const restricted = users.filter((user) =>
@@ -506,6 +542,43 @@ export default function AdminUsers() {
         e.response?.data?.message ||
           e.message ||
           'Impossible de rétablir cet utilisateur pour le moment.'
+      );
+    } finally {
+      setPendingUserId('');
+    }
+  };
+
+  const handleReactivationReview = async (user, decision) => {
+    const approving = decision === 'approve';
+    let note = '';
+    if (approving) {
+      const confirmed = await appConfirm(
+        `Réactiver le compte de ${user.name || user.email} et restaurer ses annonces ?`
+      );
+      if (!confirmed) return;
+    } else {
+      const response = await appPrompt(
+        'Motif du refus (facultatif, conservé dans l’historique) :',
+        ''
+      );
+      if (response === null) return;
+      note = response;
+    }
+
+    setActionError('');
+    setActionSuccess('');
+    setPendingUserId(user.id);
+    try {
+      const { data } = await api.patch(`/admin/users/${user.id}/reactivation-request`, {
+        decision,
+        note
+      });
+      upsertUser(data.user);
+      setActionSuccess(data?.message || (approving ? 'Compte réactivé.' : 'Demande refusée.'));
+    } catch (requestError) {
+      setActionError(
+        requestError?.response?.data?.message ||
+          'Impossible de traiter cette demande de réactivation.'
       );
     } finally {
       setPendingUserId('');
@@ -1735,6 +1808,7 @@ export default function AdminUsers() {
             ) : (
               paginatedUsers.map((user) => {
                 const isBlocked = Boolean(user.isBlocked);
+                const isInactive = user.isActive === false;
                 const isShopAccount = user.accountType === 'shop';
                 const hasShopLocation = Boolean(getLocationCoordinates(user.shopLocation));
                 const shouldShowLocationPanel =
@@ -1760,7 +1834,7 @@ export default function AdminUsers() {
                           </div>
                         )}
                         <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                          isBlocked ? 'bg-red-400' : 'bg-emerald-400'
+                          isBlocked ? 'bg-red-400' : isInactive ? 'bg-amber-400' : 'bg-emerald-400'
                         }`} />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -1774,9 +1848,17 @@ export default function AdminUsers() {
                             {formatRoleLabel(user.role)}
                           </span>
                           <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                            isBlocked ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                            isBlocked
+                              ? 'bg-red-50 text-red-600'
+                              : isInactive
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-emerald-50 text-emerald-600'
                           }`}>
-                            {isBlocked ? <><Ban size={10} />Suspendu</> : <><CheckCircle2 size={10} />Actif</>}
+                            {isBlocked
+                              ? <><Ban size={10} />Suspendu</>
+                              : isInactive
+                                ? <><UserX size={10} />Désactivé</>
+                                : <><CheckCircle2 size={10} />Actif</>}
                           </span>
                           <span className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-500">
                             {accountTypeLabels[user.accountType] || user.accountType}
@@ -1805,6 +1887,39 @@ export default function AdminUsers() {
                       <div className="mt-2 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 text-[11px] text-amber-700">
                         <p className="font-semibold">Compte verrouillé</p>
                         <p className="mt-0.5">{formatDate(user.lockedAt)}{user.lockReason ? ` · ${user.lockReason}` : ''}</p>
+                      </div>
+                    )}
+                    {user.reactivationRequest?.status === 'pending' && (
+                      <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                        <p className="text-xs font-black text-emerald-900">
+                          Demande de réactivation
+                        </p>
+                        {user.reactivationRequest.message && (
+                          <p className="mt-1 text-[11px] leading-5 text-emerald-800">
+                            {user.reactivationRequest.message}
+                          </p>
+                        )}
+                        <p className="mt-1 text-[10px] font-semibold text-emerald-700">
+                          Reçue le {formatDateTime(user.reactivationRequest.requestedAt)}
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleReactivationReview(user, 'approve')}
+                            disabled={!canManageUsers || pendingUserId === user.id}
+                            className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
+                          >
+                            Approuver
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleReactivationReview(user, 'reject')}
+                            disabled={!canManageUsers || pendingUserId === user.id}
+                            className="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-black text-red-700 disabled:opacity-50"
+                          >
+                            Refuser
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -2057,6 +2172,7 @@ export default function AdminUsers() {
                 ) : (
                   paginatedUsers.map((user) => {
                     const isBlocked = Boolean(user.isBlocked);
+                    const isInactive = user.isActive === false;
                     const isShopAccount = user.accountType === 'shop';
                     const hasShopLocation = Boolean(getLocationCoordinates(user.shopLocation));
                     const shouldShowLocationPanel =
@@ -2082,7 +2198,7 @@ export default function AdminUsers() {
                                 </div>
                               )}
                               <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                                isBlocked ? 'bg-red-400' : 'bg-emerald-400'
+                                isBlocked ? 'bg-red-400' : isInactive ? 'bg-amber-400' : 'bg-emerald-400'
                               }`} />
                             </div>
                             <div className="min-w-0">
@@ -2163,6 +2279,18 @@ export default function AdminUsers() {
                                 </span>
                               ) : null}
                             </div>
+                          ) : isInactive ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                                <UserX size={12} />
+                                Désactivé
+                              </span>
+                              {user.deactivatedAt ? (
+                                <span className="text-xs text-gray-500">
+                                  Depuis le {formatDate(user.deactivatedAt)}
+                                </span>
+                              ) : null}
+                            </div>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600">
                               <CheckCircle2 size={12} />
@@ -2195,6 +2323,27 @@ export default function AdminUsers() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            {user.reactivationRequest?.status === 'pending' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReactivationReview(user, 'approve')}
+                                  disabled={!canManageUsers || pendingUserId === user.id}
+                                  title={user.reactivationRequest.message || 'Demande de réactivation'}
+                                  className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50"
+                                >
+                                  Réactiver
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReactivationReview(user, 'reject')}
+                                  disabled={!canManageUsers || pendingUserId === user.id}
+                                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-black text-red-700 disabled:opacity-50"
+                                >
+                                  Refuser
+                                </button>
+                              </>
+                            )}
                             {isBlocked ? (
                               <button
                                 type="button"

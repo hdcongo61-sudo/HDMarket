@@ -92,7 +92,7 @@ const SHOP_CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 
 export const listShops = asyncHandler(async (req, res) => {
   try {
-    const filters = { accountType: 'shop' };
+    const filters = { accountType: 'shop', isActive: true };
     if (req.query?.verified === 'true') {
       filters.shopVerified = true;
     }
@@ -263,7 +263,7 @@ export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
       : null;
   const communeForcesFree = String(commune?.deliveryPolicy || '').toUpperCase() === 'FREE';
 
-  const filter = { accountType: 'shop' };
+  const filter = { accountType: 'shop', isActive: true };
   if (city) {
     filter.city = city;
   }
@@ -313,9 +313,9 @@ export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
 
 export const getShopProfile = asyncHandler(async (req, res) => {
   const shop = await loadShopByIdentifier(req.params.id, [
-    'name shopName phone accountType createdAt shopLogo shopBanner shopBannerMobile shopColor shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isBlocked followersCount slug'
+    'name shopName phone accountType createdAt shopLogo shopBanner shopBannerMobile shopColor shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isActive isBlocked followersCount slug'
   ].join(' '));
-  if (!shop || shop.accountType !== 'shop') {
+  if (!shop || shop.accountType !== 'shop' || shop.isActive === false) {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
 

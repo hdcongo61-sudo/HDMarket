@@ -141,10 +141,15 @@ export const AuthProvider = ({ children }) => {
         if (cancelled) return;
         if (e.response?.status === 401) {
           logout();
-        } else if (e.response?.status === 403 && e.response?.data?.code === 'ACCOUNT_BLOCKED') {
+        } else if (
+          e.response?.status === 403 &&
+          ['ACCOUNT_BLOCKED', 'ACCOUNT_INACTIVE', 'ACCOUNT_LOCKED'].includes(
+            e.response?.data?.code
+          )
+        ) {
           const message =
             e.response?.data?.message ||
-            'Votre compte est suspendu. Contactez l’administrateur pour plus d’informations.';
+            'Votre compte n’est plus actif. Contactez le support pour plus d’informations.';
           logout();
           appAlert(message);
         }

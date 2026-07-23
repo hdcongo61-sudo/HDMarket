@@ -47,7 +47,8 @@ import {
   getShopLocationTimeline,
   listChatTemplateManagers,
   toggleChatTemplateManager,
-  setUserPassword
+  setUserPassword,
+  reviewAccountReactivation
 } from '../controllers/adminController.js';
 import { getAdminUserStats } from '../controllers/userController.js';
 import {
@@ -379,6 +380,19 @@ router.patch(
   validate(schemas.idParam, 'params'),
   adminMutationIdempotency,
   unblockUser
+);
+router.patch(
+  '/users/:id/reactivation-request',
+  validate(schemas.idParam, 'params'),
+  validate(
+    Joi.object({
+      decision: Joi.string().valid('approve', 'reject').required(),
+      note: Joi.string().max(500).allow('', null)
+    }),
+    'body'
+  ),
+  adminMutationIdempotency,
+  reviewAccountReactivation
 );
 router.patch(
   '/users/:id/shop-verification',

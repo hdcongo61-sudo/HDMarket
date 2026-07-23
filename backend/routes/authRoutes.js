@@ -14,7 +14,8 @@ import {
   resetPassword,
   logoutSession,
   requestPasswordResetLink,
-  resetPasswordWithToken
+  resetPasswordWithToken,
+  requestAccountReactivation
 } from '../controllers/authController.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { protect } from '../middlewares/authMiddleware.js';
@@ -39,6 +40,7 @@ const router = express.Router();
 router.post('/register', requireAuthProvider('auth_email_registration_enabled', 'La création de compte par email'), upload.single('shopLogo'), validate(schemas.register), register);
 router.post('/register/send-code', authLimiter, requireAuthProvider('auth_email_registration_enabled', 'La création de compte par email'), validate(schemas.registerSendCode), sendRegisterCode);
 router.post('/login', authLimiter, requireAuthProvider('auth_email_login_enabled', 'La connexion par mot de passe'), validate(schemas.login), login);
+router.post('/reactivation-request', authLimiter, requestAccountReactivation);
 router.post('/provider/google', authLimiter, requireAuthProvider('auth_google_login_enabled', 'La connexion avec Google'), validate(schemas.googleProviderLogin), googleProviderLogin);
 router.post('/provider/google/register', authLimiter, requireAuthProvider('auth_google_registration_enabled', 'La création de compte avec Google'), validate(schemas.googleProviderRegister), googleProviderRegister);
 router.post('/provider/google/registration-profile', authLimiter, requireAuthProvider('auth_google_registration_enabled', 'La création de compte avec Google'), validate(schemas.googleProviderLogin), googleProviderRegistrationProfile);

@@ -20,7 +20,10 @@ import {
 import { getRuntimeConfig } from '../services/configService.js';
 import { getFirebaseAdminAuth } from '../utils/firebaseAdmin.js';
 import { resolveReferrerForRegistration } from '../services/referralService.js';
-import { createNotification } from '../utils/notificationService.js';
+import {
+  createNotification,
+  createValidationTaskNotification
+} from '../utils/notificationService.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -427,6 +430,103 @@ export const login = asyncHandler(async (req, res) => {
   }
   const token = genToken(user);
   res.json(buildAuthResponse(user, token));
+});
+
+export const requestAccountReactivation = asyncHandler(async (req, res) => {
+  const rawIdentifier = String(
+    req.body?.identifier || req.body?.email || req.body?.phone || ''
+  ).trim();
+  const password = String(req.body?.password || '');
+  const message = String(req.body?.message || '').trim().slice(0, 500);
+  if (!rawIdentifier || !password) {
+    return res.status(400).json({
+      code: 'REACTIVATION_CREDENTIALS_REQUIRED',
+      message: 'Votre identifiant et votre mot de passe sont requis.'
+    });
+  }
+
+  const isEmailIdentifier = rawIdentifier.includes('@');
+  const user = isEmailIdentifier
+    ? await User.findOne({ email: rawIdentifier.toLowerCase() })
+    : await User.findOne({ phone: { $in: buildPhoneCandidates(rawIdentifier) } });
+  if (!user || !(await user.matchPassword(password))) {
+    return res.status(401).json({
+      code: 'INVALID_CREDENTIALS',
+      message: 'Identifiant ou mot de passe incorrect.'
+    });
+  }
+  if (user.isActive) {
+    return res.status(409).json({
+      code: 'ACCOUNT_ALREADY_ACTIVE',
+      message: 'Ce compte est déjà actif. Vous pouvez vous connecter.'
+    });
+  }
+  if (user.deactivationSource !== 'self') {
+    return res.status(403).json({
+      code: 'REACTIVATION_NOT_SELF_SERVICE',
+      message: 'Ce compte ne peut pas être réactivé par cette procédure. Contactez le support.'
+    });
+  }
+  if (user.reactivationRequest?.status === 'pending') {
+    return res.json({
+      success: true,
+      alreadyPending: true,
+      code: 'REACTIVATION_ALREADY_PENDING',
+      message: 'Votre demande est déjà en attente de traitement.'
+    });
+  }
+
+  user.reactivationRequest = {
+    status: 'pending',
+    message,
+    requestedAt: new Date(),
+    reviewedAt: null,
+    reviewedBy: null,
+    reviewNote: ''
+  };
+  await user.save();
+
+  try {
+    const reviewers = await User.find({
+      role: { $in: ['admin', 'founder'] },
+      isActive: true,
+      isBlocked: { $ne: true },
+      isLocked: { $ne: true }
+    })
+      .select('_id')
+      .lean();
+    await createValidationTaskNotification({
+      recipients: reviewers.map((reviewer) => reviewer._id),
+      actorId: user._id,
+      title: 'Demande de réactivation',
+      message: `${user.name || user.email} souhaite réactiver son compte.${
+        message ? ` Message : ${message}` : ''
+      }`,
+      deepLink: '/admin/users?status=reactivation_pending',
+      actionType: 'REVIEW',
+      entityType: 'user',
+      entityId: `account-reactivation:${user._id}`,
+      validationType: 'other',
+      priority: 'HIGH',
+      targetRole: ['ADMIN', 'FOUNDER'],
+      metadata: {
+        actionLabel: 'Examiner la demande',
+        reactivationUserId: String(user._id),
+        requestedAt: user.reactivationRequest.requestedAt
+      }
+    });
+  } catch (notificationError) {
+    console.error(
+      'Failed to notify administrators about account reactivation:',
+      notificationError?.message || notificationError
+    );
+  }
+
+  return res.status(201).json({
+    success: true,
+    code: 'REACTIVATION_REQUESTED',
+    message: 'Votre demande de réactivation a été envoyée à l’administration.'
+  });
 });
 
 export const sendRegisterCode = asyncHandler(async (req, res) => {

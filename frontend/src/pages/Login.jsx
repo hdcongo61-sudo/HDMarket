@@ -112,6 +112,10 @@ export default function Login() {
   const [providerLoading, setProviderLoading] = useState('');
   const [slowNetwork, setSlowNetwork] = useState(false);
   const [error, setError] = useState('');
+  const [inactiveAccount, setInactiveAccount] = useState(false);
+  const [reactivationMessage, setReactivationMessage] = useState('');
+  const [reactivationLoading, setReactivationLoading] = useState(false);
+  const [reactivationFeedback, setReactivationFeedback] = useState('');
   const isFrench = String(language || 'fr')
     .toLowerCase()
     .startsWith('fr');
@@ -262,10 +266,46 @@ export default function Login() {
       await login(data);
       nav(from, { replace: true });
     } catch (requestError) {
+      setInactiveAccount(
+        String(requestError?.response?.data?.code || '').toUpperCase() === 'ACCOUNT_INACTIVE'
+      );
       setError(mapLoginErrorMessage(requestError, isFrench));
     } finally {
       if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
       setLoading(false);
+    }
+  };
+
+  const requestReactivation = async () => {
+    if (!form.phone.trim() || !form.password) {
+      setReactivationFeedback(
+        isFrench
+          ? 'Saisissez votre identifiant et votre mot de passe.'
+          : 'Enter your identifier and password.'
+      );
+      return;
+    }
+    setReactivationLoading(true);
+    setReactivationFeedback('');
+    try {
+      const { data } = await api.post('/auth/reactivation-request', {
+        identifier: form.phone.trim(),
+        password: form.password,
+        message: reactivationMessage.trim()
+      });
+      setReactivationFeedback(
+        data?.message ||
+          (isFrench
+            ? 'Demande envoyée à l’administration.'
+            : 'Request sent to the administration.')
+      );
+    } catch (requestError) {
+      setReactivationFeedback(
+        requestError?.response?.data?.message ||
+          (isFrench ? 'Impossible d’envoyer la demande.' : 'Unable to send the request.')
+      );
+    } finally {
+      setReactivationLoading(false);
     }
   };
 
@@ -349,6 +389,55 @@ export default function Login() {
                         {error}
                       </motion.div>
                     ) : null}
+                    {inactiveAccount ? (
+                      <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-400/20 dark:bg-amber-500/10">
+                        <div>
+                          <p className="text-sm font-black text-amber-950 dark:text-amber-100">
+                            {isFrench
+                              ? 'Demander la réactivation'
+                              : 'Request account reactivation'}
+                          </p>
+                          <p className="mt-1 text-xs font-medium leading-5 text-amber-800 dark:text-amber-200">
+                            {isFrench
+                              ? 'Votre demande sera examinée par un administrateur. Votre mot de passe confirme que vous êtes le propriétaire du compte.'
+                              : 'An administrator will review your request. Your password confirms account ownership.'}
+                          </p>
+                        </div>
+                        <textarea
+                          rows={2}
+                          maxLength={500}
+                          value={reactivationMessage}
+                          onChange={(event) =>
+                            setReactivationMessage(event.target.value.slice(0, 500))
+                          }
+                          placeholder={
+                            isFrench
+                              ? 'Message facultatif pour l’administrateur'
+                              : 'Optional message for the administrator'
+                          }
+                          className="w-full resize-none rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-amber-500 dark:bg-neutral-900"
+                        />
+                        <button
+                          type="button"
+                          onClick={requestReactivation}
+                          disabled={reactivationLoading}
+                          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-amber-900 px-4 text-sm font-black text-white disabled:opacity-50"
+                        >
+                          {reactivationLoading
+                            ? isFrench
+                              ? 'Envoi…'
+                              : 'Sending…'
+                            : isFrench
+                              ? 'Envoyer la demande'
+                              : 'Send request'}
+                        </button>
+                        {reactivationFeedback ? (
+                          <p className="text-xs font-bold text-amber-900 dark:text-amber-100">
+                            {reactivationFeedback}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     <div className="space-y-2">
                       <label htmlFor="login-identifier" className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">
@@ -370,6 +459,8 @@ export default function Login() {
                           onChange={(e) => {
                             setForm((prev) => ({ ...prev, phone: e.target.value }));
                             setError('');
+                            setInactiveAccount(false);
+                            setReactivationFeedback('');
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -401,6 +492,8 @@ export default function Login() {
                           onChange={(e) => {
                             setForm((prev) => ({ ...prev, password: e.target.value }));
                             setError('');
+                            setInactiveAccount(false);
+                            setReactivationFeedback('');
                           }}
                           required
                         />

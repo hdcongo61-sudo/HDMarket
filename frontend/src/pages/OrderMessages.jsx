@@ -585,8 +585,8 @@ export default function OrderMessages() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fff4e8] text-slate-950 dark:bg-neutral-950 dark:text-white">
-      <header className="border-b border-gray-200/70 bg-gray-50/95 dark:border-neutral-800 dark:bg-neutral-950/95">
+    <div className="min-h-screen bg-neutral-100 text-slate-950 dark:bg-neutral-950 dark:text-white">
+      <header className="border-b border-gray-200 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-950">
         <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 text-[12px] font-black text-slate-500 [scrollbar-width:none] dark:text-gray-400 [&::-webkit-scrollbar]:hidden">
             <Link to="/" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-800">Accueil</Link>

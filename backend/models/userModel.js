@@ -39,6 +39,26 @@ const userSchema = new mongoose.Schema(
     },
     permissions: { type: [String], default: [], index: true },
     isActive: { type: Boolean, default: true, index: true },
+    deactivatedAt: { type: Date, default: null },
+    deactivationSource: {
+      type: String,
+      enum: ['', 'self', 'admin'],
+      default: ''
+    },
+    deactivationReason: { type: String, trim: true, default: '' },
+    reactivationRequest: {
+      status: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'rejected'],
+        default: 'none',
+        index: true
+      },
+      message: { type: String, trim: true, default: '' },
+      requestedAt: { type: Date, default: null },
+      reviewedAt: { type: Date, default: null },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewNote: { type: String, trim: true, default: '' }
+    },
     isLocked: { type: Boolean, default: false, index: true },
     lockReason: { type: String, default: '', trim: true },
     lockedAt: { type: Date, default: null },
