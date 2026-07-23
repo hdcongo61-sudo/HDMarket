@@ -10,7 +10,16 @@ const FAILED_STATUSES = new Set(['FAILED', 'EXPIRED', 'CANCELLED']);
 const isTerminalCheckout = (checkout) => {
   const status = String(checkout?.status || '');
   if (FAILED_STATUSES.has(status)) return true;
-  return status === 'COMPLETED' && ['CREDITED', 'FAILED'].includes(String(checkout?.creditState || ''));
+  if (status !== 'COMPLETED' || !['CREDITED', 'FAILED'].includes(String(checkout?.creditState || ''))) {
+    return false;
+  }
+  if (
+    checkout?.purpose === 'LISTING_FEE_FUNDING' ||
+    (checkout?.autoValidationState && checkout.autoValidationState !== 'NOT_APPLICABLE')
+  ) {
+    return ['COMPLETED', 'FAILED'].includes(String(checkout?.autoValidationState || ''));
+  }
+  return true;
 };
 
 export default function PawaPayReturn() {
@@ -62,9 +71,23 @@ export default function PawaPayReturn() {
     };
   }, [checkoutId, reloadKey]);
 
-  const completed = checkout?.status === 'COMPLETED' && checkout?.creditState === 'CREDITED';
+  const listingPayment = checkout?.purpose === 'LISTING_FEE_FUNDING';
+  const listingValidated = listingPayment && checkout?.autoValidationState === 'COMPLETED';
+  const listingValidationFailed = listingPayment && checkout?.autoValidationState === 'FAILED';
+  const actionPayment = Boolean(checkout?.actionKind);
+  const actionCompleted = actionPayment && checkout?.autoValidationState === 'COMPLETED';
+  const actionFailed = actionPayment && checkout?.autoValidationState === 'FAILED';
+  const paymentCompleted = checkout?.status === 'COMPLETED' && checkout?.creditState === 'CREDITED';
+  const completed =
+    paymentCompleted &&
+    (!listingPayment || listingValidated) &&
+    (!actionPayment || actionCompleted);
   const creditFailed = checkout?.status === 'COMPLETED' && checkout?.creditState === 'FAILED';
-  const failed = FAILED_STATUSES.has(checkout?.status) || creditFailed;
+  const failed =
+    FAILED_STATUSES.has(checkout?.status) ||
+    creditFailed ||
+    listingValidationFailed ||
+    actionFailed;
   const failure = getPawaPayFailure(
     checkout?.failureReason,
     creditFailed
@@ -99,8 +122,16 @@ export default function PawaPayReturn() {
         </h1>
         <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
           {error ||
-            (completed
-              ? `${formatPriceWithStoredSettings(checkout.amount)} ont été ajoutés à votre portefeuille HDMarket.`
+            (actionCompleted
+              ? `Paiement de ${formatPriceWithStoredSettings(checkout.amount)} confirmé. L’opération a été finalisée automatiquement.`
+              : actionFailed
+                ? checkout?.autoValidationError || 'Le paiement est confirmé, mais la finalisation nécessite une vérification.'
+              : listingValidated
+              ? `Paiement de ${formatPriceWithStoredSettings(checkout.amount)} confirmé. Votre annonce est maintenant validée.`
+              : listingValidationFailed
+                ? checkout?.autoValidationError || 'Le paiement est confirmé, mais la validation de l’annonce nécessite une vérification.'
+                : completed
+                  ? `Paiement de ${formatPriceWithStoredSettings(checkout.amount)} confirmé par PawaPay.`
               : failed
                 ? failure.message
                 : 'PawaPay confirme encore la transaction. Cette page se met à jour automatiquement.')}
@@ -115,7 +146,7 @@ export default function PawaPayReturn() {
               to={returnPath}
               className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#0b6b4f] px-4 text-sm font-black text-white"
             >
-              {completed ? 'Continuer dans HDMarket' : creditFailed ? 'Voir mon portefeuille' : 'Réessayer le paiement'}
+              {completed ? 'Continuer dans HDMarket' : creditFailed ? 'Retourner dans HDMarket' : 'Réessayer le paiement'}
             </Link>
           ) : (
             <button

@@ -42,8 +42,7 @@ import {
   Tag,
   AlertTriangle,
   CalendarClock,
-  ShieldCheck,
-  Wallet
+  ShieldCheck
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -1121,7 +1120,6 @@ export default function UserDashboard() {
       <section className="mx-auto max-w-6xl bg-[#f5f2ee]">
         <div className="flex gap-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
-            { to: '/wallet', icon: Wallet, label: 'Portefeuille' },
             { to: '/seller/boosts', icon: Sparkles, label: 'Boosts' },
             { to: '/seller/analytics', icon: BarChart3, label: 'Statistiques' },
             { to: '/orders', icon: Package, label: 'Commandes' },

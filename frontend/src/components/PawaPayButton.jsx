@@ -8,6 +8,9 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 export default function PawaPayButton({
   amount,
   purpose = 'WALLET_TOPUP',
+  productId = '',
+  promoCode = '',
+  actionContext = null,
   returnPath = '/wallet',
   label = 'Payer avec PawaPay',
   className = ''
@@ -34,6 +37,9 @@ export default function PawaPayButton({
         {
           amount: normalizedAmount,
           purpose,
+          ...(productId ? { productId } : {}),
+          ...(promoCode ? { promoCode } : {}),
+          ...(actionContext ? { actionContext } : {}),
           returnPath
         },
         { headers: { 'Idempotency-Key': idempotencyKeyRef.current } }

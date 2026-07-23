@@ -2358,11 +2358,17 @@ export default function OrderDetail() {
                                 <PawaPayButton
                                   amount={Math.max(10, Math.ceil(installmentFundingGap))}
                                   purpose="INSTALLMENT_FUNDING"
+                                  actionContext={{
+                                    kind: 'INSTALLMENT_PAYMENT',
+                                    orderId: order._id,
+                                    scheduleIndex: index,
+                                    amount: Number(entry?.amount || 0)
+                                  }}
                                   returnPath={typeof window !== 'undefined' ? window.location.pathname : '/orders'}
                                   label="Payer la tranche avec PawaPay"
                                 />
                                 <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                                  Après confirmation PawaPay, revenez valider la tranche. Aucun ID n’est nécessaire.
+                                  Après confirmation PawaPay, la tranche est validée automatiquement. Aucun ID n’est nécessaire.
                                 </p>
                               </div>
                             )}

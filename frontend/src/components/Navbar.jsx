@@ -164,6 +164,7 @@ export default function Navbar() {
   const shopConversionEnabled = isTruthyFlag(getRuntimeValue('enable_shop_conversion', true));
   const referralProgramEnabled = isTruthyFlag(getRuntimeValue('enable_referral_program', false));
   const parcelDeliveryEnabled = isTruthyFlag(getRuntimeValue('enable_parcel_delivery', true));
+  const walletFeatureEnabled = isTruthyFlag(getRuntimeValue('enable_digital_wallet', false));
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -752,7 +753,7 @@ export default function Navbar() {
     { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 8 },
     { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
     { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 10 },
-    { id: 'wallet', label: t('nav.wallet', 'Portefeuille'), path: '/wallet', icon: Wallet, badge: null, visible: user ? true : false, order: 11 },
+    { id: 'wallet', label: t('nav.wallet', 'Portefeuille'), path: '/wallet', icon: Wallet, badge: null, visible: user ? walletFeatureEnabled : false, order: 11 },
     { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
@@ -4138,20 +4139,22 @@ export default function Navbar() {
                   )}
 
                   {/* Wallet */}
-                  <NavLink
-                    to="/wallet"
-                    onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                        isActive
-                          ? 'bg-[#e85d00] text-white shadow-sm'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
-                      }`
-                    }
-                  >
-                    <Wallet size={20} />
-                    {t('nav.wallet', 'Portefeuille')}
-                  </NavLink>
+                  {walletFeatureEnabled && (
+                    <NavLink
+                      to="/wallet"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                          isActive
+                            ? 'bg-[#e85d00] text-white shadow-sm'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                        }`
+                      }
+                    >
+                      <Wallet size={20} />
+                      {t('nav.wallet', 'Portefeuille')}
+                    </NavLink>
+                  )}
 
                   {/* Shop Assistant */}
                   <NavLink

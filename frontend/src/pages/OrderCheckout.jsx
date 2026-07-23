@@ -1736,7 +1736,7 @@ export default function OrderCheckout() {
                     <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">Nouveau · Mobile Money sécurisé</p>
                     <h3 className="mt-1 text-base font-black text-slate-950">Payer avec PawaPay</h3>
                     <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
-                      Payez le montant avec MTN MoMo ou Airtel Money. À votre retour, finalisez la commande sans saisir d’identifiant de transaction.
+                      Payez avec MTN MoMo ou Airtel Money. Dès confirmation, la commande est créée automatiquement.
                     </p>
                   </div>
                   <ShieldCheck size={22} className="shrink-0 text-emerald-700" />
@@ -1747,6 +1747,39 @@ export default function OrderCheckout() {
                     Math.ceil(pawaPayRequiredAmount - walletAvailableBalance)
                   )}
                   purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
+                  actionContext={
+                    isInstallmentPayment
+                      ? {
+                          kind: 'INSTALLMENT_CHECKOUT',
+                          productId: installmentProduct?._id,
+                          quantity: Number(items[0]?.quantity || 1),
+                          selectedAttributes: items[0]?.selectedAttributes || [],
+                          firstPaymentAmount: Number(installmentFirstPaymentAmount || 0),
+                          guarantor,
+                          deliveryMode,
+                          shippingAddress
+                        }
+                      : {
+                          kind: 'ORDER_CHECKOUT',
+                          items: items.map((item) => ({
+                            productId: item.product?._id || item.product,
+                            quantity: item.quantity,
+                            selectedAttributes: item.selectedAttributes || []
+                          })),
+                          deliveryMode,
+                          shippingAddress,
+                          promoEntries: sellerGroups
+                            .map((group) => {
+                              const entry = payments[group.sellerId] || {};
+                              const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();
+                              return {
+                                sellerId: group.sellerId,
+                                promoCode: isPromoAppliedForSeller(group.sellerId) ? normalizedPromoCode : ''
+                              };
+                            })
+                            .filter((entry) => entry.promoCode)
+                        }
+                  }
                   returnPath="/orders/checkout"
                   label="Payer avec PawaPay"
                 />

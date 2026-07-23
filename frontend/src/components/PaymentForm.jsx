@@ -11,8 +11,7 @@ import {
   DollarSign,
   Send,
   Shield,
-  Ticket,
-  Wallet
+  Ticket
 } from 'lucide-react';
 import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hooks/useNetworks';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -143,7 +142,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         if (!cancelled) setWallet(data || null);
       } catch (error) {
         if (!cancelled) {
-          setWalletError(error?.response?.data?.message || 'Impossible de charger votre portefeuille.');
+          setWalletError(error?.response?.data?.message || 'Impossible de vérifier votre paiement PawaPay.');
         }
       } finally {
         if (!cancelled) setWalletLoading(false);
@@ -235,7 +234,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     const payerName = String(form.payerName || '').trim();
     if (isWalletPayment) {
       if (walletLoading) {
-        appAlert('Chargement du solde portefeuille. Veuillez patienter.');
+        appAlert('Vérification du paiement PawaPay. Veuillez patienter.');
         return;
       }
       if (walletError) {
@@ -243,7 +242,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         return;
       }
       if (!hasEnoughWalletBalance) {
-        appAlert('Solde portefeuille insuffisant pour valider cette annonce.');
+        appAlert('Le montant disponible est insuffisant. Effectuez d’abord le paiement avec PawaPay.');
         return;
       }
     }
@@ -337,7 +336,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         data?.alreadySubmitted
           ? 'Paiement déjà enregistré. Il est en attente de vérification.'
           : isWalletPayment
-          ? 'Paiement portefeuille réussi. Votre annonce est validée.'
+          ? 'Paiement PawaPay réussi. Votre annonce est validée.'
           : 'Paiement soumis. En attente de vérification.'
       );
       if (onSubmitted) await onSubmitted();
@@ -366,7 +365,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         });
         if (alreadyRecorded) {
           submitIdempotencyKeyRef.current = '';
-          appAlert(isWalletPayment ? 'Paiement portefeuille enregistré.' : 'Paiement enregistré. En attente de vérification par l’admin.');
+          appAlert(isWalletPayment ? 'Paiement PawaPay enregistré.' : 'Paiement enregistré. En attente de vérification par l’admin.');
         } else {
           appAlert(
             'Paiement en cours de confirmation. Le statut sera synchronisé automatiquement.'
@@ -618,13 +617,15 @@ export default function PaymentForm({ product, onSubmitted }) {
 
         {hasCommissionDue && walletFundingGap > 0 && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-            <p className="text-sm font-black text-emerald-900">Payer plus simplement avec PawaPay</p>
+            <p className="text-sm font-black text-emerald-900">Payer avec PawaPay</p>
             <p className="mb-3 mt-1 text-xs font-semibold leading-5 text-emerald-800">
-              Paiement sécurisé par MTN MoMo ou Airtel Money. Revenez ensuite valider l’annonce avec le solde automatiquement crédité.
+              Paiement sécurisé par MTN MoMo ou Airtel Money. L’annonce sera validée automatiquement.
             </p>
             <PawaPayButton
               amount={walletFundingAmount}
               purpose="LISTING_FEE_FUNDING"
+              productId={product._id}
+              promoCode={isValidatedPromo ? normalizedPromoCode : ''}
               returnPath={typeof window !== 'undefined' ? window.location.pathname : '/wallet'}
               label="Payer avec PawaPay"
             />
@@ -649,8 +650,8 @@ export default function PaymentForm({ product, onSubmitted }) {
               <div className="grid grid-cols-1 gap-3">
                 <div className="rounded-2xl border border-emerald-600 bg-emerald-600 p-4 text-left text-white shadow-sm">
                   <span className="flex items-center gap-2 text-sm font-semibold">
-                    <Wallet className="h-4 w-4" />
-                    PawaPay · solde HDMarket sécurisé
+                    <Shield className="h-4 w-4" />
+                    Paiement sécurisé par PawaPay
                   </span>
                   <span className="mt-1 block text-xs text-white/80">
                     Aucun ID transaction. Débit et validation automatiques.
@@ -671,8 +672,8 @@ export default function PaymentForm({ product, onSubmitted }) {
                       <p className="font-semibold">Montant à débiter</p>
                       <p className="text-xs opacity-80">
                         {walletLoading
-                          ? 'Chargement du portefeuille...'
-                          : walletError || 'Ce montant sera débité de votre Portefeuille HDMarket.'}
+                          ? 'Vérification du paiement...'
+                          : walletError || 'Ce montant sera réglé avec PawaPay.'}
                       </p>
                     </div>
                     <p className="text-lg font-bold">{formatCurrency(commissionDue)}</p>
@@ -797,7 +798,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                 <span>
                   {hasCommissionDue
                     ? isWalletPayment
-                      ? 'Payer avec le portefeuille'
+                      ? 'Valider le paiement PawaPay'
                       : 'Soumettre le paiement'
                     : 'Soumettre la validation promo'}
                 </span>
@@ -807,7 +808,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
           <p className="text-center text-xs text-gray-500 dark:text-slate-400">
             {isWalletPayment
-              ? 'Votre annonce est approuvée automatiquement après débit du portefeuille.'
+              ? 'Votre annonce est approuvée automatiquement après confirmation PawaPay.'
               : 'Votre annonce sera approuvée sous 24h après vérification administrative'}
           </p>
         </form>

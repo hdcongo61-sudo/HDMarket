@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } 
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, Edit, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, Wallet, ArrowRight } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, Edit, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, ArrowRight } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -217,10 +217,6 @@ export default function ProductForm(props) {
     ? 'none'
     : `brightness(${imageFilters.brightness}%) contrast(${imageFilters.contrast}%) saturate(${imageFilters.saturate}%)`;
   const [showPreview, setShowPreview] = useState(false);
-  const [payWithWallet, setPayWithWallet] = useState(false);
-  const [promoCode, setPromoCode] = useState('');
-  const [promoLoading, setPromoLoading] = useState(false);
-  const [promoPreview, setPromoPreview] = useState(null); // { valid, discount, waived, message }
   const isMobile = useIsMobile(768);
   const maxImagesLimit = useMemo(() => {
     const candidates = [runtime?.max_image_upload, runtime?.maxUploadImages, app?.maxUploadImages, DEFAULT_MAX_IMAGES];
@@ -1546,13 +1542,6 @@ export default function ProductForm(props) {
       if (removeExistingVideo) {
         data.append('removeVideo', 'true');
       }
-      // Wallet auto-validation flag
-      if (!productId && payWithWallet) {
-        data.append('payWithWallet', 'true');
-        if (promoCode.trim()) {
-          data.append('promoCode', promoCode.trim());
-        }
-      }
       const url = `/products${productId ? `/${productId}` : ''}`;
       const method = productId ? 'put' : 'post';
       const idempotencyKey = productId
@@ -1880,40 +1869,6 @@ export default function ProductForm(props) {
   }, [existingImages.length]);
 
   const isEditing = Boolean(productId);
-
-  // Preview promo code when wallet payment is selected
-  useEffect(() => {
-    if (!payWithWallet || !promoCode.trim() || isEditing) {
-      setPromoPreview(null);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      setPromoLoading(true);
-      try {
-        const { data } = await api.post('/products/promo-preview', {
-          code: promoCode.trim(),
-          price: getHighestListingPrice()
-        });
-        if (!cancelled) {
-          setPromoPreview(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setPromoPreview({
-            valid: false,
-            message: err.response?.data?.message || 'Code promo invalide.'
-          });
-        }
-      } finally {
-        if (!cancelled) setPromoLoading(false);
-      }
-    }, 500);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [payWithWallet, promoCode, form.price, form.discount, form.attributes, imageVariants, imageVariantName, isEditing]);
 
   // Live preview of the installment plan shown inside the "vente en tranche" card.
   const installmentPlanPreview = useMemo(() => {
@@ -2496,7 +2451,7 @@ export default function ProductForm(props) {
                 {installmentPlanPreview && (
                   <div className="rounded-xl border border-[#e85d00]/30 bg-white p-3">
                     <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
-                      <Wallet className="h-3.5 w-3.5" />
+                      <CreditCard className="h-3.5 w-3.5" />
                       Aperçu de l'échéancier
                     </div>
                     <div className="mt-2.5 flex items-stretch gap-2">
@@ -3588,91 +3543,12 @@ export default function ProductForm(props) {
                     </p>
                   </div>
 
-                  {/* Wallet Payment Option */}
-                  <div className="rounded-xl border border-amber-300 bg-white p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">
-                          <ShieldCheck className="w-4 h-4 inline-block text-emerald-600 mr-1" />
-                          Payer avec le portefeuille
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Prélèvement automatique de {formatPriceWithStoredSettings(calculateCommission())}
-                        </p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={payWithWallet}
-                          onChange={(e) => setPayWithWallet(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600" />
-                      </label>
-                    </div>
-                    {payWithWallet && (
-                      <div className="mt-3 space-y-3">
-                        <div className="flex items-start space-x-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-emerald-800">Validation automatique</p>
-                            <p className="text-xs text-emerald-700">
-                              Votre annonce sera <span className="font-bold">automatiquement validée</span> après prélèvement
-                              {promoPreview?.valid && promoPreview?.commission?.dueAmount !== undefined
-                                ? ` de ${formatPriceWithStoredSettings(promoPreview.commission.dueAmount)}`
-                                : ` de ${formatPriceWithStoredSettings(calculateCommission())}`} sur votre portefeuille.
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Promo Code Input */}
-                        <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-3">
-                          <label className="text-xs font-semibold text-neutral-600">Code promo (optionnel)</label>
-                          <div className="mt-1.5 flex gap-2">
-                            <input
-                              type="text"
-                              value={promoCode}
-                              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                              placeholder="Ex: HDMPROMO"
-                              className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium uppercase placeholder:text-neutral-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                            />
-                          </div>
-                          {promoLoading && (
-                            <p className="mt-1 text-[10px] text-neutral-400">Vérification...</p>
-                          )}
-                          {!promoLoading && promoCode.trim() && promoPreview && (
-                            promoPreview.valid ? (
-                              <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-2 text-xs">
-                                {promoPreview.commission?.isWaived ? (
-                                  <p className="font-semibold text-emerald-700">
-                                    🎉 Commission offerte ! Votre annonce sera validée sans frais.
-                                  </p>
-                                ) : (
-                                  <p className="text-emerald-700">
-                                    <span className="font-semibold">Réduction :</span>{' '}
-                                    {formatPriceWithStoredSettings(promoPreview.commission?.discountAmount || 0)} —{' '}
-                                    reste à payer :{' '}
-                                    <span className="font-bold">{formatPriceWithStoredSettings(promoPreview.commission?.dueAmount || 0)}</span>
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="mt-2 text-[10px] text-red-500">{promoPreview.message || 'Code invalide.'}</p>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {!payWithWallet && (
-                    <p className="text-amber-700 text-sm">
-                      Vous pouvez aussi utiliser un code promo dans la section paiement de <span className="font-semibold">/my</span>.
-                    </p>
-                  )}
+                  <p className="text-amber-700 text-sm">
+                    Le paiement et les codes promo sont disponibles depuis la fiche de l’annonce dans <span className="font-semibold">/my</span>.
+                  </p>
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>{payWithWallet ? 'Le montant sera débité immédiatement de votre portefeuille.' : 'Votre annonce sera approuvée sous 24h après paiement.'}</span>
+                    <span>Le règlement est sécurisé par PawaPay et confirmé automatiquement.</span>
                   </div>
                 </div>
               </div>

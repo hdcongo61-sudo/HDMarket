@@ -34,7 +34,16 @@ function StatusPill({ status }) {
 // requester "pay myself" flow. The payer picks a method (Mobile Money /
 // portefeuille, when enabled) and, in Mobile Money, how much to régler:
 // the 25% acompte or the full amount.
-function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, instructions = '', busy, onSubmit, onCancel }) {
+function GroupPaymentForm({
+  totalAmount,
+  depositAmount,
+  walletEnabled = true,
+  instructions = '',
+  busy,
+  onSubmit,
+  onCancel,
+  actionContext
+}) {
   const { showToast } = useToast();
   // Deposit only makes sense when it is a real partial amount.
   const hasDepositOption = Number(depositAmount) > 0 && Number(depositAmount) < Number(totalAmount);
@@ -161,11 +170,15 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
           <PawaPayButton
             amount={amountToPay}
             purpose="CHECKOUT_FUNDING"
+            actionContext={{
+              ...actionContext,
+              paymentOption
+            }}
             returnPath="/sponsorships"
             label="Continuer avec PawaPay"
           />
           <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-            Revenez ici puis choisissez « Portefeuille » pour terminer.
+            La demande est réglée automatiquement dès confirmation PawaPay.
           </p>
         </div>
       )}
@@ -196,9 +209,11 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
 export default function Sponsorships() {
   const { showToast } = useToast();
   const { getRuntimeValue } = useAppSettings();
-  const walletEnabled =
+  const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
+  const walletEnabled = pawaPayOnlyMode || (
     normalizeSettingBoolean(getRuntimeValue('enable_wallet_payment', false), false) &&
-    normalizeSettingBoolean(getRuntimeValue('enable_digital_wallet', false), false);
+    normalizeSettingBoolean(getRuntimeValue('enable_digital_wallet', false), false)
+  );
   const paymentInstructions = String(
     getRuntimeValue('pay_for_other_payment_instructions', '') || ''
   ).trim();
@@ -366,6 +381,7 @@ export default function Sponsorships() {
             walletEnabled={walletEnabled}
             instructions={paymentInstructions}
             busy={busy}
+            actionContext={{ kind: 'SPONSORSHIP_ACCEPT', groupId: gid }}
             onSubmit={(payload) => respond(gid, 'accept', payload)}
             onCancel={() => setActiveForm(null)}
           />
@@ -489,6 +505,7 @@ export default function Sponsorships() {
             walletEnabled={walletEnabled}
             instructions={paymentInstructions}
             busy={busy}
+            actionContext={{ kind: 'SPONSORSHIP_PAY_SELF', groupId: gid }}
             onSubmit={(payload) => paySelf(gid, payload)}
             onCancel={() => setActiveForm(null)}
           />

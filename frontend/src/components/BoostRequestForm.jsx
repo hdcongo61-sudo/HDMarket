@@ -367,11 +367,18 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
                 Number(preview?.totalPrice || 0) - Number(walletInfo?.availableBalance || 0)
               )}
               purpose="BOOST_FUNDING"
+              actionContext={{
+                kind: 'BOOST_REQUEST',
+                boostType,
+                duration,
+                city: requiresCity ? city : '',
+                productIds: selectedProductIds
+              }}
               returnPath={typeof window !== 'undefined' ? window.location.pathname : '/wallet'}
               label="Payer avec PawaPay"
             />
             <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-              Après confirmation PawaPay, revenez envoyer la demande. Aucun ID ni preuve n’est nécessaire.
+              Après confirmation PawaPay, la demande est envoyée automatiquement. Aucun ID ni preuve n’est nécessaire.
             </p>
           </div>
         )}

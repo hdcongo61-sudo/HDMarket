@@ -19,6 +19,14 @@ const pawapayCheckoutSchema = new mongoose.Schema(
       ],
       default: 'WALLET_TOPUP'
     },
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      default: null,
+      index: true
+    },
+    promoCode: { type: String, trim: true, uppercase: true, default: '' },
+    actionContext: { type: mongoose.Schema.Types.Mixed, default: null },
     returnPath: { type: String, default: '/wallet', trim: true },
     status: {
       type: String,
@@ -37,7 +45,21 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     providerTransactionId: { type: String, default: '' },
     failureReason: { type: mongoose.Schema.Types.Mixed, default: null },
     callbackPayload: { type: mongoose.Schema.Types.Mixed, default: null },
-    creditedAt: { type: Date, default: null }
+    creditedAt: { type: Date, default: null },
+    autoValidationState: {
+      type: String,
+      enum: ['NOT_APPLICABLE', 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],
+      default: 'NOT_APPLICABLE',
+      index: true
+    },
+    autoValidatedPayment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+      default: null
+    },
+    autoValidationError: { type: String, trim: true, default: '' },
+    autoValidatedAt: { type: Date, default: null },
+    completionResult: { type: mongoose.Schema.Types.Mixed, default: null }
   },
   { timestamps: true }
 );
