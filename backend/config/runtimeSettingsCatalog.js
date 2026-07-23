@@ -40,6 +40,15 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     isPublic: false,
     min: 0
   },
+  seller_settlement_hold_hours: {
+    category: 'fees_rules',
+    description: 'Délai de sécurité avant versement automatique au vendeur (heures).',
+    valueType: 'number',
+    defaultValue: 72,
+    isPublic: false,
+    min: 0,
+    max: 720
+  },
   enable_full_payment_free_delivery: {
     category: 'checkout',
     description: 'Active l’avantage livraison offerte pour les commandes payées intégralement.',

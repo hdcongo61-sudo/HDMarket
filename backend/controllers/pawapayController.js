@@ -3,13 +3,18 @@ import asyncHandler from 'express-async-handler';
 import Payment from '../models/paymentModel.js';
 import PawaPayEvent from '../models/pawapayEventModel.js';
 import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
+import Refund from '../models/refundModel.js';
 import Product from '../models/productModel.js';
+import ShopConversionRequest from '../models/shopConversionRequestModel.js';
 import User from '../models/userModel.js';
 import {
   getPawaPayCheckoutStatus,
   getPawaPayPublicKeys,
+  getPawaPayRefundStatus,
   initiatePawaPayCheckout
 } from '../services/pawapayService.js';
+import { reconcileRefund } from '../services/refundService.js';
+import { reconcileSellerPayout } from '../services/sellerSettlementService.js';
 import { getPawaPayFailurePresentation } from '../utils/pawapayErrors.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateProductCache } from '../utils/cache.js';
@@ -28,6 +33,7 @@ import {
   uploadInstallmentPaymentProof
 } from './installmentController.js';
 import { createBoostRequest } from './boostController.js';
+import { completeShopConversionPawaPay } from './shopConversionController.js';
 
 const RESOURCE_CONFIG = {
   checkout: { idField: 'checkoutId' },
@@ -42,13 +48,15 @@ const CHECKOUT_PURPOSES = new Set([
   'CHECKOUT_FUNDING',
   'LISTING_FEE_FUNDING',
   'INSTALLMENT_FUNDING',
-  'BOOST_FUNDING'
+  'BOOST_FUNDING',
+  'SHOP_CONVERSION_FUNDING'
 ]);
 const ACTION_CONTEXT_KINDS = new Set([
   'ORDER_CHECKOUT',
   'INSTALLMENT_CHECKOUT',
   'INSTALLMENT_PAYMENT',
   'BOOST_REQUEST',
+  'SHOP_CONVERSION_REQUEST',
   'SPONSORSHIP_ACCEPT',
   'SPONSORSHIP_PAY_SELF'
 ]);
@@ -82,6 +90,7 @@ const normalizeActionContext = (value, purpose) => {
   if (kind === 'ORDER_CHECKOUT' && purpose !== 'CHECKOUT_FUNDING') return null;
   if (kind.startsWith('INSTALLMENT_') && purpose !== 'INSTALLMENT_FUNDING') return null;
   if (kind === 'BOOST_REQUEST' && purpose !== 'BOOST_FUNDING') return null;
+  if (kind === 'SHOP_CONVERSION_REQUEST' && purpose !== 'SHOP_CONVERSION_FUNDING') return null;
   if (kind.startsWith('SPONSORSHIP_') && purpose !== 'CHECKOUT_FUNDING') return null;
   parsed.kind = kind;
   return parsed;
@@ -154,6 +163,65 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
         'PAWAPAY_PRODUCT_FORBIDDEN',
         'Vous ne pouvez pas payer pour cette annonce.'
       );
+    }
+  }
+  if (actionContext?.kind === 'SHOP_CONVERSION_REQUEST') {
+    const requestId = String(actionContext.requestId || '').trim();
+    const shopRequest = /^[a-f\d]{24}$/i.test(requestId)
+      ? await ShopConversionRequest.findOne({
+          _id: requestId,
+          user: req.user._id,
+          status: 'awaiting_payment',
+          paymentStatus: 'awaiting_payment'
+        })
+          .select('_id paymentAmount')
+          .lean()
+      : null;
+    if (!shopRequest) {
+      return sendPawaPayError(
+        res,
+        404,
+        'PAWAPAY_SHOP_REQUEST_NOT_FOUND',
+        'Le dossier boutique à payer est introuvable ou a déjà été traité.'
+      );
+    }
+    if (Math.abs(Number(shopRequest.paymentAmount || 0) - amount) > 0.01) {
+      return sendPawaPayError(
+        res,
+        400,
+        'PAWAPAY_SHOP_AMOUNT_INVALID',
+        'Le montant PawaPay ne correspond pas aux frais de conversion en boutique.'
+      );
+    }
+    const existingCheckout = await PawaPayCheckout.findOne({
+      user: req.user._id,
+      'actionContext.kind': 'SHOP_CONVERSION_REQUEST',
+      'actionContext.requestId': requestId,
+      status: { $in: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING'] },
+      $or: [
+        { expiresAt: null },
+        { expiresAt: { $exists: false } },
+        { expiresAt: { $gt: new Date() } }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (existingCheckout?.redirectUrl) {
+      return res.status(200).json({
+        checkoutId: existingCheckout.checkoutId,
+        status: existingCheckout.status,
+        redirectUrl: existingCheckout.redirectUrl,
+        expiresAt: existingCheckout.expiresAt
+      });
+    }
+    if (existingCheckout) {
+      return res.status(202).json({
+        checkoutId: existingCheckout.checkoutId,
+        status: existingCheckout.status,
+        pending: true,
+        verificationUrl: `/payment/pawapay/return?checkoutId=${encodeURIComponent(existingCheckout.checkoutId)}`,
+        message: 'Ce paiement PawaPay est déjà en cours de vérification.'
+      });
     }
   }
 
@@ -481,6 +549,12 @@ const reconcilePawaPayCheckout = async ({ resourceType, resourceId, status, amou
         ? 'PROCESSING'
         : checkout.status;
   checkout.providerTransactionId = String(payload.providerTransactionId || payload.deposit?.providerTransactionId || '');
+  const completedDeposit = Array.isArray(payload.depositsHistory)
+    ? payload.depositsHistory.find((entry) => FINAL_SUCCESS.has(String(entry?.status || '').toUpperCase()))
+    : null;
+  const deposit = payload.deposit || completedDeposit;
+  if (deposit?.depositId) checkout.depositId = String(deposit.depositId);
+  if (deposit?.status) checkout.depositStatus = String(deposit.status).toUpperCase();
   checkout.failureReason = sanitizePayload(payload.failureReason || payload.deposit?.failureReason || null);
   checkout.callbackPayload = sanitizePayload(payload);
   await checkout.save();
@@ -826,6 +900,19 @@ const autoCompleteCheckoutAction = async (checkout) => {
         : '/admin/product-boosts';
       entityId = boostId || claimed.checkoutId;
       successPath = '/seller/boosts';
+    } else if (action.kind === 'SHOP_CONVERSION_REQUEST') {
+      result = await completeShopConversionPawaPay({
+        checkout: claimed,
+        requestId: String(action.requestId || '')
+      });
+      const requestId = result?.request?._id || action.requestId || '';
+      title = 'Demande boutique payée avec PawaPay';
+      message = `Une demande de conversion en boutique de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été payée avec PawaPay.`;
+      deepLink = requestId
+        ? `/admin/users?shopConversionRequestId=${encodeURIComponent(String(requestId))}`
+        : '/admin/users';
+      entityId = requestId || claimed.checkoutId;
+      successPath = '/shop-conversion-request';
     } else if (action.kind === 'SPONSORSHIP_PAY_SELF') {
       result = await invokeCompletionController({
         handler: paySelfSponsorship,
@@ -1183,7 +1270,7 @@ export const receivePawaPayCallback = (resourceType) =>
     }
 
     const amount = normalizedAmount(req.body);
-    const currency = String(req.body.currency || '').trim().toUpperCase();
+    const currency = String(req.body.currency || req.body.deposit?.currency || '').trim().toUpperCase();
     const payload = sanitizePayload(req.body);
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}));
     const payloadDigest = crypto.createHash('sha256').update(rawBody).digest('hex');
@@ -1195,7 +1282,15 @@ export const receivePawaPayCallback = (resourceType) =>
       currency,
       payload
     });
-    const reconciliation = await reconcilePayment({ resourceType, resourceId, status, amount, currency, payload });
+    const refund = resourceType === 'refund'
+      ? await reconcileRefund(resourceId, payload)
+      : null;
+    const sellerPayout = resourceType === 'payout'
+      ? await reconcileSellerPayout(resourceId, payload)
+      : null;
+    const reconciliation = refund || sellerPayout
+      ? { payment: null, reconciliationStatus: 'MATCHED' }
+      : await reconcilePayment({ resourceType, resourceId, status, amount, currency, payload });
     if (pawaPayCheckout && FINAL_SUCCESS.has(status)) {
       if (pawaPayCheckout.actionContext?.kind) {
         await autoCompleteCheckoutAction(pawaPayCheckout);
@@ -1227,6 +1322,8 @@ export const receivePawaPayCallback = (resourceType) =>
           payloadDigest,
           lastReceivedAt: new Date(),
           matchedPayment: reconciliation.payment?._id || null,
+          matchedRefund: refund?._id || null,
+          matchedPayout: sellerPayout?._id || null,
           reconciliationStatus: pawaPayCheckout ? 'MATCHED' : reconciliation.reconciliationStatus
         },
         $setOnInsert: { firstReceivedAt: new Date() },
@@ -1239,3 +1336,29 @@ export const receivePawaPayCallback = (resourceType) =>
     // are safe because the event is upserted by resource type + provider ID.
     return res.status(200).json({ received: true });
   });
+
+export const listPawaPayRefundsAdmin = asyncHandler(async (req, res) => {
+  const status = String(req.query.status || '').trim().toUpperCase();
+  const query = status ? { status } : {};
+  const refunds = await Refund.find(query)
+    .populate('order', 'status refundStatus refundAmount refundFailureReason')
+    .populate('customer', 'name email phone')
+    .sort({ createdAt: -1 })
+    .limit(Math.min(100, Math.max(1, Number(req.query.limit || 50))))
+    .lean();
+  res.json({ refunds });
+});
+
+export const refreshPawaPayRefundAdmin = asyncHandler(async (req, res) => {
+  const refund = await Refund.findOne({ refundId: String(req.params.refundId || '').trim() });
+  if (!refund) return res.status(404).json({ message: 'Remboursement introuvable.' });
+  try {
+    const providerStatus = await getPawaPayRefundStatus(refund.refundId, { timeoutMs: 12_000 });
+    const reconciled = await reconcileRefund(refund.refundId, providerStatus);
+    return res.json({ refund: reconciled });
+  } catch (error) {
+    return res.status(Number(error?.status || 502)).json({
+      message: error?.message || 'Impossible de vérifier le remboursement auprès de PawaPay.'
+    });
+  }
+});

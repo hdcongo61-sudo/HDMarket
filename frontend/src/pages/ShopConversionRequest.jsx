@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import api, { verifyTransactionCodeAvailability } from '../services/api';
+import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import {
   Store,
@@ -12,13 +12,11 @@ import {
   Clock,
   XCircle,
   AlertCircle,
-  CreditCard,
-  Hash,
   DollarSign,
-  FileImage,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ShieldCheck
 } from 'lucide-react';
-import { useNetworks } from '../hooks/useNetworks';
+import PawaPayButton from '../components/PawaPayButton';
 
 const readFileAsDataURL = (file) => {
   return new Promise((resolve, reject) => {
@@ -34,27 +32,17 @@ export default function ShopConversionRequest() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { app, formatPrice, getRuntimeValue } = useAppSettings();
-  const { networks, loading: networksLoading } = useNetworks();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-  const paymentMethod = 'mobile_money';
-
-  // Get active networks sorted by order
-  const activeNetworks = useMemo(
-    () => networks.filter((n) => n.isActive).sort((a, b) => (a.order || 0) - (b.order || 0)),
-    [networks]
-  );
+  const [preparedRequestId, setPreparedRequestId] = useState('');
   
   const [form, setForm] = useState({
     shopName: '',
     shopAddress: '',
     shopDescription: '',
-    transactionName: '',
-    transactionNumber: '',
-    paymentAmount: '50000',
-    operator: ''
+    paymentAmount: '50000'
   });
   const requiredAmount = useMemo(() => {
     const value = Number(app?.shopConversionAmount);
@@ -76,22 +64,8 @@ export default function ShopConversionRequest() {
     setForm((prev) => ({ ...prev, paymentAmount: String(requiredAmount) }));
   }, [requiredAmount]);
 
-  // Update operator when networks load
-  useEffect(() => {
-    if (paymentMethod !== 'mobile_money') return;
-    if (!networksLoading) {
-      if (activeNetworks.length > 0 && !form.operator) {
-        setForm((prev) => ({ ...prev, operator: activeNetworks[0].name }));
-      } else if (activeNetworks.length === 0 && !form.operator) {
-        setForm((prev) => ({ ...prev, operator: 'MTN' }));
-      }
-    }
-  }, [networksLoading, activeNetworks, form.operator, paymentMethod]);
-
   const [shopLogoFile, setShopLogoFile] = useState(null);
   const [shopLogoPreview, setShopLogoPreview] = useState('');
-  const [paymentProofFile, setPaymentProofFile] = useState(null);
-  const [paymentProofPreview, setPaymentProofPreview] = useState('');
   const [verificationFiles, setVerificationFiles] = useState({
     shopPaper: null,
     shopInvoice: null,
@@ -152,32 +126,9 @@ export default function ShopConversionRequest() {
     e.target.value = '';
   };
 
-  const handlePaymentProofChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError('La preuve de boutique doit être une image.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('La preuve de boutique doit faire moins de 5 Mo.');
-      return;
-    }
-    setPaymentProofFile(file);
-    const preview = await readFileAsDataURL(file);
-    setPaymentProofPreview(preview);
-    setError('');
-    e.target.value = '';
-  };
-
   const removeShopLogo = () => {
     setShopLogoFile(null);
     setShopLogoPreview('');
-  };
-
-  const removePaymentProof = () => {
-    setPaymentProofFile(null);
-    setPaymentProofPreview('');
   };
 
   const handleVerificationFileChange = async (key, event) => {
@@ -203,18 +154,17 @@ export default function ShopConversionRequest() {
     setVerificationPreviews((prev) => ({ ...prev, [key]: '' }));
   };
 
-  const handleTransactionNumberChange = (e) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-    setForm((prev) => ({ ...prev, transactionNumber: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const prepareShopConversionPayment = async () => {
     setError('');
 
     if (!shopConversionEnabled) {
-      setError('Les demandes Devenir Boutique sont temporairement désactivées.');
-      return;
+      return 'Les demandes Devenir Boutique sont temporairement désactivées.';
+    }
+    if (preparedRequestId) {
+      return {
+        purpose: 'SHOP_CONVERSION_FUNDING',
+        actionContext: { kind: 'SHOP_CONVERSION_REQUEST', requestId: preparedRequestId }
+      };
     }
 
     const missingInformation = [
@@ -225,39 +175,7 @@ export default function ShopConversionRequest() {
         .map((requirement) => requirement.label.toLowerCase())
     ];
     if (missingInformation.length) {
-      setError(`Informations incomplètes. Veuillez ajouter : ${missingInformation.join(', ')}.`);
-      return;
-    }
-    {
-      if (!form.transactionName.trim()) {
-        setError('Le nom de la transaction est requis.');
-        return;
-      }
-      if (form.transactionNumber.length !== 10) {
-        setError('Le numéro de transaction doit contenir exactement 10 chiffres.');
-        return;
-      }
-      try {
-        const verification = await verifyTransactionCodeAvailability(form.transactionNumber);
-        if (!verification.available) {
-          setError(verification.message || 'Ce code de transaction est déjà utilisé.');
-          return;
-        }
-      } catch (verificationError) {
-        setError(
-          verificationError?.response?.data?.message ||
-            'Impossible de vérifier le numéro de transaction.'
-        );
-        return;
-      }
-    }
-    if (Number(form.paymentAmount) !== requiredAmount) {
-      setError(`Le montant du paiement doit être de ${requiredAmountLabel}.`);
-      return;
-    }
-    if (paymentMethod === 'mobile_money' && !paymentProofFile) {
-      setError('La preuve de boutique est requise.');
-      return;
+      return `Informations incomplètes. Veuillez ajouter : ${missingInformation.join(', ')}.`;
     }
 
     setLoading(true);
@@ -266,18 +184,10 @@ export default function ShopConversionRequest() {
       payload.append('shopName', form.shopName.trim());
       payload.append('shopAddress', form.shopAddress.trim());
       payload.append('shopDescription', form.shopDescription.trim());
-      payload.append('paymentMethod', paymentMethod);
-      if (paymentMethod === 'mobile_money') {
-        payload.append('transactionName', form.transactionName.trim());
-        payload.append('transactionNumber', form.transactionNumber);
-        payload.append('operator', form.operator);
-      }
-      payload.append('paymentAmount', form.paymentAmount);
+      payload.append('paymentMethod', 'pawapay');
+      payload.append('paymentAmount', String(requiredAmount));
       if (shopLogoFile) {
         payload.append('shopLogo', shopLogoFile);
-      }
-      if (paymentMethod === 'mobile_money') {
-        payload.append('paymentProof', paymentProofFile);
       }
       verificationRequirements.forEach(({ key }) => payload.append(key, verificationFiles[key]));
 
@@ -285,31 +195,18 @@ export default function ShopConversionRequest() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      showToast(data.message || 'Demande soumise avec succès. Traitement sous 48h.', {
-        variant: 'success'
-      });
-
-      // Reset form
-      setForm({
-        shopName: '',
-        shopAddress: '',
-        shopDescription: '',
-        transactionName: '',
-        transactionNumber: '',
-        paymentAmount: String(requiredAmount),
-        operator: activeNetworks.length > 0 ? activeNetworks[0].name : 'MTN'
-      });
-      setShopLogoFile(null);
-      setShopLogoPreview('');
-      setPaymentProofFile(null);
-      setPaymentProofPreview('');
-      setVerificationFiles({ shopPaper: null, shopInvoice: null, insidePhoto: null, outsidePhoto: null });
-      setVerificationPreviews({});
-      await loadRequests();
+      const requestId = String(data?.request?._id || '');
+      if (!requestId) throw new Error('La référence de la demande boutique est manquante.');
+      setPreparedRequestId(requestId);
+      return {
+        purpose: 'SHOP_CONVERSION_FUNDING',
+        actionContext: { kind: 'SHOP_CONVERSION_REQUEST', requestId }
+      };
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Une erreur est survenue.';
       setError(message);
       showToast(message, { variant: 'error' });
+      return message;
     } finally {
       setLoading(false);
     }
@@ -317,6 +214,13 @@ export default function ShopConversionRequest() {
 
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'awaiting_payment':
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+            <DollarSign size={14} />
+            Paiement requis
+          </span>
+        );
       case 'approved':
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
@@ -369,7 +273,9 @@ export default function ShopConversionRequest() {
     return null;
   }
 
-  const hasPendingRequest = requests.some((r) => r.status === 'pending');
+  const hasOpenRequest = requests.some((r) =>
+    ['awaiting_payment', 'pending'].includes(r.status)
+  );
 
   return (
     <div className="hd-products-flow min-h-screen bg-[#f6f2ec] px-3 py-4 pb-24 text-gray-900 sm:px-5 sm:py-6">
@@ -428,6 +334,23 @@ export default function ShopConversionRequest() {
                     Soumise le {formatDate(request.createdAt)}
                     {request.processedAt && ` · Traitée le ${formatDate(request.processedAt)}`}
                   </div>
+                  {request.status === 'awaiting_payment' && (
+                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                      <p className="mb-2 text-xs font-bold text-emerald-800">
+                        Votre dossier est enregistré. Finalisez le paiement pour l’envoyer à l’administration.
+                      </p>
+                      <PawaPayButton
+                        amount={Number(request.paymentAmount || requiredAmount)}
+                        purpose="SHOP_CONVERSION_FUNDING"
+                        actionContext={{
+                          kind: 'SHOP_CONVERSION_REQUEST',
+                          requestId: request._id
+                        }}
+                        returnPath="/shop-conversion-request"
+                        label="Continuer avec PawaPay"
+                      />
+                    </div>
+                  )}
                   {request.rejectionReason && (
                     <div className="mt-3 rounded-2xl border border-red-100 bg-red-50 p-3">
                       <p className="text-sm font-semibold text-red-700">
@@ -446,8 +369,8 @@ export default function ShopConversionRequest() {
           <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 text-sm font-bold text-amber-800 shadow-sm">
             Les demandes Devenir Boutique sont temporairement désactivées par l’administration.
           </div>
-        ) : !hasPendingRequest ? (
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        ) : !hasOpenRequest ? (
+          <form onSubmit={(event) => event.preventDefault()} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             {error && (
               <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4">
                 <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
@@ -544,199 +467,21 @@ export default function ShopConversionRequest() {
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="mb-4 flex items-center gap-2 text-xl font-black text-gray-900">
                   <DollarSign size={20} className="text-[#e85d00]" />
-                  Informations de paiement
+                  Paiement sécurisé
                 </h3>
-                <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-100/50 p-4">
-                  <p className="mb-1 text-sm font-black text-gray-900">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+                    <div>
+                      <p className="mb-1 text-sm font-black text-emerald-950">
                     Montant requis: <span className="text-lg text-[#e85d00]">{requiredAmountLabel}</span>
-                  </p>
-                  <p className="text-xs font-semibold leading-5 text-gray-600">
-                    Effectuez le paiement Mobile Money puis renseignez l’ID de transaction ci-dessous.
-                  </p>
-                </div>
-
-                {paymentMethod === 'mobile_money' && (
-                  <>
-                {/* Transaction image example */}
-                <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <p className="mb-2 text-sm font-black text-gray-900">
-                    Exemple de message de confirmation (où trouver l’ID de la transaction)
-                  </p>
-                  <p className="mb-3 text-xs font-semibold leading-5 text-gray-600">
-                    Après votre paiement Mobile Money, vous recevrez un SMS. L’<strong>ID de la transaction</strong> (souvent noté « ID : ») est le numéro à 10 chiffres à indiquer ci-dessous.
-                  </p>
-                  <div className="flex justify-center">
-                    <img
-                      src="/images/transaction-sms-example-shop-conversion.png"
-                      alt="Exemple de SMS de confirmation avec l’ID de la transaction"
-                      className="max-h-64 max-w-full rounded-2xl border border-gray-200 object-contain shadow-sm"
-                    />
+                      </p>
+                      <p className="text-xs font-semibold leading-5 text-emerald-800">
+                        PawaPay vous permettra de choisir MTN MoMo ou Airtel Money. Aucun ID de transaction ni preuve de paiement ne sera demandé.
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-                {/* Transaction Name */}
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm font-black text-gray-800">
-                    Nom de la transaction <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-100/35 px-4 py-3 transition-all focus-within:border-[#e85d00] focus-within:bg-white focus-within:ring-4 focus-within:ring-gray-200">
-                    <CreditCard size={18} className="flex-shrink-0 text-[#e85d00]" />
-                    <input
-                      type="text"
-                      value={form.transactionName}
-                      onChange={(e) =>
-                        setForm((prev) => ({ ...prev, transactionName: e.target.value }))
-                      }
-                      className="w-full border-none bg-transparent p-0 text-sm font-semibold focus:outline-none"
-                      placeholder="Ex: Jean K."
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Operator Selection */}
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm font-black text-gray-800">
-                    Opérateur Mobile Money <span className="text-red-500">*</span>
-                  </label>
-                  {networksLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-600 border-t-transparent" />
-                    </div>
-                  ) : activeNetworks.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {activeNetworks.map((network) => (
-                          <button
-                            key={network._id}
-                            type="button"
-                            onClick={() => setForm((prev) => ({ ...prev, operator: network.name }))}
-                            className={`rounded-xl border px-4 py-3 text-left text-sm font-black transition-all ${
-                              form.operator === network.name
-                                ? 'border-[#e85d00] bg-gray-100 text-gray-500 shadow-sm'
-                                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="font-bold">{network.name}</div>
-                            <div className="mt-1 text-xs text-gray-500">{network.phoneNumber}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setForm((prev) => ({ ...prev, operator: 'MTN' }))}
-                        className={`rounded-xl border px-4 py-3 text-sm font-black transition-all ${
-                          form.operator === 'MTN'
-                            ? 'border-[#e85d00] bg-gray-100 text-gray-500'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        MTN
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setForm((prev) => ({ ...prev, operator: 'Airtel' }))}
-                        className={`rounded-xl border px-4 py-3 text-sm font-black transition-all ${
-                          form.operator === 'Airtel'
-                            ? 'border-[#e85d00] bg-gray-100 text-gray-500'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        Airtel
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Transaction Number */}
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm font-black text-gray-800">
-                    Numéro de transaction (10 chiffres) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-100/35 px-4 py-3 transition-all focus-within:border-[#e85d00] focus-within:bg-white focus-within:ring-4 focus-within:ring-gray-200">
-                    <Hash size={18} className="flex-shrink-0 text-[#e85d00]" />
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={10}
-                      value={form.transactionNumber}
-                      onChange={handleTransactionNumberChange}
-                      className="w-full border-none bg-transparent p-0 font-mono text-sm font-semibold focus:outline-none"
-                      placeholder="1234567890"
-                      required
-                    />
-                  </div>
-                  <p className="mt-1 text-xs font-semibold text-gray-500">
-                    Le numéro de transaction se trouve dans le SMS de confirmation Mobile Money
-                  </p>
-                </div>
-
-                {/* Payment Amount */}
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm font-black text-gray-800">
-                    Montant payé <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={form.paymentAmount}
-                    disabled
-                    readOnly
-                    className="min-h-[52px] w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-4 text-sm font-black text-gray-700"
-                    placeholder="50000"
-                    required
-                  />
-                  <p className="mt-1 text-xs font-semibold text-gray-500">
-                    Montant fixe requis pour la conversion en boutique
-                  </p>
-                </div>
-
-                {/* Preuve du paiement Mobile Money */}
-                <div>
-                  <label className="mb-2 block text-sm font-black text-gray-800">
-                    Preuve de paiement <span className="text-red-500">*</span>
-                  </label>
-                  <p className="mb-3 text-xs font-semibold leading-5 text-gray-600">
-                    Ajoutez la capture du SMS ou du reçu confirmant votre paiement Mobile Money.
-                  </p>
-                  {paymentProofPreview ? (
-                    <div className="relative inline-block">
-                      <img
-                        src={paymentProofPreview}
-                        alt="Aperçu de la preuve de boutique"
-                        className="h-auto max-w-md rounded-2xl border border-gray-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={removePaymentProof}
-                        className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white transition-colors hover:bg-red-600"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex min-h-[150px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 transition-colors hover:bg-gray-100">
-                      <FileImage className="mb-2 flex-shrink-0 text-[#e85d00]" size={32} />
-                      <span className="text-center text-sm font-black text-gray-500">
-                        Cliquez pour ajouter une preuve
-                      </span>
-                      <span className="mt-1 text-center text-xs font-semibold text-gray-500">
-                        Capture du reçu ou du SMS de paiement
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePaymentProofChange}
-                        className="hidden"
-                        required
-                      />
-                    </label>
-                  )}
-                </div>
-                  </>
-                )}
               </div>
 
               <section className="rounded-2xl border border-orange-200 bg-orange-50/50 p-4 sm:p-5">
@@ -774,18 +519,16 @@ export default function ShopConversionRequest() {
                 </div>
               </section>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="hd-primary-button flex min-h-[54px] w-full items-center justify-center rounded-full px-6 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? 'Envoi en cours...' : 'Soumettre la demande'}
-              </button>
+              <PawaPayButton
+                amount={requiredAmount}
+                purpose="SHOP_CONVERSION_FUNDING"
+                returnPath="/shop-conversion-request"
+                label={loading ? 'Enregistrement du dossier…' : 'Envoyer et payer avec PawaPay'}
+                onBeforeStart={prepareShopConversionPayment}
+              />
 
               <p className="text-center text-xs font-semibold leading-5 text-gray-500">
-                Votre demande sera traitée sous 48h. Vous recevrez une notification une fois la
-                demande traitée.
+                Le dossier sera transmis à l’administration uniquement après confirmation du paiement PawaPay.
               </p>
             </div>
           </form>

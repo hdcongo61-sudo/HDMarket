@@ -169,7 +169,7 @@ export default function AdminComplaints() {
   };
 
   const getDraft = (id) =>
-    decisionDrafts[id] || { resolutionType: 'refund_full', favor: 'client', adminDecision: '' };
+    decisionDrafts[id] || { resolutionType: 'refund_full', resolutionAmount: '', favor: 'client', adminDecision: '' };
 
   const setDraft = (id, patch) => {
     setDecisionDrafts((prev) => ({
@@ -184,10 +184,20 @@ export default function AdminComplaints() {
       showToast('Décision admin trop courte.', { variant: 'error' });
       return;
     }
+    if (
+      ['refund_partial', 'compensation'].includes(draft.resolutionType) &&
+      (!Number.isFinite(Number(draft.resolutionAmount)) || Number(draft.resolutionAmount) <= 0)
+    ) {
+      showToast('Indiquez un montant de remboursement valide.', { variant: 'error' });
+      return;
+    }
     setActioningId(id);
     try {
       await api.patch(`/disputes/admin/${id}/decision`, {
         resolutionType: draft.resolutionType,
+        resolutionAmount: ['refund_partial', 'compensation'].includes(draft.resolutionType)
+          ? Number(draft.resolutionAmount)
+          : undefined,
         favor: draft.favor,
         adminDecision: draft.adminDecision.trim()
       });
@@ -195,6 +205,22 @@ export default function AdminComplaints() {
       await loadDisputes();
     } catch (err) {
       showToast(err.response?.data?.message || 'Impossible de résoudre ce litige.', {
+        variant: 'error'
+      });
+    } finally {
+      setActioningId('');
+    }
+  };
+
+  const refreshRefund = async (refundId) => {
+    if (!refundId) return;
+    setActioningId(`refund-${refundId}`);
+    try {
+      await api.post(`/payments/pawapay/refunds/${encodeURIComponent(refundId)}/refresh`);
+      showToast('Statut du remboursement actualisé.', { variant: 'success' });
+      await loadDisputes();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Impossible d’actualiser le remboursement.', {
         variant: 'error'
       });
     } finally {
@@ -469,6 +495,28 @@ export default function AdminComplaints() {
                           Type: {RESOLUTION_OPTIONS.find((r) => r.value === item.resolutionType)?.label || item.resolutionType}
                         </p>
                       )}
+                      {Number(item.resolutionAmount || 0) > 0 && (
+                        <p className="mt-1 text-xs font-semibold text-emerald-800">
+                          Montant: {money(item.resolutionAmount)}
+                        </p>
+                      )}
+                      {item?.orderId?.refundStatus && item.orderId.refundStatus !== 'none' && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-emerald-800">
+                          <span>
+                            PawaPay: {item.orderId.refundStatus === 'processed' ? 'confirmé' : item.orderId.refundStatus === 'failed' ? 'échec' : 'en cours'}
+                          </span>
+                          {item.orderId.refundId && (
+                            <button
+                              type="button"
+                              onClick={() => refreshRefund(item.orderId.refundId)}
+                              disabled={actioningId === `refund-${item.orderId.refundId}`}
+                              className="rounded-lg border border-emerald-300 bg-white px-2 py-1 font-semibold disabled:opacity-50"
+                            >
+                              {actioningId === `refund-${item.orderId.refundId}` ? 'Vérification...' : 'Vérifier chez PawaPay'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {item.resolvedAt && (
                         <p className="inline-flex items-center gap-1 text-xs text-emerald-700 mt-1">
                           <CheckCircle2 className="h-3.5 w-3.5" />
@@ -517,6 +565,20 @@ export default function AdminComplaints() {
                           className="rounded-lg border border-amber-200 bg-white px-2.5 py-2 text-xs"
                         />
                       </div>
+                      {['refund_partial', 'compensation'].includes(draft.resolutionType) && (
+                        <label className="mt-2 block text-xs font-semibold text-amber-900">
+                          Montant à rembourser (FCFA)
+                          <input
+                            type="number"
+                            min="1"
+                            max={Number(item?.orderId?.paidAmount || item?.orderId?.totalAmount || 0)}
+                            value={draft.resolutionAmount}
+                            onChange={(e) => setDraft(item._id, { resolutionAmount: e.target.value })}
+                            className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-2.5 py-2 text-xs md:max-w-xs"
+                            required
+                          />
+                        </label>
+                      )}
                       <div className="mt-2 flex justify-end">
                         <button
                           type="button"

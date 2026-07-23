@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CreditCard, Hash, Loader2, Receipt, Sparkles, Upload, ShieldCheck } from 'lucide-react';
-import api, { verifyTransactionCodeAvailability } from '../services/api';
-import { useNetworks } from '../hooks/useNetworks';
+import { Loader2, Receipt, Sparkles, ShieldCheck } from 'lucide-react';
+import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import PawaPayButton from './PawaPayButton';
 
@@ -10,11 +9,6 @@ const BOOST_TYPES = [
   { value: 'LOCAL_PRODUCT_BOOST', label: 'Boost produit local' },
   { value: 'SHOP_BOOST', label: 'Boost boutique' },
   { value: 'HOMEPAGE_FEATURED', label: 'Homepage featured' }
-];
-
-const FALLBACK_NETWORKS = [
-  { name: 'MTN', phoneNumber: '', order: 0, isActive: true },
-  { name: 'Airtel', phoneNumber: '', order: 1, isActive: true }
 ];
 
 export default function BoostRequestForm({ products = [], defaultCity = '', onSubmitted }) {
@@ -38,28 +32,14 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   const [duration, setDuration] = useState(7);
   const [city, setCity] = useState(normalizedDefaultCity || cityOptions[0] || '');
   const [selectedProductIds, setSelectedProductIds] = useState([]);
-  const paymentMethod = 'mobile_money';
-  const [paymentOperator, setPaymentOperator] = useState('');
-  const [paymentSenderName, setPaymentSenderName] = useState('');
-  const [paymentTransactionId, setPaymentTransactionId] = useState('');
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const { networks, loading: networksLoading } = useNetworks();
 
   const availableProducts = useMemo(
     () => (Array.isArray(products) ? products.filter((item) => item?.status === 'approved') : []),
     [products]
   );
-  const activeNetworks = useMemo(() => {
-    const list = Array.isArray(networks)
-      ? networks.filter((network) => network?.isActive).sort((a, b) => (a.order || 0) - (b.order || 0))
-      : [];
-    return list.length ? list : FALLBACK_NETWORKS;
-  }, [networks]);
-
   const requiresProducts = ['PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'HOMEPAGE_FEATURED'].includes(boostType);
   const requiresCity = boostType === 'LOCAL_PRODUCT_BOOST';
   const canPreview = boostType && (!requiresProducts || selectedProductIds.length > 0);
@@ -82,13 +62,6 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
       setCity(normalizedDefaultCity && cityOptions.includes(normalizedDefaultCity) ? normalizedDefaultCity : cityOptions[0]);
     }
   }, [city, cityOptions, normalizedDefaultCity]);
-
-  useEffect(() => {
-    if (paymentMethod !== 'mobile_money') return;
-    if (!paymentOperator && activeNetworks.length > 0) {
-      setPaymentOperator(activeNetworks[0].name);
-    }
-  }, [activeNetworks, paymentMethod, paymentOperator]);
 
   useEffect(() => {
     const loadPreview = async () => {
@@ -120,79 +93,8 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
     return () => clearTimeout(timer);
   }, [boostType, canPreview, city, duration, requiresCity, selectedProductIds]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSubmitError('');
-    if (!boostType) {
-      setSubmitError('Choisissez un type de boost.');
-      return;
-    }
-    if (requiresProducts && selectedProductIds.length === 0) {
-      setSubmitError('Sélectionnez au moins un produit.');
-      return;
-    }
-    if (requiresCity && !String(city || '').trim()) {
-      setSubmitError('Aucune ville active n’est configurée pour ce boost local.');
-      return;
-    }
-    const cleanSenderName = paymentSenderName.trim();
-    const cleanTransactionId = String(paymentTransactionId || '').replace(/\D/g, '');
-    {
-      if (!String(paymentOperator || '').trim()) {
-        setSubmitError('Choisissez un opérateur Mobile Money.');
-        return;
-      }
-      if (!cleanSenderName) {
-        setSubmitError('Le nom de l’expéditeur est requis.');
-        return;
-      }
-      if (cleanTransactionId.length !== 10) {
-        setSubmitError('L’ID de transaction doit contenir exactement 10 chiffres.');
-        return;
-      }
-      try {
-        const verification = await verifyTransactionCodeAvailability(cleanTransactionId);
-        if (!verification.available) {
-          setSubmitError(verification.message || 'Ce code de transaction est déjà utilisé.');
-          return;
-        }
-      } catch (error) {
-        setSubmitError(error?.response?.data?.message || 'Impossible de vérifier l’ID de transaction.');
-        return;
-      }
-    }
-
-    setSubmitting(true);
-    try {
-      const payload = new FormData();
-      payload.append('boostType', boostType);
-      payload.append('duration', String(duration));
-      if (requiresCity) payload.append('city', city);
-      if (selectedProductIds.length) payload.append('productIds', JSON.stringify(selectedProductIds));
-      payload.append('paymentMethod', paymentMethod);
-      if (paymentMethod === 'mobile_money') {
-        payload.append('paymentOperator', String(paymentOperator || '').trim());
-        payload.append('paymentSenderName', cleanSenderName);
-        payload.append('paymentTransactionId', cleanTransactionId);
-      }
-      const { data } = await api.post('/boosts/requests', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setPaymentSenderName('');
-      setPaymentTransactionId('');
-      setPaymentOperator(activeNetworks[0]?.name || '');
-      setSelectedProductIds([]);
-      setPreview(null);
-      onSubmitted?.(data);
-    } catch (error) {
-      setSubmitError(error.response?.data?.message || 'Impossible d’envoyer la demande de boost.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="hd-form-card rounded-2xl p-3 sm:p-5">
+    <div className="hd-form-card rounded-2xl p-3 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[#e85d00]" />
         <h3 className="text-base font-black text-slate-900 sm:text-lg">Nouvelle demande de boost</h3>
@@ -328,6 +230,16 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
               }}
               returnPath={typeof window !== 'undefined' ? window.location.pathname : '/seller/boosts'}
               label="Payer avec PawaPay"
+              onBeforeStart={() => {
+                if (!boostType) return 'Choisissez un type de boost.';
+                if (requiresProducts && selectedProductIds.length === 0) {
+                  return 'Sélectionnez au moins un produit.';
+                }
+                if (requiresCity && !String(city || '').trim()) {
+                  return 'Aucune ville active n’est configurée pour ce boost local.';
+                }
+                return true;
+              }}
             />
             <p className="mt-2 text-[11px] font-semibold text-emerald-800">
               Après confirmation PawaPay, la demande est envoyée automatiquement. Aucun ID ni preuve n’est nécessaire.
@@ -335,81 +247,6 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
           </div>
         )}
 
-        {paymentMethod === 'mobile_money' && (
-          <>
-        <div className="rounded-2xl border border-gray-200 bg-white p-3">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">Opérateur Mobile Money</p>
-          {networksLoading ? (
-            <p className="text-sm text-slate-500">Chargement des réseaux...</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {activeNetworks.map((network) => (
-                <button
-                  key={network.name}
-                  type="button"
-                  onClick={() => setPaymentOperator(network.name)}
-                  className={`rounded-xl border px-3 py-2 text-left transition-colors ${
-                    paymentOperator === network.name
-                      ? 'border-[#e85d00] bg-gray-100 text-gray-500 shadow-sm'
-                      : 'border-gray-200 bg-white text-slate-700 hover:border-gray-200'
-                  }`}
-                >
-                  <p className="text-sm font-semibold">{network.name}</p>
-                  {network.phoneNumber ? (
-                    <p className="text-xs text-slate-500">{network.phoneNumber}</p>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-3">
-          <p className="mb-1 text-sm font-semibold text-slate-800">
-            Exemple: où trouver l’ID de transaction
-          </p>
-          <p className="mb-3 text-xs text-slate-600">
-            L’ID de transaction est le numéro à 10 chiffres indiqué dans le SMS de confirmation.
-          </p>
-          <img
-            src="/images/transaction-sms-example-shop-conversion.png"
-            alt="Exemple de SMS avec ID transaction"
-            className="mx-auto max-h-60 max-w-full rounded-lg border border-slate-200 object-contain shadow-sm"
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Nom de l’expéditeur</span>
-            <div className="hd-field-shell flex items-center gap-2 rounded-xl px-3 py-2.5 focus-within:border-gray-200 focus-within:ring-4 focus-within:ring-orange-500/10">
-              <CreditCard className="h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                value={paymentSenderName}
-                onChange={(e) => setPaymentSenderName(e.target.value)}
-                placeholder="Ex: Jean K."
-                className="min-h-0 w-full border-none bg-transparent p-0 text-sm text-slate-800 shadow-none focus:outline-none focus:ring-0"
-                required
-              />
-            </div>
-          </label>
-          <label className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">ID transaction (10 chiffres)</span>
-            <div className="hd-field-shell flex items-center gap-2 rounded-xl px-3 py-2.5 focus-within:border-gray-200 focus-within:ring-4 focus-within:ring-orange-500/10">
-              <Hash className="h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={10}
-                value={paymentTransactionId}
-                onChange={(e) => setPaymentTransactionId(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                placeholder="1234567890"
-                className="min-h-0 w-full border-none bg-transparent p-0 text-sm font-mono text-slate-800 shadow-none focus:outline-none focus:ring-0"
-                required
-              />
-            </div>
-          </label>
-        </div>
-          </>
-        )}
       </div>
 
       <div className="mt-4 rounded-2xl border border-gray-200 bg-white/85 p-3">
@@ -437,23 +274,6 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         {previewError && <p className="mt-2 text-xs text-red-600">{previewError}</p>}
       </div>
 
-      {submitError && (
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          <AlertCircle className="mt-0.5 h-4 w-4" />
-          <span>{submitError}</span>
-        </div>
-      )}
-
-      <div className="sticky bottom-0 z-[2] -mx-3 mt-4 border-t border-gray-200 bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:p-0">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="hd-primary-button inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto"
-        >
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-          {submitting ? 'Envoi...' : 'Envoyer la demande'}
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }

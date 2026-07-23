@@ -356,12 +356,11 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
   const paymentMethod =
     String(req.body?.paymentMethod || '').trim().toLowerCase() === 'pawapay' && req.pawaPayCheckout
       ? 'pawapay'
-      : 'mobile_money';
-  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
-  if (pawaPayOnly && paymentMethod !== 'pawapay') {
+      : '';
+  if (paymentMethod !== 'pawapay') {
     return res.status(403).json({
       code: 'PAWAPAY_ONLY',
-      message: 'Les preuves et identifiants de transaction sont désactivés. Payez avec PawaPay.'
+      message: 'Les paiements manuels sont désactivés. Payez ce boost avec PawaPay.'
     });
   }
   const paymentOperator = String(req.body?.paymentOperator || '').trim();

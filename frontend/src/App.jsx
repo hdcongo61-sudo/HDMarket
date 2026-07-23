@@ -44,6 +44,7 @@ const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const MyListingDetail = lazy(() => import('./pages/MyListingDetail'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminPayments = lazy(() => import('./pages/AdminPayments'));
+const AdminSellerPayouts = lazy(() => import('./pages/AdminSellerPayouts'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
 const AdminDeliveryGuys = lazy(() => import('./pages/AdminDeliveryGuys'));
@@ -95,6 +96,7 @@ const SellerOrders = lazy(() => import('./pages/SellerOrders'));
 const SellerOrderDetail = lazy(() => import('./pages/SellerOrderDetail'));
 const SellerDisputes = lazy(() => import('./pages/SellerDisputes'));
 const SellerBoosts = lazy(() => import('./pages/SellerBoosts'));
+const SellerSettlements = lazy(() => import('./pages/SellerSettlements'));
 const OrderCheckout = lazy(() => import('./pages/OrderCheckout'));
 const PawaPayReturn = lazy(() => import('./pages/PawaPayReturn'));
 const DraftOrders = lazy(() => import('./pages/DraftOrders'));
@@ -1100,6 +1102,14 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/my/settlements"
+            element={
+              <ProtectedRoute>
+                <SellerSettlements />
+              </ProtectedRoute>
+            }
+          />
           {/* Admin: layout with sidebar on desktop, nested routes */}
           <Route
             path="/admin"
@@ -1133,6 +1143,14 @@ function AppContent() {
             <Route index element={<AdminIndexRedirect />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="payments" element={<AdminPayments />} />
+            <Route
+              path="seller-payouts"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canVerifyPayments === true || hasAnyPermission(user, ['verify_payments'])}>
+                  <AdminSellerPayouts />
+                </ProtectedRoute>
+              }
+            />
             <Route path="orders" element={<AdminOrders />} />
             <Route
               path="delivery-guys"

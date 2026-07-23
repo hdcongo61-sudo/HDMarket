@@ -346,6 +346,7 @@ export const schemas = {
   }),
   disputeAdminDecision: Joi.object({
     resolutionType: Joi.string().valid('refund_full', 'refund_partial', 'compensation', 'reject').required(),
+    resolutionAmount: Joi.number().positive().allow(null),
     favor: Joi.string().valid('client', 'seller').allow('', null),
     adminDecision: Joi.string().min(5).max(2000).required()
   }),
@@ -474,22 +475,10 @@ export const schemas = {
     ),
     city: Joi.string().trim().min(2).max(80).allow('', null),
     duration: Joi.number().integer().min(1).max(365).default(1),
-    paymentMethod: Joi.string().valid('mobile_money').default('mobile_money'),
-    paymentOperator: Joi.when('paymentMethod', {
-      is: 'mobile_money',
-      then: Joi.string().trim().min(2).max(40).required()
-    }),
-    paymentSenderName: Joi.when('paymentMethod', {
-      is: 'mobile_money',
-      then: Joi.string().trim().min(2).max(120).required()
-    }),
-    paymentTransactionId: Joi.when('paymentMethod', {
-      is: 'mobile_money',
-      then: Joi.string()
-        .pattern(/^\d{10}$/)
-        .required()
-        .messages({ 'string.pattern.base': 'L’ID de transaction doit contenir exactement 10 chiffres.' })
-    })
+    paymentMethod: Joi.string().valid('pawapay').required(),
+    paymentOperator: Joi.forbidden(),
+    paymentSenderName: Joi.forbidden(),
+    paymentTransactionId: Joi.forbidden()
   }),
   boostRequestListQuery: Joi.object({
     page: Joi.number().integer().min(1).default(1),
@@ -891,10 +880,10 @@ export const schemas = {
       'string.min': 'La raison de l\'annulation doit contenir au moins 5 caractères.',
       'any.required': 'La raison de l\'annulation est requise.'
     }),
-    issueRefund: Joi.boolean().truthy('true').falsy('false').default(false),
-    refundMethod: Joi.string().valid('mobile_money', '').allow(null),
-    refundTransactionNumber: Joi.string().trim().allow('', null),
-    refundSenderName: Joi.string().trim().max(120).allow('', null)
+    issueRefund: Joi.boolean().truthy('true').falsy('false').default(false)
+  }),
+  sellerPayoutAccount: Joi.object({
+    phoneNumber: Joi.string().trim().min(8).max(30).required()
   }),
   sellerDeliveryFeeUpdate: Joi.object({
     deliveryFeeTotal: Joi.number().min(0).required()

@@ -13,27 +13,30 @@ const shopConversionRequestSchema = new mongoose.Schema(
       insidePhoto: { type: String, required: true },
       outsidePhoto: { type: String, required: true }
     },
-    paymentProof: { type: String, required: true },
+    paymentProof: { type: String, default: '' },
     paymentAmount: { type: Number, required: true, default: 50000 },
     paymentMethod: {
       type: String,
-      enum: ['mobile_money'],
-      default: 'mobile_money',
+      // mobile_money remains readable for historical requests; all new requests
+      // are created through PawaPay.
+      enum: ['pawapay', 'mobile_money'],
+      default: 'pawapay',
       index: true
     },
     paymentStatus: {
       type: String,
-      enum: ['pending_admin_validation', 'paid', 'refunded'],
-      default: 'pending_admin_validation',
+      enum: ['awaiting_payment', 'paid', 'refunded', 'pending_admin_validation'],
+      default: 'awaiting_payment',
       index: true
     },
-    operator: { type: String, enum: ['MTN', 'Airtel'], required: true, default: 'MTN' },
-    transactionName: { type: String, required: true, trim: true },
-    transactionNumber: { type: String, required: true, trim: true },
+    operator: { type: String, default: 'PawaPay', trim: true },
+    transactionName: { type: String, default: 'PawaPay', trim: true },
+    transactionNumber: { type: String, default: '', trim: true },
+    pawaPayCheckoutId: { type: String, default: '', trim: true, index: true },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending',
+      enum: ['awaiting_payment', 'pending', 'approved', 'rejected'],
+      default: 'awaiting_payment',
       index: true
     },
     processedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

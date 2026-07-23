@@ -36,6 +36,8 @@ const disputeSchema = new mongoose.Schema(
     sellerProofImages: { type: [disputeFileSchema], default: [] },
     adminDecision: { type: String, trim: true, maxlength: 2000, default: '' },
     resolutionType: { type: String, enum: DISPUTE_RESOLUTION_TYPES, default: null },
+    resolutionAmount: { type: Number, default: 0, min: 0 },
+    refundId: { type: mongoose.Schema.Types.ObjectId, ref: 'Refund', default: null },
     sellerDeadline: { type: Date, required: true, index: true },
     resolvedAt: { type: Date, default: null },
     disputeWindowEndsAt: { type: Date, required: true },

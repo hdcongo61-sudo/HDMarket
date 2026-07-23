@@ -13,7 +13,8 @@ const pawapayCheckoutSchema = new mongoose.Schema(
         'CHECKOUT_FUNDING',
         'LISTING_FEE_FUNDING',
         'INSTALLMENT_FUNDING',
-        'BOOST_FUNDING'
+        'BOOST_FUNDING',
+        'SHOP_CONVERSION_FUNDING'
       ],
       default: 'CHECKOUT_FUNDING'
     },
@@ -41,6 +42,8 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     checkoutCode: { type: String, default: '' },
     expiresAt: { type: Date, default: null },
     providerTransactionId: { type: String, default: '' },
+    depositId: { type: String, trim: true, default: '', index: true },
+    depositStatus: { type: String, trim: true, uppercase: true, default: '' },
     failureReason: { type: mongoose.Schema.Types.Mixed, default: null },
     callbackPayload: { type: mongoose.Schema.Types.Mixed, default: null },
     confirmedAt: { type: Date, default: null },

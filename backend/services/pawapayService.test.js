@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getPawaPayCheckoutStatus,
+  getPawaPayRefundStatus,
+  getPawaPayPayoutStatus,
   getPawaPayConfig,
   initiatePawaPayDeposit,
   predictPawaPayProvider
@@ -82,13 +84,13 @@ describe('PawaPay environment selection', () => {
     expect(getPawaPayConfig().baseUrl).toBe('https://api.pawapay.io/v2');
   });
 
-  it('uses PawaPay-only mode by default and still allows an explicit legacy override', () => {
+  it('keeps PawaPay-only mode enabled even when a legacy environment override exists', () => {
     delete process.env.PAWAPAY_EXCLUSIVE_MODE;
     expect(getPawaPayConfig().exclusiveMode).toBe(true);
     process.env.PAWAPAY_EXCLUSIVE_MODE = 'true';
     expect(getPawaPayConfig().exclusiveMode).toBe(true);
     process.env.PAWAPAY_EXCLUSIVE_MODE = 'false';
-    expect(getPawaPayConfig().exclusiveMode).toBe(false);
+    expect(getPawaPayConfig().exclusiveMode).toBe(true);
   });
 });
 
@@ -130,6 +132,46 @@ describe('PawaPay checkout reconciliation', () => {
 
     expect(global.fetch).toHaveBeenCalledWith(
       'https://api.sandbox.pawapay.io/v2/checkouts/checkout-123',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+});
+
+describe('PawaPay refund reconciliation', () => {
+  it('checks a refund using its merchant-generated refund id', async () => {
+    process.env.PAWAPAY_ENABLED = 'true';
+    process.env.PAWAPAY_API_TOKEN = 'test-token';
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: 'FOUND', data: { status: 'COMPLETED' } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+
+    await getPawaPayRefundStatus('refund-123');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.sandbox.pawapay.io/v2/refunds/refund-123',
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+});
+
+describe('PawaPay seller payout reconciliation', () => {
+  it('checks a payout using its stored merchant payout id', async () => {
+    process.env.PAWAPAY_ENABLED = 'true';
+    process.env.PAWAPAY_API_TOKEN = 'test-token';
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: 'FOUND', data: { status: 'COMPLETED' } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+
+    await getPawaPayPayoutStatus('payout-123');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.sandbox.pawapay.io/v2/payouts/payout-123',
       expect.objectContaining({ method: 'GET' })
     );
   });

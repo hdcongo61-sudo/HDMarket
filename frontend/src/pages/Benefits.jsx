@@ -93,6 +93,7 @@ export default function Benefits() {
 
   const payForOtherEnabled = isFlagOn('enable_pay_for_other');
   const wholesaleEnabled = isFlagOn('enable_wholesale');
+  const groupBuyingEnabled = isFlagOn('enable_group_buying');
   const platformDeliveryEnabled = isFlagOn('enable_platform_delivery');
   const fullPaymentFreeDelivery = isFlagOn('enable_full_payment_free_delivery', true);
 
@@ -181,6 +182,21 @@ export default function Benefits() {
                 'Repérez les paliers de prix sur la fiche produit',
                 'Augmentez la quantité : la remise s’applique automatiquement'
               ]}
+            />
+          )}
+          {groupBuyingEnabled && (
+            <FeatureCard
+              icon={Users}
+              title="Achat groupé"
+              benefit="Formez une équipe avec d’autres acheteurs pour débloquer un prix réduit pour tout le monde. Rejoindre est gratuit : rien n’est payé tant que l’équipe n’est pas complète."
+              steps={[
+                'Sur une fiche produit, touchez « Démarrer une équipe » — ou rejoignez une équipe en cours',
+                'Partagez le lien (WhatsApp…) pour remplir l’équipe avant l’échéance',
+                'Équipe complète : le prix groupé se débloque, chacun paie sa commande au tarif réduit',
+                'Temps écoulé sans équipe complète ? Rien ne se passe — aucun paiement n’était engagé'
+              ]}
+              to="/products"
+              cta="Explorer les produits"
             />
           )}
           <FeatureCard

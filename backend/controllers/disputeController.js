@@ -15,10 +15,11 @@ import {
 } from '../utils/notificationService.js';
 import { notifyBuyerOrderCancelled } from '../utils/orderCancellationNotification.js';
 import { getManyRuntimeConfigs } from '../services/configService.js';
+import { initiateOrderRefund, resolveOrderDepositId } from '../services/refundService.js';
 
 const ORDER_DISPUTE_STATUS = 'dispute_opened';
 const DISPUTE_ORDER_SELECT =
-  'status deliveryAddress deliveryCity deliveryMode createdAt deliveredAt deliveryDate deliverySubmittedAt deliveryNote deliveryProofImages clientSignatureImage totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode';
+  'status deliveryAddress deliveryCity deliveryMode createdAt deliveredAt deliveryDate deliverySubmittedAt deliveryNote deliveryProofImages clientSignatureImage totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode paymentSource paymentCheckoutId paymentDepositId refundStatus refundAmount refundId refundFailureReason';
 const DISPUTE_CONFIG_DEFAULTS = Object.freeze({
   disputeWindowHours: Math.max(24, Number(process.env.DISPUTE_WINDOW_HOURS || 72)),
   sellerResponseHours: Math.max(12, Number(process.env.DISPUTE_SELLER_RESPONSE_HOURS || 48)),
@@ -706,6 +707,7 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
   const resolutionType = String(req.body.resolutionType || '').trim();
   const favor = String(req.body.favor || '').trim();
   const adminDecision = String(req.body.adminDecision || '').trim();
+  const requestedResolutionAmount = Number(req.body.resolutionAmount || 0);
   if (!DISPUTE_RESOLUTION_TYPES.includes(resolutionType)) {
     return res.status(400).json({ message: 'Type de résolution invalide.' });
   }
@@ -724,6 +726,31 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Ce litige est déjà clôturé.' });
   }
 
+  const order = await Order.findById(dispute.orderId);
+  if (!order) return res.status(404).json({ message: 'Commande liée au litige introuvable.' });
+  const needsRefund = ['refund_full', 'refund_partial', 'compensation'].includes(resolutionType);
+  let resolutionAmount = 0;
+  if (needsRefund) {
+    resolutionAmount = resolutionType === 'refund_full'
+      ? Number(order.paidAmount || 0)
+      : requestedResolutionAmount;
+    if (!Number.isFinite(resolutionAmount) || resolutionAmount <= 0) {
+      return res.status(400).json({ message: 'Indiquez un montant de remboursement supérieur à zéro.' });
+    }
+    if (resolutionAmount - Number(order.paidAmount || 0) > 0.01) {
+      return res.status(400).json({ message: 'Le remboursement ne peut pas dépasser le montant payé.' });
+    }
+    if (String(order.paymentSource || '').toLowerCase() !== 'pawapay') {
+      return res.status(400).json({ message: 'Cette commande historique ne possède pas de paiement PawaPay remboursable automatiquement.' });
+    }
+    try {
+      const depositId = await resolveOrderDepositId(order);
+      if (!depositId) throw new Error('Dépôt PawaPay introuvable.');
+    } catch (error) {
+      return res.status(409).json({ message: error?.message || 'Dépôt PawaPay introuvable.' });
+    }
+  }
+
   let nextStatus = 'RESOLVED_CLIENT';
   if (favor === 'seller') {
     nextStatus = 'RESOLVED_SELLER';
@@ -737,6 +764,7 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
     await session.withTransaction(async () => {
       dispute.status = nextStatus;
       dispute.resolutionType = resolutionType;
+      dispute.resolutionAmount = resolutionAmount;
       dispute.adminDecision = adminDecision;
       dispute.resolvedAt = now;
       await dispute.save({ session });
@@ -784,13 +812,26 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
     session.endSession();
   }
 
+  let refund = null;
+  if (needsRefund) {
+    refund = await initiateOrderRefund({
+      order: await Order.findById(dispute.orderId),
+      requestedBy: req.user.id,
+      amount: resolutionAmount,
+      source: resolutionType === 'refund_full' ? 'DISPUTE_FULL' : 'DISPUTE_PARTIAL',
+      dispute: dispute._id
+    });
+    dispute.refundId = refund._id;
+    await dispute.save();
+  }
+
   await logDisputeAction({
     disputeId: dispute._id,
     orderId: dispute.orderId,
     actorId: req.user.id,
     actorRole: 'admin',
     action: 'ADMIN_RESOLVED',
-    metadata: { resolutionType, favor: favor || null, nextStatus }
+    metadata: { resolutionType, resolutionAmount, refundId: refund?.refundId || null, favor: favor || null, nextStatus }
   });
 
   await Promise.allSettled([
@@ -802,7 +843,9 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
         disputeId: dispute._id,
         orderId: dispute.orderId,
         status: nextStatus,
-        resolutionType
+        resolutionType,
+        resolutionAmount,
+        refundId: refund?.refundId || null
       }
     }),
     resolutionType === 'refund_full'
@@ -829,7 +872,9 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
         disputeId: dispute._id,
         orderId: dispute.orderId,
         status: nextStatus,
-        resolutionType
+        resolutionType,
+        resolutionAmount,
+        refundId: refund?.refundId || null
       }
     }),
   ]);

@@ -12,7 +12,9 @@ export const getPawaPayConfig = () => {
 
   return {
     enabled: String(process.env.PAWAPAY_ENABLED || 'false').toLowerCase() === 'true',
-    exclusiveMode: String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'true').toLowerCase() === 'true',
+    // HDMarket now accepts paid operations through PawaPay only. Keep this
+    // invariant server-side so an old frontend cannot restore manual payments.
+    exclusiveMode: true,
     environment,
     baseUrl: trimTrailingSlash(process.env.PAWAPAY_BASE_URL || defaultBaseUrl),
     apiToken: String(process.env.PAWAPAY_API_TOKEN || '').trim()
@@ -148,8 +150,14 @@ export const initiatePawaPayDeposit = (payload, options) =>
 export const initiatePawaPayPayout = (payload, options) =>
   pawapayRequest('payouts', { method: 'POST', body: payload, rejectProviderFailure: true, ...options });
 
+export const getPawaPayPayoutStatus = (payoutId, options) =>
+  pawapayRequest(`payouts/${encodeURIComponent(String(payoutId || '').trim())}`, options);
+
 export const initiatePawaPayRefund = (payload, options) =>
   pawapayRequest('refunds', { method: 'POST', body: payload, rejectProviderFailure: true, ...options });
+
+export const getPawaPayRefundStatus = (refundId, options) =>
+  pawapayRequest(`refunds/${encodeURIComponent(String(refundId || '').trim())}`, options);
 
 export const predictPawaPayProvider = (phoneNumber, options) =>
   pawapayRequest('predict-provider', {

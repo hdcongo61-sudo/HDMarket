@@ -33,6 +33,7 @@ export default function PawaPayButton({
     setError('');
     setErrorHint('');
     try {
+      let checkoutOverrides = {};
       if (onBeforeStart) {
         const validation = await onBeforeStart();
         if (validation === false || typeof validation === 'string') {
@@ -45,6 +46,9 @@ export default function PawaPayButton({
           setLoading(false);
           return;
         }
+        if (validation && typeof validation === 'object' && !Array.isArray(validation)) {
+          checkoutOverrides = validation;
+        }
       }
       const { data } = await api.post(
         '/payments/pawapay/checkouts',
@@ -54,7 +58,8 @@ export default function PawaPayButton({
           ...(productId ? { productId } : {}),
           ...(promoCode ? { promoCode } : {}),
           ...(actionContext ? { actionContext } : {}),
-          returnPath
+          returnPath,
+          ...checkoutOverrides
         },
         { headers: { 'Idempotency-Key': idempotencyKeyRef.current } }
       );

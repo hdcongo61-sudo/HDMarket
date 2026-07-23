@@ -8,11 +8,6 @@ import {
 } from '../utils/notificationService.js';
 import { getSettingValue, SETTING_KEYS } from '../utils/settingsResolver.js';
 import {
-  isTransactionCodeAlreadyUsed,
-  normalizeTransactionCode,
-  TRANSACTION_CODE_REUSED_MESSAGE
-} from '../utils/transactionCodeService.js';
-import {
   buildShopNameExactRegex,
   findShopNameConflict,
   normalizeShopName
@@ -81,6 +76,56 @@ const assertShopConversionOpen = async () => {
   return { ok: true, limitState };
 };
 
+const notifyShopConversionManagers = async ({ request, user }) => {
+  const admins = await User.find({
+    role: { $in: ['admin', 'founder', 'manager'] }
+  })
+    .select('_id role')
+    .lean();
+  const metadata = {
+    requestId: request._id.toString(),
+    shopName: request.shopName,
+    userName: user.name,
+    userEmail: user.email,
+    userPhone: user.phone,
+    paymentAmount: request.paymentAmount,
+    paymentMethod: 'pawapay',
+    paymentStatus: request.paymentStatus,
+    operator: 'PawaPay',
+    transactionNumber: request.pawaPayCheckoutId,
+    requiredDocuments: ['shopPaper', 'shopInvoice', 'insidePhoto', 'outsidePhoto']
+  };
+
+  await Promise.all(
+    admins
+      .filter((admin) => String(admin._id) !== String(user._id))
+      .map((admin) =>
+        createNotification({
+          userId: admin._id,
+          actorId: user._id,
+          type: 'shop_conversion_request',
+          audience:
+            String(admin.role || '').toLowerCase() === 'founder'
+              ? 'FOUNDER'
+              : String(admin.role || '').toLowerCase() === 'admin'
+                ? 'ADMIN'
+                : 'ROLE_GROUP',
+          targetRole: [String(admin.role || 'ADMIN').toUpperCase()],
+          actionRequired: true,
+          actionType: 'APPROVE',
+          actionStatus: 'PENDING',
+          deepLink: `/admin/users?shopConversionRequestId=${request._id}`,
+          actionLink: `/admin/users?shopConversionRequestId=${request._id}`,
+          entityType: 'shopConversionRequest',
+          entityId: String(request._id),
+          validationType: 'shopConversion',
+          metadata,
+          allowSelf: false
+        })
+      )
+  );
+};
+
 /**
  * Create a shop conversion request (for particulier users only)
  */
@@ -105,7 +150,7 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   // Check if user already has a pending request
   const existingPending = await ShopConversionRequest.findOne({
     user: user._id,
-    status: 'pending'
+    status: { $in: ['awaiting_payment', 'pending'] }
   });
   if (existingPending) {
     return res.status(400).json({
@@ -113,9 +158,8 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     });
   }
 
-  const { shopName, shopAddress, shopDescription, paymentAmount, operator, transactionName, transactionNumber } =
-    req.body;
-  const paymentMethod = 'mobile_money';
+  const { shopName, shopAddress, shopDescription, paymentAmount } = req.body;
+  const paymentMethod = 'pawapay';
   const normalizedShopName = normalizeShopName(shopName);
 
   // Validate required fields
@@ -124,14 +168,6 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   }
   if (!shopAddress || !shopAddress.trim()) {
     return res.status(400).json({ message: "L'adresse de la boutique est requise." });
-  }
-  if (paymentMethod === 'mobile_money') {
-    if (!transactionName || !transactionName.trim()) {
-      return res.status(400).json({ message: 'Le nom de la transaction est requis.' });
-    }
-    if (!transactionNumber || !transactionNumber.trim()) {
-      return res.status(400).json({ message: 'Le numéro de transaction est requis.' });
-    }
   }
 
   const existingShopConflict = await findShopNameConflict({
@@ -155,24 +191,6 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
         message:
           'Une autre demande de conversion utilise déjà ce nom de boutique. Veuillez choisir un nom différent.'
       });
-    }
-  }
-
-  let digitsOnly = '';
-  if (paymentMethod === 'mobile_money') {
-    // Validate transaction number (10 digits)
-    digitsOnly = normalizeTransactionCode(transactionNumber);
-    if (digitsOnly.length !== 10) {
-      return res.status(400).json({ message: 'Le numéro de transaction doit contenir exactement 10 chiffres.' });
-    }
-    const alreadyUsed = await isTransactionCodeAlreadyUsed(digitsOnly);
-    if (alreadyUsed) {
-      return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
-    }
-
-    // Validate operator
-    if (!operator || !['MTN', 'Airtel'].includes(operator)) {
-      return res.status(400).json({ message: 'Veuillez sélectionner un opérateur (MTN ou Airtel).' });
     }
   }
 
@@ -244,27 +262,8 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     }
   }
 
-  // Handle payment proof upload
-  let paymentProofUrl = '';
-  const paymentProofFile = req.files?.paymentProof?.[0] || null;
-  if (paymentMethod === 'mobile_money' && !paymentProofFile) {
-    return res.status(400).json({ message: 'La preuve de paiement est requise.' });
-  }
-  if (paymentMethod === 'mobile_money') {
-    try {
-      const uploaded = await uploadToCloudinary({
-        buffer: paymentProofFile.buffer,
-        resourceType: 'image',
-        folder: 'shop-conversions/payment-proofs'
-      });
-      paymentProofUrl = uploaded.secure_url || uploaded.url;
-    } catch (error) {
-      console.error('Payment proof upload error:', error);
-      return res.status(500).json({ message: 'Erreur lors de l\'upload de la preuve de paiement.' });
-    }
-  }
-
-  // Create the request
+  // Store the business documents first. The request becomes reviewable only
+  // after PawaPay confirms the checkout.
   const request = await ShopConversionRequest.create({
     user: user._id,
     shopName: normalizedShopName,
@@ -272,80 +271,73 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     shopLogo: shopLogoUrl,
     shopDescription: (shopDescription || '').trim(),
     verificationDocuments,
-    paymentProof: paymentProofUrl,
+    paymentProof: '',
     paymentAmount: amount,
     paymentMethod,
-    paymentStatus: 'pending_admin_validation',
-    operator,
-    transactionName: transactionName.trim(),
-    transactionNumber: digitsOnly,
-    status: 'pending'
+    paymentStatus: 'awaiting_payment',
+    operator: 'PawaPay',
+    transactionName: 'PawaPay',
+    transactionNumber: '',
+    status: 'awaiting_payment'
   });
 
-  // Notify all admins about the new conversion request
-  try {
-    const admins = await User.find({
-      role: { $in: ['admin', 'founder', 'manager'] }
-    })
-      .select('_id role')
-      .lean();
-
-    const actorId = user._id;
-    const metadata = {
-      requestId: request._id.toString(),
-      shopName: normalizedShopName,
-      userName: user.name,
-      userEmail: user.email,
-      userPhone: user.phone,
-      paymentAmount: amount,
-      paymentMethod,
-      paymentStatus: request.paymentStatus,
-      operator: request.operator,
-      transactionNumber: request.transactionNumber,
-      requiredDocuments: ['shopPaper', 'shopInvoice', 'insidePhoto', 'outsidePhoto']
-    };
-
-    for (const admin of admins) {
-      const adminId = admin._id.toString();
-      if (adminId === actorId.toString()) continue;
-      await createNotification({
-        userId: admin._id,
-        actorId: actorId,
-        type: 'shop_conversion_request',
-        audience:
-          String(admin.role || '').toLowerCase() === 'founder'
-            ? 'FOUNDER'
-            : String(admin.role || '').toLowerCase() === 'admin'
-            ? 'ADMIN'
-            : 'ROLE_GROUP',
-        targetRole: [String(admin.role || 'ADMIN').toUpperCase()],
-        actionRequired: true,
-        actionType: 'APPROVE',
-        actionStatus: 'PENDING',
-        deepLink: `/admin/users?shopConversionRequestId=${request._id}`,
-        actionLink: `/admin/users?shopConversionRequestId=${request._id}`,
-        entityType: 'shopConversionRequest',
-        entityId: String(request._id),
-        validationType: 'shopConversion',
-        metadata,
-        allowSelf: false
-      });
-    }
-  } catch (error) {
-    console.error('Failed to send admin notifications for shop conversion request:', error);
-    // Don't fail the request if notification fails
-  }
-
   res.status(201).json({
-    message: 'Demande de conversion en boutique soumise avec succès. Traitement sous 48h.',
+    message: 'Dossier enregistré. Finalisez le paiement sécurisé avec PawaPay.',
     request: {
       _id: request._id,
       shopName: request.shopName,
       status: request.status,
+      paymentStatus: request.paymentStatus,
       createdAt: request.createdAt
     }
   });
 });
+
+export const completeShopConversionPawaPay = async ({ checkout, requestId }) => {
+  const request = await ShopConversionRequest.findOne({
+    _id: requestId,
+    user: checkout.user
+  });
+  if (!request) throw new Error('Demande de conversion en boutique introuvable.');
+  if (request.paymentStatus === 'paid') {
+    return {
+      request,
+      message: 'Demande boutique déjà payée avec PawaPay.'
+    };
+  }
+  if (request.status !== 'awaiting_payment') {
+    throw new Error('Cette demande boutique ne peut plus être payée.');
+  }
+
+  const configuredAmount = Number(await getSettingValue(SETTING_KEYS.SHOP_CONVERSION_AMOUNT, 50000));
+  const requiredAmount = Number.isFinite(configuredAmount) && configuredAmount > 0 ? configuredAmount : 50000;
+  if (
+    Math.abs(Number(checkout.amount || 0) - Number(request.paymentAmount || 0)) > 0.01 ||
+    Math.abs(Number(checkout.amount || 0) - requiredAmount) > 0.01
+  ) {
+    throw new Error('Le montant confirmé par PawaPay ne correspond pas aux frais boutique.');
+  }
+
+  request.paymentStatus = 'paid';
+  request.status = 'pending';
+  request.operator = 'PawaPay';
+  request.transactionName = 'PawaPay';
+  request.transactionNumber = checkout.checkoutId;
+  request.pawaPayCheckoutId = checkout.checkoutId;
+  await request.save();
+
+  const user = await User.findById(checkout.user).select('name email phone');
+  if (user) {
+    await notifyShopConversionManagers({ request, user }).catch((error) => {
+      console.error('Failed to notify staff about paid shop conversion:', error);
+    });
+  }
+
+  return {
+    request,
+    message: 'Paiement PawaPay confirmé. Votre demande boutique est en cours de vérification.'
+  };
+};
 
 /**
  * Get user's shop conversion requests
@@ -408,6 +400,11 @@ export const approveShopConversionRequest = asyncHandler(async (req, res) => {
 
   if (request.status !== 'pending') {
     return res.status(400).json({ message: 'Cette demande a déjà été traitée.' });
+  }
+  if (request.paymentMethod === 'pawapay' && request.paymentStatus !== 'paid') {
+    return res.status(400).json({
+      message: 'Le paiement PawaPay doit être confirmé avant l’approbation de cette demande.'
+    });
   }
   const requiredDocumentKeys = ['shopPaper', 'shopInvoice', 'insidePhoto', 'outsidePhoto'];
   const missingDocuments = requiredDocumentKeys.filter(

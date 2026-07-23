@@ -17,10 +17,17 @@ import {
   receivePawaPayCallback,
   createPawaPayCheckout,
   getMyPawaPayCheckout,
+  listPawaPayRefundsAdmin,
+  refreshPawaPayRefundAdmin,
   verifyPawaPayContentDigest,
   verifyPawaPaySignature
 } from '../controllers/pawapayController.js';
 import { getPawaPayConfig } from '../services/pawapayService.js';
+import {
+  listSellerPayoutsAdmin,
+  refreshSellerPayoutAdmin,
+  retrySellerPayoutAdmin
+} from '../controllers/settlementController.js';
 
 const router = express.Router();
 
@@ -71,6 +78,11 @@ router.post(
   createPawaPayCheckout
 );
 router.get('/pawapay/checkouts/:checkoutId', protect, getMyPawaPayCheckout);
+router.get('/pawapay/refunds', protect, requirePaymentVerification, listPawaPayRefundsAdmin);
+router.post('/pawapay/refunds/:refundId/refresh', protect, requirePaymentVerification, refreshPawaPayRefundAdmin);
+router.get('/pawapay/payouts', protect, requirePaymentVerification, listSellerPayoutsAdmin);
+router.post('/pawapay/payouts/:payoutId/retry', protect, requirePaymentVerification, retrySellerPayoutAdmin);
+router.post('/pawapay/payouts/:payoutId/refresh', protect, requirePaymentVerification, refreshSellerPayoutAdmin);
 
 // User
 router.post(

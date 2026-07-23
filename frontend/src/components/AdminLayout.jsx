@@ -7,6 +7,7 @@ import {
   Users,
   Package,
   DollarSign,
+  WalletCards,
   ClipboardList,
   Truck,
   MessageSquare,
@@ -154,6 +155,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
   },
   { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
   { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/seller-payouts', label: 'Versements vendeurs', icon: WalletCards, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments || hasAnyPermission(u, ['verify_payments']) },
   { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres'), icon: SlidersHorizontal, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
   { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderTree, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
   {

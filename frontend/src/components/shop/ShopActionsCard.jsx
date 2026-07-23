@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, Loader2, MessageCircle, Navigation, Pencil, Phone, Rocket, Share2 } from 'lucide-react';
+import { Heart, Loader2, MessageCircle, Navigation, Pencil, Phone, Rocket, Share2, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function ShopActionsCard({
@@ -30,6 +30,7 @@ export default function ShopActionsCard({
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={onPrimaryAction} className={primaryBtn}><Pencil size={15} />{t('shop_profile.edit_profile', 'Modifier profil')}</button>
           <Link to="/seller/boosts" className={outlineBtn}><Rocket size={15} />{t('shop_profile.boost_shop', 'Booster')}</Link>
+          <Link to="/my/settlements" className={`${outlineBtn} col-span-2`}><WalletCards size={15} />Versements des ventes</Link>
         </div>
       ) : (
         <div className="flex items-center gap-2">

@@ -25,13 +25,13 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {actions.map((action) => {
             const Icon = action.icon;
-            const className =
-              action.tone === 'danger'
-                ? 'border border-rose-100 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300'
-                : 'border border-gray-100 bg-gray-50 text-gray-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-gray-200';
+            const danger = action.tone === 'danger';
+            const className = danger
+              ? 'border-rose-200 bg-white text-rose-600 hover:border-rose-300 hover:bg-rose-50 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900'
+              : 'border-gray-200 bg-white text-gray-800 hover:border-orange-300 hover:text-[#FF6A00] dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-100 dark:hover:border-orange-800 dark:hover:text-orange-400';
             const content = (
               <>
-                {Icon ? <Icon size={14} /> : null}
+                {Icon ? <Icon size={15} strokeWidth={2.25} /> : null}
                 {action.label}
               </>
             );
@@ -41,7 +41,7 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
                 <Link
                   key={action.key}
                   to={action.to}
-                  className={`inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-sm font-semibold shadow-sm transition active:scale-[0.98] ${className}`}
+                  className={`inline-flex min-h-[40px] items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-sm font-bold shadow-sm transition active:scale-[0.97] ${className}`}
                 >
                   {content}
                 </Link>
@@ -54,7 +54,7 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
                 type="button"
                 onClick={action.onClick}
                 disabled={action.disabled}
-                className={`inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-sm font-semibold shadow-sm transition active:scale-[0.98] disabled:opacity-60 ${className}`}
+                className={`inline-flex min-h-[40px] items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-sm font-bold shadow-sm transition active:scale-[0.97] disabled:opacity-60 ${className}`}
               >
                 {content}
               </button>

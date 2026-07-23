@@ -519,6 +519,16 @@ export default function MyComplaints() {
                           Type: {RESOLUTION_LABELS[dispute.resolutionType] || dispute.resolutionType}
                         </p>
                       )}
+                      {Number(dispute.resolutionAmount || 0) > 0 && (
+                        <p className="mt-1 text-xs font-bold text-emerald-800">
+                          Montant: {amount(dispute.resolutionAmount)}
+                        </p>
+                      )}
+                      {dispute.orderId?.refundStatus && dispute.orderId.refundStatus !== 'none' && (
+                        <p className="mt-1 text-xs text-emerald-800">
+                          Remboursement PawaPay: {dispute.orderId.refundStatus === 'processed' ? 'confirmé' : dispute.orderId.refundStatus === 'failed' ? 'échec — contactez l’assistance' : 'en cours'}
+                        </p>
+                      )}
                     </div>
                   )}
 

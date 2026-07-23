@@ -96,6 +96,41 @@ const STATUS_STYLES = {
   cancelled: { header: 'bg-red-600', card: 'bg-red-50 border-red-200 text-red-800' }
 };
 
+const SETTLEMENT_STATUS_META = {
+  held: {
+    label: 'Délai de sécurité',
+    className: 'border-amber-200 bg-amber-50 text-amber-800'
+  },
+  waiting_account: {
+    label: 'Compte Mobile Money requis',
+    className: 'border-orange-200 bg-orange-50 text-orange-800'
+  },
+  ready: {
+    label: 'Prêt au versement',
+    className: 'border-sky-200 bg-sky-50 text-sky-800'
+  },
+  processing: {
+    label: 'Versement PawaPay en cours',
+    className: 'border-neutral-200 bg-neutral-50 text-neutral-800'
+  },
+  paid: {
+    label: 'Versé',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-800'
+  },
+  failed: {
+    label: 'Échec du versement',
+    className: 'border-red-200 bg-red-50 text-red-800'
+  },
+  blocked: {
+    label: 'Versement suspendu',
+    className: 'border-red-200 bg-red-50 text-red-800'
+  },
+  cancelled: {
+    label: 'Versement annulé',
+    className: 'border-gray-200 bg-gray-50 text-gray-700'
+  }
+};
+
 const STATUS_ICONS = {
   pending_payment: Clock,
   paid: CreditCard,
@@ -373,10 +408,6 @@ export default function SellerOrderDetail() {
   const [statusUpdateFeedback, setStatusUpdateFeedback] = useState({ id: '', message: '', tone: 'error' });
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [cancelRefundMethod, setCancelRefundMethod] = useState('mobile_money');
-  const [cancelRefundSenderName, setCancelRefundSenderName] = useState('');
-  const [cancelRefundTransactionNumber, setCancelRefundTransactionNumber] = useState('');
-  const [cancelRefundProof, setCancelRefundProof] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showDeliveryProofForm, setShowDeliveryProofForm] = useState(false);
   const deliveryProofFormRef = useRef(null);
@@ -668,10 +699,6 @@ export default function SellerOrderDetail() {
     if (cancelLoading && !force) return;
     setCancelModalOpen(false);
     setCancelReason('');
-    setCancelRefundMethod('mobile_money');
-    setCancelRefundSenderName('');
-    setCancelRefundTransactionNumber('');
-    setCancelRefundProof(null);
   };
 
   const handleCancelOrder = async () => {
@@ -679,26 +706,19 @@ export default function SellerOrderDetail() {
     setCancelLoading(true);
     try {
       const mustRefund = Number(order.paidAmount || 0) > 0;
-      if (mustRefund && cancelRefundMethod === 'mobile_money' && (!cancelRefundSenderName.trim() || cancelRefundTransactionNumber.length !== 10 || !cancelRefundProof)) {
-        showToast('Complétez le nom, le code à 10 chiffres et la preuve du remboursement.', { variant: 'error' });
-        return;
-      }
-      const payload = new FormData();
-      payload.append('reason', cancelReason.trim());
-      payload.append('issueRefund', String(mustRefund));
-      if (mustRefund) payload.append('refundMethod', cancelRefundMethod);
-      if (cancelRefundMethod === 'mobile_money') {
-        payload.append('refundSenderName', cancelRefundSenderName.trim());
-        payload.append('refundTransactionNumber', cancelRefundTransactionNumber);
-        payload.append('refundProof', cancelRefundProof);
-      }
-      const { data } = await api.post(`/orders/seller/${order._id}/cancel`, payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data } = await api.post(`/orders/seller/${order._id}/cancel`, {
+        reason: cancelReason.trim(),
+        issueRefund: mustRefund
+      });
       applyOrderToSellerCaches(data);
+      const refundFailed = mustRefund && data?.refundStatus === 'failed';
       showToast(
-        mustRefund
-          ? 'Commande annulée. Le remboursement intégral a été enregistré.'
-          : 'Commande annulée. Le client a été notifié.',
-        { variant: 'success' }
+        refundFailed
+          ? 'Commande annulée, mais le remboursement PawaPay a échoué. L’administration a été notifiée.'
+          : mustRefund
+            ? 'Commande annulée. Le remboursement PawaPay est en cours.'
+            : 'Commande annulée. Le client a été notifié.',
+        { variant: refundFailed ? 'error' : 'success' }
       );
       closeCancelModal({ force: true });
       invalidateOrderQueries();
@@ -1652,6 +1672,53 @@ export default function SellerOrderDetail() {
                         {order.paymentTransactionCode && <p>Transaction: {order.paymentTransactionCode}</p>}
                       </div>
                     )}
+                    {order.settlementStatus && order.settlementStatus !== 'none' && (() => {
+                      const settlementMeta =
+                        SETTLEMENT_STATUS_META[order.settlementStatus] || SETTLEMENT_STATUS_META.held;
+                      return (
+                        <div className="space-y-3 border-t border-gray-200 pt-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-sm font-semibold text-gray-700">Versement vendeur</span>
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${settlementMeta.className}`}>
+                              {settlementMeta.label}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-lg bg-gray-50 p-2.5">
+                              <p className="text-gray-500">Commission HDMarket</p>
+                              <p className="mt-1 font-bold text-gray-900">
+                                {formatCurrency(order.settlementCommissionAmount || 0)}
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-gray-50 p-2.5">
+                              <p className="text-gray-500">Montant à recevoir</p>
+                              <p className="mt-1 font-bold text-emerald-700">
+                                {formatCurrency(order.settlementNetAmount || 0)}
+                              </p>
+                            </div>
+                          </div>
+                          {order.settlementReleaseAt && !['paid', 'cancelled'].includes(order.settlementStatus) && (
+                            <p className="text-xs text-gray-600">
+                              Disponible à partir du{' '}
+                              <span className="font-semibold text-gray-900">
+                                {formatOrderTimestamp(order.settlementReleaseAt)}
+                              </span>
+                            </p>
+                          )}
+                          {order.settlementFailureReason && (
+                            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                              {order.settlementFailureReason}
+                            </p>
+                          )}
+                          <Link
+                            to="/my/settlements"
+                            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+                          >
+                            Gérer mes versements
+                          </Link>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </div>
@@ -2408,7 +2475,10 @@ export default function SellerOrderDetail() {
                 {Number(order.refundAmount || 0) > 0 && (
                   <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-4 text-sm text-emerald-900">
                     <p className="font-bold">Remboursement intégral: {formatCurrency(order.refundAmount)}</p>
-                    <p>Mode: Mobile Money</p>
+                    <p>Mode: PawaPay vers le compte Mobile Money utilisé lors du paiement</p>
+                    <p>Statut: {order.refundStatus === 'processed' ? 'Confirmé' : order.refundStatus === 'failed' ? 'Échec — intervention requise' : 'En cours'}</p>
+                    {order.refundId && <p>Référence: {order.refundId}</p>}
+                    {order.refundFailureReason && <p className="text-red-700">{order.refundFailureReason}</p>}
                     {order.refundSenderName && <p>Expéditeur: {order.refundSenderName}</p>}
                     {order.refundTransactionNumber && <p>ID transaction: {order.refundTransactionNumber}</p>}
                     {order.refundProof && /^https?:\/\//i.test(order.refundProof) && (
@@ -2522,7 +2592,7 @@ export default function SellerOrderDetail() {
                 <p className="mt-1 text-sm font-black text-[#e85d00]">{formatCurrency(order.paidAmount)} — en une seule fois</p>
               </div>
               <div className="rounded-xl border border-emerald-200 bg-white p-3 text-xs font-semibold leading-5 text-emerald-800">
-                Remboursement automatique vers le portefeuille HDMarket du client. Il pourra ensuite retirer les fonds vers MTN MoMo ou Airtel Money avec PawaPay.
+                PawaPay renverra automatiquement les fonds vers le compte Mobile Money utilisé par le client lors du paiement. La confirmation peut prendre quelques instants.
               </div>
             </div>
           )}
@@ -2532,7 +2602,7 @@ export default function SellerOrderDetail() {
             <button type="button" onClick={closeCancelModal} disabled={cancelLoading} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
               Annuler
             </button>
-            <button type="button" onClick={handleCancelOrder} disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5 || (Number(order?.paidAmount || 0) > 0 && cancelRefundMethod === 'mobile_money' && (!cancelRefundSenderName.trim() || cancelRefundTransactionNumber.length !== 10 || !cancelRefundProof))} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="button" onClick={handleCancelOrder} disabled={cancelLoading || !cancelReason.trim() || cancelReason.trim().length < 5} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
               {cancelLoading ? 'Annulation...' : 'Confirmer l\'annulation'}
             </button>
           </div>

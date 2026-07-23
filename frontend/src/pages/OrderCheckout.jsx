@@ -154,7 +154,7 @@ export default function OrderCheckout() {
   const paysWithPawaPay = isPawaPayPayment || (isInstallmentPayment && installmentPaymentMethod === 'pawapay');
   const isSponsorPayment = paymentMode === PAYMENT_MODES.SPONSOR;
   const payForOtherEnabled = normalizeBoolean(getRuntimeValue('enable_pay_for_other', false), false);
-  const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
+  const pawaPayOnlyMode = true;
 
   // Resolve the entered payer phone → confirm which HDMarket user it belongs to.
   useEffect(() => {

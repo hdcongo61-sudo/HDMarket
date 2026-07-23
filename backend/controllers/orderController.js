@@ -29,7 +29,6 @@ import { redeemPointsForOrder, awardPoints } from '../services/rewardPointsServi
 import { applyGroupBuyPricing } from '../services/groupBuyService.js';
 import {
   findUsedTransactionCodes,
-  isTransactionCodeAlreadyUsed,
   isTransactionCodeValid,
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
@@ -71,6 +70,8 @@ import {
   notifyBuyerDeliveryDistanceWarning
 } from '../utils/deliveryDistanceWarning.js';
 import { getPawaPayConfig } from '../services/pawapayService.js';
+import { initiateOrderRefund } from '../services/refundService.js';
+import { ensureSellerSettlementForOrder } from '../services/sellerSettlementService.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -957,10 +958,14 @@ const buildOrderResponse = (order) => {
     refundRequestedBy: obj.refundRequestedBy || null,
     refundRequestedAt: obj.refundRequestedAt || null,
     refundMethod: obj.refundMethod || '',
+    refundId: obj.refundId || '',
+    refundFailureReason: obj.refundFailureReason || '',
     refundProof: obj.refundProof || '',
     refundTransactionNumber: obj.refundTransactionNumber || '',
     refundSenderName: obj.refundSenderName || '',
     refundedAt: obj.refundedAt || null,
+    paymentCheckoutId: obj.paymentCheckoutId || '',
+    paymentDepositId: obj.paymentDepositId || '',
     deliveryCode: obj.deliveryCode || null,
     deliveryProofImages: Array.isArray(obj.deliveryProofImages) ? obj.deliveryProofImages : [],
     clientSignatureImage: obj.clientSignatureImage || '',
@@ -1272,6 +1277,10 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       paymentType: 'full',
       paymentMode: 'FULL_PAYMENT',
       paymentSource: 'pawapay',
+      paymentName: 'PawaPay',
+      paymentTransactionCode: req.pawaPayCheckout.checkoutId,
+      paymentCheckoutId: req.pawaPayCheckout.checkoutId,
+      paymentDepositId: req.pawaPayCheckout.depositId || '',
       paymentStatus: 'PAID_FULL',
       paymentCompletedAt: new Date(),
       deliveryMode,
@@ -4263,6 +4272,9 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     order.completedAt = now;
   }
   await order.save();
+  await safeAsync(() => ensureSellerSettlementForOrder(order), {
+    label: 'client_confirm_create_seller_settlement'
+  });
   emitOrderLifecycleUpdate({
     order,
     updatedBy: userId,
@@ -5120,7 +5132,6 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   const access = await resolveSellerAccess(req, 'reject_orders');
   const { actorId, sellerId } = access;
   const { reason } = req.body;
-  const refundMethod = String(req.body?.refundMethod || '').trim().toLowerCase();
 
   if (!ensureObjectId(id)) {
     return res.status(400).json({ message: 'Commande inconnue.' });
@@ -5146,53 +5157,24 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
 
   const paidAmount = Number(order.paidAmount || 0);
   const refundAmount = Math.max(0, paidAmount);
-  let refundProofUrl = '';
-  let refundTransactionNumber = '';
-  let refundSenderName = '';
-
-  if (refundAmount > 0) {
-    if (refundMethod !== 'mobile_money') {
-      return res.status(400).json({ message: 'Choisissez le remboursement Mobile Money.' });
-    }
-    if (refundMethod === 'mobile_money') {
-      refundTransactionNumber = normalizeTransactionCode(req.body?.refundTransactionNumber);
-      refundSenderName = String(req.body?.refundSenderName || '').trim();
-      if (!refundSenderName) return res.status(400).json({ message: 'Le nom de l’expéditeur du remboursement est requis.' });
-      if (refundTransactionNumber.length !== 10) {
-        return res.status(400).json({ message: 'Le code du remboursement doit contenir exactement 10 chiffres.' });
-      }
-      if (await isTransactionCodeAlreadyUsed(refundTransactionNumber)) {
-        return res.status(409).json({ message: TRANSACTION_CODE_REUSED_MESSAGE });
-      }
-      if (!req.file?.buffer) return res.status(400).json({ message: 'La preuve du remboursement Mobile Money est obligatoire.' });
-      try {
-        const uploaded = await uploadToCloudinary({
-          buffer: req.file.buffer,
-          resourceType: 'image',
-          folder: 'orders/refund-proofs',
-          options: { quality: 'auto', fetch_format: 'auto', flags: 'progressive' }
-        });
-        refundProofUrl = uploaded.secure_url || uploaded.url || '';
-      } catch (error) {
-        return res.status(500).json({ message: 'Impossible d’enregistrer la preuve de remboursement.' });
-      }
-    }
-  }
-
   order.status = 'cancelled';
   order.cancelledAt = new Date();
   order.cancelledBy = actorId;
   order.cancellationReason = reason.trim();
+  let refund = null;
   if (refundAmount > 0) {
-    order.refundStatus = 'pending';
-    order.refundAmount = refundAmount;
-    order.refundRequestedBy = actorId;
-    order.refundRequestedAt = new Date();
-    order.refundMethod = refundMethod;
-    order.refundProof = refundProofUrl;
-    order.refundTransactionNumber = refundTransactionNumber;
-    order.refundSenderName = refundSenderName;
-    order.refundedAt = new Date();
+    try {
+      refund = await initiateOrderRefund({
+        order,
+        requestedBy: actorId,
+        amount: refundAmount,
+        source: 'SELLER_CANCELLATION'
+      });
+    } catch (error) {
+      return res.status(Number(error?.status || 400)).json({
+        message: error?.message || 'Impossible de lancer le remboursement PawaPay.'
+      });
+    }
   }
 
   await order.save();
@@ -5250,13 +5232,15 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       cancelledBy: 'seller',
       reason: order.cancellationReason,
       refundRequested: refundAmount > 0,
-      refundMethod,
+      refundMethod: refundAmount > 0 ? 'pawapay' : '',
+      refundId: refund?.refundId || '',
+      refundStatus: refund?.status || 'none',
       refundAmount
     },
     allowSelf: true
   });
 
-  if (refundAmount > 0 && refundMethod === 'mobile_money') {
+  if (refundAmount > 0) {
     const adminRecipients = await User.find({
       $or: [{ role: 'admin' }, { role: 'manager' }, { canVerifyPayments: true }]
     })
@@ -5269,8 +5253,10 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
           actorId,
           type: 'admin_broadcast',
           metadata: {
-            message: `Remboursement demandé pour la commande #${String(order._id).slice(-6)}: ${formatSmsAmount(refundAmount)} FCFA.`,
+            message: `Remboursement PawaPay lancé pour la commande #${String(order._id).slice(-6)}: ${formatSmsAmount(refundAmount)} FCFA.`,
             orderId: order._id,
+            refundId: refund?.refundId || '',
+            refundStatus: refund?.status || 'PROCESSING',
             refundRequested: true,
             refundAmount
           }
@@ -5288,7 +5274,7 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
       const reasonText = order.cancellationReason ? ` Raison: ${order.cancellationReason}` : '';
       const refundText =
         refundAmount > 0
-          ? ` Remboursement intégral envoyé: ${formatSmsAmount(refundAmount)} FCFA (Mobile Money).`
+          ? ` Remboursement PawaPay de ${formatSmsAmount(refundAmount)} FCFA en cours vers le compte Mobile Money utilisé pour le paiement.`
           : '';
       const orderId = order._id ? String(order._id).slice(-6) : '';
       const message = `HDMarket : Votre commande ${orderId} a été annulée par le vendeur.${reasonText}${refundText} ${itemsSummary ? `| ${itemsSummary}` : ''} | Total: ${total} FCFA`;

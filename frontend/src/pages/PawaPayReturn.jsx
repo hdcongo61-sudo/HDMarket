@@ -36,6 +36,7 @@ export const getPawaPaySuccessPath = (checkout) => {
     return '/sponsorships';
   }
   if (actionKind === 'BOOST_REQUEST') return '/seller/boosts';
+  if (actionKind === 'SHOP_CONVERSION_REQUEST') return '/shop-conversion-request';
 
   return safeInternalPath(checkout?.returnPath, '/orders');
 };

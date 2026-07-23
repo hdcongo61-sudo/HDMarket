@@ -1896,8 +1896,8 @@ export default function SellerOrders() {
 
                 {Number(cancelOrder?.paidAmount || 0) > 0 && (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900">
-                    Cette commande est payée. Le remboursement intégral de <strong>{formatCurrency(cancelOrder.paidAmount)}</strong> doit être envoyé en une seule fois.
-                    <Link to={`/seller/orders/detail/${cancelOrderId}`} onClick={closeCancelModal} className="mt-2 inline-flex rounded-lg bg-[#e85d00] px-3 py-2 font-black text-white">Ouvrir le détail et rembourser</Link>
+                    Cette commande est payée. Le remboursement intégral de <strong>{formatCurrency(cancelOrder.paidAmount)}</strong> sera lancé automatiquement par PawaPay.
+                    <Link to={`/seller/orders/detail/${cancelOrderId}`} onClick={closeCancelModal} className="mt-2 inline-flex rounded-lg bg-[#e85d00] px-3 py-2 font-black text-white">Ouvrir le détail et annuler</Link>
                   </div>
                 )}
                 <span className="text-2xl font-bold text-gray-900">

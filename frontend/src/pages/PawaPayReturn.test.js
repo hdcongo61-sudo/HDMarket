@@ -27,6 +27,15 @@ describe('PawaPay success destinations', () => {
     ).toBe('/my/annonce/chaise');
   });
 
+  it('returns a paid shop conversion to its request page', () => {
+    expect(
+      getPawaPaySuccessPath({
+        actionKind: 'SHOP_CONVERSION_REQUEST',
+        returnPath: '/shop-conversion-request'
+      })
+    ).toBe('/shop-conversion-request');
+  });
+
   it('does not accept an external redirect from stored checkout data', () => {
     expect(
       getPawaPaySuccessPath({

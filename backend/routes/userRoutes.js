@@ -41,6 +41,10 @@ import {
   togglePinSearchHistory,
   exportSearchHistory
 } from '../controllers/userController.js';
+import {
+  getMySellerSettlements,
+  updateMyPayoutAccount
+} from '../controllers/settlementController.js';
 import { createComplaint, getUserComplaints } from '../controllers/complaintController.js';
 import { createPreviewImageReport, createReport } from '../controllers/contentReportController.js';
 import {
@@ -83,6 +87,12 @@ const accountDeactivationRateLimiter = rateLimit({
 router.use(protect);
 
 router.get('/profile', cacheMiddleware({ domain: 'users', scope: 'user', ttl: 60000 }), getProfile);
+router.get('/profile/settlements', getMySellerSettlements);
+router.put(
+  '/profile/payout-account',
+  validate(schemas.sellerPayoutAccount),
+  updateMyPayoutAccount
+);
 router.post('/logout-cache', clearMyCacheOnLogout);
 router.post('/profile/deactivate', accountDeactivationRateLimiter, deactivateMyAccount);
 router.patch('/preferences', validate(schemas.userPreferencesUpdate), updateUserPreferences);
@@ -184,7 +194,6 @@ router.post(
   '/shop-conversion-requests',
   upload.fields([
     { name: 'shopLogo', maxCount: 1 },
-    { name: 'paymentProof', maxCount: 1 },
     { name: 'shopPaper', maxCount: 1 },
     { name: 'shopInvoice', maxCount: 1 },
     { name: 'insidePhoto', maxCount: 1 },

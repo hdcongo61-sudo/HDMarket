@@ -89,6 +89,11 @@ import { ensureDefaultSettingsBootstrap } from './controllers/settingsController
 import { initRedis, closeRedis } from './config/redisClient.js';
 import { getRuntimeConfig, preloadRuntimeConfigCache } from './services/configService.js';
 import { maintenanceModeMiddleware } from './middlewares/maintenanceModeMiddleware.js';
+import { reconcilePendingRefunds } from './services/refundService.js';
+import {
+  processSellerSettlements,
+  reconcilePendingSellerPayouts
+} from './services/sellerSettlementService.js';
 import { initNotificationQueue, closeNotificationQueue } from './queues/notificationQueue.js';
 import { initNotificationWorker, closeNotificationWorker } from './workers/notificationWorker.js';
 import {
@@ -621,6 +626,32 @@ httpServer.listen(port, () => {
     console.error('Settings bootstrap failed:', error);
   });
   const schedulerNotificationsEnabled = process.env.SCHEDULER_NOTIFICATIONS_ENABLED === 'true';
+
+  const runRefundReconciliation = async () => {
+    try {
+      await reconcilePendingRefunds();
+    } catch (error) {
+      console.error('[pawapay-refunds] reconciliation failed:', error?.message || error);
+    }
+  };
+  setTimeout(runRefundReconciliation, 30_000);
+  setInterval(runRefundReconciliation, 5 * 60 * 1000);
+
+  let settlementPassRunning = false;
+  const runSellerSettlementPass = async () => {
+    if (settlementPassRunning) return;
+    settlementPassRunning = true;
+    try {
+      await processSellerSettlements();
+      await reconcilePendingSellerPayouts();
+    } catch (error) {
+      console.error('[seller-settlements] processing failed:', error?.message || error);
+    } finally {
+      settlementPassRunning = false;
+    }
+  };
+  setTimeout(runSellerSettlementPass, 45_000);
+  setInterval(runSellerSettlementPass, 5 * 60 * 1000);
 
   const notifyBackoffice = async ({ title, message, metadata = {} }) => {
     if (!schedulerNotificationsEnabled) return;

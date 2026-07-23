@@ -21,6 +21,8 @@ const pawapayEventSchema = new mongoose.Schema(
     firstReceivedAt: { type: Date, default: Date.now },
     lastReceivedAt: { type: Date, default: Date.now },
     matchedPayment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },
+    matchedRefund: { type: mongoose.Schema.Types.ObjectId, ref: 'Refund', default: null },
+    matchedPayout: { type: mongoose.Schema.Types.ObjectId, ref: 'SellerPayout', default: null },
     reconciliationStatus: {
       type: String,
       enum: ['UNMATCHED', 'MATCHED', 'AMOUNT_MISMATCH', 'CURRENCY_MISMATCH'],
