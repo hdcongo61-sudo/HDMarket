@@ -32,6 +32,7 @@ import {
 } from '../utils/transactionCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { purchaseFromWallet, refundToWallet } from '../services/walletService.js';
+import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -357,6 +358,13 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
   const paymentMethod = String(req.body?.paymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
     ? 'wallet'
     : 'mobile_money';
+  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
+  if (pawaPayOnly && paymentMethod !== 'wallet') {
+    return res.status(403).json({
+      code: 'PAWAPAY_ONLY',
+      message: 'Les preuves et identifiants de transaction sont désactivés. Payez avec PawaPay.'
+    });
+  }
   const paymentOperator = String(req.body?.paymentOperator || '').trim();
   const paymentSenderName = String(req.body?.paymentSenderName || '').trim();
   const paymentTransactionId = String(req.body?.paymentTransactionId || '').replace(/\D/g, '');
@@ -404,7 +412,8 @@ export const createBoostRequest = asyncHandler(async (req, res) => {
       }
     }
   } else {
-    const walletEnabled = await getRuntimeConfig('enable_digital_wallet', { fallback: false });
+    const walletEnabled =
+      pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
     if (!walletEnabled) {
       return res.status(403).json({ message: 'Le portefeuille HDMarket est désactivé.' });
     }

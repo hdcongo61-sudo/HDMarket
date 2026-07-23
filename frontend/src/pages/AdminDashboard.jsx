@@ -3927,7 +3927,7 @@ export default function AdminDashboard() {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Vérification des paiements</h2>
                 <p className="mt-0.5 text-sm text-gray-500 dark:text-slate-400 max-w-xl">
-                  Validez ou rejetez les preuves de paiement envoyées par les vendeurs.
+                  Suivez les confirmations PawaPay et consultez les anciens paiements nécessitant une vérification.
                 </p>
               </div>
             </div>

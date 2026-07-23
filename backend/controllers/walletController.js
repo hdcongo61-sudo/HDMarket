@@ -19,7 +19,11 @@ import {
 import { getRuntimeConfig } from '../services/configService.js';
 import User from '../models/userModel.js';
 import Wallet from '../models/walletModel.js';
-import { initiatePawaPayPayout, predictPawaPayProvider } from '../services/pawapayService.js';
+import {
+  getPawaPayConfig,
+  initiatePawaPayPayout,
+  predictPawaPayProvider
+} from '../services/pawapayService.js';
 import {
   getCloudinaryFolder,
   isCloudinaryConfigured,
@@ -74,7 +78,7 @@ const persistWalletProofFile = async (file) => {
 // ─── MIDDLEWARE ───────────────────────────────────────────
 
 const requireWalletEnabled = asyncHandler(async (req, res, next) => {
-  const pawaPayOnly = String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true';
+  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
   const enabled = pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
   if (!enabled) {
     return res.status(403).json({ message: 'Le portefeuille numérique est désactivé.' });
@@ -202,7 +206,7 @@ export const requestMyWithdrawal = asyncHandler(async (req, res) => {
 // ─── USER DEPOSIT REQUEST (with proof) ────────────────────
 
 export const requestMyDeposit = asyncHandler(async (req, res) => {
-  if (String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true') {
+  if (getPawaPayConfig().exclusiveMode) {
     return res.status(403).json({
       code: 'PAWAPAY_ONLY',
       message: 'Les dépôts manuels et les preuves de transaction sont désactivés. Utilisez PawaPay.'
@@ -344,7 +348,7 @@ export const adminRejectDeposit = asyncHandler(async (req, res) => {
 // ─── PUBLIC STATUS ────────────────────────────────────────
 
 export const walletStatus = asyncHandler(async (req, res) => {
-  const pawaPayOnly = String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true';
+  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
   const enabled = pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
   res.json({ enabled });
 });

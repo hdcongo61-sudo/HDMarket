@@ -2522,23 +2522,9 @@ export default function SellerOrderDetail() {
                 <p className="text-xs font-black text-orange-900">Remboursement intégral obligatoire</p>
                 <p className="mt-1 text-sm font-black text-[#e85d00]">{formatCurrency(order.paidAmount)} — en une seule fois</p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {['wallet', 'mobile_money'].map((method) => (
-                  <button key={method} type="button" onClick={() => setCancelRefundMethod(method)} className={`rounded-xl border px-3 py-2 text-xs font-black ${cancelRefundMethod === method ? 'border-[#e85d00] bg-white text-[#e85d00]' : 'border-orange-100 text-gray-600'}`}>
-                    {method === 'wallet' ? 'Portefeuille' : 'Mobile Money'}
-                  </button>
-                ))}
+              <div className="rounded-xl border border-emerald-200 bg-white p-3 text-xs font-semibold leading-5 text-emerald-800">
+                Remboursement automatique vers le portefeuille HDMarket du client. Il pourra ensuite retirer les fonds vers MTN MoMo ou Airtel Money avec PawaPay.
               </div>
-              {cancelRefundMethod === 'mobile_money' && (
-                <div className="space-y-2">
-                  <input value={cancelRefundSenderName} onChange={(e) => setCancelRefundSenderName(e.target.value)} placeholder="Nom de l’expéditeur" className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm" />
-                  <input value={cancelRefundTransactionNumber} onChange={(e) => setCancelRefundTransactionNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="Code transaction (10 chiffres)" className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2.5 text-sm" />
-                  <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-orange-300 bg-white px-3 py-3 text-xs font-black text-orange-700">
-                    {cancelRefundProof ? cancelRefundProof.name : 'Ajouter la preuve du remboursement'}
-                    <input type="file" accept="image/*" onChange={(e) => setCancelRefundProof(e.target.files?.[0] || null)} className="hidden" />
-                  </label>
-                </div>
-              )}
             </div>
           )}
         </ModalBody>

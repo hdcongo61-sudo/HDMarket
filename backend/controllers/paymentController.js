@@ -19,6 +19,7 @@ import {
   normalizeTransactionCode,
   TRANSACTION_CODE_REUSED_MESSAGE
 } from '../utils/transactionCodeService.js';
+import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const isCloseTo = (a, b, tolerance = 0.01) => Math.abs(a - b) <= tolerance;
 
@@ -93,7 +94,9 @@ export const createPayment = asyncHandler(async (req, res) => {
   const isWalletPayment = normalizedPaymentMethod === 'wallet';
 
   if (isWalletPayment) {
-    const walletPaymentEnabled = await getRuntimeConfig('enable_digital_wallet', { fallback: false });
+    const walletPaymentEnabled =
+      getPawaPayConfig().exclusiveMode ||
+      await getRuntimeConfig('enable_digital_wallet', { fallback: false });
     if (!walletPaymentEnabled) {
       return res.status(400).json({ message: 'Le paiement par portefeuille est temporairement indisponible.' });
     }

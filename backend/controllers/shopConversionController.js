@@ -19,6 +19,7 @@ import {
 } from '../utils/shopNameUtils.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { purchaseFromWallet, refundToWallet } from '../services/walletService.js';
+import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const normalizeBoolean = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
@@ -119,6 +120,13 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
   const paymentMethod = String(req.body?.paymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
     ? 'wallet'
     : 'mobile_money';
+  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
+  if (pawaPayOnly && paymentMethod !== 'wallet') {
+    return res.status(403).json({
+      code: 'PAWAPAY_ONLY',
+      message: 'Les preuves et identifiants de transaction sont désactivés. Payez avec PawaPay.'
+    });
+  }
   const normalizedShopName = normalizeShopName(shopName);
 
   // Validate required fields
@@ -178,7 +186,8 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Veuillez sélectionner un opérateur (MTN ou Airtel).' });
     }
   } else {
-    const walletEnabled = await getRuntimeConfig('enable_digital_wallet', { fallback: false });
+    const walletEnabled =
+      pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
     if (!walletEnabled) {
       return res.status(403).json({ message: 'Le portefeuille HDMarket est désactivé.' });
     }

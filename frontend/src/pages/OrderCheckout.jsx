@@ -99,6 +99,7 @@ export default function OrderCheckout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [groupBuyInfo, setGroupBuyInfo] = useState(null);
+  const [walletInfo, setWalletInfo] = useState(null);
 
   useEffect(() => {
     if (!groupBuyId) return;
@@ -107,6 +108,13 @@ export default function OrderCheckout() {
       .then(({ data }) => setGroupBuyInfo(data))
       .catch(() => setGroupBuyInfo(null));
   }, [groupBuyId]);
+  useEffect(() => {
+    if (!user?._id && !user?.id) return;
+    api
+      .get('/wallet', { skipCache: true, skipDedupe: true })
+      .then(({ data }) => setWalletInfo(data || null))
+      .catch(() => setWalletInfo(null));
+  }, [user?._id, user?.id]);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState('');
   const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.WALLET);
@@ -159,6 +167,9 @@ export default function OrderCheckout() {
     !isInstallmentPayment && !isFullPaymentSelected && !isWalletPayment && !isSponsorPayment;
   const payForOtherEnabled = normalizeBoolean(getRuntimeValue('enable_pay_for_other', false), false);
   const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
+  const walletAvailableBalance = Number(
+    walletInfo?.availableBalance ?? walletInfo?.balance ?? 0
+  );
 
   // Resolve the entered payer phone → confirm which HDMarket user it belongs to.
   useEffect(() => {
@@ -375,6 +386,9 @@ export default function OrderCheckout() {
   const summaryOrderTotal = isInstallmentPayment
     ? Number(totals.subtotal || 0)
     : Number(checkoutTotalWithDelivery || 0);
+  const pawaPayRequiredAmount = isInstallmentPayment
+    ? Number(installmentFirstPaymentAmount || 0)
+    : Number(checkoutTotalWithDelivery || 0);
   const summaryPrimaryPaymentLabel = isInstallmentPayment
     ? t('checkout.firstPayment', 'Premier paiement')
     : isFullPaymentSelected
@@ -423,7 +437,7 @@ export default function OrderCheckout() {
 
   const paymentModeCards = useMemo(() => {
     if (pawaPayOnlyMode) {
-      return [{
+      const cards = [{
         id: PAYMENT_MODES.WALLET,
         title: 'PawaPay',
         subtitle: 'Paiement sécurisé par MTN MoMo ou Airtel Money.',
@@ -433,6 +447,19 @@ export default function OrderCheckout() {
         amountDisplay: formatCurrency(checkoutTotalWithDelivery),
         bullets: ['Aucun ID de transaction', 'Confirmation automatique', 'Protection HDMarket']
       }];
+      if (isInstallmentProductEligible) {
+        cards.push({
+          id: PAYMENT_MODES.INSTALLMENT,
+          title: t('checkout.installment', 'Paiement par tranche'),
+          subtitle: 'Premier versement avec PawaPay, puis échéancier automatisé.',
+          eyebrow: `${installmentDuration || 0} jours`,
+          icon: ClipboardList,
+          amount: installmentFirstPaymentAmount,
+          amountDisplay: formatCurrency(installmentFirstPaymentAmount),
+          bullets: ['PawaPay sécurisé', 'Aucun ID manuel', 'Suivi des tranches']
+        });
+      }
+      return cards;
     }
     const baseCards = [
       {
@@ -554,8 +581,16 @@ export default function OrderCheckout() {
   ]);
 
   useEffect(() => {
-    if (paymentMode !== PAYMENT_MODES.WALLET) setPaymentMode(PAYMENT_MODES.WALLET);
-  }, [paymentMode]);
+    if (
+      pawaPayOnlyMode &&
+      ![PAYMENT_MODES.WALLET, PAYMENT_MODES.INSTALLMENT].includes(paymentMode)
+    ) {
+      setPaymentMode(PAYMENT_MODES.WALLET);
+    }
+    if (pawaPayOnlyMode && installmentPaymentMethod !== 'wallet') {
+      setInstallmentPaymentMethod('wallet');
+    }
+  }, [installmentPaymentMethod, pawaPayOnlyMode, paymentMode]);
 
   useEffect(() => {
     if (
@@ -1693,7 +1728,8 @@ export default function OrderCheckout() {
               </div>
             )}
 
-            {walletEligible && checkoutTotalWithDelivery >= 10 && (
+            {walletEligible &&
+              Math.max(0, pawaPayRequiredAmount - walletAvailableBalance) > 0 && (
               <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm sm:p-5">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
@@ -1706,10 +1742,13 @@ export default function OrderCheckout() {
                   <ShieldCheck size={22} className="shrink-0 text-emerald-700" />
                 </div>
                 <PawaPayButton
-                  amount={checkoutTotalWithDelivery}
-                  purpose="CHECKOUT_FUNDING"
+                  amount={Math.max(
+                    10,
+                    Math.ceil(pawaPayRequiredAmount - walletAvailableBalance)
+                  )}
+                  purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
                   returnPath="/orders/checkout"
-                  label="Continuer avec PawaPay"
+                  label="Payer avec PawaPay"
                 />
                 <p className="mt-2 text-[11px] font-semibold text-emerald-800">
                   Le vendeur reçoit sa part dans son solde HDMarket après confirmation, puis peut la retirer vers son réseau MTN ou Airtel vérifié.
@@ -1728,8 +1767,8 @@ export default function OrderCheckout() {
                 <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
                   Payer le premier versement avec
                 </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
+                <div className={`mt-3 grid gap-2 ${pawaPayOnlyMode ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {!pawaPayOnlyMode && <button
                     type="button"
                     onClick={() => setInstallmentPaymentMethod('mobile_money')}
                     className={`rounded-2xl border px-3 py-3 text-left transition ${
@@ -1741,7 +1780,7 @@ export default function OrderCheckout() {
                     <CreditCard size={18} />
                     <p className="mt-2 text-sm font-black">Mobile Money</p>
                     <p className="mt-0.5 text-[11px] font-semibold opacity-70">{t('checkout.transactionRequired', 'Code transaction requis')}</p>
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={() => setInstallmentPaymentMethod('wallet')}
@@ -1752,7 +1791,9 @@ export default function OrderCheckout() {
                     }`}
                   >
                     <Wallet size={18} />
-                    <p className="mt-2 text-sm font-black">Portefeuille HDMarket</p>
+                    <p className="mt-2 text-sm font-black">
+                      {pawaPayOnlyMode ? 'PawaPay · Portefeuille HDMarket' : 'Portefeuille HDMarket'}
+                    </p>
                     <p className="mt-0.5 text-[11px] font-semibold opacity-70">{t('checkout.automaticWallet', 'Débit et validation automatiques')}</p>
                   </button>
                 </div>

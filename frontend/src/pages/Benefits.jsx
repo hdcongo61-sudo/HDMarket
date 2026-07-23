@@ -214,7 +214,7 @@ export default function Benefits() {
           <FeatureCard
             icon={ShieldCheck}
             title="Mobile Money vérifié"
-            benefit="Payez par Mobile Money : chaque paiement est contrôlé par notre équipe avant validation de la commande. Zéro mauvaise surprise."
+            benefit="Payez avec MTN MoMo ou Airtel Money via PawaPay : la confirmation est automatique, sans preuve ni code transaction à recopier."
             steps={[
               'Choisissez votre réseau au moment de payer',
               'Envoyez le paiement et soumettez la référence',

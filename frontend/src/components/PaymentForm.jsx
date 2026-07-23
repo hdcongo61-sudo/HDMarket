@@ -93,6 +93,8 @@ export default function PaymentForm({ product, onSubmitted }) {
   const isWalletPayment = hasCommissionDue && paymentMethod === 'wallet';
   const walletAvailableBalance = Number(wallet?.availableBalance ?? wallet?.balance ?? 0);
   const hasEnoughWalletBalance = walletAvailableBalance >= commissionDue;
+  const walletFundingGap = Math.max(0, commissionDue - walletAvailableBalance);
+  const walletFundingAmount = walletFundingGap > 0 ? Math.max(10, Math.ceil(walletFundingGap)) : 0;
 
   const { networks } = useNetworks();
   const sendMoneyNumber =
@@ -614,17 +616,17 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         </div>
 
-        {hasCommissionDue && (
+        {hasCommissionDue && walletFundingGap > 0 && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
             <p className="text-sm font-black text-emerald-900">Payer plus simplement avec PawaPay</p>
             <p className="mb-3 mt-1 text-xs font-semibold leading-5 text-emerald-800">
               Paiement sécurisé par MTN MoMo ou Airtel Money. Revenez ensuite valider l’annonce avec le solde automatiquement crédité.
             </p>
             <PawaPayButton
-              amount={commissionDue}
+              amount={walletFundingAmount}
               purpose="LISTING_FEE_FUNDING"
               returnPath={typeof window !== 'undefined' ? window.location.pathname : '/wallet'}
-              label="Recharger avec PawaPay"
+              label="Payer avec PawaPay"
             />
           </div>
         )}

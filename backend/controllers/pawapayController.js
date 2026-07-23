@@ -24,7 +24,9 @@ const CHECKOUT_PURPOSES = new Set([
   'WALLET_TOPUP',
   'CHECKOUT_FUNDING',
   'LISTING_FEE_FUNDING',
-  'INSTALLMENT_FUNDING'
+  'INSTALLMENT_FUNDING',
+  'BOOST_FUNDING',
+  'SHOP_CONVERSION_FUNDING'
 ]);
 
 const sendPawaPayError = (res, status, code, message, details = {}) =>

@@ -342,7 +342,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
         <AdminCommandHero
           eyebrow="Finances"
           title="Vérification des paiements"
-          subtitle="Une seule page pour traiter les preuves de paiement, suivre l’historique et gérer les vérificateurs autorisés."
+          subtitle="Suivez les confirmations PawaPay, les rapprochements automatiques et l’historique des paiements antérieurs."
           meta="Les validations manuelles restent traçables et synchronisées avec le centre de commande."
           metrics={paymentMetrics}
           actions={[

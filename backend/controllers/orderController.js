@@ -70,6 +70,7 @@ import {
   buildDeliveryDistanceWarningPayload,
   notifyBuyerDeliveryDistanceWarning
 } from '../utils/deliveryDistanceWarning.js';
+import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -1174,7 +1175,7 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
 
   // Verify wallet payment is enabled
-  const pawaPayOnly = String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true';
+  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
   const walletEnabled = pawaPayOnly || await getRuntimeConfig('enable_wallet_payment', { fallback: false });
   if (!walletEnabled) {
     return res.status(403).json({ message: 'Le paiement par portefeuille est désactivé.' });
@@ -1468,7 +1469,7 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
-  if (String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true') {
+  if (getPawaPayConfig().exclusiveMode) {
     return res.status(403).json({
       code: 'PAWAPAY_ONLY',
       message: 'Ce mode de paiement est désactivé. Réglez la commande avec PawaPay.'
@@ -5423,6 +5424,15 @@ export const sellerCancelOrder = asyncHandler(async (req, res) => {
   let refundSenderName = '';
 
   if (refundAmount > 0) {
+    if (
+      getPawaPayConfig().exclusiveMode &&
+      refundMethod !== 'wallet'
+    ) {
+      return res.status(403).json({
+        code: 'PAWAPAY_ONLY',
+        message: 'Les remboursements manuels sont désactivés. Utilisez le remboursement HDMarket/PawaPay.'
+      });
+    }
     if (!['wallet', 'mobile_money'].includes(refundMethod)) {
       return res.status(400).json({ message: 'Choisissez le mode de remboursement : portefeuille ou Mobile Money.' });
     }

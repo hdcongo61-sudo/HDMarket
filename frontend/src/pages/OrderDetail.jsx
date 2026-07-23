@@ -331,9 +331,11 @@ export default function OrderDetail() {
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
+  const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
   const walletFeatureEnabled =
-    isEnabledFlag(getRuntimeValue('enable_digital_wallet', false), false) &&
-    isEnabledFlag(getRuntimeValue('enable_wallet_payment', false), false);
+    pawaPayOnlyMode ||
+    (isEnabledFlag(getRuntimeValue('enable_digital_wallet', false), false) &&
+      isEnabledFlag(getRuntimeValue('enable_wallet_payment', false), false));
   const queryClient = useQueryClient();
   const { rapid3GActive, offlineBannerText, rapid3GBannerText, shouldUseOfflineSnapshot } =
     useNetworkProfile();
@@ -353,6 +355,7 @@ export default function OrderDetail() {
   const [deliveryQueueSyncing, setDeliveryQueueSyncing] = useState(false);
   const [deliveryCodeRevealed, setDeliveryCodeRevealed] = useState(false);
   const [copiedKey, setCopiedKey] = useState('');
+  const [walletInfo, setWalletInfo] = useState(null);
   const reduceMotion = useReducedMotion();
 
   const copyToClipboard = async (text, key) => {
@@ -471,8 +474,9 @@ export default function OrderDetail() {
     order?.items?.[0]?.snapshot?.shopPhone || order?.items?.[0]?.product?.user?.phone || ''
   ).trim();
   const installmentWalletEnabled =
-    walletFeatureEnabled &&
-    (walletEnabledPhones.length === 0 || walletEnabledPhones.includes(orderSellerPhone));
+    pawaPayOnlyMode ||
+    (walletFeatureEnabled &&
+      (walletEnabledPhones.length === 0 || walletEnabledPhones.includes(orderSellerPhone)));
   const userScopeId = String(user?._id || user?.id || '').trim();
   const normalizeFileUrl = useCallback((url) => {
     const value = String(url || '').trim();
@@ -512,6 +516,14 @@ export default function OrderDetail() {
     setOrder(nextOrder);
     setUnreadCount(Number(buyerOrderDetailQuery.data?.unreadCount || 0));
   }, [buyerOrderDetailQuery.data]);
+
+  useEffect(() => {
+    if (!installmentWalletEnabled || (!user?._id && !user?.id)) return;
+    api
+      .get('/wallet', { skipCache: true, skipDedupe: true })
+      .then(({ data }) => setWalletInfo(data || null))
+      .catch(() => setWalletInfo(null));
+  }, [installmentWalletEnabled, user?._id, user?.id]);
 
   useEffect(() => {
     const nextOrder = buyerOrderDetailQuery.data?.order || null;
@@ -2287,6 +2299,11 @@ export default function OrderDetail() {
                         '',
                       paymentMethod: 'wallet'
                     };
+                    const installmentFundingGap = Math.max(
+                      0,
+                      Number(entry?.amount || 0) -
+                        Number(walletInfo?.availableBalance ?? walletInfo?.balance ?? 0)
+                    );
                     return (
                       <div key={`${order._id}-installment-${index}`} className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2333,19 +2350,19 @@ export default function OrderDetail() {
                         )}
                         {canUploadProof && (
                           <div className="space-y-3">
-                            {installmentWalletEnabled && Number(entry?.amount || 0) >= 10 && (
+                            {installmentWalletEnabled && installmentFundingGap > 0 && (
                               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                                 <p className="mb-2 text-xs font-black text-emerald-900">
                                   Recharge automatique pour cette tranche
                                 </p>
                                 <PawaPayButton
-                                  amount={entry?.amount || 0}
+                                  amount={Math.max(10, Math.ceil(installmentFundingGap))}
                                   purpose="INSTALLMENT_FUNDING"
                                   returnPath={typeof window !== 'undefined' ? window.location.pathname : '/orders'}
                                   label="Payer la tranche avec PawaPay"
                                 />
                                 <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                                  Après votre retour, choisissez « Portefeuille » pour valider la tranche.
+                                  Après confirmation PawaPay, revenez valider la tranche. Aucun ID n’est nécessaire.
                                 </p>
                               </div>
                             )}

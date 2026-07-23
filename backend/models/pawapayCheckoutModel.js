@@ -9,7 +9,14 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     country: { type: String, default: 'COG', uppercase: true, trim: true },
     purpose: {
       type: String,
-      enum: ['WALLET_TOPUP', 'CHECKOUT_FUNDING', 'LISTING_FEE_FUNDING', 'INSTALLMENT_FUNDING'],
+      enum: [
+        'WALLET_TOPUP',
+        'CHECKOUT_FUNDING',
+        'LISTING_FEE_FUNDING',
+        'INSTALLMENT_FUNDING',
+        'BOOST_FUNDING',
+        'SHOP_CONVERSION_FUNDING'
+      ],
       default: 'WALLET_TOPUP'
     },
     returnPath: { type: String, default: '/wallet', trim: true },

@@ -41,7 +41,7 @@ export default function ShopConversionRequest() {
   const [error, setError] = useState('');
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [walletInfo, setWalletInfo] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
 
@@ -332,7 +332,7 @@ export default function ShopConversionRequest() {
         paymentAmount: String(requiredAmount),
         operator: activeNetworks.length > 0 ? activeNetworks[0].name : 'MTN'
       });
-      setPaymentMethod('mobile_money');
+      setPaymentMethod('wallet');
       setShopLogoFile(null);
       setShopLogoPreview('');
       setPaymentProofFile(null);
@@ -586,60 +586,43 @@ export default function ShopConversionRequest() {
                     Montant requis: <span className="text-lg text-[#e85d00]">{requiredAmountLabel}</span>
                   </p>
                   <p className="text-xs font-semibold leading-5 text-gray-600">
-                    Payez {requiredAmountLabel} par Mobile Money ou directement avec votre Portefeuille HDMarket.
+                    Payez avec MTN MoMo ou Airtel Money via PawaPay. Aucun ID de transaction ni reçu manuel.
                   </p>
                 </div>
 
-                <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('mobile_money')}
-                    className={`rounded-2xl border p-4 text-left transition-all ${
-                      paymentMethod === 'mobile_money'
-                        ? 'border-[#e85d00] bg-gray-100 text-gray-500 shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <CreditCard size={18} />
-                      <p className="text-sm font-black">Mobile Money</p>
-                    </div>
-                    <p className="mt-1 text-xs font-semibold text-gray-500">Paiement avec preuve et ID transaction.</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('wallet')}
-                    className={`rounded-2xl border p-4 text-left transition-all ${
-                      paymentMethod === 'wallet'
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm'
-                        : 'border-emerald-100 bg-white text-gray-700 hover:bg-emerald-50'
-                    }`}
-                  >
+                <div className="mb-6 grid grid-cols-1 gap-3">
+                  <div className="rounded-2xl border border-emerald-500 bg-emerald-50 p-4 text-left text-emerald-800 shadow-sm">
                     <div className="flex items-center gap-2">
                       <Wallet size={18} />
-                      <p className="text-sm font-black">Portefeuille HDMarket</p>
+                      <p className="text-sm font-black">PawaPay · Portefeuille HDMarket</p>
                     </div>
                     <p className="mt-1 text-xs font-semibold text-gray-500">
                       {walletLoading
                         ? 'Lecture du solde...'
                         : walletInfo
                           ? `Disponible: ${formatPrice(walletInfo.availableBalance || 0)}`
-                          : 'Rechargez votre portefeuille pour payer instantanément.'}
+                          : 'Payez avec votre compte Mobile Money via PawaPay.'}
                     </p>
-                  </button>
+                  </div>
                 </div>
 
-                {Number(requiredAmount || 0) >= 10 && (
+                {Math.max(
+                  0,
+                  Number(requiredAmount || 0) - Number(walletInfo?.availableBalance || 0)
+                ) >= 10 && (
                   <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <p className="mb-2 text-sm font-black text-emerald-900">Recharge automatique avec PawaPay</p>
+                    <p className="mb-2 text-sm font-black text-emerald-900">Paiement sécurisé PawaPay</p>
                     <PawaPayButton
-                      amount={requiredAmount}
-                      purpose="LISTING_FEE_FUNDING"
+                      amount={Math.max(
+                        0,
+                        Number(requiredAmount || 0) - Number(walletInfo?.availableBalance || 0)
+                      )}
+                      purpose="SHOP_CONVERSION_FUNDING"
                       returnPath="/shop-conversion-request"
-                      label="Recharger avec PawaPay"
+                      label="Payer avec PawaPay"
                     />
                     <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                      Revenez ensuite et choisissez « Portefeuille HDMarket » pour envoyer la demande.
+                      Après confirmation PawaPay, revenez envoyer la demande. Le paiement sera débité automatiquement.
                     </p>
                   </div>
                 )}

@@ -574,7 +574,7 @@ export default function WalletPage() {
             <div className="mt-3 space-y-3 text-xs font-medium text-slate-600">
               <div className="flex gap-3">
                 <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-black text-[#e85d00]">1</span>
-                <p><strong className="text-slate-900">Rechargez</strong> par Mobile Money avec la preuve et le code transaction.</p>
+                <p><strong className="text-slate-900">Rechargez</strong> par MTN MoMo ou Airtel Money avec confirmation automatique PawaPay.</p>
               </div>
               <div className="flex gap-3">
                 <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-black text-[#e85d00]">2</span>

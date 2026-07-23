@@ -43,18 +43,20 @@ import {
   refundToWallet,
   reverseSellerCredit
 } from '../services/walletService.js';
+import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const ensureObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 const normalizeDeliveryMode = (value) =>
   String(value || '').trim().toUpperCase() === 'DELIVERY' ? 'DELIVERY' : 'PICKUP';
 
 const ensureInstallmentWalletEnabled = async (sellerId) => {
+  const pawaPayOnly = getPawaPayConfig().exclusiveMode;
   const [walletEnabled, walletPaymentEnabled, enabledShopsRaw] = await Promise.all([
     getRuntimeConfig('enable_digital_wallet', { fallback: false }),
     getRuntimeConfig('enable_wallet_payment', { fallback: false }),
     getRuntimeConfig('wallet_enabled_shops', { fallback: '' })
   ]);
-  if (!walletEnabled || !walletPaymentEnabled) {
+  if (!pawaPayOnly && (!walletEnabled || !walletPaymentEnabled)) {
     throw Object.assign(new Error('Le paiement par portefeuille est désactivé.'), { status: 403 });
   }
 
@@ -62,7 +64,7 @@ const ensureInstallmentWalletEnabled = async (sellerId) => {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  if (!enabledPhones.length) return;
+  if (pawaPayOnly || !enabledPhones.length) return;
   const seller = await User.findById(sellerId).select('phone').lean();
   if (!seller || !enabledPhones.includes(String(seller.phone || '').trim())) {
     throw Object.assign(new Error('Cette boutique n’accepte pas encore les paiements portefeuille.'), {
@@ -473,7 +475,7 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
     ? 'wallet'
     : 'mobile_money';
   if (
-    String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true' &&
+    getPawaPayConfig().exclusiveMode &&
     paymentMethod !== 'wallet'
   ) {
     return res.status(403).json({
@@ -805,7 +807,7 @@ export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
     ? 'wallet'
     : 'mobile_money';
   if (
-    String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true' &&
+    getPawaPayConfig().exclusiveMode &&
     paymentMethod !== 'wallet'
   ) {
     return res.status(403).json({
