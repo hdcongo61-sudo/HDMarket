@@ -19,6 +19,7 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert } from '../utils/appDialog';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { getHighestProductPrice } from '../utils/productAttributes';
+import PawaPayButton from './PawaPayButton';
 
 const defaultOperatorPhones = {
   MTN: '069822930',
@@ -67,7 +68,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     amount: expected,
     promoCode: ''
   });
-  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [paymentMethod] = useState('wallet');
   const [wallet, setWallet] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletError, setWalletError] = useState('');
@@ -601,8 +602,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               <h3 className="font-semibold text-amber-800 text-sm">Instructions de paiement</h3>
               {hasCommissionDue ? (
                 <p className="text-amber-700 text-sm">
-                  Choisissez Mobile Money pour une vérification admin, ou utilisez votre Portefeuille HDMarket
-                  pour valider l’annonce immédiatement.
+                  Utilisez PawaPay avec MTN MoMo ou Airtel Money. La confirmation est automatique et aucun ID de transaction n’est demandé.
                 </p>
               ) : (
                 <p className="text-amber-700 text-sm">
@@ -613,6 +613,21 @@ export default function PaymentForm({ product, onSubmitted }) {
             </div>
           </div>
         </div>
+
+        {hasCommissionDue && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+            <p className="text-sm font-black text-emerald-900">Payer plus simplement avec PawaPay</p>
+            <p className="mb-3 mt-1 text-xs font-semibold leading-5 text-emerald-800">
+              Paiement sécurisé par MTN MoMo ou Airtel Money. Revenez ensuite valider l’annonce avec le solde automatiquement crédité.
+            </p>
+            <PawaPayButton
+              amount={commissionDue}
+              purpose="LISTING_FEE_FUNDING"
+              returnPath={typeof window !== 'undefined' ? window.location.pathname : '/wallet'}
+              label="Recharger avec PawaPay"
+            />
+          </div>
+        )}
 
         {product.confirmationNumber && (
           <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 px-4 py-3 text-xs text-gray-600 dark:text-slate-300">
@@ -629,43 +644,16 @@ export default function PaymentForm({ product, onSubmitted }) {
         <form onSubmit={submit} className="space-y-4">
           {hasCommissionDue && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('mobile_money')}
-                  disabled={loading}
-                  className={`rounded-2xl border p-4 text-left transition ${
-                    paymentMethod === 'mobile_money'
-                      ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950'
-                      : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                  }`}
-                >
-                  <span className="flex items-center gap-2 text-sm font-semibold">
-                    <CreditCard className="h-4 w-4" />
-                    Mobile Money
-                  </span>
-                  <span className={`mt-1 block text-xs ${paymentMethod === 'mobile_money' ? 'text-white/75 dark:text-slate-700' : 'text-gray-500 dark:text-slate-400'}`}>
-                    ID transaction, validation admin.
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('wallet')}
-                  disabled={loading}
-                  className={`rounded-2xl border p-4 text-left transition ${
-                    paymentMethod === 'wallet'
-                      ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
-                      : 'border-gray-200 bg-white text-gray-800 hover:border-emerald-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                  }`}
-                >
+              <div className="grid grid-cols-1 gap-3">
+                <div className="rounded-2xl border border-emerald-600 bg-emerald-600 p-4 text-left text-white shadow-sm">
                   <span className="flex items-center gap-2 text-sm font-semibold">
                     <Wallet className="h-4 w-4" />
-                    Portefeuille HDMarket
+                    PawaPay · solde HDMarket sécurisé
                   </span>
-                  <span className={`mt-1 block text-xs ${paymentMethod === 'wallet' ? 'text-white/80' : 'text-gray-500 dark:text-slate-400'}`}>
-                    Débit instantané, annonce validée.
+                  <span className="mt-1 block text-xs text-white/80">
+                    Aucun ID transaction. Débit et validation automatiques.
                   </span>
-                </button>
+                </div>
               </div>
 
               {isWalletPayment && (

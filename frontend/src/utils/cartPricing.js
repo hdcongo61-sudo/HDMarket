@@ -58,17 +58,27 @@ export const getOptimisticCartLinePricing = (product = {}, quantity = 1, selecte
       unitPrice,
       lineTotal: roundCurrency(unitPrice * qty),
       variantPriceApplied: true,
-      wholesale: { applied: false, tier: null, savingsAmount: 0, savingsPercent: 0 }
+      wholesale: {
+        eligible: false,
+        applied: false,
+        tier: null,
+        nextTier: null,
+        quantityToNextTier: 0,
+        savingsAmount: 0,
+        savingsPercent: 0
+      }
     };
   }
   const baseUnitPrice = roundCurrency(product?.price);
   const tiers = product?.wholesaleEnabled ? normalizeWholesaleTiers(product?.wholesaleTiers) : [];
   let activeTier = null;
+  let nextTier = null;
 
   for (const tier of tiers) {
     if (qty >= tier.minQty) {
       activeTier = tier;
     } else {
+      nextTier = tier;
       break;
     }
   }
@@ -83,6 +93,7 @@ export const getOptimisticCartLinePricing = (product = {}, quantity = 1, selecte
     unitPrice,
     lineTotal,
     wholesale: {
+      eligible: tiers.length > 0,
       applied: Boolean(activeTier),
       tier: activeTier
         ? {
@@ -91,6 +102,14 @@ export const getOptimisticCartLinePricing = (product = {}, quantity = 1, selecte
             label: activeTier.label || ''
           }
         : null,
+      nextTier: nextTier
+        ? {
+            minQty: Number(nextTier.minQty || 0),
+            unitPrice: roundCurrency(nextTier.unitPrice),
+            label: nextTier.label || ''
+          }
+        : null,
+      quantityToNextTier: nextTier ? Math.max(0, Number(nextTier.minQty || 0) - qty) : 0,
       savingsAmount,
       savingsPercent: baseTotal > 0 ? Number(((savingsAmount / baseTotal) * 100).toFixed(2)) : 0
     }

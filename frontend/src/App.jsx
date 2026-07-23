@@ -96,6 +96,7 @@ const SellerOrderDetail = lazy(() => import('./pages/SellerOrderDetail'));
 const SellerDisputes = lazy(() => import('./pages/SellerDisputes'));
 const SellerBoosts = lazy(() => import('./pages/SellerBoosts'));
 const OrderCheckout = lazy(() => import('./pages/OrderCheckout'));
+const PawaPayReturn = lazy(() => import('./pages/PawaPayReturn'));
 const DraftOrders = lazy(() => import('./pages/DraftOrders'));
 const AdminChatTemplates = lazy(() => import('./pages/AdminChatTemplates'));
 const AdminProductBoosts = lazy(() => import('./pages/AdminProductBoosts'));
@@ -661,6 +662,14 @@ function AppContent() {
           <Route path="/explore" element={<Explorer />} />
           <Route path="/flash-sales" element={<FlashSales />} />
           <Route path="/wallet" element={<Wallet />} />
+          <Route
+            path="/payment/pawapay/return"
+            element={
+              <ProtectedRoute>
+                <PawaPayReturn />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/seller/analytics" element={<SellerAnalyticsV2 />} />
           <Route path="/seller/promo-codes" element={<SellerPromoCodes />} />
           <Route path="/seller/assistant" element={<ShopAssistant />} />

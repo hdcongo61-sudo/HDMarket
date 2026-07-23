@@ -54,6 +54,20 @@ export const toClientError = (err) => {
   const normalizedName = String(err?.name || '');
   const status = Number(err?.status || err?.statusCode || 0);
 
+  if (String(err?.code || '').startsWith('PAWAPAY_')) {
+    return {
+      status: status || 502,
+      code: err.code,
+      message: err?.message || 'Le paiement mobile n’a pas pu être finalisé.',
+      expose: true,
+      details: {
+        providerCode: String(err?.details?.providerCode || 'UNSPECIFIED_FAILURE'),
+        retryable: Boolean(err?.details?.retryable),
+        action: String(err?.details?.action || 'RETRY')
+      }
+    };
+  }
+
   if (normalizedName === 'ValidationError') {
     return { status: 400, code: 'VALIDATION_ERROR', message: firstValidationMessage(err), expose: true };
   }
@@ -175,6 +189,8 @@ export const globalErrorHandler = (err, req, res, _next) => {
     code: mapped.code,
     requestId
   };
+
+  if (mapped.details) responseBody.details = mapped.details;
 
   if (!isProduction && err?.stack) {
     responseBody.debug = { stack: String(err.stack).split('\n').slice(0, 12).join('\n') };

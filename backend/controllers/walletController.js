@@ -17,6 +17,9 @@ import {
   rejectDeposit
 } from '../services/walletService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import User from '../models/userModel.js';
+import Wallet from '../models/walletModel.js';
+import { initiatePawaPayPayout, predictPawaPayProvider } from '../services/pawapayService.js';
 import {
   getCloudinaryFolder,
   isCloudinaryConfigured,
@@ -71,7 +74,8 @@ const persistWalletProofFile = async (file) => {
 // ─── MIDDLEWARE ───────────────────────────────────────────
 
 const requireWalletEnabled = asyncHandler(async (req, res, next) => {
-  const enabled = await getRuntimeConfig('enable_digital_wallet', { fallback: false });
+  const pawaPayOnly = String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true';
+  const enabled = pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
   if (!enabled) {
     return res.status(403).json({ message: 'Le portefeuille numérique est désactivé.' });
   }
@@ -98,7 +102,7 @@ export const getMyTransactions = asyncHandler(async (req, res) => {
 });
 
 export const requestMyWithdrawal = asyncHandler(async (req, res) => {
-  const { amount, reference } = req.body;
+  const { amount, reference, provider: requestedProvider } = req.body;
 
   if (!amount || Number(amount) <= 0) {
     return res.status(400).json({ message: 'Montant invalide.' });
@@ -111,18 +115,99 @@ export const requestMyWithdrawal = asyncHandler(async (req, res) => {
     });
   }
 
+  const provider = String(requestedProvider || '').trim().toUpperCase();
+  if (!['MTN_MOMO_COG', 'AIRTEL_COG'].includes(provider)) {
+    return res.status(400).json({ message: 'Choisissez MTN MoMo ou Airtel Money.' });
+  }
+
+  const enteredPhone = String(reference || req.user.phone || '').trim();
+  let prediction;
+  try {
+    prediction = await predictPawaPayProvider(enteredPhone);
+  } catch (error) {
+    return res.status(error?.status || 400).json({
+      message: error?.message || 'Ce numéro Mobile Money ne peut pas être validé par PawaPay.',
+      code: error?.code || 'PAWAPAY_RECIPIENT_INVALID'
+    });
+  }
+  const predicted = Array.isArray(prediction) ? prediction[0] : prediction;
+  const phoneNumber = String(
+    predicted?.phoneNumber || predicted?.sanitizedPhoneNumber || predicted?.accountDetails?.phoneNumber || enteredPhone
+  ).trim();
+  const predictedProvider = String(predicted?.provider || predicted?.providerCode || '').toUpperCase();
+  if (predictedProvider && predictedProvider !== provider) {
+    return res.status(400).json({
+      message: `Ce numéro correspond à ${predictedProvider.includes('AIRTEL') ? 'Airtel Money' : 'MTN MoMo'}. Corrigez le réseau sélectionné.`
+    });
+  }
+
+  await User.updateOne(
+    { _id: req.user.id },
+    { $set: { payoutAccount: { provider, phoneNumber, verifiedAt: new Date() } } }
+  );
+
+  const payoutId = crypto.randomUUID();
   const result = await requestWithdrawal({
     userId: req.user.id,
     amount: Number(amount),
-    reference: reference || ''
+    reference: phoneNumber,
+    provider,
+    payoutId
   });
 
-  res.json({ message: 'Demande de retrait enregistrée. En attente de validation.', ...result });
+  try {
+    const providerResult = await initiatePawaPayPayout({
+      payoutId,
+      amount: String(Math.round(Number(amount))),
+      currency: 'XAF',
+      country: 'COG',
+      recipient: {
+        type: 'MMO',
+        accountDetails: { phoneNumber, provider }
+      },
+      customerTimestamp: new Date().toISOString(),
+      statementDescription: 'Retrait HDMarket',
+      metadata: [
+        { hdmarketWalletTransactionId: String(result.transactionId) },
+        { hdmarketUserId: String(req.user.id) }
+      ]
+    });
+    return res.status(202).json({
+      message: 'Retrait envoyé à PawaPay. Le transfert Mobile Money est en cours.',
+      providerStatus: providerResult?.status || 'ACCEPTED',
+      ...result
+    });
+  } catch (error) {
+    if (error?.details?.action === 'CHECK_STATUS') {
+      return res.status(202).json({
+        message: 'PawaPay confirme encore le retrait. Ne recommencez pas la demande.',
+        providerStatus: 'PROCESSING',
+        ...result
+      });
+    }
+    const wallet = await Wallet.findOne({ user: req.user.id });
+    if (wallet) {
+      await processWithdrawal({
+        walletId: wallet._id,
+        transactionId: result.transactionId,
+        approved: false,
+        note: `Retrait PawaPay refusé: ${error?.message || 'erreur fournisseur'}`,
+        allowGatewaySettlement: true
+      });
+    }
+    throw error;
+  }
 });
 
 // ─── USER DEPOSIT REQUEST (with proof) ────────────────────
 
 export const requestMyDeposit = asyncHandler(async (req, res) => {
+  if (String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true') {
+    return res.status(403).json({
+      code: 'PAWAPAY_ONLY',
+      message: 'Les dépôts manuels et les preuves de transaction sont désactivés. Utilisez PawaPay.'
+    });
+  }
   const { amount, reference, paymentMethod } = req.body;
 
   if (!amount || Number(amount) <= 0) {
@@ -259,7 +344,8 @@ export const adminRejectDeposit = asyncHandler(async (req, res) => {
 // ─── PUBLIC STATUS ────────────────────────────────────────
 
 export const walletStatus = asyncHandler(async (req, res) => {
-  const enabled = await getRuntimeConfig('enable_digital_wallet', { fallback: false });
+  const pawaPayOnly = String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true';
+  const enabled = pawaPayOnly || await getRuntimeConfig('enable_digital_wallet', { fallback: false });
   res.json({ enabled });
 });
 

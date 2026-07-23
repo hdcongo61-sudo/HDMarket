@@ -1174,7 +1174,8 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
 
   // Verify wallet payment is enabled
-  const walletEnabled = await getRuntimeConfig('enable_wallet_payment', { fallback: false });
+  const pawaPayOnly = String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true';
+  const walletEnabled = pawaPayOnly || await getRuntimeConfig('enable_wallet_payment', { fallback: false });
   if (!walletEnabled) {
     return res.status(403).json({ message: 'Le paiement par portefeuille est désactivé.' });
   }
@@ -1467,6 +1468,12 @@ export const walletCheckoutOrder = asyncHandler(async (req, res) => {
 });
 
 export const userCheckoutOrder = asyncHandler(async (req, res) => {
+  if (String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true') {
+    return res.status(403).json({
+      code: 'PAWAPAY_ONLY',
+      message: 'Ce mode de paiement est désactivé. Réglez la commande avec PawaPay.'
+    });
+  }
   const {
     payerName,
     transactionCode,

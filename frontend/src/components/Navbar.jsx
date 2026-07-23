@@ -3913,7 +3913,7 @@ export default function Navbar() {
           className="md:hidden fixed inset-0 z-40 bg-stone-950/30"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
         >
-          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-2xl border border-[#e2dcd2] bg-[#f5f2ee] shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-2xl border border-[#e2dcd2] bg-stone-100 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="hd-mobile-menu-list h-full space-y-1 overflow-y-auto px-3 py-3 pb-32">
 
               {/* User avatar / profile card */}

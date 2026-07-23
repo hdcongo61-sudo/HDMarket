@@ -120,6 +120,9 @@ const formatCart = async (cart) => {
             unitPrice: variant.unitPrice,
             lineTotal: Number((variant.unitPrice * Number(item.quantity || 1)).toFixed(2)),
             tierApplied: null,
+            nextTier: null,
+            quantityToNextTier: 0,
+            wholesaleEnabled: false,
             savingsAmount: 0,
             savingsPercent: 0
           }
@@ -186,8 +189,11 @@ const formatCart = async (cart) => {
             images: product.images
           }).image || null,
         wholesale: {
+          eligible: Boolean(pricing.wholesaleEnabled),
           applied: Boolean(pricing.tierApplied),
           tier: pricing.tierApplied,
+          nextTier: pricing.nextTier || null,
+          quantityToNextTier: Number(pricing.quantityToNextTier || 0),
           savingsAmount: Number(pricing.savingsAmount || 0),
           savingsPercent: Number(pricing.savingsPercent || 0)
         },

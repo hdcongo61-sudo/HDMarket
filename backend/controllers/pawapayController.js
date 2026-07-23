@@ -2,7 +2,14 @@ import crypto from 'crypto';
 import asyncHandler from 'express-async-handler';
 import Payment from '../models/paymentModel.js';
 import PawaPayEvent from '../models/pawapayEventModel.js';
-import { getPawaPayPublicKeys } from '../services/pawapayService.js';
+import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
+import Wallet from '../models/walletModel.js';
+import { creditWalletTopupFromGateway } from '../services/walletService.js';
+import {
+  getPawaPayPublicKeys,
+  initiatePawaPayCheckout
+} from '../services/pawapayService.js';
+import { getPawaPayFailurePresentation } from '../utils/pawapayErrors.js';
 
 const RESOURCE_CONFIG = {
   checkout: { idField: 'checkoutId' },
@@ -13,6 +20,164 @@ const RESOURCE_CONFIG = {
 
 const FINAL_SUCCESS = new Set(['COMPLETED', 'SUCCESSFUL']);
 const FINAL_FAILURE = new Set(['FAILED', 'CANCELLED', 'EXPIRED', 'REJECTED']);
+const CHECKOUT_PURPOSES = new Set([
+  'WALLET_TOPUP',
+  'CHECKOUT_FUNDING',
+  'LISTING_FEE_FUNDING',
+  'INSTALLMENT_FUNDING'
+]);
+
+const sendPawaPayError = (res, status, code, message, details = {}) =>
+  res.status(status).json({
+    success: false,
+    code,
+    message,
+    details
+  });
+
+const normalizeReturnPath = (value) => {
+  const path = String(value || '/wallet').trim();
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('://')) return '/wallet';
+  return path.slice(0, 300);
+};
+
+const checkoutReturnUrl = (checkoutId) => {
+  const configured = String(
+    process.env.PAWAPAY_CHECKOUT_RETURN_URL || 'https://www.hdmarket.store/payment/pawapay/return'
+  ).trim();
+  const url = new URL(configured);
+  url.searchParams.set('checkoutId', checkoutId);
+  return url.toString();
+};
+
+export const createPawaPayWalletCheckout = asyncHandler(async (req, res) => {
+  const amount = Number(req.body?.amount);
+  const purpose = String(req.body?.purpose || 'WALLET_TOPUP').trim().toUpperCase();
+  const returnPath = normalizeReturnPath(req.body?.returnPath);
+
+  if (!Number.isInteger(amount) || amount < 10 || amount > 1_000_000) {
+    return sendPawaPayError(
+      res,
+      400,
+      'PAWAPAY_INVALID_AMOUNT',
+      'Le montant PawaPay doit être compris entre 10 et 1 000 000 FCFA.',
+      { providerCode: 'INVALID_AMOUNT', retryable: false, action: 'CHANGE_AMOUNT' }
+    );
+  }
+  if (!CHECKOUT_PURPOSES.has(purpose)) {
+    return sendPawaPayError(
+      res,
+      400,
+      'PAWAPAY_INVALID_PURPOSE',
+      'Motif de paiement PawaPay invalide.',
+      { providerCode: 'INVALID_PARAMETER', retryable: false, action: 'CHECK_DETAILS' }
+    );
+  }
+
+  const checkoutId = crypto.randomUUID();
+  const checkout = await PawaPayCheckout.create({
+    checkoutId,
+    user: req.user._id,
+    amount,
+    purpose,
+    returnPath
+  });
+
+  try {
+    const result = await initiatePawaPayCheckout({
+      checkoutId,
+      returnUrl: checkoutReturnUrl(checkoutId),
+      returnMethod: 'INSTANT',
+      defaultLanguage: 'fr',
+      countries: ['COG'],
+      amounts: [{ country: 'COG', currency: 'XAF', amount: String(amount) }],
+      payer: {
+        type: 'MMO',
+        accountDetails: {
+          allowCustomerToOverride: true
+        }
+      },
+      clientReferenceId: `HDM-${checkoutId.slice(0, 8).toUpperCase()}`,
+      reason: { fr: 'PAIEMENT HDMARKET', en: 'HDMARKET PAYMENT' },
+      metadata: [
+        { hdmarketCheckoutId: checkoutId },
+        { purpose }
+      ]
+    });
+
+    const status = String(result?.status || '').toUpperCase();
+    if (!['ACCEPTED', 'DUPLICATE_IGNORED'].includes(status) || !result?.redirectUrl) {
+      checkout.status = 'FAILED';
+      checkout.failureReason = result?.failureReason || { failureCode: 'CHECKOUT_REJECTED' };
+      await checkout.save();
+      const failure = getPawaPayFailurePresentation(checkout.failureReason);
+      return sendPawaPayError(res, 400, `PAWAPAY_${failure.providerCode}`, failure.message, failure);
+    }
+
+    checkout.status = 'WAITING_PAYMENT';
+    checkout.redirectUrl = String(result.redirectUrl);
+    checkout.checkoutCode = String(result.checkoutCode || '');
+    checkout.expiresAt = result.expiresAt ? new Date(result.expiresAt) : null;
+    await checkout.save();
+
+    return res.status(201).json({
+      checkoutId,
+      status: checkout.status,
+      redirectUrl: checkout.redirectUrl,
+      expiresAt: checkout.expiresAt
+    });
+  } catch (error) {
+    const uncertain = error?.details?.action === 'CHECK_STATUS';
+    checkout.status = uncertain ? 'PROCESSING' : 'FAILED';
+    checkout.failureReason = {
+      failureCode: error?.details?.providerCode || error.code || 'PAWAPAY_REQUEST_FAILED'
+    };
+    await checkout.save();
+    if (uncertain) {
+      return res.status(202).json({
+        checkoutId,
+        status: checkout.status,
+        pending: true,
+        verificationUrl: `/payment/pawapay/return?checkoutId=${encodeURIComponent(checkoutId)}`,
+        message: error.message,
+        details: error.details
+      });
+    }
+    throw error;
+  }
+});
+
+export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
+  const checkout = await PawaPayCheckout.findOne({
+    checkoutId: String(req.params.checkoutId || ''),
+    user: req.user._id
+  }).lean();
+  if (!checkout) {
+    return sendPawaPayError(
+      res,
+      404,
+      'PAWAPAY_CHECKOUT_NOT_FOUND',
+      'Paiement PawaPay introuvable.',
+      { providerCode: 'NOT_FOUND', retryable: false, action: 'RETURN' }
+    );
+  }
+
+  const failure = checkout.failureReason
+    ? getPawaPayFailurePresentation(checkout.failureReason)
+    : null;
+
+  return res.json({
+    checkoutId: checkout.checkoutId,
+    amount: checkout.amount,
+    currency: checkout.currency,
+    purpose: checkout.purpose,
+    status: checkout.status,
+    creditState: checkout.creditState,
+    returnPath: checkout.returnPath,
+    expiresAt: checkout.expiresAt,
+    failureReason: failure
+  });
+});
 
 const sanitizePayload = (value, depth = 0) => {
   if (value == null || depth > 5) return value;
@@ -42,20 +207,39 @@ export const verifyPawaPayContentDigest = (req, res, next) => {
   const digestRequired = String(process.env.PAWAPAY_CONTENT_DIGEST_REQUIRED || 'false') === 'true';
 
   if (!header) {
-    if (digestRequired) return res.status(401).json({ message: 'Content-Digest PawaPay manquant.' });
+    if (digestRequired) {
+      return sendPawaPayError(
+        res,
+        401,
+        'PAWAPAY_CALLBACK_DIGEST_MISSING',
+        'Content-Digest PawaPay manquant.'
+      );
+    }
     return next();
   }
 
   const parsed = parseContentDigest(header);
   const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}));
-  if (!parsed) return res.status(401).json({ message: 'Content-Digest PawaPay invalide.' });
+  if (!parsed) {
+    return sendPawaPayError(
+      res,
+      401,
+      'PAWAPAY_CALLBACK_DIGEST_INVALID',
+      'Content-Digest PawaPay invalide.'
+    );
+  }
 
   const nodeAlgorithm = parsed.algorithm.replace('-', '');
   const actual = crypto.createHash(nodeAlgorithm).update(rawBody).digest('base64');
   const expectedBuffer = Buffer.from(parsed.expected);
   const actualBuffer = Buffer.from(actual);
   if (expectedBuffer.length !== actualBuffer.length || !crypto.timingSafeEqual(expectedBuffer, actualBuffer)) {
-    return res.status(401).json({ message: 'Le contenu du callback PawaPay a été altéré.' });
+    return sendPawaPayError(
+      res,
+      401,
+      'PAWAPAY_CALLBACK_DIGEST_MISMATCH',
+      'Le contenu du callback PawaPay a été altéré.'
+    );
   }
 
   return next();
@@ -140,18 +324,105 @@ export const verifyPawaPaySignature = asyncHandler(async (req, res, next) => {
 
   const requiredHeaders = ['signature', 'signature-input', 'signature-date', 'content-digest'];
   if (requiredHeaders.some((header) => !req.get(header))) {
-    return res.status(401).json({ message: 'En-têtes de signature PawaPay incomplets.' });
+    return sendPawaPayError(
+      res,
+      401,
+      'PAWAPAY_CALLBACK_SIGNATURE_MISSING',
+      'En-têtes de signature PawaPay incomplets.'
+    );
   }
 
   const valid = await verifyHttpMessageSignature(req);
-  if (!valid) return res.status(401).json({ message: 'Signature PawaPay invalide.' });
+  if (!valid) {
+    return sendPawaPayError(
+      res,
+      401,
+      'PAWAPAY_CALLBACK_SIGNATURE_INVALID',
+      'Signature PawaPay invalide.'
+    );
+  }
   return next();
 });
 
 const normalizedAmount = (payload) => {
-  const value = payload.amount ?? payload.requestedAmount;
+  const completedDeposit = Array.isArray(payload.depositsHistory)
+    ? payload.depositsHistory.find((entry) => String(entry?.status || '').toUpperCase() === 'COMPLETED')
+    : null;
+  const value = payload.amount ?? payload.requestedAmount ?? payload.deposit?.amount ?? completedDeposit?.amount;
   const amount = Number(value);
   return Number.isFinite(amount) ? amount : null;
+};
+
+const reconcileWalletCheckout = async ({ resourceType, resourceId, status, amount, currency, payload }) => {
+  if (resourceType !== 'checkout') return null;
+  const checkout = await PawaPayCheckout.findOne({ checkoutId: resourceId });
+  if (!checkout) return null;
+
+  const effectiveCurrency = currency || String(payload.deposit?.currency || payload.amounts?.[0]?.currency || '').toUpperCase();
+  const expectedAmount = Number(checkout.amount);
+  if (amount != null && Math.abs(expectedAmount - amount) > 0.01) {
+    checkout.status = 'FAILED';
+    checkout.failureReason = { failureCode: 'AMOUNT_MISMATCH', expectedAmount, receivedAmount: amount };
+    checkout.callbackPayload = sanitizePayload(payload);
+    await checkout.save();
+    return checkout;
+  }
+  if (effectiveCurrency && effectiveCurrency !== checkout.currency) {
+    checkout.status = 'FAILED';
+    checkout.failureReason = { failureCode: 'CURRENCY_MISMATCH', expectedCurrency: checkout.currency, receivedCurrency: effectiveCurrency };
+    checkout.callbackPayload = sanitizePayload(payload);
+    await checkout.save();
+    return checkout;
+  }
+
+  checkout.status = FINAL_SUCCESS.has(status)
+    ? 'COMPLETED'
+    : FINAL_FAILURE.has(status)
+      ? status
+      : status === 'PROCESSING'
+        ? 'PROCESSING'
+        : checkout.status;
+  checkout.providerTransactionId = String(payload.providerTransactionId || payload.deposit?.providerTransactionId || '');
+  checkout.failureReason = sanitizePayload(payload.failureReason || payload.deposit?.failureReason || null);
+  checkout.callbackPayload = sanitizePayload(payload);
+  await checkout.save();
+
+  if (!FINAL_SUCCESS.has(status)) return checkout;
+
+  const claimed = await PawaPayCheckout.findOneAndUpdate(
+    {
+      _id: checkout._id,
+      $or: [
+        { creditState: 'PENDING' },
+        {
+          creditState: 'PROCESSING',
+          updatedAt: { $lt: new Date(Date.now() - 2 * 60 * 1000) }
+        }
+      ]
+    },
+    { $set: { creditState: 'PROCESSING' } },
+    { new: true }
+  );
+  if (!claimed) return checkout;
+
+  try {
+    await creditWalletTopupFromGateway({
+      userId: claimed.user,
+      amount: claimed.amount,
+      gateway: 'PawaPay',
+      providerTransactionId: claimed.checkoutId,
+      rawPayload: sanitizePayload(payload)
+    });
+    claimed.creditState = 'CREDITED';
+    claimed.creditedAt = new Date();
+    await claimed.save();
+  } catch (error) {
+    claimed.creditState = 'PENDING';
+    await claimed.save();
+    throw error;
+  }
+
+  return claimed;
 };
 
 const reconcilePayment = async ({ resourceType, resourceId, status, amount, currency, payload }) => {
@@ -196,6 +467,38 @@ const reconcilePayment = async ({ resourceType, resourceId, status, amount, curr
   return { payment, reconciliationStatus: 'MATCHED' };
 };
 
+const reconcileWalletPayout = async ({ resourceType, resourceId, status, payload }) => {
+  if (resourceType !== 'payout') return null;
+  const wallet = await Wallet.findOne({
+    transactions: { $elemMatch: { type: 'withdrawal', 'metadata.payoutId': resourceId } }
+  });
+  if (!wallet) return null;
+  const transaction = wallet.transactions.find(
+    (entry) => entry.type === 'withdrawal' && String(entry?.metadata?.payoutId || '') === resourceId
+  );
+  if (!transaction || transaction.status !== 'pending') return transaction || null;
+
+  if (FINAL_SUCCESS.has(status)) {
+    transaction.status = 'completed';
+    transaction.processedAt = new Date();
+    transaction.note = 'Retrait envoyé via PawaPay';
+    transaction.metadata = { ...transaction.metadata, providerStatus: status };
+  } else if (FINAL_FAILURE.has(status)) {
+    wallet.balance += Number(transaction.amount || 0);
+    transaction.status = 'failed';
+    transaction.processedAt = new Date();
+    transaction.balanceAfter = wallet.balance;
+    transaction.note = 'Retrait PawaPay échoué — montant recrédité';
+    transaction.metadata = {
+      ...transaction.metadata,
+      providerStatus: status,
+      failureReason: sanitizePayload(payload?.failureReason || null)
+    };
+  }
+  await wallet.save();
+  return transaction;
+};
+
 export const receivePawaPayCallback = (resourceType) =>
   asyncHandler(async (req, res) => {
     const config = RESOURCE_CONFIG[resourceType];
@@ -203,7 +506,12 @@ export const receivePawaPayCallback = (resourceType) =>
     const status = String(req.body?.status || '').trim().toUpperCase();
 
     if (!resourceId || !status) {
-      return res.status(400).json({ message: `Callback PawaPay ${resourceType} invalide.` });
+      return sendPawaPayError(
+        res,
+        400,
+        'PAWAPAY_CALLBACK_INVALID',
+        `Callback PawaPay ${resourceType} invalide.`
+      );
     }
 
     const amount = normalizedAmount(req.body);
@@ -211,6 +519,15 @@ export const receivePawaPayCallback = (resourceType) =>
     const payload = sanitizePayload(req.body);
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}));
     const payloadDigest = crypto.createHash('sha256').update(rawBody).digest('hex');
+    const walletCheckout = await reconcileWalletCheckout({
+      resourceType,
+      resourceId,
+      status,
+      amount,
+      currency,
+      payload
+    });
+    const walletPayout = await reconcileWalletPayout({ resourceType, resourceId, status, payload });
     const reconciliation = await reconcilePayment({ resourceType, resourceId, status, amount, currency, payload });
 
     await PawaPayEvent.findOneAndUpdate(
@@ -228,7 +545,7 @@ export const receivePawaPayCallback = (resourceType) =>
           payloadDigest,
           lastReceivedAt: new Date(),
           matchedPayment: reconciliation.payment?._id || null,
-          reconciliationStatus: reconciliation.reconciliationStatus
+          reconciliationStatus: walletCheckout || walletPayout ? 'MATCHED' : reconciliation.reconciliationStatus
         },
         $setOnInsert: { firstReceivedAt: new Date() },
         $inc: { callbackCount: 1 }

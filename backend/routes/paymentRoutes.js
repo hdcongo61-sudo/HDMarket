@@ -15,11 +15,24 @@ import {
 import { validatePromoCodeForSeller } from '../controllers/promoCodeController.js';
 import {
   receivePawaPayCallback,
+  createPawaPayWalletCheckout,
+  getMyPawaPayCheckout,
   verifyPawaPayContentDigest,
   verifyPawaPaySignature
 } from '../controllers/pawapayController.js';
+import { getPawaPayConfig } from '../services/pawapayService.js';
 
 const router = express.Router();
+
+const rejectLegacyPaymentWhenPawaPayOnly = (req, res, next) => {
+  if (!getPawaPayConfig().exclusiveMode) return next();
+  const paymentMethod = String(req.body?.paymentMethod || '').trim().toLowerCase();
+  if (paymentMethod === 'wallet' || Number(req.body?.amount || 0) === 0) return next();
+  return res.status(403).json({
+    code: 'PAWAPAY_ONLY',
+    message: 'Les paiements manuels et les identifiants de transaction sont désactivés. Utilisez PawaPay.'
+  });
+};
 
 // Public provider callbacks. PawaPay does not send an HDMarket user token.
 // Keep these routes above all authenticated payment routes.
@@ -51,6 +64,15 @@ const paymentSubmissionLimiter = rateLimit({
   }
 });
 
+router.post(
+  '/pawapay/checkouts',
+  protect,
+  paymentSubmissionLimiter,
+  idempotencyMiddleware({ ttlMs: 15 * 60 * 1000 }),
+  createPawaPayWalletCheckout
+);
+router.get('/pawapay/checkouts/:checkoutId', protect, getMyPawaPayCheckout);
+
 // User
 router.post(
   '/promo-codes/validate',
@@ -62,6 +84,7 @@ router.post(
 router.post(
   '/transaction-code/verify',
   protect,
+  rejectLegacyPaymentWhenPawaPayOnly,
   paymentSubmissionLimiter,
   validate(schemas.transactionCodeVerify),
   verifyTransactionCodeAvailability
@@ -69,6 +92,7 @@ router.post(
 router.post(
   '/',
   protect,
+  rejectLegacyPaymentWhenPawaPayOnly,
   paymentSubmissionLimiter,
   idempotencyMiddleware(),
   validate(schemas.paymentCreate),

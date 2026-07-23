@@ -26,4 +26,28 @@ describe('global error mapping', () => {
     });
     expect(toClientError(error).message).not.toContain('secret');
   });
+
+  it('preserves safe PawaPay recovery details and omits the provider payload', () => {
+    const error = new Error('L’opérateur Mobile Money est momentanément indisponible.');
+    error.status = 502;
+    error.code = 'PAWAPAY_PROVIDER_TEMPORARILY_UNAVAILABLE';
+    error.details = {
+      providerCode: 'PROVIDER_TEMPORARILY_UNAVAILABLE',
+      retryable: true,
+      action: 'RETRY'
+    };
+    error.meta = { providerResponse: { secretTechnicalMessage: 'do not expose' } };
+
+    expect(toClientError(error)).toEqual({
+      status: 502,
+      code: 'PAWAPAY_PROVIDER_TEMPORARILY_UNAVAILABLE',
+      message: error.message,
+      expose: true,
+      details: {
+        providerCode: 'PROVIDER_TEMPORARILY_UNAVAILABLE',
+        retryable: true,
+        action: 'RETRY'
+      }
+    });
+  });
 });

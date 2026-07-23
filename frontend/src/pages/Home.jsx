@@ -185,7 +185,7 @@ const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
           </span>
           <span className="inline-flex shrink-0 items-center gap-1 rounded bg-white/10 px-2 py-1 text-[9px] font-black uppercase text-emerald-100 ring-1 ring-white/15">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            {t('home.walletSecure', 'Sécurisé')}
+            {t('home.walletSecure', 'PawaPay disponible')}
           </span>
         </div>
 
@@ -213,6 +213,9 @@ const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
                 '••••••'
               )}
             </p>
+            <p className="mt-2 text-[11px] font-semibold leading-5 text-emerald-50/80">
+              {t('home.pawapayConnectedPitch', 'Rechargez instantanément par MTN MoMo ou Airtel Money avec PawaPay, puis payez sans recopier de code transaction.')}
+            </p>
           </div>
         ) : (
           <div className="mt-4">
@@ -220,7 +223,7 @@ const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
               {t('home.walletTitle', 'Payez plus vite, gardez le contrôle de votre argent.')}
             </h2>
             <p className="mt-1.5 text-[12px] font-medium leading-5 text-emerald-50/80">
-              {t('home.walletGuestPitch', 'Rechargez une fois, payez en 1 clic et recevez vos remboursements sur votre solde.')}
+              {t('home.walletGuestPitch', 'Avec PawaPay, rechargez par MTN MoMo ou Airtel Money, payez en 1 clic et recevez vos remboursements sur votre solde.')}
             </p>
           </div>
         )}
@@ -231,7 +234,7 @@ const WalletHomeCallout = ({ compact = false, user, t, walletEnabled }) => {
             className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded bg-white px-3 py-2.5 text-[12px] font-black text-[#06281f] transition hover:bg-emerald-50 active:scale-[0.98] sm:flex-none sm:px-4 sm:text-[13px]"
           >
             <span className="truncate">
-              {user ? t('home.walletOpen', 'Ouvrir mon portefeuille') : t('home.walletStart', 'Activer mon portefeuille')}
+              {user ? t('home.walletOpen', 'Recharger avec PawaPay') : t('home.walletStart', 'Découvrir le paiement PawaPay')}
             </span>
             <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           </Link>

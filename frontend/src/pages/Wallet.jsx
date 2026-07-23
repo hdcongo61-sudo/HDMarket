@@ -24,6 +24,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import RewardPointsCard from '../components/RewardPointsCard';
+import PawaPayButton from '../components/PawaPayButton';
 
 const TXN_ICONS = {
   deposit: ArrowDownLeft,
@@ -62,6 +63,7 @@ const TXN_LABELS = {
 };
 
 const TRANSACTIONS_PAGE_SIZE = 20;
+const MANUAL_PAYMENTS_ENABLED = import.meta.env.VITE_ENABLE_MANUAL_PAYMENTS === 'true';
 
 const PAYMENT_METHOD_LABELS = {
   orange_money: 'Orange Money',
@@ -123,8 +125,8 @@ const getPendingTransactionContext = (txn = {}) => {
   if (txn.type === 'withdrawal') {
     const phone = String(metadata.payoutPhone || metadata.accountPhone || txn.reference || '').trim();
     return {
-      title: 'En attente de traitement admin',
-      text: `${phone ? `Retrait vers ${phone}. ` : ''}Le montant a été réservé jusqu’à validation du retrait.`
+      title: 'Transfert PawaPay en cours',
+      text: `${phone ? `Retrait vers ${phone}. ` : ''}PawaPay confirmera automatiquement le résultat.`
     };
   }
 
@@ -151,6 +153,7 @@ export default function WalletPage() {
   const [error, setError] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawRef, setWithdrawRef] = useState(user?.phone || '');
+  const [withdrawProvider, setWithdrawProvider] = useState('MTN_MOMO_COG');
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawModal, setWithdrawModal] = useState(false);
 
@@ -283,8 +286,12 @@ export default function WalletPage() {
     }
     setWithdrawing(true);
     try {
-      const { data } = await api.post('/wallet/withdraw', { amount, reference: withdrawRef || user.phone });
-      showToast('Demande de retrait envoyée. En attente de validation.', { variant: 'success' });
+      const { data } = await api.post('/wallet/withdraw', {
+        amount,
+        reference: withdrawRef || user.phone,
+        provider: withdrawProvider
+      });
+      showToast(data?.message || 'Retrait PawaPay en cours.', { variant: 'success' });
       if (data?.transaction) {
         setTransactions((prev) => {
           const exists = prev.some((txn) => String(txn._id) === String(data.transaction._id));
@@ -504,11 +511,11 @@ export default function WalletPage() {
 	              <div className="grid grid-cols-2 gap-2 border-t border-white/12 bg-white/10 p-2.5 sm:p-3">
                 <button
                   type="button"
-                  onClick={() => setDepositModal(true)}
+                  onClick={() => document.getElementById('pawapay-wallet-amount')?.focus()}
 	                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-black text-[#e85d00] shadow-sm transition hover:bg-gray-100 sm:px-4 sm:py-3"
                 >
                   <Plus size={17} />
-                  {t('wallet.deposit', 'Déposer')}
+                  Payer avec PawaPay
                 </button>
                 <button
                   type="button"
@@ -518,6 +525,30 @@ export default function WalletPage() {
                   <Send size={16} />
                   {t('wallet.withdraw', 'Retirer')}
                 </button>
+	              </div>
+              <div className="border-t border-orange-100 bg-white p-3 text-slate-900 sm:p-4">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wide text-[#0b6b4f]">Recharge instantanée</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500">MTN MoMo ou Airtel Money avec PawaPay</p>
+                  </div>
+                  <ShieldCheck size={19} className="shrink-0 text-[#0b6b4f]" />
+                </div>
+                <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
+                  <input
+                    id="pawapay-wallet-amount"
+                    type="number"
+                    inputMode="numeric"
+                    min="10"
+                    max="1000000"
+                    step="1"
+                    value={depositAmount}
+                    onChange={(event) => setDepositAmount(event.target.value)}
+                    placeholder="Montant FCFA"
+                    className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-black outline-none focus:border-[#0b6b4f] focus:bg-white"
+                  />
+                  <PawaPayButton amount={depositAmount} returnPath="/wallet" />
+                </div>
               </div>
             </div>
           ) : null}
@@ -808,16 +839,34 @@ export default function WalletPage() {
                 )}
               </div>
               <div>
+                <label className="text-xs font-black text-slate-600">Réseau de réception</label>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  {[
+                    ['MTN_MOMO_COG', 'MTN MoMo'],
+                    ['AIRTEL_COG', 'Airtel Money']
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setWithdrawProvider(value)}
+                      className={`rounded-2xl border px-3 py-3 text-sm font-black ${withdrawProvider === value ? 'border-[#e85d00] bg-orange-50 text-[#e85d00]' : 'border-slate-200 text-slate-600'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
                 <label className="text-xs font-black text-slate-600">Numéro Mobile Money</label>
                 <input
                   type="text"
                   value={withdrawRef || user?.phone || ''}
-                  readOnly
+                  onChange={(event) => setWithdrawRef(event.target.value)}
                   placeholder="Numéro de téléphone du compte"
                   className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-700"
                 />
                 <p className="mt-1 text-[11px] font-semibold text-slate-500">
-                  Les retraits sont envoyés uniquement au numéro enregistré sur votre compte.
+                  PawaPay vérifie le numéro et le réseau avant d’envoyer les fonds.
                 </p>
               </div>
             </div>
@@ -840,7 +889,7 @@ export default function WalletPage() {
         </div>
       )}
       {/* Deposit Modal */}
-      {depositModal && (
+      {MANUAL_PAYMENTS_ENABLED && depositModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4" onClick={() => setDepositModal(false)}>
           <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-sm sm:rounded-2xl sm:p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">

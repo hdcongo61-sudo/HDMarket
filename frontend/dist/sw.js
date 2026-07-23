@@ -46,6 +46,8 @@ const PUBLIC_CACHEABLE_API_PREFIXES = [
 ];
 
 const NETWORK_FIRST_API_PREFIXES = [
+  '/api/settings/public',
+  '/api/settings/runtime',
   '/api/settings/cities',
   '/api/settings/communes',
   '/api/admin/cities',
@@ -175,6 +177,7 @@ const isPublicCacheableApiRequest = (request, path) => {
 
 const isNetworkFirstApiRequest = (request, path) => {
   if (!request || request.method !== 'GET') return false;
+  if (String(request.headers?.get('x-skip-cache') || '').trim() === '1') return true;
   return NETWORK_FIRST_API_PREFIXES.some((prefix) => path.startsWith(prefix));
 };
 

@@ -167,7 +167,7 @@ export default function DeliveryProfile() {
   const stats = statsQuery.data || null;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 px-3 pb-20 pt-2 sm:px-5">
+    <div className="mx-auto w-full max-w-4xl space-y-4 bg-[#f5f5f5] px-3 pb-20 pt-2 dark:bg-neutral-950 sm:px-5">
       <OfflineBanner offline={isOffline} />
 
       <DeliveryHeader
@@ -182,28 +182,28 @@ export default function DeliveryProfile() {
       />
 
       {meQuery.isLoading ? (
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <p className="inline-flex items-center gap-2 text-sm text-gray-500">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
             <Loader2 size={14} className="animate-spin" /> Chargement du profil...
           </p>
         </div>
       ) : meQuery.isError ? (
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
             {extractMessage(meQuery.error, 'Impossible de charger votre profil livreur.')}
           </p>
           <button
             type="button"
             onClick={() => meQuery.refetch()}
-            className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+            className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-[#FF6A00] px-3 text-sm font-black text-white"
           >
             Reessayer
           </button>
         </div>
       ) : (
         <>
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Identite</p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Identite</p>
             <div className="mt-3 flex items-start gap-3">
               {resolveDeliveryGuyProfileImage(profile) ? (
                 <img
@@ -212,21 +212,21 @@ export default function DeliveryProfile() {
                   className="h-14 w-14 rounded-full object-cover"
                 />
               ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-base font-semibold text-gray-600">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 text-base font-black text-[#FF6A00] dark:bg-orange-950">
                   {String(profile.fullName || profile.name || 'L').charAt(0).toUpperCase()}
                 </div>
               )}
-              <div className="space-y-1 text-sm text-gray-700">
-                <p>Nom: <span className="font-semibold text-gray-900">{profile.fullName || profile.name || '—'}</span></p>
-                <p>Telephone: <span className="font-semibold text-gray-900">{profile.phone || '—'}</span></p>
-                <p>Role: <span className="font-semibold text-gray-900">{String(meQuery.data?.role || '').toUpperCase() || '—'}</span></p>
+              <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                <p>Nom: <span className="font-semibold text-gray-900 dark:text-white">{profile.fullName || profile.name || '—'}</span></p>
+                <p>Telephone: <span className="font-semibold text-gray-900 dark:text-white">{profile.phone || '—'}</span></p>
+                <p>Role: <span className="font-semibold text-gray-900 dark:text-white">{String(meQuery.data?.role || '').toUpperCase() || '—'}</span></p>
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Position agent</p>
-            <p className="mt-2 text-xs text-gray-500">
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Position agent</p>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               Capturez la position actuelle du livreur pour les futures logiques de distance et de confidentialite.
             </p>
 
@@ -235,7 +235,7 @@ export default function DeliveryProfile() {
                 type="button"
                 onClick={captureAgentCoordinates}
                 disabled={capturing || isOffline}
-                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white disabled:opacity-60"
               >
                 {capturing ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
                 {capturing ? 'Capture...' : 'Capture agent coordinates'}
@@ -247,73 +247,72 @@ export default function DeliveryProfile() {
                 value={manualLat}
                 onChange={(event) => setManualLat(event.target.value)}
                 placeholder="Latitude"
-                className="min-h-[44px] rounded-xl border border-gray-200 px-3 text-sm"
+                className="ui-input min-h-[44px] rounded-xl px-3 text-sm"
               />
               <input
                 value={manualLng}
                 onChange={(event) => setManualLng(event.target.value)}
                 placeholder="Longitude"
-                className="min-h-[44px] rounded-xl border border-gray-200 px-3 text-sm"
+                className="ui-input min-h-[44px] rounded-xl px-3 text-sm"
               />
             </div>
             <button
               type="button"
               onClick={saveManualCoordinates}
               disabled={savingManual || isOffline}
-              className="mt-2 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-700 disabled:opacity-60"
+              className="mt-2 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-black text-gray-700 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-200"
             >
               {savingManual ? <Loader2 size={14} className="animate-spin" /> : null}
               Enregistrer position manuelle
             </button>
 
             {currentCoords ? (
-              <p className="mt-3 text-xs text-emerald-700">
+              <p className="mt-3 text-xs text-emerald-700 dark:text-emerald-400">
                 Position actuelle: {currentCoords.lat.toFixed(6)}, {currentCoords.lng.toFixed(6)}
               </p>
             ) : (
-              <p className="mt-3 text-xs text-gray-500">Aucune position agent enregistree.</p>
+              <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Aucune position agent enregistree.</p>
             )}
-            {positionError ? <p className="mt-2 text-xs text-red-600">{positionError}</p> : null}
-            {positionMessage ? <p className="mt-2 text-xs text-emerald-700">{positionMessage}</p> : null}
+            {positionError ? <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{positionError}</p> : null}
+            {positionMessage ? <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">{positionMessage}</p> : null}
           </section>
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Mini analytics</p>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-700 sm:grid-cols-3">
-              <article className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">Completed</p>
-                <p className="mt-1 font-semibold text-gray-900">{stats?.delivered ?? '—'}</p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Performance</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300 sm:grid-cols-3">
+              <article className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Completed</p>
+                <p className="mt-1 font-black text-gray-900 dark:text-white">{stats?.delivered ?? '—'}</p>
               </article>
-              <article className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">Failed</p>
-                <p className="mt-1 font-semibold text-gray-900">{stats?.failed ?? '—'}</p>
+              <article className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Failed</p>
+                <p className="mt-1 font-black text-gray-900 dark:text-white">{stats?.failed ?? '—'}</p>
               </article>
-              <article className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">Acceptance</p>
-                <p className="mt-1 font-semibold text-gray-900">{stats ? `${stats.acceptanceRate || 0}%` : '—'}</p>
+              <article className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Acceptance</p>
+                <p className="mt-1 font-black text-gray-900 dark:text-white">{stats ? `${stats.acceptanceRate || 0}%` : '—'}</p>
               </article>
-              <article className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">Avg pickup</p>
-                <p className="mt-1 font-semibold text-gray-900">{stats?.avgAcceptToPickupMinutes ? `${stats.avgAcceptToPickupMinutes} min` : '—'}</p>
+              <article className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Avg pickup</p>
+                <p className="mt-1 font-black text-gray-900 dark:text-white">{stats?.avgAcceptToPickupMinutes ? `${stats.avgAcceptToPickupMinutes} min` : '—'}</p>
               </article>
-              <article className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs text-gray-500">Avg route</p>
-                <p className="mt-1 font-semibold text-gray-900">{stats?.avgPickupToDeliveredMinutes ? `${stats.avgPickupToDeliveredMinutes} min` : '—'}</p>
+              <article className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Avg route</p>
+                <p className="mt-1 font-black text-gray-900 dark:text-white">{stats?.avgPickupToDeliveredMinutes ? `${stats.avgPickupToDeliveredMinutes} min` : '—'}</p>
               </article>
-              <article className="rounded-xl bg-indigo-50 p-3">
-                <p className="text-xs text-indigo-700">Total earnings</p>
-                <p className="mt-1 font-semibold text-indigo-900">{stats ? formatCurrency(stats.deliveryFeeRevenue || 0) : '—'}</p>
+              <article className="rounded-xl border border-orange-100 bg-orange-50 p-3 dark:border-orange-900 dark:bg-orange-950">
+                <p className="text-xs text-[#b34a00] dark:text-orange-300">Total earnings</p>
+                <p className="mt-1 font-black text-[#FF6A00]">{stats ? formatCurrency(stats.deliveryFeeRevenue || 0) : '—'}</p>
               </article>
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Runtime guardrails</p>
-            <div className="mt-2 space-y-1 text-xs text-gray-600">
-              <p>Proof upload: <span className="font-semibold text-gray-800">{runtime.enableProofUpload ? 'Enabled' : 'Disabled'}</span></p>
-              <p>PIN code: <span className="font-semibold text-gray-800">{runtime.enableDeliveryPinCode ? 'Enabled' : 'Disabled'}</span></p>
-              <p>Location lock: <span className="font-semibold text-gray-800">{runtime.locationLockEnabled ? 'Enabled' : 'Disabled'}</span></p>
-              <p>Lock threshold: <span className="font-semibold text-gray-800">{Number(runtime.locationLockDistanceMeters || 0)} m</span></p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Sécurité (config plateforme)</p>
+            <div className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+              <p className="flex items-center justify-between"><span>Preuve photo</span><span className={`font-semibold ${runtime.enableProofUpload ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>{runtime.enableProofUpload ? 'Activée' : 'Désactivée'}</span></p>
+              <p className="flex items-center justify-between"><span>Code PIN livraison</span><span className={`font-semibold ${runtime.enableDeliveryPinCode ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>{runtime.enableDeliveryPinCode ? 'Activé' : 'Désactivé'}</span></p>
+              <p className="flex items-center justify-between"><span>Verrou de distance</span><span className="font-semibold text-gray-800 dark:text-gray-200">{runtime.locationLockEnabled ? `${Number(runtime.locationLockDistanceMeters || 0)} m` : 'Désactivé'}</span></p>
             </div>
           </section>
         </>

@@ -43,6 +43,7 @@ import InstallmentReminder from '../components/orders/InstallmentReminder';
 import InstallmentOrderTracking from '../components/orders/InstallmentOrderTracking';
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
+import PawaPayButton from '../components/PawaPayButton';
 import OrderMiniRail from '../components/orders/OrderMiniRail';
 import BaseModal from '../components/modals/BaseModal';
 import CartContext from '../context/CartContext';
@@ -764,7 +765,7 @@ export default function OrderDetail() {
     };
     const cleanPayerName = String(currentProof.payerName || '').trim();
     const cleanTransactionCode = String(currentProof.transactionCode || '').replace(/\D/g, '');
-    const paymentMethod = currentProof.paymentMethod === 'wallet' ? 'wallet' : 'mobile_money';
+    const paymentMethod = 'wallet';
     const amount = Number(entry?.amount || 0);
 
     if (paymentMethod === 'mobile_money' && !cleanPayerName) {
@@ -2284,7 +2285,7 @@ export default function OrderDetail() {
                         proofDraftState?.transactionCode ??
                         transactionProof?.transactionCode ??
                         '',
-                      paymentMethod: proofDraftState?.paymentMethod || 'mobile_money'
+                      paymentMethod: 'wallet'
                     };
                     return (
                       <div key={`${order._id}-installment-${index}`} className="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
@@ -2332,32 +2333,26 @@ export default function OrderDetail() {
                         )}
                         {canUploadProof && (
                           <div className="space-y-3">
+                            {installmentWalletEnabled && Number(entry?.amount || 0) >= 10 && (
+                              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                                <p className="mb-2 text-xs font-black text-emerald-900">
+                                  Recharge automatique pour cette tranche
+                                </p>
+                                <PawaPayButton
+                                  amount={entry?.amount || 0}
+                                  purpose="INSTALLMENT_FUNDING"
+                                  returnPath={typeof window !== 'undefined' ? window.location.pathname : '/orders'}
+                                  label="Payer la tranche avec PawaPay"
+                                />
+                                <p className="mt-2 text-[11px] font-semibold text-emerald-800">
+                                  Après votre retour, choisissez « Portefeuille » pour valider la tranche.
+                                </p>
+                              </div>
+                            )}
                             {installmentWalletEnabled && (
-                              <div className="grid grid-cols-2 gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleInstallmentProofFieldChange(index, 'paymentMethod', 'mobile_money')}
-                                  className={`rounded-xl border p-3 text-left text-xs font-bold ${
-                                    proofDraft.paymentMethod === 'mobile_money'
-                                      ? 'border-[#e85d00] bg-orange-50 text-orange-800'
-                                      : 'border-gray-200 bg-white text-gray-600'
-                                  }`}
-                                >
-                                  <CreditCard size={16} className="mb-1.5" />
-                                  Mobile Money
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleInstallmentProofFieldChange(index, 'paymentMethod', 'wallet')}
-                                  className={`rounded-xl border p-3 text-left text-xs font-bold ${
-                                    proofDraft.paymentMethod === 'wallet'
-                                      ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-                                      : 'border-gray-200 bg-white text-gray-600'
-                                  }`}
-                                >
-                                  <Wallet size={16} className="mb-1.5" />
-                                  Portefeuille
-                                </button>
+                              <div className="rounded-xl border border-emerald-500 bg-emerald-50 p-3 text-left text-xs font-bold text-emerald-800">
+                                <Wallet size={16} className="mb-1.5" />
+                                PawaPay · aucun ID transaction
                               </div>
                             )}
                             {proofDraft.paymentMethod === 'wallet' ? (

@@ -25,6 +25,7 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import RewardPointsRedeemBox from '../components/RewardPointsRedeemBox';
+import PawaPayButton from '../components/PawaPayButton';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -108,8 +109,8 @@ export default function OrderCheckout() {
   }, [groupBuyId]);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState('');
-  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.STANDARD);
-  const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState('mobile_money');
+  const [paymentMode, setPaymentMode] = useState(PAYMENT_MODES.WALLET);
+  const [installmentPaymentMethod, setInstallmentPaymentMethod] = useState('wallet');
   const [sponsorPhone, setSponsorPhone] = useState('');
   const [sponsorMessage, setSponsorMessage] = useState('');
   const [sponsorResolved, setSponsorResolved] = useState(null); // { found, name }
@@ -157,6 +158,7 @@ export default function OrderCheckout() {
   const isStandardPayment =
     !isInstallmentPayment && !isFullPaymentSelected && !isWalletPayment && !isSponsorPayment;
   const payForOtherEnabled = normalizeBoolean(getRuntimeValue('enable_pay_for_other', false), false);
+  const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
 
   // Resolve the entered payer phone → confirm which HDMarket user it belongs to.
   useEffect(() => {
@@ -411,13 +413,27 @@ export default function OrderCheckout() {
   const walletEnabledPhones = walletEnabledShopsStr
     ? walletEnabledShopsStr.split(',').map((value) => value.trim()).filter(Boolean)
     : null;
-  const walletEligible = walletPaymentEnabled && digitalWalletEnabled && (
-    walletEnabledPhones === null ||
-    walletEnabledPhones.length === 0 ||
-    sellerGroups.every((group) => walletEnabledPhones.includes(String(group.sellerPhone || '').trim()))
+  const walletEligible = pawaPayOnlyMode || (
+    walletPaymentEnabled && digitalWalletEnabled && (
+      walletEnabledPhones === null ||
+      walletEnabledPhones.length === 0 ||
+      sellerGroups.every((group) => walletEnabledPhones.includes(String(group.sellerPhone || '').trim()))
+    )
   );
 
   const paymentModeCards = useMemo(() => {
+    if (pawaPayOnlyMode) {
+      return [{
+        id: PAYMENT_MODES.WALLET,
+        title: 'PawaPay',
+        subtitle: 'Paiement sécurisé par MTN MoMo ou Airtel Money.',
+        eyebrow: 'Sécurisé',
+        icon: ShieldCheck,
+        amount: checkoutTotalWithDelivery,
+        amountDisplay: formatCurrency(checkoutTotalWithDelivery),
+        bullets: ['Aucun ID de transaction', 'Confirmation automatique', 'Protection HDMarket']
+      }];
+    }
     const baseCards = [
       {
         id: PAYMENT_MODES.STANDARD,
@@ -533,14 +549,13 @@ export default function OrderCheckout() {
     sellerGroups,
     t,
     walletEligible,
-    payForOtherEnabled
+    payForOtherEnabled,
+    pawaPayOnlyMode
   ]);
 
   useEffect(() => {
-    if (!isInstallmentProductEligible && paymentMode === PAYMENT_MODES.INSTALLMENT) {
-      setPaymentMode(PAYMENT_MODES.STANDARD);
-    }
-  }, [isInstallmentProductEligible, paymentMode]);
+    if (paymentMode !== PAYMENT_MODES.WALLET) setPaymentMode(PAYMENT_MODES.WALLET);
+  }, [paymentMode]);
 
   useEffect(() => {
     if (
@@ -1678,6 +1693,30 @@ export default function OrderCheckout() {
               </div>
             )}
 
+            {walletEligible && checkoutTotalWithDelivery >= 10 && (
+              <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm sm:p-5">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">Nouveau · Mobile Money sécurisé</p>
+                    <h3 className="mt-1 text-base font-black text-slate-950">Payer avec PawaPay</h3>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                      Payez le montant avec MTN MoMo ou Airtel Money. À votre retour, finalisez la commande sans saisir d’identifiant de transaction.
+                    </p>
+                  </div>
+                  <ShieldCheck size={22} className="shrink-0 text-emerald-700" />
+                </div>
+                <PawaPayButton
+                  amount={checkoutTotalWithDelivery}
+                  purpose="CHECKOUT_FUNDING"
+                  returnPath="/orders/checkout"
+                  label="Continuer avec PawaPay"
+                />
+                <p className="mt-2 text-[11px] font-semibold text-emerald-800">
+                  Le vendeur reçoit sa part dans son solde HDMarket après confirmation, puis peut la retirer vers son réseau MTN ou Airtel vérifié.
+                </p>
+              </div>
+            )}
+
             <RewardPointsRedeemBox
               orderSubtotal={Number(totals.subtotal || 0)}
               singleSeller={sellerGroups.length === 1}
@@ -1838,12 +1877,12 @@ export default function OrderCheckout() {
                     {(paymentMode === PAYMENT_MODES.WALLET || installmentUsesWallet) && (
                       <div className="space-y-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                         <p className="text-sm font-black text-emerald-800">
-                          {t('checkout.walletValidation', 'Paiement par portefeuille HDMarket')}
+                          Paiement PawaPay
                         </p>
                         <p className="text-xs font-semibold text-emerald-700">
                           {installmentUsesWallet
                             ? `${formatCurrency(groupDeposit)} seront débités automatiquement pour le premier versement.`
-                            : 'Aucun acompte ni code transaction requis ici. Le paiement est traité côté HDMarket.'}
+                            : 'Aucun identifiant de transaction requis. Le règlement est confirmé automatiquement par PawaPay.'}
                         </p>
                       </div>
                     )}

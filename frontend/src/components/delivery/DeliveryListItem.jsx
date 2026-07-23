@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Check, Clock3, Package, X } from 'lucide-react';
-import LiquidGlassCard from '../ui/liquid-notification';
 import {
   formatCurrency,
   getRelativeTime,
@@ -61,21 +60,21 @@ export default function DeliveryListItem({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl shadow-sm transition hover:shadow-md">
+    <div className="relative overflow-hidden rounded-2xl shadow-sm">
       <div className="pointer-events-none absolute inset-0 flex">
-        <div className="flex flex-1 items-center justify-start soft-card soft-card-green pl-4 text-emerald-700 dark:text-emerald-100">
+        <div className="flex flex-1 items-center justify-start bg-emerald-50 pl-4 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
           <span className="inline-flex items-center gap-1 text-xs font-semibold">
             <Check size={12} /> {item?.claimable ? 'Glisser pour prendre' : 'Glisser pour accepter'}
           </span>
         </div>
-        <div className="flex flex-1 items-center justify-end soft-card soft-card-red pr-4 text-red-700 dark:text-red-100">
+        <div className="flex flex-1 items-center justify-end bg-rose-50 pr-4 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
           <span className="inline-flex items-center gap-1 text-xs font-semibold">
             {item?.claimable ? 'Utilisez le bouton' : 'Glisser pour refuser'} <X size={12} />
           </span>
         </div>
       </div>
 
-      <LiquidGlassCard
+      <div
         role={item?.claimable ? 'group' : 'button'}
         tabIndex={item?.claimable ? -1 : 0}
         onClick={() => !item?.claimable && onOpen?.(item)}
@@ -86,23 +85,18 @@ export default function DeliveryListItem({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
-        draggable={false}
-        blurIntensity="md"
-        glowIntensity="xs"
-        shadowIntensity="xs"
-        borderRadius="16px"
         style={{ transform: `translateX(${offset}px)` }}
-        className="relative z-10 p-4 transition-transform"
+        className="relative z-10 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-transform dark:border-neutral-800 dark:bg-neutral-950"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-300">#{String(item?.orderId || '').slice(-6)}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{routeText}</p>
-            <p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-300">
+            <p className="text-xs text-gray-500 dark:text-gray-400">#{String(item?.orderId || '').slice(-6)}</p>
+            <p className="mt-1 text-sm font-black text-gray-900 dark:text-white">{routeText}</p>
+            <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
               <Clock3 size={12} /> {getRelativeTime(item?.updatedAt || item?.createdAt)}
             </p>
           </div>
-          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(item)}`}>
+          <span className={`inline-flex rounded px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(item)}`}>
             {item?.claimable ? 'Disponible' : workflowLabelOf(item)}
           </span>
         </div>
@@ -116,15 +110,15 @@ export default function DeliveryListItem({
               loading="lazy"
             />
           ) : (
-            <div className="glass-card grid h-12 w-12 place-items-center rounded-xl text-slate-400 dark:text-slate-200">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-gray-50 text-gray-400 dark:bg-neutral-900 dark:text-gray-500">
               <Package size={14} />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{firstItem?.name || 'Produit'}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-300">Qté {Number(firstItem?.qty || 1)}</p>
+            <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{firstItem?.name || 'Produit'}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Qté {Number(firstItem?.qty || 1)}</p>
           </div>
-          <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">{formatCurrency(item?.deliveryPrice, item?.currency)}</p>
+          <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{formatCurrency(item?.deliveryPrice, item?.currency)}</p>
         </div>
 
         {item?.claimable ? (
@@ -135,12 +129,12 @@ export default function DeliveryListItem({
               onAccept?.(item);
             }}
             disabled={!canAccept}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm disabled:opacity-60"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white shadow-sm disabled:opacity-60"
           >
             <Check size={15} /> Prendre cette livraison
           </button>
         ) : null}
-      </LiquidGlassCard>
+      </div>
     </div>
   );
 }

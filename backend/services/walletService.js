@@ -164,20 +164,19 @@ export const deposit = async ({ userId, amount, reference = '', processedBy = nu
 /**
  * Withdrawal — Seller requests payout to Mobile Money.
  */
-export const requestWithdrawal = async ({ userId, amount, reference = '' }) => {
+export const requestWithdrawal = async ({ userId, amount, reference = '', provider = '', payoutId = '' }) => {
   if (!amount || amount <= 0) throw new Error('Le montant doit être supérieur à 0');
 
   const wallet = await getOrCreateWallet(userId);
-  const owner = await User.findById(userId).select('phone').lean();
+  const owner = await User.findById(userId).select('phone payoutAccount').lean();
   const accountPhone = String(owner?.phone || '').trim();
   const normalizedAccountPhone = normalizePhoneDigits(accountPhone);
-  const normalizedReference = normalizePhoneDigits(reference || accountPhone);
+  const payoutPhone = String(reference || owner?.payoutAccount?.phoneNumber || accountPhone).trim();
+  const normalizedReference = normalizePhoneDigits(payoutPhone);
   if (!normalizedAccountPhone) {
     throw new Error('Aucun numéro de téléphone n’est associé à ce compte.');
   }
-  if (!normalizedReference || normalizedReference !== normalizedAccountPhone) {
-    throw new Error('Le retrait est autorisé uniquement vers le numéro de téléphone du compte.');
-  }
+  if (!normalizedReference) throw new Error('Numéro Mobile Money invalide.');
   if (wallet.availableBalance < amount) {
     throw new Error(`Solde insuffisant. Disponible: ${formatXAF(wallet.availableBalance)}`);
   }
@@ -189,10 +188,17 @@ export const requestWithdrawal = async ({ userId, amount, reference = '' }) => {
     amount,
     balanceBefore,
     balanceAfter: wallet.balance,
-    reference: accountPhone,
-    status: 'pending', // Admin must approve
-    note: 'Demande de retrait vers Mobile Money',
-    metadata: { reference: accountPhone, payoutPhone: accountPhone, accountPhone }
+    reference: payoutPhone,
+    status: 'pending',
+    note: 'Retrait PawaPay en cours',
+    metadata: {
+      reference: payoutPhone,
+      payoutPhone,
+      accountPhone,
+      provider,
+      payoutId,
+      gateway: 'PAWAPAY'
+    }
   });
 
   await wallet.save();
@@ -211,7 +217,14 @@ export const requestWithdrawal = async ({ userId, amount, reference = '' }) => {
 /**
  * Admin approves or rejects a withdrawal.
  */
-export const processWithdrawal = async ({ walletId, transactionId, approved = true, processedBy = null, note = '' }) => {
+export const processWithdrawal = async ({
+  walletId,
+  transactionId,
+  approved = true,
+  processedBy = null,
+  note = '',
+  allowGatewaySettlement = false
+}) => {
   const wallet = await Wallet.findById(walletId);
   if (!wallet) throw new Error('Portefeuille introuvable');
 
@@ -219,6 +232,9 @@ export const processWithdrawal = async ({ walletId, transactionId, approved = tr
   if (!txn) throw new Error('Transaction introuvable');
   if (txn.type !== 'withdrawal') throw new Error('Cette transaction n\'est pas un retrait');
   if (txn.status !== 'pending') throw new Error('Cette transaction a déjà été traitée');
+  if (txn?.metadata?.gateway === 'PAWAPAY' && !allowGatewaySettlement) {
+    throw new Error('Ce retrait est traité automatiquement par PawaPay. Attendez son callback.');
+  }
 
   const owner = await User.findById(wallet.user).select('phone').lean();
   const accountPhone = String(owner?.phone || '').trim();

@@ -35,24 +35,24 @@ export default function DeliveryAppShell() {
   }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-[#f4f6f8] text-slate-950 dark:bg-[#090d12] dark:text-white">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-[#0b1f33] px-4 py-5 text-white lg:flex">
+    <div className="min-h-[100dvh] bg-[#f5f5f5] text-gray-900 dark:bg-neutral-950 dark:text-white">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-gray-100 bg-white px-4 py-5 dark:border-neutral-800 dark:bg-neutral-950 lg:flex">
         <div className="flex items-center gap-3 px-2">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#ff6a00] shadow-lg shadow-orange-950/30">
-            <Bike className="h-5 w-5" />
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#FF6A00] shadow-sm">
+            <Bike className="h-5 w-5 text-white" />
           </span>
           <div>
-            <p className="text-base font-black tracking-tight">HDMarket Delivery</p>
-            <p className="text-[11px] font-semibold text-slate-300">Centre opérationnel</p>
+            <p className="text-base font-black tracking-tight text-gray-900 dark:text-white">HDMarket Delivery</p>
+            <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Centre opérationnel</p>
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-3 py-3">
+        <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-            <p className="text-xs font-black">{online ? 'Connecté au réseau' : 'Mode hors connexion'}</p>
+            <span className={`h-2.5 w-2.5 rounded-full ${online ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            <p className="text-xs font-black text-gray-900 dark:text-white">{online ? 'Connecté au réseau' : 'Mode hors connexion'}</p>
           </div>
-          <p className="mt-1 text-[11px] leading-4 text-slate-300">
+          <p className="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400">
             {online ? 'Missions et positions synchronisées.' : 'Les données seront resynchronisées au retour du réseau.'}
           </p>
         </div>
@@ -66,19 +66,19 @@ export default function DeliveryAppShell() {
                 key={item.key}
                 to={item.to}
                 className={`flex min-h-12 items-center gap-3 rounded-2xl px-3 text-sm font-black transition ${
-                  active ? 'bg-white text-[#0b1f33] shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  active ? 'bg-orange-50 text-[#FF6A00] dark:bg-orange-950' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-neutral-900 dark:hover:text-white'
                 }`}
               >
-                <Icon className={`h-5 w-5 ${active ? 'text-[#ff6a00]' : ''}`} />
+                <Icon className={`h-5 w-5 ${active ? 'text-[#FF6A00]' : ''}`} />
                 {item.label}
               </NavLink>
             );
           })}
         </nav>
 
-        <div className="mt-auto rounded-2xl bg-[#102d49] p-4">
-          <p className="text-xs font-black">Sécurité de livraison</p>
-          <p className="mt-1 text-[11px] leading-4 text-slate-300">
+        <div className="mt-auto rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
+          <p className="text-xs font-black text-gray-900 dark:text-white">Sécurité de livraison</p>
+          <p className="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400">
             Le suivi GPS fonctionne uniquement pendant une mission active et s’arrête automatiquement après la livraison.
           </p>
         </div>
@@ -89,7 +89,7 @@ export default function DeliveryAppShell() {
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-3 pb-[max(8px,env(safe-area-inset-bottom,0px))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-[#0b1119]/95 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-100 bg-white px-3 pb-[max(8px,env(safe-area-inset-bottom,0px))] pt-2 shadow-sm backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950 lg:hidden"
         aria-label="Navigation livraison mobile"
       >
         <div className="mx-auto grid max-w-md grid-cols-3 gap-1">
@@ -103,8 +103,8 @@ export default function DeliveryAppShell() {
                 aria-current={active ? 'page' : undefined}
                 className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-black transition active:scale-95 ${
                   active
-                    ? 'bg-orange-50 text-[#d95200] dark:bg-orange-950/40 dark:text-orange-300'
-                    : 'text-slate-500 dark:text-slate-400'
+                    ? 'bg-orange-50 text-[#FF6A00] dark:bg-orange-950 dark:text-orange-300'
+                    : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
                 <Icon className="h-5 w-5" />

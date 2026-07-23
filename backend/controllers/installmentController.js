@@ -472,6 +472,15 @@ export const checkoutInstallmentOrder = asyncHandler(async (req, res) => {
   const paymentMethod = String(rawPaymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
     ? 'wallet'
     : 'mobile_money';
+  if (
+    String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true' &&
+    paymentMethod !== 'wallet'
+  ) {
+    return res.status(403).json({
+      code: 'PAWAPAY_ONLY',
+      message: 'Les identifiants de transaction manuels sont désactivés. Utilisez PawaPay.'
+    });
+  }
   const cleanPayerName = String(payerName || '').trim();
   const cleanTransactionCode = normalizeTransactionCode(transactionCode);
 
@@ -795,6 +804,15 @@ export const uploadInstallmentPaymentProof = asyncHandler(async (req, res) => {
   const paymentMethod = String(rawPaymentMethod || 'mobile_money').trim().toLowerCase() === 'wallet'
     ? 'wallet'
     : 'mobile_money';
+  if (
+    String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true' &&
+    paymentMethod !== 'wallet'
+  ) {
+    return res.status(403).json({
+      code: 'PAWAPAY_ONLY',
+      message: 'Les preuves et identifiants de transaction sont désactivés. Utilisez PawaPay.'
+    });
+  }
   const cleanPayerName = String(payerName || '').trim();
   const cleanTransactionCode = normalizeTransactionCode(transactionCode);
   const submittedAmount = Number(amount || 0);

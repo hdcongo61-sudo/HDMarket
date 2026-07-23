@@ -175,7 +175,16 @@ export const getUnitPrice = (product, quantity = 1) => {
 export const getWholesalePricing = (product, quantity = 1) => {
   const qty = Math.max(1, Math.trunc(toNumber(quantity, 1)));
   const baseUnitPrice = roundCurrency(product?.price);
-  const tier = getWholesaleTierForQuantity(product, qty);
+  const tiers = product?.wholesaleEnabled ? normalizeWholesaleTiers(product?.wholesaleTiers) : [];
+  let tier = null;
+  let nextTier = null;
+  for (const candidate of tiers) {
+    if (qty >= candidate.minQty) tier = candidate;
+    else {
+      nextTier = candidate;
+      break;
+    }
+  }
   const unitPrice = tier ? roundCurrency(tier.unitPrice) : baseUnitPrice;
   const lineTotal = roundCurrency(unitPrice * qty);
   const baseTotal = roundCurrency(baseUnitPrice * qty);
@@ -195,9 +204,17 @@ export const getWholesalePricing = (product, quantity = 1) => {
           label: normalizeTierLabel(tier.label)
         }
       : null,
+    nextTier: nextTier
+      ? {
+          minQty: Number(nextTier.minQty || 0),
+          unitPrice: roundCurrency(nextTier.unitPrice),
+          label: normalizeTierLabel(nextTier.label)
+        }
+      : null,
+    quantityToNextTier: nextTier ? Math.max(0, Number(nextTier.minQty || 0) - qty) : 0,
     savingsAmount,
     savingsPercent,
-    wholesaleEnabled: Boolean(product?.wholesaleEnabled)
+    wholesaleEnabled: Boolean(product?.wholesaleEnabled) && tiers.length > 0
   };
 };
 

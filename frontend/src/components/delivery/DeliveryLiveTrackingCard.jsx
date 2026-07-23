@@ -6,43 +6,43 @@ const STATUS_META = {
     label: 'En attente',
     message: 'Le suivi démarrera automatiquement dès qu’une mission sera en cours.',
     icon: MapPinned,
-    classes: 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'
+    classes: 'border-gray-100 bg-white text-gray-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-200'
   },
   requesting: {
     label: 'Connexion GPS',
     message: 'Autorisez la position précise pour connecter le suivi en direct.',
     icon: Crosshair,
-    classes: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-200'
+    classes: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200'
   },
   live: {
     label: 'Suivi en direct',
     message: 'Votre position est transmise au suivi de commande du client.',
     icon: Navigation,
-    classes: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200'
+    classes: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
   },
   denied: {
     label: 'Position refusée',
     message: 'Activez la localisation dans les réglages du navigateur pour reprendre le suivi.',
     icon: ShieldCheck,
-    classes: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200'
+    classes: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200'
   },
   unavailable: {
     label: 'GPS indisponible',
     message: 'Cet appareil ou ce navigateur ne fournit pas de position exploitable.',
     icon: Crosshair,
-    classes: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200'
+    classes: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200'
   },
   offline: {
     label: 'Suivi suspendu',
     message: 'La position sera resynchronisée lorsque la connexion reviendra.',
     icon: WifiOff,
-    classes: 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+    classes: 'border-gray-200 bg-gray-50 text-gray-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-200'
   },
   disabled: {
     label: 'Suivi désactivé',
     message: 'Le suivi GPS en direct est désactivé dans la configuration de la plateforme.',
     icon: ShieldCheck,
-    classes: 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'
+    classes: 'border-gray-100 bg-white text-gray-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-300'
   }
 };
 

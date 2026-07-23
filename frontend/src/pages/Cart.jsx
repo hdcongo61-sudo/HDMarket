@@ -243,6 +243,10 @@ export default function Cart() {
     const savings = discount > 0 ? (originalPrice - item.product.price) * item.quantity : 0;
     return sum + savings;
   }, 0);
+  const totalWholesaleSavings = items.reduce(
+    (sum, item) => sum + Number(item?.wholesale?.savingsAmount || 0),
+    0
+  );
 
   return ( 
     <main className="hd-products-flow min-h-screen">
@@ -412,6 +416,15 @@ export default function Cart() {
               const discount = product.discount || 0;
               const bundleApplied = Boolean(item.bundle?.applied);
               const bundleDiscountPercent = Number(item.bundle?.discountPercent || 0);
+              const wholesaleEligible = Boolean(item.wholesale?.eligible) && !item.variantPriceApplied;
+              const wholesaleApplied = wholesaleEligible && Boolean(item.wholesale?.applied);
+              const wholesaleTier = wholesaleApplied ? item.wholesale?.tier : null;
+              const nextWholesaleTier = wholesaleEligible ? item.wholesale?.nextTier : null;
+              const wholesaleTiers = wholesaleEligible
+                ? [...(Array.isArray(product.wholesaleTiers) ? product.wholesaleTiers : [])]
+                    .filter((tier) => Number(tier?.minQty) > 0 && Number(tier?.unitPrice) > 0)
+                    .sort((a, b) => Number(a.minQty) - Number(b.minQty))
+                : [];
               const cartItemKey = getCartItemKey(item);
               
               const isRemoving = Boolean(pending[cartItemKey]);
@@ -476,7 +489,69 @@ export default function Cart() {
                           />
                           
                           {/* Price Display Enhanced - Much Smaller on Mobile */}
-                          <p className="text-xs font-semibold text-[#8a8378]">{formatPrice(unitPrice)} / {t('cartPage.unit', 'unité')}</p>
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <p className={`text-xs font-black ${wholesaleApplied ? 'text-emerald-700' : 'text-[#8a8378]'}`}>
+                              {formatPrice(unitPrice)} / {t('cartPage.unit', 'unité')}
+                            </p>
+                            {wholesaleApplied && Number(product.price || 0) > Number(unitPrice || 0) ? (
+                              <span className="text-[10px] font-semibold text-gray-400 line-through">
+                                {formatPrice(product.price)}
+                              </span>
+                            ) : null}
+                          </div>
+                          {wholesaleEligible ? (
+                            <div className={`rounded-xl border px-3 py-2.5 ${wholesaleApplied ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className={`text-[11px] font-black ${wholesaleApplied ? 'text-emerald-800' : 'text-amber-900'}`}>
+                                    {wholesaleApplied
+                                      ? `${wholesaleTier?.label || 'Prix de gros appliqué'} · dès ${wholesaleTier?.minQty} unités`
+                                      : 'Prix de gros disponible'}
+                                  </p>
+                                  {wholesaleApplied && Number(item.wholesale?.savingsAmount || 0) > 0 ? (
+                                    <p className="mt-0.5 text-[10px] font-bold text-emerald-700">
+                                      Vous économisez {formatPrice(item.wholesale.savingsAmount)} sur cet article.
+                                    </p>
+                                  ) : null}
+                                  {nextWholesaleTier ? (
+                                    <p className={`mt-0.5 text-[10px] font-semibold ${wholesaleApplied ? 'text-emerald-700' : 'text-amber-800'}`}>
+                                      {Number(item.wholesale?.quantityToNextTier || 0) > 0
+                                        ? `Ajoutez ${item.wholesale.quantityToNextTier} unité${item.wholesale.quantityToNextTier > 1 ? 's' : ''} pour payer ${formatPrice(nextWholesaleTier.unitPrice)} / unité.`
+                                        : `Dès ${nextWholesaleTier.minQty} unités : ${formatPrice(nextWholesaleTier.unitPrice)} / unité.`}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                {nextWholesaleTier ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => changeQuantity(item, nextWholesaleTier.minQty)}
+                                    disabled={disableAll || isRemoving || qtyPending[cartItemKey] !== undefined}
+                                    className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg bg-gray-950 px-3 text-[10px] font-black text-white transition active:scale-95 disabled:opacity-50"
+                                  >
+                                    Passer à {nextWholesaleTier.minQty}
+                                  </button>
+                                ) : null}
+                              </div>
+                              {wholesaleTiers.length > 1 ? (
+                                <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5" aria-label="Paliers de prix de gros">
+                                  {wholesaleTiers.map((tier) => {
+                                    const active = Number(wholesaleTier?.minQty || 0) === Number(tier.minQty);
+                                    return (
+                                      <button
+                                        key={`${cartItemKey}-wholesale-${tier.minQty}`}
+                                        type="button"
+                                        onClick={() => changeQuantity(item, tier.minQty)}
+                                        disabled={disableAll || isRemoving || qtyPending[cartItemKey] !== undefined}
+                                        className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-black transition disabled:opacity-50 ${active ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300'}`}
+                                      >
+                                        {tier.minQty}+ · {formatPrice(tier.unitPrice)}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
                           {bundleApplied && (
                             <p className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700">
                               🎁 {t('cartPage.bundleApplied', 'Prix du lot appliqué')} (-{bundleDiscountPercent}%)
@@ -567,6 +642,13 @@ export default function Cart() {
                   <div className="flex items-center justify-between gap-4">
                     <span className="font-semibold text-[#6b6459]">{t('cartPage.savings', 'Économies')}</span>
                     <span className="text-lg font-black text-emerald-700">-{formatPrice(totalSavings)}</span>
+                  </div>
+                )}
+
+                {totalWholesaleSavings > 0 && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-semibold text-[#6b6459]">Économies prix de gros</span>
+                    <span className="text-lg font-black text-emerald-700">-{formatPrice(totalWholesaleSavings)}</span>
                   </div>
                 )}
 

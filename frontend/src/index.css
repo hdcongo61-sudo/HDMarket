@@ -543,6 +543,18 @@ select:disabled {
   color: #332216;
 }
 
+/* No .dark variant existed for the rule above (or the bg-gray-100/bg-neutral-100
+   one below) — every link/button in the mobile menu sheet (e.g. the
+   "Connexion" profile card) stayed force-lit in dark mode regardless of its
+   own dark:bg-* class, since this unlayered rule always beats the layered
+   Tailwind utility. */
+.dark .hd-mobile-menu-sheet a:not([class*="from-[#e85d00]"]):not([class*="grid-cols-2"]):not([class*="bg-black"]),
+.dark .hd-mobile-menu-sheet button:not([class*="bg-black"]):not([class*="bg-red"]) {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(23, 23, 23, 0.9);
+  color: #f1f5f9;
+}
+
 .hd-mobile-menu-sheet a:not([class*="from-[#e85d00]"]):active,
 .hd-mobile-menu-sheet button:active {
   transform: scale(0.99);
@@ -557,6 +569,11 @@ select:disabled {
 .hd-mobile-menu-sheet [class*="bg-gray-100"],
 .hd-mobile-menu-sheet [class*="bg-neutral-100"] {
   background-color: rgba(255, 255, 255, 0.82) !important;
+}
+
+.dark .hd-mobile-menu-sheet [class*="bg-gray-100"],
+.dark .hd-mobile-menu-sheet [class*="bg-neutral-100"] {
+  background-color: rgba(23, 23, 23, 0.9) !important;
 }
 
 .hd-global-search {
@@ -1256,6 +1273,12 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
   border-color: rgba(229, 231, 235, 0.92);
   background: #ffffff;
   box-shadow: 0 14px 34px rgba(117, 75, 36, 0.09);
+}
+
+.dark .hd-product-card {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: #171717;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
 }
 
 .hd-product-price {
@@ -2680,6 +2703,26 @@ select {
     background-color 180ms ease;
 }
 
+/* This whole block (bare input/textarea/select tag selectors, so it applies
+   even without the .ui-input class) hardcoded a light background with no
+   dark counterpart anywhere in the file — every plain form field on the
+   site stayed white-on-dark in dark mode. Restore dark values here. */
+.dark .ui-input,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+.dark textarea,
+.dark select {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(23, 23, 23, 0.92);
+  color: #f1f5f9;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dark .ui-input::placeholder,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])::placeholder,
+.dark textarea::placeholder {
+  color: #6b7280;
+}
+
 .ui-input:hover,
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):hover,
 textarea:hover,
@@ -2694,6 +2737,14 @@ select:focus {
   border-color: rgba(255, 106, 0, 0.56);
   background-color: #fff;
   box-shadow: 0 0 0 4px rgba(255, 106, 0, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.dark .ui-input:focus,
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+.dark textarea:focus,
+.dark select:focus {
+  background-color: rgba(23, 23, 23, 0.98);
+  box-shadow: 0 0 0 4px rgba(255, 106, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 textarea.ui-input,
@@ -3144,8 +3195,18 @@ input[type="radio"] {
   box-shadow: 0 2px 10px rgba(117, 75, 36, 0.06) !important;
 }
 
+.dark .hd-products-flow .hd-product-card {
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  background: #171717;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
 .hd-products-flow .hd-product-card .hd-product-price {
   color: #171717 !important;
+}
+
+.dark .hd-products-flow .hd-product-card .hd-product-price {
+  color: #f7f4ee !important;
 }
 
 .hd-products-flow .hd-product-card button[class*="bg-neutral-950"],
@@ -3239,6 +3300,19 @@ input[type="radio"] {
   --ui-card-radius-lg: 16px;
   --ui-card-shadow: var(--hd-shadow-xs);
   --ui-card-shadow-hover: var(--hd-shadow-sm);
+}
+
+/* This later :root redeclared --hd-surface/--hd-app-bg etc. as plain light
+   values with no .dark counterpart, silently forcing every consumer below
+   (.ui-card, .glass-header, .hd-main-nav, and the legacy-card normalizer
+   further up) to stay light-only in dark mode. Restore dark values here. */
+.dark {
+  --hd-app-bg: #0a0a0a;
+  --hd-app-bg-soft: #0d0d0d;
+  --hd-surface: #171717;
+  --hd-surface-solid: #171717;
+  --hd-surface-raised: #1f1f1f;
+  --hd-surface-muted: #1a1a1a;
 }
 
 body,

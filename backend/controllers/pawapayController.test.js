@@ -59,6 +59,9 @@ describe('PawaPay callback content integrity', () => {
     verifyPawaPayContentDigest(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'PAWAPAY_CALLBACK_DIGEST_MISSING', success: false })
+    );
     expect(next).not.toHaveBeenCalled();
   });
 });

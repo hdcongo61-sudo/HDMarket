@@ -23,6 +23,15 @@ const userSchema = new mongoose.Schema(
       }
     },
     phoneVerified: { type: Boolean, default: false },
+    payoutAccount: {
+      provider: {
+        type: String,
+        enum: ['', 'MTN_MOMO_COG', 'AIRTEL_COG'],
+        default: ''
+      },
+      phoneNumber: { type: String, trim: true, default: '' },
+      verifiedAt: { type: Date, default: null }
+    },
     role: {
       type: String,
       enum: ['user', 'admin', 'manager', 'founder', 'delivery_agent'],

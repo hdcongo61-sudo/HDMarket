@@ -6,6 +6,7 @@ import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceF
 import { getSponsorshipStatusMeta } from '../utils/sponsorship';
 import GlassHeader from '../components/orders/GlassHeader';
 import BaseModal from '../components/modals/BaseModal';
+import PawaPayButton from '../components/PawaPayButton';
 import { Check, X, Clock, Wallet, CreditCard, RefreshCw, MessageCircle } from 'lucide-react';
 
 const normalizeSettingBoolean = (value, fallback = false) => {
@@ -153,6 +154,20 @@ function GroupPaymentForm({ totalAmount, depositAmount, walletEnabled = true, in
         <p className="text-xs font-semibold text-emerald-700">
           {formatCurrency(totalAmount)} seront débités de votre portefeuille HDMarket.
         </p>
+      )}
+      {walletEnabled && amountToPay >= 10 && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <p className="mb-2 text-xs font-black text-emerald-900">Payer sans recopier de code</p>
+          <PawaPayButton
+            amount={amountToPay}
+            purpose="CHECKOUT_FUNDING"
+            returnPath="/sponsorships"
+            label="Continuer avec PawaPay"
+          />
+          <p className="mt-2 text-[11px] font-semibold text-emerald-800">
+            Revenez ici puis choisissez « Portefeuille » pour terminer.
+          </p>
+        </div>
       )}
       <div className="flex gap-2">
         <button

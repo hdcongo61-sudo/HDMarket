@@ -29,6 +29,17 @@ describe('getOptimisticCartLinePricing', () => {
     const pricing = getOptimisticCartLinePricing(wholesaleProduct, 10);
     expect(pricing.unitPrice).toBe(800);
     expect(pricing.wholesale.applied).toBe(true);
+    expect(pricing.wholesale.nextTier).toBeNull();
+  });
+
+  it('reports the next wholesale quantity and price before the first tier', () => {
+    const pricing = getOptimisticCartLinePricing(wholesaleProduct, 2);
+    expect(pricing.wholesale).toMatchObject({
+      eligible: true,
+      applied: false,
+      nextTier: { minQty: 5, unitPrice: 900 },
+      quantityToNextTier: 3
+    });
   });
 
   it('a variant price overrides wholesale tiers entirely, even at a qualifying quantity', () => {

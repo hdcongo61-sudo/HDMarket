@@ -274,7 +274,7 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f5f5f5] px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
+    <main className="min-h-screen overflow-hidden bg-neutral-100 px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
       <motion.div
         variants={staggerContainer}
         initial="hidden"
@@ -310,7 +310,7 @@ export default function Login() {
                   transition={{ duration: 0.28 }}
                 >
                   <header className="mb-7">
-                    <h1 className="text-[28px] font-black leading-[1.15] tracking-normal text-[#231f1b] dark:text-white">
+                    <h1 className="text-[28px] font-black leading-[1.15] tracking-normal text-gray-900 dark:text-white">
                       {copy.title}
                     </h1>
                     <p className="mt-3 max-w-sm text-[15px] leading-6 text-gray-600 dark:text-neutral-300">

@@ -20,6 +20,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { useNetworks } from '../hooks/useNetworks';
+import PawaPayButton from '../components/PawaPayButton';
 
 const readFileAsDataURL = (file) => {
   return new Promise((resolve, reject) => {
@@ -627,6 +628,21 @@ export default function ShopConversionRequest() {
                     </p>
                   </button>
                 </div>
+
+                {Number(requiredAmount || 0) >= 10 && (
+                  <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="mb-2 text-sm font-black text-emerald-900">Recharge automatique avec PawaPay</p>
+                    <PawaPayButton
+                      amount={requiredAmount}
+                      purpose="LISTING_FEE_FUNDING"
+                      returnPath="/shop-conversion-request"
+                      label="Recharger avec PawaPay"
+                    />
+                    <p className="mt-2 text-[11px] font-semibold text-emerald-800">
+                      Revenez ensuite et choisissez « Portefeuille HDMarket » pour envoyer la demande.
+                    </p>
+                  </div>
+                )}
 
                 {paymentMethod === 'wallet' && (
                   <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">

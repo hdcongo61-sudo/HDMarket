@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import LiquidGlassCard from '../ui/liquid-notification';
 
 function AnimatedCounter({ value }) {
   const numeric = Number(value);
@@ -37,49 +36,37 @@ export default function DeliveryKpiRow({ items = [], loading = false }) {
   const content = useMemo(() => (Array.isArray(items) ? items : []), [items]);
 
   return (
-    <section className="-mx-1 overflow-x-auto px-1 pb-1">
-      <div className="flex min-w-full gap-2">
-        {(loading ? new Array(5).fill(0) : content).map((entry, index) => {
-          if (loading) {
-            return (
-              <LiquidGlassCard
-                key={`kpi-skeleton-${index}`}
-                draggable={false}
-                blurIntensity="md"
-                glowIntensity="xs"
-                shadowIntensity="xs"
-                borderRadius="16px"
-                className="h-[76px] min-w-[142px] flex-1 p-4"
-              >
-                <div className="glass-skeleton h-full w-full animate-pulse rounded-xl" />
-              </LiquidGlassCard>
-            );
-          }
-
-          const toneClass = entry.toneClass || 'bg-gray-100 text-gray-700';
+    <section className="grid grid-cols-2 gap-2">
+      {(loading ? new Array(4).fill(0) : content).map((entry, index) => {
+        if (loading) {
           return (
-            <LiquidGlassCard
-              key={entry.key || index}
-              draggable={false}
-              blurIntensity="md"
-              glowIntensity="sm"
-              shadowIntensity="sm"
-              borderRadius="16px"
-              className="min-w-[142px] flex-1 p-4 shadow-sm transition hover:shadow-md"
+            <div
+              key={`kpi-skeleton-${index}`}
+              className="h-[76px] rounded-xl border border-gray-100 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">{entry.label}</p>
-              <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                <AnimatedCounter value={entry.value} />
-              </p>
-              {entry.badge ? (
-                <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${toneClass}`}>
-                  {entry.badge}
-                </span>
-              ) : null}
-            </LiquidGlassCard>
+              <div className="h-full w-full animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-900" />
+            </div>
           );
-        })}
-      </div>
+        }
+
+        const toneClass = entry.toneClass || 'bg-gray-100 text-gray-700';
+        return (
+          <div
+            key={entry.key || index}
+            className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-500 dark:text-gray-400">{entry.label}</p>
+            <p className="mt-1 text-xl font-black text-gray-900 dark:text-white">
+              <AnimatedCounter value={entry.value} />
+            </p>
+            {entry.badge ? (
+              <span className={`mt-1.5 inline-flex rounded px-2 py-0.5 text-[11px] font-semibold ${toneClass}`}>
+                {entry.badge}
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
     </section>
   );
 }

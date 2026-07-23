@@ -6,7 +6,6 @@ import api from '../../services/api';
 import DeliveryHeader from '../../components/delivery/DeliveryHeader';
 import DeliverySkeleton from '../../components/delivery/DeliverySkeleton';
 import OfflineBanner from '../../components/delivery/OfflineBanner';
-import LiquidGlassCard from '../../components/ui/liquid-notification';
 import {
   buildAssignmentRoute,
   buildGoogleMapHref,
@@ -119,7 +118,7 @@ export default function DeliveryHistory() {
   }, [historyQuery]);
 
   return (
-    <div className="glass-page-shell mx-auto w-full max-w-4xl space-y-4 px-3 pb-20 pt-2 sm:px-5">
+    <div className="mx-auto w-full max-w-4xl space-y-4 bg-[#f5f5f5] px-3 pb-20 pt-2 dark:bg-neutral-950 sm:px-5">
       <OfflineBanner offline={isOffline} />
 
       <DeliveryHeader
@@ -132,102 +131,71 @@ export default function DeliveryHistory() {
         ]}
       />
 
-      <LiquidGlassCard
-        draggable={false}
-        blurIntensity="md"
-        glowIntensity="xs"
-        shadowIntensity="xs"
-        borderRadius="16px"
-        className="p-4 shadow-sm"
-      >
-        <div className="grid grid-cols-3 gap-2">
-          <article className="soft-card soft-card-green rounded-xl p-3 text-center">
-            <p className="text-xs text-green-700 dark:text-green-100">Terminées</p>
-            <p className="mt-1 text-lg font-semibold text-green-800 dark:text-green-100">{completedCount}</p>
-          </article>
-          <article className="glass-card rounded-xl p-3 text-center">
-            <p className="text-xs text-slate-600 dark:text-slate-300">Échecs</p>
-            <p className="mt-1 text-lg font-semibold text-slate-800 dark:text-white">{failedCount}</p>
-          </article>
-          <article className="soft-card soft-card-purple rounded-xl p-3 text-center">
-            <p className="text-xs text-purple-700 dark:text-purple-100">Revenus</p>
-            <p className="mt-1 text-sm font-semibold text-purple-800 dark:text-purple-100">{formatCurrency(earnings)}</p>
-          </article>
-        </div>
-      </LiquidGlassCard>
+      <div className="grid grid-cols-3 gap-2">
+        <article className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center dark:border-emerald-900 dark:bg-emerald-950">
+          <p className="text-[11px] font-black uppercase tracking-[0.06em] text-emerald-700 dark:text-emerald-300">Terminées</p>
+          <p className="mt-1 text-lg font-black text-emerald-800 dark:text-emerald-200">{completedCount}</p>
+        </article>
+        <article className="rounded-xl border border-gray-100 bg-white p-3 text-center dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="text-[11px] font-black uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">Échecs</p>
+          <p className="mt-1 text-lg font-black text-gray-900 dark:text-white">{failedCount}</p>
+        </article>
+        <article className="rounded-xl border border-gray-100 bg-white p-3 text-center dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="text-[11px] font-black uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">Revenus</p>
+          <p className="mt-1 text-sm font-black text-[#FF6A00]">{formatCurrency(earnings)}</p>
+        </article>
+      </div>
 
-      <LiquidGlassCard
-        draggable={false}
-        blurIntensity="md"
-        glowIntensity="xs"
-        shadowIntensity="xs"
-        borderRadius="16px"
-        className="p-3 shadow-sm"
-      >
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Date</p>
-        <div className="flex gap-2">
+      <div className="rounded-xl border border-gray-100 bg-white p-1 dark:border-neutral-800 dark:bg-neutral-950" style={{ width: 'fit-content' }}>
+        <div className="flex gap-1">
           {DATE_FILTERS.map((filter) => (
             <button
               key={filter.key}
               type="button"
               onClick={() => setDateFilter(filter.key)}
-              className={`min-h-[40px] rounded-xl px-3 text-sm font-semibold ${
+              className={`min-h-[40px] whitespace-nowrap rounded-lg px-4 text-sm font-black transition ${
                 dateFilter === filter.key
-                  ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
-                  : 'glass-card text-slate-700 dark:text-slate-100'
+                  ? 'bg-[#FF6A00] text-white'
+                  : 'text-gray-500 dark:text-gray-400'
               }`}
             >
               {filter.label}
             </button>
           ))}
         </div>
-      </LiquidGlassCard>
+      </div>
 
       {historyQuery.isLoading ? (
         <DeliverySkeleton count={4} />
       ) : historyQuery.isError ? (
-        <LiquidGlassCard
-          draggable={false}
-          blurIntensity="md"
-          glowIntensity="xs"
-          shadowIntensity="xs"
-          borderRadius="16px"
-          className="p-4 shadow-sm"
-        >
-          <p className="text-sm font-semibold text-red-700 dark:text-red-100">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
             {extractMessage(historyQuery.error, 'Impossible de charger l’historique.')}
           </p>
           <button
             type="button"
             onClick={() => historyQuery.refetch()}
-            className="glass-card mt-3 inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-semibold text-slate-900 dark:text-white"
+            className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-[#FF6A00] px-3 text-sm font-black text-white"
           >
             Reessayer
           </button>
-        </LiquidGlassCard>
+        </div>
       ) : doneItems.length === 0 ? (
-        <LiquidGlassCard
-          draggable={false}
-          blurIntensity="lg"
-          glowIntensity="sm"
-          shadowIntensity="sm"
-          borderRadius="16px"
-          className="p-8 text-center shadow-sm"
-        >
-          <p className="text-sm font-semibold text-slate-800 dark:text-white">Aucune livraison archivee.</p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Les livraisons terminees apparaitront ici.</p>
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="text-sm font-black text-gray-900 dark:text-white">Aucune livraison archivee.</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Les livraisons terminees apparaitront ici.</p>
           {historyQuery.hasNextPage ? (
             <button
               type="button"
               onClick={() => historyQuery.fetchNextPage()}
               disabled={historyQuery.isFetchingNextPage}
-              className="glass-card mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-900 disabled:opacity-60 dark:text-white"
+              className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-black text-gray-900 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
             >
               {historyQuery.isFetchingNextPage ? <Loader2 size={14} className="animate-spin" /> : null}
               Charger plus
             </button>
           ) : null}
-        </LiquidGlassCard>
+        </div>
       ) : (
         <div className="space-y-3">
           {doneItems.map((item) => {
@@ -237,30 +205,25 @@ export default function DeliveryHistory() {
               `${dropoffAddress} ${item?.dropoff?.communeName || item?.buyer?.commune || ''}`
             );
             return (
-              <LiquidGlassCard
+              <div
                 key={item._id}
-                draggable={false}
-                blurIntensity="md"
-                glowIntensity="xs"
-                shadowIntensity="xs"
-                borderRadius="16px"
-                className="p-4 shadow-sm"
+                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-slate-500 dark:text-slate-300">Commande #{String(item.orderId || '').slice(-6)}</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Commande #{String(item.orderId || '').slice(-6)}</p>
+                    <p className="mt-1 text-sm font-black text-gray-900 dark:text-white">
                       {item?.pickup?.communeName || 'Pickup'} → {item?.dropoff?.communeName || item?.buyer?.commune || 'Dropoff'}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">{fmtDateTime(item.updatedAt || item.createdAt)}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{fmtDateTime(item.updatedAt || item.createdAt)}</p>
                   </div>
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(item)}`}>
+                  <span className={`inline-flex rounded px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(item)}`}>
                     {workflowLabelOf(item)}
                   </span>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="glass-card rounded-full px-2 py-1 font-semibold text-slate-700 dark:text-slate-100">
+                  <span className="rounded-full bg-gray-50 px-2.5 py-1 font-black text-gray-700 dark:bg-neutral-900 dark:text-gray-200">
                     {formatCurrency(item.deliveryPrice, item.currency)}
                   </span>
                   {dropoffMap ? (
@@ -268,34 +231,27 @@ export default function DeliveryHistory() {
                       href={dropoffMap}
                       target="_blank"
                       rel="noreferrer"
-                      className="glass-card inline-flex items-center gap-1 rounded-full px-2 py-1 font-semibold text-slate-700 dark:text-slate-100"
+                      className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2.5 py-1 font-black text-gray-700 dark:bg-neutral-900 dark:text-gray-200"
                     >
                       Maps <ExternalLink size={11} />
                     </a>
                   ) : null}
                   <Link
                     to={buildAssignmentRoute({ basePath: routePrefix, id: item._id })}
-                    className="soft-card soft-card-purple inline-flex items-center rounded-full px-2.5 py-1 font-semibold text-purple-900 dark:text-purple-100"
+                    className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 font-black text-[#FF6A00] dark:bg-orange-950 dark:text-orange-300"
                   >
                     Detail
                   </Link>
                 </div>
-              </LiquidGlassCard>
+              </div>
             );
           })}
 
           <div ref={loadMoreRef} className="h-8" />
           {historyQuery.isFetchingNextPage ? (
-            <LiquidGlassCard
-              draggable={false}
-              blurIntensity="md"
-              glowIntensity="xs"
-              shadowIntensity="xs"
-              borderRadius="12px"
-              className="inline-flex w-full items-center justify-center gap-2 p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300"
-            >
+            <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-400">
               <Loader2 size={14} className="animate-spin" /> Chargement...
-            </LiquidGlassCard>
+            </div>
           ) : null}
         </div>
       )}

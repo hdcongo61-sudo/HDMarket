@@ -15,7 +15,6 @@ import NextDeliveryCard from '../components/delivery/NextDeliveryCard';
 import OfflineBanner from '../components/delivery/OfflineBanner';
 import DeliveryLiveTrackingCard from '../components/delivery/DeliveryLiveTrackingCard';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
-import LiquidGlassCard from '../components/ui/liquid-notification';
 import {
   buildAssignmentRoute,
   buildHistoryRoute,
@@ -673,40 +672,28 @@ export default function CourierDashboard() {
       toneClass: 'bg-orange-100 text-orange-700'
     },
     {
-      key: 'todo',
-      label: 'À faire',
-      value: counts.new,
-      toneClass: 'bg-yellow-100 text-yellow-700'
-    },
-    {
       key: 'active',
       label: 'En cours',
       value: counts.active,
       toneClass: 'bg-blue-100 text-blue-700'
     },
     {
-      key: 'done',
-      label: 'Terminées',
-      value: counts.done,
-      toneClass: 'bg-green-100 text-green-700'
-    },
-    {
       key: 'today-revenue',
       label: 'Revenus auj.',
       value: `${todayRevenue.toLocaleString('fr-FR')} XAF`,
-      toneClass: 'bg-indigo-100 text-indigo-700'
+      toneClass: 'bg-emerald-100 text-emerald-700'
     },
     {
       key: 'week-revenue',
-      label: 'Revenus semaine',
+      label: 'Semaine',
       value: `${weekRevenue.toLocaleString('fr-FR')} XAF`,
-      toneClass: 'bg-indigo-100 text-indigo-700'
+      toneClass: 'bg-emerald-100 text-emerald-700'
     }
   ];
 
   return (
     <div
-      className="glass-page-shell mx-auto w-full max-w-7xl space-y-4 px-3 pb-28 pt-2 sm:px-5"
+      className="mx-auto w-full max-w-7xl space-y-4 bg-[#f5f5f5] px-3 pb-28 pt-2 dark:bg-neutral-950 sm:px-5"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -716,7 +703,7 @@ export default function CourierDashboard() {
         className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 mx-auto w-full max-w-sm px-3 sm:hidden"
         style={{ opacity: pullDistance ? 1 : 0, transform: `translateY(${Math.max(0, pullDistance / 3)}px)` }}
       >
-        <div className="glass-card rounded-full px-3 py-1 text-center text-xs font-semibold text-slate-900 dark:text-white">
+        <div className="rounded-full border border-gray-100 bg-white px-3 py-1 text-center text-xs font-black text-gray-900 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-white">
           {pullDistance >= 70 ? 'Relacher pour rafraichir' : 'Tirer pour rafraichir'}
         </div>
       </div>
@@ -742,15 +729,15 @@ export default function CourierDashboard() {
       />
 
       {previewMode ? (
-        <section className="soft-card soft-card-purple rounded-2xl p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-purple-700 dark:text-purple-100">Mode preview admin</p>
-          <p className="mt-1 text-xs text-purple-700/90 dark:text-purple-100/90">Selectionnez un livreur pour simuler son dashboard.</p>
-          <label className="mt-3 block text-sm font-medium text-indigo-800">
+        <section className="rounded-2xl border border-purple-100 bg-purple-50 p-4 shadow-sm dark:border-purple-900 dark:bg-purple-950">
+          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-purple-700 dark:text-purple-300">Mode preview admin</p>
+          <p className="mt-1 text-xs text-purple-700/90 dark:text-purple-300/90">Selectionnez un livreur pour simuler son dashboard.</p>
+          <label className="mt-3 block text-sm font-medium text-purple-900 dark:text-purple-200">
             Livreur
             <select
               value={selectedDeliveryGuyId}
               onChange={(event) => setSelectedDeliveryGuyId(event.target.value)}
-              className="ui-input mt-1 min-h-[44px] w-full rounded-xl bg-white/70 px-3 text-sm text-slate-800 dark:text-slate-100"
+              className="ui-input mt-1 min-h-[44px] w-full rounded-xl px-3 text-sm text-gray-800 dark:text-gray-100"
             >
               <option value="">Choisir un livreur</option>
               {availableDeliveryGuys.map((entry) => (
@@ -761,7 +748,7 @@ export default function CourierDashboard() {
             </select>
           </label>
           {selectedDeliveryGuy ? (
-            <div className="glass-card mt-3 flex items-center gap-3 rounded-xl p-3">
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
               {resolveDeliveryGuyProfileImage(selectedDeliveryGuy) ? (
                 <img
                   src={resolveDeliveryGuyProfileImage(selectedDeliveryGuy)}
@@ -769,15 +756,15 @@ export default function CourierDashboard() {
                   className="h-11 w-11 rounded-full object-cover"
                 />
               ) : (
-                <div className="soft-card soft-card-purple flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold text-purple-700 dark:text-purple-100">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-purple-50 text-sm font-black text-purple-700 dark:bg-purple-950 dark:text-purple-300">
                   {String(selectedDeliveryGuy.fullName || selectedDeliveryGuy.name || 'L').charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
                   {selectedDeliveryGuy.fullName || selectedDeliveryGuy.name || 'Livreur'}
                 </p>
-                <p className="truncate text-xs text-slate-600 dark:text-slate-300">
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                   {selectedDeliveryGuy.phone || 'Telephone non renseigne'}
                 </p>
               </div>
@@ -803,37 +790,30 @@ export default function CourierDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="space-y-3">
-          <LiquidGlassCard
-            draggable={false}
-            blurIntensity="md"
-            glowIntensity="xs"
-            shadowIntensity="xs"
-            borderRadius="16px"
-            className="p-3 shadow-sm"
-          >
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Période</p>
+          <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="mb-2 text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Période</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {DATE_FILTERS.map((filter) => (
                 <button
                   key={filter.key}
                   type="button"
                   onClick={() => setDateFilter(filter.key)}
-                  className={`min-h-[40px] whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition active:scale-[0.98] ${
+                  className={`min-h-[40px] whitespace-nowrap rounded-lg px-3 text-sm font-black transition active:scale-[0.98] ${
                     dateFilter === filter.key
-                      ? 'soft-card soft-card-purple text-purple-900 dark:text-purple-100'
-                      : 'glass-card text-slate-600 dark:text-slate-100'
+                      ? 'bg-[#FF6A00] text-white'
+                      : 'bg-gray-50 text-gray-600 dark:bg-neutral-900 dark:text-gray-300'
                   }`}
                 >
                   {filter.label}
                 </button>
               ))}
             </div>
-          </LiquidGlassCard>
+          </div>
 
           <DeliveryTabs value={feedTab} onChange={setFeedTab} tabs={FEED_TABS} />
 
           {acceptMutation.isError ? (
-            <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
+            <p role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
               {extractMessage(acceptMutation.error, 'Impossible de prendre cette livraison.')}
             </p>
           ) : null}
@@ -841,14 +821,7 @@ export default function CourierDashboard() {
           {bootstrapQuery.isLoading || assignmentsQuery.isLoading ? (
             <DeliverySkeleton count={4} />
           ) : hardError ? (
-            <LiquidGlassCard
-              draggable={false}
-              blurIntensity="md"
-              glowIntensity="xs"
-              shadowIntensity="xs"
-              borderRadius="16px"
-              className="p-1"
-            >
+            <div className="rounded-2xl border border-gray-100 bg-white p-1 dark:border-neutral-800 dark:bg-neutral-950">
               <NetworkFallbackCard
                 title={extractMessage(hardError, 'Unable to load data.')}
                 message={
@@ -860,47 +833,26 @@ export default function CourierDashboard() {
                 retryLabel="Réessayer"
                 refreshLabel="Actualiser la page"
               />
-            </LiquidGlassCard>
+            </div>
           ) : !modeEnabled ? (
-            <LiquidGlassCard
-              draggable={false}
-              blurIntensity="md"
-              glowIntensity="xs"
-              shadowIntensity="xs"
-              borderRadius="16px"
-              className="soft-card soft-card-orange p-4 text-sm text-amber-800 shadow-sm dark:text-amber-100"
-            >
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
               Le mode livreur est desactive par la configuration systeme.
-            </LiquidGlassCard>
+            </div>
           ) : previewMode && !selectedDeliveryGuyId ? (
-            <LiquidGlassCard
-              draggable={false}
-              blurIntensity="md"
-              glowIntensity="xs"
-              shadowIntensity="xs"
-              borderRadius="16px"
-              className="soft-card soft-card-purple p-4 text-sm text-purple-800 shadow-sm dark:text-purple-100"
-            >
+            <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 text-sm font-semibold text-purple-800 shadow-sm dark:border-purple-900 dark:bg-purple-950 dark:text-purple-300">
               Choisissez un livreur pour afficher ses livraisons.
-            </LiquidGlassCard>
+            </div>
           ) : filteredItems.length === 0 ? (
-            <LiquidGlassCard
-              draggable={false}
-              blurIntensity="lg"
-              glowIntensity="sm"
-              shadowIntensity="sm"
-              borderRadius="16px"
-              className="p-8 text-center shadow-sm"
-            >
-              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <p className="text-sm font-black text-gray-900 dark:text-white">
                 {feedTab === 'done' ? 'Historique à jour' : 'Aucune livraison pour le moment'}
               </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {feedTab === 'done'
                   ? 'Aucune livraison terminee pour ce filtre.'
                   : 'Les nouvelles affectations apparaitront ici.'}
               </p>
-            </LiquidGlassCard>
+            </div>
           ) : (
             <div className="space-y-3">
               {filteredItems.map((item) => (
@@ -919,21 +871,14 @@ export default function CourierDashboard() {
               <div ref={loadMoreRef} className="h-8" />
 
               {assignmentsQuery.isFetchingNextPage ? (
-                <LiquidGlassCard
-                  draggable={false}
-                  blurIntensity="md"
-                  glowIntensity="xs"
-                  shadowIntensity="xs"
-                  borderRadius="12px"
-                  className="inline-flex w-full items-center justify-center gap-2 p-3 text-xs text-slate-500 shadow-sm dark:text-slate-300"
-                >
+                <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-400">
                   <Loader2 size={14} className="animate-spin" />
                   Chargement...
-                </LiquidGlassCard>
+                </div>
               ) : null}
 
               {!assignmentsQuery.hasNextPage && filteredItems.length > 0 ? (
-                <p className="text-center text-xs text-slate-500 dark:text-slate-300">Fin de la liste</p>
+                <p className="text-center text-xs text-gray-500 dark:text-gray-400">Fin de la liste</p>
               ) : null}
             </div>
           )}
@@ -952,16 +897,9 @@ export default function CourierDashboard() {
               secondaryDisabled={nextCardActions.secondaryDisabled}
             />
 
-            <LiquidGlassCard
-              draggable={false}
-              blurIntensity="md"
-              glowIntensity="xs"
-              shadowIntensity="xs"
-              borderRadius="16px"
-              className="p-4 shadow-sm"
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">Performance</p>
-              <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-100">
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Performance</p>
+              <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-200">
                 <p className="flex items-center justify-between"><span>Terminées</span><strong>{statsQuery.data?.delivered ?? '—'}</strong></p>
                 <p className="flex items-center justify-between"><span>Échecs</span><strong>{statsQuery.data?.failed ?? '—'}</strong></p>
                 <p className="flex items-center justify-between"><span>Taux d’acceptation</span><strong>{statsQuery.data ? `${statsQuery.data.acceptanceRate || 0}%` : '—'}</strong></p>
@@ -971,13 +909,13 @@ export default function CourierDashboard() {
               {selectedPreviewItem?._id ? (
                 <Link
                   to={buildAssignmentRoute({ basePath: routePrefix, id: selectedPreviewItem._id })}
-                  className="soft-card soft-card-purple mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl px-3 text-sm font-semibold text-purple-900 dark:text-purple-100"
+                  className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-[#FF6A00] px-3 text-sm font-black text-white"
                 >
                   Ouvrir la mission
                   <ChevronRight size={14} />
                 </Link>
               ) : null}
-            </LiquidGlassCard>
+            </div>
           </div>
         </aside>
       </div>
@@ -1028,7 +966,7 @@ export default function CourierDashboard() {
             <button
               type="button"
               onClick={() => setRejectDialog({ open: false, item: null, reason: '' })}
-              className="glass-card inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-700 dark:text-slate-100"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-black text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
             >
               Annuler
             </button>
@@ -1036,7 +974,7 @@ export default function CourierDashboard() {
               type="button"
               onClick={handleSubmitReject}
               disabled={!rejectDialog.reason.trim() || rejectMutation.isPending || isOffline}
-              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-black text-white disabled:opacity-60"
             >
               {rejectMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
               Confirmer

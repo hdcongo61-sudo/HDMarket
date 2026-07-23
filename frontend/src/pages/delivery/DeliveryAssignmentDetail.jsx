@@ -359,53 +359,53 @@ export default function DeliveryAssignmentDetail() {
     (Array.isArray(firstItem?.tags) ? firstItem.tags.some((tag) => String(tag || '').toLowerCase() === 'fragile') : false);
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 px-3 pb-28 pt-2 sm:px-5">
+    <div className="mx-auto w-full max-w-4xl space-y-4 bg-[#f5f5f5] px-3 pb-28 pt-2 dark:bg-neutral-950 sm:px-5">
       <OfflineBanner offline={isOffline} />
 
-      <header className="-mx-3 border-b border-gray-100/70 bg-white/80 px-3 pb-3 pt-2 sm:-mx-5 sm:px-5">
+      <header className="-mx-3 border-b border-gray-100 bg-white px-3 pb-3 pt-2 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950 sm:-mx-5 sm:px-5">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700"
+            className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 text-sm font-black text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
           >
             <ArrowLeft size={14} />
             Back
           </button>
 
           {assignment ? (
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(assignment)}`}>
+            <span className={`inline-flex rounded px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(assignment)}`}>
               {workflowLabelOf(assignment)}
             </span>
           ) : null}
 
-          <p className="text-xs font-semibold text-gray-600">#{String(id || '').slice(-6)}</p>
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">#{String(id || '').slice(-6)}</p>
         </div>
       </header>
 
       {detailQuery.isLoading ? (
         <DeliverySkeleton count={4} />
       ) : detailQuery.isError ? (
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-sm font-semibold text-red-700">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
             {extractMessage(detailQuery.error, 'Impossible de charger cette livraison.')}
           </p>
           <button
             type="button"
             onClick={() => detailQuery.refetch()}
-            className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-gray-900 px-3 text-sm font-semibold text-white"
+            className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-[#FF6A00] px-3 text-sm font-black text-white"
           >
             Reessayer
           </button>
         </div>
       ) : !assignment ? (
-        <div className="rounded-2xl bg-white p-4 text-sm text-gray-600 shadow-sm">Livraison introuvable.</div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 text-sm text-gray-600 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-300">Livraison introuvable.</div>
       ) : (
         <>
           <DeliveryDetailTimeline currentStage={assignment.currentStage} />
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Produit</p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Produit</p>
             <div className="mt-3 flex items-center gap-3">
               {firstItem?.imageUrl ? (
                 <img
@@ -415,15 +415,15 @@ export default function DeliveryAssignmentDetail() {
                   loading="lazy"
                 />
               ) : (
-                <div className="grid h-14 w-14 place-items-center rounded-xl bg-gray-100 text-gray-400">
+                <div className="grid h-14 w-14 place-items-center rounded-xl bg-gray-50 text-gray-400 dark:bg-neutral-900 dark:text-gray-500">
                   <Package size={16} />
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-gray-900">{firstItem?.name || 'Produit'}</p>
-                <p className="text-xs text-gray-500">Quantite: {Number(firstItem?.qty || 1)} · {itemCount} article(s)</p>
+                <p className="truncate text-sm font-black text-gray-900 dark:text-white">{firstItem?.name || 'Produit'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Quantite: {Number(firstItem?.qty || 1)} · {itemCount} article(s)</p>
                 {isFragile ? (
-                  <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                  <span className="mt-1 inline-flex rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                     Fragile
                   </span>
                 ) : null}
@@ -431,33 +431,33 @@ export default function DeliveryAssignmentDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Parties</p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Parties</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs font-semibold text-gray-800">Seller</p>
-                <p className="mt-1 text-sm font-medium text-gray-900">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">Seller</p>
+                <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
                   {assignment?.seller?.name || '—'} · {assignment?.pickup?.communeName || '—'}
                 </p>
                 {assignment?.seller?.phone ? (
                   <a
                     href={`tel:${assignment.seller.phone}`}
-                    className="mt-2 inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700"
+                    className="mt-2 inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                   >
                     <Phone size={12} />
                     {assignment.seller.phone}
                   </a>
                 ) : null}
               </div>
-              <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs font-semibold text-gray-800">Buyer</p>
-                <p className="mt-1 text-sm font-medium text-gray-900">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">Buyer</p>
+                <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
                   {assignment?.buyer?.name || '—'} · {assignment?.dropoff?.communeName || assignment?.buyer?.commune || '—'}
                 </p>
                 {assignment?.buyer?.phone ? (
                   <a
                     href={`tel:${assignment.buyer.phone}`}
-                    className="mt-2 inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700"
+                    className="mt-2 inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                   >
                     <Phone size={12} />
                     {assignment.buyer.phone}
@@ -467,16 +467,16 @@ export default function DeliveryAssignmentDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Map</p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Map</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs font-semibold text-gray-800">Seller pickup</p>
-                <p className="mt-1 text-xs text-gray-500">{assignment?.pickup?.address || 'Adresse non disponible'}</p>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">Seller pickup</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{assignment?.pickup?.address || 'Adresse non disponible'}</p>
                 {pickupVisible ? (
                   <>
                     {getCoordinatesDisplay(assignment?.pickup?.coordinates) ? (
-                      <p className="mt-1 text-[11px] text-emerald-600">GPS: {getCoordinatesDisplay(assignment?.pickup?.coordinates)}</p>
+                      <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">GPS: {getCoordinatesDisplay(assignment?.pickup?.coordinates)}</p>
                     ) : null}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {pickupMapGoogle ? (
@@ -484,7 +484,7 @@ export default function DeliveryAssignmentDetail() {
                           href={pickupMapGoogle}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700"
+                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
                           Google <ExternalLink size={11} />
                         </a>
@@ -494,7 +494,7 @@ export default function DeliveryAssignmentDetail() {
                           href={pickupMapApple}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700"
+                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
                           Apple <ExternalLink size={11} />
                         </a>
@@ -502,17 +502,17 @@ export default function DeliveryAssignmentDetail() {
                     </div>
                   </>
                 ) : (
-                  <p className="mt-2 text-xs text-gray-500">Location hidden for privacy.</p>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Location hidden for privacy.</p>
                 )}
               </div>
 
-              <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs font-semibold text-gray-800">Buyer destination</p>
-                <p className="mt-1 text-xs text-gray-500">{dropoffAddress || 'Adresse non disponible'}</p>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">Buyer destination</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{dropoffAddress || 'Adresse non disponible'}</p>
                 {dropoffVisible ? (
                   <>
                     {getCoordinatesDisplay(assignment?.dropoff?.coordinates) ? (
-                      <p className="mt-1 text-[11px] text-emerald-600">GPS: {getCoordinatesDisplay(assignment?.dropoff?.coordinates)}</p>
+                      <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">GPS: {getCoordinatesDisplay(assignment?.dropoff?.coordinates)}</p>
                     ) : null}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {dropoffMapGoogle ? (
@@ -520,7 +520,7 @@ export default function DeliveryAssignmentDetail() {
                           href={dropoffMapGoogle}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700"
+                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
                           Google <ExternalLink size={11} />
                         </a>
@@ -530,7 +530,7 @@ export default function DeliveryAssignmentDetail() {
                           href={dropoffMapApple}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700"
+                          className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
                           Apple <ExternalLink size={11} />
                         </a>
@@ -538,14 +538,14 @@ export default function DeliveryAssignmentDetail() {
                     </div>
                   </>
                 ) : (
-                  <p className="mt-2 text-xs text-gray-500">Location hidden for privacy.</p>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Location hidden for privacy.</p>
                 )}
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Facture</p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Facture</p>
             {assignment?.invoiceUrl || assignment?.invoiceAttachmentUrl || assignment?.order?.invoiceUrl ? (
               <a
                 href={normalizeFileUrl(
@@ -553,37 +553,37 @@ export default function DeliveryAssignmentDetail() {
                 )}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700"
+                className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-200"
               >
                 <FileText size={14} />
                 Ouvrir la facture
               </a>
             ) : (
-              <p className="mt-2 text-xs text-gray-500">Facture non disponible pour cette livraison.</p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Facture non disponible pour cette livraison.</p>
             )}
           </section>
 
-          <section className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Delivery info</p>
-            <div className="mt-2 space-y-1 text-sm text-gray-700">
-              <p>Etape: <span className="font-semibold">{STAGE_LABELS[currentStage] || currentStage}</span></p>
-              <p>Statut: <span className="font-semibold">{workflowLabelOf(assignment)}</span></p>
-              <p>Frais: <span className="font-semibold">{formatCurrency(assignment?.deliveryPrice, assignment?.currency)}</span></p>
-              <p>Mise a jour: <span className="font-semibold">{fmtDateTime(assignment?.updatedAt)}</span></p>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Delivery info</p>
+            <div className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <p>Etape: <span className="font-semibold text-gray-900 dark:text-white">{STAGE_LABELS[currentStage] || currentStage}</span></p>
+              <p>Statut: <span className="font-semibold text-gray-900 dark:text-white">{workflowLabelOf(assignment)}</span></p>
+              <p>Frais: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(assignment?.deliveryPrice, assignment?.currency)}</span></p>
+              <p>Mise a jour: <span className="font-semibold text-gray-900 dark:text-white">{fmtDateTime(assignment?.updatedAt)}</span></p>
             </div>
             {nextStage === 'DELIVERED' && !hasPickupProof ? (
-              <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+              <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                 <ShieldAlert size={12} /> Submit pickup proof first to unlock delivery proof.
               </p>
             ) : null}
           </section>
 
           {hasAnyProof ? (
-            <section className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preuves soumises</p>
+            <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Preuves soumises</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                  <p className="text-xs font-semibold text-blue-800">Pickup</p>
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950">
+                  <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Pickup</p>
                   {pickupProofPhotos.length > 0 ? (
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       {pickupProofPhotos.map((src, index) => (
@@ -591,9 +591,9 @@ export default function DeliveryAssignmentDetail() {
                           key={`pickup-proof-${index}`}
                           type="button"
                           onClick={() => setProofPreview({ url: src, label: `Preuve pickup ${index + 1}` })}
-                          className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-white ring-1 ring-blue-200"
+                          className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-white ring-1 ring-blue-200 dark:bg-neutral-950 dark:ring-blue-900"
                         >
-                          <img src={src} alt={`Preuve pickup ${index + 1}`} className="h-full w-full object-contain bg-slate-50 p-1" loading="lazy" />
+                          <img src={src} alt={`Preuve pickup ${index + 1}`} className="h-full w-full object-contain bg-gray-50 p-1 dark:bg-neutral-900" loading="lazy" />
                           <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
                             Photo {index + 1}
                           </span>
@@ -605,20 +605,20 @@ export default function DeliveryAssignmentDetail() {
                     <button
                       type="button"
                       onClick={() => setProofPreview({ url: pickupSignatureUrl, label: 'Signature pickup' })}
-                      className="mt-2 block w-full overflow-hidden rounded-lg bg-white ring-1 ring-blue-200"
+                      className="mt-2 block w-full overflow-hidden rounded-lg bg-white ring-1 ring-blue-200 dark:bg-neutral-950 dark:ring-blue-900"
                     >
                       <img src={pickupSignatureUrl} alt="Signature pickup" className="h-20 w-full object-contain bg-white p-1" loading="lazy" />
                     </button>
                   ) : null}
                   {assignment?.pickupProof?.note ? (
-                    <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-blue-900 ring-1 ring-blue-200">
+                    <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-blue-900 ring-1 ring-blue-200 dark:bg-neutral-950 dark:text-blue-300 dark:ring-blue-900">
                       Note: {assignment.pickupProof.note}
                     </p>
                   ) : null}
                 </div>
 
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="text-xs font-semibold text-emerald-800">Livraison</p>
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950">
+                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Livraison</p>
                   {deliveryProofPhotos.length > 0 ? (
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       {deliveryProofPhotos.map((src, index) => (
@@ -626,9 +626,9 @@ export default function DeliveryAssignmentDetail() {
                           key={`delivery-proof-${index}`}
                           type="button"
                           onClick={() => setProofPreview({ url: src, label: `Preuve livraison ${index + 1}` })}
-                          className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200"
+                          className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200 dark:bg-neutral-950 dark:ring-emerald-900"
                         >
-                          <img src={src} alt={`Preuve livraison ${index + 1}`} className="h-full w-full object-contain bg-slate-50 p-1" loading="lazy" />
+                          <img src={src} alt={`Preuve livraison ${index + 1}`} className="h-full w-full object-contain bg-gray-50 p-1 dark:bg-neutral-900" loading="lazy" />
                           <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
                             Photo {index + 1}
                           </span>
@@ -640,13 +640,13 @@ export default function DeliveryAssignmentDetail() {
                     <button
                       type="button"
                       onClick={() => setProofPreview({ url: deliverySignatureUrl, label: 'Signature livraison' })}
-                      className="mt-2 block w-full overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200"
+                      className="mt-2 block w-full overflow-hidden rounded-lg bg-white ring-1 ring-emerald-200 dark:bg-neutral-950 dark:ring-emerald-900"
                     >
                       <img src={deliverySignatureUrl} alt="Signature livraison" className="h-20 w-full object-contain bg-white p-1" loading="lazy" />
                     </button>
                   ) : null}
                   {assignment?.deliveryProof?.note ? (
-                    <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-emerald-900 ring-1 ring-emerald-200">
+                    <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-emerald-900 ring-1 ring-emerald-200 dark:bg-neutral-950 dark:text-emerald-300 dark:ring-emerald-900">
                       Note: {assignment.deliveryProof.note}
                     </p>
                   ) : null}
@@ -691,9 +691,9 @@ export default function DeliveryAssignmentDetail() {
           }}
         />
         <ModalBody className="space-y-3">
-          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-semibold text-gray-700">Photos ({proofPhotos.length}/{MAX_PROOF_PHOTOS})</p>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700">
+          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Photos ({proofPhotos.length}/{MAX_PROOF_PHOTOS})</p>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200">
               <Camera size={14} />
               Ajouter des photos
               <input
@@ -708,7 +708,7 @@ export default function DeliveryAssignmentDetail() {
             {proofPhotos.length > 0 ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {proofPhotos.map((file, index) => (
-                  <div key={`${file.name}-${index}`} className="rounded-lg border border-gray-200 bg-white p-2">
+                  <div key={`${file.name}-${index}`} className="rounded-lg border border-gray-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-950">
                     <button
                       type="button"
                       onClick={() =>
@@ -717,17 +717,17 @@ export default function DeliveryAssignmentDetail() {
                           label: `Aperçu photo ${index + 1}`
                         })
                       }
-                      className="block w-full overflow-hidden rounded-lg border border-gray-100"
+                      className="block w-full overflow-hidden rounded-lg border border-gray-100 dark:border-neutral-800"
                     >
                       <img
                         src={proofPhotoPreviews[index]}
                         alt={file.name || `proof-${index + 1}`}
-                        className="h-24 w-full rounded object-contain bg-slate-50 p-1"
+                        className="h-24 w-full rounded object-contain bg-gray-50 p-1 dark:bg-neutral-900"
                       />
                     </button>
                     <div className="mt-1 flex items-center justify-between gap-2">
-                      <span className="truncate text-[10px] text-gray-600">{file.name}</span>
-                      <button type="button" onClick={() => removeProofPhoto(index)} className="text-red-600">
+                      <span className="truncate text-[10px] text-gray-600 dark:text-gray-400">{file.name}</span>
+                      <button type="button" onClick={() => removeProofPhoto(index)} className="text-rose-600 dark:text-rose-400">
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -737,14 +737,14 @@ export default function DeliveryAssignmentDetail() {
             ) : null}
           </div>
 
-          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-semibold text-gray-700">Signature</p>
+          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Signature</p>
             <SignaturePad value={proofSignatureImage} onChange={setProofSignatureImage} height={160} />
             {proofSignatureImage ? (
               <button
                 type="button"
                 onClick={() => setProofPreview({ url: proofSignatureImage, label: 'Aperçu signature' })}
-                className="block w-full overflow-hidden rounded-lg bg-white ring-1 ring-gray-200"
+                className="block w-full overflow-hidden rounded-lg bg-white ring-1 ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-700"
               >
                 <img
                   src={proofSignatureImage}
@@ -756,7 +756,7 @@ export default function DeliveryAssignmentDetail() {
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-700">Note</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-200">Note</label>
             <textarea
               value={proofNote}
               onChange={(event) => {
@@ -765,7 +765,7 @@ export default function DeliveryAssignmentDetail() {
               }}
               rows={3}
               placeholder="Ajoutez un commentaire"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              className="ui-input w-full rounded-xl px-3 py-2 text-sm"
             />
           </div>
 
@@ -774,13 +774,13 @@ export default function DeliveryAssignmentDetail() {
               value={pinCode}
               onChange={(event) => setPinCode(event.target.value)}
               placeholder="Code livraison (si requis)"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              className="ui-input w-full rounded-xl px-3 py-2 text-sm"
             />
           ) : null}
 
-          {proofFormError ? <p className="text-xs text-red-600">{proofFormError}</p> : null}
+          {proofFormError ? <p className="text-xs text-rose-600 dark:text-rose-400">{proofFormError}</p> : null}
           {proofMutation.isError ? (
-            <p className="text-xs text-red-600">{extractMessage(proofMutation.error, 'Impossible d’envoyer la preuve.')}</p>
+            <p className="text-xs text-rose-600 dark:text-rose-400">{extractMessage(proofMutation.error, 'Impossible d’envoyer la preuve.')}</p>
           ) : null}
         </ModalBody>
         <ModalFooter>
@@ -788,7 +788,7 @@ export default function DeliveryAssignmentDetail() {
             type="button"
             disabled={proofMutation.isPending || isOffline}
             onClick={submitProof}
-            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white disabled:opacity-60"
           >
             {proofMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
             Enregistrer la preuve
@@ -857,10 +857,10 @@ export default function DeliveryAssignmentDetail() {
             onChange={(event) => setIssueModal({ open: true, reason: event.target.value.slice(0, 600) })}
             rows={4}
             placeholder="Expliquez le probleme"
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            className="ui-input w-full rounded-xl px-3 py-2 text-sm"
           />
           {(rejectMutation.isError || stageMutation.isError) ? (
-            <p className="text-xs text-red-600">
+            <p className="text-xs text-rose-600 dark:text-rose-400">
               {extractMessage(rejectMutation.error || stageMutation.error, 'Action impossible.')}
             </p>
           ) : null}
@@ -870,7 +870,7 @@ export default function DeliveryAssignmentDetail() {
             <button
               type="button"
               onClick={() => setIssueModal({ open: false, reason: '' })}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-black text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
             >
               Annuler
             </button>
@@ -878,7 +878,7 @@ export default function DeliveryAssignmentDetail() {
               type="button"
               onClick={submitSecondaryAction}
               disabled={!issueModal.reason.trim() || isOffline || rejectMutation.isPending || stageMutation.isPending}
-              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-black text-white disabled:opacity-60"
             >
               {(rejectMutation.isPending || stageMutation.isPending) ? (
                 <Loader2 size={14} className="animate-spin" />

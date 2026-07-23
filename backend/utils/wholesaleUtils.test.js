@@ -62,12 +62,16 @@ describe('getWholesalePricing', () => {
     const pricing = getWholesalePricing(product, 3);
     expect(pricing.unitPrice).toBe(1000);
     expect(pricing.tierApplied).toBeNull();
+    expect(pricing.nextTier).toMatchObject({ minQty: 5, unitPrice: 900 });
+    expect(pricing.quantityToNextTier).toBe(2);
   });
 
   it('applies the highest tier the quantity qualifies for', () => {
     const pricing = getWholesalePricing(product, 12);
     expect(pricing.unitPrice).toBe(800);
     expect(pricing.tierApplied.minQty).toBe(10);
+    expect(pricing.nextTier).toBeNull();
+    expect(pricing.quantityToNextTier).toBe(0);
     expect(pricing.lineTotal).toBe(9600);
   });
 

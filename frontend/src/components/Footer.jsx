@@ -208,6 +208,27 @@ export default function Footer() {
           <div className="mb-5 flex flex-wrap gap-x-5 gap-y-3">
             {legalLinks.map((item) => <Link key={item.to} to={item.to} className="text-xs font-bold text-neutral-400 hover:text-white">{item.label}</Link>)}
           </div>
+          <div className="mb-5 flex">
+            <div
+              className="inline-flex min-h-12 w-full items-center gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.07] px-3.5 py-2.5 sm:w-auto"
+              aria-label="Paiements Mobile Money sécurisés via l’API pawaPay"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/15">
+                <ShieldCheck className="h-4.5 w-4.5 text-emerald-400" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">
+                  Paiement Mobile Money
+                </span>
+                <span className="mt-0.5 block text-xs font-bold text-neutral-200">
+                  Sécurisé via l’API <span className="text-emerald-400">pawaPay</span>
+                </span>
+              </span>
+              <span className="ml-auto rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-neutral-400 sm:ml-2">
+                API
+              </span>
+            </div>
+          </div>
           <div className="flex flex-col gap-3 text-xs font-semibold text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
             <p>
               © {year} {companyName} — Tous droits réservés.
