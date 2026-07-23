@@ -81,7 +81,9 @@ describe('PawaPay environment selection', () => {
     expect(getPawaPayConfig().baseUrl).toBe('https://api.pawapay.io/v2');
   });
 
-  it('exposes PawaPay-only mode only when explicitly enabled', () => {
+  it('uses PawaPay-only mode by default and still allows an explicit legacy override', () => {
+    delete process.env.PAWAPAY_EXCLUSIVE_MODE;
+    expect(getPawaPayConfig().exclusiveMode).toBe(true);
     process.env.PAWAPAY_EXCLUSIVE_MODE = 'true';
     expect(getPawaPayConfig().exclusiveMode).toBe(true);
     process.env.PAWAPAY_EXCLUSIVE_MODE = 'false';

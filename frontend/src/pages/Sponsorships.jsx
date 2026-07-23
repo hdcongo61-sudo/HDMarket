@@ -1,19 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import api from '../services/api';
-import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 import { getSponsorshipStatusMeta } from '../utils/sponsorship';
 import GlassHeader from '../components/orders/GlassHeader';
 import BaseModal from '../components/modals/BaseModal';
 import PawaPayButton from '../components/PawaPayButton';
-import { Check, X, Clock, Wallet, CreditCard, RefreshCw, MessageCircle } from 'lucide-react';
-
-const normalizeSettingBoolean = (value, fallback = false) => {
-  if (typeof value === 'boolean') return value;
-  if (value == null || value === '') return fallback;
-  return ['1', 'true', 'yes', 'on', 'oui'].includes(String(value).trim().toLowerCase());
-};
+import { Check, X, Clock, CreditCard, RefreshCw, MessageCircle } from 'lucide-react';
 
 const formatExpiry = (value) => {
   const date = new Date(value);
@@ -37,136 +30,40 @@ function StatusPill({ status }) {
 function GroupPaymentForm({
   totalAmount,
   depositAmount,
-  walletEnabled = true,
-  instructions = '',
   busy,
-  onSubmit,
   onCancel,
   actionContext
 }) {
-  const { showToast } = useToast();
   // Deposit only makes sense when it is a real partial amount.
   const hasDepositOption = Number(depositAmount) > 0 && Number(depositAmount) < Number(totalAmount);
-  const [method, setMethod] = useState('mobile_money');
   const [paymentOption, setPaymentOption] = useState(hasDepositOption ? 'deposit' : 'full');
-  const [payerName, setPayerName] = useState('');
-  const [transactionCode, setTransactionCode] = useState('');
-
-  const amountToPay =
-    method === 'wallet' || paymentOption === 'full' ? Number(totalAmount) : Number(depositAmount);
-
-  const submit = () => {
-    if (method === 'wallet') {
-      onSubmit({ paymentMode: 'wallet' });
-      return;
-    }
-    const code = transactionCode.replace(/\D/g, '');
-    if (!payerName.trim() || code.length !== 10) {
-      showToast('Nom et code de transaction (10 chiffres) requis.', { variant: 'error' });
-      return;
-    }
-    onSubmit({
-      paymentMode: 'mobile_money',
-      paymentOption,
-      payerName: payerName.trim(),
-      transactionCode: code
-    });
-  };
+  const amountToPay = paymentOption === 'full' ? Number(totalAmount) : Number(depositAmount);
 
   return (
     <div className="mt-3 space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setMethod('mobile_money')}
-          className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black ${
-            method === 'mobile_money' ? 'bg-[#e85d00] text-white' : 'bg-white text-gray-600'
-          }`}
-        >
-          <CreditCard size={14} /> Mobile Money
-        </button>
-        {walletEnabled && (
-          <button
-            type="button"
-            onClick={() => setMethod('wallet')}
-            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-black ${
-              method === 'wallet' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600'
-            }`}
-          >
-            <Wallet size={14} /> Portefeuille
-          </button>
-        )}
-      </div>
-      {method === 'mobile_money' ? (
-        <>
-          {hasDepositOption && (
-            <div className="space-y-2">
-              {[
-                {
-                  id: 'deposit',
-                  label: 'Acompte (25%)',
-                  amount: depositAmount,
-                  hint: 'Le solde sera réglé à la livraison.'
-                },
-                {
-                  id: 'full',
-                  label: 'Paiement intégral',
-                  amount: totalAmount,
-                  hint: 'La commande est soldée immédiatement.'
-                }
-              ].map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setPaymentOption(option.id)}
-                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left ${
-                    paymentOption === option.id
-                      ? 'border-[#e85d00] bg-orange-50'
-                      : 'border-gray-200 bg-white'
-                  }`}
-                >
-                  <span>
-                    <span className="block text-xs font-black text-gray-900">{option.label}</span>
-                    <span className="block text-[11px] font-semibold text-gray-500">{option.hint}</span>
-                  </span>
-                  <span className="text-sm font-black text-[#e85d00]">{formatCurrency(option.amount)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <p className="rounded-lg bg-white px-3 py-2 text-xs font-black text-gray-900">
-            Montant à envoyer : <span className="text-[#e85d00]">{formatCurrency(amountToPay)}</span>
-          </p>
-          {instructions ? (
-            <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-blue-800">
-              {instructions}
-            </p>
-          ) : null}
-          <input
-            type="text"
-            value={payerName}
-            onChange={(e) => setPayerName(e.target.value)}
-            placeholder="Nom du payeur"
-            className="min-h-[44px] w-full rounded-lg border border-gray-200 bg-white px-3 text-sm"
-          />
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={10}
-            value={transactionCode}
-            onChange={(e) => setTransactionCode(e.target.value)}
-            placeholder="Code transaction (10 chiffres)"
-            className="min-h-[44px] w-full rounded-lg border border-gray-200 bg-white px-3 text-sm"
-          />
-        </>
-      ) : (
-        <p className="text-xs font-semibold text-emerald-700">
-          {formatCurrency(totalAmount)} seront débités de votre portefeuille HDMarket.
-        </p>
+      {hasDepositOption && (
+        <div className="space-y-2">
+          {[
+            { id: 'deposit', label: 'Acompte (25%)', amount: depositAmount },
+            { id: 'full', label: 'Paiement intégral', amount: totalAmount }
+          ].map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setPaymentOption(option.id)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left ${
+                paymentOption === option.id ? 'border-[#e85d00] bg-orange-50' : 'border-gray-200 bg-white'
+              }`}
+            >
+              <span className="text-xs font-black text-gray-900">{option.label}</span>
+              <span className="text-sm font-black text-[#e85d00]">{formatCurrency(option.amount)}</span>
+            </button>
+          ))}
+        </div>
       )}
-      {walletEnabled && amountToPay >= 10 && (
+      {amountToPay >= 10 && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="mb-2 text-xs font-black text-emerald-900">Payer sans recopier de code</p>
+          <p className="mb-2 text-xs font-black text-emerald-900">Paiement sécurisé PawaPay</p>
           <PawaPayButton
             amount={amountToPay}
             purpose="CHECKOUT_FUNDING"
@@ -182,17 +79,7 @@ function GroupPaymentForm({
           </p>
         </div>
       )}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={submit}
-          className={`inline-flex flex-1 items-center justify-center rounded-lg px-3 py-2.5 text-sm font-black text-white disabled:opacity-60 ${
-            method === 'wallet' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#e85d00]'
-          }`}
-        >
-          {busy ? 'Traitement…' : `Payer ${formatCurrency(amountToPay)}`}
-        </button>
+      <div className="flex justify-end">
         <button
           type="button"
           disabled={busy}
@@ -208,15 +95,6 @@ function GroupPaymentForm({
 
 export default function Sponsorships() {
   const { showToast } = useToast();
-  const { getRuntimeValue } = useAppSettings();
-  const pawaPayOnlyMode = import.meta.env.VITE_PAWAPAY_EXCLUSIVE_MODE !== 'false';
-  const walletEnabled = pawaPayOnlyMode || (
-    normalizeSettingBoolean(getRuntimeValue('enable_wallet_payment', false), false) &&
-    normalizeSettingBoolean(getRuntimeValue('enable_digital_wallet', false), false)
-  );
-  const paymentInstructions = String(
-    getRuntimeValue('pay_for_other_payment_instructions', '') || ''
-  ).trim();
   const [tab, setTab] = useState('incoming');
   const [incoming, setIncoming] = useState([]);
   const [sent, setSent] = useState([]);
@@ -280,14 +158,6 @@ export default function Sponsorships() {
 
   const cancel = (groupId) =>
     runAction(groupId, 'sent', () => api.post(`/orders/sponsor/${groupId}/cancel`), 'Action impossible.');
-
-  const paySelf = (groupId, payload) =>
-    runAction(
-      groupId,
-      'sent',
-      () => api.post(`/orders/sponsor/${groupId}/pay-self`, payload),
-      'Paiement impossible.'
-    );
 
   const confirmDestructive = () => {
     if (!confirmAction) return;
@@ -378,11 +248,8 @@ export default function Sponsorships() {
           <GroupPaymentForm
             totalAmount={req.totalAmount}
             depositAmount={req.depositAmount}
-            walletEnabled={walletEnabled}
-            instructions={paymentInstructions}
             busy={busy}
             actionContext={{ kind: 'SPONSORSHIP_ACCEPT', groupId: gid }}
-            onSubmit={(payload) => respond(gid, 'accept', payload)}
             onCancel={() => setActiveForm(null)}
           />
         )}
@@ -502,11 +369,8 @@ export default function Sponsorships() {
           <GroupPaymentForm
             totalAmount={req.totalAmount}
             depositAmount={req.depositAmount}
-            walletEnabled={walletEnabled}
-            instructions={paymentInstructions}
             busy={busy}
             actionContext={{ kind: 'SPONSORSHIP_PAY_SELF', groupId: gid }}
-            onSubmit={(payload) => paySelf(gid, payload)}
             onCancel={() => setActiveForm(null)}
           />
         )}

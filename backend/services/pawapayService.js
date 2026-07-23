@@ -12,7 +12,7 @@ export const getPawaPayConfig = () => {
 
   return {
     enabled: String(process.env.PAWAPAY_ENABLED || 'false').toLowerCase() === 'true',
-    exclusiveMode: String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'false').toLowerCase() === 'true',
+    exclusiveMode: String(process.env.PAWAPAY_EXCLUSIVE_MODE || 'true').toLowerCase() === 'true',
     environment,
     baseUrl: trimTrailingSlash(process.env.PAWAPAY_BASE_URL || defaultBaseUrl),
     apiToken: String(process.env.PAWAPAY_API_TOKEN || '').trim()

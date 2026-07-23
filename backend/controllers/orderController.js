@@ -2246,6 +2246,12 @@ const captureGroupPayment = async ({
   transactionCode,
   sponsoredStatus
 }) => {
+  if (getPawaPayConfig().exclusiveMode && paymentMode !== 'wallet') {
+    throw Object.assign(
+      new Error('Les paiements manuels sont désactivés. Utilisez PawaPay.'),
+      { status: 403, code: 'PAWAPAY_ONLY' }
+    );
+  }
   const now = new Date();
   const groupId = orders[0]?.sponsoredPayment?.requestGroupId || '';
   if (paymentMode === 'wallet') {
