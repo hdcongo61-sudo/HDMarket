@@ -2,6 +2,8 @@
 
 > Generated: July 19, 2026 | Based on full re-analysis of frontend (83 pages) + backend (60 models, 34 services, 5 BullMQ queue/worker pairs)
 > Companion to `TAOBAO_INSPIRED_PROPOSALS.md` (June 2026) — this doc supersedes its roadmap, it does not replace it.
+>
+> **Updated: July 24, 2026** — B.1 (group buying), B.2 (HDPoints), B.3 (referrals) and B.4 (product Q&A) have since shipped end-to-end; their statuses are amended inline. A shared Taobao-style motion layer (entrance stagger, living gradient, shine sweep, pulse) for Home / Products / ProductDetails also shipped — scope details live in `CRAFTSMANSHIP_AUDIT.md` §1.
 
 ---
 
@@ -9,11 +11,11 @@
 
 The June 2026 Taobao proposal batch has been **largely implemented**: flash sales, "Pour Vous" recommendations, Explorer feed, digital wallet, bundle suggestions, seller levels, engagement notifications, and Seller Analytics V2 all exist in code today. HDMarket is already substantially Taobao-like.
 
-The remaining gap is in three places:
+The remaining gap as of July 19 was in three places — **two of them are now closed** (July 24 update):
 
 1. **Half-built features** — several shipped features are wired only partway (live courier GPS, bundle checkout, AI recs rollout). Finishing them is the highest ROI work available: small diffs, big visible impact.
-2. **Buyer-side engagement** — sellers have gamification (levels, badges, commission perks); buyers have nothing. Taobao's retention engine is buyer-side: coins, check-ins, referrals, group buying. All four are absent.
-3. **Social commerce** — no group buying (拼团), no product Q&A (问大家), no referral program (parrainage). These are the features that make Taobao spread organically — and they map directly onto Congolese WhatsApp-sharing culture.
+2. ~~**Buyer-side engagement**~~ — ✅ **Shipped.** HDPoints (B.2) and the referral program (B.3) are real and wired end-to-end (`rewardPointsModel.js`, `rewardPointsService.js`, `referralService.js`, `Referrals.jsx`, `ReferralLanding.jsx`).
+3. ~~**Social commerce**~~ — ✅ **Shipped.** Group buying (B.1) and product Q&A (B.4) exist (`groupBuyModel.js`, `groupBuyService.js`, `GroupBuySection.jsx`, `GroupBuyHomeSection.jsx`, `productQuestionModel.js`, `ProductQuestionsSection.jsx`). The referral virality loop (B.3) ships with them.
 
 ---
 
@@ -32,7 +34,7 @@ The remaining gap is in three places:
 | 9 | Seller analytics dashboard | ✅ Full | `SellerAnalyticsV2.jsx`, `sellerAnalyticsV2Controller.js` |
 | 10 | Trust & Safety 2.0 | 🟡 Partial | Disputes + verified purchase reviews exist; seller guarantee deposit, buyer credibility score, AI moderation not built |
 
-**Never built from the original gap table:** group buying, live/video commerce, visual search.
+**Never built from the original gap table:** live/video commerce, visual search. *(Group buying has since shipped — see B.1.)*
 
 ---
 
@@ -121,6 +123,8 @@ Checked against all 33 `ag/` proposals, `SKILL.md`, and the June doc — none of
 
 ### B.1 Group buying (拼团) — "Achat groupé"
 
+> ✅ **Built (shipped after this analysis).** `backend/models/groupBuyModel.js`, `backend/services/groupBuyService.js` (+ tests), `frontend/src/components/GroupBuySection.jsx` (PDP) and `GroupBuyHomeSection.jsx` (home, gated by `enable_group_buying`). Remaining polish: celebration moment on team fill — see `CRAFTSMANSHIP_AUDIT.md` §1.
+
 **What Taobao does:** Pinduoduo-style team purchase: a product has a group price (e.g. -25%) unlocked when N buyers join within T hours. Buyers share the deal to fill their team. This is arguably the most powerful social-commerce mechanic ever built.
 
 **Why it fits Congo:** buying decisions already happen in WhatsApp groups; group buying turns every buyer into a distribution channel. Payment reality: members pay individually (COD or wallet) — no need for a shared payment.
@@ -153,6 +157,8 @@ Checked against all 33 `ag/` proposals, `SKILL.md`, and the June doc — none of
 
 ### B.2 Buyer rewards program — "HDPoints" (淘金币)
 
+> ✅ **Built (shipped after this analysis).** `backend/models/rewardPointsModel.js`, `backend/services/rewardPointsService.js`, `frontend/src/components/RewardPointsCard.jsx` and `RewardPointsRedeemBox.jsx`.
+
 **What Taobao does:** Taobao Gold Coins: daily check-in, coins per purchase, per review, per share; coins pay part of an order. Buyers open the app daily even without buying.
 
 **Current gap:** sellers have a full gamification system; buyers have zero.
@@ -170,6 +176,8 @@ Checked against all 33 `ag/` proposals, `SKILL.md`, and the June doc — none of
 
 ### B.3 Referral program — "Parrainage"
 
+> ✅ **Built (shipped after this analysis).** `backend/services/referralService.js`, `frontend/src/pages/Referrals.jsx` and `ReferralLanding.jsx` (`/r/:code`-style landing flow).
+
 **What Taobao does:** invite friends, both sides get rewarded (coupons/credit) when the invitee completes a first order.
 
 **Current state (verified):** no referral system exists anywhere (matches for "invite/referral" are promo codes and shop assistants).
@@ -186,6 +194,8 @@ Checked against all 33 `ag/` proposals, `SKILL.md`, and the June doc — none of
 ---
 
 ### B.4 Product Q&A — "Questions & Réponses" (问大家)
+
+> ✅ **Built (shipped after this analysis).** `backend/models/productQuestionModel.js`, `frontend/src/components/ProductQuestionsSection.jsx` on the PDP.
 
 **What Taobao does:** on every PDP, buyers ask questions ("Est-ce que la taille 42 taille grand ?"); the seller and previous buyers answer. Reduces pre-sale chat load and conversion anxiety.
 
@@ -246,14 +256,14 @@ Phase 1 (Weeks 1-2) — Finish what's started        [small diffs, immediate pay
 ├── A.3 AI recommendations rollout + orphan route cleanup
 └── A.5 Image Studio go/no-go
 
-Phase 2 (Weeks 3-6) — Buyer-side retention engine
-├── B.2 HDPoints (check-in + earn + spend)
-├── B.3 Referral program (coupon rewards first)
-└── A.4 Automated wallet top-up (powers B.2/B.3 payouts)
+Phase 2 (Weeks 3-6) — Buyer-side retention engine  [✅ core shipped]
+├── B.2 HDPoints (check-in + earn + spend)          ✅ shipped
+├── B.3 Referral program (coupon rewards first)     ✅ shipped
+└── A.4 Automated wallet top-up (deepens B.2/B.3 payout value)
 
-Phase 3 (Weeks 7-12) — Social commerce
-├── B.1 Group buying (flagship)
-├── B.4 Product Q&A
+Phase 3 (Weeks 7-12) — Social commerce             [✅ core shipped]
+├── B.1 Group buying (flagship)                     ✅ shipped
+├── B.4 Product Q&A                                 ✅ shipped
 └── A.2 Bundle checkout enforcement
 
 Phase 4 (Later) — Rich media & beyond
@@ -261,6 +271,8 @@ Phase 4 (Later) — Rich media & beyond
 ├── Part C UX proposal batch (courier, disputes, wallet, installments, onboarding)
 └── B.6 Visual search (deferred, revisit)
 ```
+
+**July 24, 2026 addendum — shipped alongside:** a shared Taobao-style motion layer (CSS keyframes + `--home-anim-delay` staggering in `index.css`, `prefers-reduced-motion`-gated) across Home, Products, `ProductMasonryGrid` (all listing feeds) and ProductDetails. See `CRAFTSMANSHIP_AUDIT.md` §1 for what remains (hero moments, skeleton choreography).
 
 ## 📈 Impact / effort matrix
 
@@ -281,8 +293,8 @@ Phase 4 (Later) — Rich media & beyond
 
 ## 🤔 Recommendation: where to start
 
-> **A.1 (live GPS tracking) + A.3 (recs rollout)** in week 1 — they're days of work on features users already see half-working. Then commit Phase 2 to **B.2 + B.3**: Taobao's real moat is buyer-side retention and viral growth, and HDMarket currently has neither. Group buying (B.1) is the flagship to schedule once the wallet/reward plumbing exists, because its refunds and payouts get much easier on top of A.4.
+> **July 24 update:** the original Phase 2/3 core (B.1-B.4) is done, so the recommendation shifts entirely to Phase 1 and the leftovers. **A.1 (live GPS tracking) + A.3 (recs rollout)** remain days of work on features users already see half-working — start there. Then **A.4 (automated wallet top-up)**, which now has real consumers: it deepens the shipped HDPoints and referral rewards. **A.2 (bundle checkout enforcement)** closes the remaining promise-to-buyer gap, and **A.5** just needs a go/no-go. B.5 (short video) and the Part C UX batch follow once Phase 1 is clear.
 
 ---
 
-*End of V2 analysis. Every status claim above was verified against the codebase on July 19, 2026 — file paths are cited inline for re-checking.*
+*End of V2 analysis. Status claims were verified against the codebase on July 19, 2026; the July 24, 2026 amendments (B.1-B.4 shipped, motion layer) were re-verified against the same tree — file paths are cited inline for re-checking.*

@@ -5,6 +5,7 @@ import {
   createParcelRequest,
   listMyParcelRequests,
   getParcelRequestForRequester,
+  replaceParcelAuthorizationProof,
   cancelParcelRequest,
   adminListParcelRequests,
   assignCourierToParcelRequest,
@@ -13,6 +14,7 @@ import {
 } from '../services/parcelRequestService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { canManageDeliveryRequests, getPlatformDeliveryRuntime } from '../services/platformDeliveryService.js';
+import { persistDeliveryProofFile } from '../utils/deliveryProofStorage.js';
 
 const isValidObjectId = (value) => mongoose.isValidObjectId(value);
 
@@ -55,9 +57,11 @@ export const postCreateParcelRequest = asyncHandler(async (req, res) => {
   const pickup = parseLocation(req.body?.pickup);
   const dropoff = parseLocation(req.body?.dropoff);
   const proofFile = req.file || null;
-  const proofImageUrl = proofFile?.filename ? `uploads/delivery-proofs/${proofFile.filename}` : '';
 
   try {
+    const proofImageUrl = await persistDeliveryProofFile(proofFile, {
+      category: 'parcel-authorization'
+    });
     const parcelRequest = await createParcelRequest({
       requesterId: req.user.id || req.user._id,
       pickup,
@@ -110,6 +114,30 @@ export const postCancelParcelRequest = asyncHandler(async (req, res) => {
     const parcelRequest = await cancelParcelRequest({
       id,
       requesterId: req.user.id || req.user._id
+    });
+    return res.json(parcelRequest);
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+});
+
+export const postReplaceMyParcelProof = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'Demande invalide.' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ message: 'Sélectionnez une nouvelle photo de justificatif.' });
+  }
+
+  try {
+    const proofImageUrl = await persistDeliveryProofFile(req.file, {
+      category: 'parcel-authorization'
+    });
+    const parcelRequest = await replaceParcelAuthorizationProof({
+      id,
+      requesterId: req.user.id || req.user._id,
+      proofImageUrl
     });
     return res.json(parcelRequest);
   } catch (error) {

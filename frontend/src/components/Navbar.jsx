@@ -756,6 +756,7 @@ export default function Navbar() {
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
     { id: 'referrals', label: t('nav.referrals', 'Parrainage'), path: '/referrals', icon: Gift, badge: null, visible: user ? referralProgramEnabled : false, order: 14.5 },
     { id: 'parcels', label: t('nav.parcels', 'Envoyer un colis'), path: '/parcels/new', icon: Bike, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.7 },
+    { id: 'my-parcels', label: t('nav.myParcels', 'Mes colis'), path: '/parcels', icon: Truck, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.8 },
     { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: BadgePercent, badge: null, visible: true, order: 15 }
   ];
 

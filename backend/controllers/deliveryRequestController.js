@@ -27,6 +27,7 @@ import {
   invalidateUserCache
 } from '../utils/cache.js';
 import { assignCourierFromAdmin } from './courierDeliveryController.js';
+import { persistDeliveryProofFile } from '../utils/deliveryProofStorage.js';
 
 const ACTIVE_DELIVERY_REQUEST_STATUSES = ['PENDING', 'ACCEPTED', 'IN_PROGRESS'];
 const TERMINAL_DELIVERY_REQUEST_STATUSES = ['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'];
@@ -101,11 +102,6 @@ const encryptDeliveryPin = (value = '') => {
   const encrypted = Buffer.concat([cipher.update(pin, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
-};
-
-const toUploadedProofUrl = (file) => {
-  if (!file?.filename) return '';
-  return `uploads/delivery-proofs/${file.filename}`;
 };
 
 const firstFileFromFields = (fields = {}, name = '') => {
@@ -1969,8 +1965,11 @@ export const submitPickupProofAdmin = asyncHandler(async (req, res) => {
 
   const photoFile = firstFileFromFields(req.files, 'photos');
   const signatureFile = firstFileFromFields(req.files, 'signatureFile');
-  const photoUrl = toUploadedProofUrl(photoFile);
-  const signatureUrl = toUploadedProofUrl(signatureFile) || normalizeText(req.body?.signatureUrl || '');
+  const [photoUrl, uploadedSignatureUrl] = await Promise.all([
+    persistDeliveryProofFile(photoFile, { category: 'admin-pickup' }),
+    persistDeliveryProofFile(signatureFile, { category: 'admin-pickup-signature' })
+  ]);
+  const signatureUrl = uploadedSignatureUrl || normalizeText(req.body?.signatureUrl || '');
   const note = normalizeText(req.body?.note || '');
 
   if (!photoUrl && !signatureUrl && !note) {
@@ -2070,8 +2069,11 @@ export const submitDeliveryProofAdmin = asyncHandler(async (req, res) => {
 
   const photoFile = firstFileFromFields(req.files, 'photos');
   const signatureFile = firstFileFromFields(req.files, 'signatureFile');
-  const photoUrl = toUploadedProofUrl(photoFile);
-  const signatureUrl = toUploadedProofUrl(signatureFile) || normalizeText(req.body?.signatureUrl || '');
+  const [photoUrl, uploadedSignatureUrl] = await Promise.all([
+    persistDeliveryProofFile(photoFile, { category: 'admin-delivery' }),
+    persistDeliveryProofFile(signatureFile, { category: 'admin-delivery-signature' })
+  ]);
+  const signatureUrl = uploadedSignatureUrl || normalizeText(req.body?.signatureUrl || '');
   const note = normalizeText(req.body?.note || '');
 
   if (!photoUrl && !signatureUrl && !note && String(deliveryRequest.status || '') !== 'DELIVERED') {

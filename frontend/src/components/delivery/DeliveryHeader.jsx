@@ -31,6 +31,7 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
           {actions.map((action) => {
             const Icon = action.icon;
             const danger = action.tone === 'danger';
+            const badge = Math.max(0, Math.floor(Number(action.badge) || 0));
             const active = Boolean(
               action.to &&
               (pathname === action.to || pathname.startsWith(`${String(action.to).replace(/\/$/, '')}/`))
@@ -43,7 +44,7 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
             const content = (
               <>
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors sm:h-auto sm:w-auto sm:rounded-none ${
+                  className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors sm:h-auto sm:w-auto sm:rounded-none ${
                     danger
                       ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300 sm:bg-transparent dark:sm:bg-transparent'
                       : active
@@ -58,6 +59,14 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
                       className={action.loading ? 'animate-spin' : ''}
                     />
                   ) : null}
+                  {badge > 0 ? (
+                    <span
+                      aria-label={`${badge} colis disponible${badge > 1 ? 's' : ''}`}
+                      className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FF6A00] px-1 text-[10px] font-black leading-none text-white shadow-sm ring-2 ring-white dark:ring-neutral-900"
+                    >
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="max-w-full text-center leading-tight sm:text-left">{action.label}</span>
               </>
@@ -70,6 +79,7 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
                   key={action.key}
                   to={action.to}
                   aria-current={active ? 'page' : undefined}
+                  aria-label={action.ariaLabel || action.label}
                   className={sharedClassName}
                 >
                   {content}

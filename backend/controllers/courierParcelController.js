@@ -10,6 +10,7 @@ import asyncHandler from 'express-async-handler';
 import ParcelRequest from '../models/parcelRequestModel.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
 import { invalidateAdminCache, invalidateUserCache } from '../utils/cache.js';
+import { persistDeliveryProofFile } from '../utils/deliveryProofStorage.js';
 import {
   resolveCourierContext,
   ensureAssignedToCourier,
@@ -28,10 +29,64 @@ const isObjectId = (value = '') => OBJECT_ID_REGEX.test(normalizeText(value));
 const loadParcelAssignmentById = async (id) =>
   ParcelRequest.findById(id).populate('assignedDeliveryGuyId', '_id userId fullName name phone photoUrl');
 
-const toParcelAssignment = (raw) => ({
-  ...raw,
-  kind: 'PARCEL',
-  courier: raw.assignedDeliveryGuyId || null
+const toParcelAssignment = (raw) => {
+  const {
+    deliveryPinCodeHash: _deliveryPinCodeHash,
+    deliveryPinCodeEncrypted: _deliveryPinCodeEncrypted,
+    ...safe
+  } = raw || {};
+  return {
+    ...safe,
+    kind: 'PARCEL',
+    courier: safe.assignedDeliveryGuyId || null,
+    claimable: false
+  };
+};
+
+export const getOpenParcelPoolFilter = (now = new Date()) => ({
+  assignedDeliveryGuyId: null,
+  status: 'PENDING',
+  assignmentStatus: 'PENDING',
+  currentStage: 'ASSIGNED',
+  $or: [
+    { expiresAt: null },
+    { expiresAt: { $exists: false } },
+    { expiresAt: { $gt: now } }
+  ]
+});
+
+export const redactClaimableParcelAssignment = (item = {}) => ({
+  ...item,
+  claimable: true,
+  deliveryPinCode: '',
+  deliveryPinCodeEncrypted: '',
+  deliveryPinCodeHash: '',
+  pickup: {
+    ...(item.pickup || {}),
+    address: '',
+    coordinates: null,
+    contactName: '',
+    contactPhone: ''
+  },
+  dropoff: {
+    ...(item.dropoff || {}),
+    address: '',
+    coordinates: null,
+    contactName: '',
+    contactPhone: ''
+  },
+  authorization: {
+    proofImageUrl: '',
+    referenceCode: '',
+    notes: ''
+  },
+  requesterId: item.requesterId
+    ? {
+        _id: item.requesterId?._id || item.requesterId,
+        name: 'Client HDMarket',
+        phone: ''
+      }
+    : null
 });
 
 export const listCourierParcelAssignments = asyncHandler(async (req, res) => {
@@ -40,8 +95,21 @@ export const listCourierParcelAssignments = asyncHandler(async (req, res) => {
     return res.json({ items: [], total: 0, page: 1, totalPages: 1 });
   }
 
-  const { status = '', page = 1, limit = 20 } = req.query || {};
-  const filter = { assignedDeliveryGuyId: deliveryGuy._id };
+  const { scope = 'assigned', status = '', page = 1, limit = 20 } = req.query || {};
+  const normalizedScope = ['assigned', 'pool', 'all'].includes(String(scope || '').toLowerCase())
+    ? String(scope).toLowerCase()
+    : 'assigned';
+  const openPoolFilter = getOpenParcelPoolFilter();
+  const filter = normalizedScope === 'pool'
+    ? { ...openPoolFilter }
+    : normalizedScope === 'all'
+      ? {
+          $or: [
+            { assignedDeliveryGuyId: deliveryGuy._id },
+            openPoolFilter
+          ]
+        }
+      : { assignedDeliveryGuyId: deliveryGuy._id };
   const normalizedStatus = normalizeText(status).toUpperCase();
   if (normalizedStatus && normalizedStatus !== 'ALL') {
     if (['PENDING', 'ACCEPTED', 'REJECTED'].includes(normalizedStatus)) {
@@ -64,8 +132,17 @@ export const listCourierParcelAssignments = asyncHandler(async (req, res) => {
     ParcelRequest.countDocuments(filter)
   ]);
 
+  const courierId = String(deliveryGuy._id);
   return res.json({
-    items: items.map(toParcelAssignment),
+    items: items.map((entry) => {
+      const item = toParcelAssignment(entry);
+      const assignedId = String(
+        entry?.assignedDeliveryGuyId?._id || entry?.assignedDeliveryGuyId || ''
+      );
+      return !assignedId || assignedId !== courierId
+        ? redactClaimableParcelAssignment(item)
+        : item;
+    }),
     total,
     page: pageNumber,
     pageSize,
@@ -96,32 +173,77 @@ export const acceptCourierParcelAssignment = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Course invalide.' });
   }
 
-  const assignment = await loadParcelAssignmentById(requestId);
+  let assignment = await loadParcelAssignmentById(requestId);
   if (!assignment) {
     return res.status(404).json({ message: 'Course introuvable.' });
-  }
-  if (!ensureAssignedToCourier(assignment, deliveryGuy._id)) {
-    return res.status(403).json({ message: 'Accès refusé à cette course.' });
   }
   if (['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(String(assignment.status || '').toUpperCase())) {
     return res.status(409).json({ message: 'Cette course est déjà clôturée.' });
   }
-  if (String(assignment.assignmentStatus || '').toUpperCase() === 'ACCEPTED') {
+
+  let claimedFromPool = false;
+  if (!assignment.assignedDeliveryGuyId) {
+    const acceptedAt = new Date();
+    const claimed = await ParcelRequest.findOneAndUpdate(
+      {
+        _id: requestId,
+        ...getOpenParcelPoolFilter(acceptedAt)
+      },
+      {
+        $set: {
+          assignedDeliveryGuyId: deliveryGuy._id,
+          assignmentStatus: 'ACCEPTED',
+          assignmentAcceptedAt: acceptedAt,
+          assignmentRejectedAt: null,
+          assignmentRejectReason: '',
+          status: 'ACCEPTED',
+          currentStage: 'ACCEPTED'
+        },
+        $push: {
+          timeline: {
+            type: 'COURIER_CLAIMED',
+            by: req.user.id,
+            at: acceptedAt,
+            meta: {
+              courierId: String(deliveryGuy._id),
+              courierName: deliveryGuy.fullName || deliveryGuy.name || ''
+            }
+          }
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!claimed) {
+      return res.status(409).json({
+        message: 'Cette course vient d’être prise par un autre livreur.'
+      });
+    }
+    claimedFromPool = true;
+    assignment = await loadParcelAssignmentById(requestId);
+  }
+
+  if (!ensureAssignedToCourier(assignment, deliveryGuy._id)) {
+    return res.status(409).json({ message: 'Cette course est déjà attribuée à un autre livreur.' });
+  }
+  if (!claimedFromPool && String(assignment.assignmentStatus || '').toUpperCase() === 'ACCEPTED') {
     return res.json({ message: 'Affectation déjà acceptée.', idempotent: true, item: toParcelAssignment(assignment.toObject()) });
   }
 
-  assignment.assignmentStatus = 'ACCEPTED';
-  assignment.assignmentAcceptedAt = new Date();
-  assignment.assignmentRejectedAt = null;
-  assignment.assignmentRejectReason = '';
-  assignment.status = 'ACCEPTED';
-  assignment.currentStage = 'ACCEPTED';
-  appendTimeline(assignment, {
-    type: 'COURIER_ACCEPTED',
-    by: req.user.id,
-    meta: { courierId: String(deliveryGuy._id), courierName: deliveryGuy.fullName || deliveryGuy.name || '' }
-  });
-  await assignment.save();
+  if (!claimedFromPool) {
+    assignment.assignmentStatus = 'ACCEPTED';
+    assignment.assignmentAcceptedAt = new Date();
+    assignment.assignmentRejectedAt = null;
+    assignment.assignmentRejectReason = '';
+    assignment.status = 'ACCEPTED';
+    assignment.currentStage = 'ACCEPTED';
+    appendTimeline(assignment, {
+      type: 'COURIER_ACCEPTED',
+      by: req.user.id,
+      meta: { courierId: String(deliveryGuy._id), courierName: deliveryGuy.fullName || deliveryGuy.name || '' }
+    });
+    await assignment.save();
+  }
 
   await emitNotificationBatch({
     actorId: req.user.id,
@@ -149,7 +271,10 @@ export const acceptCourierParcelAssignment = asyncHandler(async (req, res) => {
   ]);
 
   const hydrated = await loadParcelAssignmentById(requestId);
-  return res.json({ message: 'Affectation acceptée.', item: toParcelAssignment(hydrated.toObject()) });
+  return res.json({
+    message: claimedFromPool ? 'Course ajoutée à vos missions.' : 'Affectation acceptée.',
+    item: toParcelAssignment(hydrated.toObject())
+  });
 });
 
 export const rejectCourierParcelAssignment = asyncHandler(async (req, res) => {
@@ -168,7 +293,7 @@ export const rejectCourierParcelAssignment = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Accès refusé à cette course.' });
   }
 
-  assignment.assignmentStatus = 'REJECTED';
+  assignment.assignmentStatus = 'PENDING';
   assignment.assignmentRejectedAt = new Date();
   assignment.assignmentRejectReason = reason;
   assignment.assignedDeliveryGuyId = null;
@@ -349,10 +474,11 @@ export const uploadCourierParcelProof = asyncHandler(async (req, res) => {
   const files = req.files || {};
   const photoFile = Array.isArray(files.photos) ? files.photos[0] : null;
   const signatureFile = Array.isArray(files.signatureFile) ? files.signatureFile[0] : null;
-  const photoUrl = photoFile?.filename ? `uploads/delivery-proofs/${photoFile.filename}` : '';
-  const signatureUrl = signatureFile?.filename
-    ? `uploads/delivery-proofs/${signatureFile.filename}`
-    : normalizeText(req.body?.signatureUrl || '');
+  const [photoUrl, uploadedSignatureUrl] = await Promise.all([
+    persistDeliveryProofFile(photoFile, { category: `parcel-${proofType}` }),
+    persistDeliveryProofFile(signatureFile, { category: `parcel-${proofType}-signature` })
+  ]);
+  const signatureUrl = uploadedSignatureUrl || normalizeText(req.body?.signatureUrl || '');
   const note = normalizeText(req.body?.note || '');
 
   if (!photoUrl && !signatureUrl && !note) {

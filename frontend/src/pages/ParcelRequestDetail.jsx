@@ -1,12 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Phone, ShieldCheck, X } from 'lucide-react';
+import { Image as ImageIcon, Loader2, Phone, ShieldCheck, Upload, X } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 import GlassHeader from '../components/orders/GlassHeader';
 import OrderTrackingMap from '../components/OrderTrackingMap';
+import { normalizeFileUrl } from '../utils/deliveryUi';
 
 const TIMELINE_ICONS = {
   PARCEL_REQUEST_CREATED: { icon: '🛒', label: 'Course créée' },
@@ -64,11 +65,23 @@ export default function ParcelRequestDetail() {
   const [parcelRequest, setParcelRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [proofBroken, setProofBroken] = useState(false);
+  const [replacingProof, setReplacingProof] = useState(false);
 
   const load = () => {
     api
       .get(`/parcels/mine/${id}`)
-      .then(({ data }) => setParcelRequest(data))
+      .then(({ data }) => {
+        setParcelRequest((previous) => {
+          if (
+            String(previous?.authorization?.proofImageUrl || '') !==
+            String(data?.authorization?.proofImageUrl || '')
+          ) {
+            setProofBroken(false);
+          }
+          return data;
+        });
+      })
       .catch(() => setParcelRequest(null))
       .finally(() => setLoading(false));
   };
@@ -95,6 +108,29 @@ export default function ParcelRequestDetail() {
     }
   };
 
+  const handleReplaceProof = async (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+    if (!file || replacingProof) return;
+    setReplacingProof(true);
+    try {
+      const formData = new FormData();
+      formData.append('proofImage', file);
+      const { data } = await api.post(`/parcels/mine/${id}/proof`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setParcelRequest(data);
+      setProofBroken(false);
+      showToast('Justificatif remplacé.', { variant: 'success' });
+    } catch (error) {
+      showToast(getApiErrorMessage(error, 'Impossible de remplacer le justificatif.'), {
+        variant: 'error'
+      });
+    } finally {
+      setReplacingProof(false);
+    }
+  };
+
   if (!user) {
     navigate('/login');
     return null;
@@ -108,6 +144,10 @@ export default function ParcelRequestDetail() {
 
   const trackingData = buildTrackingData(parcelRequest);
   const canCancel = ['PENDING', 'ACCEPTED'].includes(parcelRequest.status);
+  const canReplaceProof =
+    !['DELIVERED', 'CANCELED', 'FAILED'].includes(parcelRequest.status) &&
+    !['PICKED_UP', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED'].includes(parcelRequest.currentStage);
+  const proofUrl = normalizeFileUrl(parcelRequest.authorization?.proofImageUrl);
 
   return (
     <div className="min-h-screen bg-[#faf8f5] pb-10">
@@ -133,6 +173,44 @@ export default function ParcelRequestDetail() {
             <p className="text-[11px] font-bold text-gray-400">Dépôt</p>
             <p className="text-sm font-semibold text-gray-800">{parcelRequest.dropoff?.address}</p>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ImageIcon size={16} className="text-[#e85d00]" />
+              <div>
+                <p className="text-sm font-black text-gray-900">Justificatif de retrait</p>
+                <p className="text-[11px] text-gray-500">Visible par le livreur après acceptation.</p>
+              </div>
+            </div>
+            {canReplaceProof && (
+              <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full bg-orange-50 px-3 text-xs font-black text-[#e85d00]">
+                {replacingProof ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                {replacingProof ? 'Envoi…' : 'Remplacer'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={replacingProof}
+                  onChange={handleReplaceProof}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+          {proofUrl && !proofBroken ? (
+            <img
+              src={proofUrl}
+              alt="Justificatif de retrait"
+              onError={() => setProofBroken(true)}
+              className="mt-3 max-h-52 w-full rounded-xl bg-gray-50 object-contain"
+            />
+          ) : (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+              Le fichier enregistré n’est plus disponible.
+              {canReplaceProof ? ' Remplacez-le avant le retrait du colis.' : ''}
+            </div>
+          )}
         </div>
 
         {parcelRequest.deliveryPinCode && parcelRequest.status !== 'DELIVERED' && (

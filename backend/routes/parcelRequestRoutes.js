@@ -8,6 +8,7 @@ import {
   getMyParcelRequests,
   getMyParcelRequestById,
   postCancelParcelRequest,
+  postReplaceMyParcelProof,
   getAdminParcelRequests,
   postAdminAssignParcelCourier,
   getAdminParcelRequestStats,
@@ -22,6 +23,12 @@ router.post('/', protect, deliveryProofUpload.single('proofImage'), postCreatePa
 router.get('/mine', protect, getMyParcelRequests);
 router.get('/mine/:id', protect, getMyParcelRequestById);
 router.post('/mine/:id/cancel', protect, postCancelParcelRequest);
+router.post(
+  '/mine/:id/proof',
+  protect,
+  deliveryProofUpload.single('proofImage'),
+  postReplaceMyParcelProof
+);
 
 router.get('/admin/list', protect, getAdminParcelRequests);
 router.get('/admin/stats', protect, getAdminParcelRequestStats);

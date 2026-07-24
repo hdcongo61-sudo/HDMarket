@@ -20,6 +20,7 @@ import {
   invalidateUserCache
 } from '../utils/cache.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
+import { persistDeliveryProofFile } from '../utils/deliveryProofStorage.js';
 
 export const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
@@ -1436,11 +1437,11 @@ export const uploadCourierProof = asyncHandler(async (req, res) => {
   const files = req.files || {};
   const photoFile = Array.isArray(files.photos) ? files.photos[0] : null;
   const signatureFile = Array.isArray(files.signatureFile) ? files.signatureFile[0] : null;
-  const photoUrl = photoFile?.filename ? `uploads/delivery-proofs/${photoFile.filename}` : '';
-  const signatureUrl =
-    signatureFile?.filename
-      ? `uploads/delivery-proofs/${signatureFile.filename}`
-      : normalizeText(req.body?.signatureUrl || '');
+  const [photoUrl, uploadedSignatureUrl] = await Promise.all([
+    persistDeliveryProofFile(photoFile, { category: `courier-${proofType}` }),
+    persistDeliveryProofFile(signatureFile, { category: `courier-${proofType}-signature` })
+  ]);
+  const signatureUrl = uploadedSignatureUrl || normalizeText(req.body?.signatureUrl || '');
   const note = normalizeText(req.body?.note || '');
 
   if (!photoUrl && !signatureUrl && !note) {

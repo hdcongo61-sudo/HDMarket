@@ -20,6 +20,10 @@ import {
   Bell,
   Rocket,
   BarChart3,
+  RotateCcw,
+  FileText,
+  Clock3,
+  CircleCheckBig,
   ChevronRight,
   Check
 } from 'lucide-react';
@@ -28,10 +32,38 @@ import { useAppSettings } from '../context/AppSettingsContext';
 const SECTION_IDS = {
   shopping: 'achat-malin',
   payments: 'paiements',
+  refunds: 'remboursements',
   delivery: 'livraison',
   trust: 'confiance',
   sellers: 'vendeurs'
 };
+
+const REFUND_STEPS = [
+  {
+    icon: FileText,
+    title: 'Signalez le problème',
+    description:
+      'Ouvrez la commande concernée, demandez son annulation quand le bouton est disponible ou créez une réclamation avec vos justificatifs.'
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Le dossier est examiné',
+    description:
+      'Le vendeur et, si nécessaire, l’équipe HDMarket vérifient la commande, les échanges, les photos et la preuve de remise.'
+  },
+  {
+    icon: RotateCcw,
+    title: 'PawaPay renvoie les fonds',
+    description:
+      'Après validation, le remboursement total ou partiel est envoyé vers le compte Mobile Money utilisé pour le paiement initial.'
+  },
+  {
+    icon: CircleCheckBig,
+    title: 'Vous suivez la confirmation',
+    description:
+      'Le montant, la référence et le statut restent visibles dans le détail de la commande. Une notification vous informe du résultat.'
+  }
+];
 
 function FeatureCard({ icon: Icon, title, benefit, steps, to, cta }) {
   return (
@@ -101,6 +133,7 @@ export default function Benefits() {
     () => [
       { id: SECTION_IDS.shopping, label: 'Achat malin' },
       { id: SECTION_IDS.payments, label: 'Paiements' },
+      { id: SECTION_IDS.refunds, label: 'Remboursements' },
       { id: SECTION_IDS.delivery, label: 'Livraison' },
       { id: SECTION_IDS.trust, label: 'Confiance' },
       { id: SECTION_IDS.sellers, label: 'Vendeurs' }
@@ -271,6 +304,90 @@ export default function Benefits() {
             />
           )}
         </div>
+
+        {/* ── REMBOURSEMENTS ── */}
+        <SectionHeader
+          id={SECTION_IDS.refunds}
+          eyebrow="Être remboursé"
+          title="Comment fonctionne un remboursement ?"
+          subtitle="Une procédure suivie, du signalement jusqu’au retour des fonds."
+        />
+        <section className="mt-4 overflow-hidden rounded-2xl border border-orange-100 bg-white dark:border-orange-950/60 dark:bg-neutral-900">
+          <div className="border-b border-orange-100 bg-[#FFF8F2] p-4 dark:border-orange-950/60 dark:bg-orange-950/20">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#e85d00] text-white">
+                <RotateCcw size={21} strokeWidth={2.3} />
+              </span>
+              <div>
+                <h3 className="text-base font-black text-gray-900 dark:text-white">
+                  Votre remboursement reste traçable
+                </h3>
+                <p className="mt-1 text-sm text-gray-600 dark:text-neutral-300">
+                  Pour une commande payée avec PawaPay, aucun numéro de compte différent n’est
+                  demandé : les fonds repartent vers le moyen de paiement Mobile Money d’origine.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <ol className="grid gap-0 sm:grid-cols-2">
+            {REFUND_STEPS.map(({ icon: Icon, title, description }, index) => (
+              <li
+                key={title}
+                className="relative border-b border-gray-100 p-4 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:[&:nth-last-child(-n+2)]:border-b-0 dark:border-neutral-800"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FFF0E4] text-[#e85d00]">
+                    <Icon size={17} strokeWidth={2.2} />
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#e85d00] text-[9px] font-black text-white">
+                      {index + 1}
+                    </span>
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-black text-gray-900 dark:text-white">{title}</h4>
+                    <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-neutral-300">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <div className="m-4 rounded-xl bg-gray-50 p-3 dark:bg-neutral-950">
+            <div className="flex items-start gap-2">
+              <Clock3 size={17} className="mt-0.5 flex-shrink-0 text-[#e85d00]" />
+              <div>
+                <p className="text-xs font-black text-gray-900 dark:text-white">
+                  Les statuts à connaître
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-neutral-300">
+                  <strong>En cours</strong> : PawaPay traite le retour.{' '}
+                  <strong>Confirmé</strong> : le remboursement est terminé.{' '}
+                  <strong>Échec</strong> : l’assistance a été alertée et une intervention est
+                  nécessaire. Le délai dépend de l’opérateur Mobile Money.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-gray-100 p-4 sm:flex-row dark:border-neutral-800">
+            <Link
+              to="/reclamations"
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition active:scale-[0.98]"
+            >
+              Ouvrir une réclamation
+              <ChevronRight size={16} />
+            </Link>
+            <Link
+              to="/retours-remboursements"
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-4 text-sm font-black text-gray-700 transition hover:border-orange-200 hover:text-[#e85d00] active:scale-[0.98] dark:border-neutral-700 dark:text-neutral-200"
+            >
+              Lire les conditions
+              <ChevronRight size={16} />
+            </Link>
+          </div>
+        </section>
 
         {/* ── LIVRAISON ── */}
         <SectionHeader

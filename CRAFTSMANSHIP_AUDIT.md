@@ -1,6 +1,8 @@
 # 🎨 HDMarket — Craftsmanship & Polish Audit
 
 > Generated: July 21, 2026 | Companion to `TAOBAO_GAP_ANALYSIS_V2.md` (feature gaps) — this doc is scoped to *quality of execution*, not missing features.
+>
+> **Updated: July 24, 2026** — §1's foundation is now in place: a shared CSS motion vocabulary shipped and is applied across Home, Products, ProductDetails and every `ProductMasonryGrid` listing feed. Amendments inline; hero moments and skeleton choreography remain open.
 
 ---
 
@@ -10,14 +12,19 @@ HDMarket's feature depth is no longer the gap — installments, wholesale, verif
 
 ---
 
-## 1. Animation quality — inconsistent vocabulary, no "hero moments"
+## 1. Animation quality — shared vocabulary shipped, "hero moments" still missing
 
-**What exists today:** `framer-motion` is used, but thinly and inconsistently — `OrderMiniRail.jsx` animates its fill bar (`duration: 0.7, ease: 'easeOut'`), `GlassHeader.jsx` does a simple slide-in, `NotificationItem.jsx` has swipe/long-press motion. Most of the app (every list, every card grid, every modal open/close) relies on Tailwind's default transitions or nothing at all — `active:scale-95` on tap is the closest thing to a universal micro-interaction, and it's applied unevenly (present on `ProductCard`'s CTA, absent on most list rows).
+**What exists today (July 24, 2026):** there is now a shared motion vocabulary. `index.css` carries a Taobao-style animation pack — keyframes `homeFadeUp`, `homePop` (bouncy overshoot), `homeGradientShift`, `homeShineSweep`, `homeFloatSoft`, `homePulseSoft`, exposed as utility classes (`.home-anim-fade-up`, `.home-anim-pop`, `.home-anim-gradient`, `.home-anim-float`, `.home-anim-pulse`, `.home-shine-host`) with per-element stagger via the `--home-anim-delay` custom property. Everything is transform/opacity-only (cheap on low-end phones) and gated behind `@media (prefers-reduced-motion: no-preference)`.
 
-**What's missing:**
-- **No shared motion tokens.** Durations/easings are hand-picked per component (`0.7s easeOut` here, a bare CSS `transition` there). A `frontend/src/utils/motion.js` (or a few exported `framer-motion` variants) would let every "enter/exit/success" animation feel like the same product.
-- **No hero moments for the events that just got built this session.** A group-buy team filling, a referral reward landing, HDPoints being earned, a check-in streak — all of these currently resolve to a `showToast(...)` one-liner. Pinduoduo/Taobao's entire growth loop *is* the celebration moment (confetti, a bounce, a sound cue on native). Right now `GroupBuySection.jsx`'s "Équipe complète !" state is a static banner with a `PartyPopper` icon — functionally correct, emotionally flat.
-- **No skeleton-to-content choreography.** Most pages jump from `ShimmerSkeleton`/spinner straight to final content with no crossfade, so content "pops" rather than resolving.
+**Where it's applied:**
+- **Home** — living orange gradient on the mobile header with floating glow blobs; staggered fade-in of logo row → category tabs → search bar; shortcut icons pop in one-by-one; "Sélection du jour" hero card and desktop hero get the shine sweep; Flash Deals icons pulse with staggered card entrances; both product grids fade up with a capped stagger (`index % 8/10`, so infinite scroll stays snappy).
+- **Products** — hero header shine + entrance, toolbar chips pop in sequence, and `ProductMasonryGrid` cascades cards down each column — which means every listing feed (Top Sales, Categories, Search results, etc.) inherits the entrance for free.
+- **ProductDetails** — pre-existing framer-motion page entrance and desktop gallery blur transitions (kept as-is), now plus: pulsing `-X%` discount badge, price pop, title/rating stagger, staggered related-products cards, and a slide-up entrance on the fixed bottom CTA bar.
+
+**What's still missing:**
+- **No shared framer-motion tokens.** The CSS pack covers entrances/ambience, but component-level enter/exit/success animations still hand-pick durations and easings (`OrderMiniRail.jsx`'s `0.7 easeOut`, modal open/close, swipe gestures). A `frontend/src/utils/motion.js` exporting shared variants would unify the non-CSS layer the same way the pack unified entrances.
+- **No hero moments for the events that matter.** A group-buy team filling, a referral reward landing, HDPoints being earned, a check-in streak — all of these currently resolve to a `showToast(...)` one-liner. Pinduoduo/Taobao's entire growth loop *is* the celebration moment (confetti, a bounce, a sound cue on native). Right now `GroupBuySection.jsx`'s "Équipe complète !" state is a static banner with a `PartyPopper` icon — functionally correct, emotionally flat. The vocabulary now exists to build these cheaply.
+- **No skeleton-to-content choreography.** Pages still jump from `ShimmerSkeleton`/spinner straight to final content with no crossfade, so content "pops" rather than resolving. The new per-item entrances soften this on grids, but skeleton→content handoff is still abrupt.
 
 **Recommended first targets (highest emotional stakes, lowest engineering cost):** order-delivered confirmation, group-buy fill, first sale as a new seller, HDPoints check-in streak milestone (7-day, 30-day).
 
@@ -66,7 +73,7 @@ Taobao/Pinduoduo's retention isn't the feature list, it's how each feature *make
 Given engineering cost vs. perceived-quality payoff, in order:
 
 1. **Dark-mode pass on this session's new components** (cheap, mechanical, closes a real gap).
-2. **A shared motion vocabulary + 3 hero-moment animations**: order delivered, group-buy filled, HDPoints milestone.
+2. ~~A shared motion vocabulary~~ **(done July 24)** → next: **3 hero-moment animations** built on it: order delivered, group-buy filled, HDPoints milestone.
 3. **`ProductCard.jsx`'s non-primary badge variant** brought in line with the "one badge" rule.
 4. **Notification/empty-state copy pass** for warmth (no code risk, pure copy + minor styling).
 5. **Code-split `exceljs`/`pdf`/`heic2any`** out of the default bundle.

@@ -192,6 +192,23 @@ export default function CourierDashboard() {
     refetchInterval: isOffline ? false : 15_000
   });
 
+  const parcelPoolQuery = useQuery({
+    queryKey: ['delivery', 'parcel-pool-count'],
+    queryFn: async () => {
+      const { data } = await api.get('/courier/parcel-jobs', {
+        params: { scope: 'pool', page: 1, limit: 1 }
+      });
+      return Math.max(0, Number(data?.total || 0));
+    },
+    enabled: bootstrapQuery.isSuccess && !previewMode && !isOffline,
+    staleTime: 0,
+    refetchInterval: isOffline ? false : 10_000,
+    refetchOnMount: 'always',
+    retry: 1
+  });
+
+  const availableParcelCount = Math.max(0, Number(parcelPoolQuery.data || 0));
+
   const allItems = useMemo(() => mergeInfiniteItems(assignmentsQuery.data), [assignmentsQuery.data]);
 
   const filteredItems = useMemo(
@@ -484,6 +501,7 @@ export default function CourierDashboard() {
 
   const handleRefresh = () => {
     assignmentsQuery.refetch();
+    parcelPoolQuery.refetch();
     todayRevenueQuery.refetch();
     weekRevenueQuery.refetch();
     statsQuery.refetch();
@@ -586,7 +604,12 @@ export default function CourierDashboard() {
       key: 'parcels',
       label: 'Colis',
       to: `${routePrefix}/parcels`,
-      icon: Package
+      icon: Package,
+      badge: availableParcelCount,
+      ariaLabel:
+        availableParcelCount > 0
+          ? `Colis, ${availableParcelCount} course${availableParcelCount > 1 ? 's' : ''} disponible${availableParcelCount > 1 ? 's' : ''}`
+          : 'Colis'
     },
     {
       key: 'history',

@@ -171,6 +171,39 @@ export const getParcelRequestForRequester = async ({ id, requesterId }) => {
   return parcelRequest;
 };
 
+export const replaceParcelAuthorizationProof = async ({
+  id,
+  requesterId,
+  proofImageUrl
+}) => {
+  const url = String(proofImageUrl || '').trim();
+  if (!url) throw createHttpError('Une nouvelle photo de justificatif est requise.', 400);
+
+  const parcelRequest = await ParcelRequest.findOne({ _id: id, requesterId });
+  if (!parcelRequest) throw createHttpError('Demande introuvable.', 404);
+  if (
+    ['DELIVERED', 'CANCELED', 'FAILED'].includes(parcelRequest.status) ||
+    ['PICKED_UP', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED'].includes(parcelRequest.currentStage)
+  ) {
+    throw createHttpError('Le justificatif ne peut plus être remplacé après le retrait du colis.', 409);
+  }
+
+  parcelRequest.authorization = {
+    ...(parcelRequest.authorization?.toObject?.() || parcelRequest.authorization || {}),
+    proofImageUrl: url
+  };
+  appendTimeline(parcelRequest, {
+    type: 'PARCEL_AUTHORIZATION_PROOF_REPLACED',
+    by: requesterId
+  });
+  await parcelRequest.save();
+  await Promise.all([
+    invalidateUserCache(requesterId, ['notifications']),
+    invalidateAdminCache(['admin', 'dashboard', 'delivery'])
+  ]);
+  return getParcelRequestForRequester({ id, requesterId });
+};
+
 export const cancelParcelRequest = async ({ id, requesterId }) => {
   const parcelRequest = await ParcelRequest.findOne({ _id: id, requesterId });
   if (!parcelRequest) throw createHttpError('Demande introuvable.', 404);

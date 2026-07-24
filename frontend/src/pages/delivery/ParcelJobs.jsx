@@ -9,7 +9,8 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  Camera
+  Camera,
+  ArrowLeft
 } from 'lucide-react';
 import api, { getApiErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -29,6 +30,7 @@ function ParcelJobCard({ job, onChange }) {
   const currentStage = job.currentStage || 'ASSIGNED';
   const nextStage = NEXT_STAGE[currentStage];
   const isPendingAcceptance = job.assignmentStatus === 'PENDING';
+  const isClaimable = Boolean(job.claimable);
   const isClosed = ['DELIVERED', 'CANCELED', 'FAILED', 'REJECTED'].includes(job.status);
 
   const handleAccept = async () => {
@@ -104,10 +106,12 @@ function ParcelJobCard({ job, onChange }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
-            {job.pickup?.communeName || job.pickup?.address} → {job.dropoff?.communeName || job.dropoff?.address}
+            {job.pickup?.communeName || job.pickup?.cityName || job.pickup?.address || 'Retrait'} →{' '}
+            {job.dropoff?.communeName || job.dropoff?.cityName || job.dropoff?.address || 'Dépôt'}
           </p>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {STAGE_LABELS[currentStage] || currentStage} · {formatCurrency(job.deliveryPrice)}
+            {isClaimable ? 'Disponible' : STAGE_LABELS[currentStage] || currentStage} ·{' '}
+            {formatCurrency(job.deliveryPrice)}
           </p>
         </div>
         {expanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -120,7 +124,12 @@ function ParcelJobCard({ job, onChange }) {
               <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
               <div>
                 <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500">Retrait</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">{job.pickup?.address}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {job.pickup?.address ||
+                    job.pickup?.communeName ||
+                    job.pickup?.cityName ||
+                    'Adresse visible après acceptation'}
+                </p>
                 {job.pickup?.contactName && (
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {job.pickup.contactName} {job.pickup.contactPhone ? `· ${job.pickup.contactPhone}` : ''}
@@ -132,7 +141,12 @@ function ParcelJobCard({ job, onChange }) {
               <MapPin size={14} className="mt-0.5 shrink-0 text-[#FF6A00]" />
               <div>
                 <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500">Dépôt</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">{job.dropoff?.address}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {job.dropoff?.address ||
+                    job.dropoff?.communeName ||
+                    job.dropoff?.cityName ||
+                    'Adresse visible après acceptation'}
+                </p>
                 {job.dropoff?.contactName && (
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {job.dropoff.contactName} {job.dropoff.contactPhone ? `· ${job.dropoff.contactPhone}` : ''}
@@ -142,38 +156,53 @@ function ParcelJobCard({ job, onChange }) {
             </div>
           </div>
 
-          {/* Authorization to present at pickup */}
-          <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 dark:border-orange-900 dark:bg-orange-950">
-            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase text-[#FF6A00]">
-              <ShieldCheck size={13} /> À présenter au retrait
-            </p>
-            {job.parcelDescription && <p className="text-sm text-gray-800 dark:text-gray-200">{job.parcelDescription}</p>}
-            {job.authorization?.referenceCode && (
-              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Référence : {job.authorization.referenceCode}</p>
-            )}
-            {job.authorization?.notes && <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{job.authorization.notes}</p>}
-            {job.authorization?.proofImageUrl && (
-              <a
-                href={normalizeFileUrl(job.authorization.proofImageUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#FF6A00]"
-              >
-                <ImageIcon size={13} /> Voir le justificatif
-              </a>
-            )}
-            {job.requesterId?.phone && (
-              <a
-                href={`tel:${job.requesterId.phone}`}
-                className="mt-2 flex items-center gap-1.5 text-xs font-bold text-gray-600 dark:text-gray-400"
-              >
-                <Phone size={13} /> {job.requesterId.name || 'Client'} · {job.requesterId.phone}
-              </a>
-            )}
-          </div>
+          {isClaimable ? (
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-relaxed text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
+              Cette course est disponible pour tous les livreurs. Les adresses précises, le
+              contact et le justificatif seront visibles après son acceptation.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 dark:border-orange-900 dark:bg-orange-950">
+              <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase text-[#FF6A00]">
+                <ShieldCheck size={13} /> À présenter au retrait
+              </p>
+              {job.parcelDescription && <p className="text-sm text-gray-800 dark:text-gray-200">{job.parcelDescription}</p>}
+              {job.authorization?.referenceCode && (
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Référence : {job.authorization.referenceCode}</p>
+              )}
+              {job.authorization?.notes && <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{job.authorization.notes}</p>}
+              {job.authorization?.proofImageUrl && (
+                <a
+                  href={normalizeFileUrl(job.authorization.proofImageUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#FF6A00]"
+                >
+                  <ImageIcon size={13} /> Voir le justificatif
+                </a>
+              )}
+              {job.requesterId?.phone && (
+                <a
+                  href={`tel:${job.requesterId.phone}`}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-bold text-gray-600 dark:text-gray-400"
+                >
+                  <Phone size={13} /> {job.requesterId.name || 'Client'} · {job.requesterId.phone}
+                </a>
+              )}
+            </div>
+          )}
 
           {isClosed ? (
             <p className="text-center text-xs font-semibold text-gray-400 dark:text-gray-500">Course clôturée.</p>
+          ) : isClaimable ? (
+            <button
+              type="button"
+              onClick={handleAccept}
+              disabled={busy}
+              className="w-full rounded-full bg-[#FF6A00] py-2.5 text-sm font-black text-white disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={14} className="mx-auto animate-spin" /> : 'Prendre cette course'}
+            </button>
           ) : isPendingAcceptance ? (
             showReject ? (
               <div className="space-y-2">
@@ -264,12 +293,18 @@ function ParcelJobCard({ job, onChange }) {
 export default function ParcelJobs() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const load = () => {
     api
-      .get('/courier/parcel-jobs')
-      .then(({ data }) => setItems(Array.isArray(data?.items) ? data.items : []))
-      .catch(() => setItems([]))
+      .get('/courier/parcel-jobs', { params: { scope: 'all', limit: 50 } })
+      .then(({ data }) => {
+        setItems(Array.isArray(data?.items) ? data.items : []);
+        setLoadError('');
+      })
+      .catch((error) => {
+        setLoadError(getApiErrorMessage(error, 'Impossible de charger les courses colis.'));
+      })
       .finally(() => setLoading(false));
   };
 
@@ -287,24 +322,61 @@ export default function ParcelJobs() {
     () => [...items].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)),
     [items]
   );
+  const availableCount = useMemo(
+    () => items.filter((item) => Boolean(item?.claimable)).length,
+    [items]
+  );
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-10 dark:bg-neutral-950">
       <div className="border-b border-gray-100 bg-white px-4 py-3.5 dark:border-neutral-800 dark:bg-neutral-950">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-black text-gray-900 dark:text-white">Courses colis</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-black text-gray-900 dark:text-white">Courses colis</h1>
+              {availableCount > 0 ? (
+                <span
+                  aria-label={`${availableCount} course disponible${availableCount > 1 ? 's' : ''}`}
+                  className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#FF6A00] px-1.5 text-xs font-black text-white"
+                >
+                  {availableCount > 99 ? '99+' : availableCount}
+                </span>
+              ) : null}
+            </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">Livraisons de colis à la demande</p>
           </div>
-          <Link to="/delivery" className="text-xs font-bold text-[#FF6A00]">Retour</Link>
+          <Link
+            to="/delivery/dashboard"
+            aria-label="Retour au tableau de bord des livraisons"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold text-[#FF6A00] transition hover:bg-orange-50 active:scale-95 dark:hover:bg-orange-950"
+          >
+            <ArrowLeft size={15} />
+            Retour
+          </Link>
         </div>
       </div>
 
       <div className="mx-auto max-w-lg space-y-2.5 px-4 py-4">
         {loading ? (
           <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">Chargement…</p>
+        ) : loadError ? (
+          <div className="rounded-2xl border border-rose-100 bg-white p-5 text-center dark:border-rose-900 dark:bg-neutral-950">
+            <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                load();
+              }}
+              className="mt-3 rounded-full bg-gray-900 px-4 py-2 text-xs font-black text-white dark:bg-white dark:text-gray-900"
+            >
+              Réessayer
+            </button>
+          </div>
         ) : sorted.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">Aucune course colis assignée.</p>
+          <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
+            Aucune course colis disponible ou assignée.
+          </p>
         ) : (
           sorted.map((job) => <ParcelJobCard key={job._id} job={job} onChange={handleChange} />)
         )}
