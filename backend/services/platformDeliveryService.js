@@ -105,7 +105,7 @@ export const getPlatformDeliveryRuntime = async () => {
     courierAcceptTimeoutMinutes: Math.max(5, toNumber(settings.courier_accept_timeout_minutes, 30)),
     enableProofUpload: toBoolean(settings.enable_proof_upload, true),
     enableDeliveryPinCode: toBoolean(settings.enable_delivery_pin_code, false),
-    enableLiveLocation: toBoolean(settings.enable_live_location, false),
+    enableLiveLocation: toBoolean(settings.enable_live_location, true),
     locationLockEnabled: toBoolean(settings.delivery_location_lock_enabled, true),
     locationLockDistanceMeters: Math.max(10, toNumber(settings.delivery_location_lock_distance_m, 120)),
     locationLockOnStatus: lockOnStatus,

@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 import api, { getApiErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
-import { STAGE_LABELS, NEXT_STAGE, normalizeFileUrl } from '../../utils/deliveryUi';
+import { STAGE_LABELS, NEXT_STAGE, normalizeFileUrl, workflowStatusOf } from '../../utils/deliveryUi';
 import { formatPriceWithStoredSettings as formatCurrency } from '../../utils/priceFormatter';
+import DeliveryLiveTrackingCard from '../../components/delivery/DeliveryLiveTrackingCard';
 
 function ParcelJobCard({ job, onChange }) {
   const { showToast } = useToast();
@@ -294,6 +295,11 @@ export default function ParcelJobs() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [enableLiveLocation, setEnableLiveLocation] = useState(false);
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
+  const [liveTracking, setLiveTracking] = useState({ status: 'standby', lastSentAt: null, accuracy: null });
 
   const load = () => {
     api
@@ -314,6 +320,24 @@ export default function ParcelJobs() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    api
+      .get('/courier/bootstrap')
+      .then(({ data }) => setEnableLiveLocation(Boolean(data?.enableLiveLocation)))
+      .catch(() => setEnableLiveLocation(false));
+  }, []);
+
+  useEffect(() => {
+    const onOnline = () => setIsOffline(false);
+    const onOffline = () => setIsOffline(true);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
   const handleChange = (updated) => {
     setItems((prev) => prev.map((item) => (item._id === updated._id ? { ...item, ...updated } : item)));
   };
@@ -326,6 +350,82 @@ export default function ParcelJobs() {
     () => items.filter((item) => Boolean(item?.claimable)).length,
     [items]
   );
+
+  // Live GPS: while this courier has a parcel job in transit, share position so
+  // the requester's tracking map moves. Foreground-only, throttled client-side —
+  // mirrors CourierDashboard.jsx's order-tracking watcher.
+  const activeTrackedJob = useMemo(
+    () => sorted.find((item) => !item?.claimable && ['PICKUP', 'ON_ROUTE'].includes(workflowStatusOf(item))) || null,
+    [sorted]
+  );
+
+  useEffect(() => {
+    if (isOffline) {
+      setLiveTracking((previous) => ({ ...previous, status: 'offline' }));
+      return undefined;
+    }
+    if (!enableLiveLocation) {
+      setLiveTracking({ status: 'disabled', lastSentAt: null, accuracy: null });
+      return undefined;
+    }
+    const jobId = activeTrackedJob?._id;
+    if (!jobId) {
+      setLiveTracking({ status: 'standby', lastSentAt: null, accuracy: null });
+      return undefined;
+    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLiveTracking({ status: 'unavailable', lastSentAt: null, accuracy: null });
+      return undefined;
+    }
+
+    const LOCATION_PING_INTERVAL_MS = 15_000;
+    let lastSentAt = 0;
+    let active = true;
+    setLiveTracking({ status: 'requesting', lastSentAt: null, accuracy: null });
+
+    const sendPing = (position) => {
+      const now = Date.now();
+      if (now - lastSentAt < LOCATION_PING_INTERVAL_MS) return;
+      lastSentAt = now;
+      api
+        .post('/courier/parcel-jobs/location/ping', {
+          jobId,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        })
+        .then(() => {
+          if (!active) return;
+          setLiveTracking({
+            status: 'live',
+            lastSentAt: new Date().toISOString(),
+            accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null
+          });
+        })
+        .catch(() => {
+          if (active) setLiveTracking((previous) => ({ ...previous, status: 'unavailable' }));
+        });
+    };
+
+    const handleLocationError = (error) => {
+      if (!active) return;
+      setLiveTracking({
+        status: Number(error?.code) === 1 ? 'denied' : 'unavailable',
+        lastSentAt: null,
+        accuracy: null
+      });
+    };
+
+    const watchId = navigator.geolocation.watchPosition(sendPing, handleLocationError, {
+      enableHighAccuracy: true,
+      maximumAge: 10_000,
+      timeout: 20_000
+    });
+
+    return () => {
+      active = false;
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isOffline, enableLiveLocation, activeTrackedJob?._id]);
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-10 dark:bg-neutral-950">
@@ -357,6 +457,8 @@ export default function ParcelJobs() {
       </div>
 
       <div className="mx-auto max-w-lg space-y-2.5 px-4 py-4">
+        <DeliveryLiveTrackingCard tracking={liveTracking} assignment={activeTrackedJob} onOpenAssignment={() => {}} />
+
         {loading ? (
           <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">Chargement…</p>
         ) : loadError ? (

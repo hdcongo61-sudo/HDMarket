@@ -3856,6 +3856,12 @@ export default function Navbar() {
                         { to: '/avantages', label: t('nav.benefits', 'Pourquoi HDMarket') },
                         { to: '/reclamations', label: t('nav.complaints', 'Réclamations') },
                         { to: '/avis-amelioration', label: t('nav.feedback', 'Avis amélioration') },
+                        ...(user && parcelDeliveryEnabled
+                          ? [
+                              { to: '/parcels/new', label: t('nav.parcels', 'Envoyer un colis') },
+                              { to: '/parcels', label: t('nav.myParcels', 'Mes colis') }
+                            ]
+                          : []),
                         ...(user && user.accountType !== 'shop' && shopConversionEnabled
                           ? [{ to: '/shop-conversion-request', label: t('nav.becomeShop', 'Devenir Boutique') }]
                           : [])

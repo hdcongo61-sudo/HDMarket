@@ -32,7 +32,13 @@ export default function OrderTrackingMap({ trackingData }) {
 
   if (!trackingData) return null;
 
-  const { currentPosition, courierName, status } = trackingData;
+  const { currentPosition, currentPositionUpdatedAt, courierName, status } = trackingData;
+  const livePositionLabel = (() => {
+    if (!currentPositionUpdatedAt) return '';
+    const parsed = new Date(currentPositionUpdatedAt);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  })();
 
   return (
     <div className="space-y-4">
@@ -51,6 +57,18 @@ export default function OrderTrackingMap({ trackingData }) {
             <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-3 py-1.5 shadow">
               <p className="text-xs font-semibold text-gray-800">
                 🚚 {courierName}
+              </p>
+            </div>
+          )}
+          {/* Overlay: live courier position */}
+          {currentPosition && (
+            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-1.5 shadow">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              <p className="text-[11px] font-semibold text-gray-800">
+                Position du livreur{livePositionLabel ? ` · ${livePositionLabel}` : ' en direct'}
               </p>
             </div>
           )}
@@ -75,7 +93,7 @@ export default function OrderTrackingMap({ trackingData }) {
                 <div
                   className={`z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${
                     isCurrent
-                      ? 'bg-gray-1000 text-white shadow-md ring-4 ring-gray-200'
+                      ? 'bg-[#e85d00] text-white shadow-md ring-4 ring-orange-100'
                       : cp.active
                         ? 'bg-gray-100 text-gray-700'
                         : 'bg-gray-50 text-gray-300'

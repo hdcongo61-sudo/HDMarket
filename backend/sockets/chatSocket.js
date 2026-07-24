@@ -150,3 +150,35 @@ export const emitOrderStatusUpdated = ({
 
   ioInstance.to(buildOrderConversationRoom(orderId)).emit('orders:status:updated', payload);
 };
+
+export const emitDeliveryLocationUpdated = ({
+  orderId,
+  deliveryRequestId,
+  position,
+  currentStage,
+  buyerId,
+  sellerId,
+  updatedAt
+}) => {
+  if (!ioInstance || !orderId || !position) return;
+
+  const lat = Number(position.lat);
+  const lng = Number(position.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+  const payload = {
+    orderId: String(orderId),
+    deliveryRequestId: deliveryRequestId ? String(deliveryRequestId) : null,
+    position: { lat, lng },
+    currentStage: String(currentStage || ''),
+    updatedAt: updatedAt || new Date().toISOString()
+  };
+
+  const recipients = new Set();
+  if (buyerId) recipients.add(String(buyerId));
+  if (sellerId) recipients.add(String(sellerId));
+
+  recipients.forEach((userId) => {
+    ioInstance.to(buildOrderUserRoom(userId)).emit('delivery:location:updated', payload);
+  });
+};

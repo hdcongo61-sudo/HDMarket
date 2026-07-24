@@ -550,7 +550,10 @@ export const uploadCourierParcelProof = asyncHandler(async (req, res) => {
 });
 
 export const pingParcelAgentLocation = asyncHandler(async (req, res) => {
-  const { deliveryGuy } = await resolveCourierContext(req, { allowAdminPreview: false, requireAgentFlag: true });
+  const { runtime, deliveryGuy } = await resolveCourierContext(req, {
+    allowAdminPreview: false,
+    requireAgentFlag: true
+  });
   const requestId = normalizeText(req.body?.jobId || req.body?.parcelRequestId || '');
   if (!isObjectId(requestId)) {
     return res.status(400).json({ message: 'Course invalide.' });
@@ -559,6 +562,10 @@ export const pingParcelAgentLocation = asyncHandler(async (req, res) => {
   const lng = Number(req.body?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return res.status(400).json({ message: 'Coordonnées invalides.' });
+  }
+
+  if (!runtime.enableLiveLocation) {
+    return res.json({ success: true, skipped: true });
   }
 
   const assignment = await ParcelRequest.findById(requestId);

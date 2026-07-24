@@ -60,6 +60,7 @@ import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 import { appAlert, appConfirm } from '../utils/appDialog';
 import OrderTrackingMap from '../components/OrderTrackingMap';
+import useDeliveryLocationUpdates from '../hooks/useDeliveryLocationUpdates';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { createIdempotencyKey } from '../utils/idempotency';
 import {
@@ -540,6 +541,28 @@ export default function OrderDetail() {
     buyerOrderDetailQuery.data?.order?.platformDeliveryRequestId,
     buyerOrderDetailQuery.data?.order?.status
   ]);
+
+  // Live courier GPS pushes: the map moves between the 15s polls above.
+  useDeliveryLocationUpdates({
+    orderId: buyerOrderDetailQuery.data?.order?._id,
+    enabled:
+      Boolean(buyerOrderDetailQuery.data?.order?.platformDeliveryRequestId) &&
+      !['cancelled', 'delivered', 'completed'].includes(
+        String(buyerOrderDetailQuery.data?.order?.status || '').toLowerCase()
+      ),
+    onUpdate: ({ position, updatedAt }) => {
+      setTrackingData((previous) =>
+        previous
+          ? {
+              ...previous,
+              currentPosition: position,
+              mapCenter: position,
+              currentPositionUpdatedAt: updatedAt
+            }
+          : previous
+      );
+    }
+  });
 
   useOrderRealtimeSync({
     scope: 'user',

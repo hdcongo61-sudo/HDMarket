@@ -19,7 +19,7 @@ import {
   invalidateSellerCache,
   invalidateUserCache
 } from '../utils/cache.js';
-import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
+import { emitOrderStatusUpdated, emitDeliveryLocationUpdated } from '../sockets/chatSocket.js';
 import { persistDeliveryProofFile } from '../utils/deliveryProofStorage.js';
 
 export const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
@@ -1823,6 +1823,25 @@ export const pingDeliveryAgentLocation = asyncHandler(async (req, res) => {
   }
 
   await assignment.save();
+
+  if (runtime.enableLiveLocation) {
+    // Push the fresh position so the buyer's tracking map moves without
+    // waiting for the next poll. Fire-and-forget: socket delivery is
+    // best-effort, the polling fallback remains authoritative.
+    try {
+      emitDeliveryLocationUpdated({
+        orderId: assignment.orderId,
+        deliveryRequestId: assignment._id,
+        position: agentCoordinates,
+        currentStage: assignment.currentStage,
+        buyerId: assignment.buyerId,
+        sellerId: assignment.sellerId,
+        updatedAt: now.toISOString()
+      });
+    } catch (socketError) {
+      console.error('Emit delivery location failed:', socketError?.message || socketError);
+    }
+  }
 
   const payload = await toCourierAssignmentResolved(assignment, { runtime, agentCoordinates });
 

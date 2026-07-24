@@ -9,29 +9,100 @@ import GlassHeader from '../components/orders/GlassHeader';
 import OrderTrackingMap from '../components/OrderTrackingMap';
 import { normalizeFileUrl } from '../utils/deliveryUi';
 
-const TIMELINE_ICONS = {
-  PARCEL_REQUEST_CREATED: { icon: '🛒', label: 'Course créée' },
-  COURIER_ASSIGNED: { icon: '🚚', label: 'Livreur assigné' },
-  COURIER_ACCEPTED: { icon: '✅', label: 'Livreur en route' },
-  COURIER_REJECTED: { icon: '⚠️', label: 'Livreur indisponible' },
-  COURIER_STAGE_UPDATED: { icon: '📍', label: 'Suivi mis à jour' },
-  COURIER_PROOF_UPLOADED: { icon: '📸', label: 'Preuve soumise' },
-  DELIVERY_PIN_VERIFIED: { icon: '🔒', label: 'Code vérifié' },
-  PARCEL_REQUEST_CANCELED: { icon: '✖️', label: 'Course annulée' }
+// Mirrors backend/models/parcelRequestModel.js's currentStage enum and the
+// courier-side STAGE_ORDER (frontend/src/utils/deliveryUi.js) so a requester
+// sees the same journey the delivery guy is actually working through,
+// including the steps still ahead (shown dimmed) rather than only past events.
+const STAGE_SEQUENCE = ['ASSIGNED', 'ACCEPTED', 'PICKUP_STARTED', 'PICKED_UP', 'IN_TRANSIT', 'ARRIVED', 'DELIVERED'];
+
+const STAGE_META = {
+  ASSIGNED: { icon: '🔎', label: 'Recherche d’un livreur' },
+  ACCEPTED: { icon: '🚴', label: 'Livreur en route pour le retrait' },
+  PICKUP_STARTED: { icon: '📦', label: 'Retrait en cours' },
+  PICKED_UP: { icon: '📤', label: 'Colis récupéré' },
+  IN_TRANSIT: { icon: '🛣️', label: 'En route vers le dépôt' },
+  ARRIVED: { icon: '📍', label: 'Arrivé au point de dépôt' },
+  DELIVERED: { icon: '🏁', label: 'Colis livré' }
+};
+
+const findEventTime = (timeline, predicate) => (timeline || []).find(predicate)?.at || null;
+
+const stageEventTime = (timeline, stage) => {
+  if (stage === 'ASSIGNED') {
+    return findEventTime(timeline, (e) => e.type === 'COURIER_ASSIGNED' || e.type === 'COURIER_CLAIMED');
+  }
+  if (stage === 'ACCEPTED') {
+    return (
+      findEventTime(timeline, (e) => e.type === 'COURIER_ACCEPTED' || e.type === 'COURIER_CLAIMED') ||
+      findEventTime(timeline, (e) => e.type === 'COURIER_STAGE_UPDATED' && e.meta?.newStage === 'ACCEPTED')
+    );
+  }
+  if (stage === 'PICKED_UP') {
+    return (
+      findEventTime(timeline, (e) => e.type === 'COURIER_STAGE_UPDATED' && e.meta?.newStage === 'PICKED_UP') ||
+      findEventTime(timeline, (e) => e.type === 'COURIER_PROOF_UPLOADED' && e.meta?.proofType === 'pickup')
+    );
+  }
+  if (stage === 'DELIVERED') {
+    return (
+      findEventTime(timeline, (e) => e.type === 'COURIER_STAGE_UPDATED' && e.meta?.newStage === 'DELIVERED') ||
+      findEventTime(timeline, (e) => e.type === 'COURIER_PROOF_UPLOADED' && e.meta?.proofType === 'delivery')
+    );
+  }
+  return findEventTime(timeline, (e) => e.type === 'COURIER_STAGE_UPDATED' && e.meta?.newStage === stage);
 };
 
 const buildTrackingData = (parcelRequest) => {
-  const checkpoints = (parcelRequest.timeline || []).map((event) => {
-    const config = TIMELINE_ICONS[event.type] || { icon: '📍', label: event.type };
-    return {
-      type: event.type,
-      icon: config.icon,
-      label: config.label,
-      time: event.at,
+  const timeline = parcelRequest.timeline || [];
+  const status = String(parcelRequest.status || '').toUpperCase();
+  const currentStage = String(parcelRequest.currentStage || 'ASSIGNED').toUpperCase();
+  const currentIndex = Math.max(0, STAGE_SEQUENCE.indexOf(currentStage));
+  const isTerminalFailure = ['CANCELED', 'REJECTED', 'FAILED'].includes(status) || currentStage === 'FAILED';
+
+  const checkpoints = [
+    {
+      type: 'PARCEL_REQUEST_CREATED',
+      icon: '🛒',
+      label: 'Course créée',
+      time: findEventTime(timeline, (e) => e.type === 'PARCEL_REQUEST_CREATED') || parcelRequest.createdAt,
       active: true
-    };
+    }
+  ];
+
+  STAGE_SEQUENCE.forEach((stage, index) => {
+    if (isTerminalFailure && index > currentIndex) return;
+    const reached = index <= currentIndex;
+    const label =
+      stage === 'ASSIGNED' && !parcelRequest.assignedDeliveryGuyId
+        ? STAGE_META.ASSIGNED.label
+        : stage === 'ASSIGNED'
+          ? 'Livreur assigné, confirmation en attente'
+          : STAGE_META[stage].label;
+    checkpoints.push({
+      type: stage,
+      icon: STAGE_META[stage].icon,
+      label,
+      time: reached ? stageEventTime(timeline, stage) : null,
+      active: reached,
+      isCurrent: index === currentIndex && !isTerminalFailure
+    });
   });
-  if (checkpoints.length) checkpoints[checkpoints.length - 1].isCurrent = true;
+
+  if (isTerminalFailure) {
+    const isCanceled = status === 'CANCELED';
+    checkpoints.push({
+      type: isCanceled ? 'PARCEL_REQUEST_CANCELED' : 'PARCEL_REQUEST_FAILED',
+      icon: '✖️',
+      label: isCanceled ? 'Course annulée' : 'Échec de la livraison',
+      time:
+        findEventTime(timeline, (e) => e.type === 'PARCEL_REQUEST_CANCELED') ||
+        findEventTime(timeline, (e) => e.type === 'COURIER_STAGE_UPDATED' && e.meta?.newStage === 'FAILED') ||
+        parcelRequest.updatedAt,
+      description: parcelRequest.rejectionReason || parcelRequest.assignmentRejectReason || '',
+      active: true,
+      isCurrent: true
+    });
+  }
 
   const currentPosition = parcelRequest.currentLocation?.coordinates
     ? { lat: parcelRequest.currentLocation.coordinates[1], lng: parcelRequest.currentLocation.coordinates[0] }
@@ -49,6 +120,7 @@ const buildTrackingData = (parcelRequest) => {
     status: parcelRequest.status,
     createdAt: parcelRequest.createdAt,
     currentPosition,
+    currentPositionUpdatedAt: parcelRequest.currentLocationUpdatedAt || null,
     mapCenter,
     checkpoints,
     hasDeliveryRequest: Boolean(parcelRequest.assignedDeliveryGuyId),
