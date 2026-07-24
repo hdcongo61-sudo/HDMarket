@@ -21,6 +21,19 @@ const createHttpError = (message, statusCode = 400) => {
   return error;
 };
 
+export const calculateGroupBuyUnitPrice = ({
+  currentUnitPrice,
+  originalPrice,
+  groupPrice
+}) => {
+  const current = Math.max(0, Number(currentUnitPrice || 0));
+  const original = Math.max(0, Number(originalPrice || 0));
+  const grouped = Math.max(0, Number(groupPrice || 0));
+  if (original <= 0) return Math.round(grouped);
+  const priceRatio = Math.min(1, grouped / original);
+  return Math.round(current * priceRatio);
+};
+
 export const createGroupBuy = async ({ productId, userId, targetSize, durationHours }) => {
   const enabled = await getRuntimeConfig('enable_group_buying', { fallback: false });
   if (!enabled) throw createHttpError('Les achats groupés sont désactivés.', 403);
@@ -160,7 +173,8 @@ export const listActiveGroupBuys = async ({ limit = 20 } = {}) =>
 export const applyGroupBuyPricing = async ({ orderItems, groupBuyId, userId }) => {
   if (!groupBuyId || !Array.isArray(orderItems) || !orderItems.length) return orderItems;
 
-  const groupBuy = await GroupBuy.findById(groupBuyId).select('productId status groupPrice members');
+  const groupBuy = await GroupBuy.findById(groupBuyId)
+    .select('productId status groupPrice originalPrice members');
   if (!groupBuy || groupBuy.status !== 'filled') return orderItems;
 
   const isMember = groupBuy.members.some((member) => String(member.userId) === String(userId));
@@ -169,7 +183,11 @@ export const applyGroupBuyPricing = async ({ orderItems, groupBuyId, userId }) =
   const targetProductId = String(groupBuy.productId);
   orderItems.forEach((item) => {
     if (String(item.product) !== targetProductId) return;
-    const discountedUnitPrice = Number(groupBuy.groupPrice || 0);
+    const discountedUnitPrice = calculateGroupBuyUnitPrice({
+      currentUnitPrice: item.unitPrice ?? item.snapshot?.price,
+      originalPrice: groupBuy.originalPrice,
+      groupPrice: groupBuy.groupPrice
+    });
     item.unitPrice = discountedUnitPrice;
     item.lineTotal = Number((discountedUnitPrice * item.quantity).toFixed(2));
     item.snapshot = {

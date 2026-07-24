@@ -25,3 +25,22 @@ describe('product Image Studio validation', () => {
     expect(error).toBeDefined();
   });
 });
+
+describe('profile shop color validation', () => {
+  it('preserves and normalizes a valid shop color', () => {
+    const { error, value } = schemas.profileUpdate.validate(
+      { shopColor: '#2f6fed' },
+      { stripUnknown: true }
+    );
+
+    expect(error).toBeUndefined();
+    expect(value.shopColor).toBe('#2F6FED');
+  });
+
+  it('rejects an invalid shop color', () => {
+    const { error } = schemas.profileUpdate.validate({ shopColor: 'violet' });
+
+    expect(error).toBeDefined();
+    expect(error.details[0].message).toContain('#RRGGBB');
+  });
+});

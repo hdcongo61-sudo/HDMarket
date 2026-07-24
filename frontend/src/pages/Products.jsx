@@ -387,7 +387,7 @@ const fetchProducts = useCallback(async () => {
     <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
         {/* Hero compact : le catalogue est une page outil, pas une page vitrine */}
-        <header className="hd-products-hero overflow-hidden rounded-2xl p-4 text-white sm:p-5">
+        <header className="hd-products-hero home-shine-host home-anim-fade-up overflow-hidden rounded-2xl p-4 text-white sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-baseline gap-2">
               <h1 className="text-xl font-black leading-tight sm:text-2xl">Tous les produits</h1>
@@ -443,14 +443,15 @@ const fetchProducts = useCallback(async () => {
 
         {/* Barre outils sticky (tous écrans) : tri en chips à un tap + filtres toggle.
             Une seule rangée défilante sur mobile au lieu de trois rangées empilées. */}
-        <section className="hd-products-toolbar space-y-2 rounded-2xl px-3 py-2.5 sm:px-4">
+        <section className="hd-products-toolbar home-anim-fade-up space-y-2 rounded-2xl px-3 py-2.5 sm:px-4" style={{ '--home-anim-delay': '90ms' }}>
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
-            {SORT_OPTIONS.map((option) => (
+            {SORT_OPTIONS.map((option, optionIndex) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => handleSortChange(option.value)}
-                className={`${sort === option.value ? 'hd-products-chip-active' : 'hd-products-chip'} flex-shrink-0 rounded-full px-3.5 py-2 text-xs font-black`}
+                className={`${sort === option.value ? 'hd-products-chip-active' : 'hd-products-chip'} home-anim-pop flex-shrink-0 rounded-full px-3.5 py-2 text-xs font-black`}
+                style={{ '--home-anim-delay': `${140 + optionIndex * 55}ms` }}
                 aria-pressed={sort === option.value}
               >
                 {option.label}

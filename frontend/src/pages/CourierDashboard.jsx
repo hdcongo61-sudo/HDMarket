@@ -605,7 +605,9 @@ export default function CourierDashboard() {
       label: 'Actualiser',
       onClick: handleRefresh,
       icon: RefreshCcw,
-      disabled: assignmentsQuery.isFetching
+      disabled: assignmentsQuery.isFetching,
+      loading: assignmentsQuery.isFetching,
+      ariaLabel: assignmentsQuery.isFetching ? 'Actualisation en cours' : 'Actualiser les livraisons'
     },
     {
       key: 'logout',

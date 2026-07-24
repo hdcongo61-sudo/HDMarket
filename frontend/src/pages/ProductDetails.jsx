@@ -2455,7 +2455,7 @@ export default function ProductDetails() {
           {/* Overlay badges */}
           <div className="absolute left-3 top-3 z-20 flex flex-col gap-1.5">
             {hasDiscount && (
-              <span className="rounded bg-[#e85d00] px-2 py-0.5 text-xs font-black text-white shadow">
+              <span className="home-anim-pulse rounded bg-[#e85d00] px-2 py-0.5 text-xs font-black text-white shadow">
                 -{discountPercentage}%
               </span>
             )}
@@ -2519,7 +2519,7 @@ export default function ProductDetails() {
       {/* ── PRIMARY PRODUCT INFORMATION ── */}
       <section className="bg-white px-4 pt-3.5 pb-3">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-[28px] font-black text-neutral-950 leading-tight">
+          <span className="home-anim-pop inline-block text-[28px] font-black text-neutral-950 leading-tight">
             {formatPriceWithStoredSettings(finalPrice)}
           </span>
           {hasDiscount && (
@@ -2533,8 +2533,8 @@ export default function ProductDetails() {
             </>
           )}
         </div>
-        <h1 className="mt-2 text-[17px] font-black leading-snug text-[#231f1b]">{product.title}</h1>
-        <div className="mt-2 flex items-center gap-2.5 text-[11px] text-[#8a8378]">
+        <h1 className="home-anim-fade-up mt-2 text-[17px] font-black leading-snug text-[#231f1b]" style={{ '--home-anim-delay': '80ms' }}>{product.title}</h1>
+        <div className="home-anim-fade-up mt-2 flex items-center gap-2.5 text-[11px] text-[#8a8378]" style={{ '--home-anim-delay': '140ms' }}>
           <span className="flex items-center gap-1"><Star size={12} className="fill-[#e85d00] text-[#e85d00]" /><strong className="text-[#44403a]">{ratingAverage}</strong> ({ratingCount})</span>
           <span>·</span><span>{formattedTotalOrdersQty} ventes</span>
         </div>
@@ -3013,7 +3013,11 @@ export default function ProductDetails() {
         <>
           <div className="h-2 bg-[#f5f5f5]" />
           <section className="bg-white px-4 py-4">
-            <GroupBuySection productId={product._id} enabled={groupBuyingEnabled} />
+            <GroupBuySection
+              productId={product._id}
+              enabled={groupBuyingEnabled}
+              resolveCartSelections={requireSelectedProductOptionCombinations}
+            />
           </section>
         </>
       )}
@@ -3050,9 +3054,10 @@ export default function ProductDetails() {
                     </div>
                   </div>
                 ))
-              : relatedProducts.map((rp) => (
+              : relatedProducts.map((rp, rpIndex) => (
                   <Link key={rp._id} to={buildProductPath(rp)} {...externalLinkProps}
-                    className="flex-shrink-0 w-32 rounded border border-gray-100 bg-white overflow-hidden active:scale-[0.97] transition-transform">
+                    className="home-anim-fade-up flex-shrink-0 w-32 rounded border border-gray-100 bg-white overflow-hidden active:scale-[0.97] transition-transform"
+                    style={{ '--home-anim-delay': `${Math.min(rpIndex, 7) * 60}ms` }}>
                     <div className="aspect-square bg-gray-50 overflow-hidden">
                       <img src={thumbImageUrl(rp.images?.[0])} alt={rp.title} className="w-full h-full object-cover" loading="lazy" />
                     </div>
@@ -3145,8 +3150,8 @@ export default function ProductDetails() {
 
       {/* ── TAOBAO BOTTOM CTA BAR (fixed) ── */}
       {!isOwnProduct && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="home-anim-fade-up fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)', '--home-anim-delay': '220ms' }}>
           <div className="flex items-stretch h-[58px]">
             {/* Chat / WhatsApp icon */}
             {whatsappLink ? (
@@ -3730,7 +3735,7 @@ export default function ProductDetails() {
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="home-anim-pop space-y-3">
                 {hasDiscount ? (
                   <>
                     <div className="flex flex-wrap items-baseline gap-3">
@@ -3809,7 +3814,7 @@ export default function ProductDetails() {
 
               {/* 🏪 INFORMATION VENDEUR ENHANCED */}
               {product.user && (
-                <section className="product-shop-card relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="product-shop-card home-anim-fade-up relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ '--home-anim-delay': '120ms' }}>
                   <div className="relative space-y-5">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -4685,12 +4690,13 @@ export default function ProductDetails() {
                       </div>
                     </div>
                   ))
-                : relatedProducts.map((relatedProduct) => (
+                : relatedProducts.map((relatedProduct, relatedIndex) => (
                 <Link
                   key={relatedProduct._id}
                   to={buildProductPath(relatedProduct)}
                   {...externalLinkProps}
-                  className="group block bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-sm hover:border-neutral-300 transition-all hover:-translate-y-1"
+                  className="home-anim-fade-up group block bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-sm hover:border-neutral-300 transition-all hover:-translate-y-1"
+                  style={{ '--home-anim-delay': `${Math.min(relatedIndex, 7) * 60}ms` }}
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                     <img

@@ -42,13 +42,37 @@ export const NEXT_STAGE = {
 
 export const MAX_PROOF_PHOTOS = 3;
 
-export const normalizeFileUrl = (url = '') => {
-  const normalized = String(url || '').trim();
-  if (!normalized) return '';
-  if (/^https?:\/\//i.test(normalized)) return normalized;
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-  const host = apiBase.replace(/\/api\/?$/, '');
-  return `${host}/${normalized.replace(/^\/+/, '')}`;
+export const normalizeFileUrl = (value = '') => {
+  const raw =
+    value && typeof value === 'object'
+      ? value.secure_url || value.url || value.path || value.src || ''
+      : value;
+  const normalized = String(raw || '').trim();
+  if (
+    !normalized ||
+    ['null', 'undefined', '[object Object]'].includes(normalized) ||
+    /^(?:javascript|vbscript):/i.test(normalized)
+  ) {
+    return '';
+  }
+  if (/^(?:data:image\/|blob:)/i.test(normalized)) return normalized;
+
+  try {
+    if (/^https?:\/\//i.test(normalized)) {
+      const parsed = new URL(normalized);
+      return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+    }
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    const browserOrigin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost:5001';
+    const apiUrl = new URL(apiBase, browserOrigin);
+    const host = apiUrl.href.replace(/\/api\/?$/, '/');
+    return new URL(normalized.replace(/^\/+/, ''), host).href;
+  } catch {
+    return '';
+  }
 };
 
 export const getLatLng = (geoPoint = null) => {

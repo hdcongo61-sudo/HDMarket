@@ -1300,10 +1300,11 @@ const loadDiscountProducts = async () => {
         ) : null}
 
 
-        <section className="order-first -mx-2.5 overflow-hidden rounded-b-[24px] bg-[#e85d00] text-white shadow-sm max-[375px]:-mx-2">
+        <section className="home-anim-gradient order-first -mx-2.5 overflow-hidden rounded-b-[24px] bg-[linear-gradient(135deg,#e85d00_0%,#ff7d1f_50%,#e85d00_100%)] text-white shadow-sm max-[375px]:-mx-2">
           <div className="relative px-4 pb-4 pt-4 max-[375px]:px-3">
-            <div className="pointer-events-none absolute left-32 -top-8 h-16 w-16 rounded-full bg-amber-200/20 blur-xl" />
-            <div className="relative flex items-center justify-between gap-3">
+            <div className="home-anim-float pointer-events-none absolute left-32 -top-8 h-16 w-16 rounded-full bg-amber-200/20 blur-xl" />
+            <div className="home-anim-float pointer-events-none absolute -right-6 top-10 h-20 w-20 rounded-full bg-white/10 blur-xl" style={{ animationDelay: '2.4s' }} />
+            <div className="home-anim-fade-up relative flex items-center justify-between gap-3">
               <Link to="/" className="flex items-center gap-2" {...externalLinkProps}>
                 <span className="text-[30px] font-black leading-none tracking-tight">HDMarket</span>
               </Link>
@@ -1318,7 +1319,7 @@ const loadDiscountProducts = async () => {
               </Link>
             </div>
 
-            <div className="relative mt-4 flex gap-6 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+            <div className="home-anim-fade-up relative mt-4 flex gap-6 overflow-x-auto pb-2 hide-scrollbar" style={{ ...scrollStyle, '--home-anim-delay': '90ms' }}>
               {discoveryTabs.map((tab, index) => (
                 <Link
                   key={tab.label}
@@ -1332,7 +1333,7 @@ const loadDiscountProducts = async () => {
               ))}
             </div>
 
-            <div className="relative mt-4 flex h-[54px] items-center gap-2 rounded-full border-2 border-white bg-white px-3 shadow-sm">
+            <div className="home-anim-fade-up relative mt-4 flex h-[54px] items-center gap-2 rounded-full border-2 border-white bg-white px-3 shadow-sm" style={{ '--home-anim-delay': '160ms' }}>
               <button
                 type="button"
                 onClick={() => setCategoryModalOpen(true)}
@@ -1367,7 +1368,8 @@ const loadDiscountProducts = async () => {
                 key={label}
                 to={to}
                 {...externalLinkProps}
-                className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-center active:scale-95"
+                className="home-anim-pop flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-center active:scale-95"
+                style={{ '--home-anim-delay': `${120 + index * 60}ms` }}
               >
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[#eee8e0] bg-white text-[#e85d00] shadow-sm">
                   <Icon className="h-5 w-5" />
@@ -1384,7 +1386,7 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/top-deals"
                 {...externalLinkProps}
-                className="flex min-h-[150px] overflow-hidden bg-white text-slate-950 active:scale-[0.99]"
+                className="home-shine-host home-anim-fade-up flex min-h-[150px] overflow-hidden bg-white text-slate-950 active:scale-[0.99]"
               >
                 <div className="flex flex-1 flex-col justify-between gap-3 p-4">
                   <div>
@@ -1535,7 +1537,7 @@ const loadDiscountProducts = async () => {
           <section>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-neutral-900 rounded-lg flex items-center justify-center">
+                <div className="home-anim-pulse w-6 h-6 bg-neutral-900 rounded-lg flex items-center justify-center">
                   <Zap className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.flashDeals', 'Flash Deals')}</h2>
@@ -1550,7 +1552,8 @@ const loadDiscountProducts = async () => {
                   key={`flash-${product._id}-${idx}`}
                   to={buildHomeProductLink(product)}
                   {...externalLinkProps}
-                  className="flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
+                  className="home-anim-fade-up flex-shrink-0 w-[140px] flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden active:scale-[0.97] transition-transform"
+                  style={{ '--home-anim-delay': `${idx * 70}ms` }}
                 >
                   <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                     <PreviewableImage
@@ -2168,7 +2171,11 @@ const loadDiscountProducts = async () => {
             <>
               <div className="grid grid-cols-2 gap-2">
                 {items.map((product, index) => (
-                  <div key={`product-${product._id}-${index}`} className="w-full h-full">
+                  <div
+                    key={`product-${product._id}-${index}`}
+                    className="home-anim-fade-up w-full h-full"
+                    style={{ '--home-anim-delay': `${(index % 8) * 45}ms` }}
+                  >
                     <ProductCard p={product} productLink={buildHomeProductLink(product)} />
                   </div>
                 ))}
@@ -2395,7 +2402,7 @@ const loadDiscountProducts = async () => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
           {/* Hero Banner */}
           <div className="flex flex-col gap-4">
-            <section className="relative bg-neutral-900 rounded-2xl overflow-hidden shadow-sm" style={{ minHeight: '300px' }}>
+            <section className="home-shine-host relative bg-neutral-900 rounded-2xl overflow-hidden shadow-sm" style={{ minHeight: '300px' }}>
               {heroBanner && (
                 <div className="absolute inset-0">
                   <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="lazy" />
@@ -2403,18 +2410,18 @@ const loadDiscountProducts = async () => {
                 </div>
               )}
               <div className="relative z-10 px-6 py-8 lg:py-10 text-left">
-                <div className="inline-flex items-center px-3 py-1.5 bg-white/15 rounded-full border border-white/30 mb-4 shadow-sm">
+                <div className="home-anim-fade-up inline-flex items-center px-3 py-1.5 bg-white/15 rounded-full border border-white/30 mb-4 shadow-sm">
                   <Star className="w-3.5 h-3.5 text-neutral-300 mr-1.5" fill="currentColor" />
                   <span className="text-xs text-white font-semibold">{t('nav.marketplacePremium', 'Marketplace HDMarket')}</span>
                 </div>
-                <h1 className="text-3xl lg:text-4xl font-black text-white mb-3 leading-tight">
+                <h1 className="home-anim-fade-up text-3xl lg:text-4xl font-black text-white mb-3 leading-tight" style={{ '--home-anim-delay': '90ms' }}>
                   Votre Marché
                   <span className="block bg-neutral-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
                 </h1>
-                <p className="text-sm text-neutral-200 mb-5 max-w-md leading-relaxed">
+                <p className="home-anim-fade-up text-sm text-neutral-200 mb-5 max-w-md leading-relaxed" style={{ '--home-anim-delay': '160ms' }}>
                   {desktopHeroDescription}
                 </p>
-                <div className="flex gap-3">
+                <div className="home-anim-fade-up flex gap-3" style={{ '--home-anim-delay': '240ms' }}>
                   {sellingEnabled && (
                     <Link to="/my" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-sm active:scale-[0.99]">
                       <Zap className="w-4 h-4 mr-1.5" /> Publier
@@ -2443,7 +2450,7 @@ const loadDiscountProducts = async () => {
           <section className="apple-card p-4 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
+                <div className="home-anim-pulse w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
                   <Zap className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.flashDeals', 'Flash Deals')}</h2>
@@ -2465,7 +2472,8 @@ const loadDiscountProducts = async () => {
                     key={`deal-panel-${product._id}-${idx}`}
                     to={buildHomeProductLink(product)}
                     {...externalLinkProps}
-                    className="group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
+                    className="home-anim-fade-up group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
+                    style={{ '--home-anim-delay': `${idx * 80}ms` }}
                   >
                     <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
                       <PreviewableImage
@@ -3157,7 +3165,11 @@ const loadDiscountProducts = async () => {
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {items.map((product, index) => (
-                  <div key={`product-d-${product._id}-${index}`} className="hover:shadow-md transition-shadow rounded-xl overflow-hidden">
+                  <div
+                    key={`product-d-${product._id}-${index}`}
+                    className="home-anim-fade-up hover:shadow-md transition-shadow rounded-xl overflow-hidden"
+                    style={{ '--home-anim-delay': `${(index % 10) * 40}ms` }}
+                  >
                     <ProductCard p={product} productLink={buildHomeProductLink(product)} />
                   </div>
                 ))}

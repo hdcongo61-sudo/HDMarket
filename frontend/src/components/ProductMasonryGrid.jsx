@@ -57,8 +57,12 @@ export default function ProductMasonryGrid({
     <div className={`flex items-start gap-2 sm:gap-3 ${className}`.trim()}>
       {columns.map((columnProducts, columnIndex) => (
         <div key={columnIndex} className="min-w-0 flex-1">
-          {columnProducts.map((product) => (
-            <div key={product._id || product.slug} className="mb-2 sm:mb-3">
+          {columnProducts.map((product, productIndex) => (
+            <div
+              key={product._id || product.slug}
+              className="home-anim-fade-up mb-2 sm:mb-3"
+              style={{ '--home-anim-delay': `${Math.min(productIndex, 8) * 60}ms` }}
+            >
               <ProductCard
                 p={product}
                 commerceFeed

@@ -12,7 +12,7 @@ import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceF
  * a free reservation; the group price only unlocks at checkout once the
  * team is full (see groupBuyService for why — no auto-charge system here).
  */
-export default function GroupBuySection({ productId, enabled }) {
+export default function GroupBuySection({ productId, enabled, resolveCartSelections }) {
   const { user } = useContext(AuthContext);
   const { addItem } = useContext(CartContext);
   const { showToast } = useToast();
@@ -74,12 +74,28 @@ export default function GroupBuySection({ productId, enabled }) {
   };
 
   const handleFinalize = async (groupBuyId) => {
+    const selections =
+      typeof resolveCartSelections === 'function'
+        ? resolveCartSelections()
+        : [[]];
+    if (!Array.isArray(selections) || selections.length === 0) {
+      showToast('Sélectionnez les options disponibles du produit avant de finaliser.', {
+        variant: 'warning'
+      });
+      return;
+    }
+
     setBusy(true);
     try {
-      await addItem(productId, 1);
-      navigate('/checkout', { state: { groupBuyId } });
-    } catch {
-      showToast('Impossible d’ajouter le produit au panier.', { variant: 'error' });
+      for (const selectedAttributes of selections) {
+        await addItem(productId, 1, selectedAttributes);
+      }
+      navigate('/orders/checkout', { state: { groupBuyId } });
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, 'Impossible d’ajouter le produit au panier.'),
+        { variant: 'error' }
+      );
     } finally {
       setBusy(false);
     }

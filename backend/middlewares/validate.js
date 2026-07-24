@@ -305,6 +305,13 @@ export const schemas = {
     shopName: Joi.string().min(2).max(120),
     shopAddress: Joi.string().min(4).max(200),
     shopDescription: Joi.string().min(10).max(1000),
+    shopColor: Joi.string()
+      .trim()
+      .uppercase()
+      .pattern(/^#[0-9A-F]{6}$/)
+      .messages({
+        'string.pattern.base': 'La couleur de la boutique doit être au format hexadécimal (#RRGGBB).'
+      }),
     shopHours: Joi.string().allow('', null),
     freeDeliveryEnabled: Joi.boolean().truthy('true').falsy('false'),
     freeDeliveryNote: Joi.string().max(300).allow('', null),

@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
   LineChart,
@@ -464,6 +465,7 @@ const createEditedProfileImageFile = async ({
 
 export default function Profile() {
   const { user, updateUser, logout } = useContext(AuthContext);
+  const queryClient = useQueryClient();
   const { cities, communes, runtime } = useAppSettings();
   const { showToast } = useToast();
   const [form, setForm] = useState(initialForm);
@@ -1671,6 +1673,17 @@ export default function Profile() {
       });
       if (profileImageFile) setProfileImageUploadProgress(100);
       updateUser(data);
+      queryClient.setQueriesData({ queryKey: ['shop-profile'] }, (cached) => {
+        if (!cached?.shop || String(cached.shop._id || '') !== String(data._id || '')) return cached;
+        return {
+          ...cached,
+          shop: {
+            ...cached.shop,
+            shopColor: data.shopColor
+          }
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ['shop-profile'] });
       setFeedback('Profil mis à jour avec succès !');
       showToast('Profil mis à jour avec succès !', { variant: 'success' });
       setForm((prev) => ({

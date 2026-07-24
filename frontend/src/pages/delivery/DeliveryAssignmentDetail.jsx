@@ -75,7 +75,7 @@ export default function DeliveryAssignmentDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { apiPrefix, useLegacyCourierApi } = useMemo(
+  const { apiPrefix, useLegacyCourierApi, routePrefix } = useMemo(
     () => getApiModeFromPath(location.pathname),
     [location.pathname]
   );
@@ -122,11 +122,25 @@ export default function DeliveryAssignmentDetail() {
     },
     enabled: Boolean(id),
     staleTime: 10_000,
-    retry: 1,
-    refetchInterval: isOffline ? false : 15_000
+    retry: (failureCount, error) => {
+      const status = Number(error?.response?.status || 0);
+      if ([400, 401, 403, 404, 410].includes(status)) return false;
+      return failureCount < 1;
+    },
+    refetchOnWindowFocus: false,
+    refetchInterval: (query) =>
+      isOffline || query.state.status === 'error' ? false : 15_000
   });
 
   const assignment = detailQuery.data;
+  const detailErrorStatus = Number(detailQuery.error?.response?.status || 0);
+  const assignmentUnavailable = [404, 410].includes(detailErrorStatus);
+
+  React.useEffect(() => {
+    if (!assignmentUnavailable) return;
+    queryClient.invalidateQueries({ queryKey: ['delivery', 'list'] });
+  }, [assignmentUnavailable, queryClient]);
+
   const assignmentStatus = String(assignment?.assignmentStatus || '').toUpperCase();
   const currentStage = String(assignment?.currentStage || 'ASSIGNED').toUpperCase();
   const nextStage = NEXT_STAGE[currentStage] || '';
@@ -385,6 +399,25 @@ export default function DeliveryAssignmentDetail() {
 
       {detailQuery.isLoading ? (
         <DeliverySkeleton count={4} />
+      ) : assignmentUnavailable ? (
+        <section className="rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-sm dark:border-amber-900 dark:bg-neutral-950">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            <Package size={22} />
+          </span>
+          <h2 className="mt-4 text-base font-black text-gray-900 dark:text-white">
+            Cette mission n’est plus disponible
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-gray-600 dark:text-gray-400">
+            Elle a été retirée, remplacée ou le lien utilisé est ancien. La liste des livraisons a été actualisée.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(routePrefix, { replace: true })}
+            className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white"
+          >
+            Retour aux livraisons
+          </button>
+        </section>
       ) : detailQuery.isError ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">

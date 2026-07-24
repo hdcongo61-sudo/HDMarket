@@ -3306,3 +3306,73 @@ body :where(.blur-2xl, .blur-3xl) {
 .ui-btn {
   box-shadow: none !important;
 }
+
+/* ===== Home page entrance & ambient animations (Taobao-style) ===== */
+@keyframes homeFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes homePop {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes homeGradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes homeShineSweep {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  55%, 100% { transform: translateX(230%) skewX(-18deg); }
+}
+@keyframes homeFloatSoft {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(10px, -12px, 0) scale(1.12); }
+}
+@keyframes homePulseSoft {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(232, 93, 0, 0.35); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(232, 93, 0, 0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Staggered entrances — delay via --home-anim-delay inline custom property */
+  .home-anim-fade-up {
+    animation: homeFadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--home-anim-delay, 0ms);
+  }
+  .home-anim-pop {
+    animation: homePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: var(--home-anim-delay, 0ms);
+  }
+  /* Living gradient for the orange header */
+  .home-anim-gradient {
+    background-size: 200% 200%;
+    animation: homeGradientShift 9s ease-in-out infinite;
+  }
+  /* Gentle drift for decorative blobs */
+  .home-anim-float {
+    animation: homeFloatSoft 7s ease-in-out infinite;
+  }
+  /* Soft urgency pulse (flash deals icon) */
+  .home-anim-pulse {
+    animation: homePulseSoft 2.2s ease-in-out infinite;
+  }
+  /* Periodic shine sweep across hero / promo surfaces */
+  .home-shine-host {
+    position: relative;
+    overflow: hidden;
+  }
+  .home-shine-host::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    transform: translateX(-120%) skewX(-18deg);
+    animation: homeShineSweep 3.8s ease-in-out infinite;
+    animation-delay: var(--home-anim-delay, 0ms);
+  }
+}
