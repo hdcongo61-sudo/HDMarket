@@ -910,7 +910,17 @@ export const listCourierAssignments = asyncHandler(async (req, res) => {
     from.setHours(0, 0, 0, 0);
     const to = new Date();
     to.setHours(23, 59, 59, 999);
-    filter.updatedAt = { $gte: from, $lte: to };
+    // "Today" only narrows finished history — an active/pending assignment must
+    // never disappear from the feed just because it hasn't been touched today.
+    filter.$and = [
+      ...(filter.$and || []),
+      {
+        $or: [
+          { updatedAt: { $gte: from, $lte: to } },
+          { status: { $nin: ['DELIVERED', 'FAILED', 'REJECTED', 'CANCELED'] } }
+        ]
+      }
+    ];
   }
 
   const pageNumber = Math.max(1, Number(page) || 1);
