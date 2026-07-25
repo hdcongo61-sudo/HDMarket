@@ -45,6 +45,7 @@ const MyListingDetail = lazy(() => import('./pages/MyListingDetail'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminPayments = lazy(() => import('./pages/AdminPayments'));
 const AdminPawaPayCenter = lazy(() => import('./pages/AdminPawaPayCenter'));
+const AdminDeliveryPricing = lazy(() => import('./pages/AdminDeliveryPricing'));
 const AdminSellerPayouts = lazy(() => import('./pages/AdminSellerPayouts'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
@@ -1170,6 +1171,14 @@ function AppContent() {
               element={platformDeliveryEnabled ? <AdminDeliveryRequests /> : <Navigate to="/admin" replace />}
             />
             <Route path="parcel-requests" element={<AdminParcelRequests />} />
+            <Route
+              path="delivery-pricing"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder'}>
+                  <AdminDeliveryPricing />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="complaints"
               element={

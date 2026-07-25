@@ -133,6 +133,13 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
       u?.canManageDelivery ||
       hasAnyPermission(u, ['manage_delivery'])
   },
+  {
+    to: '/admin/delivery-pricing',
+    label: t('nav.deliveryPricing', 'Prix de livraison'),
+    icon: Truck,
+    group: 'operations',
+    show: (u) => u?.role === 'admin' || u?.role === 'founder'
+  },
   { to: '/delivery/dashboard', label: t('nav.courierMode', 'Mode livreur'), icon: Truck, show: (u) => {
       const role = String(u?.role || '').toLowerCase();
       return (

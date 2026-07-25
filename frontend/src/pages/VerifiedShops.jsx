@@ -24,33 +24,51 @@ const VERIFIED_SHOPS_SNAPSHOT_MAX_AGE_MS = 1000 * 60 * 15;
 
 export default function VerifiedShops() {
   const { user } = useContext(AuthContext);
-  const { cities: configuredCities, t, language } = useAppSettings();
+  const { t, language } = useAppSettings();
   const isAdmin = user?.role === 'admin' || user?.role === 'founder';
   const [selectedCity, setSelectedCity] = useState('');
   const [shops, setShops] = useState([]);
   const hasAppliedDefaultCity = useRef(false);
-  const cityOptions = useMemo(() => {
-    const cityNames = Array.isArray(configuredCities)
-      ? configuredCities
-          .map((entry) => String(entry?.name || '').trim())
-          .filter(Boolean)
-      : [];
-    return Array.from(new Set(cityNames));
-  }, [configuredCities]);
 
-  // Default to connected user's city once when available
+  // Derived from the shops actually loaded, not the app-wide city list — a
+  // chip for a city with zero verified shops is a dead end, not a filter.
+  const cityCounts = useMemo(() => {
+    const counts = new Map();
+    shops.forEach((shop) => {
+      const city = String(shop.city || '').trim();
+      if (!city) return;
+      counts.set(city, (counts.get(city) || 0) + 1);
+    });
+    return counts;
+  }, [shops]);
+
+  const cityOptions = useMemo(
+    () =>
+      Array.from(cityCounts.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([name, count]) => ({ name, count })),
+    [cityCounts]
+  );
+
+  // Default to connected user's city once, only if it actually has verified
+  // shops — otherwise the page would silently land on an empty filtered view.
   useEffect(() => {
-    if (hasAppliedDefaultCity.current) return;
+    if (hasAppliedDefaultCity.current || !cityCounts.size) return;
     const userCity = String(user?.city || '').trim();
-    if (userCity && cityOptions.includes(userCity)) {
+    if (userCity && cityCounts.has(userCity)) {
       setSelectedCity(userCity);
-      hasAppliedDefaultCity.current = true;
     }
-  }, [cityOptions, user?.city]);
+    hasAppliedDefaultCity.current = true;
+  }, [cityCounts, user?.city]);
+
+  const filteredShops = useMemo(
+    () => (selectedCity ? shops.filter((shop) => String(shop.city || '').trim() === selectedCity) : shops),
+    [shops, selectedCity]
+  );
   const [pendingShops, setPendingShops] = useState([]);
   const bestReviewedShop = useMemo(() => {
-    if (!shops.length) return null;
-    return shops.reduce((best, candidate) => {
+    if (!filteredShops.length) return null;
+    return filteredShops.reduce((best, candidate) => {
       if (!best) return candidate;
       const bestCount = Number(best.ratingCount ?? 0);
       const candidateCount = Number(candidate.ratingCount ?? 0);
@@ -62,13 +80,13 @@ export default function VerifiedShops() {
       }
       return best;
     }, null);
-  }, [shops]);
+  }, [filteredShops]);
   const topFollowerShops = useMemo(() => {
-    if (!shops.length) return [];
-    return [...shops]
+    if (!filteredShops.length) return [];
+    return [...filteredShops]
       .sort((a, b) => Number(b.followersCount ?? 0) - Number(a.followersCount ?? 0))
       .slice(0, 3);
-  }, [shops]);
+  }, [filteredShops]);
   const [adminMeta, setAdminMeta] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -76,8 +94,8 @@ export default function VerifiedShops() {
   const [allShopsModalOpen, setAllShopsModalOpen] = useState(false);
   const [allShopsSearch, setAllShopsSearch] = useState('');
   const verifiedShopsSnapshotKey = useMemo(
-    () => `verified-shops:${selectedCity || 'all'}:${isAdmin ? 'admin' : 'public'}`,
-    [isAdmin, selectedCity]
+    () => `verified-shops:${isAdmin ? 'admin' : 'public'}`,
+    [isAdmin]
   );
 
   useEffect(() => {
@@ -104,8 +122,7 @@ export default function VerifiedShops() {
         const { data: allShops } = await api.get('/shops', {
           params: {
             withImages: true,
-            imageLimit: 6,
-            ...(selectedCity ? { city: selectedCity } : {})
+            imageLimit: 6
           }
         });
         const publicData = Array.isArray(allShops) ? allShops : [];
@@ -172,7 +189,7 @@ export default function VerifiedShops() {
     return () => {
       active = false;
     };
-  }, [isAdmin, selectedCity, verifiedShopsSnapshotKey]);
+  }, [isAdmin, verifiedShopsSnapshotKey]);
 
   useEffect(() => {
     if (loading && !shops.length && !pendingShops.length) return;
@@ -206,7 +223,7 @@ export default function VerifiedShops() {
 
   const shopImageMap = useMemo(() => {
     const map = new Map();
-    shops.forEach((shop) => {
+    filteredShops.forEach((shop) => {
       const baseImages = Array.isArray(shop.sampleImages) ? shop.sampleImages : [];
       const coverImage = shop.shopBanner ? normalizeUrl(shop.shopBanner) : '';
       const logoImage = shop.shopLogo ? normalizeUrl(shop.shopLogo) : '';
@@ -223,11 +240,11 @@ export default function VerifiedShops() {
       map.set(shop._id, tiles);
     });
     return map;
-  }, [shops, normalizeUrl]);
+  }, [filteredShops, normalizeUrl]);
 
   const certifiedCountLabel = useMemo(
-    () => Number(shops.length || 0).toLocaleString('fr-FR'),
-    [shops.length]
+    () => Number(filteredShops.length || 0).toLocaleString('fr-FR'),
+    [filteredShops.length]
   );
 
   // Helper function to check if a shop is currently boosted based on date range
@@ -257,8 +274,8 @@ export default function VerifiedShops() {
 
   // Display order: boosted shops first (by boost score), then by followers
   const shopsSortedByFollowers = useMemo(() => {
-    if (!shops.length) return [];
-    return [...shops].sort((a, b) => {
+    if (!filteredShops.length) return [];
+    return [...filteredShops].sort((a, b) => {
       const aIsBoosted = isShopCurrentlyBoosted(a);
       const bIsBoosted = isShopCurrentlyBoosted(b);
       
@@ -280,7 +297,7 @@ export default function VerifiedShops() {
       
       return 0;
     });
-  }, [shops, isShopCurrentlyBoosted]);
+  }, [filteredShops, isShopCurrentlyBoosted]);
 
   const formatRelativeTime = (date) => {
     if (!date) return t('market.recently', 'Récemment');
@@ -387,18 +404,18 @@ export default function VerifiedShops() {
             >
               {t('market.allCities', 'Voir toutes les villes')}
             </button>
-            {cityOptions.map((city) => (
+            {cityOptions.map(({ name, count }) => (
               <button
-                key={city}
+                key={name}
                 type="button"
-                onClick={() => setSelectedCity(city)}
+                onClick={() => setSelectedCity(name)}
                 className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-black transition ${
-                  selectedCity === city
+                  selectedCity === name
                     ? 'bg-black text-white'
                     : 'border border-[#e2dcd2] bg-white text-[#6b6459]'
                 }`}
               >
-                {city}
+                {name} <span className={selectedCity === name ? 'text-white/70' : 'text-[#8a8378]'}>({count})</span>
               </button>
             ))}
           </div>
@@ -406,7 +423,7 @@ export default function VerifiedShops() {
       </header>
 
       <main className="mx-auto max-w-5xl px-3 py-4 pb-24 sm:px-5 sm:py-6">
-        {!loading && shops.length > 0 ? (
+        {!loading && filteredShops.length > 0 ? (
           <div className="mb-3 flex items-end justify-between gap-3 px-1">
             <div>
               <h2 className="text-[17px] font-black text-[#231f1b]">{t('market.recommendedShops', 'Boutiques recommandées')}</h2>
@@ -443,7 +460,7 @@ export default function VerifiedShops() {
             <h2 className="text-lg font-black text-gray-900">Chargement impossible</h2>
             <p className="mt-2 text-sm font-semibold leading-6 text-red-700">{error}</p>
           </section>
-        ) : !shops.length ? (
+        ) : !filteredShops.length ? (
           <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
               <Store className="h-8 w-8" />
