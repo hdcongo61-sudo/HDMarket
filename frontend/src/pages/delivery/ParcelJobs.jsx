@@ -110,9 +110,22 @@ function ParcelJobCard({ job, onChange }) {
             {job.pickup?.communeName || job.pickup?.cityName || job.pickup?.address || 'Retrait'} →{' '}
             {job.dropoff?.communeName || job.dropoff?.cityName || job.dropoff?.address || 'Dépôt'}
           </p>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {isClaimable ? 'Disponible' : STAGE_LABELS[currentStage] || currentStage} ·{' '}
-            {formatCurrency(job.deliveryPrice)}
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <span>
+              {isClaimable ? 'Disponible' : STAGE_LABELS[currentStage] || currentStage} ·{' '}
+              {formatCurrency(job.deliveryPrice)}
+            </span>
+            {!isClaimable && (
+              <span
+                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-black ${
+                  job.paymentMethod === 'PAWAPAY'
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                }`}
+              >
+                {job.paymentMethod === 'PAWAPAY' ? 'Payé' : 'Cash à collecter'}
+              </span>
+            )}
           </p>
         </div>
         {expanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -190,6 +203,20 @@ function ParcelJobCard({ job, onChange }) {
                   <Phone size={13} /> {job.requesterId.name || 'Client'} · {job.requesterId.phone}
                 </a>
               )}
+            </div>
+          )}
+
+          {!isClaimable && (
+            <div
+              className={`rounded-xl border p-3 text-xs font-bold ${
+                job.paymentMethod === 'PAWAPAY'
+                  ? 'border-emerald-100 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+                  : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200'
+              }`}
+            >
+              {job.paymentMethod === 'PAWAPAY'
+                ? `Déjà payé avec PawaPay (${formatCurrency(job.deliveryPrice)}) — ne redemandez rien au client.`
+                : `À collecter en espèces à la livraison : ${formatCurrency(job.deliveryPrice)}.`}
             </div>
           )}
 

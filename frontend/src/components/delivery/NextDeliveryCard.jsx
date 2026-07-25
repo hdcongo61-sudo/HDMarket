@@ -48,7 +48,11 @@ export default function NextDeliveryCard({
 
       <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
         <div className="flex items-center gap-3">
-          {firstItem?.imageUrl ? (
+          {assignment?.kind === 'PARCEL' ? (
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-white text-[#FF6A00] dark:bg-neutral-950">
+              <Package size={16} />
+            </div>
+          ) : firstItem?.imageUrl ? (
             <img
               src={normalizeFileUrl(firstItem.imageUrl)}
               alt={productName}
@@ -61,8 +65,19 @@ export default function NextDeliveryCard({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{productName}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Qté {productQty}</p>
+            {assignment?.kind === 'PARCEL' ? (
+              <>
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                  {assignment?.parcelDescription || 'Colis à livrer'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Course à la demande</p>
+              </>
+            ) : (
+              <>
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{productName}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Qté {productQty}</p>
+              </>
+            )}
           </div>
           <Route size={15} className="text-gray-400" />
         </div>

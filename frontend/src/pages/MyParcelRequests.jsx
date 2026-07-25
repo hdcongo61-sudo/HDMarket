@@ -89,6 +89,13 @@ export default function MyParcelRequests() {
                     {statusMeta.label}
                   </span>
                   <p className="mt-1 text-sm font-black text-neutral-950">{formatCurrency(item.deliveryPrice)}</p>
+                  <p
+                    className={`mt-0.5 text-[10px] font-bold ${
+                      item.paymentMethod === 'PAWAPAY' ? 'text-emerald-600' : 'text-amber-600'
+                    }`}
+                  >
+                    {item.paymentMethod === 'PAWAPAY' ? 'Payé' : 'À la livraison'}
+                  </p>
                 </div>
                 <ChevronRight size={16} className="shrink-0 text-gray-300" />
               </Link>

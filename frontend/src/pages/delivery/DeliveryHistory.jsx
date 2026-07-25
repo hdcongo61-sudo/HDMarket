@@ -53,6 +53,7 @@ export default function DeliveryHistory() {
     queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams();
       params.set('date', dateFilter);
+      params.set('status', 'done');
       params.set('page', String(pageParam));
       params.set('limit', String(PAGE_SIZE));
       const endpoint = useLegacyCourierApi ? `/assignments?${params.toString()}` : `/jobs?${params.toString()}`;
@@ -73,12 +74,62 @@ export default function DeliveryHistory() {
     refetchInterval: isOffline ? false : 20_000
   });
 
-  const allItems = useMemo(
-    () => (Array.isArray(historyQuery.data?.pages) ? historyQuery.data.pages : []).flatMap((page) => page.items || []),
-    [historyQuery.data]
+  // Colis (parcels) live on a separate model/endpoint from regular order
+  // deliveries — merge their finished jobs into the same history feed, same
+  // as the dashboard's merge, so completed colis aren't invisible here.
+  const parcelHistoryQuery = useInfiniteQuery({
+    queryKey: ['delivery', 'parcel-history', dateFilter],
+    queryFn: async ({ pageParam = 1 }) => {
+      const { data } = await api.get('/courier/parcel-jobs', {
+        params: { scope: 'assigned', status: 'done', page: pageParam, limit: PAGE_SIZE }
+      });
+      return {
+        items: Array.isArray(data?.items) ? data.items : [],
+        page: Number(data?.page || pageParam || 1),
+        totalPages: Math.max(1, Number(data?.totalPages || 1))
+      };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      Number(lastPage?.page || 1) < Number(lastPage?.totalPages || 1)
+        ? Number(lastPage.page) + 1
+        : undefined,
+    staleTime: 30_000,
+    retry: 1,
+    refetchInterval: isOffline ? false : 20_000
+  });
+
+  const allItems = useMemo(() => {
+    const orderItems = (Array.isArray(historyQuery.data?.pages) ? historyQuery.data.pages : [])
+      .flatMap((page) => page.items || [])
+      .map((item) => ({ ...item, kind: item?.kind || 'ORDER' }));
+    const parcelItems = (Array.isArray(parcelHistoryQuery.data?.pages) ? parcelHistoryQuery.data.pages : []).flatMap(
+      (page) => page.items || []
+    );
+    return [...orderItems, ...parcelItems];
+  }, [historyQuery.data, parcelHistoryQuery.data]);
+
+  const doneItems = useMemo(
+    () =>
+      allItems
+        .filter((item) => isDoneDelivery(item))
+        .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)),
+    [allItems]
   );
 
-  const doneItems = useMemo(() => allItems.filter((item) => isDoneDelivery(item)), [allItems]);
+  const isLoading = historyQuery.isLoading || parcelHistoryQuery.isLoading;
+  const isError = historyQuery.isError || parcelHistoryQuery.isError;
+  const activeError = historyQuery.error || parcelHistoryQuery.error;
+  const hasNextPage = Boolean(historyQuery.hasNextPage || parcelHistoryQuery.hasNextPage);
+  const isFetchingNextPage = historyQuery.isFetchingNextPage || parcelHistoryQuery.isFetchingNextPage;
+  const fetchNextPage = () => {
+    if (historyQuery.hasNextPage) historyQuery.fetchNextPage();
+    if (parcelHistoryQuery.hasNextPage) parcelHistoryQuery.fetchNextPage();
+  };
+  const refetchAll = () => {
+    historyQuery.refetch();
+    parcelHistoryQuery.refetch();
+  };
 
   const completedCount = useMemo(
     () => doneItems.filter((item) => String(item?.status || '').toUpperCase() === 'DELIVERED').length,
@@ -100,14 +151,14 @@ export default function DeliveryHistory() {
   );
 
   React.useEffect(() => {
-    if (!historyQuery.hasNextPage || historyQuery.isFetchingNextPage) return;
+    if (!hasNextPage || isFetchingNextPage) return;
     const node = loadMoreRef.current;
     if (!node) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          historyQuery.fetchNextPage();
+          fetchNextPage();
         }
       },
       { rootMargin: '200px 0px' }
@@ -115,7 +166,8 @@ export default function DeliveryHistory() {
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [historyQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasNextPage, isFetchingNextPage]);
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4 bg-[#f5f5f5] px-3 pb-20 pt-2 dark:bg-neutral-950 sm:px-5">
@@ -165,16 +217,16 @@ export default function DeliveryHistory() {
         </div>
       </div>
 
-      {historyQuery.isLoading ? (
+      {isLoading ? (
         <DeliverySkeleton count={4} />
-      ) : historyQuery.isError ? (
+      ) : isError ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
-            {extractMessage(historyQuery.error, 'Impossible de charger l’historique.')}
+            {extractMessage(activeError, 'Impossible de charger l’historique.')}
           </p>
           <button
             type="button"
-            onClick={() => historyQuery.refetch()}
+            onClick={refetchAll}
             className="mt-3 inline-flex min-h-[44px] items-center rounded-xl bg-[#FF6A00] px-3 text-sm font-black text-white"
           >
             Reessayer
@@ -184,14 +236,14 @@ export default function DeliveryHistory() {
         <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <p className="text-sm font-black text-gray-900 dark:text-white">Aucune livraison archivee.</p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Les livraisons terminees apparaitront ici.</p>
-          {historyQuery.hasNextPage ? (
+          {hasNextPage ? (
             <button
               type="button"
-              onClick={() => historyQuery.fetchNextPage()}
-              disabled={historyQuery.isFetchingNextPage}
+              onClick={fetchNextPage}
+              disabled={isFetchingNextPage}
               className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-black text-gray-900 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
             >
-              {historyQuery.isFetchingNextPage ? <Loader2 size={14} className="animate-spin" /> : null}
+              {isFetchingNextPage ? <Loader2 size={14} className="animate-spin" /> : null}
               Charger plus
             </button>
           ) : null}
@@ -211,7 +263,9 @@ export default function DeliveryHistory() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Commande #{String(item.orderId || '').slice(-6)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {item?.kind === 'PARCEL' ? 'Colis' : 'Commande'} #{String(item.orderId || item._id || '').slice(-6)}
+                    </p>
                     <p className="mt-1 text-sm font-black text-gray-900 dark:text-white">
                       {item?.pickup?.communeName || 'Pickup'} → {item?.dropoff?.communeName || item?.buyer?.commune || 'Dropoff'}
                     </p>
@@ -237,7 +291,11 @@ export default function DeliveryHistory() {
                     </a>
                   ) : null}
                   <Link
-                    to={buildAssignmentRoute({ basePath: routePrefix, id: item._id })}
+                    to={
+                      item?.kind === 'PARCEL'
+                        ? `${routePrefix}/parcels`
+                        : buildAssignmentRoute({ basePath: routePrefix, id: item._id })
+                    }
                     className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 font-black text-[#FF6A00] dark:bg-orange-950 dark:text-orange-300"
                   >
                     Detail
@@ -248,7 +306,7 @@ export default function DeliveryHistory() {
           })}
 
           <div ref={loadMoreRef} className="h-8" />
-          {historyQuery.isFetchingNextPage ? (
+          {isFetchingNextPage ? (
             <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-400">
               <Loader2 size={14} className="animate-spin" /> Chargement...
             </div>

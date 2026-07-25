@@ -1,12 +1,13 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft } from 'lucide-react';
+import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft, ShieldCheck, Wallet } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 import GlassHeader from '../components/orders/GlassHeader';
+import PawaPayButton from '../components/PawaPayButton';
 
 const emptyLocation = () => ({
   cityId: '',
@@ -122,6 +123,7 @@ export default function RequestDelivery() {
   const [estimating, setEstimating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [enabled, setEnabled] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState('pawapay');
 
   useEffect(() => {
     api
@@ -212,6 +214,36 @@ export default function RequestDelivery() {
     }
   };
 
+  // PawaPayButton's onBeforeStart: validate the form, upload the proof photo
+  // standalone (a checkout's actionContext is JSON-only, no file upload), and
+  // hand back the actionContext override so the request is only actually
+  // created once payment is confirmed (see pawaPayCreateParcelRequest).
+  const handlePawaPayBeforeStart = async () => {
+    if (!canSubmit) {
+      return 'Renseignez le retrait, le dépôt et le justificatif avant de payer.';
+    }
+    try {
+      const uploadData = new FormData();
+      uploadData.append('proofImage', proofFile);
+      const { data } = await api.post('/parcels/proof-upload', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return {
+        actionContext: {
+          kind: 'PARCEL_REQUEST_CHECKOUT',
+          pickup: buildLocationPayload(pickup, cities, communes),
+          dropoff: buildLocationPayload(dropoff, cities, communes),
+          parcelDescription,
+          referenceCode,
+          notes,
+          proofImageUrl: data?.proofImageUrl || ''
+        }
+      };
+    } catch (error) {
+      return getApiErrorMessage(error, 'Impossible d’envoyer le justificatif.');
+    }
+  };
+
   if (!user) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10 text-center">
@@ -282,22 +314,65 @@ export default function RequestDelivery() {
           />
         </div>
 
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-black text-gray-900">Paiement</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('pawapay')}
+              className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black transition ${
+                paymentMethod === 'pawapay'
+                  ? 'border-[#0b6b4f] bg-[#0b6b4f]/10 text-[#0b6b4f]'
+                  : 'border-gray-200 text-gray-500'
+              }`}
+            >
+              <ShieldCheck size={14} /> Payer maintenant
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('cod')}
+              className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black transition ${
+                paymentMethod === 'cod'
+                  ? 'border-[#e85d00] bg-orange-50 text-[#e85d00]'
+                  : 'border-gray-200 text-gray-500'
+              }`}
+            >
+              <Wallet size={14} /> À la livraison
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-gray-500">
+            {paymentMethod === 'pawapay'
+              ? 'Payez par Mobile Money via PawaPay : la course est créée dès la confirmation du paiement.'
+              : 'Le livreur collectera le montant en espèces à la livraison.'}
+          </p>
+        </div>
+
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white px-4 py-3">
-          <div className="mx-auto flex max-w-lg items-center gap-3">
-            <div className="flex-1">
+          <div className="mx-auto max-w-lg">
+            <div className="mb-2 flex items-center justify-between">
               <p className="text-[11px] font-bold text-gray-400">Prix estimé</p>
               <p className="text-lg font-black text-neutral-950">
                 {estimating ? '…' : estimate ? formatCurrency(estimate.price) : '—'}
               </p>
             </div>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-50"
-            >
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeft size={16} className="rotate-180" />}
-              {submitting ? 'Envoi…' : 'Commander la course'}
-            </button>
+            {paymentMethod === 'pawapay' ? (
+              <PawaPayButton
+                amount={estimate?.price || 0}
+                purpose="PARCEL_REQUEST_FUNDING"
+                returnPath="/parcels"
+                label="Payer et commander"
+                onBeforeStart={handlePawaPayBeforeStart}
+              />
+            ) : (
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-50"
+              >
+                {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeft size={16} className="rotate-180" />}
+                {submitting ? 'Envoi…' : 'Commander la course (cash)'}
+              </button>
+            )}
           </div>
         </div>
       </form>

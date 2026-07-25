@@ -7,6 +7,7 @@ import {
   ZoomIn, ZoomOut
 } from 'lucide-react';
 import imageStudioService from '../../services/imageStudioService';
+import { removeBackgroundLocally } from './backgroundRemoval';
 import { formatFileSize } from '../../utils/mediaOptimizer';
 import {
   ADJUSTMENT_DEFINITIONS, ASPECT_RATIOS, BACKGROUNDS, FILTER_PRESETS, TEMPLATES,
@@ -37,7 +38,7 @@ const MOBILE_TOOLS = [
 const MOBILE_ADJUST_KEYS = ['brightness', 'contrast', 'saturation', 'sharpness'];
 
 const AI_TOOLS = [
-  { id: 'background-remove', label: 'Retirer le fond', description: 'Détection précise du produit', icon: Layers3 },
+  { id: 'background-remove', label: 'Retirer le fond', description: 'IA locale et privée — aucune image envoyée au serveur', icon: Layers3, local: true },
   { id: 'enhance', label: 'Améliorer', description: 'Détails, couleurs et balance', icon: Sparkles, local: true },
   { id: 'shadow', label: 'Ombre réaliste', description: 'Douce, studio ou flottante', icon: Focus, local: true },
   { id: 'relight', label: 'Changer la lumière', description: 'Éclairage studio instantané', icon: WandSparkles, local: true },
@@ -155,6 +156,8 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
   const [history, dispatch] = useReducer(historyReducer, initialState, createHistoryState);
   const [activeTool, setActiveTool] = useState('crop');
   const [loadedImage, setLoadedImage] = useState(null);
+  const [cutoutImage, setCutoutImage] = useState(null);
+  const [bgRemovalProgress, setBgRemovalProgress] = useState(null);
   const [loadedBackground, setLoadedBackground] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const [compare, setCompare] = useState(false);
@@ -175,6 +178,11 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
   const currentImage = images[selectedIndex] || image;
   const source = resolveSource(currentImage);
   const draftKey = `hdmarket:image-studio:draft:${currentImage?.name || currentImage?.url || selectedIndex}`;
+  // The image actually drawn/exported: the AI cutout once background-remove
+  // has run on this photo, otherwise the original — every other tool
+  // (crop, filters, background, shadow, watermark) works on top of whichever
+  // one is current, non-destructively.
+  const workingImage = cutoutImage || loadedImage;
 
   const change = useCallback((updater) => dispatch({ type: 'CHANGE', payload: updater }), []);
 
@@ -192,7 +200,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
 
   // Real preset thumbnails rendered from the loaded photo (mobile filters panel).
   const filterThumbs = useMemo(() => {
-    if (!isOpen || !loadedImage?.naturalWidth) return {};
+    if (!isOpen || !workingImage?.naturalWidth) return {};
     const size = 96;
     const thumbs = {};
     Object.entries(FILTER_PRESETS).forEach(([name, preset]) => {
@@ -203,22 +211,35 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         ctx.filter = getCanvasFilter({ ...createInitialImageStudioState().adjustments, ...preset });
-        const scale = Math.max(size / loadedImage.naturalWidth, size / loadedImage.naturalHeight);
-        const drawWidth = loadedImage.naturalWidth * scale;
-        const drawHeight = loadedImage.naturalHeight * scale;
-        ctx.drawImage(loadedImage, (size - drawWidth) / 2, (size - drawHeight) / 2, drawWidth, drawHeight);
+        const scale = Math.max(size / workingImage.naturalWidth, size / workingImage.naturalHeight);
+        const drawWidth = workingImage.naturalWidth * scale;
+        const drawHeight = workingImage.naturalHeight * scale;
+        ctx.drawImage(workingImage, (size - drawWidth) / 2, (size - drawHeight) / 2, drawWidth, drawHeight);
         thumbs[name] = canvas.toDataURL('image/jpeg', 0.72);
       } catch {
         // Keep the gray placeholder when the image cannot be sampled (CORS).
       }
     });
     return thumbs;
-  }, [isOpen, loadedImage]);
+  }, [isOpen, workingImage]);
 
   useEffect(() => {
     if (!isOpen) return;
     setSelectedIndex(Math.min(initialIndex, Math.max(0, images.length - 1)));
   }, [images.length, initialIndex, isOpen]);
+
+  // The cutout is per-photo and lives outside the undo/redo history — clear
+  // it when switching photos, and when history steps past the point
+  // background-remove was applied (undo/redo/reset).
+  useEffect(() => {
+    setCutoutImage(null);
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    if (cutoutImage && !state.aiOperations?.includes('background-remove')) {
+      setCutoutImage(null);
+    }
+  }, [cutoutImage, state.aiOperations]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -282,13 +303,13 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
   }, [draftKey, isOpen, state]);
 
   useEffect(() => {
-    if (!loadedImage || !isOpen) return;
-    renderToCanvas({ canvas: canvasRef.current, image: loadedImage, state, preview: true, backgroundImage: loadedBackground });
+    if (!workingImage || !isOpen) return;
+    renderToCanvas({ canvas: canvasRef.current, image: workingImage, state, preview: true, backgroundImage: loadedBackground });
     if (compare) renderToCanvas({ canvas: originalCanvasRef.current, image: loadedImage, state: initialState, preview: true });
-  }, [compare, initialState, isOpen, loadedBackground, loadedImage, state]);
+  }, [compare, initialState, isOpen, loadedBackground, loadedImage, workingImage, state]);
 
   useEffect(() => {
-    if (!loadedImage || !isOpen) return undefined;
+    if (!workingImage || !isOpen) return undefined;
     const timer = window.setTimeout(() => {
       try {
         const sample = document.createElement('canvas');
@@ -296,27 +317,27 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
         sample.width = size;
         sample.height = size;
         const ctx = sample.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(loadedImage, 0, 0, size, size);
+        ctx.drawImage(workingImage, 0, 0, size, size);
         const data = ctx.getImageData(0, 0, size, size);
         const worker = new Worker(new URL('./imageStudio.worker.js', import.meta.url), { type: 'module' });
         worker.onmessage = (event) => { setQuality(event.data); worker.terminate(); };
-        worker.postMessage({ pixels: data.data, width: loadedImage.naturalWidth, height: loadedImage.naturalHeight, originalBytes: currentImage?.file?.size || currentImage?.size || 0 });
+        worker.postMessage({ pixels: data.data, width: workingImage.naturalWidth, height: workingImage.naturalHeight, originalBytes: currentImage?.file?.size || currentImage?.size || 0 });
       } catch {
         setQuality({ score: 0, suggestions: ['L’analyse locale nécessite une image autorisant l’accès sécurisé.'], checks: {} });
       }
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [currentImage, isOpen, loadedImage]);
+  }, [currentImage, isOpen, workingImage]);
 
   useEffect(() => {
-    if (!loadedImage || !isOpen) return undefined;
+    if (!workingImage || !isOpen) return undefined;
     const timer = window.setTimeout(() => {
       const output = document.createElement('canvas');
-      renderToCanvas({ canvas: output, image: loadedImage, state, backgroundImage: loadedBackground });
+      renderToCanvas({ canvas: output, image: workingImage, state, backgroundImage: loadedBackground });
       output.toBlob((blob) => setEstimate(blob?.size || 0), state.output.format, getOutputQuality(state.output.compression));
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [isOpen, loadedBackground, loadedImage, state]);
+  }, [isOpen, loadedBackground, workingImage, state]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -340,7 +361,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
 
   const exportFile = useCallback(async () => {
     const canvas = document.createElement('canvas');
-    renderToCanvas({ canvas, image: loadedImage, state, backgroundImage: loadedBackground });
+    renderToCanvas({ canvas, image: workingImage, state, backgroundImage: loadedBackground });
     let mime = state.output.format;
     let blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, getOutputQuality(state.output.compression)));
     if (!blob || blob.type !== mime) {
@@ -349,7 +370,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
     }
     const base = String(currentImage?.name || currentImage?.file?.name || 'produit').replace(/\.[^.]+$/, '');
     return new File([blob], `${base}-hdmarket.${extensionForMime(mime)}`, { type: mime, lastModified: Date.now() });
-  }, [currentImage, loadedBackground, loadedImage, state]);
+  }, [currentImage, loadedBackground, workingImage, state]);
 
   const exportImageItem = useCallback(async (item, index) => {
     if (index === selectedIndex) return exportFile();
@@ -416,6 +437,49 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
     }
     if (operation === 'upscale') {
       change((prev) => ({ ...prev, output: { ...prev.output, width: Math.min(6000, prev.output.width * 2), height: Math.min(6000, prev.output.height * 2) }, aiOperations: [...new Set([...(prev.aiOperations || []), operation])] }));
+      return;
+    }
+    if (operation === 'background-remove') {
+      if (!loadedImage) return;
+      setProcessing(operation);
+      setBgRemovalProgress(null);
+      setMessage('Préparation du modèle IA local…');
+      try {
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = loadedImage.naturalWidth;
+        sourceCanvas.height = loadedImage.naturalHeight;
+        sourceCanvas.getContext('2d').drawImage(loadedImage, 0, 0);
+        const sourceBlob = await new Promise((resolve) => sourceCanvas.toBlob(resolve, 'image/png'));
+        const resultBlob = await removeBackgroundLocally(sourceBlob, {
+          onProgress: (percent) => {
+            setBgRemovalProgress(percent);
+            setMessage(
+              percent === null
+                ? 'Analyse du produit en cours…'
+                : `Téléchargement du modèle IA (première utilisation) : ${percent}%`
+            );
+          }
+        });
+        const url = URL.createObjectURL(resultBlob);
+        const cutout = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Impossible de charger le résultat du retrait de fond.'));
+          img.src = url;
+        });
+        setCutoutImage(cutout);
+        change((prev) => ({
+          ...prev,
+          background: { id: 'white', value: '#ffffff', customUrl: '' },
+          aiOperations: [...new Set([...(prev.aiOperations || []), operation])]
+        }));
+        setMessage('Fond retiré et remplacé par un fond blanc. Changez-le dans l’onglet Arrière-plan si besoin.');
+      } catch (error) {
+        setMessage(error?.message || 'Le retrait du fond a échoué sur cet appareil. Réessayez ou utilisez un autre appareil.');
+      } finally {
+        setProcessing('');
+        setBgRemovalProgress(null);
+      }
       return;
     }
     if (!capabilities?.operations?.[operation]) {
@@ -503,7 +567,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
     if (activeTool === 'adjust') return <div className="space-y-4"><PanelTitle title="Réglages professionnels" subtitle="Chaque réglage est appliqué instantanément." />{ADJUSTMENT_DEFINITIONS.map((item) => <Range key={item.key} label={item.label} value={state.adjustments[item.key]} min={item.min} max={item.max} step={1} display={`${state.adjustments[item.key]}${item.unit}`} onChange={(value) => change((prev) => ({ ...prev, preset: 'Personnalisé', adjustments: { ...prev.adjustments, [item.key]: value } }))} />)}</div>;
     if (activeTool === 'filters') return <div className="space-y-4"><PanelTitle title="Filtres produit" subtitle="Les presets restent entièrement modifiables." /><div className="grid grid-cols-2 gap-2">{Object.keys(FILTER_PRESETS).map((name) => <button key={name} type="button" onClick={() => change((prev) => applyPreset(prev, name))} className={`min-h-20 rounded-2xl border p-3 text-left transition ${state.preset === name ? 'border-[#e85d00] bg-[#fff0e4]' : 'border-[#e2dcd2] bg-white'}`}><span className="block h-7 rounded-lg bg-stone-200" /><span className="mt-2 block text-xs font-black text-[#231f1b]">{name}</span></button>)}</div></div>;
     if (activeTool === 'background') return <div className="space-y-5"><PanelTitle title="Arrière-plan" subtitle="Choisissez une surface ou importez votre décor." /><div className="grid grid-cols-3 gap-2">{BACKGROUNDS.map((background) => <button key={background.id} type="button" onClick={() => change((prev) => ({ ...prev, background }))} className={`rounded-2xl border p-2 ${state.background.id === background.id ? 'border-[#e85d00] ring-2 ring-[#fff0e4]' : 'border-[#e2dcd2]'}`}><span className="block aspect-square rounded-xl border border-black/5" style={{ background: background.value || 'repeating-conic-gradient(#e5e7eb 0 25%,#fff 0 50%) 0/12px 12px' }} /><span className="mt-1.5 block text-[11px] font-bold">{background.label}</span></button>)}</div><label className="block"><span className="mb-2 block text-xs font-black">Couleur personnalisée</span><input type="color" className="h-11 w-full rounded-xl border border-[#e2dcd2]" value={state.background.value?.startsWith('#') ? state.background.value : '#ffffff'} onChange={(event) => change((prev) => ({ ...prev, background: { id: 'custom', value: event.target.value, customUrl: '' } }))} /></label><label className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#bcb3a8] bg-white px-3 text-xs font-black"><ImageIcon className="mr-2 h-4 w-4" />Importer un arrière-plan<input type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => change((prev) => ({ ...prev, background: { id: 'uploaded', value: null, customUrl: String(reader.result || '') } })); reader.readAsDataURL(file); }} /></label><PanelTitle title="Modèles" subtitle="Mise en scène optimisée par catégorie." /><div className="grid grid-cols-2 gap-2">{TEMPLATES.map((template) => <StudioButton key={template.id} onClick={() => change((prev) => ({ ...prev, aspectRatio: template.aspectRatio, background: { id: template.id, value: template.background }, shadow: { ...prev.shadow, type: template.shadow } }))}>{template.label}</StudioButton>)}</div></div>;
-    if (activeTool === 'ai') return <div className="space-y-4"><PanelTitle title="Outils intelligents" subtitle="Les traitements distants passent uniquement par HDMarket." /><button type="button" onClick={() => change((prev) => applySmartOptimization(prev, shopName))} className="w-full rounded-2xl bg-[#231f1b] p-4 text-left text-white shadow-sm"><span className="flex items-center gap-2 text-sm font-black"><Sparkles className="h-5 w-5 text-[#ff8a3d]" />Optimiser pour HDMarket</span><span className="mt-1 block text-xs text-white/60">Cadrage, WEBP, qualité, fond, ombre et filigrane</span></button><div className="space-y-2">{AI_TOOLS.map(({ id, label, description, icon: Icon, local }) => { const available = local || Boolean(capabilities?.operations?.[id]); return <button key={id} type="button" disabled={Boolean(processing) || !available} onClick={() => runAiTool(id)} title={available ? undefined : 'Fonction non activée sur ce serveur'} className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-[#e2dcd2] bg-white p-3 text-left disabled:cursor-not-allowed disabled:opacity-50"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f5f2ee]"><Icon className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-black">{label}</span><span className="block truncate text-xs text-stone-500">{available ? description : 'Non activé sur ce serveur'}</span></span>{processing === id ? <Loader2 className="h-5 w-5 animate-spin text-[#e85d00]" /> : available ? <ChevronDown className="h-4 w-4 -rotate-90 text-stone-400" /> : null}</button>; })}</div><PanelTitle title="Ombre" /><div className="grid grid-cols-3 gap-2">{['none','soft','studio','floating','product','natural'].map((type) => <StudioButton key={type} active={state.shadow.type === type} onClick={() => change((prev) => ({ ...prev, shadow: { ...prev.shadow, type } }))}>{type}</StudioButton>)}</div><Range label="Opacité de l’ombre" value={state.shadow.opacity} min={0} max={100} step={1} display={`${state.shadow.opacity}%`} onChange={(opacity) => change((prev) => ({ ...prev, shadow: { ...prev.shadow, opacity } }))} /></div>;
+    if (activeTool === 'ai') return <div className="space-y-4"><PanelTitle title="Outils intelligents" subtitle="Les traitements distants passent uniquement par HDMarket." /><button type="button" onClick={() => change((prev) => applySmartOptimization(prev, shopName))} className="w-full rounded-2xl bg-[#231f1b] p-4 text-left text-white shadow-sm"><span className="flex items-center gap-2 text-sm font-black"><Sparkles className="h-5 w-5 text-[#ff8a3d]" />Optimiser pour HDMarket</span><span className="mt-1 block text-xs text-white/60">Cadrage, WEBP, qualité, fond, ombre et filigrane</span></button><div className="space-y-2">{AI_TOOLS.map(({ id, label, description, icon: Icon, local }) => { const available = local || Boolean(capabilities?.operations?.[id]); const isProcessing = processing === id; const liveDescription = isProcessing && id === 'background-remove' ? (bgRemovalProgress === null ? 'Analyse du produit en cours…' : `Téléchargement du modèle IA : ${bgRemovalProgress}%`) : available ? description : 'Non activé sur ce serveur'; return <button key={id} type="button" disabled={Boolean(processing) || !available} onClick={() => runAiTool(id)} title={available ? undefined : 'Fonction non activée sur ce serveur'} className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-[#e2dcd2] bg-white p-3 text-left disabled:cursor-not-allowed disabled:opacity-50"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f5f2ee]"><Icon className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-black">{label}</span><span className="block truncate text-xs text-stone-500">{liveDescription}</span></span>{isProcessing ? <Loader2 className="h-5 w-5 animate-spin text-[#e85d00]" /> : available ? <ChevronDown className="h-4 w-4 -rotate-90 text-stone-400" /> : null}</button>; })}</div><PanelTitle title="Ombre" /><div className="grid grid-cols-3 gap-2">{['none','soft','studio','floating','product','natural'].map((type) => <StudioButton key={type} active={state.shadow.type === type} onClick={() => change((prev) => ({ ...prev, shadow: { ...prev.shadow, type } }))}>{type}</StudioButton>)}</div><Range label="Opacité de l’ombre" value={state.shadow.opacity} min={0} max={100} step={1} display={`${state.shadow.opacity}%`} onChange={(opacity) => change((prev) => ({ ...prev, shadow: { ...prev.shadow, opacity } }))} /></div>;
     if (activeTool === 'watermark') return <div className="space-y-5"><PanelTitle title="Filigrane" subtitle="Protégez vos visuels sans gêner le produit." /><label className="flex min-h-12 items-center justify-between rounded-xl border border-[#e2dcd2] px-3"><span className="text-sm font-black">Afficher le filigrane</span><input type="checkbox" checked={state.watermark.enabled} onChange={(event) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, enabled: event.target.checked } }))} className="h-5 w-5 accent-[#e85d00]" /></label><SelectField label="Type" value={state.watermark.type} options={[['shop-name','Nom de boutique'],['verified','HDMarket Verified'],['qr','QR Code'],['custom','Texte personnalisé']]} onChange={(type) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, type } }))} /><label className="block"><span className="mb-1 block text-xs font-black">Texte</span><input value={state.watermark.text} onChange={(event) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, text: event.target.value } }))} className="min-h-11 w-full rounded-xl border border-[#e2dcd2] px-3 text-sm" /></label><SelectField label="Position" value={state.watermark.position} options={[['top-left','En haut à gauche'],['top-right','En haut à droite'],['center','Au centre'],['bottom-left','En bas à gauche'],['bottom-right','En bas à droite']]} onChange={(position) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, position } }))} /><Range label="Opacité" value={state.watermark.opacity} min={10} max={100} step={1} display={`${state.watermark.opacity}%`} onChange={(opacity) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, opacity } }))} /><Range label="Échelle" value={state.watermark.scale} min={50} max={200} step={1} display={`${state.watermark.scale}%`} onChange={(scale) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, scale } }))} /><Range label="Rotation" value={state.watermark.rotation} min={-180} max={180} step={1} display={`${state.watermark.rotation}°`} onChange={(rotation) => change((prev) => ({ ...prev, watermark: { ...prev.watermark, rotation } }))} /></div>;
     return <div className="space-y-5"><PanelTitle title="Optimisation & export" subtitle="WEBP offre le meilleur équilibre pour HDMarket." /><SelectField label="Format" value={state.output.format} options={[['image/webp','WEBP — recommandé'],['image/jpeg','JPEG'],['image/png','PNG'],['image/avif','AVIF']]} onChange={(format) => change((prev) => ({ ...prev, output: { ...prev.output, format } }))} /><SelectField label="Compression" value={state.output.compression} options={[['low','Faible — qualité maximale'],['medium','Moyenne — recommandée'],['high','Élevée — fichier léger']]} onChange={(compression) => change((prev) => ({ ...prev, output: { ...prev.output, compression } }))} /><div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><span className="block text-xs font-bold text-emerald-700">Taille finale estimée</span><span className="mt-1 block text-2xl font-black text-emerald-950">{estimate ? formatFileSize(estimate) : 'Calcul…'}</span></div><QualityPanel quality={quality} /><button type="button" onClick={handleSave} disabled={!loadedImage || saving} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#231f1b] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#3a342f] disabled:cursor-not-allowed disabled:opacity-50">{saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}{saving ? 'Enregistrement…' : 'Enregistrer la photo'}</button></div>;
   };

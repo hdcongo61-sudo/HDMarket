@@ -14,7 +14,8 @@ const pawapayCheckoutSchema = new mongoose.Schema(
         'LISTING_FEE_FUNDING',
         'INSTALLMENT_FUNDING',
         'BOOST_FUNDING',
-        'SHOP_CONVERSION_FUNDING'
+        'SHOP_CONVERSION_FUNDING',
+        'PARCEL_REQUEST_FUNDING'
       ],
       default: 'CHECKOUT_FUNDING'
     },

@@ -50,20 +50,27 @@ export const getOrderTracking = asyncHandler(async (req, res) => {
   // Build checkpoints from timeline + delivery logs
   const checkpoints = buildCheckpoints(order, deliveryRequest, deliveryLogs, seller, buyer);
 
-  // Current position
+  // Current position — only while the delivery is still actively happening.
+  // Once it's finished, the courier's last-known spot is stale (and possibly
+  // someone else's next job) and shouldn't keep rendering as "live".
+  const deliveryIsTerminal = ['DELIVERED', 'FAILED', 'REJECTED', 'CANCELED'].includes(
+    String(deliveryRequest?.status || '').toUpperCase()
+  );
   let currentPosition = null;
-  if (deliveryRequest?.currentLocation?.coordinates) {
-    currentPosition = {
-      lat: deliveryRequest.currentLocation.coordinates[1],
-      lng: deliveryRequest.currentLocation.coordinates[0]
-    };
-  } else if (deliveryLogs.length > 0) {
-    const lastLog = deliveryLogs[deliveryLogs.length - 1];
-    if (lastLog.location?.latitude && lastLog.location?.longitude) {
+  if (!deliveryIsTerminal) {
+    if (deliveryRequest?.currentLocation?.coordinates) {
       currentPosition = {
-        lat: lastLog.location.latitude,
-        lng: lastLog.location.longitude
+        lat: deliveryRequest.currentLocation.coordinates[1],
+        lng: deliveryRequest.currentLocation.coordinates[0]
       };
+    } else if (deliveryLogs.length > 0) {
+      const lastLog = deliveryLogs[deliveryLogs.length - 1];
+      if (lastLog.location?.latitude && lastLog.location?.longitude) {
+        currentPosition = {
+          lat: lastLog.location.latitude,
+          lng: lastLog.location.longitude
+        };
+      }
     }
   }
 
@@ -83,7 +90,7 @@ export const getOrderTracking = asyncHandler(async (req, res) => {
     hasDeliveryRequest: !!deliveryRequest,
     courierName: deliveryRequest?.assignedDeliveryGuyId?.name || null,
     courierPhone: deliveryRequest?.assignedDeliveryGuyId?.phone || null,
-    currentPositionUpdatedAt: deliveryRequest?.currentLocationUpdatedAt || null
+    currentPositionUpdatedAt: !deliveryIsTerminal ? deliveryRequest?.currentLocationUpdatedAt || null : null
   });
 });
 

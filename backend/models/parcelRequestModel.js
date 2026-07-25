@@ -82,6 +82,9 @@ const parcelRequestSchema = new mongoose.Schema(
     distanceMeters: { type: Number, min: 0, default: 0 },
     deliveryPrice: { type: Number, min: 0, default: 0 },
     currency: { type: String, trim: true, default: 'XAF' },
+    paymentMethod: { type: String, enum: ['COD', 'PAWAPAY'], default: 'COD' },
+    paymentStatus: { type: String, enum: ['PENDING', 'PAID', 'FAILED'], default: 'PENDING' },
+    pawaPayCheckoutId: { type: String, trim: true, default: '' },
     status: {
       type: String,
       enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELED', 'IN_PROGRESS', 'DELIVERED', 'FAILED'],

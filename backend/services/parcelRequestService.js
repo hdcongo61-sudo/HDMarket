@@ -94,7 +94,10 @@ export const createParcelRequest = async ({
   pickup,
   dropoff,
   parcelDescription = '',
-  authorization = {}
+  authorization = {},
+  paymentMethod = 'COD',
+  paymentStatus = 'PENDING',
+  pawaPayCheckoutId = ''
 }) => {
   const enabled = await getRuntimeConfig('enable_parcel_delivery', { fallback: true });
   if (!enabled) throw createHttpError('La livraison de colis est désactivée.', 403);
@@ -127,6 +130,9 @@ export const createParcelRequest = async ({
     },
     distanceMeters,
     deliveryPrice: price,
+    paymentMethod,
+    paymentStatus,
+    pawaPayCheckoutId,
     deliveryPinCodeHash: hashPinCode(pinCode),
     deliveryPinCodeEncrypted: encryptDeliveryPin(pinCode),
     deliveryPinCodeExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),

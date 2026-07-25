@@ -1126,10 +1126,27 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 
 // ─── PawaPay checkout completion ─────────────────────────
 // This handler is called only after a signed PawaPay callback confirms payment.
+const CHECKOUT_PAYMENT_PERCENTS = [50, 75, 100];
+
 export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
-  const { items, deliveryMode: rawDeliveryMode, shippingAddress, promoEntries } = req.body;
+  const {
+    items,
+    deliveryMode: rawDeliveryMode,
+    shippingAddress,
+    promoEntries,
+    groupBuyId,
+    paymentPercent: rawPaymentPercent
+  } = req.body;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
+  // 50/75/100% of the order total, paid now via PawaPay — the rest is
+  // collected at delivery/pickup. Only 100% keeps the free-delivery
+  // incentive; anything less charges the real delivery fee (see
+  // resolveDeliveryPricing below).
+  const paymentPercent = CHECKOUT_PAYMENT_PERCENTS.includes(Number(rawPaymentPercent))
+    ? Number(rawPaymentPercent)
+    : 100;
+  const isFullPayment = paymentPercent >= 100;
 
   if (!req.pawaPayCheckout || req.pawaPayCheckout.status !== 'COMPLETED') {
     return res.status(403).json({ message: 'Confirmation PawaPay requise.' });
@@ -1200,6 +1217,14 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     orderItems.push(orderItem);
   }
 
+  // Group buy price override — only applies if the buyer is a member of a
+  // `filled` team for one of these products (see groupBuyService). Must run
+  // before bundle discounts, same order as userCheckoutOrder, since the two
+  // are mutually exclusive per item.
+  if (groupBuyId) {
+    await applyGroupBuyPricing({ orderItems, groupBuyId, userId });
+  }
+
   // Re-derive any active bundle discount server-side from the cart's actual
   // contents — never trust a client-shown "bundle price" (see bundleService).
   await applyBundleDiscountsForSellers(orderItems);
@@ -1246,13 +1271,6 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  const finalAmount = totalAmount;
-  if (Math.abs(Number(req.pawaPayCheckout.amount || 0) - finalAmount) > 0.01) {
-    return res.status(400).json({
-      message: 'Le montant confirmé par PawaPay ne correspond plus au total de la commande.'
-    });
-  }
-
   // Create order(s) — one per shop
   const shopGroups = new Map();
   orderItems.forEach((oi) => {
@@ -1261,10 +1279,50 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     shopGroups.get(sid).push(oi);
   });
 
+  // Delivery fee — waived only at 100% (mirrors the existing full-payment
+  // incentive); below that, the real per-seller fee is charged, same
+  // resolution logic userCheckoutOrder uses.
+  const deliveryPricingBySeller = new Map();
+  let deliveryFeeTotalAllSellers = 0;
+  if (!isFullPayment) {
+    const sellerDocs = await User.find({ _id: { $in: Array.from(shopGroups.keys()) } })
+      .select('_id freeDeliveryEnabled')
+      .lean();
+    const sellerMap = new Map(sellerDocs.map((seller) => [String(seller._id), seller]));
+    for (const [sellerId, sellerItems] of shopGroups) {
+      const pricing = resolveDeliveryPricing({
+        deliveryMode,
+        commune: shipping.communeDoc,
+        shop: sellerMap.get(sellerId) || null,
+        items: sellerItems.map((item) => ({
+          deliveryAvailable: item?.snapshot?.deliveryAvailable,
+          pickupAvailable: item?.snapshot?.pickupAvailable,
+          deliveryFee: item?.snapshot?.deliveryFee,
+          deliveryFeeEnabled: item?.snapshot?.deliveryFeeEnabled !== false
+        }))
+      });
+      deliveryPricingBySeller.set(sellerId, pricing);
+      deliveryFeeTotalAllSellers += Number(pricing.deliveryFeeTotal || 0);
+    }
+  }
+
+  const finalAmount = totalAmount + deliveryFeeTotalAllSellers;
+  const paidAmount = Math.round((finalAmount * paymentPercent) / 100);
+  if (Math.abs(Number(req.pawaPayCheckout.amount || 0) - paidAmount) > 0.01) {
+    return res.status(400).json({
+      message: 'Le montant confirmé par PawaPay ne correspond plus au total de la commande.'
+    });
+  }
+
   const createdOrders = [];
-  for (const sellerItems of shopGroups.values()) {
+  for (const [sellerId, sellerItems] of shopGroups) {
     const sellerSubtotal = sellerItems.reduce((s, i) => s + i.lineTotal, 0);
-    const sellerTotal = sellerSubtotal;
+    const sellerDeliveryFee = isFullPayment
+      ? 0
+      : Number(deliveryPricingBySeller.get(sellerId)?.deliveryFeeTotal || 0);
+    const sellerTotal = sellerSubtotal + sellerDeliveryFee;
+    const sellerPaidAmount = Math.round((sellerTotal * paymentPercent) / 100);
+    const sellerRemainingAmount = Math.max(0, sellerTotal - sellerPaidAmount);
 
     const order = await Order.create({
       customer: userId,
@@ -1273,32 +1331,38 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       deliveryAddress: shipping.deliveryAddress,
       deliveryCity: shipping.deliveryCity,
       shippingAddressSnapshot: shipping.snapshot,
-      status: 'paid',
+      status: isFullPayment ? 'paid' : 'pending',
       paymentType: 'full',
-      paymentMode: 'FULL_PAYMENT',
+      paymentMode: isFullPayment ? 'FULL_PAYMENT' : 'STANDARD',
       paymentSource: 'pawapay',
       paymentName: 'PawaPay',
       paymentTransactionCode: req.pawaPayCheckout.checkoutId,
       paymentCheckoutId: req.pawaPayCheckout.checkoutId,
       paymentDepositId: req.pawaPayCheckout.depositId || '',
-      paymentStatus: 'PAID_FULL',
-      paymentCompletedAt: new Date(),
+      paymentStatus: isFullPayment ? 'PAID_FULL' : 'PARTIAL',
+      paymentCompletedAt: isFullPayment ? new Date() : null,
       deliveryMode,
-      deliveryFeeSource: 'FULL_PAYMENT_WAIVER',
-      deliveryFeeWaived: true,
-      deliveryFeeLocked: true,
+      deliveryFeeSource: isFullPayment
+        ? 'FULL_PAYMENT_WAIVER'
+        : deliveryPricingBySeller.get(sellerId)?.deliveryFeeSource || DELIVERY_FEE_SOURCE.PRODUCT_FEE,
+      deliveryFeeWaived: isFullPayment,
+      deliveryFeeLocked: isFullPayment,
       itemsSubtotal: sellerSubtotal,
-      deliveryFeeTotal: 0,
+      deliveryFeeTotal: sellerDeliveryFee,
       discountTotal: 0,
       totalAmount: sellerTotal,
-      paidAmount: sellerTotal,
-      remainingAmount: 0
+      paidAmount: sellerPaidAmount,
+      remainingAmount: sellerRemainingAmount
     });
     createdOrders.push(order);
   }
 
   res.status(201).json({
-    message: 'Commande payée avec PawaPay.',
+    message: isFullPayment
+      ? 'Commande payée avec PawaPay.'
+      : `Commande confirmée — ${Math.round(100 - paymentPercent)}% restant à régler ${
+          deliveryMode === 'PICKUP' ? 'au retrait' : 'à la livraison'
+        }.`,
     orders: createdOrders.map(buildOrderResponse)
   });
 
@@ -1320,7 +1384,8 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
           orderId: order._id,
           itemCount: order.items?.length || 1,
           totalAmount: Number(order.totalAmount || 0),
-          paymentMode: 'FULL_PAYMENT',
+          remainingAmount: Number(order.remainingAmount || 0),
+          paymentMode: isFullPayment ? 'FULL_PAYMENT' : 'STANDARD',
           paymentSource: 'pawapay'
         }
       }).catch(() => {});
@@ -1334,8 +1399,9 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
         orderId: order._id,
         deliveryCity: order.deliveryCity,
         deliveryAddress: order.deliveryAddress,
-        status: 'paid',
-        paymentMode: 'FULL_PAYMENT',
+        status: order.status,
+        remainingAmount: Number(order.remainingAmount || 0),
+        paymentMode: isFullPayment ? 'FULL_PAYMENT' : 'STANDARD',
         paymentSource: 'pawapay',
         deliveryFeeWaived: Boolean(order.deliveryFeeWaived)
       }

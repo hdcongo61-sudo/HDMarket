@@ -890,7 +890,12 @@ export const listCourierAssignments = asyncHandler(async (req, res) => {
         }
       : { assignedDeliveryGuyId: deliveryGuy._id };
   const normalizedStatus = normalizeText(status).toUpperCase();
-  if (normalizedStatus && normalizedStatus !== 'ALL') {
+  if (normalizedStatus === 'DONE') {
+    // History screens paginate over completed/failed work only — without this,
+    // a mixed assigned+active feed sorted by updatedAt buries done items behind
+    // whatever assignment was touched most recently, making history look empty.
+    filter.status = { $in: ['DELIVERED', 'FAILED', 'REJECTED', 'CANCELED'] };
+  } else if (normalizedStatus && normalizedStatus !== 'ALL') {
     if (['PENDING', 'ACCEPTED', 'REJECTED'].includes(normalizedStatus)) {
       filter.assignmentStatus = normalizedStatus;
     } else {

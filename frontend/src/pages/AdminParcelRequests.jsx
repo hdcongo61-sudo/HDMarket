@@ -125,6 +125,13 @@ function ParcelRequestCard({ item, deliveryGuys, onChange, showToast }) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+              item.paymentMethod === 'PAWAPAY' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+            }`}
+          >
+            {item.paymentMethod === 'PAWAPAY' ? 'PawaPay' : 'Cash'}
+          </span>
           <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${STATUS_BADGE[item.status] || 'bg-neutral-100 text-neutral-600'}`}>
             {item.status}
           </span>

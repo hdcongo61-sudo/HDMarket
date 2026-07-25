@@ -111,7 +111,9 @@ export const listCourierParcelAssignments = asyncHandler(async (req, res) => {
         }
       : { assignedDeliveryGuyId: deliveryGuy._id };
   const normalizedStatus = normalizeText(status).toUpperCase();
-  if (normalizedStatus && normalizedStatus !== 'ALL') {
+  if (normalizedStatus === 'DONE') {
+    filter.status = { $in: ['DELIVERED', 'FAILED', 'REJECTED', 'CANCELED'] };
+  } else if (normalizedStatus && normalizedStatus !== 'ALL') {
     if (['PENDING', 'ACCEPTED', 'REJECTED'].includes(normalizedStatus)) {
       filter.assignmentStatus = normalizedStatus;
     } else {

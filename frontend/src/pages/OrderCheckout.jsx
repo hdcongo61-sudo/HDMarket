@@ -92,6 +92,7 @@ export default function OrderCheckout() {
   const groupBuyId = location.state?.groupBuyId || '';
   const [payments, setPayments] = useState({});
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [paymentPercent, setPaymentPercent] = useState(100);
   const [promoStates, setPromoStates] = useState({});
   const [promoLoadingBySeller, setPromoLoadingBySeller] = useState({});
   const [loading, setLoading] = useState(false);
@@ -316,17 +317,53 @@ export default function OrderCheckout() {
     return state.status === 'valid' && Boolean(typedCode) && typedCode === state.code;
   };
 
+  // Mirrors calculateGroupBuyUnitPrice / applyGroupBuyPricing server-side
+  // exactly (same ratio formula) so the amount pre-committed to PawaPay
+  // matches what the backend will actually charge once the order is created
+  // — a mismatch there rejects the order after the customer has already paid.
+  const groupBuyProductId = String(groupBuyInfo?.productId?._id || groupBuyInfo?.productId || '');
+  const isGroupBuyMember = (groupBuyInfo?.members || []).some(
+    (member) => String(member?.userId?._id || member?.userId || '') === String(user?._id || user?.id || '')
+  );
+  const getGroupBuyDiscountForGroup = (group) => {
+    if (
+      isInstallmentPayment ||
+      !groupBuyInfo ||
+      groupBuyInfo.status !== 'filled' ||
+      !groupBuyProductId ||
+      !isGroupBuyMember
+    ) {
+      return 0;
+    }
+    const original = Math.max(0, Number(groupBuyInfo.originalPrice || 0));
+    const grouped = Math.max(0, Number(groupBuyInfo.groupPrice || 0));
+    if (original <= 0) return 0;
+    const ratio = Math.min(1, grouped / original);
+    return group.items.reduce((sum, item) => {
+      const itemProductId = String(item?.product?._id || item?.product || '');
+      if (itemProductId !== groupBuyProductId) return sum;
+      const currentUnitPrice = Number(item?.unitPrice ?? item?.product?.price ?? 0);
+      const discountedUnitPrice = Math.round(currentUnitPrice * ratio);
+      const quantity = Number(item?.quantity || 1);
+      return sum + Math.max(0, (currentUnitPrice - discountedUnitPrice) * quantity);
+    }, 0);
+  };
+
   const getSellerEffectiveSubtotal = (group) => {
     if (isInstallmentPayment) return Number(group.subtotal || 0);
-    if (!isPromoAppliedForSeller(group.sellerId)) return Number(group.subtotal || 0);
+    const groupBuyDiscount = getGroupBuyDiscountForGroup(group);
+    if (!isPromoAppliedForSeller(group.sellerId)) {
+      return Math.max(0, Number(group.subtotal || 0) - groupBuyDiscount);
+    }
     const finalAmount = Number(getSellerPromoState(group.sellerId)?.pricing?.finalAmount);
-    return Number.isFinite(finalAmount) ? finalAmount : Number(group.subtotal || 0);
+    const base = Number.isFinite(finalAmount) ? finalAmount : Number(group.subtotal || 0);
+    return Math.max(0, base - groupBuyDiscount);
   };
 
   const checkoutSubtotal = useMemo(() => {
     if (isInstallmentPayment) return Number(totals.subtotal || 0);
     return sellerGroups.reduce((sum, group) => sum + getSellerEffectiveSubtotal(group), 0);
-  }, [isInstallmentPayment, totals.subtotal, sellerGroups, promoStates, payments]);
+  }, [isInstallmentPayment, totals.subtotal, sellerGroups, promoStates, payments, groupBuyInfo, user]);
 
   const checkoutSavings = useMemo(() => {
     if (isInstallmentPayment) return 0;
@@ -335,13 +372,13 @@ export default function OrderCheckout() {
       const effective = getSellerEffectiveSubtotal(group);
       return sum + Math.max(0, original - effective);
     }, 0);
-  }, [isInstallmentPayment, sellerGroups, promoStates, payments]);
+  }, [isInstallmentPayment, sellerGroups, promoStates, payments, groupBuyInfo, user]);
 
   const effectiveDeliveryFeePreviewTotal = useMemo(() => {
     if (deliveryMode !== 'DELIVERY') return 0;
-    if (isFullPaymentSelected || isPawaPayPayment) return 0;
+    if (isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100)) return 0;
     return Number(deliveryFeePreviewTotal || 0);
-  }, [deliveryMode, isFullPaymentSelected, isPawaPayPayment, deliveryFeePreviewTotal]);
+  }, [deliveryMode, isFullPaymentSelected, isPawaPayPayment, paymentPercent, deliveryFeePreviewTotal]);
 
   const checkoutTotalWithDelivery = useMemo(
     () =>
@@ -357,29 +394,45 @@ export default function OrderCheckout() {
   );
   const depositAmount = useMemo(() => Math.round(checkoutSubtotal * 0.25), [checkoutSubtotal]);
   const remainingAmount = Math.max(0, Number(checkoutTotalWithDelivery || 0) - depositAmount);
+  // PawaPay lets the buyer pay 50/75/100% now; the rest is collected at
+  // delivery or in-store pickup. Only 100% keeps the free-delivery perk —
+  // effectiveDeliveryFeePreviewTotal already reflects that split above, so
+  // checkoutTotalWithDelivery already includes the real fee once <100%.
+  const pawaPayPaidAmount = isPawaPayPayment
+    ? Math.round((Number(checkoutTotalWithDelivery || 0) * paymentPercent) / 100)
+    : Number(checkoutTotalWithDelivery || 0);
+  const pawaPayRemainingAmount = isPawaPayPayment
+    ? Math.max(0, Number(checkoutTotalWithDelivery || 0) - pawaPayPaidAmount)
+    : 0;
   const summaryPaidAmount = isInstallmentPayment
     ? installmentFirstPaymentAmount
-    : isFullPaymentSelected || isPawaPayPayment
+    : isFullPaymentSelected
       ? checkoutTotalWithDelivery
-      : depositAmount;
+      : isPawaPayPayment
+        ? pawaPayPaidAmount
+        : depositAmount;
   const summaryRemainingAmount =
     isInstallmentPayment
       ? Math.max(0, Number(totals.subtotal || 0) - installmentFirstPaymentAmount)
-      : isFullPaymentSelected || isPawaPayPayment
+      : isFullPaymentSelected
         ? 0
-        : remainingAmount;
+        : isPawaPayPayment
+          ? pawaPayRemainingAmount
+          : remainingAmount;
   const summaryOrderTotal = isInstallmentPayment
     ? Number(totals.subtotal || 0)
     : Number(checkoutTotalWithDelivery || 0);
   const pawaPayRequiredAmount = isInstallmentPayment
     ? Number(installmentFirstPaymentAmount || 0)
-    : Number(checkoutTotalWithDelivery || 0);
+    : pawaPayPaidAmount;
   const summaryPrimaryPaymentLabel = isInstallmentPayment
     ? t('checkout.firstPayment', 'Premier paiement')
     : isFullPaymentSelected
       ? t('checkout.fullPayment', 'Paiement intégral')
       : isPawaPayPayment
-        ? 'Paiement PawaPay'
+        ? paymentPercent >= 100
+          ? 'Paiement PawaPay'
+          : `Paiement PawaPay (${paymentPercent}%)`
         : t('checkout.deposit25', 'Acompte (25%)');
   const paymentModeDescription = isInstallmentPayment
     ? t('checkout.installmentDescription', 'Cette commande sera traitée en paiement par tranche après validation du vendeur.')
@@ -395,7 +448,11 @@ export default function OrderCheckout() {
     : isFullPaymentSelected
       ? `Paiement intégral demandé : ${formatCurrency(summaryPaidAmount)}.`
       : isPawaPayPayment
-        ? 'Après confirmation, PawaPay s’ouvre pour finaliser la commande.'
+        ? paymentPercent >= 100
+          ? 'Après confirmation, PawaPay s’ouvre pour finaliser la commande.'
+          : `${formatCurrency(pawaPayPaidAmount)} maintenant avec PawaPay — le reste (${formatCurrency(
+              pawaPayRemainingAmount
+            )}) sera à régler ${deliveryMode === 'PICKUP' ? 'au retrait en boutique' : 'à la livraison'}.`
         : sellerGroups.length > 1
           ? 'Merci de payer l’acompte indiqué pour chaque vendeur avant validation.'
           : `Merci de payer exactement ${formatCurrency(depositAmount)} avant validation.`;
@@ -819,6 +876,8 @@ export default function OrderCheckout() {
         deliveryMode,
         shippingAddress,
         pointsToRedeem,
+        groupBuyId,
+        paymentPercent,
         promoEntries: sellerGroups
           .map((group) => {
             const entry = payments[group.sellerId] || {};
@@ -1487,11 +1546,43 @@ export default function OrderCheckout() {
                 {formatCurrency(summaryOrderTotal)}
               </span>
             </div>
+            {isPawaPayPayment && !isInstallmentPayment && (
+              <div className="rounded-2xl border border-[#e2dcd2] bg-white px-5 py-4">
+                <p className="text-sm font-black text-[#231f1b]">
+                  {t('checkout.paymentPercent', 'Combien payer maintenant ?')}
+                </p>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {[50, 75, 100].map((percent) => (
+                    <button
+                      key={percent}
+                      type="button"
+                      onClick={() => setPaymentPercent(percent)}
+                      className={`min-h-11 rounded-xl border text-sm font-black transition ${
+                        paymentPercent === percent
+                          ? 'border-[#e85d00] bg-[#fff3ea] text-[#e85d00]'
+                          : 'border-[#e2dcd2] text-[#6b6459]'
+                      }`}
+                    >
+                      {percent}%
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs font-semibold text-[#8a8378]">
+                  {paymentPercent >= 100
+                    ? t('checkout.paymentPercentFullHint', 'Paiement intégral — livraison offerte.')
+                    : `${t('checkout.remaining', 'Reste à payer')} : ${formatCurrency(pawaPayRemainingAmount)} ${
+                        deliveryMode === 'PICKUP' ? 'au retrait en boutique' : 'à la livraison'
+                      } (frais de livraison inclus).`}
+                </p>
+              </div>
+            )}
             {!isInstallmentPayment && deliveryMode === 'DELIVERY' && (
               <div className="flex items-center justify-between px-1 py-1">
                 <span className="text-base font-bold text-[#6b6459]">{t('checkout.delivery', 'Livraison')}</span>
                 <span className="text-lg font-black text-[#231f1b]">
-                  {(isFullPaymentSelected || isPawaPayPayment) ? t('checkout.offered', 'Offerte') : formatCurrency(effectiveDeliveryFeePreviewTotal)}
+                  {(isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100))
+                    ? t('checkout.offered', 'Offerte')
+                    : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
               </div>
             )}
@@ -1769,19 +1860,19 @@ export default function OrderCheckout() {
               const groupEffectiveSubtotal = getSellerEffectiveSubtotal(group);
               const groupDeliveryFee =
                 !isInstallmentPayment && deliveryMode === 'DELIVERY'
-                  ? (isFullPaymentSelected || isPawaPayPayment)
+                  ? isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100)
                     ? 0
                     : Number(deliveryPreviewBySeller[group.sellerId]?.fee || 0)
                   : 0;
               const groupTotalWithDelivery = Number(groupEffectiveSubtotal || 0) + groupDeliveryFee;
               const groupDeposit = isInstallmentPayment
                 ? installmentFirstPaymentAmount
-                : isFullPaymentSelected || isPawaPayPayment
+                : isFullPaymentSelected
                   ? Number(groupTotalWithDelivery || 0)
-                  : Math.round(Number(groupEffectiveSubtotal || 0) * 0.25);
-              const groupRemaining = isPawaPayPayment
-                ? 0
-                : Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
+                  : isPawaPayPayment
+                    ? Math.round((Number(groupTotalWithDelivery || 0) * paymentPercent) / 100)
+                    : Math.round(Number(groupEffectiveSubtotal || 0) * 0.25);
+              const groupRemaining = Math.max(0, Number(groupTotalWithDelivery || 0) - groupDeposit);
               const installmentUsesPawaPay =
                 isInstallmentPayment && installmentPaymentMethod === 'pawapay';
               return (
@@ -1815,7 +1906,7 @@ export default function OrderCheckout() {
                     </div>
                     <div className="rounded-2xl border border-gray-200 bg-gray-100 px-3 py-2 text-right">
                       <p className="text-base font-black text-[#e85d00] sm:text-lg">
-                        {isPawaPayPayment ? 'Automatique' : formatCurrency(groupDeposit)}
+                        {formatCurrency(groupDeposit)}
                       </p>
                       <p className="text-xs font-black text-orange-800">
                         {summaryPrimaryPaymentLabel}
@@ -2075,7 +2166,7 @@ export default function OrderCheckout() {
                         {summaryPrimaryPaymentLabel}
                       </span>
                       <span className="font-black text-neutral-900">
-                        {isPawaPayPayment ? 'Automatique' : formatCurrency(groupDeposit)}
+                        {formatCurrency(groupDeposit)}
                       </span>
                     </div>
                     {groupRemaining > 0 && (

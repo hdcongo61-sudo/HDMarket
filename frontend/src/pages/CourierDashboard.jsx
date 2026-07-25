@@ -209,7 +209,32 @@ export default function CourierDashboard() {
 
   const availableParcelCount = Math.max(0, Number(parcelPoolQuery.data || 0));
 
-  const allItems = useMemo(() => mergeInfiniteItems(assignmentsQuery.data), [assignmentsQuery.data]);
+  // Colis (parcel) jobs live on a separate model/endpoint from regular order
+  // deliveries (see backend/models/parcelRequestModel.js's header comment),
+  // but couriers think of both as "my deliveries" — merge them into the same
+  // feed/counts/tabs rather than leaving colis invisible on this dashboard.
+  const parcelJobsQuery = useQuery({
+    queryKey: ['delivery', 'parcel-jobs-full'],
+    queryFn: async () => {
+      const { data } = await api.get('/courier/parcel-jobs', {
+        params: { scope: 'all', limit: 50 }
+      });
+      return Array.isArray(data?.items) ? data.items : [];
+    },
+    enabled: bootstrapQuery.isSuccess && !previewMode && !isOffline,
+    staleTime: 15_000,
+    retry: 1,
+    refetchInterval: isOffline ? false : 15_000
+  });
+
+  const allItems = useMemo(() => {
+    const orderItems = mergeInfiniteItems(assignmentsQuery.data).map((item) => ({
+      ...item,
+      kind: item?.kind || 'ORDER'
+    }));
+    const parcelItems = Array.isArray(parcelJobsQuery.data) ? parcelJobsQuery.data : [];
+    return [...orderItems, ...parcelItems];
+  }, [assignmentsQuery.data, parcelJobsQuery.data]);
 
   const filteredItems = useMemo(
     () => allItems.filter((item) =>
@@ -281,6 +306,22 @@ export default function CourierDashboard() {
     retry: 1
   });
 
+  // listCourierParcelAssignments has no server-side `date` filter (unlike the
+  // order endpoint), so fetch delivered colis once and bucket today/week
+  // client-side, same as weekRevenueQuery already does for orders.
+  const parcelRevenueQuery = useQuery({
+    queryKey: ['delivery', 'parcel-revenue', previewMode],
+    queryFn: async () => {
+      const { data } = await api.get('/courier/parcel-jobs', {
+        params: { scope: 'all', status: 'DELIVERED', limit: REVENUE_PAGE_LIMIT }
+      });
+      return Array.isArray(data?.items) ? data.items : [];
+    },
+    enabled: bootstrapQuery.isSuccess && !previewMode,
+    staleTime: 60_000,
+    retry: 1
+  });
+
   const counts = useMemo(() => {
     const base = { available: 0, new: 0, active: 0, done: 0 };
     return allItems.reduce((acc, item) => {
@@ -295,20 +336,34 @@ export default function CourierDashboard() {
     }, base);
   }, [allItems]);
 
-  const todayRevenue = useMemo(
-    () => sumRevenueFromItems(todayRevenueQuery.data || []),
-    [todayRevenueQuery.data]
-  );
+  const todayRevenue = useMemo(() => {
+    const orderRevenue = sumRevenueFromItems(todayRevenueQuery.data || []);
+    const dayStart = getDayStart(Date.now());
+    const parcelItems = Array.isArray(parcelRevenueQuery.data) ? parcelRevenueQuery.data : [];
+    const parcelRevenue = parcelItems.reduce((sum, item) => {
+      const at = new Date(item?.updatedAt || item?.createdAt || 0).getTime();
+      if (!Number.isFinite(at) || at < dayStart) return sum;
+      return sum + Math.max(0, Number(item?.deliveryPrice || 0));
+    }, 0);
+    return orderRevenue + parcelRevenue;
+  }, [todayRevenueQuery.data, parcelRevenueQuery.data]);
 
   const weekRevenue = useMemo(() => {
     const weekStart = getWeekStart(Date.now());
     const items = Array.isArray(weekRevenueQuery.data) ? weekRevenueQuery.data : [];
-    return items.reduce((sum, item) => {
+    const orderRevenue = items.reduce((sum, item) => {
       const at = new Date(item?.deliveryProof?.submittedAt || item?.updatedAt || item?.createdAt || 0).getTime();
       if (!Number.isFinite(at) || at < weekStart) return sum;
       return sum + Math.max(0, Number(item?.deliveryPrice || 0));
     }, 0);
-  }, [weekRevenueQuery.data]);
+    const parcelItems = Array.isArray(parcelRevenueQuery.data) ? parcelRevenueQuery.data : [];
+    const parcelRevenue = parcelItems.reduce((sum, item) => {
+      const at = new Date(item?.updatedAt || item?.createdAt || 0).getTime();
+      if (!Number.isFinite(at) || at < weekStart) return sum;
+      return sum + Math.max(0, Number(item?.deliveryPrice || 0));
+    }, 0);
+    return orderRevenue + parcelRevenue;
+  }, [weekRevenueQuery.data, parcelRevenueQuery.data]);
 
   const sortedAllItems = useMemo(() => sortByPriority(allItems), [allItems]);
   const nextDelivery = useMemo(
@@ -405,13 +460,18 @@ export default function CourierDashboard() {
   };
 
   const acceptMutation = useMutation({
-    mutationFn: async ({ id }) => {
+    mutationFn: async ({ id, kind }) => {
+      if (kind === 'PARCEL') {
+        const { data } = await api.patch(`/courier/parcel-jobs/${id}/accept`);
+        return data;
+      }
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/accept` : `/jobs/${id}/accept`;
       const payload = previewMode && selectedDeliveryGuyId ? { deliveryGuyId: selectedDeliveryGuyId } : {};
       const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload);
       return data;
     },
-    onMutate: async ({ id }) => {
+    onMutate: async ({ id, kind }) => {
+      if (kind === 'PARCEL') return {};
       await queryClient.cancelQueries({ queryKey: ['delivery', 'list'] });
       const previous = queryClient.getQueriesData({ queryKey: ['delivery', 'list'] });
       updateDeliveryListCache((item) =>
@@ -431,7 +491,11 @@ export default function CourierDashboard() {
     onError: (_error, _variables, context) => {
       (context?.previous || []).forEach(([key, data]) => queryClient.setQueryData(key, data));
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      if (variables?.kind === 'PARCEL') {
+        queryClient.invalidateQueries({ queryKey: ['delivery', 'parcel-jobs-full'] });
+        return;
+      }
       if (!data?.item?._id) return;
       updateDeliveryListCache((item) =>
         String(item?._id || '') === String(data.item._id) ? data.item : item
@@ -443,7 +507,11 @@ export default function CourierDashboard() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async ({ id, reason }) => {
+    mutationFn: async ({ id, reason, kind }) => {
+      if (kind === 'PARCEL') {
+        const { data } = await api.patch(`/courier/parcel-jobs/${id}/reject`, { reason });
+        return data;
+      }
       const endpoint = useLegacyCourierApi ? `/assignments/${id}/reject` : `/jobs/${id}/reject`;
       const payload = {
         reason,
@@ -452,7 +520,8 @@ export default function CourierDashboard() {
       const { data } = await api.patch(`${apiPrefix}${endpoint}`, payload);
       return data;
     },
-    onMutate: async ({ id }) => {
+    onMutate: async ({ id, kind }) => {
+      if (kind === 'PARCEL') return {};
       await queryClient.cancelQueries({ queryKey: ['delivery', 'list'] });
       const previous = queryClient.getQueriesData({ queryKey: ['delivery', 'list'] });
       updateDeliveryListCache((item) =>
@@ -470,13 +539,21 @@ export default function CourierDashboard() {
     onError: (_error, _variables, context) => {
       (context?.previous || []).forEach(([key, data]) => queryClient.setQueryData(key, data));
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
+      if (variables?.kind === 'PARCEL') {
+        queryClient.invalidateQueries({ queryKey: ['delivery', 'parcel-jobs-full'] });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['delivery'] });
     }
   });
 
   const openDetail = (item) => {
     if (!item?._id) return;
+    if (item?.kind === 'PARCEL') {
+      navigate(`${routePrefix}/parcels`);
+      return;
+    }
     setSelectedAssignmentId(String(item._id));
     navigate(buildAssignmentRoute({ basePath: routePrefix, id: item._id }));
   };
@@ -490,7 +567,7 @@ export default function CourierDashboard() {
     const reason = String(rejectDialog.reason || '').trim();
     if (!rejectDialog.item?._id || !reason || rejectMutation.isPending || isOffline) return;
     rejectMutation.mutate(
-      { id: rejectDialog.item._id, reason },
+      { id: rejectDialog.item._id, reason, kind: rejectDialog.item?.kind },
       {
         onSuccess: () => {
           setRejectDialog({ open: false, item: null, reason: '' });
@@ -502,6 +579,8 @@ export default function CourierDashboard() {
   const handleRefresh = () => {
     assignmentsQuery.refetch();
     parcelPoolQuery.refetch();
+    parcelJobsQuery.refetch();
+    parcelRevenueQuery.refetch();
     todayRevenueQuery.refetch();
     weekRevenueQuery.refetch();
     statsQuery.refetch();
@@ -530,7 +609,7 @@ export default function CourierDashboard() {
     if (nextDelivery.claimable) {
       return {
         primaryLabel: 'Prendre la livraison',
-        onPrimary: () => acceptMutation.mutate({ id: nextDelivery._id }),
+        onPrimary: () => acceptMutation.mutate({ id: nextDelivery._id, kind: nextDelivery.kind }),
         primaryDisabled: acceptMutation.isPending || isOffline,
         secondaryLabel: '',
         onSecondary: undefined
@@ -540,7 +619,7 @@ export default function CourierDashboard() {
     if (workflow === 'NEW') {
       return {
         primaryLabel: 'Accepter',
-        onPrimary: () => acceptMutation.mutate({ id: nextDelivery._id }),
+        onPrimary: () => acceptMutation.mutate({ id: nextDelivery._id, kind: nextDelivery.kind }),
         primaryDisabled: acceptMutation.isPending || isOffline,
         secondaryLabel: 'Refuser',
         onSecondary: () => openRejectDialog(nextDelivery),
@@ -843,7 +922,7 @@ export default function CourierDashboard() {
             </p>
           ) : null}
 
-          {bootstrapQuery.isLoading || assignmentsQuery.isLoading ? (
+          {bootstrapQuery.isLoading || assignmentsQuery.isLoading || parcelJobsQuery.isLoading ? (
             <DeliverySkeleton count={4} />
           ) : hardError ? (
             <div className="rounded-2xl border border-gray-100 bg-white p-1 dark:border-neutral-800 dark:bg-neutral-950">
@@ -885,7 +964,7 @@ export default function CourierDashboard() {
                   key={item._id}
                   item={item}
                   onOpen={(item) => item?.claimable ? undefined : openDetail(item)}
-                  onAccept={() => acceptMutation.mutate({ id: item._id })}
+                  onAccept={() => acceptMutation.mutate({ id: item._id, kind: item.kind })}
                   onReject={() => openRejectDialog(item)}
                   acceptDisabled={acceptMutation.isPending}
                   rejectDisabled={rejectMutation.isPending}
@@ -966,7 +1045,13 @@ export default function CourierDashboard() {
       >
         <ModalHeader
           title="Refuser cette livraison"
-          subtitle={rejectDialog.item ? `Commande #${String(rejectDialog.item.orderId || '').slice(-6)}` : ''}
+          subtitle={
+            rejectDialog.item
+              ? `${rejectDialog.item.kind === 'PARCEL' ? 'Colis' : 'Commande'} #${String(
+                  rejectDialog.item.orderId || rejectDialog.item._id || ''
+                ).slice(-6)}`
+              : ''
+          }
           onClose={() => setRejectDialog({ open: false, item: null, reason: '' })}
         />
         <ModalBody className="space-y-3">

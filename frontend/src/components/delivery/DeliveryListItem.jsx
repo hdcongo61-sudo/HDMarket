@@ -90,7 +90,9 @@ export default function DeliveryListItem({
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">#{String(item?.orderId || '').slice(-6)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {item?.kind === 'PARCEL' ? 'Colis ' : ''}#{String(item?.orderId || item?._id || '').slice(-6)}
+            </p>
             <p className="mt-1 text-sm font-black text-gray-900 dark:text-white">{routeText}</p>
             <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
               <Clock3 size={12} /> {getRelativeTime(item?.updatedAt || item?.createdAt)}
@@ -102,7 +104,11 @@ export default function DeliveryListItem({
         </div>
 
         <div className="mt-3 flex items-center gap-3">
-          {firstItem?.imageUrl ? (
+          {item?.kind === 'PARCEL' ? (
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-50 text-[#FF6A00] dark:bg-orange-950">
+              <Package size={14} />
+            </div>
+          ) : firstItem?.imageUrl ? (
             <img
               src={normalizeFileUrl(firstItem.imageUrl)}
               alt={firstItem?.name || 'Produit'}
@@ -115,8 +121,19 @@ export default function DeliveryListItem({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{firstItem?.name || 'Produit'}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Qté {Number(firstItem?.qty || 1)}</p>
+            {item?.kind === 'PARCEL' ? (
+              <>
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {item?.parcelDescription || 'Colis à livrer'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Course à la demande</p>
+              </>
+            ) : (
+              <>
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{firstItem?.name || 'Produit'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Qté {Number(firstItem?.qty || 1)}</p>
+              </>
+            )}
           </div>
           <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{formatCurrency(item?.deliveryPrice, item?.currency)}</p>
         </div>

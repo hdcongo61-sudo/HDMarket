@@ -19,6 +19,7 @@ import {
   getMyPawaPayCheckout,
   listPawaPayRefundsAdmin,
   refreshPawaPayRefundAdmin,
+  getAdminPawaPayOverview,
   verifyPawaPayContentDigest,
   verifyPawaPaySignature
 } from '../controllers/pawapayController.js';
@@ -78,6 +79,7 @@ router.post(
   createPawaPayCheckout
 );
 router.get('/pawapay/checkouts/:checkoutId', protect, getMyPawaPayCheckout);
+router.get('/pawapay/admin/overview', protect, getAdminPawaPayOverview);
 router.get('/pawapay/refunds', protect, requirePaymentVerification, listPawaPayRefundsAdmin);
 router.post('/pawapay/refunds/:refundId/refresh', protect, requirePaymentVerification, refreshPawaPayRefundAdmin);
 router.get('/pawapay/payouts', protect, requirePaymentVerification, listSellerPayoutsAdmin);

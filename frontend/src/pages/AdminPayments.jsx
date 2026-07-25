@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Clock3, RefreshCw, Search, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, CreditCard, RefreshCw, Search, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -97,15 +97,24 @@ export default function AdminPayments() {
               Paiements Mobile Money et confirmations PawaPay des annonces.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={loadPayments}
-            disabled={loading}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </button>
+          <div className="flex gap-2">
+            <Link
+              to="/admin/pawapay"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] px-4 text-sm font-bold text-white"
+            >
+              <CreditCard className="h-4 w-4" />
+              Centre PawaPay
+            </Link>
+            <button
+              type="button"
+              onClick={loadPayments}
+              disabled={loading}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </button>
+          </div>
         </header>
 
         <section className="grid grid-cols-2 gap-3">

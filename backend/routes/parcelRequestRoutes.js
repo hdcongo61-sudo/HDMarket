@@ -5,6 +5,7 @@ import {
   getParcelDeliveryCapabilities,
   postEstimateParcelPrice,
   postCreateParcelRequest,
+  postUploadParcelProofStandalone,
   getMyParcelRequests,
   getMyParcelRequestById,
   postCancelParcelRequest,
@@ -20,6 +21,12 @@ const router = express.Router();
 router.get('/capabilities', getParcelDeliveryCapabilities);
 router.post('/estimate', protect, postEstimateParcelPrice);
 router.post('/', protect, deliveryProofUpload.single('proofImage'), postCreateParcelRequest);
+router.post(
+  '/proof-upload',
+  protect,
+  deliveryProofUpload.single('proofImage'),
+  postUploadParcelProofStandalone
+);
 router.get('/mine', protect, getMyParcelRequests);
 router.get('/mine/:id', protect, getMyParcelRequestById);
 router.post('/mine/:id/cancel', protect, postCancelParcelRequest);

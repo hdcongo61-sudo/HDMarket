@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Image as ImageIcon, Loader2, Phone, ShieldCheck, Upload, X } from 'lucide-react';
+import { Image as ImageIcon, Loader2, Phone, ShieldCheck, Upload, Wallet, X } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -104,9 +104,14 @@ const buildTrackingData = (parcelRequest) => {
     });
   }
 
-  const currentPosition = parcelRequest.currentLocation?.coordinates
-    ? { lat: parcelRequest.currentLocation.coordinates[1], lng: parcelRequest.currentLocation.coordinates[0] }
-    : null;
+  // Once delivered (or the course is over), the courier's last-known spot is
+  // stale — possibly already en route to someone else's job — so stop
+  // surfacing it as if it were still live.
+  const isTrackable = status !== 'DELIVERED' && !isTerminalFailure;
+  const currentPosition =
+    isTrackable && parcelRequest.currentLocation?.coordinates
+      ? { lat: parcelRequest.currentLocation.coordinates[1], lng: parcelRequest.currentLocation.coordinates[0] }
+      : null;
   const dropoffCoords = parcelRequest.dropoff?.coordinates?.coordinates;
   const pickupCoords = parcelRequest.pickup?.coordinates?.coordinates;
   const mapCenter =
@@ -120,7 +125,7 @@ const buildTrackingData = (parcelRequest) => {
     status: parcelRequest.status,
     createdAt: parcelRequest.createdAt,
     currentPosition,
-    currentPositionUpdatedAt: parcelRequest.currentLocationUpdatedAt || null,
+    currentPositionUpdatedAt: isTrackable ? parcelRequest.currentLocationUpdatedAt || null : null,
     mapCenter,
     checkpoints,
     hasDeliveryRequest: Boolean(parcelRequest.assignedDeliveryGuyId),
@@ -226,6 +231,29 @@ export default function ParcelRequestDetail() {
       <GlassHeader title="Suivi de la course" subtitle={formatCurrency(parcelRequest.deliveryPrice)} backTo="/parcels" />
 
       <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
+        <div
+          className={`flex items-center gap-2 rounded-2xl border p-3 ${
+            parcelRequest.paymentMethod === 'PAWAPAY'
+              ? 'border-emerald-100 bg-emerald-50'
+              : 'border-amber-100 bg-amber-50'
+          }`}
+        >
+          {parcelRequest.paymentMethod === 'PAWAPAY' ? (
+            <ShieldCheck size={16} className="shrink-0 text-emerald-700" />
+          ) : (
+            <Wallet size={16} className="shrink-0 text-amber-700" />
+          )}
+          <p
+            className={`text-xs font-black ${
+              parcelRequest.paymentMethod === 'PAWAPAY' ? 'text-emerald-800' : 'text-amber-800'
+            }`}
+          >
+            {parcelRequest.paymentMethod === 'PAWAPAY'
+              ? 'Payé avec PawaPay'
+              : 'Paiement à la livraison (cash)'}
+          </p>
+        </div>
+
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div>

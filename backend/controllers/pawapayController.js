@@ -7,6 +7,7 @@ import Refund from '../models/refundModel.js';
 import Product from '../models/productModel.js';
 import ShopConversionRequest from '../models/shopConversionRequestModel.js';
 import User from '../models/userModel.js';
+import Order from '../models/orderModel.js';
 import {
   getPawaPayCheckoutStatus,
   getPawaPayPublicKeys,
@@ -34,6 +35,7 @@ import {
 } from './installmentController.js';
 import { createBoostRequest } from './boostController.js';
 import { completeShopConversionPawaPay } from './shopConversionController.js';
+import { pawaPayCreateParcelRequest } from './parcelRequestController.js';
 
 const RESOURCE_CONFIG = {
   checkout: { idField: 'checkoutId' },
@@ -49,7 +51,8 @@ const CHECKOUT_PURPOSES = new Set([
   'LISTING_FEE_FUNDING',
   'INSTALLMENT_FUNDING',
   'BOOST_FUNDING',
-  'SHOP_CONVERSION_FUNDING'
+  'SHOP_CONVERSION_FUNDING',
+  'PARCEL_REQUEST_FUNDING'
 ]);
 const ACTION_CONTEXT_KINDS = new Set([
   'ORDER_CHECKOUT',
@@ -58,7 +61,8 @@ const ACTION_CONTEXT_KINDS = new Set([
   'BOOST_REQUEST',
   'SHOP_CONVERSION_REQUEST',
   'SPONSORSHIP_ACCEPT',
-  'SPONSORSHIP_PAY_SELF'
+  'SPONSORSHIP_PAY_SELF',
+  'PARCEL_REQUEST_CHECKOUT'
 ]);
 
 const sendPawaPayError = (res, status, code, message, details = {}) =>
@@ -92,6 +96,7 @@ const normalizeActionContext = (value, purpose) => {
   if (kind === 'BOOST_REQUEST' && purpose !== 'BOOST_FUNDING') return null;
   if (kind === 'SHOP_CONVERSION_REQUEST' && purpose !== 'SHOP_CONVERSION_FUNDING') return null;
   if (kind.startsWith('SPONSORSHIP_') && purpose !== 'CHECKOUT_FUNDING') return null;
+  if (kind === 'PARCEL_REQUEST_CHECKOUT' && purpose !== 'PARCEL_REQUEST_FUNDING') return null;
   parsed.kind = kind;
   return parsed;
 };
@@ -810,7 +815,9 @@ const autoCompleteCheckoutAction = async (checkout) => {
           deliveryMode: action.deliveryMode,
           shippingAddress: action.shippingAddress,
           promoEntries: action.promoEntries,
-          pointsToRedeem: action.pointsToRedeem
+          pointsToRedeem: action.pointsToRedeem,
+          groupBuyId: action.groupBuyId,
+          paymentPercent: action.paymentPercent
         }
       });
       const firstOrderId = result?.orders?.[0]?._id || result?.orders?.[0]?.id || '';
@@ -928,6 +935,27 @@ const autoCompleteCheckoutAction = async (checkout) => {
       deepLink = '/admin/orders';
       entityId = action.groupId || claimed.checkoutId;
       successPath = '/sponsorships';
+    } else if (action.kind === 'PARCEL_REQUEST_CHECKOUT') {
+      result = await invokeCompletionController({
+        handler: pawaPayCreateParcelRequest,
+        checkout: claimed,
+        body: {
+          pickup: action.pickup,
+          dropoff: action.dropoff,
+          parcelDescription: action.parcelDescription,
+          referenceCode: action.referenceCode,
+          notes: action.notes,
+          proofImageUrl: action.proofImageUrl
+        }
+      });
+      const parcelRequestId = result?._id || '';
+      title = 'Course colis payée avec PawaPay';
+      message = `Une course colis de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été payée et créée automatiquement avec PawaPay.`;
+      deepLink = parcelRequestId
+        ? `/admin/parcel-requests?requestId=${encodeURIComponent(String(parcelRequestId))}`
+        : '/admin/parcel-requests';
+      entityId = parcelRequestId || claimed.checkoutId;
+      successPath = parcelRequestId ? `/parcels/${encodeURIComponent(String(parcelRequestId))}` : '/parcels';
     } else {
       throw new Error('Action automatique PawaPay inconnue.');
     }
@@ -1361,4 +1389,73 @@ export const refreshPawaPayRefundAdmin = asyncHandler(async (req, res) => {
       message: error?.message || 'Impossible de vérifier le remboursement auprès de PawaPay.'
     });
   }
+});
+
+const isAdminOrFounder = (user) => ['admin', 'founder'].includes(String(user?.role || '').toLowerCase());
+
+// Replaces the old wallet oversight view (soldes/files d'attente/mouvements)
+// now that PawaPay is the real payment rail: checkout status breakdown, stuck
+// payments needing attention, checkouts whose payment succeeded but order
+// creation failed (money taken, nothing created — the exact incident class
+// investigated earlier), outstanding COD/partial balances from the 50-100%
+// PawaPay split, and a recent transactions ledger.
+export const getAdminPawaPayOverview = asyncHandler(async (req, res) => {
+  if (!isAdminOrFounder(req.user)) {
+    return res.status(403).json({ message: 'Accès refusé.' });
+  }
+
+  const stuckSince = new Date(Date.now() - 15 * 60 * 1000);
+
+  const [statusRows, completedRows, stuckCheckouts, failedCompletions, outstandingRows, recentCheckouts] =
+    await Promise.all([
+      PawaPayCheckout.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$amount' } } }
+      ]),
+      PawaPayCheckout.aggregate([
+        { $match: { status: 'COMPLETED' } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+      ]),
+      PawaPayCheckout.find({
+        status: { $in: ['WAITING_PAYMENT', 'PROCESSING'] },
+        createdAt: { $lt: stuckSince }
+      })
+        .sort({ createdAt: 1 })
+        .limit(50)
+        .populate('user', 'name phone')
+        .lean(),
+      PawaPayCheckout.find({ autoValidationState: 'FAILED' })
+        .sort({ updatedAt: -1 })
+        .limit(50)
+        .populate('user', 'name phone')
+        .lean(),
+      Order.aggregate([
+        { $match: { paymentStatus: 'PARTIAL', remainingAmount: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$remainingAmount' }, count: { $sum: 1 } } }
+      ]),
+      PawaPayCheckout.find({})
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .populate('user', 'name phone')
+        .lean()
+    ]);
+
+  const statusCounts = statusRows.reduce((acc, row) => {
+    acc[row._id] = { count: row.count, amount: Number(row.amount || 0) };
+    return acc;
+  }, {});
+
+  return res.json({
+    statusCounts,
+    completed: {
+      total: Number(completedRows[0]?.total || 0),
+      count: Number(completedRows[0]?.count || 0)
+    },
+    outstandingBalance: {
+      total: Number(outstandingRows[0]?.total || 0),
+      count: Number(outstandingRows[0]?.count || 0)
+    },
+    stuckCheckouts,
+    failedCompletions,
+    recentCheckouts
+  });
 });

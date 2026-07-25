@@ -79,6 +79,62 @@ export const postCreateParcelRequest = asyncHandler(async (req, res) => {
   }
 });
 
+// Proof photos can't travel through a PawaPay checkout's JSON actionContext,
+// so the PawaPay-funded creation flow uploads the proof first (getting back a
+// URL) and only passes that URL through the checkout — this endpoint is that
+// upload step.
+export const postUploadParcelProofStandalone = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Sélectionnez une photo de justificatif.' });
+  }
+  try {
+    const proofImageUrl = await persistDeliveryProofFile(req.file, {
+      category: 'parcel-authorization'
+    });
+    return res.json({ proofImageUrl });
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+});
+
+// Invoked internally by pawapayController.js's autoCompleteCheckoutAction once
+// a PARCEL_REQUEST_CHECKOUT payment is confirmed — never mounted as a public
+// route. Re-derives the price server-side so a stale/tampered client estimate
+// can't under-charge the requester, mirroring pawaPayCheckoutOrder's pattern.
+export const pawaPayCreateParcelRequest = asyncHandler(async (req, res) => {
+  if (!req.pawaPayCheckout || req.pawaPayCheckout.status !== 'COMPLETED') {
+    return res.status(403).json({ message: 'Confirmation PawaPay requise.' });
+  }
+  const pickup = parseLocation(req.body?.pickup);
+  const dropoff = parseLocation(req.body?.dropoff);
+
+  try {
+    const { price } = await estimateParcelPrice({ pickup, dropoff });
+    if (Math.abs(Number(req.pawaPayCheckout.amount || 0) - price) > 0.01) {
+      return res.status(409).json({
+        message: 'Le montant payé ne correspond plus au tarif de cette course. Réessayez.'
+      });
+    }
+    const parcelRequest = await createParcelRequest({
+      requesterId: req.user.id || req.user._id,
+      pickup,
+      dropoff,
+      parcelDescription: req.body?.parcelDescription,
+      authorization: {
+        proofImageUrl: req.body?.proofImageUrl,
+        referenceCode: req.body?.referenceCode,
+        notes: req.body?.notes
+      },
+      paymentMethod: 'PAWAPAY',
+      paymentStatus: 'PAID',
+      pawaPayCheckoutId: req.pawaPayCheckout.checkoutId
+    });
+    return res.status(201).json(parcelRequest);
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+});
+
 export const getMyParcelRequests = asyncHandler(async (req, res) => {
   const result = await listMyParcelRequests({
     requesterId: req.user.id || req.user._id,
