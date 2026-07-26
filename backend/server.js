@@ -39,6 +39,7 @@ import deviceRoutes from './routes/deviceRoutes.js';
 import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
+import globalNotificationRoutes from './routes/globalNotificationRoutes.js';
 import founderRoutes from './routes/founderRoutes.js';
 import courierRoutes from './routes/courierRoutes.js';
 import deliveryRoutes from './routes/deliveryRoutes.js';
@@ -63,7 +64,9 @@ import { createNotification } from './utils/notificationService.js';
 import {
   setChatSocket,
   buildOrderConversationRoom,
-  buildOrderUserRoom
+  buildOrderUserRoom,
+  setUserOnline,
+  setUserOffline
 } from './sockets/chatSocket.js';
 import { registerNotificationSocket, configureSocketRedisAdapter } from './sockets/notificationSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
@@ -392,6 +395,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/boosts', boostRoutes);
+app.use('/api/global-notifications', globalNotificationRoutes);
 app.use('/api/founder', founderRoutes);
 app.use('/api/courier', courierRoutes);
 app.use('/api/delivery', deliveryRoutes);
@@ -471,6 +475,7 @@ io.on('connection', (socket) => {
   const isGuest = String(socketUserId || '').startsWith('guest-');
   if (!isGuest && socketUserId) {
     socket.join(buildOrderUserRoom(socketUserId));
+    setUserOnline(socketUserId);
   }
   socket.data.orderConversationIds = new Set();
   socket.emit('connected', { user: socket.data.user });
@@ -571,6 +576,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     socket.data.orderConversationIds?.clear?.();
+    if (!isGuest && socketUserId) {
+      setUserOffline(socketUserId);
+    }
   });
 });
 

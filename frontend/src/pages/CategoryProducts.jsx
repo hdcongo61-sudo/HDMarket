@@ -493,11 +493,11 @@ export default function CategoryProducts() {
 
       {error && (
         <NetworkFallbackCard
-          title="Unable to load data."
+          title="Impossible de charger les données."
           message={error}
           onRetry={() => setLoadMoreRetryTick((tick) => tick + 1)}
-          retryLabel="Retry"
-          refreshLabel="Refresh page"
+          retryLabel="Réessayer"
+          refreshLabel="Actualiser la page"
         />
       )}
 

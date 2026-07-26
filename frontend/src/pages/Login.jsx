@@ -91,7 +91,7 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
   }
   return isFrench
     ? 'Impossible de vous connecter pour le moment. Veuillez réessayer.'
-    : 'Unable to sign in right now. Please retry.';
+    : 'Impossible de se connecter. Veuillez réessayer.';
 };
 
 export default function Login() {
@@ -302,7 +302,7 @@ export default function Login() {
     } catch (requestError) {
       setReactivationFeedback(
         requestError?.response?.data?.message ||
-          (isFrench ? 'Impossible d’envoyer la demande.' : 'Unable to send the request.')
+          'Impossible d\'envoyer la demande.'
       );
     } finally {
       setReactivationLoading(false);

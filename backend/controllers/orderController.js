@@ -58,6 +58,7 @@ import {
   scheduleOrderReviewReminder
 } from '../services/orderReviewReminderService.js';
 import { emitOrderStatusUpdated } from '../sockets/chatSocket.js';
+import { postSystemMessage } from './messageController.js';
 import {
   resolveSelectedAttributesImage,
   resolveSelectedAttributesPrice,
@@ -181,6 +182,48 @@ const emitOrderLifecycleUpdate = ({ order, updatedBy, updatedAt = new Date() }) 
       ? new Date().toISOString()
       : normalizedUpdatedAt.toISOString()
   });
+
+  // Dispatch system message into the order's conversation (fire-and-forget)
+  dispatchOrderSystemMessage({ order, status: order.status, actorId: updatedBy });
+};
+
+const STATUS_SYSTEM_MAP = {
+  confirmed: 'order_confirmed',
+  paid: 'payment_received',
+  ready_for_pickup: 'order_ready',
+  ready_for_delivery: 'order_ready',
+  out_for_delivery: 'order_shipped',
+  delivering: 'order_shipped',
+  shipped: 'order_shipped',
+  delivered: 'order_delivered',
+  cancelled: 'order_cancelled',
+  refund_initiated: 'refund_initiated',
+  refunded: 'refund_completed'
+};
+
+const dispatchOrderSystemMessage = ({ order, status, actorId }) => {
+  if (!order?._id || !status) return;
+  const systemType = STATUS_SYSTEM_MAP[status];
+  if (!systemType) return;
+
+  // Fire-and-forget — resolve the conversation and post a system message
+  import('../services/conversationService.js').then(({ resolveOrCreateConversation }) => {
+    resolveOrCreateConversation({
+      requesterId: String(order.customer),
+      orderId: order._id
+    }).then((conversation) => {
+      if (conversation?._id) {
+        postSystemMessage({
+          conversationId: conversation._id,
+          orderId: order._id,
+          systemType,
+          actorId: actorId ? String(actorId) : String(conversation.sellerId)
+        });
+      }
+    }).catch(() => {
+      // Non-blocking — conversation may not exist yet for new orders
+    });
+  }).catch(() => {});
 };
 
 const SELLER_ACCOUNT_ROLES = new Set(['seller', 'vendeur', 'boutique_owner']);

@@ -512,11 +512,11 @@ const fetchProducts = useCallback(async () => {
 
         {error && (
           <NetworkFallbackCard
-            title="Unable to load data."
+            title="Impossible de charger les données."
             message={error}
             onRetry={fetchProducts}
-            retryLabel="Retry"
-            refreshLabel="Refresh page"
+            retryLabel="Réessayer"
+            refreshLabel="Actualiser la page"
           />
         )}
 

@@ -6,6 +6,7 @@ import { getBundleSuggestions } from '../services/bundleService.js';
 import { upload } from '../utils/upload.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
+import { etagMiddleware } from '../middlewares/etagMiddleware.js';
 import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import {
   createProduct,
@@ -67,14 +68,14 @@ router.get(
 );
 
 // Public (validation query) - with caching
-router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), getPublicHighlights);
+router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), etagMiddleware({ maxAge: 300 }), getPublicHighlights);
 router.get('/public/installments', cacheMiddleware({ ttl: 300000 }), getPublicInstallmentProducts);
 router.get('/public/wholesale', cacheMiddleware({ ttl: 300000 }), getPublicWholesaleProducts);
 router.get('/wholesale', cacheMiddleware({ ttl: 300000 }), getPublicWholesaleProducts);
 router.get('/public/pickup-only', cacheMiddleware({ ttl: 300000 }), getPublicPickupOnlyProducts);
 router.get('/public/top-sales', cacheMiddleware({ ttl: 300000 }), getTopSales);
 router.get('/public/top-sales/today', cacheMiddleware({ ttl: 120000 }), getTopSalesTodayByCity);
-router.get('/public', cacheMiddleware({ ttl: 180000 }), validate(schemas.publicQuery, 'query'), getPublicProducts);
+router.get('/public', cacheMiddleware({ ttl: 180000 }), validate(schemas.publicQuery, 'query'), etagMiddleware({ maxAge: 180 }), getPublicProducts);
 router.get('/public/:id/comments', cacheMiddleware({ ttl: 120000 }), getCommentsForProduct);
 router.get('/public/:id/ratings', cacheMiddleware({ ttl: 120000 }), getRatingSummary);
 // Bundle suggestions — frequently bought together (Proposal 7)

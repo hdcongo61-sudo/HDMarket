@@ -613,10 +613,11 @@ export default function ShopProfile() {
         startConversation: {
           sellerId: shop._id,
           sellerName: shop.shopName || shop.name,
-          productId: firstProduct?._id,
-          productTitle: firstProduct?.title,
-          productImage: Array.isArray(firstProduct?.images) ? firstProduct.images[0] : firstProduct?.image,
-          productSlug: firstProduct?.slug
+          // Attach product context when available, but allow plain conversations too
+          productId: firstProduct?._id || undefined,
+          productTitle: firstProduct?.title || undefined,
+          productImage: Array.isArray(firstProduct?.images) ? firstProduct.images[0] : firstProduct?.image || undefined,
+          productSlug: firstProduct?.slug || undefined
         }
       }
     });

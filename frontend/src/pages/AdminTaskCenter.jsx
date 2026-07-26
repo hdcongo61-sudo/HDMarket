@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, Clock3, Filter, PackageCheck, RefreshCw, ShieldAlert, Truck } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock3, Filter, Megaphone, PackageCheck, RefreshCw, ShieldAlert, Truck } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
@@ -12,7 +12,8 @@ const VALIDATION_TYPE_OPTIONS = [
   { value: 'productValidation', label: 'Produits/Paiements', icon: PackageCheck },
   { value: 'deliveryOps', label: 'Livraison', icon: Truck },
   { value: 'disputes', label: 'Litiges', icon: ShieldAlert },
-  { value: 'shopConversion', label: 'Conversion boutique', icon: AlertCircle }
+  { value: 'shopConversion', label: 'Conversion boutique', icon: AlertCircle },
+  { value: 'sponsoredAds', label: 'Notifications globales', icon: Megaphone }
 ];
 
 const formatDateTime = (value) =>

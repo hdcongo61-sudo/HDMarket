@@ -10,6 +10,14 @@ const orderMessageSchema = new mongoose.Schema(
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: false, trim: true },
+    // Message type: 'text' (default), 'card' (rich product/order embed), 'system' (automated status)
+    messageType: { type: String, enum: ['text', 'card', 'system'], default: 'text' },
+    // Rich card embed (product/order sharing)
+    card: {
+      cardType: { type: String, enum: ['product', 'order'], required: false },
+      entityId: { type: mongoose.Schema.Types.ObjectId, required: false },
+      snapshot: { type: mongoose.Schema.Types.Mixed, required: false }
+    },
     // Encrypted content (for E2E encryption)
     encryptedText: { type: String, required: false },
     encryptionKey: { type: String, required: false }, // Base64 encoded key

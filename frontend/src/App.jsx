@@ -98,12 +98,14 @@ const SellerOrders = lazy(() => import('./pages/SellerOrders'));
 const SellerOrderDetail = lazy(() => import('./pages/SellerOrderDetail'));
 const SellerDisputes = lazy(() => import('./pages/SellerDisputes'));
 const SellerBoosts = lazy(() => import('./pages/SellerBoosts'));
+const SellerGlobalNotifications = lazy(() => import('./pages/SellerGlobalNotifications'));
 const SellerSettlements = lazy(() => import('./pages/SellerSettlements'));
 const OrderCheckout = lazy(() => import('./pages/OrderCheckout'));
 const PawaPayReturn = lazy(() => import('./pages/PawaPayReturn'));
 const DraftOrders = lazy(() => import('./pages/DraftOrders'));
 const AdminChatTemplates = lazy(() => import('./pages/AdminChatTemplates'));
 const AdminProductBoosts = lazy(() => import('./pages/AdminProductBoosts'));
+const AdminGlobalNotifications = lazy(() => import('./pages/AdminGlobalNotifications'));
 const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 const AdminFeedback = lazy(() => import('./pages/AdminFeedback'));
 const AdminUserStats = lazy(() => import('./pages/AdminUserStats'));
@@ -128,8 +130,8 @@ const OrderMessages = lazy(() => import('./pages/OrderMessages'));
 const ShopConversionRequest = lazy(() => import('./pages/ShopConversionRequest'));
 const ShopAssistant = lazy(() => import('./pages/ShopAssistant'));
 const Footer = lazy(() => import('./components/Footer'));
-const ChatBox = lazy(() => import('./components/ChatBox'));
 const PushNotificationsManager = lazy(() => import('./components/PushNotificationsManager'));
+const UnreadMessageReminder = lazy(() => import('./components/UnreadMessageReminder'));
 
 const LAST_ADMIN_ROUTE_KEY = 'hdmarket:last-admin-route';
 const LAST_COURIER_ROUTE_KEY = 'hdmarket:last-courier-route';
@@ -490,6 +492,7 @@ function AppContent() {
   const showLoader = !showSplash && (bootLoading || routeLoading || showShopProfileLoader);
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
+  const globalNotificationsEnabled = isFeatureEnabled('enable_global_notifications', { defaultValue: true });
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
@@ -663,6 +666,9 @@ function AppContent() {
       <ScrollToTop />
       {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
+      <Suspense fallback={null}>
+        <UnreadMessageReminder />
+      </Suspense>
       <main
         className={isCourierRoute
           ? 'app-main-shell min-h-[100dvh] p-0 main-content no-ios-callout'
@@ -1105,6 +1111,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/seller/global-notifications"
+            element={
+              <ProtectedRoute>
+                {globalNotificationsEnabled ? <SellerGlobalNotifications /> : <Navigate to="/my" replace />}
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/my/settlements"
             element={
               <ProtectedRoute>
@@ -1201,6 +1215,14 @@ function AppContent() {
               element={
                 <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.canManageBoosts === true || hasAnyPermission(user, ['manage_boosts'])}>
                   {boostEnabled ? <AdminProductBoosts /> : <Navigate to="/admin" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="global-notifications"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder'}>
+                  {globalNotificationsEnabled ? <AdminGlobalNotifications /> : <Navigate to="/admin" replace />}
                 </ProtectedRoute>
               }
             />
@@ -1344,11 +1366,6 @@ function AppContent() {
       {!isCourierRoute ? (
         <Suspense fallback={null}>
           <Footer />
-        </Suspense>
-      ) : null}
-      {!isCourierRoute && chatEnabled && assistantChatEnabled ? (
-        <Suspense fallback={null}>
-          <ChatBox />
         </Suspense>
       ) : null}
     </>

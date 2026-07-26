@@ -765,6 +765,20 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  enable_global_notifications: {
+    category: 'feature_flags',
+    description: 'Activer les notifications globales sponsorisées (payantes) pour les vendeurs.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  global_notification_daily_send_cap: {
+    category: 'feature_flags',
+    description: 'Nombre maximum de notifications globales sponsorisées diffusées par 24h (toutes boutiques confondues).',
+    valueType: 'number',
+    defaultValue: 5,
+    isPublic: false
+  },
   allow_guest_checkout: {
     category: 'feature_flags',
     description: 'Autoriser les commandes invité.',

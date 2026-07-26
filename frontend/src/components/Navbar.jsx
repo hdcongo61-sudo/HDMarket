@@ -74,6 +74,8 @@ import {
   Bike
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
+import ChatBox from "./ChatBox";
+import BaseModal from "./modals/BaseModal";
 
 /**
  * 🎨 NAVBAR PREMIUM HDMarket - Version Mobile First
@@ -152,6 +154,7 @@ export default function Navbar() {
     defaultValue: true
   });
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
+  const assistantChatEnabled = isFeatureEnabled('enable_assistant_chat', { defaultValue: true });
   const platformDeliveryEnabled =
     ['true', '1', 'yes', 'on'].includes(
       String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
@@ -258,6 +261,7 @@ export default function Navbar() {
   const shopMenuCloseRef = useRef(null);
   const categoryMenuCloseRef = useRef(null);
   const moreMenuCloseRef = useRef(null);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const orderUnreadSocketRef = useRef(null);
   const [isMobileLayout, setIsMobileLayout] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth < 1024
@@ -474,7 +478,14 @@ export default function Navbar() {
 
       socket.on('orders:unread:update', (payload) => {
         if (String(payload?.userId || '') !== String(user?._id)) return;
-        setUnreadOrderMessages(Number(payload?.totalUnread || 0));
+        const count = Number(payload?.totalUnread || 0);
+        setUnreadOrderMessages(count);
+        // Also dispatch so UnreadMessageReminder can pick it up
+        window.dispatchEvent(
+          new CustomEvent('hdmarket:unread-messages', {
+            detail: { totalUnread: count }
+          })
+        );
       });
 
       socket.on('orders:status:updated', (payload) => {
@@ -4515,6 +4526,20 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                  {/* Assistant */}
+                  {assistantChatEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsAssistantOpen(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-[#e85d00] hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors mb-1"
+                    >
+                      <Sparkles size={20} />
+                      Assistant HDMarket
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       logout();
@@ -4802,6 +4827,20 @@ export default function Navbar() {
           )}
         </div>
       </div>
+
+      {/* Assistant Chat Modal */}
+      {assistantChatEnabled && (
+        <BaseModal
+          isOpen={isAssistantOpen}
+          onClose={() => setIsAssistantOpen(false)}
+          size="md"
+          panelClassName="w-full h-full sm:h-[88vh] sm:max-h-[700px] sm:max-w-lg overflow-hidden border-0 bg-white shadow-sm ring-1 ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-2xl"
+          rootClassName="z-[140] p-0 sm:p-4"
+          ariaLabel="Assistant HDMarket"
+        >
+          <ChatBox hideFloating />
+        </BaseModal>
+      )}
 
     </>
   );

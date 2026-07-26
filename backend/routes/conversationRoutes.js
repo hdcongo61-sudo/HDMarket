@@ -17,7 +17,14 @@ import {
   addOrderMessageReaction,
   removeOrderMessageReaction,
   deleteOrderMessage,
-  updateOrderMessage
+  updateOrderMessage,
+  getSellerAutoReply,
+  upsertSellerAutoReply,
+  deleteSellerAutoReply,
+  getSellerTemplates,
+  createSellerTemplate,
+  updateSellerTemplate,
+  deleteSellerTemplate
 } from '../controllers/messageController.js';
 
 const router = express.Router();
@@ -52,5 +59,16 @@ router.delete('/:id/messages/:messageId', idempotencyMiddleware(), deleteOrderMe
 router.post('/:id/archive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), archiveOrderConversation);
 router.post('/:id/unarchive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), unarchiveOrderConversation);
 router.post('/:id/delete', validate(schemas.idParam, 'params'), idempotencyMiddleware(), deleteOrderConversation);
+
+// Seller auto-reply
+router.get('/seller/auto-reply', getSellerAutoReply);
+router.put('/seller/auto-reply', upsertSellerAutoReply);
+router.delete('/seller/auto-reply', deleteSellerAutoReply);
+
+// Seller message templates
+router.get('/seller/templates', getSellerTemplates);
+router.post('/seller/templates', createSellerTemplate);
+router.patch('/seller/templates/:templateId', updateSellerTemplate);
+router.delete('/seller/templates/:templateId', deleteSellerTemplate);
 
 export default router;

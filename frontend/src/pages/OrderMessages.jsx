@@ -296,19 +296,21 @@ export default function OrderMessages() {
   });
 
   const buildOrderFromStart = useCallback(
-    (conversationId, { sellerId, sellerName, productId, productTitle, productImage, productSlug } = {}) => ({
-      _id: conversationId,
-      conversationId,
-      items: [
-        {
-          product: productId,
-          snapshot: { shopId: sellerId, shopName: sellerName, title: productTitle, image: productImage, slug: productSlug }
-        }
-      ],
-      customer: user?._id ? { _id: String(user._id) } : undefined,
-      status: null,
-      deliveryCode: null
-    }),
+    (conversationId, { sellerId, sellerName, productId, productTitle, productImage, productSlug } = {}) => {
+      const hasProduct = Boolean(productId && productTitle);
+      return {
+        _id: conversationId,
+        conversationId,
+        items: hasProduct
+          ? [{ product: productId, snapshot: { shopId: sellerId, shopName: sellerName, title: productTitle, image: productImage, slug: productSlug } }]
+          : [],
+        customer: user?._id ? { _id: String(user._id) } : undefined,
+        sellerId,
+        sellerName,
+        status: null,
+        deliveryCode: null
+      };
+    },
     [user?._id]
   );
 
@@ -384,11 +386,16 @@ export default function OrderMessages() {
 
   const buildOrderFromConversation = useCallback((conv) => {
     const customerId = conv.customerId?._id ?? conv.customerId;
+    const sellerId = conv.sellerId?._id ?? conv.sellerId;
+    const sellerName = conv.sellerName || null;
+    const hasProduct = Boolean(conv.productInfo?.title);
     return {
       _id: conv.orderId != null ? String(conv.orderId) : conv.orderId,
       conversationId: conv.conversationId,
-      items: [{ snapshot: conv.productInfo }],
+      items: hasProduct ? [{ snapshot: conv.productInfo }] : [],
       customer: customerId != null ? { _id: String(customerId) } : undefined,
+      sellerId: sellerId != null ? String(sellerId) : null,
+      sellerName,
       status: conv.status,
       deliveryCode: conv.orderCode
     };
@@ -836,11 +843,11 @@ export default function OrderMessages() {
                               onClick={(e) => e.stopPropagation()}
                               className={`block truncate text-sm font-black ${hasUnread ? 'text-slate-950 dark:text-white' : 'text-slate-800 dark:text-gray-100'} hover:text-[#e85d00]`}
                             >
-                              {conversation.productInfo?.title || 'Produit'}
+                              {conversation.productInfo?.title || `Conversation avec ${partnerName}`}
                             </Link>
                           ) : (
                             <p className={`truncate text-sm font-black ${hasUnread ? 'text-slate-950 dark:text-white' : 'text-slate-800 dark:text-gray-100'}`}>
-                              {conversation.productInfo?.title || 'Produit'}
+                              {conversation.productInfo?.title || `Conversation avec ${partnerName}`}
                             </p>
                           )}
                           <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-gray-400">
@@ -940,6 +947,8 @@ export default function OrderMessages() {
         <OrderChat
           order={selectedOrder}
           conversationId={selectedOrder?.conversationId}
+          sellerId={selectedOrder?.sellerId}
+          sellerName={selectedOrder?.sellerName}
           onClose={closeChat}
           defaultOpen
           buttonText="Contacter"

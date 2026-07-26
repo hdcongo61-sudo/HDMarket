@@ -24,7 +24,8 @@ import {
   UserX,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Megaphone
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
@@ -175,6 +176,13 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
       u?.role === 'founder' ||
       u?.canManageBoosts ||
       hasAnyPermission(u, ['manage_boosts'])
+  },
+  {
+    to: '/admin/global-notifications',
+    label: t('nav.globalNotifications', 'Notifications globales'),
+    icon: Megaphone,
+    group: 'commerce',
+    show: (u) => u?.role === 'admin' || u?.role === 'founder'
   },
   { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
   { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, group: 'founder', show: (u) => u?.role === 'founder' },

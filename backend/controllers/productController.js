@@ -1841,52 +1841,59 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   const blockedSellerIds = await getBlockedSellerIdsSet();
   const baseActiveFilter = applyBlockedUsersToFilter(baseFilter, blockedSellerIds);
   const activeBaseFilter = await withVerifiedPublicProductFilter(baseActiveFilter);
-
-  const favoritesRaw = await Product.find(activeBaseFilter)
-    .sort({ favoritesCount: -1, createdAt: -1 })
-    .limit(limit)
-    .lean();
-
-  const dealsRaw = await Product.find(activeBaseFilter)
-    .sort({ price: 1, createdAt: -1 })
-    .limit(limit)
-    .lean();
-
-  const discountRaw = await Product.find({ ...activeBaseFilter, discount: { $gt: 0 } })
-    .sort({ discount: -1, createdAt: -1 })
-    .limit(limit)
-    .lean();
-  const newRaw = await Product.find({ ...activeBaseFilter, condition: 'new' })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
-
-  const usedRaw = await Product.find({ ...activeBaseFilter, condition: 'used' })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
-  const installmentRaw = await Product.find({
-    ...activeBaseFilter,
-    installmentEnabled: true,
-    installmentStartDate: { $lte: now },
-    installmentEndDate: { $gte: now }
-  })
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
-
-  const topRatingStats = await Rating.aggregate([
-    { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } },
-    { $match: { count: { $gt: 0 } } },
-    { $sort: { average: -1, count: -1 } },
-    { $limit: limit * 5 }
-  ]);
-
   const cityList = await getActiveCityNames();
-  const cityProductsRaw = await Product.find({ ...activeBaseFilter, city: { $in: cityList } })
-    .sort({ createdAt: -1 })
-    .limit(limit * cityList.length)
-    .lean();
+
+  // Run all six product queries + rating aggregation + city query in parallel
+  const [
+    favoritesRaw,
+    dealsRaw,
+    discountRaw,
+    newRaw,
+    usedRaw,
+    installmentRaw,
+    topRatingStats,
+    cityProductsRaw
+  ] = await Promise.all([
+    Product.find(activeBaseFilter)
+      .sort({ favoritesCount: -1, createdAt: -1 })
+      .limit(limit)
+      .lean(),
+    Product.find(activeBaseFilter)
+      .sort({ price: 1, createdAt: -1 })
+      .limit(limit)
+      .lean(),
+    Product.find({ ...activeBaseFilter, discount: { $gt: 0 } })
+      .sort({ discount: -1, createdAt: -1 })
+      .limit(limit)
+      .lean(),
+    Product.find({ ...activeBaseFilter, condition: 'new' })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean(),
+    Product.find({ ...activeBaseFilter, condition: 'used' })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean(),
+    Product.find({
+      ...activeBaseFilter,
+      installmentEnabled: true,
+      installmentStartDate: { $lte: now },
+      installmentEndDate: { $gte: now }
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean(),
+    Rating.aggregate([
+      { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } },
+      { $match: { count: { $gt: 0 } } },
+      { $sort: { average: -1, count: -1 } },
+      { $limit: limit * 5 }
+    ]),
+    Product.find({ ...activeBaseFilter, city: { $in: cityList } })
+      .sort({ createdAt: -1 })
+      .limit(limit * cityList.length)
+      .lean()
+  ]);
 
   const ratingCandidateIds = topRatingStats.map((stat) => stat._id);
   let ratingProductsRaw = [];

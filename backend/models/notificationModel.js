@@ -85,6 +85,7 @@ const notificationSchema = new mongoose.Schema(
       'boost_expired',
       'promo_expired',
       'admin_broadcast',
+      'sponsored_notification',
       'account_restriction',
       'account_restriction_lifted',
       'shop_conversion_request',
@@ -167,7 +168,7 @@ const notificationSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['', 'order', 'product', 'shop', 'boost', 'deliveryRequest', 'dispute', 'user', 'payment', 'refund', 'shopConversionRequest'],
+      enum: ['', 'order', 'product', 'shop', 'boost', 'deliveryRequest', 'dispute', 'user', 'payment', 'refund', 'shopConversionRequest', 'globalNotification'],
       default: '',
       index: true
     },

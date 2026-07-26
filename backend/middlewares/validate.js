@@ -495,6 +495,36 @@ export const schemas = {
   boostTrackImpressions: Joi.object({
     requestIds: Joi.array().items(Joi.string().hex().length(24)).min(1).max(100).required()
   }),
+  globalNotificationPricePreview: Joi.object({
+    city: Joi.string().trim().min(2).max(80).allow('', null),
+    gender: Joi.string().valid('all', 'homme', 'femme').default('all')
+  }),
+  globalNotificationRequestCreate: Joi.object({
+    title: Joi.string().trim().min(2).max(120).required(),
+    message: Joi.string().trim().min(2).max(500).required(),
+    productId: Joi.string().hex().length(24).allow('', null),
+    audienceCity: Joi.string().trim().min(2).max(80).allow('', null),
+    audienceGender: Joi.string().valid('all', 'homme', 'femme').default('all'),
+    paymentMethod: Joi.string().valid('pawapay').required(),
+    image: Joi.object({
+      url: Joi.string().uri().required(),
+      path: Joi.string().allow('', null),
+      mimeType: Joi.string().allow('', null),
+      size: Joi.number().min(0).allow(null)
+    }).required()
+  }),
+  globalNotificationListQuery: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    status: Joi.string().valid('PENDING', 'SENT', 'REJECTED').allow('', null)
+  }),
+  adminGlobalNotificationPricingUpsert: Joi.object({
+    city: Joi.string().trim().min(2).max(80).allow('', null),
+    price: Joi.number().min(0).required()
+  }),
+  adminGlobalNotificationReject: Joi.object({
+    rejectionReason: Joi.string().trim().max(300).allow('', null)
+  }),
   adminBoostPricingUpsert: Joi.object({
     type: Joi.string()
       .valid('PRODUCT_BOOST', 'LOCAL_PRODUCT_BOOST', 'SHOP_BOOST', 'HOMEPAGE_FEATURED')

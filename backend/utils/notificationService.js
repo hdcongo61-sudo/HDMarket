@@ -109,7 +109,8 @@ const ENTITY_TYPES = new Set([
   'user',
   'payment',
   'refund',
-  'shopConversionRequest'
+  'shopConversionRequest',
+  'globalNotification'
 ]);
 const ORDER_CONTEXT_NOTIFICATION_TYPES = new Set([
   'review_reminder',

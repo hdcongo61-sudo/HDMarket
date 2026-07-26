@@ -39,7 +39,7 @@ const mapRegisterErrorMessage = (error, isFrench = true) => {
   }
   return isFrench
     ? 'Impossible de créer le compte pour le moment. Veuillez réessayer.'
-    : 'Unable to create account right now. Please retry.';
+    : 'Impossible de créer le compte. Veuillez réessayer.';
 };
 
 const getPasswordChecks = (password = '') => {

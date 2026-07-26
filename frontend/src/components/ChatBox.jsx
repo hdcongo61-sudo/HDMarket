@@ -114,13 +114,17 @@ const buildMessagesFromSteps = (steps = []) => {
   return base;
 };
 
-const ChatBox = () => {
+const ChatBox = ({ hideFloating = false }) => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const token = user?.token;
   const userId = user?._id || user?.id || '';
 
   const [isOpen, setIsOpen] = useState(false);
+  // Auto-open when embedded (no floating button to toggle)
+  useEffect(() => {
+    if (hideFloating) setIsOpen(true);
+  }, [hideFloating]);
   const [messages, setMessages] = useState([welcomeMessage]);
   const [options, setOptions] = useState([]);
   const [stepStack, setStepStack] = useState([]);
@@ -404,7 +408,7 @@ const ChatBox = () => {
 
   if (!token) return null;
 
-  if (isChatHidden) {
+  if (!hideFloating && isChatHidden) {
     return (
       <div
         className="fixed z-50 flex items-center transition-all duration-300 ease-out sm:right-6"
@@ -458,6 +462,38 @@ const ChatBox = () => {
       : '24px',
     right: isButtonCollapsed ? 0 : '1rem'
   };
+
+  // When hideFloating, render only the chat panel inline (no FAB)
+  if (hideFloating) {
+    return isOpen ? (
+      <div className="flex flex-col h-full">
+        {/* The rest of the panel renders inside the caller's modal */}
+        {isOpen && (
+          <>
+            {/* Welcome + options rendered inline */}
+            <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3" onScroll={handleScroll}>
+              {error && <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+              {loadingSession && <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-gray-300 border-t-[#e85d00] rounded-full animate-spin" /></div>}
+              {messages.map((msg) => chatMessageBubble(msg))}
+              {loading && <div className="flex justify-center py-3"><div className="w-4 h-4 border-2 border-gray-300 border-t-[#e85d00] rounded-full animate-spin" /></div>}
+              <div ref={listEndRef} />
+            </div>
+            {options.length > 0 && !loading && (
+              <div className="flex-shrink-0 border-t border-gray-100 px-4 py-3 space-y-1.5 dark:border-neutral-800">
+                {options.map((node) => (
+                  <button key={node.id} type="button" onClick={() => handleSelectOption(node)} className="w-full text-left px-4 py-2.5 rounded-xl bg-gray-50 text-sm font-semibold text-slate-800 hover:bg-gray-100 transition-colors dark:bg-neutral-900 dark:text-gray-200 dark:hover:bg-neutral-800">{node.title}</button>
+                ))}
+              </div>
+            )}
+            <div className="flex-shrink-0 border-t border-gray-100 px-4 py-2.5 flex items-center gap-2 dark:border-neutral-800">
+              {stepStack.length > 0 && <button type="button" onClick={handleGoBack} className="rounded-full p-2 text-slate-500 hover:bg-gray-100 dark:hover:bg-neutral-800"><ArrowLeft className="h-4 w-4" /></button>}
+              <button type="button" onClick={() => initializeGuidedChat({ forceRestart: true })} className="rounded-full p-2 text-slate-500 hover:bg-gray-100 dark:hover:bg-neutral-800" title="Recommencer"><RotateCcw className="h-4 w-4" /></button>
+            </div>
+          </>
+        )}
+      </div>
+    ) : null;
+  }
 
   return (
     <div

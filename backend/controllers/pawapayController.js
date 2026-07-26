@@ -34,6 +34,7 @@ import {
   uploadInstallmentPaymentProof
 } from './installmentController.js';
 import { createBoostRequest } from './boostController.js';
+import { createGlobalNotificationRequest } from './globalNotificationController.js';
 import { completeShopConversionPawaPay } from './shopConversionController.js';
 import { pawaPayCreateParcelRequest } from './parcelRequestController.js';
 
@@ -52,7 +53,8 @@ const CHECKOUT_PURPOSES = new Set([
   'INSTALLMENT_FUNDING',
   'BOOST_FUNDING',
   'SHOP_CONVERSION_FUNDING',
-  'PARCEL_REQUEST_FUNDING'
+  'PARCEL_REQUEST_FUNDING',
+  'GLOBAL_NOTIFICATION_FUNDING'
 ]);
 const ACTION_CONTEXT_KINDS = new Set([
   'ORDER_CHECKOUT',
@@ -62,7 +64,8 @@ const ACTION_CONTEXT_KINDS = new Set([
   'SHOP_CONVERSION_REQUEST',
   'SPONSORSHIP_ACCEPT',
   'SPONSORSHIP_PAY_SELF',
-  'PARCEL_REQUEST_CHECKOUT'
+  'PARCEL_REQUEST_CHECKOUT',
+  'GLOBAL_NOTIFICATION_REQUEST'
 ]);
 
 const sendPawaPayError = (res, status, code, message, details = {}) =>
@@ -97,6 +100,7 @@ const normalizeActionContext = (value, purpose) => {
   if (kind === 'SHOP_CONVERSION_REQUEST' && purpose !== 'SHOP_CONVERSION_FUNDING') return null;
   if (kind.startsWith('SPONSORSHIP_') && purpose !== 'CHECKOUT_FUNDING') return null;
   if (kind === 'PARCEL_REQUEST_CHECKOUT' && purpose !== 'PARCEL_REQUEST_FUNDING') return null;
+  if (kind === 'GLOBAL_NOTIFICATION_REQUEST' && purpose !== 'GLOBAL_NOTIFICATION_FUNDING') return null;
   parsed.kind = kind;
   return parsed;
 };
@@ -907,6 +911,27 @@ const autoCompleteCheckoutAction = async (checkout) => {
         : '/admin/product-boosts';
       entityId = boostId || claimed.checkoutId;
       successPath = '/seller/boosts';
+    } else if (action.kind === 'GLOBAL_NOTIFICATION_REQUEST') {
+      result = await invokeCompletionController({
+        handler: createGlobalNotificationRequest,
+        checkout: claimed,
+        body: {
+          title: action.title,
+          message: action.message,
+          productId: action.productId || '',
+          audienceCity: action.audienceCity || '',
+          audienceGender: action.audienceGender || 'all',
+          image: action.image
+        }
+      });
+      const requestId = result?.request?.id || '';
+      title = 'Notification globale PawaPay payée';
+      message = `Une notification globale de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été créée automatiquement après confirmation PawaPay. En attente de validation admin.`;
+      deepLink = requestId
+        ? `/admin/global-notifications?requestId=${encodeURIComponent(String(requestId))}`
+        : '/admin/global-notifications';
+      entityId = requestId || claimed.checkoutId;
+      successPath = '/seller/global-notifications';
     } else if (action.kind === 'SHOP_CONVERSION_REQUEST') {
       result = await completeShopConversionPawaPay({
         checkout: claimed,

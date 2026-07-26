@@ -757,6 +757,15 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = metadata.message && String(metadata.message).trim() ? String(metadata.message).trim() : 'Nouvelle notification.';
       break;
     }
+    case 'sponsored_notification': {
+      title = notification?.display?.title && String(notification.display.title).trim()
+        ? String(notification.display.title).trim()
+        : 'Offre sponsorisée';
+      body = notification?.display?.message && String(notification.display.message).trim()
+        ? String(notification.display.message).trim()
+        : 'Une boutique a une offre pour vous.';
+      break;
+    }
     case 'account_restriction': {
       const restrictionLabel = metadata.restrictionLabel || 'restriction';
       title = 'Restriction de compte';

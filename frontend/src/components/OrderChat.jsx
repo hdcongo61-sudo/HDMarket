@@ -32,7 +32,11 @@ import {
   ExternalLink,
   Archive,
   Trash2,
-  Pencil
+  Pencil,
+  ShoppingBag,
+  Package2,
+  Zap,
+  Circle
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
@@ -41,7 +45,7 @@ import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import { encrypt, decrypt, getSharedSecret } from '../utils/chatEncryption.js';
 import { orderChatKeys } from '../queries/orderChatKeys';
-import { fetchOrderMessagePage, startConversation as startConversationRequest } from '../queries/orderChatApi';
+import { fetchOrderMessagePage, startConversation as startConversationRequest, fetchSellerTemplates, sendCardMessage, fetchSellerAutoReply } from '../queries/orderChatApi';
 import BaseModal from './modals/BaseModal';
 import { appConfirm } from '../utils/appDialog';
 import useReliableMutation from '../hooks/useReliableMutation';
@@ -168,7 +172,7 @@ const QUICK_REPLIES = [
 
 const CHAT_PAGE_SIZE = 20;
 
-export default function OrderChat({ order, conversationId: conversationIdProp = null, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete }) {
+export default function OrderChat({ order, conversationId: conversationIdProp = null, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete, sellerId: sellerIdProp = null, sellerName: sellerNameProp = null }) {
   const { user } = useContext(AuthContext);
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -200,6 +204,12 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isOtherOnline, setIsOtherOnline] = useState(false);
+  const [otherLastSeen, setOtherLastSeen] = useState(null);
+  const [sellerTemplates, setSellerTemplates] = useState([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showSharePicker, setShowSharePicker] = useState(false);
+  const [sendCardLoading, setSendCardLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const socketRef = useRef(null);
@@ -211,15 +221,18 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
   const recordingIntervalRef = useRef(null);
   const audioChunksRef = useRef([]);
 
-  // Get seller info from order
+  // Get seller info from order or from props (plain conversations have no order items)
   const seller = order?.items?.[0]?.snapshot?.shopId
     ? { _id: order.items[0].snapshot.shopId, name: order.items[0].snapshot.shopName }
-    : null;
+    : sellerIdProp
+      ? { _id: sellerIdProp, name: sellerNameProp || 'Vendeur' }
+      : null;
 
-  // Get product info from first item
+  // Get product info from first item (may be null for plain conversations)
   const firstItem = order?.items?.[0];
-  const productName = firstItem?.snapshot?.title || 'Produit';
+  const productName = firstItem?.snapshot?.title || null;
   const productImage = firstItem?.snapshot?.image || null;
+  const hasOrderContext = Boolean(firstItem?.snapshot?.title || order?.deliveryCode || order?.status);
   const productPath = useMemo(() => {
     const slug = firstItem?.snapshot?.slug;
     const id = firstItem?.product;
@@ -349,7 +362,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
     initialPageParam: null,
     queryFn: ({ pageParam }) =>
       fetchOrderMessagePage({
-        orderId,
+        conversationId: orderId,
         before: pageParam,
         limit: CHAT_PAGE_SIZE
       }),
@@ -488,6 +501,14 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
       });
     }
   }, [encryptionEnabled, user?._id, encryptionKey]);
+
+  // Load seller templates when seller opens the chat
+  useEffect(() => {
+    if (!isOpen || !isSeller || !orderId) return;
+    fetchSellerTemplates()
+      .then((templates) => setSellerTemplates(templates))
+      .catch(() => setSellerTemplates([]));
+  }, [isOpen, isSeller, orderId]);
 
   // Filter messages based on search query (must be before any conditional return to satisfy Rules of Hooks)
   const filteredMessages = useMemo(() => {
@@ -1081,6 +1102,66 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
     setDeletingMessageId(null);
   };
 
+  // ─── Card Sharing ──────────────────────────────────────────────────────────
+
+  const handleSendProductCard = async () => {
+    if (!orderId || !firstItem) return;
+    setSendCardLoading(true);
+    setError('');
+    try {
+      await sendCardMessage({
+        conversationId: orderId,
+        cardType: 'product',
+        entityId: firstItem?.product,
+        snapshot: {
+          title: firstItem?.snapshot?.title || productName,
+          image: firstItem?.snapshot?.image || productImage,
+          price: firstItem?.snapshot?.price || firstItem?.price,
+          slug: firstItem?.snapshot?.slug || ''
+        }
+      });
+      setShowSharePicker(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Impossible de partager le produit.');
+    } finally {
+      setSendCardLoading(false);
+    }
+  };
+
+  const handleSendOrderCard = async () => {
+    if (!orderId || !rawOrderId) return;
+    setSendCardLoading(true);
+    setError('');
+    try {
+      await sendCardMessage({
+        conversationId: orderId,
+        cardType: 'order',
+        entityId: rawOrderId,
+        snapshot: {
+          deliveryCode: order?.deliveryCode,
+          status: order?.status,
+          total: order?.total || order?.totalPrice,
+          itemCount: order?.items?.length || 0
+        }
+      });
+      setShowSharePicker(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Impossible de partager la commande.');
+    } finally {
+      setSendCardLoading(false);
+    }
+  };
+
+  // ─── Template Insert ───────────────────────────────────────────────────────
+
+  const handleInsertTemplate = (templateMessage) => {
+    setMessageText(templateMessage);
+    setShowTemplates(false);
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   const canEditMessage = (msg) => {
     if (!msg) return false;
     const isOwn = String(msg.sender?._id) === String(user?._id);
@@ -1309,6 +1390,17 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           typingTimeoutRef.current = setTimeout(() => setTypingIndicator(false), 1600);
         }
       });
+
+      // Presence tracking for the other participant
+      socket.on('presence:update', ({ userId: presenceUserId, online }) => {
+        const otherId = isCustomer ? String(seller?._id) : String(order?.customer?._id);
+        if (String(presenceUserId) === otherId) {
+          setIsOtherOnline(Boolean(online));
+          if (!online) {
+            setOtherLastSeen(new Date().toISOString());
+          }
+        }
+      });
     };
 
     initializeSocket();
@@ -1409,7 +1501,12 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                     {isCustomer ? <Store className="w-6 h-6" /> : <User className="w-6 h-6" />}
                   </div>
                 )}
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-neutral-950" title="En ligne" />
+                <span
+                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-neutral-950 ${
+                    isOtherOnline ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                  title={isOtherOnline ? 'En ligne' : otherLastSeen ? `Vu à ${new Date(otherLastSeen).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : 'Hors ligne'}
+                />
               </div>
 
               <div className="flex-1 min-w-0">
@@ -1422,8 +1519,12 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   {showClientLabel ? (clientName || '—') : recipientName}
                 </h2>
                 <div className="mt-0.5 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-gray-400">
-                  <span className="truncate">#{orderRef}</span>
-                  <span className="flex-shrink-0">·</span>
+                  {hasOrderContext && orderRef && (
+                    <>
+                      <span className="truncate">#{orderRef}</span>
+                      <span className="flex-shrink-0">·</span>
+                    </>
+                  )}
                   <span className="flex items-center gap-1 flex-shrink-0">
                     <Lock className="w-3 h-3" />
                     Sécurisé
@@ -1711,6 +1812,24 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                     const isOwnMessage = String(message.sender?._id) === String(user?._id);
                     const showAvatar = !isOwnMessage && (index === 0 || String(msgs[index - 1]?.sender?._id) !== String(message.sender?._id));
                     const isPending = message.pending === true;
+                    const isSystem = message.messageType === 'system';
+                    const isCard = message.messageType === 'card';
+
+                    // System messages — centered, compact, non-interactive
+                    if (isSystem) {
+                      return (
+                        <div
+                          key={`${String(message._id ?? message._fallbackKey ?? 'sys')}-${String(message.createdAt || '')}-${index}`}
+                          className="flex items-center justify-center my-2"
+                        >
+                          <div className="flex items-center gap-2 rounded-full bg-gray-100/80 px-4 py-1.5 text-xs font-semibold text-slate-500 dark:bg-neutral-800/80 dark:text-gray-400">
+                            <Zap className="w-3 h-3 text-[#e85d00]" />
+                            <span>{message.text}</span>
+                            <span className="text-[10px] opacity-60">{formatTimestamp(message.createdAt)}</span>
+                          </div>
+                        </div>
+                      );
+                    }
 
                     return (
                       <div
@@ -1740,10 +1859,12 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
 
                         <div
                           className={`max-w-[80%] sm:max-w-[75%] group ${
-                            isOwnMessage
-                              ? 'rounded-2xl rounded-br-md bg-[#FFB000] text-white shadow-sm'
-                              : 'rounded-2xl rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
-                          } relative px-4 py-2.5 ${isPending ? 'opacity-80' : ''}`}
+                            isCard
+                              ? 'rounded-2xl rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800 p-0 overflow-hidden'
+                              : isOwnMessage
+                                ? 'rounded-2xl rounded-br-md bg-[#FFB000] text-white shadow-sm'
+                                : 'rounded-2xl rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
+                          } relative ${!isCard ? 'px-4 py-2.5' : ''} ${isPending ? 'opacity-80' : ''}`}
                         >
                           {!isOwnMessage && showAvatar && (
                             <p className="mb-1 text-xs font-black text-[#e85d00] dark:text-orange-300">
@@ -1791,6 +1912,75 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                             </div>
                           ) : (
                             <>
+                          {/* Rich Card (product/order) */}
+                          {isCard && message.card && (
+                            <div className="space-y-2">
+                              {message.card.cardType === 'product' && (
+                                <div className="flex gap-3">
+                                  {message.card.snapshot?.image && (
+                                    <img
+                                      src={message.card.snapshot.image}
+                                      alt={message.card.snapshot?.title || 'Produit'}
+                                      className="h-20 w-20 flex-shrink-0 rounded-xl object-cover"
+                                    />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-black text-slate-950 dark:text-white line-clamp-2">
+                                      {message.card.snapshot?.title || 'Produit'}
+                                    </p>
+                                    {message.card.snapshot?.price != null && (
+                                      <p className="mt-1 text-sm font-black text-[#e85d00]">
+                                        {Number(message.card.snapshot.price).toLocaleString('fr-FR')} FCFA
+                                      </p>
+                                    )}
+                                    {message.card.snapshot?.slug && (
+                                      <Link
+                                        to={buildProductPath({ slug: message.card.snapshot.slug })}
+                                        onClick={closeChat}
+                                        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#e85d00] px-3 py-1.5 text-xs font-black text-white transition-colors hover:bg-[#f45f00]"
+                                      >
+                                        <ShoppingBag className="w-3.5 h-3.5" />
+                                        Voir le produit
+                                      </Link>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              {message.card.cardType === 'order' && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Package2 className="w-5 h-5 text-[#e85d00]" />
+                                    <span className="text-sm font-black text-slate-950 dark:text-white">
+                                      Commande #{message.card.snapshot?.deliveryCode || String(message.card.entityId || '').slice(-6)}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-gray-400">
+                                    <span>Statut: <span className="font-black text-slate-800 dark:text-gray-200">{message.card.snapshot?.status || '—'}</span></span>
+                                    <span>Articles: <span className="font-black text-slate-800 dark:text-gray-200">{message.card.snapshot?.itemCount || 0}</span></span>
+                                    {message.card.snapshot?.total != null && (
+                                      <span className="col-span-2 mt-1 text-sm font-black text-[#e85d00]">
+                                        {Number(message.card.snapshot.total).toLocaleString('fr-FR')} FCFA
+                                      </span>
+                                    )}
+                                  </div>
+                                  <Link
+                                    to={`/orders/detail/${message.card.entityId}`}
+                                    onClick={closeChat}
+                                    className="inline-flex items-center gap-1.5 rounded-full bg-[#e85d00] px-3 py-1.5 text-xs font-black text-white transition-colors hover:bg-[#f45f00]"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    Voir la commande
+                                  </Link>
+                                </div>
+                              )}
+                              {message.text && (
+                                <p className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed mt-2 border-t border-gray-100 dark:border-neutral-800 pt-2">
+                                  {message.text}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
                           {/* Attachments */}
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mb-1.5 flex flex-wrap gap-2">
@@ -2109,6 +2299,82 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                     </div>
                   )}
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Actions Bar (share product/order) — only when there's something to share */}
+        {(hasProductLink || hasOrderContext || (isSeller && sellerTemplates.length > 0)) && (
+        <div className="flex-shrink-0 border-t border-gray-200 bg-white/90 px-4 py-2 dark:border-neutral-800 dark:bg-neutral-950/90">
+          <div className="flex items-center gap-2">
+            {(hasProductLink || hasOrderContext) && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSharePicker(!showSharePicker)}
+                disabled={sendCardLoading}
+                className="flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1.5 text-xs font-black text-slate-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+              >
+                {sendCardLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                Partager
+              </button>
+              {showSharePicker && (
+                <>
+                  <div className="fixed inset-0 z-50" onClick={() => setShowSharePicker(false)} aria-hidden="true" />
+                  <div className="absolute bottom-full left-0 z-50 mb-2 w-56 rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
+                    {hasProductLink && (
+                      <button
+                        type="button"
+                        onClick={handleSendProductCard}
+                        className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800"
+                      >
+                        <ShoppingBag className="w-4 h-4 text-[#e85d00]" />
+                        Partager ce produit
+                      </button>
+                    )}
+                    {hasOrderContext && (
+                    <button
+                      type="button"
+                      onClick={handleSendOrderCard}
+                      className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800"
+                    >
+                      <Package2 className="w-4 h-4 text-[#e85d00]" />
+                      Partager cette commande
+                    </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            )}
+            {isSeller && sellerTemplates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowTemplates(!showTemplates)}
+                className="flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1.5 text-xs font-black text-[#e85d00] ring-1 ring-gray-200 transition-colors hover:bg-orange-50 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Templates
+              </button>
+            )}
+          </div>
+        </div>
+        )}
+
+        {/* Seller Templates Bar */}
+        {showTemplates && isSeller && sellerTemplates.length > 0 && (
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white/90 px-4 py-2 dark:border-neutral-800 dark:bg-neutral-950/90">
+            <div className="flex flex-wrap gap-2">
+              {sellerTemplates.map((template) => (
+                <button
+                  key={template._id}
+                  type="button"
+                  onClick={() => handleInsertTemplate(template.message)}
+                  className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-black text-slate-700 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+                >
+                  {template.label}
+                </button>
               ))}
             </div>
           </div>

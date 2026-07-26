@@ -72,3 +72,62 @@ export const fetchOrderMessagePage = async ({ conversationId, before = null, lim
     nextCursor: Array.isArray(data) ? null : data?.nextCursor || null
   };
 };
+
+// ─── Seller Auto-Reply ────────────────────────────────────────────────────────
+
+export const fetchSellerAutoReply = async () => {
+  const { data } = await api.get('/conversations/seller/auto-reply');
+  return data?.autoReply || null;
+};
+
+export const saveSellerAutoReply = async ({ message, isActive, schedule, cooldownMinutes }) => {
+  const { data } = await api.put('/conversations/seller/auto-reply', {
+    message,
+    isActive,
+    schedule,
+    cooldownMinutes
+  });
+  return data?.autoReply || null;
+};
+
+export const deleteSellerAutoReply = async () => {
+  await api.delete('/conversations/seller/auto-reply');
+};
+
+// ─── Seller Message Templates ─────────────────────────────────────────────────
+
+export const fetchSellerTemplates = async () => {
+  const { data } = await api.get('/conversations/seller/templates');
+  return Array.isArray(data?.templates) ? data.templates : [];
+};
+
+export const createSellerTemplate = async ({ label, message, order = 0 }) => {
+  const { data } = await api.post('/conversations/seller/templates', { label, message, order });
+  return data?.template || null;
+};
+
+export const updateSellerTemplateApi = async (templateId, updates) => {
+  const { data } = await api.patch(`/conversations/seller/templates/${templateId}`, updates);
+  return data?.template || null;
+};
+
+export const deleteSellerTemplateApi = async (templateId) => {
+  await api.delete(`/conversations/seller/templates/${templateId}`);
+};
+
+// ─── Card Messages ────────────────────────────────────────────────────────────
+
+export const sendCardMessage = async ({ conversationId, cardType, entityId, snapshot, text }) => {
+  const payload = {
+    messageType: 'card',
+    card: { cardType, entityId, snapshot },
+    text: text || null
+  };
+  const { data } = await api.post(`/conversations/${conversationId}/messages`, payload, {
+    silentGlobalError: true,
+    headers: {
+      'Idempotency-Key': `card-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    }
+  });
+  return data;
+};

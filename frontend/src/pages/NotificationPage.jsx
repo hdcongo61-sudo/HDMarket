@@ -788,11 +788,11 @@ export default function NotificationPage() {
             <div className="mt-6">
               <div className="rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
                 <NetworkFallbackCard
-                  title={t('notifications.errors.loadTitle', 'Unable to load data.')}
-                  message={t('notifications.errors.load', 'Loading is taking longer than expected. Please try again shortly.')}
+                  title={t('notifications.errors.loadTitle', 'Impossible de charger les données.')}
+                  message={t('notifications.errors.load', 'Le chargement prend plus de temps que prévu. Veuillez réessayer.')}
                   onRetry={refresh}
-                  retryLabel={t('common.retry', 'Retry')}
-                  refreshLabel={t('common.refreshPage', 'Refresh page')}
+                  retryLabel={t('common.retry', 'Réessayer')}
+                  refreshLabel={t('common.refreshPage', 'Actualiser la page')}
                 />
               </div>
             </div>
