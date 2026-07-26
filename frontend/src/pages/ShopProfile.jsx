@@ -1171,6 +1171,7 @@ export default function ShopProfile() {
           user={user}
           whatsappLink={whatsappLink}
           slug={slug}
+          isOwnShop={isOwnShop}
           onMessage={goToMessage}
           onDirections={handleDirections}
           onShare={handleShareShop}

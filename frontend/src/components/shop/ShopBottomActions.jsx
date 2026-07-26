@@ -1,11 +1,12 @@
 import React from 'react';
-import { Heart, Loader2, MessageCircle, Navigation, Share2, Store } from 'lucide-react';
+import { Heart, Loader2, MessageCircle, Navigation, Rocket, Share2, Store, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function ShopBottomActions({
   user,
   whatsappLink,
   slug,
+  isOwnShop,
   onMessage,
   onDirections,
   onShare,
@@ -22,16 +23,34 @@ export default function ShopBottomActions({
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/96 px-3 py-2 [padding-bottom:calc(env(safe-area-inset-bottom)+0.5rem)] dark:border-neutral-800 dark:bg-neutral-950/96">
       <div className="grid grid-cols-[1fr_1fr_1.45fr] gap-2">
-        <button
-          type="button"
-          onClick={onMessage}
-          className={`${btnBase} bg-gray-100 text-[var(--shop-color)] hover:bg-gray-200 dark:bg-neutral-800`}
-        >
-          <MessageCircle size={15} />
-          <span className="truncate">{t('shop_profile.message', 'Message')}</span>
-        </button>
+        {isOwnShop ? (
+          <Link
+            to="/seller/boosts"
+            className={`${btnBase} bg-gray-100 text-[var(--shop-color)] hover:bg-gray-200 dark:bg-neutral-800`}
+          >
+            <Rocket size={15} />
+            <span className="truncate">{t('shop_profile.boost_shop', 'Booster')}</span>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={onMessage}
+            className={`${btnBase} bg-gray-100 text-[var(--shop-color)] hover:bg-gray-200 dark:bg-neutral-800`}
+          >
+            <MessageCircle size={15} />
+            <span className="truncate">{t('shop_profile.message', 'Message')}</span>
+          </button>
+        )}
 
-        {user && whatsappLink ? (
+        {isOwnShop ? (
+          <Link
+            to="/my/settlements"
+            className={`${btnBase} bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-100`}
+          >
+            <WalletCards size={15} />
+            <span className="truncate">Versements</span>
+          </Link>
+        ) : user && whatsappLink ? (
           <a
             href={whatsappLink}
             target="_blank"
@@ -58,7 +77,7 @@ export default function ShopBottomActions({
           className={`${btnBase} bg-[var(--shop-color)] text-[var(--shop-color-contrast)] shadow-sm hover:brightness-95`}
         >
           <Store size={15} />
-          <span className="truncate">{t('shop_profile.view_products', 'Produits')}</span>
+          <span className="truncate">{isOwnShop ? t('shop_profile.edit_profile', 'Modifier profil') : t('shop_profile.view_products', 'Produits')}</span>
         </button>
       </div>
 

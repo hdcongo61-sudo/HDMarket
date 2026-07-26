@@ -188,9 +188,15 @@ export default function GlobalNotificationRequestForm({ products = [], defaultCi
 
       <div className="mt-4 space-y-3 rounded-2xl border border-gray-200 bg-gray-100/45 p-3">
         <div className="rounded-2xl border border-gray-200 bg-white/85 p-3">
-          <p className="text-sm font-semibold text-neutral-900">
-            Montant à payer: <span className="text-base">{formatPrice(preview?.price || 0)}</span>
-          </p>
+          {preview && preview.price === null ? (
+            <p className="text-sm font-semibold text-amber-700">
+              {preview.message || 'Tarification pas encore configurée par un administrateur.'}
+            </p>
+          ) : (
+            <p className="text-sm font-semibold text-neutral-900">
+              Montant à payer: <span className="text-base">{formatPrice(preview?.price || 0)}</span>
+            </p>
+          )}
           <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-700">
             <Users className="h-3.5 w-3.5" />
             {previewLoading

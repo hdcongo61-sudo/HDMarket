@@ -179,7 +179,13 @@ export const getGlobalNotificationPricePreview = asyncHandler(async (req, res) =
   ]);
 
   if (!pricing) {
-    return res.status(404).json({
+    // Not configured yet, not an error — the seller-facing form renders this as
+    // "unavailable" rather than a failed request (avoids console/network noise
+    // on every city/gender change while the admin hasn't set a price yet).
+    return res.json({
+      price: null,
+      city,
+      estimatedReach,
       message: 'Aucune tarification active pour les notifications globales. Contactez un administrateur.'
     });
   }

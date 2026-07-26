@@ -1,5 +1,6 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, Landmark, RefreshCw, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, Clock3, Landmark, RefreshCw, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
@@ -74,6 +75,13 @@ export default function SellerSettlements() {
     <main className="mx-auto min-h-screen max-w-6xl bg-[#f7f7f5] px-4 py-6 pb-28 sm:px-6">
       <header className="mb-5 flex items-start justify-between gap-3">
         <div>
+          <Link
+            to="/my"
+            className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-700 hover:bg-neutral-100"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Link>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#e85d00]">Finances boutique</p>
           <h1 className="mt-1 text-2xl font-black text-neutral-950">Versements des ventes</h1>
           <p className="mt-1 max-w-2xl text-sm text-neutral-600">Après la livraison et le délai de contestation, HDMarket déduit la commission puis PawaPay envoie automatiquement le solde sur votre Mobile Money.</p>
