@@ -23,7 +23,7 @@ const mapForgotErrorMessage = (error, scope = 'send', isFrench = true) => {
     }
     return isFrench
       ? 'Impossible d’envoyer le code pour le moment. Veuillez réessayer.'
-      : 'Impossible d\'envoyer le code. Veuillez réessayer.';
+      : 'Unable to send code right now. Please retry.';
   }
 
   if (status === 400 || status === 401 || rawMessage.includes('code') || rawMessage.includes('invalid')) {
@@ -38,7 +38,7 @@ const mapForgotErrorMessage = (error, scope = 'send', isFrench = true) => {
   }
   return isFrench
     ? 'Impossible de réinitialiser le mot de passe pour le moment.'
-    : 'Impossible de réinitialiser le mot de passe.';
+    : 'Unable to reset password right now.';
 };
 
 const getPasswordChecks = (password = '') => {

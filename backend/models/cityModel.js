@@ -8,6 +8,10 @@ const citySchema = new mongoose.Schema(
     order: { type: Number, default: 0, min: 0 },
     deliveryAvailable: { type: Boolean, default: true },
     boostMultiplier: { type: Number, default: 1, min: 0 },
+    // City Center — fallback GPS anchor for the parcel pricing engine when
+    // neither GPS, a landmark, nor a commune center could be resolved.
+    latitude: { type: Number, default: null, min: -90, max: 90 },
+    longitude: { type: Number, default: null, min: -180, max: 180 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
   },
   { timestamps: true }

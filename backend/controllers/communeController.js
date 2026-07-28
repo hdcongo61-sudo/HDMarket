@@ -19,7 +19,7 @@ export const listCommunesAdmin = asyncHandler(async (req, res) => {
 });
 
 export const createCommuneAdmin = asyncHandler(async (req, res) => {
-  const { name, cityId, deliveryPolicy, fixedFee, isActive, order } = req.body || {};
+  const { name, cityId, deliveryPolicy, fixedFee, isActive, order, latitude, longitude, zoneId } = req.body || {};
 
   const trimmedName = String(name || '').trim();
   if (!trimmedName) {
@@ -46,6 +46,9 @@ export const createCommuneAdmin = asyncHandler(async (req, res) => {
     fixedFee: Math.max(0, Number(fixedFee || 0)),
     isActive: isActive !== false,
     order: Number.isFinite(Number(order)) ? Number(order) : 0,
+    latitude: Number.isFinite(Number(latitude)) ? Number(latitude) : null,
+    longitude: Number.isFinite(Number(longitude)) ? Number(longitude) : null,
+    zoneId: zoneId || null,
     updatedBy: req.user?._id || null
   });
 
@@ -59,7 +62,7 @@ export const updateCommuneAdmin = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commune introuvable.' });
   }
 
-  const { name, cityId, deliveryPolicy, fixedFee, isActive, order } = req.body || {};
+  const { name, cityId, deliveryPolicy, fixedFee, isActive, order, latitude, longitude, zoneId } = req.body || {};
 
   if (name !== undefined) {
     const trimmed = String(name || '').trim();
@@ -87,6 +90,9 @@ export const updateCommuneAdmin = asyncHandler(async (req, res) => {
   if (order !== undefined) {
     commune.order = Number.isFinite(Number(order)) ? Number(order) : 0;
   }
+  if (latitude !== undefined) commune.latitude = latitude === null || latitude === '' ? null : Number(latitude);
+  if (longitude !== undefined) commune.longitude = longitude === null || longitude === '' ? null : Number(longitude);
+  if (zoneId !== undefined) commune.zoneId = zoneId || null;
   commune.updatedBy = req.user?._id || null;
 
   await commune.save();

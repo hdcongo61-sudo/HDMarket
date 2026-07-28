@@ -69,6 +69,11 @@ const productSchema = new mongoose.Schema(
     subcategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
     legacyCategoryName: { type: String, default: '' },
     legacySubcategoryName: { type: String, default: '' },
+    // Perishable goods (Food / Denrée périssable categories) only — set once
+    // at creation and never editable afterward (see updateProduct), so the
+    // expiry window a buyer sees can't be quietly changed later.
+    perishableStartDate: { type: Date, default: null },
+    perishableEndDate: { type: Date, default: null },
     condition: { type: String, enum: ['new', 'used'], default: 'new' },
     lastStatusBeforeDisable: {
       type: String,

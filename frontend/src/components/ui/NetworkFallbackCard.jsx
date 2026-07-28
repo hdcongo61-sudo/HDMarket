@@ -2,11 +2,11 @@ import React from 'react';
 import { RefreshCcw } from 'lucide-react';
 
 export default function NetworkFallbackCard({
-  title = 'Impossible de charger les données.',
-  message = 'Le chargement prend plus de temps que prévu. Veuillez réessayer.',
+  title = 'Unable to load data.',
+  message = 'Loading is taking longer than expected. Please try again shortly.',
   onRetry,
-  retryLabel = 'Réessayer',
-  refreshLabel = 'Actualiser la page'
+  retryLabel = 'Retry',
+  refreshLabel = 'Refresh page'
 }) {
   return (
     <section className="glass-card rounded-2xl p-4 shadow-sm sm:p-5">

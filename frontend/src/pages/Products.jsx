@@ -47,6 +47,7 @@ const [page, setPage] = useState(initialPageRef.current);
 const [isMobileView, setIsMobileView] = useState(() =>
   typeof window === 'undefined' ? false : window.innerWidth <= 767
 );
+const [showBackToTop, setShowBackToTop] = useState(false);
   const {
     rapid3GActive,
     compactProductsPageSize,
@@ -211,6 +212,17 @@ const fetchProducts = useCallback(async () => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, loadMoreError, page, totalPages]);
+
+  // Back-to-top visibility
+  useEffect(() => {
+    if (!isMobileView) return;
+    const handleBackToTop = () => setShowBackToTop(window.scrollY > 600);
+    window.addEventListener('scroll', handleBackToTop, { passive: true });
+    handleBackToTop();
+    return () => window.removeEventListener('scroll', handleBackToTop);
+  }, [isMobileView]);
+
+  const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return undefined;
@@ -512,11 +524,11 @@ const fetchProducts = useCallback(async () => {
 
         {error && (
           <NetworkFallbackCard
-            title="Impossible de charger les données."
+            title="Unable to load data."
             message={error}
             onRetry={fetchProducts}
-            retryLabel="Réessayer"
-            refreshLabel="Actualiser la page"
+            retryLabel="Retry"
+            refreshLabel="Refresh page"
           />
         )}
 
@@ -563,6 +575,18 @@ const fetchProducts = useCallback(async () => {
         )}
 
       </div>
+
+      {/* Back-to-Top FAB */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-24 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-900 text-white shadow-lg shadow-black/20 active:scale-90 transition-transform"
+          aria-label="Retour en haut"
+        >
+          <svg className="h-5 w-5 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+        </button>
+      )}
     </div>
   );
 }

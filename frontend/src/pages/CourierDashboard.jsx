@@ -927,11 +927,11 @@ export default function CourierDashboard() {
           ) : hardError ? (
             <div className="rounded-2xl border border-gray-100 bg-white p-1 dark:border-neutral-800 dark:bg-neutral-950">
               <NetworkFallbackCard
-                title={extractMessage(hardError, 'Impossible de charger les données.')}
+                title={extractMessage(hardError, 'Unable to load data.')}
                 message={
                   timeoutDetected
-                    ? 'Le chargement prend plus de temps que prévu. Veuillez réessayer.'
-                    : 'Impossible de charger les livraisons.'
+                    ? 'Loading is taking longer than expected. Please try again shortly.'
+                    : 'Unable to load deliveries right now.'
                 }
                 onRetry={handleRefresh}
                 retryLabel="Réessayer"

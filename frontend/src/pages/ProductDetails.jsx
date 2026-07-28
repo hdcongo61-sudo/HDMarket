@@ -2233,10 +2233,16 @@ export default function ProductDetails() {
       return (
         <div className="min-h-screen bg-gray-50">
           <div className="animate-pulse">
-            <div className="w-full aspect-square bg-gray-200" />
+            <div className="relative w-full aspect-square bg-gray-200 overflow-hidden">
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent motion-safe:animate-[shimmer_1.4s_infinite]" />
+            </div>
             <div className="p-4 space-y-3">
-              <div className="h-7 bg-gray-200 rounded w-2/5" />
-              <div className="h-5 bg-gray-200 rounded w-4/5" />
+              <div className="h-7 bg-gray-200 rounded w-2/5 relative overflow-hidden">
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent motion-safe:animate-[shimmer_1.4s_infinite]" />
+              </div>
+              <div className="h-5 bg-gray-200 rounded w-4/5 relative overflow-hidden">
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent motion-safe:animate-[shimmer_1.4s_infinite]" style={{ animationDelay: '0.1s' }} />
+              </div>
               <div className="h-4 bg-gray-200 rounded w-3/5" />
               <div className="flex gap-2">
                 <div className="h-8 bg-gray-200 rounded-full w-16" />
@@ -2563,6 +2569,39 @@ export default function ProductDetails() {
           </span>
         </div>
       </section>
+
+      {product.perishableEndDate && (
+        <section className="bg-white px-4 pb-4">
+          {(() => {
+            const endDate = new Date(product.perishableEndDate);
+            const startDate = product.perishableStartDate ? new Date(product.perishableStartDate) : null;
+            const now = new Date();
+            const isExpired = endDate.getTime() < now.getTime();
+            const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+            return (
+              <div
+                className={`flex items-start gap-2.5 rounded-xl border p-3 ${
+                  isExpired ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+                }`}
+              >
+                <Clock size={16} className="mt-0.5 shrink-0" />
+                <div className="min-w-0 text-[12px] font-semibold leading-5">
+                  {isExpired ? (
+                    <p className="font-black">Produit périmé depuis le {endDate.toLocaleDateString('fr-FR', dateOptions)}</p>
+                  ) : (
+                    <>
+                      <p className="font-black">À consommer avant le {endDate.toLocaleDateString('fr-FR', dateOptions)}</p>
+                      {startDate && (
+                        <p className="mt-0.5 opacity-80">Depuis le {startDate.toLocaleDateString('fr-FR', dateOptions)}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </section>
+      )}
 
       {socialVideo && (
         <>
@@ -3185,7 +3224,7 @@ export default function ProductDetails() {
                   ? 'bg-gray-100 text-gray-400'
                   : 'border border-[#e85d00] bg-[#FFF0E4] text-[#e85d00]'}`}>
                 <ShoppingCart size={16} className="flex-shrink-0" />
-                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir les options' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
+                <span className="truncate">{addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir les options' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
               </button>
               <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
                 disabled={addingToCart || isPurchaseOutOfStock}
@@ -3195,7 +3234,7 @@ export default function ProductDetails() {
                     ? 'bg-black text-white'
                     : 'bg-[#e85d00] text-white shadow-sm'}`}>
                 <Zap size={16} className="flex-shrink-0" fill="currentColor" />
-                <span className="truncate">{isOptionSelectionBlocked ? 'Choisir' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Commander' : addingToCart ? '...' : 'Acheter'}</span>
+                <span className="truncate">{addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Commander' : 'Acheter'}</span>
               </button>
             </div>
           </div>

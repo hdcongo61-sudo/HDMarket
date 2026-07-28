@@ -9,7 +9,7 @@ export const listCitiesAdmin = asyncHandler(async (req, res) => {
 });
 
 export const createCityAdmin = asyncHandler(async (req, res) => {
-  const { name, isActive, isDefault, order, deliveryAvailable, boostMultiplier } = req.body || {};
+  const { name, isActive, isDefault, order, deliveryAvailable, boostMultiplier, latitude, longitude } = req.body || {};
 
   const trimmedName = String(name || '').trim();
   if (!trimmedName) {
@@ -33,6 +33,8 @@ export const createCityAdmin = asyncHandler(async (req, res) => {
     order: Number.isFinite(Number(order)) ? Number(order) : 0,
     deliveryAvailable: deliveryAvailable !== false,
     boostMultiplier: Math.max(0, Number(boostMultiplier || 1)),
+    latitude: Number.isFinite(Number(latitude)) ? Number(latitude) : null,
+    longitude: Number.isFinite(Number(longitude)) ? Number(longitude) : null,
     updatedBy: req.user?._id || null
   });
 
@@ -46,7 +48,7 @@ export const updateCityAdmin = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Ville introuvable.' });
   }
 
-  const { name, isActive, isDefault, order, deliveryAvailable, boostMultiplier } = req.body || {};
+  const { name, isActive, isDefault, order, deliveryAvailable, boostMultiplier, latitude, longitude } = req.body || {};
 
   if (order !== undefined && (!Number.isFinite(Number(order)) || Number(order) < 0)) {
     return res.status(400).json({ message: 'L’ordre doit être positif ou égal à zéro.' });
@@ -84,6 +86,8 @@ export const updateCityAdmin = asyncHandler(async (req, res) => {
   if (order !== undefined) city.order = Number(order);
   if (deliveryAvailable !== undefined) city.deliveryAvailable = Boolean(deliveryAvailable);
   if (boostMultiplier !== undefined) city.boostMultiplier = Number(boostMultiplier);
+  if (latitude !== undefined) city.latitude = latitude === null || latitude === '' ? null : Number(latitude);
+  if (longitude !== undefined) city.longitude = longitude === null || longitude === '' ? null : Number(longitude);
   city.updatedBy = req.user?._id || null;
 
   await city.save();

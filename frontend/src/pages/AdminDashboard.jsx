@@ -104,14 +104,18 @@ const formatMonthLabel = (key) => {
   return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 };
 
-function SectionStatCard({ label, value, helper, icon: Icon, variant: _variant = 'blue' }) {
+function SectionStatCard({ label, value, helper, icon: Icon, variant: _variant = 'blue', loading }) {
   return (
     <article className="rounded-2xl border border-gray-100 bg-white px-4 py-3.5 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-400">{label}</p>
-          <p className="mt-1.5 text-2xl font-black leading-none text-gray-900 dark:text-white">{value}</p>
-          {helper ? <p className="mt-1.5 truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{helper}</p> : null}
+          {loading ? (
+            <div className="mt-1.5 h-7 w-20 animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-800" />
+          ) : (
+            <p className="mt-1.5 text-2xl font-black leading-none text-gray-900 dark:text-white">{value}</p>
+          )}
+          {helper && !loading ? <p className="mt-1.5 truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{helper}</p> : null}
         </div>
         {Icon && (
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
@@ -238,7 +242,7 @@ const REALTIME_WINDOW_OPTIONS = [
   { value: 180, label: '180m' }
 ];
 
-function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
+function StatCard({ title, value, subtitle, highlight, icon: Icon, trend, loading }) {
   return (
     <article
       className={`rounded-2xl border p-5 ${highlight
@@ -250,10 +254,14 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend }) {
           <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-400">
             {title}
           </p>
-          <p className="mt-2 text-3xl font-black leading-none text-gray-900 dark:text-white">
-            {value}
-          </p>
-          {subtitle && (
+          {loading ? (
+            <div className="mt-2 h-8 w-24 animate-pulse rounded-lg bg-gray-100 dark:bg-neutral-800" />
+          ) : (
+            <p className="mt-2 text-3xl font-black leading-none text-gray-900 dark:text-white">
+              {value}
+            </p>
+          )}
+          {subtitle && !loading && (
             <p className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-neutral-400">
               {trend && (
                 <TrendingUp size={12} className={trend > 0 ? 'text-emerald-500' : 'text-red-500'} />

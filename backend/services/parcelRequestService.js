@@ -8,19 +8,20 @@
 import ParcelRequest from '../models/parcelRequestModel.js';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
 import User from '../models/userModel.js';
-import { getManyRuntimeConfigs, getRuntimeConfig } from './configService.js';
+import { getRuntimeConfig } from './configService.js';
 import { createNotification } from '../utils/notificationService.js';
 import { createAuditLogEntry } from './auditLogService.js';
 import { invalidateAdminCache, invalidateUserCache } from '../utils/cache.js';
 import {
   appendTimeline,
   emitNotificationBatch,
-  extractLngLatFromGeoPoint,
-  haversineMeters,
   hashPinCode,
   encryptDeliveryPin,
   decryptDeliveryPin
 } from '../controllers/courierDeliveryController.js';
+import { estimateDeliveryPrice, finalizePromotionUsage } from './deliveryPricingEngine/DeliveryPricingEngine.js';
+import { validatePriceAdjustment } from './deliveryPricingEngine/DriverAdjustmentService.js';
+import { splitDeliveryCommission } from './deliveryPricingEngine/CommissionService.js';
 
 const createHttpError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -43,51 +44,28 @@ const normalizeLocation = (raw = {}) => ({
   communeName: String(raw.communeName || '').trim(),
   address: String(raw.address || '').trim(),
   coordinates: toGeoPoint(raw.coordinates),
+  // Explicit landmark pick from the request form's autocomplete — the
+  // pricing engine looks this up server-side rather than trusting any
+  // client-supplied coordinates for it (see LocationResolverService).
+  landmarkId: raw.landmarkId || null,
   contactName: String(raw.contactName || '').trim(),
   contactPhone: String(raw.contactPhone || '').trim()
 });
 
 /**
- * Distance-based pricing when both ends have GPS coordinates (from the
- * requester's "use my location" capture); otherwise a same-commune /
- * cross-commune flat rate, since street-address geocoding isn't wired up.
+ * Delegates to the modular DeliveryPricingEngine (GPS -> landmark -> commune
+ * -> city location resolution, zone/package/weight/speed/time/promotion
+ * pricing). Kept as a thin wrapper so callers (this file + the controller)
+ * don't need to know the engine exists.
  */
-export const estimateParcelPrice = async ({ pickup, dropoff }) => {
-  const settings = await getManyRuntimeConfigs([
-    'parcel_delivery_base_price',
-    'parcel_delivery_price_per_km',
-    'parcel_delivery_min_price',
-    'parcel_delivery_same_commune_price',
-    'parcel_delivery_cross_commune_price',
-    'parcel_delivery_max_distance_km'
-  ]);
-
-  const minPrice = Math.max(0, Number(settings.parcel_delivery_min_price || 1000));
-  const pickupCoords = extractLngLatFromGeoPoint(pickup?.coordinates);
-  const dropoffCoords = extractLngLatFromGeoPoint(dropoff?.coordinates);
-  const distanceMeters = haversineMeters(pickupCoords, dropoffCoords);
-
-  if (Number.isFinite(distanceMeters)) {
-    const maxDistanceKm = Math.max(1, Number(settings.parcel_delivery_max_distance_km || 30));
-    if (distanceMeters / 1000 > maxDistanceKm) {
-      throw createHttpError(
-        `La distance dépasse la zone de service (${maxDistanceKm} km max).`,
-        400
-      );
-    }
-    const basePrice = Math.max(0, Number(settings.parcel_delivery_base_price || 1000));
-    const pricePerKm = Math.max(0, Number(settings.parcel_delivery_price_per_km || 150));
-    const price = basePrice + pricePerKm * (distanceMeters / 1000);
-    return { distanceMeters: Math.round(distanceMeters), price: Math.max(minPrice, Math.round(price)) };
-  }
-
-  const sameCommune =
-    pickup?.communeId && dropoff?.communeId && String(pickup.communeId) === String(dropoff.communeId);
-  const flatPrice = sameCommune
-    ? Number(settings.parcel_delivery_same_commune_price || 1500)
-    : Number(settings.parcel_delivery_cross_commune_price || 2500);
-  return { distanceMeters: 0, price: Math.max(minPrice, Math.round(flatPrice)) };
-};
+export const estimateParcelPrice = async ({
+  pickup,
+  dropoff,
+  packageTypeId = null,
+  weightKg = null,
+  deliverySpeed = 'STANDARD',
+  promoCode = ''
+}) => estimateDeliveryPrice({ pickup, dropoff, packageTypeId, weightKg, deliverySpeed, promoCode });
 
 export const createParcelRequest = async ({
   requesterId,
@@ -97,7 +75,11 @@ export const createParcelRequest = async ({
   authorization = {},
   paymentMethod = 'COD',
   paymentStatus = 'PENDING',
-  pawaPayCheckoutId = ''
+  pawaPayCheckoutId = '',
+  packageTypeId = null,
+  weightKg = null,
+  deliverySpeed = 'STANDARD',
+  promoCode = ''
 }) => {
   const enabled = await getRuntimeConfig('enable_parcel_delivery', { fallback: true });
   if (!enabled) throw createHttpError('La livraison de colis est désactivée.', 403);
@@ -111,17 +93,31 @@ export const createParcelRequest = async ({
     throw createHttpError('Une photo de justificatif (facture, reçu...) est requise.', 400);
   }
 
-  const { distanceMeters, price } = await estimateParcelPrice({
-    pickup: normalizedPickup,
-    dropoff: normalizedDropoff
-  });
+  const { distanceMeters, price, breakdown, resolvedPickup, resolvedDropoff, appliedPromotionId } =
+    await estimateParcelPrice({
+      pickup: normalizedPickup,
+      dropoff: normalizedDropoff,
+      packageTypeId,
+      weightKg,
+      deliverySpeed,
+      promoCode
+    });
+  const { platformCommission, courierEarning } = await splitDeliveryCommission(price);
 
   const pinCode = String(Math.floor(1000 + Math.random() * 9000));
 
   const parcelRequest = await ParcelRequest.create({
     requesterId,
-    pickup: normalizedPickup,
-    dropoff: normalizedDropoff,
+    pickup: {
+      ...normalizedPickup,
+      landmarkId: resolvedPickup?.landmarkId || null,
+      resolvedFrom: resolvedPickup?.resolvedFrom || 'UNRESOLVED'
+    },
+    dropoff: {
+      ...normalizedDropoff,
+      landmarkId: resolvedDropoff?.landmarkId || null,
+      resolvedFrom: resolvedDropoff?.resolvedFrom || 'UNRESOLVED'
+    },
     parcelDescription: String(parcelDescription || '').trim().slice(0, 300),
     authorization: {
       proofImageUrl: String(authorization.proofImageUrl || '').trim(),
@@ -130,6 +126,13 @@ export const createParcelRequest = async ({
     },
     distanceMeters,
     deliveryPrice: price,
+    platformCommission,
+    courierEarning,
+    priceBreakdown: breakdown,
+    packageType: packageTypeId || null,
+    weightKg: Number.isFinite(Number(weightKg)) ? Number(weightKg) : null,
+    deliverySpeed: String(deliverySpeed || 'STANDARD').toUpperCase(),
+    promoCode: appliedPromotionId ? String(promoCode || '').trim().toUpperCase() : '',
     paymentMethod,
     paymentStatus,
     pawaPayCheckoutId,
@@ -139,7 +142,10 @@ export const createParcelRequest = async ({
     timeline: [{ type: 'PARCEL_REQUEST_CREATED', by: requesterId, at: new Date(), meta: { price } }]
   });
 
-  await invalidateAdminCache(['admin', 'dashboard', 'delivery']);
+  await Promise.all([
+    invalidateAdminCache(['admin', 'dashboard', 'delivery']),
+    finalizePromotionUsage(appliedPromotionId)
+  ]);
 
   const plain = parcelRequest.toObject();
   plain.deliveryPinCode = pinCode;
@@ -296,7 +302,14 @@ export const getAdminParcelStats = async () => {
     ParcelRequest.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
     ParcelRequest.aggregate([
       { $match: { status: 'DELIVERED' } },
-      { $group: { _id: null, total: { $sum: '$deliveryPrice' } } }
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$deliveryPrice' },
+          totalCommission: { $sum: '$platformCommission' },
+          totalCourierEarnings: { $sum: '$courierEarning' }
+        }
+      }
     ])
   ]);
 
@@ -312,7 +325,9 @@ export const getAdminParcelStats = async () => {
     inProgress: counts.IN_PROGRESS || 0,
     delivered: counts.DELIVERED || 0,
     canceled: (counts.CANCELED || 0) + (counts.FAILED || 0) + (counts.REJECTED || 0),
-    totalRevenue: revenueAgg[0]?.total || 0
+    totalRevenue: revenueAgg[0]?.total || 0,
+    totalCommission: revenueAgg[0]?.totalCommission || 0,
+    totalCourierEarnings: revenueAgg[0]?.totalCourierEarnings || 0
   };
 };
 
@@ -444,5 +459,117 @@ export const assignCourierToParcelRequest = async ({ requestId, deliveryGuyId, a
     invalidateAdminCache(['admin', 'dashboard', 'delivery'])
   ]);
 
+  return parcelRequest;
+};
+
+// ─── DRIVER PRICE ADJUSTMENT ────────────────────────────────
+
+export const requestParcelPriceAdjustment = async ({ requestId, deliveryGuyId, actorId, amount, reason = '' }) => {
+  const parcelRequest = await ParcelRequest.findById(requestId);
+  if (!parcelRequest) throw createHttpError('Demande introuvable.', 404);
+  if (String(parcelRequest.assignedDeliveryGuyId || '') !== String(deliveryGuyId)) {
+    throw createHttpError('Vous n’êtes pas assigné à cette course.', 403);
+  }
+  if (['DELIVERED', 'CANCELED', 'FAILED'].includes(parcelRequest.status)) {
+    throw createHttpError('Cette course est clôturée.', 409);
+  }
+  if (parcelRequest.priceAdjustment?.status === 'PENDING') {
+    throw createHttpError('Un ajustement est déjà en attente pour cette course.', 409);
+  }
+
+  const validation = await validatePriceAdjustment({
+    estimatedPrice: parcelRequest.deliveryPrice,
+    amount
+  });
+  if (!validation.allowed) {
+    throw createHttpError(validation.reason, 400);
+  }
+
+  parcelRequest.priceAdjustment = {
+    amount: Number(amount),
+    reason: String(reason || '').trim().slice(0, 300),
+    status: 'PENDING',
+    requestedBy: actorId,
+    requestedAt: new Date(),
+    respondedAt: null
+  };
+  appendTimeline(parcelRequest, {
+    type: 'PRICE_ADJUSTMENT_REQUESTED',
+    by: actorId,
+    meta: { amount: Number(amount), reason }
+  });
+  await parcelRequest.save();
+
+  createNotification({
+    userId: parcelRequest.requesterId,
+    actorId,
+    type: 'parcel_request_assigned',
+    allowSelf: true,
+    priority: 'HIGH',
+    pushEnabled: true,
+    metadata: {
+      title: 'Ajustement de prix proposé',
+      message: `Le livreur propose un ajustement de ${Number(amount) > 0 ? '+' : ''}${amount} CFA${reason ? ` : ${reason}` : ''}.`
+    },
+    entityType: 'parcel_request',
+    entityId: String(parcelRequest._id)
+  }).catch(() => {});
+
+  await invalidateUserCache(parcelRequest.requesterId, ['notifications']);
+  return parcelRequest;
+};
+
+export const respondToParcelPriceAdjustment = async ({ requestId, requesterId, approve }) => {
+  const parcelRequest = await ParcelRequest.findOne({ _id: requestId, requesterId });
+  if (!parcelRequest) throw createHttpError('Demande introuvable.', 404);
+  if (parcelRequest.priceAdjustment?.status !== 'PENDING') {
+    throw createHttpError('Aucun ajustement en attente pour cette course.', 409);
+  }
+
+  parcelRequest.priceAdjustment.status = approve ? 'APPROVED' : 'REJECTED';
+  parcelRequest.priceAdjustment.respondedAt = new Date();
+  if (approve) {
+    parcelRequest.deliveryPrice = Math.max(
+      0,
+      Number(parcelRequest.deliveryPrice || 0) + Number(parcelRequest.priceAdjustment.amount || 0)
+    );
+    parcelRequest.priceBreakdown = [
+      ...(parcelRequest.priceBreakdown || []),
+      { label: 'Ajustement livreur', amount: Number(parcelRequest.priceAdjustment.amount || 0) }
+    ];
+    const { platformCommission, courierEarning } = await splitDeliveryCommission(parcelRequest.deliveryPrice);
+    parcelRequest.platformCommission = platformCommission;
+    parcelRequest.courierEarning = courierEarning;
+  }
+  appendTimeline(parcelRequest, {
+    type: approve ? 'PRICE_ADJUSTMENT_APPROVED' : 'PRICE_ADJUSTMENT_REJECTED',
+    by: requesterId,
+    meta: { amount: parcelRequest.priceAdjustment.amount }
+  });
+  await parcelRequest.save();
+
+  if (parcelRequest.assignedDeliveryGuyId) {
+    const deliveryGuy = await DeliveryGuy.findById(parcelRequest.assignedDeliveryGuyId).select('userId').lean();
+    if (deliveryGuy?.userId) {
+      createNotification({
+        userId: deliveryGuy.userId,
+        actorId: requesterId,
+        type: 'parcel_request_assigned',
+        allowSelf: false,
+        priority: 'HIGH',
+        pushEnabled: true,
+        metadata: {
+          title: approve ? 'Ajustement approuvé' : 'Ajustement refusé',
+          message: approve
+            ? `Le client a approuvé l’ajustement. Nouveau prix : ${parcelRequest.deliveryPrice} CFA.`
+            : 'Le client a refusé votre ajustement de prix.'
+        },
+        entityType: 'parcel_request',
+        entityId: String(parcelRequest._id)
+      }).catch(() => {});
+    }
+  }
+
+  await invalidateAdminCache(['admin', 'dashboard', 'delivery']);
   return parcelRequest;
 };

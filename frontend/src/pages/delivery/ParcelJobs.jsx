@@ -113,7 +113,8 @@ function ParcelJobCard({ job, onChange }) {
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             <span>
               {isClaimable ? 'Disponible' : STAGE_LABELS[currentStage] || currentStage} ·{' '}
-              {formatCurrency(job.deliveryPrice)}
+              {formatCurrency(job.courierEarning || job.deliveryPrice)}
+              {job.courierEarning > 0 && job.courierEarning < job.deliveryPrice ? ' (net)' : ''}
             </span>
             {!isClaimable && (
               <span
@@ -217,6 +218,11 @@ function ParcelJobCard({ job, onChange }) {
               {job.paymentMethod === 'PAWAPAY'
                 ? `Déjà payé avec PawaPay (${formatCurrency(job.deliveryPrice)}) — ne redemandez rien au client.`
                 : `À collecter en espèces à la livraison : ${formatCurrency(job.deliveryPrice)}.`}
+              {job.courierEarning > 0 && job.courierEarning < job.deliveryPrice && (
+                <p className="mt-1 font-semibold opacity-80">
+                  Votre part après commission : {formatCurrency(job.courierEarning)}
+                </p>
+              )}
             </div>
           )}
 

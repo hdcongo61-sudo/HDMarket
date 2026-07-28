@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api, { isApiCanceledError } from '../services/api';
 import ProductCard from '../components/ProductCard';
@@ -50,6 +50,7 @@ export default function CategoryProducts() {
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth <= 767
   );
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const {
     rapid3GActive,
     compactProductsPageSize,
@@ -247,6 +248,17 @@ export default function CategoryProducts() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, loadMoreError, page, totalPages]);
+
+  // Back-to-top visibility
+  useEffect(() => {
+    if (!isMobileView) return;
+    const t = () => setShowBackToTop(window.scrollY > 600);
+    window.addEventListener('scroll', t, { passive: true });
+    t();
+    return () => window.removeEventListener('scroll', t);
+  }, [isMobileView]);
+
+  const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
 
   useEffect(() => {
     if (viewMode === 'list') return undefined;
@@ -493,11 +505,11 @@ export default function CategoryProducts() {
 
       {error && (
         <NetworkFallbackCard
-          title="Impossible de charger les données."
+          title="Unable to load data."
           message={error}
           onRetry={() => setLoadMoreRetryTick((tick) => tick + 1)}
-          retryLabel="Réessayer"
-          refreshLabel="Actualiser la page"
+          retryLabel="Retry"
+          refreshLabel="Refresh page"
         />
       )}
 
@@ -555,6 +567,13 @@ export default function CategoryProducts() {
         </div>
       )}
     </div>
+
+    {/* Back-to-Top FAB */}
+    {showBackToTop && (
+      <button type="button" onClick={scrollToTop} className="fixed bottom-24 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-900 text-white shadow-lg shadow-black/20 active:scale-90 transition-transform" aria-label="Retour en haut">
+        <svg className="h-5 w-5 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+      </button>
+    )}
     </div>
   );
 }

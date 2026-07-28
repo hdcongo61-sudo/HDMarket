@@ -21,6 +21,7 @@ import {
   hashPinCode,
   hasProofContent
 } from './courierDeliveryController.js';
+import { requestParcelPriceAdjustment } from '../services/parcelRequestService.js';
 
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 const normalizeText = (value = '') => String(value || '').trim();
@@ -583,4 +584,33 @@ export const pingParcelAgentLocation = asyncHandler(async (req, res) => {
   await assignment.save();
 
   return res.json({ success: true });
+});
+
+// Courier proposes a price change on an assigned course (e.g. bad road,
+// extra distance not captured by the estimate). Requester approves/rejects
+// via postRespondParcelPriceAdjustment in parcelRequestController.js.
+export const requestCourierPriceAdjustment = asyncHandler(async (req, res) => {
+  const { deliveryGuy, previewMode } = await resolveCourierContext(req, { allowAdminPreview: false });
+  if (previewMode) {
+    return res.status(403).json({ message: 'Aperçu lecture seule.' });
+  }
+  const amount = Number(req.body?.amount);
+  if (!Number.isFinite(amount) || amount === 0) {
+    return res.status(400).json({ message: 'Montant d’ajustement invalide.' });
+  }
+
+  try {
+    const updated = await requestParcelPriceAdjustment({
+      requestId: req.params.id,
+      deliveryGuyId: deliveryGuy._id,
+      actorId: req.user.id || req.user._id,
+      amount,
+      reason: req.body?.reason
+    });
+    return res.json(toParcelAssignment(updated.toObject ? updated.toObject() : updated));
+  } catch (error) {
+    const statusCode = Number(error?.statusCode) || 500;
+    if (statusCode < 500) return res.status(statusCode).json({ message: error.message });
+    throw error;
+  }
 });

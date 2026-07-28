@@ -924,21 +924,52 @@ export default function UserStats() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <DebugPanel />
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="space-y-8">
-            {/* Header skeleton */}
-            <div className="space-y-4">
-              <div className="h-8 bg-gray-200 rounded-xl w-64 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
+      <div className="min-h-screen bg-[#f7f5f0]">
+        <div className="border-b border-neutral-200 bg-[#f7f5f0]/90">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-200 animate-pulse" />
+              <div>
+                <div className="h-3 w-28 rounded bg-neutral-200 animate-pulse mb-2" />
+                <div className="h-7 w-40 rounded-lg bg-neutral-200 animate-pulse" />
+              </div>
             </div>
-            {/* Cards skeleton */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-40 bg-white rounded-2xl border border-gray-100 animate-pulse"></div>
-              ))}
-            </div>
+          </div>
+        </div>
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-gray-100 bg-white p-5 animate-pulse">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-3 flex-1">
+                    <div className="h-3 w-16 rounded bg-gray-100" />
+                    <div className="h-8 w-20 rounded-lg bg-gray-100" />
+                    <div className="h-3 w-28 rounded bg-gray-100" />
+                  </div>
+                  <div className="h-10 w-10 rounded-xl bg-gray-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Engagement grid */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-gray-100 bg-white p-4 animate-pulse">
+                <div className="h-2 w-14 rounded bg-gray-100 mb-3" />
+                <div className="h-6 w-12 rounded-lg bg-gray-100 mb-2" />
+                <div className="h-2 w-20 rounded bg-gray-100" />
+              </div>
+            ))}
+          </div>
+          {/* Chart + table skeletons */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-gray-100 bg-white p-6 animate-pulse space-y-4">
+                <div className="h-4 w-32 rounded bg-gray-100" />
+                <div className="h-48 rounded-xl bg-gray-100" />
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -1004,6 +1035,11 @@ export default function UserStats() {
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Actualisation...' : 'Actualiser'}
               </button>
+              {lastFetchAt && (
+                <span className="text-xs text-neutral-400">
+                  Mis à jour {formatRelativeTime(lastFetchAt)}
+                </span>
+              )}
               <Link
                 to="/my"
                 className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
@@ -1127,6 +1163,39 @@ export default function UserStats() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+                    {[
+                      { label: '7j', days: 7 },
+                      { label: '30j', days: 30 },
+                      { label: '90j', days: 90 },
+                      { label: 'Année', days: 365 }
+                    ].map((preset) => {
+                      const today = new Date();
+                      const presetStart = new Date(today.getTime() - (preset.days - 1) * 24 * 60 * 60 * 1000);
+                      const isActive =
+                        analyticsRange.dateFrom === formatInputDate(presetStart) &&
+                        analyticsRange.dateTo === formatInputDate(today);
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() =>
+                            setAnalyticsRange({
+                              dateFrom: formatInputDate(presetStart),
+                              dateTo: formatInputDate(today)
+                            })
+                          }
+                          className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                            isActive
+                              ? 'bg-neutral-900 text-white shadow-sm'
+                              : 'text-gray-500 hover:bg-white hover:text-gray-700'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <label className="text-xs text-gray-600">
                     Du
                     <input

@@ -285,6 +285,22 @@ const isTruthyQueryValue = (value) =>
   value === true || value === 'true' || value === 1 || value === '1';
 
 const normalizeCategoryText = (value = '') => String(value || '').trim();
+
+// Categories are admin-managed free text, not a fixed enum, so perishable
+// products are detected by keyword rather than an exact category id — works
+// regardless of exactly how the admin named/spelled the category.
+const PERISHABLE_CATEGORY_KEYWORDS = [
+  'food', 'alimentation', 'alimentaire', 'perissable', 'denree', 'nourriture'
+];
+const stripAccents = (value = '') =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+const isPerishableCategorySelection = ({ legacyCategoryName = '', legacySubcategoryName = '' } = {}) => {
+  const haystack = stripAccents(`${legacyCategoryName} ${legacySubcategoryName}`);
+  return PERISHABLE_CATEGORY_KEYWORDS.some((keyword) => haystack.includes(keyword));
+};
 const normalizeBoolean = (value, fallback = false) => {
   if (value === undefined || value === null) return fallback;
   if (typeof value === 'boolean') return value;
@@ -797,7 +813,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     deliveryFeeEnabled,
     attributes,
     physical,
-    socialVideoUrl
+    socialVideoUrl,
+    perishableStartDate,
+    perishableEndDate
   } = req.body;
   if (!title || !description || !price)
     return res.status(400).json({ message: 'Missing fields' });
@@ -961,6 +979,22 @@ export const createProduct = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Catégorie invalide.' });
   }
 
+  const isPerishable = isPerishableCategorySelection(categorySelection);
+  let resolvedPerishableStartDate = null;
+  let resolvedPerishableEndDate = null;
+  if (isPerishable) {
+    resolvedPerishableStartDate = new Date(perishableStartDate);
+    resolvedPerishableEndDate = new Date(perishableEndDate);
+    if (Number.isNaN(resolvedPerishableStartDate.getTime()) || Number.isNaN(resolvedPerishableEndDate.getTime())) {
+      return res.status(400).json({
+        message: 'Une date de début et une date de péremption sont requises pour cette catégorie (denrée périssable).'
+      });
+    }
+    if (resolvedPerishableEndDate <= resolvedPerishableStartDate) {
+      return res.status(400).json({ message: 'La date de péremption doit être postérieure à la date de début.' });
+    }
+  }
+
   const imageFiles = getUploadedFiles(req.files, 'images');
   const videoFiles = getUploadedFiles(req.files, 'video');
   const pdfFiles = getUploadedFiles(req.files, 'pdf');
@@ -1065,6 +1099,8 @@ export const createProduct = asyncHandler(async (req, res) => {
       subcategoryId: categorySelection.subcategoryId,
       legacyCategoryName: categorySelection.legacyCategoryName,
       legacySubcategoryName: categorySelection.legacySubcategoryName,
+      perishableStartDate: resolvedPerishableStartDate,
+      perishableEndDate: resolvedPerishableEndDate,
       discount: discountValue,
       condition: safeCondition,
       priceBeforeDiscount,
@@ -1841,59 +1877,52 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
   const blockedSellerIds = await getBlockedSellerIdsSet();
   const baseActiveFilter = applyBlockedUsersToFilter(baseFilter, blockedSellerIds);
   const activeBaseFilter = await withVerifiedPublicProductFilter(baseActiveFilter);
-  const cityList = await getActiveCityNames();
 
-  // Run all six product queries + rating aggregation + city query in parallel
-  const [
-    favoritesRaw,
-    dealsRaw,
-    discountRaw,
-    newRaw,
-    usedRaw,
-    installmentRaw,
-    topRatingStats,
-    cityProductsRaw
-  ] = await Promise.all([
-    Product.find(activeBaseFilter)
-      .sort({ favoritesCount: -1, createdAt: -1 })
-      .limit(limit)
-      .lean(),
-    Product.find(activeBaseFilter)
-      .sort({ price: 1, createdAt: -1 })
-      .limit(limit)
-      .lean(),
-    Product.find({ ...activeBaseFilter, discount: { $gt: 0 } })
-      .sort({ discount: -1, createdAt: -1 })
-      .limit(limit)
-      .lean(),
-    Product.find({ ...activeBaseFilter, condition: 'new' })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean(),
-    Product.find({ ...activeBaseFilter, condition: 'used' })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean(),
-    Product.find({
-      ...activeBaseFilter,
-      installmentEnabled: true,
-      installmentStartDate: { $lte: now },
-      installmentEndDate: { $gte: now }
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean(),
-    Rating.aggregate([
-      { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } },
-      { $match: { count: { $gt: 0 } } },
-      { $sort: { average: -1, count: -1 } },
-      { $limit: limit * 5 }
-    ]),
-    Product.find({ ...activeBaseFilter, city: { $in: cityList } })
-      .sort({ createdAt: -1 })
-      .limit(limit * cityList.length)
-      .lean()
+  const favoritesRaw = await Product.find(activeBaseFilter)
+    .sort({ favoritesCount: -1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const dealsRaw = await Product.find(activeBaseFilter)
+    .sort({ price: 1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const discountRaw = await Product.find({ ...activeBaseFilter, discount: { $gt: 0 } })
+    .sort({ discount: -1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+  const newRaw = await Product.find({ ...activeBaseFilter, condition: 'new' })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const usedRaw = await Product.find({ ...activeBaseFilter, condition: 'used' })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  const installmentRaw = await Product.find({
+    ...activeBaseFilter,
+    installmentEnabled: true,
+    installmentStartDate: { $lte: now },
+    installmentEndDate: { $gte: now }
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  const topRatingStats = await Rating.aggregate([
+    { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } },
+    { $match: { count: { $gt: 0 } } },
+    { $sort: { average: -1, count: -1 } },
+    { $limit: limit * 5 }
   ]);
+
+  const cityList = await getActiveCityNames();
+  const cityProductsRaw = await Product.find({ ...activeBaseFilter, city: { $in: cityList } })
+    .sort({ createdAt: -1 })
+    .limit(limit * cityList.length)
+    .lean();
 
   const ratingCandidateIds = topRatingStats.map((stat) => stat._id);
   let ratingProductsRaw = [];
@@ -2606,8 +2635,17 @@ export const updateProduct = asyncHandler(async (req, res) => {
     deliveryFeeEnabled,
     attributes,
     physical,
-    socialVideoUrl
+    socialVideoUrl,
+    perishableStartDate,
+    perishableEndDate
   } = req.body;
+
+  if (perishableStartDate !== undefined || perishableEndDate !== undefined) {
+    return res.status(400).json({
+      message: 'La date de péremption d’un produit ne peut pas être modifiée après sa création.'
+    });
+  }
+
   if (title) product.title = title;
   if (description) product.description = description;
 

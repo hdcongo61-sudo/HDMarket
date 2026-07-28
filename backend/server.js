@@ -55,6 +55,7 @@ import courierParcelRoutes from './routes/courierParcelRoutes.js';
 import shopAssistantRoutes from './routes/shopAssistantRoutes.js';
 import homeRoutes from './routes/homeRoutes.js';
 import imageStudioRoutes from './routes/imageStudioRoutes.js';
+import deliveryPricingRoutes from './routes/deliveryPricingRoutes.js';
 
 import User from './models/userModel.js';
 import Conversation from './models/conversationModel.js';
@@ -64,9 +65,7 @@ import { createNotification } from './utils/notificationService.js';
 import {
   setChatSocket,
   buildOrderConversationRoom,
-  buildOrderUserRoom,
-  setUserOnline,
-  setUserOffline
+  buildOrderUserRoom
 } from './sockets/chatSocket.js';
 import { registerNotificationSocket, configureSocketRedisAdapter } from './sockets/notificationSocket.js';
 import { requestTracker, getDailyRequestStats } from './middlewares/requestTracker.js';
@@ -408,6 +407,7 @@ app.use('/api/referrals', referralRoutes);
 app.use('/api/group-buys', groupBuyRoutes);
 app.use('/api/parcels', parcelRequestRoutes);
 app.use('/api/courier/parcel-jobs', courierParcelRoutes);
+app.use('/api/delivery-pricing', deliveryPricingRoutes);
 app.use('/api/*', notFoundApiHandler);
 
 app.use(globalErrorHandler);
@@ -475,7 +475,6 @@ io.on('connection', (socket) => {
   const isGuest = String(socketUserId || '').startsWith('guest-');
   if (!isGuest && socketUserId) {
     socket.join(buildOrderUserRoom(socketUserId));
-    setUserOnline(socketUserId);
   }
   socket.data.orderConversationIds = new Set();
   socket.emit('connected', { user: socket.data.user });
@@ -576,9 +575,6 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     socket.data.orderConversationIds?.clear?.();
-    if (!isGuest && socketUserId) {
-      setUserOffline(socketUserId);
-    }
   });
 });
 

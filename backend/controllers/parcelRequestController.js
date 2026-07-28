@@ -10,7 +10,8 @@ import {
   adminListParcelRequests,
   assignCourierToParcelRequest,
   getAdminParcelStats,
-  adminCancelParcelRequest
+  adminCancelParcelRequest,
+  respondToParcelPriceAdjustment
 } from '../services/parcelRequestService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { canManageDeliveryRequests, getPlatformDeliveryRuntime } from '../services/platformDeliveryService.js';
@@ -37,6 +38,13 @@ const parseLocation = (raw) => {
   }
 };
 
+const pickPricingOptions = (body = {}) => ({
+  packageTypeId: body?.packageTypeId || null,
+  weightKg: body?.weightKg !== undefined && body?.weightKg !== '' ? Number(body.weightKg) : null,
+  deliverySpeed: body?.deliverySpeed || 'STANDARD',
+  promoCode: body?.promoCode || ''
+});
+
 export const getParcelDeliveryCapabilities = asyncHandler(async (req, res) => {
   const enabled = await getRuntimeConfig('enable_parcel_delivery', { fallback: true });
   return res.json({ enabled: Boolean(enabled) });
@@ -46,7 +54,7 @@ export const postEstimateParcelPrice = asyncHandler(async (req, res) => {
   const pickup = parseLocation(req.body?.pickup);
   const dropoff = parseLocation(req.body?.dropoff);
   try {
-    const estimate = await estimateParcelPrice({ pickup, dropoff });
+    const estimate = await estimateParcelPrice({ pickup, dropoff, ...pickPricingOptions(req.body) });
     return res.json(estimate);
   } catch (error) {
     return handleServiceError(res, error);
@@ -71,7 +79,8 @@ export const postCreateParcelRequest = asyncHandler(async (req, res) => {
         proofImageUrl,
         referenceCode: req.body?.referenceCode,
         notes: req.body?.notes
-      }
+      },
+      ...pickPricingOptions(req.body)
     });
     return res.status(201).json(parcelRequest);
   } catch (error) {
@@ -109,7 +118,8 @@ export const pawaPayCreateParcelRequest = asyncHandler(async (req, res) => {
   const dropoff = parseLocation(req.body?.dropoff);
 
   try {
-    const { price } = await estimateParcelPrice({ pickup, dropoff });
+    const pricingOptions = pickPricingOptions(req.body);
+    const { price } = await estimateParcelPrice({ pickup, dropoff, ...pricingOptions });
     if (Math.abs(Number(req.pawaPayCheckout.amount || 0) - price) > 0.01) {
       return res.status(409).json({
         message: 'Le montant payé ne correspond plus au tarif de cette course. Réessayez.'
@@ -127,7 +137,8 @@ export const pawaPayCreateParcelRequest = asyncHandler(async (req, res) => {
       },
       paymentMethod: 'PAWAPAY',
       paymentStatus: 'PAID',
-      pawaPayCheckoutId: req.pawaPayCheckout.checkoutId
+      pawaPayCheckoutId: req.pawaPayCheckout.checkoutId,
+      ...pricingOptions
     });
     return res.status(201).json(parcelRequest);
   } catch (error) {
@@ -170,6 +181,23 @@ export const postCancelParcelRequest = asyncHandler(async (req, res) => {
     const parcelRequest = await cancelParcelRequest({
       id,
       requesterId: req.user.id || req.user._id
+    });
+    return res.json(parcelRequest);
+  } catch (error) {
+    return handleServiceError(res, error);
+  }
+});
+
+export const postRespondParcelPriceAdjustment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'Demande invalide.' });
+  }
+  try {
+    const parcelRequest = await respondToParcelPriceAdjustment({
+      requestId: id,
+      requesterId: req.user.id || req.user._id,
+      approve: Boolean(req.body?.approve)
     });
     return res.json(parcelRequest);
   } catch (error) {

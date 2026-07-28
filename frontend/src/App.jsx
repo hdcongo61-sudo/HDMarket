@@ -130,8 +130,8 @@ const OrderMessages = lazy(() => import('./pages/OrderMessages'));
 const ShopConversionRequest = lazy(() => import('./pages/ShopConversionRequest'));
 const ShopAssistant = lazy(() => import('./pages/ShopAssistant'));
 const Footer = lazy(() => import('./components/Footer'));
+const ChatBox = lazy(() => import('./components/ChatBox'));
 const PushNotificationsManager = lazy(() => import('./components/PushNotificationsManager'));
-const UnreadMessageReminder = lazy(() => import('./components/UnreadMessageReminder'));
 
 const LAST_ADMIN_ROUTE_KEY = 'hdmarket:last-admin-route';
 const LAST_COURIER_ROUTE_KEY = 'hdmarket:last-courier-route';
@@ -666,9 +666,6 @@ function AppContent() {
       <ScrollToTop />
       {!isCourierRoute ? <Navbar /> : null}
       <NetworkStatusBanner />
-      <Suspense fallback={null}>
-        <UnreadMessageReminder />
-      </Suspense>
       <main
         className={isCourierRoute
           ? 'app-main-shell min-h-[100dvh] p-0 main-content no-ios-callout'
@@ -1366,6 +1363,11 @@ function AppContent() {
       {!isCourierRoute ? (
         <Suspense fallback={null}>
           <Footer />
+        </Suspense>
+      ) : null}
+      {!isCourierRoute && chatEnabled && assistantChatEnabled ? (
+        <Suspense fallback={null}>
+          <ChatBox />
         </Suspense>
       ) : null}
     </>

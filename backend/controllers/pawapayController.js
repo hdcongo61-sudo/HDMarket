@@ -970,7 +970,11 @@ const autoCompleteCheckoutAction = async (checkout) => {
           parcelDescription: action.parcelDescription,
           referenceCode: action.referenceCode,
           notes: action.notes,
-          proofImageUrl: action.proofImageUrl
+          proofImageUrl: action.proofImageUrl,
+          packageTypeId: action.packageTypeId,
+          weightKg: action.weightKg,
+          deliverySpeed: action.deliverySpeed,
+          promoCode: action.promoCode
         }
       });
       const parcelRequestId = result?._id || '';

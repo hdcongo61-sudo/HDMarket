@@ -259,7 +259,9 @@ const buildOrderNotificationPath = (alert, user) => {
 
 const getPrimaryActionLabel = (alert, to, t) => {
   if (String(alert?.type || '') === 'validation_required') return t('notifications.openTask', 'Ouvrir tâche');
+  if (String(alert?.type || '') === 'order_message') return t('notifications.viewMessage', 'Voir message');
   if (String(to || '').includes('/admin/payment-verification')) return t('notifications.verifyPayment', 'Vérifier paiement');
+  if (String(to || '').includes('/orders/messages')) return t('notifications.viewMessage', 'Voir message');
   if (String(to || '').includes('/orders') || String(to || '').includes('/seller/orders')) {
     return t('notifications.viewOrder', 'Voir commande');
   }
@@ -282,7 +284,12 @@ const getNotificationActions = (alert, user, t) => {
   const orderPath = buildOrderNotificationPath(alert, user);
   const primaryLink = resolveNotificationLink(alert, user);
   if (primaryLink) actions.push({ to: primaryLink, label: getPrimaryActionLabel(alert, primaryLink, t) });
-  if (orderPath) actions.push({ to: orderPath, label: t('notifications.viewOrder', 'Voir commande') });
+  // Skip the secondary "order" button when it's the same destination the
+  // primary action already covers (e.g. order_message resolves both to the
+  // same /orders/messages link — pushing both just duplicates the button).
+  if (orderPath && orderPath !== primaryLink) {
+    actions.push({ to: orderPath, label: t('notifications.viewOrder', 'Voir commande') });
+  }
   const disputePath = buildDisputeNotificationPath(alert, user);
   if (disputePath) actions.push({ to: disputePath, label: t('notifications.viewDispute', 'Voir litige') });
   if (
@@ -788,11 +795,11 @@ export default function NotificationPage() {
             <div className="mt-6">
               <div className="rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
                 <NetworkFallbackCard
-                  title={t('notifications.errors.loadTitle', 'Impossible de charger les données.')}
-                  message={t('notifications.errors.load', 'Le chargement prend plus de temps que prévu. Veuillez réessayer.')}
+                  title={t('notifications.errors.loadTitle', 'Unable to load data.')}
+                  message={t('notifications.errors.load', 'Loading is taking longer than expected. Please try again shortly.')}
                   onRetry={refresh}
-                  retryLabel={t('common.retry', 'Réessayer')}
-                  refreshLabel={t('common.refreshPage', 'Actualiser la page')}
+                  retryLabel={t('common.retry', 'Retry')}
+                  refreshLabel={t('common.refreshPage', 'Refresh page')}
                 />
               </div>
             </div>

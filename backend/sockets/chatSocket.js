@@ -1,35 +1,5 @@
 let ioInstance = null;
 
-// ─── Presence Tracking ────────────────────────────────────────────────────────
-// Simple in-memory map: userId -> { online: boolean, lastSeen: ISO string }
-const userPresence = new Map();
-
-export const setUserOnline = (userId) => {
-  if (!userId) return;
-  const key = String(userId);
-  userPresence.set(key, { online: true, lastSeen: new Date().toISOString() });
-  if (ioInstance) {
-    ioInstance.emit('presence:update', { userId: key, online: true });
-  }
-};
-
-export const setUserOffline = (userId) => {
-  if (!userId) return;
-  const key = String(userId);
-  userPresence.set(key, { online: false, lastSeen: new Date().toISOString() });
-  if (ioInstance) {
-    ioInstance.emit('presence:update', { userId: key, online: false });
-  }
-};
-
-export const getUserPresence = (userId) => {
-  if (!userId) return { online: false, lastSeen: null };
-  const key = String(userId);
-  return userPresence.get(key) || { online: false, lastSeen: null };
-};
-
-// ─── Room / Event Emitters ────────────────────────────────────────────────────
-
 export const buildOrderConversationRoom = (conversationId) => `conversation:${String(conversationId)}`;
 export const buildOrderUserRoom = (userId) => `user:${String(userId)}`;
 

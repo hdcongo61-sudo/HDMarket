@@ -38,8 +38,34 @@ const parcelLocationSchema = new mongoose.Schema(
     communeName: { type: String, trim: true, default: '' },
     address: { type: String, trim: true, default: '' },
     coordinates: { type: geoPointSchema, default: null },
+    // Set when the address text matched a known Landmark (e.g. "Near Total
+    // Station") — resolvedFrom records which tier of the location cascade
+    // ultimately supplied the coordinates used for pricing.
+    landmarkId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landmark', default: null },
+    resolvedFrom: {
+      type: String,
+      enum: ['GPS', 'LANDMARK', 'COMMUNE', 'CITY', 'UNRESOLVED'],
+      default: 'UNRESOLVED'
+    },
     contactName: { type: String, trim: true, default: '' },
     contactPhone: { type: String, trim: true, default: '' }
+  },
+  { _id: false }
+);
+
+const priceBreakdownLineSchema = new mongoose.Schema(
+  { label: { type: String, trim: true, required: true }, amount: { type: Number, required: true } },
+  { _id: false }
+);
+
+const priceAdjustmentSchema = new mongoose.Schema(
+  {
+    amount: { type: Number, default: 0 },
+    reason: { type: String, trim: true, default: '' },
+    status: { type: String, enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED'], default: 'NONE' },
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    requestedAt: { type: Date, default: null },
+    respondedAt: { type: Date, default: null }
   },
   { _id: false }
 );
@@ -81,6 +107,19 @@ const parcelRequestSchema = new mongoose.Schema(
     },
     distanceMeters: { type: Number, min: 0, default: 0 },
     deliveryPrice: { type: Number, min: 0, default: 0 },
+    // Revenue split of deliveryPrice between the platform and the assigned
+    // courier — see CommissionService.js. Doesn't change what the customer
+    // pays, only how it's divided. 0 on older requests created before this.
+    platformCommission: { type: Number, min: 0, default: 0 },
+    courierEarning: { type: Number, min: 0, default: 0 },
+    // Itemized pricing-engine output shown to the requester — never just one
+    // total. Empty on older requests created before this existed.
+    priceBreakdown: { type: [priceBreakdownLineSchema], default: [] },
+    packageType: { type: mongoose.Schema.Types.ObjectId, ref: 'PackageType', default: null },
+    weightKg: { type: Number, min: 0, default: null },
+    deliverySpeed: { type: String, trim: true, uppercase: true, default: 'STANDARD' },
+    promoCode: { type: String, trim: true, uppercase: true, default: '' },
+    priceAdjustment: { type: priceAdjustmentSchema, default: () => ({}) },
     currency: { type: String, trim: true, default: 'XAF' },
     paymentMethod: { type: String, enum: ['COD', 'PAWAPAY'], default: 'COD' },
     paymentStatus: { type: String, enum: ['PENDING', 'PAID', 'FAILED'], default: 'PENDING' },

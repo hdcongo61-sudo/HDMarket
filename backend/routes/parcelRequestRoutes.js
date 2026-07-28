@@ -9,6 +9,7 @@ import {
   getMyParcelRequests,
   getMyParcelRequestById,
   postCancelParcelRequest,
+  postRespondParcelPriceAdjustment,
   postReplaceMyParcelProof,
   getAdminParcelRequests,
   postAdminAssignParcelCourier,
@@ -30,6 +31,7 @@ router.post(
 router.get('/mine', protect, getMyParcelRequests);
 router.get('/mine/:id', protect, getMyParcelRequestById);
 router.post('/mine/:id/cancel', protect, postCancelParcelRequest);
+router.post('/mine/:id/price-adjustment/respond', protect, postRespondParcelPriceAdjustment);
 router.post(
   '/mine/:id/proof',
   protect,

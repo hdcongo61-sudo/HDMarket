@@ -1,9 +1,51 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, Package, Plus, RefreshCw, Trash2, Truck } from 'lucide-react';
+import {
+  ArrowLeft,
+  Clock3,
+  HelpCircle,
+  Landmark as LandmarkIcon,
+  Loader2,
+  MapPinned,
+  Package,
+  Package2,
+  Plus,
+  RefreshCw,
+  Scale,
+  Settings2,
+  Tag,
+  Trash2,
+  Truck,
+  Zap
+} from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
+import { AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
+import HelpGuidePanel from '../components/admin/deliveryPricing/HelpGuidePanel';
+import GeneralSettingsPanel from '../components/admin/deliveryPricing/GeneralSettingsPanel';
+import ZonesPanel from '../components/admin/deliveryPricing/ZonesPanel';
+import ZonePriceMatrixPanel from '../components/admin/deliveryPricing/ZonePriceMatrixPanel';
+import LandmarksPanel from '../components/admin/deliveryPricing/LandmarksPanel';
+import PackageTypesPanel from '../components/admin/deliveryPricing/PackageTypesPanel';
+import WeightRulesPanel from '../components/admin/deliveryPricing/WeightRulesPanel';
+import SpeedRulesPanel from '../components/admin/deliveryPricing/SpeedRulesPanel';
+import PeakHoursPanel from '../components/admin/deliveryPricing/PeakHoursPanel';
+import PromotionsPanel from '../components/admin/deliveryPricing/PromotionsPanel';
+
+const TABS = [
+  { value: 'guide', label: 'Guide', icon: HelpCircle },
+  { value: 'general', label: 'Général', icon: Settings2 },
+  { value: 'communes', label: 'Villes & communes', icon: Truck },
+  { value: 'zones', label: 'Zones', icon: MapPinned },
+  { value: 'zone-matrix', label: 'Matrice de prix', icon: MapPinned },
+  { value: 'landmarks', label: 'Points de repère', icon: LandmarkIcon },
+  { value: 'package-types', label: 'Types de colis', icon: Package2 },
+  { value: 'weight-rules', label: 'Poids', icon: Scale },
+  { value: 'speed-rules', label: 'Vitesse', icon: Zap },
+  { value: 'peak-hours', label: 'Heures de pointe', icon: Clock3 },
+  { value: 'promotions', label: 'Promotions', icon: Tag }
+];
 
 const PARCEL_PRICE_FIELDS = [
   { key: 'parcel_delivery_base_price', label: 'Prix de base', hint: 'Quand la distance GPS retrait → dépôt est connue.' },
@@ -20,15 +62,25 @@ const POLICY_OPTIONS = [
   { value: 'FREE', label: 'Livraison gratuite', hint: 'Aucun frais, quel que soit le produit.' }
 ];
 
-const emptyCommuneForm = { name: '', cityId: '', deliveryPolicy: 'DEFAULT_RULE', fixedFee: 0 };
+const emptyCommuneForm = {
+  name: '',
+  cityId: '',
+  deliveryPolicy: 'DEFAULT_RULE',
+  fixedFee: 0,
+  latitude: '',
+  longitude: '',
+  zoneId: ''
+};
 
 export default function AdminDeliveryPricing() {
   const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState('guide');
   const [loading, setLoading] = useState(true);
   const [parcelPrices, setParcelPrices] = useState({});
   const [savingParcelPrices, setSavingParcelPrices] = useState(false);
   const [cities, setCities] = useState([]);
   const [communes, setCommunes] = useState([]);
+  const [zones, setZones] = useState([]);
   const [communeForm, setCommuneForm] = useState(emptyCommuneForm);
   const [creatingCommune, setCreatingCommune] = useState(false);
   const [editingId, setEditingId] = useState('');
@@ -39,10 +91,11 @@ export default function AdminDeliveryPricing() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [settingsRes, communesRes, citiesRes] = await Promise.all([
+      const [settingsRes, communesRes, citiesRes, zonesRes] = await Promise.all([
         api.get('/admin/config/runtime', { params: { category: 'delivery_platform' } }),
         api.get('/admin/communes'),
-        api.get('/admin/cities')
+        api.get('/admin/cities'),
+        api.get('/delivery-pricing/admin/zones')
       ]);
       const parcelKeys = new Set(PARCEL_PRICE_FIELDS.map((field) => field.key));
       const nextPrices = {};
@@ -52,6 +105,7 @@ export default function AdminDeliveryPricing() {
       setParcelPrices(nextPrices);
       setCommunes(Array.isArray(communesRes.data) ? communesRes.data : []);
       setCities(Array.isArray(citiesRes.data) ? citiesRes.data : []);
+      setZones(Array.isArray(zonesRes.data) ? zonesRes.data : []);
     } catch (error) {
       showToast(error?.response?.data?.message || 'Impossible de charger les tarifs de livraison.', { variant: 'error' });
     } finally {
@@ -115,7 +169,10 @@ export default function AdminDeliveryPricing() {
       name: commune.name,
       cityId: String(commune.cityId || ''),
       deliveryPolicy: commune.deliveryPolicy || 'DEFAULT_RULE',
-      fixedFee: Number(commune.fixedFee || 0)
+      fixedFee: Number(commune.fixedFee || 0),
+      latitude: commune.latitude ?? '',
+      longitude: commune.longitude ?? '',
+      zoneId: String(commune.zoneId || '')
     });
   };
 
@@ -152,7 +209,7 @@ export default function AdminDeliveryPricing() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-3 py-4 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-4xl space-y-5">
+      <div className="mx-auto max-w-5xl space-y-5">
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link to="/admin" className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900">
@@ -160,7 +217,7 @@ export default function AdminDeliveryPricing() {
               Administration
             </Link>
             <h1 className="text-2xl font-black text-slate-950">Prix de livraison</h1>
-            <p className="mt-1 text-sm text-gray-500">Tarifs des courses colis et frais de livraison par commune.</p>
+            <p className="mt-1 text-sm text-gray-500">Moteur de tarification des courses colis et frais de livraison par commune.</p>
           </div>
           <button
             type="button"
@@ -173,9 +230,21 @@ export default function AdminDeliveryPricing() {
           </button>
         </header>
 
-        {loading ? (
+        <AdminSegmentedControl options={TABS} value={activeTab} onChange={setActiveTab} />
+
+        {activeTab === 'guide' && <HelpGuidePanel />}
+        {activeTab === 'zones' && <ZonesPanel />}
+        {activeTab === 'zone-matrix' && <ZonePriceMatrixPanel />}
+        {activeTab === 'landmarks' && <LandmarksPanel />}
+        {activeTab === 'package-types' && <PackageTypesPanel />}
+        {activeTab === 'weight-rules' && <WeightRulesPanel />}
+        {activeTab === 'speed-rules' && <SpeedRulesPanel />}
+        {activeTab === 'peak-hours' && <PeakHoursPanel />}
+        {activeTab === 'promotions' && <PromotionsPanel />}
+
+        {activeTab === 'general' && loading ? (
           <p className="py-10 text-center text-sm text-gray-500">Chargement…</p>
-        ) : (
+        ) : activeTab === 'general' ? (
           <>
             <section className="rounded-2xl border border-gray-100 bg-white p-4">
               <div className="mb-4 flex items-center gap-2">
@@ -210,10 +279,18 @@ export default function AdminDeliveryPricing() {
               </button>
             </section>
 
+            <GeneralSettingsPanel />
+          </>
+        ) : null}
+
+        {activeTab === 'communes' && (loading ? (
+          <p className="py-10 text-center text-sm text-gray-500">Chargement…</p>
+        ) : (
+          <>
             <section className="rounded-2xl border border-gray-100 bg-white p-4">
               <div className="mb-4 flex items-center gap-2">
                 <Truck className="h-5 w-5 text-[#e85d00]" />
-                <h2 className="text-base font-black text-slate-950">Frais de livraison par commune (commandes)</h2>
+                <h2 className="text-base font-black text-slate-950">Villes & communes (centres GPS + zones)</h2>
               </div>
               <p className="mb-4 text-xs text-gray-500">
                 Par défaut, le frais de livraison d’une commande vient du produit. Une commune peut le remplacer par un
@@ -255,24 +332,40 @@ export default function AdminDeliveryPricing() {
                     placeholder="Forfait (FCFA)"
                     className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
                   />
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={creatingCommune}
-                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] text-xs font-black text-white disabled:opacity-50"
-                  >
-                    <Plus className="h-4 w-4" /> Ajouter
-                  </button>
-                )}
-                {communeForm.deliveryPolicy === 'FIXED_FEE' ? (
-                  <button
-                    type="submit"
-                    disabled={creatingCommune}
-                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] text-xs font-black text-white disabled:opacity-50 sm:col-span-5"
-                  >
-                    <Plus className="h-4 w-4" /> Ajouter la commune
-                  </button>
                 ) : null}
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={communeForm.latitude}
+                  onChange={(event) => setCommuneForm((prev) => ({ ...prev, latitude: event.target.value }))}
+                  placeholder="Latitude (centre commune)"
+                  className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={communeForm.longitude}
+                  onChange={(event) => setCommuneForm((prev) => ({ ...prev, longitude: event.target.value }))}
+                  placeholder="Longitude (centre commune)"
+                  className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
+                />
+                <select
+                  value={communeForm.zoneId}
+                  onChange={(event) => setCommuneForm((prev) => ({ ...prev, zoneId: event.target.value }))}
+                  className="min-h-10 rounded-lg border border-gray-200 bg-white px-2.5 text-sm"
+                >
+                  <option value="">Zone (optionnel)</option>
+                  {zones.map((zone) => (
+                    <option key={zone._id} value={zone._id}>{zone.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={creatingCommune}
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] text-xs font-black text-white disabled:opacity-50 sm:col-span-5"
+                >
+                  <Plus className="h-4 w-4" /> Ajouter la commune
+                </button>
               </form>
 
               {communes.length === 0 ? (
@@ -315,6 +408,32 @@ export default function AdminDeliveryPricing() {
                                         className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
                                       />
                                     ) : <span />}
+                                    <input
+                                      type="number"
+                                      step="0.000001"
+                                      value={editingDraft.latitude}
+                                      onChange={(event) => setEditingDraft((prev) => ({ ...prev, latitude: event.target.value }))}
+                                      placeholder="Latitude"
+                                      className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
+                                    />
+                                    <input
+                                      type="number"
+                                      step="0.000001"
+                                      value={editingDraft.longitude}
+                                      onChange={(event) => setEditingDraft((prev) => ({ ...prev, longitude: event.target.value }))}
+                                      placeholder="Longitude"
+                                      className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
+                                    />
+                                    <select
+                                      value={editingDraft.zoneId}
+                                      onChange={(event) => setEditingDraft((prev) => ({ ...prev, zoneId: event.target.value }))}
+                                      className="min-h-10 rounded-lg border border-gray-200 bg-white px-2.5 text-sm"
+                                    >
+                                      <option value="">Zone (optionnel)</option>
+                                      {zones.map((zone) => (
+                                        <option key={zone._id} value={zone._id}>{zone.name}</option>
+                                      ))}
+                                    </select>
                                   </div>
                                 ) : (
                                   <div>
@@ -322,6 +441,8 @@ export default function AdminDeliveryPricing() {
                                     <p className="text-xs text-gray-500">
                                       {POLICY_OPTIONS.find((option) => option.value === commune.deliveryPolicy)?.label || commune.deliveryPolicy}
                                       {commune.deliveryPolicy === 'FIXED_FEE' ? ` — ${formatCurrency(commune.fixedFee)}` : ''}
+                                      {Number.isFinite(commune.latitude) ? ' · GPS ✓' : ''}
+                                      {commune.zoneId ? ` · ${zones.find((zone) => zone._id === String(commune.zoneId))?.name || 'Zone'}` : ''}
                                     </p>
                                   </div>
                                 )}
@@ -376,7 +497,7 @@ export default function AdminDeliveryPricing() {
               )}
             </section>
           </>
-        )}
+        ))}
       </div>
     </main>
   );

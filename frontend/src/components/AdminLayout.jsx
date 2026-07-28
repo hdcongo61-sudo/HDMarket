@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import {
@@ -194,6 +194,16 @@ export default function AdminLayout() {
   const { user } = useContext(AuthContext);
   const { t, getRuntimeValue } = useAppSettings();
   const { counts: adminCounts } = useAdminCounts(Boolean(user));
+  // useNavigation() requires React Router's data-router APIs (createBrowserRouter),
+  // which this app doesn't use (plain <BrowserRouter>) — it throws on every mount.
+  // Approximate the same "navigating" pulse from plain location changes instead.
+  const location = useLocation();
+  const [isNavigating, setIsNavigating] = useState(false);
+  useEffect(() => {
+    setIsNavigating(true);
+    const timer = setTimeout(() => setIsNavigating(false), 400);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
   const storageKey = useMemo(() => buildAdminUiStateStorageKey(user), [user]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -430,6 +440,12 @@ export default function AdminLayout() {
       </aside>
 
       <main className="flex-1 min-w-0 lg:h-full lg:overflow-y-auto">
+        {/* Top loading bar — subtle orange pulse during navigation */}
+        {isNavigating && (
+          <div className="sticky top-0 z-30 h-1 w-full overflow-hidden bg-transparent">
+            <div className="h-full w-1/4 animate-pulse rounded-full bg-[#e85d00]" />
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

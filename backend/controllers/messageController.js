@@ -3,11 +3,7 @@ import mongoose from 'mongoose';
 import OrderMessage from '../models/orderMessageModel.js';
 import Conversation from '../models/conversationModel.js';
 import User from '../models/userModel.js';
-import Product from '../models/productModel.js';
-import Order from '../models/orderModel.js';
 import AssistantAuditLog from '../models/assistantAuditLogModel.js';
-import SellerAutoReply from '../models/sellerAutoReplyModel.js';
-import SellerMessageTemplate from '../models/sellerMessageTemplateModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
@@ -41,13 +37,7 @@ const sanitizeMessagePreview = (value, maxLength = 160) =>
     .trim()
     .slice(0, maxLength);
 
-const buildMessagePreview = ({ text, hasEncrypted, hasVoice, attachments = [], messageType, card }) => {
-  if (messageType === 'system' || messageType === 'card') {
-    if (card?.cardType === 'product') return 'Produit partagé';
-    if (card?.cardType === 'order') return 'Commande partagée';
-    const safeText = sanitizeMessagePreview(text);
-    return safeText || 'Message système';
-  }
+const buildMessagePreview = ({ text, hasEncrypted, hasVoice, attachments = [] }) => {
   const safeText = sanitizeMessagePreview(text);
   if (safeText) return safeText;
   if (hasEncrypted) return 'Message chiffre';
@@ -104,9 +94,7 @@ const toClientPayload = (entry) =>
               shopName: entry.recipient.shopName,
               profileImage: entry.recipient.profileImage || entry.recipient.shopLogo || ''
             }
-          : null,
-        messageType: entry.messageType || 'text',
-        card: entry.card || null
+          : null
       }
     : entry;
 
@@ -231,10 +219,9 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
 export const sendConversationMessage = asyncHandler(async (req, res) => {
   const conversationId = req.params.conversationId || req.params.id;
   const body = req.body ?? {};
-  let { text, recipientId, clientMessageId, encryptedText, encryptionData, attachments, voiceMessage, messageType, card } = body;
+  let { text, recipientId, clientMessageId, encryptedText, encryptionData, attachments, voiceMessage } = body;
   const userId = req.user?.id || req.user?._id;
   const normalizedClientMessageId = String(clientMessageId || '').trim();
-  const resolvedMessageType = ['text', 'card', 'system'].includes(messageType) ? messageType : (card ? 'card' : 'text');
 
   if (recipientId != null && typeof recipientId === 'object' && recipientId._id) {
     recipientId = String(recipientId._id);
@@ -251,9 +238,8 @@ export const sendConversationMessage = asyncHandler(async (req, res) => {
   const hasEncrypted = encryptedText && encryptionData;
   const hasAttachments = attachments && Array.isArray(attachments) && attachments.length > 0;
   const hasVoice = voiceMessage && voiceMessage.url;
-  const hasCard = card && card.cardType && card.entityId;
 
-  if (!hasText && !hasEncrypted && !hasAttachments && !hasVoice && !hasCard) {
+  if (!hasText && !hasEncrypted && !hasAttachments && !hasVoice) {
     return res.status(400).json({ message: 'Le message ne peut pas être vide.' });
   }
 
@@ -326,16 +312,12 @@ export const sendConversationMessage = asyncHandler(async (req, res) => {
     order: conversation.orderId || null,
     sender: userId,
     recipient: recipient._id,
-    messageType: resolvedMessageType,
-    card: card || undefined,
     metadata: {
       ...(normalizedClientMessageId ? { clientMessageId: normalizedClientMessageId } : {})
     }
   };
 
-  if (hasCard) {
-    messageData.text = text && text.trim() ? text.trim() : null;
-  } else if (hasEncrypted && encryptionData) {
+  if (hasEncrypted && encryptionData) {
     messageData.encryptedText = encryptedText;
     messageData.encryptionKey = encryptionData.key;
     messageData.metadata = {
@@ -358,9 +340,7 @@ export const sendConversationMessage = asyncHandler(async (req, res) => {
     text: messageData?.text,
     hasEncrypted: Boolean(messageData?.encryptedText),
     hasVoice: Boolean(messageData?.voiceMessage?.url),
-    attachments: messageData?.attachments || [],
-    messageType: resolvedMessageType,
-    card: card || null
+    attachments: messageData?.attachments || []
   });
   const messageDeepLink = resolveMessageDeepLink({ conversationId });
 
@@ -417,13 +397,6 @@ export const sendConversationMessage = asyncHandler(async (req, res) => {
     conversation,
     metadata: { recipientId: String(recipient._id), hasAttachments, hasVoice: Boolean(hasVoice) }
   });
-
-  // Auto-reply: if the recipient is a seller with an active auto-reply, trigger it
-  if (isCustomer && !hasCard && resolvedMessageType !== 'system') {
-    triggerSellerAutoReply(conversationId, conversation.sellerId, userId).catch(() => {
-      // Non-blocking.
-    });
-  }
 
   res.status(201).json(payload);
 });
@@ -766,304 +739,4 @@ export const updateOrderMessage = asyncHandler(async (req, res) => {
   emitOrderMessageUpdated({ conversationId, message: populated });
 
   res.json(populated);
-});
-
-// ─── System Messages ──────────────────────────────────────────────────────────
-
-const SYSTEM_MESSAGE_PREVIEWS = {
-  order_confirmed: 'Commande confirmée',
-  order_shipped: 'Commande expédiée',
-  order_delivered: 'Commande livrée',
-  order_cancelled: 'Commande annulée',
-  refund_initiated: 'Remboursement initié',
-  refund_completed: 'Remboursement effectué',
-  payment_received: 'Paiement reçu',
-  order_ready: 'Commande prête'
-};
-
-/**
- * Post a system message into a conversation. Called from orderController
- * when order status changes. Does NOT require an HTTP req/res — it's a
- * plain async utility.
- */
-export const postSystemMessage = async ({
-  conversationId,
-  orderId,
-  systemType,
-  text,
-  actorId = null
-}) => {
-  if (!conversationId || !systemType) return null;
-
-  const conversation = await Conversation.findById(conversationId).select('buyerId sellerId orderId').lean();
-  if (!conversation) return null;
-
-  const previewText = text || SYSTEM_MESSAGE_PREVIEWS[systemType] || 'Mise à jour';
-
-  const systemActorId = actorId || conversation.sellerId;
-  const systemRecipientId = String(systemActorId) === String(conversation.buyerId)
-    ? conversation.sellerId
-    : conversation.buyerId;
-
-  const messageData = {
-    conversation: conversationId,
-    order: orderId || conversation.orderId || null,
-    sender: systemActorId,
-    recipient: systemRecipientId,
-    messageType: 'system',
-    text: previewText,
-    metadata: {
-      systemType,
-      autoGenerated: true
-    }
-  };
-
-  try {
-    const message = await OrderMessage.create(messageData);
-    const messagePreview = buildMessagePreview({
-      text: previewText,
-      hasEncrypted: false,
-      hasVoice: false,
-      attachments: [],
-      messageType: 'system',
-      card: null
-    });
-
-    await touchConversationLastMessage({
-      id: conversationId,
-      preview: messagePreview,
-      senderId: systemActorId,
-      at: message.createdAt
-    });
-
-    const populated = await OrderMessage.findById(message._id)
-      .populate('sender', 'name email shopName profileImage shopLogo')
-      .populate('recipient', 'name email shopName profileImage shopLogo')
-      .lean();
-
-    const payload = toClientPayload(populated);
-
-    emitOrderMessageCreated({
-      conversationId,
-      message: payload,
-      senderId: String(systemActorId),
-      recipientId: String(systemRecipientId)
-    });
-
-    const unreadState = await incrementOrderConversationUnread(systemRecipientId, conversationId, 1);
-    emitOrderUnreadUpdate({
-      userId: String(systemRecipientId),
-      conversationId: String(conversationId),
-      totalUnread: unreadState.totalUnread,
-      conversationUnread: unreadState.conversationUnread
-    });
-
-    return payload;
-  } catch (error) {
-    console.error('postSystemMessage error:', error);
-    return null;
-  }
-};
-
-// ─── Seller Auto-Reply ────────────────────────────────────────────────────────
-
-const triggerSellerAutoReply = async (conversationId, sellerId, buyerId) => {
-  const autoReply = await SellerAutoReply.findOne({ sellerId, isActive: true }).lean();
-  if (!autoReply || !autoReply.message) return;
-
-  // Check schedule
-  if (autoReply.schedule?.enabled) {
-    const now = new Date();
-    const day = now.getDay();
-    const hour = now.getHours();
-    const daysOk = autoReply.schedule.daysOfWeek.length === 0 || autoReply.schedule.daysOfWeek.includes(day);
-    const startOk = autoReply.schedule.startHour == null || hour >= autoReply.schedule.startHour;
-    const endOk = autoReply.schedule.endHour == null || hour < autoReply.schedule.endHour;
-    if (!daysOk || !startOk || !endOk) return;
-  }
-
-  // Check cooldown
-  if (autoReply.lastTriggeredAt) {
-    const cooldownMs = (autoReply.cooldownMinutes || 30) * 60 * 1000;
-    if (Date.now() - new Date(autoReply.lastTriggeredAt).getTime() < cooldownMs) return;
-  }
-
-  // Check that the last message in the conversation was from the buyer
-  const lastMessage = await OrderMessage.findOne({ conversation: conversationId })
-    .sort({ createdAt: -1 })
-    .select('sender')
-    .lean();
-  if (!lastMessage || String(lastMessage.sender) !== String(buyerId)) return;
-
-  const messageData = {
-    conversation: conversationId,
-    sender: sellerId,
-    recipient: buyerId,
-    messageType: 'text',
-    text: autoReply.message,
-    metadata: {
-      autoReply: true,
-      autoReplyId: String(autoReply._id)
-    }
-  };
-
-  try {
-    const message = await OrderMessage.create(messageData);
-    const messagePreview = buildMessagePreview({
-      text: autoReply.message,
-      hasEncrypted: false,
-      hasVoice: false,
-      attachments: [],
-      messageType: 'text',
-      card: null
-    });
-
-    await touchConversationLastMessage({
-      id: conversationId,
-      preview: messagePreview,
-      senderId: sellerId,
-      at: message.createdAt
-    });
-
-    const populated = await OrderMessage.findById(message._id)
-      .populate('sender', 'name email shopName profileImage shopLogo')
-      .populate('recipient', 'name email shopName profileImage shopLogo')
-      .lean();
-
-    const payload = toClientPayload(populated);
-
-    emitOrderMessageCreated({
-      conversationId,
-      message: payload,
-      senderId: String(sellerId),
-      recipientId: String(buyerId)
-    });
-
-    const unreadState = await incrementOrderConversationUnread(buyerId, conversationId, 1);
-    emitOrderUnreadUpdate({
-      userId: String(buyerId),
-      conversationId: String(conversationId),
-      totalUnread: unreadState.totalUnread,
-      conversationUnread: unreadState.conversationUnread
-    });
-
-    // Update last triggered timestamp
-    await SellerAutoReply.updateOne(
-      { _id: autoReply._id },
-      { $set: { lastTriggeredAt: new Date() } }
-    );
-  } catch {
-    // Non-blocking.
-  }
-};
-
-// ─── Seller Auto-Reply CRUD ───────────────────────────────────────────────────
-
-export const getSellerAutoReply = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  const autoReply = await SellerAutoReply.findOne({ sellerId }).lean();
-  res.json({ autoReply: autoReply || null });
-});
-
-export const upsertSellerAutoReply = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  const { message, isActive, schedule, cooldownMinutes } = req.body || {};
-
-  if (!message || !String(message).trim()) {
-    return res.status(400).json({ message: 'Le message est requis.' });
-  }
-
-  const update = {
-    message: String(message).trim().slice(0, 500),
-    isActive: typeof isActive === 'boolean' ? isActive : true
-  };
-
-  if (schedule && typeof schedule === 'object') {
-    update.schedule = {
-      enabled: Boolean(schedule.enabled),
-      daysOfWeek: Array.isArray(schedule.daysOfWeek) ? schedule.daysOfWeek.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) : [],
-      startHour: schedule.startHour != null ? Number(schedule.startHour) : null,
-      endHour: schedule.endHour != null ? Number(schedule.endHour) : null
-    };
-  }
-
-  if (cooldownMinutes != null) {
-    update.cooldownMinutes = Math.max(5, Math.min(1440, Number(cooldownMinutes) || 30));
-  }
-
-  const autoReply = await SellerAutoReply.findOneAndUpdate(
-    { sellerId },
-    { $set: update },
-    { upsert: true, new: true }
-  ).lean();
-
-  res.json({ autoReply });
-});
-
-export const deleteSellerAutoReply = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  await SellerAutoReply.deleteOne({ sellerId });
-  res.json({ deleted: true });
-});
-
-// ─── Seller Message Templates CRUD ────────────────────────────────────────────
-
-export const getSellerTemplates = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  const templates = await SellerMessageTemplate.find({ sellerId, isActive: true })
-    .sort({ order: 1, createdAt: -1 })
-    .lean();
-  res.json({ templates });
-});
-
-export const createSellerTemplate = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  const { label, message, order } = req.body || {};
-
-  if (!label || !String(label).trim()) {
-    return res.status(400).json({ message: 'Le libellé est requis.' });
-  }
-  if (!message || !String(message).trim()) {
-    return res.status(400).json({ message: 'Le message est requis.' });
-  }
-
-  const template = await SellerMessageTemplate.create({
-    sellerId,
-    label: String(label).trim().slice(0, 40),
-    message: String(message).trim().slice(0, 500),
-    order: Number(order || 0)
-  });
-
-  res.status(201).json({ template });
-});
-
-export const updateSellerTemplate = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  const templateId = req.params.templateId;
-  const { label, message, order, isActive } = req.body || {};
-
-  const template = await SellerMessageTemplate.findOne({ _id: templateId, sellerId });
-  if (!template) {
-    return res.status(404).json({ message: 'Template introuvable.' });
-  }
-
-  if (label != null) template.label = String(label).trim().slice(0, 40);
-  if (message != null) template.message = String(message).trim().slice(0, 500);
-  if (order != null) template.order = Number(order);
-  if (typeof isActive === 'boolean') template.isActive = isActive;
-
-  await template.save();
-  res.json({ template: template.toObject() });
-});
-
-export const deleteSellerTemplate = asyncHandler(async (req, res) => {
-  const sellerId = req.user?.id || req.user?._id;
-  const templateId = req.params.templateId;
-
-  const template = await SellerMessageTemplate.findOneAndDelete({ _id: templateId, sellerId });
-  if (!template) {
-    return res.status(404).json({ message: 'Template introuvable.' });
-  }
-
-  res.json({ deleted: true });
 });

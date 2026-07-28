@@ -17,6 +17,22 @@ import { createIdempotencyKey } from '../utils/idempotency';
 
 const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
 
+// Categories are admin-managed free text, not a fixed enum — mirrors the
+// same keyword list used server-side in productController.js so both sides
+// agree on which categories require a perishable expiry window.
+const PERISHABLE_CATEGORY_KEYWORDS = [
+  'food', 'alimentation', 'alimentaire', 'perissable', 'denree', 'nourriture'
+];
+const stripAccents = (value = '') =>
+  String(value || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const isPerishableCategoryValue = (value, getCategoryMeta) => {
+  if (!value || typeof getCategoryMeta !== 'function') return false;
+  const meta = getCategoryMeta(value);
+  if (!meta) return false;
+  const haystack = stripAccents(`${meta.label || ''} ${meta.group?.label || ''}`);
+  return PERISHABLE_CATEGORY_KEYWORDS.some((keyword) => haystack.includes(keyword));
+};
+
 const isCloudinaryUrl = (url = '') =>
   typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/upload/');
 
@@ -103,7 +119,7 @@ export default function ProductForm(props) {
   } = props;
   const { runtime, app } = useAppSettings();
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
-  const { categoryGroups } = useCategories();
+  const { categoryGroups, getCategoryMeta } = useCategories();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -112,6 +128,8 @@ export default function ProductForm(props) {
     condition: 'used',
     operator: 'MTN',
     discount: '',
+    perishableStartDate: '',
+    perishableEndDate: '',
     installmentEnabled: false,
     installmentMinAmount: '',
     installmentDuration: '',
@@ -240,6 +258,69 @@ export default function ProductForm(props) {
   const formShellRef = useRef(null);
   const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
   const isEmbeddedMobile = Boolean(isMobile && embeddedInModal);
+
+  // ── Auto-save draft to localStorage (every 5s) ─────────────────────────
+  const draftKey = useMemo(() => {
+    if (!user?._id) return null;
+    return isEditing ? `hdmarket:draft:edit:${slug || user._id}` : `hdmarket:draft:new:${user._id}`;
+  }, [user?._id, isEditing, slug]);
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (!draftKey || isEditing) return; // Only restore drafts for new products
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object' && saved.form) {
+        setForm((prev) => ({ ...prev, ...saved.form }));
+        if (saved.expandedSections) setExpandedSections(saved.expandedSections);
+        if (saved.imagePreviews?.length) {
+          setImagePreviews(saved.imagePreviews.filter((url) => typeof url === 'string'));
+        }
+      }
+    } catch { /* ignore */ }
+  }, [draftKey, isEditing]);
+
+  // Save draft periodically
+  useEffect(() => {
+    if (!draftKey) return;
+    const interval = setInterval(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          form,
+          expandedSections,
+          savedAt: Date.now()
+        }));
+      } catch { /* ignore */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [draftKey, form, expandedSections]);
+
+  // Clear draft on successful submit
+  const clearDraft = useCallback(() => {
+    if (!draftKey) return;
+    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+  }, [draftKey]);
+
+  // ── Per-field validation ──────────────────────────────────────────────
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  const validateField = (name, value) => {
+    if (name === 'title' && (!value || !String(value).trim())) return 'Le titre est requis.';
+    if (name === 'price' && (!value || Number(value) <= 0)) return 'Le prix est requis.';
+    if (name === 'category' && (!value || !String(value).trim())) return 'La catégorie est requise.';
+    if (name === 'description' && (!value || !String(value).trim())) return 'La description est requise.';
+    return '';
+  };
+
+  const handleBlur = (name) => (e) => {
+    const error = validateField(name, e.target.value);
+    setFieldErrors((prev) => {
+      if (!error && !prev[name]) return prev;
+      return { ...prev, [name]: error };
+    });
+  };
 
   useEffect(() => {
     if (!isEmbeddedMobile || !formShellRef.current) return undefined;
@@ -1334,6 +1415,19 @@ export default function ProductForm(props) {
       return;
     }
 
+    if (!isEditing && isPerishableCategory) {
+      const start = form.perishableStartDate ? new Date(form.perishableStartDate) : null;
+      const end = form.perishableEndDate ? new Date(form.perishableEndDate) : null;
+      if (!start || Number.isNaN(start.getTime()) || !end || Number.isNaN(end.getTime())) {
+        await appAlert('Une date de début et une date de péremption sont requises pour cette catégorie.');
+        return;
+      }
+      if (end <= start) {
+        await appAlert('La date de péremption doit être postérieure à la date de début.');
+        return;
+      }
+    }
+
     if (form.installmentEnabled) {
       if (!isBoutiqueOwner) {
         setInstallmentError('Seules les boutiques peuvent activer le paiement par tranche.');
@@ -1478,6 +1572,9 @@ export default function ProductForm(props) {
           return;
         }
         if (['installmentStartDate', 'installmentEndDate'].includes(k) && !v) return;
+        // Immutable after creation — never resend on an update (would be
+        // rejected server-side anyway), and skip if empty on create too.
+        if (['perishableStartDate', 'perishableEndDate'].includes(k) && (isEditing || !v)) return;
         data.append(k, v);
       });
       if (isBoutiqueOwner) {
@@ -1566,6 +1663,7 @@ export default function ProductForm(props) {
         onUpdated?.(res.data);
       } else {
         onCreated?.(res.data);
+        clearDraft();
         submitIdempotencyKeyRef.current = '';
       }
       
@@ -1727,6 +1825,12 @@ export default function ProductForm(props) {
           ? initialValues.priceBeforeDiscount
           : initialValues.price || '',
       category: initialValues.category || '',
+      perishableStartDate: initialValues.perishableStartDate
+        ? new Date(initialValues.perishableStartDate).toISOString().slice(0, 10)
+        : '',
+      perishableEndDate: initialValues.perishableEndDate
+        ? new Date(initialValues.perishableEndDate).toISOString().slice(0, 10)
+        : '',
       condition: initialValues.condition || 'new',
       operator: initialValues.operator || 'MTN',
       discount:
@@ -1869,6 +1973,10 @@ export default function ProductForm(props) {
   }, [existingImages.length]);
 
   const isEditing = Boolean(productId);
+  const isPerishableCategory = useMemo(
+    () => isPerishableCategoryValue(form.category, getCategoryMeta),
+    [form.category, getCategoryMeta]
+  );
 
   // Live preview of the installment plan shown inside the "vente en tranche" card.
   const installmentPlanPreview = useMemo(() => {
@@ -2109,12 +2217,14 @@ export default function ProductForm(props) {
               <span>Titre de l'annonce *</span>
             </label>
             <input
-              className={`${inputClass} min-h-[50px] text-base`}
+              className={`${inputClass} min-h-[50px] text-base ${fieldErrors.title ? 'border-red-300 ring-1 ring-red-200' : ''}`}
               placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
               value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onChange={(e) => { setForm({ ...form, title: e.target.value }); setFieldErrors((p) => ({ ...p, title: '' })); }}
+              onBlur={handleBlur('title')}
               required
             />
+            {fieldErrors.title && <p className="text-xs font-semibold text-red-500 mt-1">{fieldErrors.title}</p>}
           </div>
 
           {/* Description */}
@@ -2125,12 +2235,14 @@ export default function ProductForm(props) {
             </label>
             <textarea
               rows={4}
-              className={`${inputClass} resize-none`}
+              className={`${inputClass} resize-none ${fieldErrors.description ? 'border-red-300 ring-1 ring-red-200' : ''}`}
               placeholder="Décrivez votre produit en détail : caractéristiques, état, accessoires inclus..."
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => { setForm({ ...form, description: e.target.value }); setFieldErrors((p) => ({ ...p, description: '' })); }}
+              onBlur={handleBlur('description')}
               required
             />
+            {fieldErrors.description && <p className="text-xs font-semibold text-red-500 mt-1">{fieldErrors.description}</p>}
           </div>
 
           {/* Catégorie et Prix en ligne */}
@@ -2168,13 +2280,15 @@ export default function ProductForm(props) {
               </label>
               <input
                 type="number"
-                className={inputClass}
+                className={`${inputClass} ${fieldErrors.price ? 'border-red-300 ring-1 ring-red-200' : ''}`}
                 placeholder="Ex: 250000"
                 value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                onChange={(e) => { setForm({ ...form, price: e.target.value }); setFieldErrors((p) => ({ ...p, price: '' })); }}
+                onBlur={handleBlur('price')}
                 required
                 min="0"
               />
+              {fieldErrors.price && <p className="text-xs font-semibold text-red-500 mt-1">{fieldErrors.price}</p>}
             </div>
 
             {isEditing && (
@@ -2206,6 +2320,79 @@ export default function ProductForm(props) {
               </div>
             )}
           </div>
+
+          {isPerishableCategory && (
+            <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <label className="flex items-center space-x-2 text-sm font-medium text-amber-900">
+                <Calendar className="w-4 h-4 text-amber-600" />
+                <span>Durée de fraîcheur (denrée périssable)</span>
+              </label>
+              {isEditing ? (
+                form.perishableStartDate && form.perishableEndDate ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <span className="mb-1 block text-xs font-semibold text-amber-800">Date de début</span>
+                        <input
+                          type="date"
+                          className={`${inputClass} cursor-not-allowed bg-amber-100/60 opacity-80`}
+                          value={form.perishableStartDate}
+                          disabled
+                        />
+                      </div>
+                      <div>
+                        <span className="mb-1 block text-xs font-semibold text-amber-800">Date de péremption</span>
+                        <input
+                          type="date"
+                          className={`${inputClass} cursor-not-allowed bg-amber-100/60 opacity-80`}
+                          value={form.perishableEndDate}
+                          disabled
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-amber-700">
+                      Ces dates ont été fixées à la création de l’annonce et ne peuvent plus être modifiées.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-amber-700">
+                    Aucune date de péremption n’a été enregistrée à la création de cette annonce. Elle ne peut pas être
+                    ajoutée rétroactivement.
+                  </p>
+                )
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <span className="mb-1 block text-xs font-semibold text-amber-800">Date de début *</span>
+                      <input
+                        type="date"
+                        className={inputClass}
+                        value={form.perishableStartDate}
+                        onChange={(e) => setForm((prev) => ({ ...prev, perishableStartDate: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <span className="mb-1 block text-xs font-semibold text-amber-800">Date de péremption *</span>
+                      <input
+                        type="date"
+                        className={inputClass}
+                        value={form.perishableEndDate}
+                        onChange={(e) => setForm((prev) => ({ ...prev, perishableEndDate: e.target.value }))}
+                        min={form.perishableStartDate || undefined}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-amber-700">
+                    Obligatoire pour cette catégorie — informe l’acheteur de la fraîcheur du produit. Ces dates ne
+                    pourront plus être modifiées une fois l’annonce publiée.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Condition et Opérateur */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

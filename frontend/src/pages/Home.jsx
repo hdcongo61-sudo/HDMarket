@@ -257,7 +257,6 @@ export default function Home() {
   const [homeFeedLoaded, setHomeFeedLoaded] = useState(false);
   const [shouldLoadSecondarySections, setShouldLoadSecondarySections] = useState(false);
   const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
-  const [showBackToTop, setShowBackToTop] = useState(false);
   const secondarySectionsRef = useRef(null);
   const installmentSectionRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
@@ -733,13 +732,9 @@ const loadDiscountProducts = async () => {
     setPage((prev) => (prev === 1 ? prev : 1));
   }, [sort, category, installmentOnlyFilter, nearMeOnlyFilter]);
 
-  // loadProducts is intentionally excluded from deps — its individual
-  // deps (page, sort, etc.) are already listed; including the callback
-  // itself triggers a redundant double-fire on every page change.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadProducts();
-  }, [page, sort, category, installmentOnlyFilter, isMobileView]);
+  }, [page, sort, category, installmentOnlyFilter, isMobileView, loadProducts]);
 
   useEffect(() => {
     return () => {
@@ -791,11 +786,10 @@ const loadDiscountProducts = async () => {
     if (loading) return;
     if (loadMoreError) return;
     if (page >= totalPages) return;
-
     const handleScroll = () => {
       const now = Date.now();
-      if (now - infiniteScrollLockRef.current < 300) return;
-      const threshold = 400;
+      if (now - infiniteScrollLockRef.current < 400) return;
+      const threshold = 200;
       if (
         window.innerHeight + window.scrollY >=
         document.documentElement.scrollHeight - threshold
@@ -807,21 +801,6 @@ const loadDiscountProducts = async () => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isMobileView, loading, loadMoreError, page, totalPages]);
-
-  // Back-to-top visibility
-  useEffect(() => {
-    if (!isMobileView) return;
-    const handleBackToTopScroll = () => {
-      setShowBackToTop(window.scrollY > 600);
-    };
-    window.addEventListener('scroll', handleBackToTopScroll, { passive: true });
-    handleBackToTopScroll();
-    return () => window.removeEventListener('scroll', handleBackToTopScroll);
-  }, [isMobileView]);
-
-  const scrollToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
 
   useEffect(() => {
     if (!shouldLoadSecondarySections) return undefined;
@@ -1341,26 +1320,17 @@ const loadDiscountProducts = async () => {
             </div>
 
             <div className="home-anim-fade-up relative mt-4 flex gap-6 overflow-x-auto pb-2 hide-scrollbar" style={{ ...scrollStyle, '--home-anim-delay': '90ms' }}>
-              {discoveryTabs.map((tab, index) => {
-                const isActive = index === 0;
-                return (
+              {discoveryTabs.map((tab, index) => (
                 <Link
                   key={tab.label}
                   to={tab.to}
                   {...externalLinkProps}
-                  className={`relative flex-shrink-0 text-base font-extrabold transition-colors duration-300 ${isActive ? 'text-white' : 'text-white/76 hover:text-white/90'}`}
+                  className={`relative flex-shrink-0 text-base font-extrabold ${index === 0 ? 'text-white' : 'text-white/76'}`}
                 >
                   {tab.label}
-                  {isActive && (
-                    <motion.span
-                      layoutId="discovery-tab-underline"
-                      className="absolute -bottom-2 left-1 h-1 w-7 rounded-full bg-white"
-                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                    />
-                  )}
+                  {index === 0 ? <span className="absolute -bottom-2 left-1 h-1 w-7 rounded-full bg-white" /> : null}
                 </Link>
-                );
-              })}
+              ))}
             </div>
 
             <div className="home-anim-fade-up relative mt-4 flex h-[54px] items-center gap-2 rounded-full border-2 border-white bg-white px-3 shadow-sm" style={{ '--home-anim-delay': '160ms' }}>
@@ -1630,10 +1600,10 @@ const loadDiscountProducts = async () => {
 
         {/* ⚡ Flash Sales — Countdown Deals (Proposal 2) */}
         {!activeFlashSalesLoading && activeFlashSales.length > 0 && (
-          <motion.section {...scrollReveal(reduceMotionHome)} className="rounded-2xl border-2 border-red-200 bg-red-50/40 p-3 animate-pulse">
+          <motion.section {...scrollReveal(reduceMotionHome)} className="rounded-2xl border border-red-100 bg-red-50/40 p-3">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500 animate-pulse">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500">
                   <Zap size={14} className="text-white fill-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">
@@ -2189,23 +2159,16 @@ const loadDiscountProducts = async () => {
 
           {productsError ? (
             <NetworkFallbackCard
-              title="Impossible de charger les données."
+              title="Unable to load data."
               message={productsError}
               onRetry={loadProducts}
-              retryLabel="Réessayer"
-              refreshLabel="Actualiser la page"
+              retryLabel="Retry"
+              refreshLabel="Refresh page"
             />
           ) : loading && items.length === 0 ? (
             <ShimmerSkeleton rows={3} />
           ) : items.length > 0 ? (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key="product-grid"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-              >
+            <>
               <div className="grid grid-cols-2 gap-2">
                 {items.map((product, index) => (
                   <div
@@ -2230,44 +2193,22 @@ const loadDiscountProducts = async () => {
                     onClick={loadProducts}
                     className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
                   >
-                    Réessayer
+                    Retry
                   </button>
                 </div>
               )}
-              {/* Manual "Load More" fallback for mobile (infinite scroll may not fire on all devices) */}
-              {!loading && !loadMoreError && page < totalPages && (
-                <div className="flex justify-center pt-4 pb-2">
-                  <button
-                    type="button"
-                    onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                    className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-neutral-800 active:scale-[0.97]"
-                  >
-                    <RefreshCcw className="w-4 h-4" />
-                    Afficher plus
-                  </button>
-                </div>
-              )}
-              </motion.div>
-            </AnimatePresence>
+            </>
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="text-center py-10"
-            >
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-100">
-                <Search className="w-7 h-7 text-neutral-400" />
-              </div>
-              <p className="text-sm font-bold text-gray-700 mb-1">{t('home.noProductsFound', 'Aucun produit trouvé')}</p>
-              <p className="text-xs text-gray-400 mb-4">Essayez d&apos;ajuster vos filtres ou votre recherche</p>
+            <div className="text-center py-8">
+              <Search className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500 mb-3">{t('home.noProductsFound', 'Aucun produit trouvé')}</p>
               <button
                 onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
                 className="px-4 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-full active:scale-95"
               >
                 {t('home.reset', 'Réinitialiser')}
               </button>
-            </motion.div>
+            </div>
           )}
         </section>
 
@@ -2332,24 +2273,6 @@ const loadDiscountProducts = async () => {
             </Link>
           </div>
         </section>
-
-        {/* Floating Back-to-Top FAB */}
-        <AnimatePresence>
-          {showBackToTop && (
-            <motion.button
-              type="button"
-              onClick={scrollToTop}
-              initial={{ opacity: 0, scale: 0.5, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.5, y: 20 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-              className="fixed bottom-24 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-900 text-white shadow-lg shadow-black/20 active:scale-90 transition-transform"
-              aria-label="Retour en haut"
-            >
-              <ChevronRight className="h-5 w-5 -rotate-90" />
-            </motion.button>
-          )}
-        </AnimatePresence>
       </main>
     );
   };
@@ -3230,11 +3153,11 @@ const loadDiscountProducts = async () => {
           {/* Product grid - 4-5 columns */}
           {productsError ? (
             <NetworkFallbackCard
-              title="Impossible de charger les données."
+              title="Unable to load data."
               message={productsError}
               onRetry={loadProducts}
-              retryLabel="Réessayer"
-              refreshLabel="Actualiser la page"
+              retryLabel="Retry"
+              refreshLabel="Refresh page"
             />
           ) : loading ? (
             <ShimmerSkeleton rows={4} />

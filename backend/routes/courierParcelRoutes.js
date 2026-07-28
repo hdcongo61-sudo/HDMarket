@@ -8,7 +8,8 @@ import {
   rejectCourierParcelAssignment,
   updateCourierParcelStage,
   uploadCourierParcelProof,
-  pingParcelAgentLocation
+  pingParcelAgentLocation,
+  requestCourierPriceAdjustment
 } from '../controllers/courierParcelController.js';
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.get('/:id', protect, getCourierParcelAssignmentById);
 router.patch('/:id/accept', protect, acceptCourierParcelAssignment);
 router.patch('/:id/reject', protect, rejectCourierParcelAssignment);
 router.patch('/:id/stage', protect, updateCourierParcelStage);
+router.post('/:id/price-adjustment', protect, requestCourierPriceAdjustment);
 router.post(
   '/:id/proof',
   protect,

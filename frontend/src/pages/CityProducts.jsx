@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { useAppSettings } from '../context/AppSettingsContext';
+
+const PAGE_LIMIT = 12;
 
 export default function CityProducts() {
   const { cities } = useAppSettings();
@@ -18,6 +20,11 @@ export default function CityProducts() {
   const cacheRef = useRef(new Map());
   const externalLinkProps = useDesktopExternalLink();
   const [selectedCity, setSelectedCity] = useState(() => searchParams.get('city') || '');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const loadMoreSentinelRef = useRef(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const infiniteScrollLockRef = useRef(0);
   const cityOptions = useMemo(() => {
     const dynamicCities = Array.isArray(cities)
       ? cities
@@ -79,47 +86,17 @@ export default function CityProducts() {
       setError('');
       try {
         const { data } = await api.get('/products/public', {
-          params: { city: selectedCity },
+          params: { city: selectedCity, page, limit: PAGE_LIMIT },
           signal: controller.signal
         });
         const list = Array.isArray(data) ? data : data?.items || [];
-        if (list.length) {
-          setItems(list);
-          cacheRef.current.set(selectedCity, {
-            items: list,
-            error: '',
-            nextRetry: 0
-          });
-        } else if (cityHighlights[selectedCity]) {
-          const fallback = cityHighlights[selectedCity];
-          setItems(fallback);
-          cacheRef.current.set(selectedCity, {
-            items: fallback,
-            error: '',
-            nextRetry: 0
-          });
-        } else {
-          setItems([]);
-          cacheRef.current.set(selectedCity, {
-            items: [],
-            error: '',
-            nextRetry: 0
-          });
-        }
+        const pages = data?.pagination?.pages || 1;
+        setItems((prev) => (page > 1 ? [...prev, ...list] : list));
+        setTotalPages(pages);
       } catch (e) {
         if (controller.signal.aborted) return;
         const message = e.response?.data?.message || e.message || 'Impossible de charger les produits.';
         setError(message);
-        const fallbackItems =
-          cacheRef.current.get(selectedCity)?.items || cityHighlights[selectedCity] || [];
-        if (fallbackItems.length) {
-          setItems(fallbackItems);
-        }
-        cacheRef.current.set(selectedCity, {
-          items: fallbackItems,
-          error: message,
-          nextRetry: Date.now() + 60 * 1000
-        });
       } finally {
         setLoading(false);
       }
@@ -127,19 +104,13 @@ export default function CityProducts() {
 
     load();
     return () => controller.abort();
-  }, [selectedCity, cityHighlights]);
+  }, [selectedCity, page]);
 
+  // Reset pagination when city changes
   useEffect(() => {
-    if (!items.length && cityHighlights[selectedCity]?.length) {
-      const fallback = cityHighlights[selectedCity];
-      setItems(fallback);
-      cacheRef.current.set(selectedCity, {
-        items: fallback,
-        error: '',
-        nextRetry: 0
-      });
-    }
-  }, [cityHighlights, selectedCity, items.length]);
+    setPage(1);
+    setItems([]);
+  }, [selectedCity]);
 
   useEffect(() => {
     if (!selectedCity) return;
@@ -151,6 +122,49 @@ export default function CityProducts() {
     if (!selectedCity) return 'Produits par ville';
     return `Produits disponibles à ${selectedCity}`;
   }, [selectedCity]);
+
+  // Infinite scroll via scroll event
+  useEffect(() => {
+    if (loading) return;
+    if (page >= totalPages) return;
+    const handleScroll = () => {
+      const now = Date.now();
+      if (now - infiniteScrollLockRef.current < 300) return;
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 400) {
+        infiniteScrollLockRef.current = now;
+        setPage((prev) => Math.min(prev + 1, totalPages));
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, page, totalPages]);
+
+  // Infinite scroll via IntersectionObserver (fallback)
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return undefined;
+    if (loading || page >= totalPages) return undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return;
+      const now = Date.now();
+      if (now - infiniteScrollLockRef.current < 300) return;
+      infiniteScrollLockRef.current = now;
+      setPage((prev) => Math.min(prev + 1, totalPages));
+    }, { rootMargin: '600px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading, page, totalPages]);
+
+  // Back-to-top visibility
+  useEffect(() => {
+    const t = () => setShowBackToTop(window.scrollY > 600);
+    window.addEventListener('scroll', t, { passive: true });
+    t();
+    return () => window.removeEventListener('scroll', t);
+  }, []);
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
     <div className="hd-products-flow">
@@ -195,7 +209,7 @@ export default function CityProducts() {
           </div>
         )}
 
-        {loading ? (
+        {loading && items.length === 0 ? (
           <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 lg:columns-4 xl:columns-5">
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="mb-2 break-inside-avoid rounded-[14px] border border-gray-200 bg-white p-2 shadow-sm sm:mb-3">
@@ -209,7 +223,26 @@ export default function CityProducts() {
             ))}
           </div>
         ) : items.length ? (
-          <ProductMasonryGrid products={items} />
+          <>
+            <ProductMasonryGrid products={items} />
+            <div ref={loadMoreSentinelRef} className="h-px" />
+            {loading && page > 1 && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-[#e85d00]" />
+              </div>
+            )}
+            {!loading && page < totalPages && (
+              <div className="flex justify-center pt-2 pb-4">
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                  className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-neutral-800 active:scale-[0.97]"
+                >
+                  Afficher plus
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
             Aucune annonce disponible pour cette ville pour le moment.
@@ -239,6 +272,13 @@ export default function CityProducts() {
           </div>
         </section>
       </div>
+
+      {/* Back-to-Top FAB */}
+      {showBackToTop && (
+        <button type="button" onClick={scrollToTop} className="fixed bottom-24 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-900 text-white shadow-lg shadow-black/20 active:scale-90 transition-transform" aria-label="Retour en haut">
+          <svg className="h-5 w-5 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+        </button>
+      )}
     </div>
   );
 }

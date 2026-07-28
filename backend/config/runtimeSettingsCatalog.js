@@ -1331,6 +1331,127 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     valueType: 'number',
     defaultValue: 30,
     isPublic: true
+  },
+
+  // ── Parcel pricing engine: general settings ────────────────────────────
+  parcel_pricing_fuel_surcharge_percent: {
+    category: 'delivery_platform',
+    description: 'Majoration carburant (%) appliquée sur le prix courant de la course colis.',
+    valueType: 'number',
+    defaultValue: 0,
+    isPublic: true
+  },
+  parcel_pricing_night_surcharge_percent: {
+    category: 'delivery_platform',
+    description: 'Majoration nuit (%) — 22h-5h par défaut, voir les règles Heures de pointe pour la fenêtre exacte.',
+    valueType: 'number',
+    defaultValue: 0,
+    isPublic: true
+  },
+  parcel_pricing_weekend_surcharge_percent: {
+    category: 'delivery_platform',
+    description: 'Majoration week-end (%) appliquée le samedi et dimanche.',
+    valueType: 'number',
+    defaultValue: 0,
+    isPublic: true
+  },
+  parcel_pricing_holiday_surcharge_percent: {
+    category: 'delivery_platform',
+    description: 'Majoration jour férié (%). Activée manuellement par l’admin les jours concernés.',
+    valueType: 'number',
+    defaultValue: 0,
+    isPublic: true
+  },
+  parcel_pricing_holiday_active: {
+    category: 'delivery_platform',
+    description: 'Activer la majoration jour férié aujourd’hui.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  parcel_pricing_rain_surcharge_percent: {
+    category: 'delivery_platform',
+    description: 'Majoration intempéries (%). Activée manuellement par l’admin quand il pleut.',
+    valueType: 'number',
+    defaultValue: 0,
+    isPublic: true
+  },
+  parcel_pricing_rain_active: {
+    category: 'delivery_platform',
+    description: 'Activer la majoration intempéries maintenant.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  parcel_pricing_waiting_fee_per_minute: {
+    category: 'delivery_platform',
+    description: 'Frais d’attente (XAF) par minute au-delà des minutes gratuites.',
+    valueType: 'number',
+    defaultValue: 0,
+    isPublic: true
+  },
+  parcel_pricing_free_waiting_minutes: {
+    category: 'delivery_platform',
+    description: 'Minutes d’attente gratuites avant application des frais d’attente.',
+    valueType: 'number',
+    defaultValue: 5,
+    isPublic: true
+  },
+  parcel_pricing_max_driver_adjustment_percent: {
+    category: 'delivery_platform',
+    description: 'Ajustement maximum (%) qu’un livreur peut demander sur le prix estimé d’une course.',
+    valueType: 'number',
+    defaultValue: 20,
+    isPublic: true
+  },
+  parcel_delivery_platform_commission_percent: {
+    category: 'delivery_platform',
+    description: 'Commission (%) prélevée par la plateforme sur le prix de chaque course colis — le reste revient au livreur.',
+    valueType: 'number',
+    defaultValue: 15,
+    isPublic: true
+  },
+  parcel_pricing_enable_surge: {
+    category: 'delivery_platform',
+    description: 'Activer la tarification dynamique (heures de pointe).',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  parcel_pricing_enable_landmark: {
+    category: 'delivery_platform',
+    description: 'Activer la résolution de position par point de repère (landmark).',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  parcel_pricing_enable_gps: {
+    category: 'delivery_platform',
+    description: 'Activer la tarification par distance GPS quand les deux coordonnées sont connues.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  parcel_pricing_enable_commune: {
+    category: 'delivery_platform',
+    description: 'Activer le repli sur le centre de la commune quand GPS et landmark sont indisponibles.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  parcel_pricing_enable_location_resolver: {
+    category: 'delivery_platform',
+    description: 'Activer la cascade de résolution de position (GPS -> Landmark -> Commune -> Ville) au lieu du seul forfait commune/commune-croisée.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  parcel_pricing_enable_zone_matrix: {
+    category: 'delivery_platform',
+    description: 'Utiliser la matrice de prix zone à zone comme prix de base au lieu des forfaits même-commune/commune-différente.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
   }
 });
 

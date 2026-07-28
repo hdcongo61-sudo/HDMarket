@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft, ShieldCheck, Wallet } from 'lucide-react';
+import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft, ShieldCheck, Wallet, MapPinned, X } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -15,11 +15,50 @@ const emptyLocation = () => ({
   address: '',
   contactName: '',
   contactPhone: '',
-  coordinates: null
+  coordinates: null,
+  landmarkId: '',
+  landmarkName: ''
 });
 
 function LocationFields({ title, value, onChange, cities, communesForCity }) {
   const [locating, setLocating] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+
+  useEffect(() => {
+    if (value.landmarkId || !value.address.trim() || !value.cityId) {
+      setSuggestions([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api
+        .get('/delivery-pricing/landmarks/search', { params: { text: value.address, cityId: value.cityId } })
+        .then(({ data }) => {
+          if (!cancelled) setSuggestions(Array.isArray(data?.items) ? data.items : []);
+        })
+        .catch(() => {
+          if (!cancelled) setSuggestions([]);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [value.address, value.cityId, value.landmarkId]);
+
+  const handlePickLandmark = (landmark) => {
+    setSuggestions([]);
+    onChange({
+      ...value,
+      landmarkId: landmark.id,
+      landmarkName: landmark.name,
+      communeId: landmark.communeId || value.communeId
+    });
+  };
+
+  const handleClearLandmark = () => {
+    onChange({ ...value, landmarkId: '', landmarkName: '' });
+  };
 
   const handleUseCurrentLocation = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
@@ -78,13 +117,39 @@ function LocationFields({ title, value, onChange, cities, communesForCity }) {
         </select>
       </div>
 
-      <input
-        type="text"
-        value={value.address}
-        onChange={(e) => onChange({ ...value, address: e.target.value })}
-        placeholder="Adresse précise (quartier, rue, repère)"
-        className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
-      />
+      <div className="relative mt-2">
+        <input
+          type="text"
+          value={value.address}
+          onChange={(e) => onChange({ ...value, address: e.target.value, landmarkId: '', landmarkName: '' })}
+          placeholder="Adresse précise (quartier, rue, repère — ex: Près de Total Station)"
+          className="min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+        />
+        {suggestions.length > 0 ? (
+          <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+            {suggestions.map((landmark) => (
+              <button
+                key={landmark.id}
+                type="button"
+                onClick={() => handlePickLandmark(landmark)}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-gray-800 hover:bg-gray-50"
+              >
+                <MapPinned size={14} className="shrink-0 text-[#e85d00]" />
+                {landmark.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {value.landmarkId ? (
+        <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700">
+          <MapPinned size={12} />
+          <span className="flex-1">Repère : {value.landmarkName}</span>
+          <button type="button" onClick={handleClearLandmark} aria-label="Retirer le repère">
+            <X size={12} />
+          </button>
+        </div>
+      ) : null}
 
       <div className="mt-2 grid grid-cols-2 gap-2">
         <input
@@ -124,12 +189,29 @@ export default function RequestDelivery() {
   const [submitting, setSubmitting] = useState(false);
   const [enabled, setEnabled] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState('pawapay');
+  const [packageTypeId, setPackageTypeId] = useState('');
+  const [weightKg, setWeightKg] = useState('');
+  const [deliverySpeed, setDeliverySpeed] = useState('STANDARD');
+  const [promoCode, setPromoCode] = useState('');
+  const [packageTypes, setPackageTypes] = useState([]);
+  const [speedRules, setSpeedRules] = useState([]);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
     api
       .get('/parcels/capabilities')
       .then(({ data }) => setEnabled(Boolean(data?.enabled)))
       .catch(() => setEnabled(true));
+    api
+      .get('/delivery-pricing/options')
+      .then(({ data }) => {
+        setPackageTypes(Array.isArray(data?.packageTypes) ? data.packageTypes : []);
+        setSpeedRules(Array.isArray(data?.speedRules) ? data.speedRules : []);
+      })
+      .catch(() => {
+        setPackageTypes([]);
+        setSpeedRules([]);
+      });
   }, []);
 
   const pickupCommunes = useMemo(
@@ -153,8 +235,12 @@ export default function RequestDelivery() {
     const timer = setTimeout(() => {
       api
         .post('/parcels/estimate', {
-          pickup: { communeId: pickup.communeId, coordinates: pickup.coordinates },
-          dropoff: { communeId: dropoff.communeId, coordinates: dropoff.coordinates }
+          pickup: { cityId: pickup.cityId, communeId: pickup.communeId, address: pickup.address, coordinates: pickup.coordinates, landmarkId: pickup.landmarkId || undefined },
+          dropoff: { cityId: dropoff.cityId, communeId: dropoff.communeId, address: dropoff.address, coordinates: dropoff.coordinates, landmarkId: dropoff.landmarkId || undefined },
+          packageTypeId: packageTypeId || undefined,
+          weightKg: weightKg || undefined,
+          deliverySpeed,
+          promoCode: promoCode || undefined
         })
         .then(({ data }) => {
           if (!cancelled) setEstimate(data);
@@ -170,7 +256,22 @@ export default function RequestDelivery() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [pickup.communeId, pickup.coordinates, dropoff.communeId, dropoff.coordinates]);
+  }, [
+    pickup.cityId,
+    pickup.communeId,
+    pickup.address,
+    pickup.coordinates,
+    pickup.landmarkId,
+    dropoff.cityId,
+    dropoff.communeId,
+    dropoff.address,
+    dropoff.coordinates,
+    dropoff.landmarkId,
+    packageTypeId,
+    weightKg,
+    deliverySpeed,
+    promoCode
+  ]);
 
   const handleProofChange = (event) => {
     const file = event.target.files?.[0];
@@ -201,6 +302,10 @@ export default function RequestDelivery() {
       formData.append('referenceCode', referenceCode);
       formData.append('notes', notes);
       formData.append('proofImage', proofFile);
+      if (packageTypeId) formData.append('packageTypeId', packageTypeId);
+      if (weightKg) formData.append('weightKg', weightKg);
+      formData.append('deliverySpeed', deliverySpeed);
+      if (promoCode) formData.append('promoCode', promoCode);
 
       const { data } = await api.post('/parcels', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -236,7 +341,11 @@ export default function RequestDelivery() {
           parcelDescription,
           referenceCode,
           notes,
-          proofImageUrl: data?.proofImageUrl || ''
+          proofImageUrl: data?.proofImageUrl || '',
+          packageTypeId: packageTypeId || undefined,
+          weightKg: weightKg || undefined,
+          deliverySpeed,
+          promoCode: promoCode || undefined
         }
       };
     } catch (error) {
@@ -280,6 +389,57 @@ export default function RequestDelivery() {
             maxLength={300}
             placeholder="Description (ex : un carton, un document, une commande à récupérer...)"
             className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:border-[#e85d00]"
+          />
+
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {packageTypes.length > 0 && (
+              <select
+                value={packageTypeId}
+                onChange={(e) => setPackageTypeId(e.target.value)}
+                className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+              >
+                <option value="">Type de colis</option>
+                {packageTypes.map((type) => (
+                  <option key={type._id} value={type._id}>{type.name}</option>
+                ))}
+              </select>
+            )}
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={weightKg}
+              onChange={(e) => setWeightKg(e.target.value)}
+              placeholder="Poids estimé (kg)"
+              className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+            />
+          </div>
+
+          {speedRules.length > 0 && (
+            <div className="mt-2 flex gap-2 overflow-x-auto">
+              {speedRules.map((rule) => (
+                <button
+                  key={rule.key}
+                  type="button"
+                  onClick={() => setDeliverySpeed(rule.key)}
+                  className={`min-h-10 shrink-0 rounded-xl border px-3 text-xs font-black transition ${
+                    deliverySpeed === rule.key
+                      ? 'border-[#e85d00] bg-[#e85d00] text-white'
+                      : 'border-gray-200 text-gray-600'
+                  }`}
+                >
+                  {rule.label}{rule.extraPrice > 0 ? ` (+${formatCurrency(rule.extraPrice)})` : ''}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <input
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            placeholder="Code promo (optionnel)"
+            className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
           />
 
           <label className="mt-3 block text-[11px] font-bold text-gray-500">
@@ -349,8 +509,25 @@ export default function RequestDelivery() {
 
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white px-4 py-3">
           <div className="mx-auto max-w-lg">
+            {estimate?.breakdown?.length > 0 && showBreakdown ? (
+              <div className="mb-2 space-y-1 rounded-xl bg-gray-50 p-2.5">
+                {estimate.breakdown.map((line, index) => (
+                  <div key={`${line.label}-${index}`} className="flex items-center justify-between text-[11px] font-semibold text-gray-600">
+                    <span>{line.label}</span>
+                    <span>{line.amount < 0 ? '-' : ''}{formatCurrency(Math.abs(line.amount))}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] font-bold text-gray-400">Prix estimé</p>
+              <button
+                type="button"
+                onClick={() => setShowBreakdown((prev) => !prev)}
+                disabled={!estimate?.breakdown?.length}
+                className="text-[11px] font-bold text-gray-400 underline decoration-dotted disabled:no-underline"
+              >
+                {estimate?.breakdown?.length ? (showBreakdown ? 'Masquer le détail' : 'Prix estimé (détail)') : 'Prix estimé'}
+              </button>
               <p className="text-lg font-black text-neutral-950">
                 {estimating ? '…' : estimate ? formatCurrency(estimate.price) : '—'}
               </p>
@@ -391,6 +568,7 @@ function buildLocationPayload(value, cities, communes) {
     address: value.address,
     contactName: value.contactName,
     contactPhone: value.contactPhone,
-    coordinates: value.coordinates || undefined
+    coordinates: value.coordinates || undefined,
+    landmarkId: value.landmarkId || undefined
   };
 }

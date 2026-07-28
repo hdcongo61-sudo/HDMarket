@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { MessageSquare, Plus, Save, Trash2, Edit3, ChevronRight } from 'lucide-react';
+import { MessageSquare, Plus, Save, Trash2, Edit3, ChevronRight, ChevronDown, HelpCircle } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 
@@ -102,6 +102,7 @@ export default function AdminChatTemplates() {
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessSearch, setAccessSearch] = useState('');
   const [accessSavingUserId, setAccessSavingUserId] = useState('');
+  const [showGuide, setShowGuide] = useState(true);
 
   const tree = useMemo(() => buildTree(templates), [templates]);
   const parentOptions = useMemo(() => flattenTreeLabels(tree), [tree]);
@@ -317,6 +318,70 @@ export default function AdminChatTemplates() {
           </p>
         </div>
       </header>
+
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+        <button
+          type="button"
+          onClick={() => setShowGuide((prev) => !prev)}
+          className="flex w-full items-center justify-between gap-2 p-4 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">
+            <HelpCircle className="h-4 w-4 text-[#e85d00]" />
+            Comment utiliser cette page
+          </span>
+          {showGuide ? (
+            <ChevronDown className="h-4 w-4 text-neutral-400" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-neutral-400" />
+          )}
+        </button>
+        {showGuide && (
+          <div className="space-y-4 border-t border-gray-100 px-4 pb-4 pt-3 text-sm text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
+            <p>
+              Cette page construit l’arbre de questions/réponses de l’<strong>assistant guidé</strong> (le chat d’aide dans
+              l’app). Chaque « nœud » est une étape que l’utilisateur peut voir ou sur laquelle il peut cliquer pour
+              avancer dans la conversation.
+            </p>
+
+            <div>
+              <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-neutral-400">Types de nœud</p>
+              <ul className="space-y-1 text-xs">
+                <li><strong>Question</strong> — une étape intermédiaire ; peut avoir des enfants (sous-questions).</li>
+                <li><strong>Info</strong> — un message final, sans suite (fin de branche).</li>
+                <li><strong>Action</strong> — déclenche une action côté app (ex: contacter le support).</li>
+                <li><strong>Lien</strong> — redirige vers une page interne (voir « Path ») ou une entité (voir « Entity »).</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-neutral-400">Construire l’arbre</p>
+              <ul className="space-y-1 text-xs">
+                <li><strong>Parent</strong> — laissez « Racine » pour un point d’entrée du menu principal, ou choisissez un nœud existant pour créer une sous-question sous lui.</li>
+                <li><strong>Priorité</strong> — trie les nœuds de même parent, du plus haut au plus bas.</li>
+                <li><strong>Ordre</strong> — départage deux nœuds de même priorité.</li>
+                <li>Un nœud <strong>sans enfant</strong> est traité comme la fin de la conversation — son « Contenu » doit donc être une réponse complète, pas une simple étape.</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-xs font-black uppercase tracking-wide text-neutral-400">Ciblage et liens</p>
+              <ul className="space-y-1 text-xs">
+                <li><strong>Rôles</strong> — liste séparée par des virgules (ex: <code>all</code>, <code>client</code>, <code>seller</code>, <code>admin</code>) ; seuls ces rôles verront le nœud.</li>
+                <li><strong>Entity type / Entity ID</strong> — pour lier le nœud à une entité précise (une commande, un produit, un litige...) que l’assistant peut ouvrir directement.</li>
+                <li><strong>Path</strong> — une route interne (ex: <code>/orders</code>) vers laquelle rediriger si aucune entité n’est nécessaire.</li>
+                <li><strong>Actif</strong> — décochez pour masquer temporairement un nœud sans le supprimer.</li>
+              </ul>
+            </div>
+
+            {isAdmin && (
+              <p className="rounded-xl border border-gray-100 bg-gray-50 p-2.5 text-xs text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                La section <strong>« Accès gestion templates chat »</strong> ci-dessous vous permet, en tant qu’admin/fondateur,
+                de déléguer la gestion de cette page à d’autres utilisateurs sans leur donner le rôle admin.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
 
       {isAdmin && (
         <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">

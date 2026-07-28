@@ -334,14 +334,20 @@ export default function AdminParcelRequests() {
         </div>
 
         {stats && (
-          <div className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-neutral-100 sm:grid-cols-6">
-            <StatCard icon={Package} label="Total" value={stats.total} tone="bg-neutral-100 text-neutral-600" />
-            <StatCard icon={Clock} label="En attente" value={stats.pending} tone="bg-amber-100 text-amber-600" />
-            <StatCard icon={Truck} label="Assignées" value={stats.accepted + stats.inProgress} tone="bg-blue-100 text-blue-600" />
-            <StatCard icon={CheckCircle2} label="Livrées" value={stats.delivered} tone="bg-emerald-100 text-emerald-600" />
-            <StatCard icon={Ban} label="Annulées" value={stats.canceled} tone="bg-red-100 text-red-600" />
-            <StatCard icon={Banknote} label="Revenu" value={formatCurrency(stats.totalRevenue)} tone="bg-violet-100 text-violet-600" />
-          </div>
+          <>
+            <div className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-neutral-100 sm:grid-cols-6">
+              <StatCard icon={Package} label="Total" value={stats.total} tone="bg-neutral-100 text-neutral-600" />
+              <StatCard icon={Clock} label="En attente" value={stats.pending} tone="bg-amber-100 text-amber-600" />
+              <StatCard icon={Truck} label="Assignées" value={stats.accepted + stats.inProgress} tone="bg-blue-100 text-blue-600" />
+              <StatCard icon={CheckCircle2} label="Livrées" value={stats.delivered} tone="bg-emerald-100 text-emerald-600" />
+              <StatCard icon={Ban} label="Annulées" value={stats.canceled} tone="bg-red-100 text-red-600" />
+              <StatCard icon={Banknote} label="Revenu" value={formatCurrency(stats.totalRevenue)} tone="bg-violet-100 text-violet-600" />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-neutral-100">
+              <StatCard icon={Banknote} label="Commission plateforme" value={formatCurrency(stats.totalCommission)} tone="bg-emerald-100 text-emerald-700" />
+              <StatCard icon={Truck} label="Revenu livreurs" value={formatCurrency(stats.totalCourierEarnings)} tone="bg-sky-100 text-sky-700" />
+            </div>
+          </>
         )}
 
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
