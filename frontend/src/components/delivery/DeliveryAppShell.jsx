@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bike, ClipboardList, History, UserRound } from 'lucide-react';
+import { Bike, ClipboardList, History, Package, UserRound } from 'lucide-react';
 
 const NAV_ITEMS = [
   { key: 'missions', label: 'Missions', to: '/delivery/dashboard', icon: ClipboardList },
+  { key: 'parcels', label: 'Colis', to: '/delivery/parcels', icon: Package },
   { key: 'history', label: 'Historique', to: '/delivery/history', icon: History },
   { key: 'profile', label: 'Profil', to: '/delivery/profile', icon: UserRound }
 ];
@@ -92,7 +93,7 @@ export default function DeliveryAppShell() {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-100 bg-white px-3 pb-[max(8px,env(safe-area-inset-bottom,0px))] pt-2 shadow-sm backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950 lg:hidden"
         aria-label="Navigation livraison mobile"
       >
-        <div className="mx-auto grid max-w-md grid-cols-3 gap-1">
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = isNavItemActive(pathname, item);

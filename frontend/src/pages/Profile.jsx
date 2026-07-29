@@ -1883,6 +1883,15 @@ export default function Profile() {
               Voir ma boutique publique
             </Link>
           )}
+          <Link
+            to={String(user?.role || '').toLowerCase() === 'delivery_agent' ? '/delivery/dashboard' : '/delivery/apply'}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-black text-orange-900 shadow-sm transition-colors hover:bg-orange-100"
+          >
+            <Truck className="h-4 w-4 text-[#e85d00]" />
+            {String(user?.role || '').toLowerCase() === 'delivery_agent'
+              ? 'Ouvrir mon espace livreur'
+              : 'Demander à devenir livreur'}
+          </Link>
         </section>
 
         {/* Navigation par onglets — mobile: sticky horizontal avec indicateur animé + progression */}

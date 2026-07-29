@@ -60,6 +60,10 @@ import {
   downloadSellerAnalyticsPdf,
   getSellerAnalytics
 } from '../controllers/sellerAnalyticsController.js';
+import {
+  createDeliveryGuyApplication,
+  getMyDeliveryGuyApplication
+} from '../controllers/deliveryGuyApplicationController.js';
 
 const router = express.Router();
 const shopLocationRateLimiter = rateLimit({
@@ -200,6 +204,18 @@ router.post(
     { name: 'outsidePhoto', maxCount: 1 }
   ]),
   createShopConversionRequest
+);
+router.get('/delivery-guy-application', getMyDeliveryGuyApplication);
+router.post(
+  '/delivery-guy-application',
+  upload.fields([
+    { name: 'identityFront', maxCount: 1 },
+    { name: 'identityBack', maxCount: 1 },
+    { name: 'vehiclePhoto', maxCount: 1 },
+    { name: 'platePhoto', maxCount: 1 },
+    { name: 'driverLicensePhoto', maxCount: 1 }
+  ]),
+  createDeliveryGuyApplication
 );
 
 export default router;

@@ -18,6 +18,26 @@ const deliveryGuySchema = new mongoose.Schema(
       enum: ['bike', 'motorcycle', 'car', 'van', 'truck', 'other', ''],
       default: ''
     },
+    vehicleBrand: { type: String, trim: true, default: '' },
+    vehicleModel: { type: String, trim: true, default: '' },
+    vehicleColor: { type: String, trim: true, default: '' },
+    plateNumber: { type: String, trim: true, uppercase: true, default: '', index: true },
+    vehiclePhotoUrl: { type: String, trim: true, default: '' },
+    platePhotoUrl: { type: String, trim: true, default: '' },
+    vehicleOwnership: {
+      type: String,
+      enum: ['self', 'family', 'borrowed', 'rented', 'employer', 'other', ''],
+      default: ''
+    },
+    vehicleOwnerName: { type: String, trim: true, default: '' },
+    vehicleOwnerPhone: { type: String, trim: true, default: '' },
+    phoneRegisteredInOwnName: { type: Boolean, default: false },
+    emergencyContactUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    emergencyContactName: { type: String, trim: true, default: '' },
+    emergencyContactPhone: { type: String, trim: true, default: '' },
+    emergencyContactRelationship: { type: String, trim: true, default: '' },
+    identityVerifiedAt: { type: Date, default: null },
+    driverLicenseVerifiedAt: { type: Date, default: null },
     notes: { type: String, trim: true, default: '' }
   },
   { timestamps: true }

@@ -74,6 +74,9 @@ export default function Footer() {
     { to: '/installer-application', label: t('footer.installApp', 'Installer l’application') },
     { to: '/avantages', label: t('nav.benefits', 'Pourquoi HDMarket') },
     { to: '/plans', label: t('nav.plans', 'Plans & tarifs') },
+    { to: '/parcels/new', label: t('footer.sendParcel', 'Envoyer un colis') },
+    { to: '/parcels', label: t('footer.myParcels', 'Mes colis') },
+    { to: '/delivery/apply', label: t('footer.courierApplication', 'Devenir livreur') },
     { to: '/shops/free-delivery', label: t('footer.freeDelivery', 'Livraison offerte') },
     { to: '/top-deals', label: t('footer.deals', 'Bons plans') }
   ];

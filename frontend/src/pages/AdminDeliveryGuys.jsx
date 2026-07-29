@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
-import { Plus, Save, Edit3, Trash2, Phone, Truck, Search, Users, UserPlus, UserMinus, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Save, Edit3, Trash2, Phone, Truck, Search, Users, UserPlus, UserMinus, AlertCircle, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
@@ -37,6 +37,10 @@ export default function AdminDeliveryGuys() {
   const [foundUsers, setFoundUsers] = useState([]);
   const [managerMessage, setManagerMessage] = useState('');
   const [managerBusyId, setManagerBusyId] = useState('');
+  const [applications, setApplications] = useState([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [applicationBusyId, setApplicationBusyId] = useState('');
+  const [reviewNotes, setReviewNotes] = useState({});
 
   const summary = items.reduce(
     (acc, item) => {
@@ -138,6 +142,45 @@ export default function AdminDeliveryGuys() {
   useEffect(() => {
     loadManagers();
   }, [loadManagers]);
+
+  const loadApplications = useCallback(async () => {
+    setApplicationsLoading(true);
+    try {
+      const { data } = await api.get('/admin/delivery-guy-applications?status=pending');
+      setApplications(Array.isArray(data?.applications) ? data.applications : []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Impossible de charger les candidatures livreur.');
+      setApplications([]);
+    } finally {
+      setApplicationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadApplications();
+  }, [loadApplications]);
+
+  const reviewApplication = async (applicationId, decision) => {
+    const reviewNote = String(reviewNotes[applicationId] || '').trim();
+    if (decision === 'reject' && !reviewNote) {
+      setError('Ajoutez un motif avant de refuser la candidature.');
+      return;
+    }
+    setApplicationBusyId(applicationId);
+    setError('');
+    try {
+      const { data } = await api.patch(`/admin/delivery-guy-applications/${applicationId}/review`, {
+        decision,
+        reviewNote
+      });
+      setManagerMessage(data?.message || 'Candidature traitée.');
+      await Promise.all([loadApplications(), loadDeliveryGuys()]);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Impossible de traiter cette candidature.');
+    } finally {
+      setApplicationBusyId('');
+    }
+  };
 
   const resetForm = () => {
     setFormState({
@@ -300,6 +343,146 @@ export default function AdminDeliveryGuys() {
           <p className="mt-2 text-2xl font-semibold text-amber-800">{summary.delivering}</p>
           <p className="text-xs text-amber-700">{summary.delivered} livrée(s)</p>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-800">
+              Candidatures livreur
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Vérifiez que l’identité, le numéro, le véhicule, la plaque et le permis correspondent.
+            </p>
+          </div>
+          <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-black text-orange-800">
+            {applications.length} en attente
+          </span>
+        </div>
+
+        {applicationsLoading ? (
+          <p className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 className="h-4 w-4 animate-spin" /> Chargement des candidatures…
+          </p>
+        ) : applications.length === 0 ? (
+          <p className="mt-4 rounded-xl bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
+            Aucune candidature en attente.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {applications.map((application) => {
+              const applicationId = String(application._id);
+              const busy = applicationBusyId === applicationId;
+              const documents = [
+                ['Identité recto', application.identityFrontUrl],
+                ['Identité verso', application.identityBackUrl],
+                ['Véhicule', application.vehiclePhotoUrl],
+                ['Plaque', application.platePhotoUrl],
+                ['Permis', application.driverLicensePhotoUrl]
+              ].filter(([, url]) => Boolean(url));
+              return (
+                <article key={applicationId} className="rounded-2xl border border-gray-200 p-4">
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div>
+                      <p className="font-black text-gray-950">{application.fullName}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {application.user?.email || 'Email non renseigné'} · {application.phone}
+                      </p>
+                    </div>
+                    <p className="text-xs font-semibold text-gray-500">
+                      {new Date(application.createdAt).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 rounded-xl bg-gray-50 p-3 text-xs sm:grid-cols-2">
+                    <p>
+                      <strong>Pièce :</strong>{' '}
+                      {application.identityType === 'passport'
+                        ? 'Passeport'
+                        : application.identityType === 'driver_license'
+                          ? 'Permis de conduire'
+                          : 'CNI'}{' '}
+                      · {application.identityNumber}
+                    </p>
+                    <p><strong>Numéro à son nom :</strong> {application.phoneRegisteredInOwnName ? 'Oui' : 'Non'}</p>
+                    <p><strong>Véhicule :</strong> {application.vehicleBrand} {application.vehicleModel} · {application.vehicleColor}</p>
+                    <p><strong>Plaque :</strong> {application.plateNumber}</p>
+                    <p>
+                      <strong>Propriétaire :</strong>{' '}
+                      {application.vehicleOwnership === 'self' || !application.vehicleOwnerName
+                        ? 'Le candidat'
+                        : `${application.vehicleOwnerName} · ${application.vehicleOwnerPhone}`}
+                    </p>
+                    <p><strong>Permis :</strong> {application.driverLicenseNumber || 'Non fourni (optionnel)'}</p>
+                    <p><strong>Ville :</strong> {application.serviceCity}</p>
+                    <p className="sm:col-span-2">
+                      <strong>Urgence :</strong> {application.emergencyContactName} · {application.emergencyContactRelationship || 'Lien non précisé'} · {application.emergencyContactPhone}
+                      {application.emergencyContactUser ? (
+                        <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 font-black text-emerald-800">
+                          Compte HDMarket lié : {application.emergencyContactUser.name}
+                        </span>
+                      ) : (
+                        <span className="ml-2 inline-flex rounded-full bg-gray-200 px-2 py-0.5 font-bold text-gray-600">
+                          Aucun compte lié
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {documents.map(([label, url]) => (
+                      <a
+                        key={label}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-700 hover:border-orange-300 hover:text-orange-700"
+                      >
+                        {label}<ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ))}
+                  </div>
+
+                  {application.applicantNote ? (
+                    <p className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                      {application.applicantNote}
+                    </p>
+                  ) : null}
+
+                  <textarea
+                    rows={2}
+                    value={reviewNotes[applicationId] || ''}
+                    onChange={(event) => setReviewNotes((previous) => ({
+                      ...previous,
+                      [applicationId]: event.target.value
+                    }))}
+                    placeholder="Note interne ou motif obligatoire en cas de refus"
+                    className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
+                  />
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => reviewApplication(applicationId, 'approve')}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white disabled:opacity-60"
+                    >
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                      Approuver et activer
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => reviewApplication(applicationId, 'reject')}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 disabled:opacity-60"
+                    >
+                      <XCircle className="h-4 w-4" /> Refuser
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {isAdmin && (

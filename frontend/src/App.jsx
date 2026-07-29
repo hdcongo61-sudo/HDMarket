@@ -128,6 +128,7 @@ const Suggestions = lazy(() => import('./pages/Suggestions'));
 const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch'));
 const OrderMessages = lazy(() => import('./pages/OrderMessages'));
 const ShopConversionRequest = lazy(() => import('./pages/ShopConversionRequest'));
+const DeliveryGuyApplication = lazy(() => import('./pages/DeliveryGuyApplication'));
 const ShopAssistant = lazy(() => import('./pages/ShopAssistant'));
 const Footer = lazy(() => import('./components/Footer'));
 const ChatBox = lazy(() => import('./components/ChatBox'));
@@ -518,7 +519,10 @@ function AppContent() {
       'courier_update_status',
       'courier_upload_proof'
     ]));
-  const isCourierRoute = pathname.startsWith('/courier') || pathname.startsWith('/delivery');
+  const isCourierApplicationRoute = pathname === '/delivery/apply';
+  const isCourierRoute =
+    pathname.startsWith('/courier') ||
+    (pathname.startsWith('/delivery') && !isCourierApplicationRoute);
   const pageTransitionKey = getPageTransitionKey(pathname);
 
   useEffect(() => {
@@ -531,11 +535,11 @@ function AppContent() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!(pathname.startsWith('/delivery') || pathname.startsWith('/courier'))) return;
+    if (!isCourierRoute) return;
     const route = normalizeStoredCourierRoute(`${pathname}${location.search || ''}${location.hash || ''}`);
     if (!route) return;
     window.localStorage.setItem(LAST_COURIER_ROUTE_KEY, route);
-  }, [pathname, location.search, location.hash]);
+  }, [pathname, location.search, location.hash, isCourierRoute]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -712,6 +716,14 @@ function AppContent() {
           <Route path="/parcels/new" element={<RequestDelivery />} />
           <Route path="/parcels/:id" element={<ParcelRequestDetail />} />
           <Route path="/parcels" element={<MyParcelRequests />} />
+          <Route
+            path="/delivery/apply"
+            element={
+              <ProtectedRoute>
+                <DeliveryGuyApplication />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ForgotPassword />} />
           <Route path="/user-stats" element={<Navigate to="/stats" replace />} />

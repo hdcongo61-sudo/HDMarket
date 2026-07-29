@@ -412,6 +412,13 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  delivery_application_driver_license_required: {
+    category: 'delivery_platform',
+    description: 'Exiger le permis de conduire dans les candidatures pour devenir livreur.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
   courier_must_accept_assignment: {
     category: 'delivery_platform',
     description: 'Exiger que le livreur accepte/refuse explicitement une affectation.',

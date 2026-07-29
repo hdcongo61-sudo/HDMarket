@@ -94,6 +94,10 @@ import {
   deleteDeliveryGuyAdmin
 } from '../controllers/deliveryGuyController.js';
 import {
+  listDeliveryGuyApplicationsAdmin,
+  reviewDeliveryGuyApplicationAdmin
+} from '../controllers/deliveryGuyApplicationController.js';
+import {
   listAdminDeliveryRequests,
   getAdminDeliveryAnalytics,
   createDeliveryRequestForOrderAdmin,
@@ -346,8 +350,9 @@ router.patch(
 router.use(protect, (req, res, next) => {
   const path = String(req.path || '');
   const isDeliveryRequestPath = /^\/delivery-requests(?:\/|$)/.test(path);
+  const isDeliveryApplicationPath = /^\/delivery-guy-applications(?:\/|$)/.test(path);
   const isCourierDirectoryRead = req.method === 'GET' && path === '/delivery-guys';
-  if (isDeliveryRequestPath || isCourierDirectoryRead) {
+  if (isDeliveryRequestPath || isDeliveryApplicationPath || isCourierDirectoryRead) {
     return requireDeliveryAccess(req, res, next);
   }
   return requireRole(['admin', 'manager'])(req, res, next);
@@ -525,6 +530,13 @@ router.put(
 );
 router.put('/splash', upload.single('splashImage'), adminMutationIdempotency, updateSplash);
 router.get('/delivery-guys', listDeliveryGuysAdmin);
+router.get('/delivery-guy-applications', listDeliveryGuyApplicationsAdmin);
+router.patch(
+  '/delivery-guy-applications/:id/review',
+  validate(schemas.idParam, 'params'),
+  adminMutationIdempotency,
+  reviewDeliveryGuyApplicationAdmin
+);
 router.post(
   '/delivery-guys',
   validate(schemas.deliveryGuyCreate),
