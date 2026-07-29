@@ -11,8 +11,8 @@ const connectDB = async () => {
     serverSelectionTimeoutMS: 10000, // 10 seconds timeout
     socketTimeoutMS: 45000, // 45 seconds socket timeout
     connectTimeoutMS: 10000, // 10 seconds connection timeout
-    maxPoolSize: 10, // Maintain up to 10 socket connections
-    minPoolSize: 2, // Maintain at least 2 socket connections
+    maxPoolSize: 25, // Up to 25 concurrent DB operations
+    minPoolSize: 4,  // Keep at least 4 warm connections
     retryWrites: true,
     retryReads: true,
     // Force direct connection if DNS issues persist

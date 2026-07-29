@@ -117,6 +117,7 @@ export default function ProductForm(props) {
     hideHeader = false,
     onCancel
   } = props;
+  const isEditing = Boolean(productId);
   const { runtime, app } = useAppSettings();
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const { categoryGroups, getCategoryMeta } = useCategories();
@@ -176,6 +177,7 @@ export default function ProductForm(props) {
   const [videoFile, setVideoFile] = useState(null);
   const [existingVideoUrl, setExistingVideoUrl] = useState(null);
   const [removeExistingVideo, setRemoveExistingVideo] = useState(false);
+  const [videoMuted, setVideoMuted] = useState(true);
   const [videoError, setVideoError] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfError, setPdfError] = useState('');
@@ -262,8 +264,10 @@ export default function ProductForm(props) {
   // ── Auto-save draft to localStorage (every 5s) ─────────────────────────
   const draftKey = useMemo(() => {
     if (!user?._id) return null;
-    return isEditing ? `hdmarket:draft:edit:${slug || user._id}` : `hdmarket:draft:new:${user._id}`;
-  }, [user?._id, isEditing, slug]);
+    return isEditing
+      ? `hdmarket:draft:edit:${productId || user._id}`
+      : `hdmarket:draft:new:${user._id}`;
+  }, [user?._id, isEditing, productId]);
 
   // Restore draft on mount
   useEffect(() => {
@@ -475,10 +479,11 @@ export default function ProductForm(props) {
       imgNaturalSizeRef.current = { w: nw, h: nh };
       const frame = computeCropFrame(cw, ch, forceAspect);
       const minScale = computeMinScale(frame, nw, nh);
-      const scaledW = nw * minScale;
-      const scaledH = nh * minScale;
+      const initialScale = minScale * 0.3; // Start at 30% zoom for better crop context
+      const scaledW = nw * initialScale;
+      const scaledH = nh * initialScale;
       setCropAspect(forceAspect);
-      setImageScale(minScale);
+      setImageScale(initialScale);
       setImagePosition({
         x: frame.x + (frame.w - scaledW) / 2,
         y: frame.y + (frame.h - scaledH) / 2
@@ -1972,7 +1977,6 @@ export default function ProductForm(props) {
     setImageError('');
   }, [existingImages.length]);
 
-  const isEditing = Boolean(productId);
   const isPerishableCategory = useMemo(
     () => isPerishableCategoryValue(form.category, getCategoryMeta),
     [form.category, getCategoryMeta]
@@ -3435,12 +3439,23 @@ export default function ProductForm(props) {
               <div className="space-y-3">
                 <p className="text-sm font-medium text-gray-700">Vidéo actuelle</p>
                 <div className="rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                  <video
-                    src={existingVideoUrl}
-                    controls
-                    playsInline
-                    className="w-full max-h-64 object-contain"
-                  />
+                  <div className="relative">
+                    <video
+                      src={existingVideoUrl}
+                      controls
+                      playsInline
+                      muted={videoMuted}
+                      className="w-full max-h-64 object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setVideoMuted((m) => !m)}
+                      className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-xs font-bold backdrop-blur-sm transition hover:bg-black/80"
+                      title={videoMuted ? 'Activer le son' : 'Couper le son'}
+                    >
+                      {videoMuted ? '🔇' : '🔊'}
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border-t border-gray-200">
                     <button
                       type="button"
@@ -3536,6 +3551,23 @@ export default function ProductForm(props) {
             
             {videoFile && !isCompressingVideo && (
               <div className="space-y-2">
+                <div className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                  <video
+                    src={URL.createObjectURL(videoFile)}
+                    controls
+                    playsInline
+                    muted={videoMuted}
+                    className="w-full max-h-48 object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setVideoMuted((m) => !m)}
+                    className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-xs font-bold backdrop-blur-sm transition hover:bg-black/80"
+                    title={videoMuted ? 'Activer le son' : 'Couper le son'}
+                  >
+                    {videoMuted ? '🔇' : '🔊'}
+                  </button>
+                </div>
                 <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 truncate font-medium">{videoFile.name}</p>

@@ -261,7 +261,7 @@ app.use(slowRequestLogger);
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
   max: async () => {
-    const fallback = Number(process.env.RATE_LIMIT_MAX ?? 3000);
+    const fallback = Number(process.env.RATE_LIMIT_MAX ?? 10000);
     const configured = await getRuntimeConfig('api_rate_limit_max', { fallback });
     const parsed = Number(configured);
     if (!Number.isFinite(parsed)) return fallback;
