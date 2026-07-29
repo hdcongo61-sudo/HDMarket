@@ -5,11 +5,13 @@
  */
 import DeliveryPromotion from '../../models/deliveryPromotionModel.js';
 
-export const resolvePromotion = async ({ code, zoneId = null }) => {
+export const resolvePromotion = async ({ code, zoneId = null, pricingContext = null }) => {
   const normalizedCode = String(code || '').trim().toUpperCase();
   if (!normalizedCode) return null;
 
-  const promotion = await DeliveryPromotion.findOne({ code: normalizedCode, isActive: true }).lean();
+  const promotion = pricingContext
+    ? pricingContext.promotions.find((entry) => String(entry.code || '').toUpperCase() === normalizedCode)
+    : await DeliveryPromotion.findOne({ code: normalizedCode, isActive: true }).lean();
   if (!promotion) return null;
   if (promotion.expiresAt && new Date(promotion.expiresAt) < new Date()) return null;
   if (Number.isFinite(promotion.maxUses) && Number(promotion.usedCount || 0) >= Number(promotion.maxUses)) return null;

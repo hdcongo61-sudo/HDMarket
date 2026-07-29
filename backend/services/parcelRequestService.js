@@ -93,7 +93,15 @@ export const createParcelRequest = async ({
     throw createHttpError('Une photo de justificatif (facture, reçu...) est requise.', 400);
   }
 
-  const { distanceMeters, price, breakdown, resolvedPickup, resolvedDropoff, appliedPromotionId } =
+  const {
+    distanceMeters,
+    price,
+    breakdown,
+    resolvedPickup,
+    resolvedDropoff,
+    appliedPromotionId,
+    pricingVersion
+  } =
     await estimateParcelPrice({
       pickup: normalizedPickup,
       dropoff: normalizedDropoff,
@@ -129,6 +137,7 @@ export const createParcelRequest = async ({
     platformCommission,
     courierEarning,
     priceBreakdown: breakdown,
+    pricingVersion,
     packageType: packageTypeId || null,
     weightKg: Number.isFinite(Number(weightKg)) ? Number(weightKg) : null,
     deliverySpeed: String(deliverySpeed || 'STANDARD').toUpperCase(),

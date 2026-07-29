@@ -16,7 +16,8 @@ import {
   Tag,
   Trash2,
   Truck,
-  Zap
+  Zap,
+  Server
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -32,9 +33,11 @@ import WeightRulesPanel from '../components/admin/deliveryPricing/WeightRulesPan
 import SpeedRulesPanel from '../components/admin/deliveryPricing/SpeedRulesPanel';
 import PeakHoursPanel from '../components/admin/deliveryPricing/PeakHoursPanel';
 import PromotionsPanel from '../components/admin/deliveryPricing/PromotionsPanel';
+import DeliverySystemPanel from '../components/admin/deliveryPricing/DeliverySystemPanel';
 
 const TABS = [
   { value: 'guide', label: 'Guide', icon: HelpCircle },
+  { value: 'system', label: 'Système', icon: Server },
   { value: 'general', label: 'Général', icon: Settings2 },
   { value: 'communes', label: 'Villes & communes', icon: Truck },
   { value: 'zones', label: 'Zones', icon: MapPinned },
@@ -233,6 +236,7 @@ export default function AdminDeliveryPricing() {
         <AdminSegmentedControl options={TABS} value={activeTab} onChange={setActiveTab} />
 
         {activeTab === 'guide' && <HelpGuidePanel />}
+        {activeTab === 'system' && <DeliverySystemPanel />}
         {activeTab === 'zones' && <ZonesPanel />}
         {activeTab === 'zone-matrix' && <ZonePriceMatrixPanel />}
         {activeTab === 'landmarks' && <LandmarksPanel />}

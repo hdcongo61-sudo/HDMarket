@@ -16,6 +16,7 @@ import WeightRule from '../models/weightRuleModel.js';
 import DeliverySpeedRule from '../models/deliverySpeedRuleModel.js';
 import PeakHourRule from '../models/peakHourRuleModel.js';
 import DeliveryPromotion from '../models/deliveryPromotionModel.js';
+import { getPricingContext } from '../modules/delivery/loaders/PricingContextLoader.js';
 import { searchLandmarksByText } from '../services/deliveryPricingEngine/LandmarkResolver.js';
 
 const notFound = (res, message) => res.status(404).json({ message });
@@ -383,10 +384,21 @@ export const deletePromotionAdmin = asyncHandler(async (req, res) => {
 
 // ─── Shop-facing lookups (used by the parcel request form) ──
 export const getDeliveryPricingOptions = asyncHandler(async (_req, res) => {
-  const [packageTypes, speedRules] = await Promise.all([
-    PackageType.find({ isActive: true }).sort({ order: 1, name: 1 }).select('name extraPrice priority specialNotes').lean(),
-    DeliverySpeedRule.find({ isActive: true }).sort({ order: 1 }).select('key label extraPrice etaMinutes').lean()
-  ]);
+  const context = await getPricingContext();
+  const packageTypes = context.packageTypes.map(({ _id, name, extraPrice, priority, specialNotes }) => ({
+    _id,
+    name,
+    extraPrice,
+    priority,
+    specialNotes
+  }));
+  const speedRules = context.speedRules.map(({ _id, key, label, extraPrice, etaMinutes }) => ({
+    _id,
+    key,
+    label,
+    extraPrice,
+    etaMinutes
+  }));
   res.json({ packageTypes, speedRules });
 });
 
@@ -395,7 +407,8 @@ export const searchLandmarksPublic = asyncHandler(async (req, res) => {
   const cityId = req.query?.cityId;
   if (!text || !cityId) return res.json({ items: [] });
 
-  const matches = await searchLandmarksByText({ text, cityId, limit: 5 });
+  const pricingContext = await getPricingContext();
+  const matches = await searchLandmarksByText({ text, cityId, limit: 5, pricingContext });
   res.json({
     items: matches.map((match) => ({
       id: match._id,

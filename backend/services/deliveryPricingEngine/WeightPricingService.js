@@ -6,17 +6,21 @@
  */
 import WeightRule from '../../models/weightRuleModel.js';
 
-export const computeWeightContribution = async (weightKg) => {
+export const computeWeightContribution = async (weightKg, pricingContext = null) => {
   if (!Number.isFinite(weightKg) || weightKg <= 0) {
     return { multiplier: 1, fixedExtra: 0, rule: null };
   }
-  const rule = await WeightRule.findOne({
-    isActive: true,
-    minKg: { $lte: weightKg },
-    maxKg: { $gte: weightKg }
-  })
-    .sort({ minKg: -1 })
-    .lean();
+  const rule = pricingContext
+    ? [...pricingContext.weightRules]
+        .filter((entry) => Number(entry.minKg) <= weightKg && Number(entry.maxKg) >= weightKg)
+        .sort((a, b) => Number(b.minKg) - Number(a.minKg))[0] || null
+    : await WeightRule.findOne({
+        isActive: true,
+        minKg: { $lte: weightKg },
+        maxKg: { $gte: weightKg }
+      })
+        .sort({ minKg: -1 })
+        .lean();
   if (!rule) return { multiplier: 1, fixedExtra: 0, rule: null };
 
   if (rule.mode === 'MULTIPLIER') {

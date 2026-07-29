@@ -103,6 +103,11 @@ export const ensureRealtimeAnalyticsSchedules = async () => {
     { source: 'schedule' },
     { jobId: 'schedule:founder-cache-warm', repeat: { every: 5 * 60 * 1000 } }
   );
+  await queue.add(
+    'delivery-pricing-refresh',
+    { source: 'schedule' },
+    { jobId: 'schedule:delivery-pricing-refresh', repeat: { every: 5 * 60 * 1000 } }
+  );
 
   return true;
 };
@@ -119,4 +124,3 @@ export const closeRealtimeAnalyticsQueue = async () => {
 };
 
 export const realtimeAnalyticsQueueName = QUEUE_NAME;
-

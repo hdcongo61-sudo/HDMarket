@@ -266,6 +266,17 @@ export const setRuntimeConfig = async (key, value, options = {}) => {
   }
 
   await invalidateRuntimeConfigCache(canonicalKey);
+  if (canonicalKey === 'enable_parcel_delivery' || canonicalKey.startsWith('parcel_')) {
+    try {
+      const { invalidatePricingContext } = await import(
+        '../modules/delivery/cache/PricingContextCache.js'
+      );
+      await invalidatePricingContext();
+    } catch {
+      // Runtime settings remain valid even when the optional pricing cache
+      // layer is unavailable; its TTL will recover on the next refresh.
+    }
+  }
 
   return buildSettingResponse({ key: canonicalKey, value: validation.value, environment: env });
 };

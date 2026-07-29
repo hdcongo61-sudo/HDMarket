@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Commune from '../models/communeModel.js';
 import City from '../models/cityModel.js';
+import { invalidatePricingContext } from '../modules/delivery/cache/PricingContextCache.js';
 
 export const listCommunesAdmin = asyncHandler(async (req, res) => {
   const communes = await Commune.find()
@@ -52,6 +53,7 @@ export const createCommuneAdmin = asyncHandler(async (req, res) => {
     updatedBy: req.user?._id || null
   });
 
+  await invalidatePricingContext();
   res.status(201).json({ ...commune.toObject(), cityName: city.name });
 });
 
@@ -96,6 +98,7 @@ export const updateCommuneAdmin = asyncHandler(async (req, res) => {
   commune.updatedBy = req.user?._id || null;
 
   await commune.save();
+  await invalidatePricingContext();
 
   const city = await City.findById(commune.cityId).select('name').lean();
   res.json({ ...commune.toObject(), cityName: city?.name || '' });
@@ -108,5 +111,6 @@ export const deleteCommuneAdmin = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Commune introuvable.' });
   }
   await commune.deleteOne();
+  await invalidatePricingContext();
   res.json({ success: true });
 });

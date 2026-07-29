@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterActiveInstallmentProducts,
+  getInstallmentFirstPaymentAmount,
   isInstallmentOfferActive
 } from './installmentAvailability';
 
@@ -41,5 +42,21 @@ describe('installment availability', () => {
         now
       )
     ).toBe(false);
+  });
+
+  it('returns the checkout-compatible first payment amount', () => {
+    expect(
+      getInstallmentFirstPaymentAmount({
+        price: 125000,
+        installmentMinAmount: 25000
+      })
+    ).toBe(25000);
+
+    expect(
+      getInstallmentFirstPaymentAmount({
+        price: 18000,
+        installmentMinAmount: 25000
+      })
+    ).toBe(18000);
   });
 });

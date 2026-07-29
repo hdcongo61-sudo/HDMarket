@@ -19,3 +19,14 @@ export const filterActiveInstallmentProducts = (products, now = Date.now()) =>
   (Array.isArray(products) ? products : []).filter((product) =>
     isInstallmentOfferActive(product, now)
   );
+
+export const getInstallmentFirstPaymentAmount = (product, quantity = 1) => {
+  const unitPrice = Number(product?.price || 0);
+  const minimumAmount = Number(product?.installmentMinAmount || 0);
+  const normalizedQuantity = Math.max(1, Math.trunc(Number(quantity) || 1));
+  const subtotal = unitPrice * normalizedQuantity;
+
+  if (!Number.isFinite(subtotal) || subtotal <= 0) return 0;
+  if (!Number.isFinite(minimumAmount) || minimumAmount <= 0) return 0;
+  return Math.min(subtotal, minimumAmount);
+};

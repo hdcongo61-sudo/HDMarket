@@ -9,6 +9,12 @@
 import express from 'express';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireRole } from '../middlewares/roleMiddleware.js';
+import { invalidatePricingContext } from '../modules/delivery/cache/PricingContextCache.js';
+import {
+  getDeliveryPricingSystemOverview,
+  installGeneratedDeliveryPricingData,
+  refreshDeliveryPricingSystem
+} from '../controllers/deliveryPricingOperationsController.js';
 import {
   listZonesAdmin,
   createZoneAdmin,
@@ -51,6 +57,25 @@ const requireAdmin = [protect, requireRole(['admin', 'founder'])];
 // Shop-facing
 router.get('/options', protect, getDeliveryPricingOptions);
 router.get('/landmarks/search', protect, searchLandmarksPublic);
+
+// Admin — operations, observability, and generated starter data
+router.get('/admin/system', ...requireAdmin, getDeliveryPricingSystemOverview);
+router.post('/admin/system/refresh', ...requireAdmin, refreshDeliveryPricingSystem);
+router.post('/admin/system/demo-data', ...requireAdmin, installGeneratedDeliveryPricingData);
+
+// Any successful pricing CRUD mutation invalidates both memory and Redis
+// context caches. Operational refresh/demo endpoints above manage their own
+// cache lifecycle and are intentionally registered before this middleware.
+router.use('/admin', (req, res, next) => {
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)) {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        void invalidatePricingContext();
+      }
+    });
+  }
+  next();
+});
 
 // Admin — zones
 router.get('/admin/zones', ...requireAdmin, listZonesAdmin);

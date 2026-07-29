@@ -532,6 +532,11 @@ export default function RequestDelivery() {
                 {estimating ? '…' : estimate ? formatCurrency(estimate.price) : '—'}
               </p>
             </div>
+            {estimate?.pricingVersion ? (
+              <p className="-mt-1 mb-2 text-right text-[10px] font-semibold text-gray-400">
+                Tarif {estimate.pricingVersion}
+              </p>
+            ) : null}
             {paymentMethod === 'pawapay' ? (
               <PawaPayButton
                 amount={estimate?.price || 0}

@@ -19,7 +19,10 @@ import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModa
 import useNetworkProfile from "../hooks/useNetworkProfile";
 import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
-import { filterActiveInstallmentProducts } from '../utils/installmentAvailability';
+import {
+  filterActiveInstallmentProducts,
+  getInstallmentFirstPaymentAmount
+} from '../utils/installmentAvailability';
 
 const normalizeCityName = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -2105,22 +2108,32 @@ const loadDiscountProducts = async () => {
             <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
               {activeInstallmentProducts
                 .slice(0, 4)
-                .map((product) => (
-                  <div key={`installment-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white">
-                    <div className="min-h-0 flex-1">
-                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                .map((product) => {
+                  const firstPayment = getInstallmentFirstPaymentAmount(product);
+                  return (
+                    <div key={`installment-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-sky-100 bg-white">
+                      <div className="min-h-0 flex-1">
+                        <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                      </div>
+                      <div className="border-t border-sky-100 bg-gradient-to-r from-sky-50 to-white px-2.5 py-2 max-[375px]:px-2">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="inline-flex min-w-0 items-center gap-1 text-[9px] font-black uppercase tracking-wide text-sky-700">
+                            <CreditCard className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{t('home.firstInstallmentPayment', 'Premier paiement')}</span>
+                          </span>
+                          {product?.installmentDuration ? (
+                            <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[9px] font-black text-sky-700 shadow-sm">{product.installmentDuration}j</span>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 truncate text-sm font-black text-sky-950">
+                          {firstPayment > 0
+                            ? formatPrice(firstPayment)
+                            : t('home.installmentDetails', 'Voir les modalités')}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between gap-1.5 border-t border-gray-100 px-2 py-1.5 max-[375px]:px-1.5">
-                      <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-bold text-sky-700">
-                        <CreditCard className="h-3 w-3 shrink-0" />
-                        <span className="truncate">Dès {formatPrice(product?.installmentMinAmount || product?.price || 0)}</span>
-                      </span>
-                      {product?.installmentDuration ? (
-                        <span className="shrink-0 rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-black text-sky-700">{product.installmentDuration}j</span>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           ) : (
             <p className="text-xs text-gray-500">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
@@ -2963,7 +2976,7 @@ const loadDiscountProducts = async () => {
                   .slice(0, 4)
                   .map((product, idx) => {
                     const duration = product?.installmentDuration || 0;
-                    const minAmount = product?.installmentMinAmount || 0;
+                    const firstPayment = getInstallmentFirstPaymentAmount(product);
                     return (
                       <Link
                         key={`installment-dsk-${product._id}`}
@@ -2983,9 +2996,9 @@ const loadDiscountProducts = async () => {
                             <Clock className="h-3 w-3" />
                             {duration > 0 ? `${duration}J` : 'TRANCHE'}
                           </span>
-                          {minAmount > 0 && (
-                            <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white">
-                              Dès {formatPrice(minAmount)}
+                          {firstPayment > 0 && (
+                            <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
+                              {t('home.firstInstallmentPayment', 'Premier paiement')} · {formatPrice(firstPayment)}
                             </span>
                           )}
                         </div>
@@ -3000,6 +3013,14 @@ const loadDiscountProducts = async () => {
                               <span className="text-xs text-gray-400 line-through">{formatPrice(product.priceBeforeDiscount)}</span>
                             )}
                           </div>
+                          {firstPayment > 0 && (
+                            <div className="mt-0.5 flex items-center justify-between gap-2 rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-2">
+                              <span className="text-[10px] font-black uppercase tracking-wide text-sky-700">
+                                {t('home.startInstallmentWith', 'Commencez avec')}
+                              </span>
+                              <span className="text-sm font-black text-sky-950">{formatPrice(firstPayment)}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
                               <Clock className="h-2.5 w-2.5" />

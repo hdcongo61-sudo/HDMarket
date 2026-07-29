@@ -12,7 +12,8 @@
  * that knows the overall order, so any module can change independently.
  */
 import DeliverySpeedRule from '../../models/deliverySpeedRuleModel.js';
-import { getManyRuntimeConfigs } from '../configService.js';
+import { recordPricingCalculation } from '../../modules/delivery/analytics/DeliveryPricingAnalytics.js';
+import { getPricingContext } from '../../modules/delivery/loaders/PricingContextLoader.js';
 import { resolveLocationCoordinates } from './LocationResolverService.js';
 import { resolveZoneBasePrice } from './ZonePricingService.js';
 import { computeDistanceAdjustment } from './GPSDistanceService.js';
@@ -29,9 +30,11 @@ const createHttpError = (message, statusCode = 400) => {
   return error;
 };
 
-const resolveDeliverySpeedExtra = async (deliverySpeedKey) => {
+const resolveDeliverySpeedExtra = async (deliverySpeedKey, pricingContext = null) => {
   const key = String(deliverySpeedKey || 'STANDARD').toUpperCase();
-  const rule = await DeliverySpeedRule.findOne({ key, isActive: true }).lean();
+  const rule = pricingContext
+    ? pricingContext.speedRules.find((entry) => String(entry.key || '').toUpperCase() === key)
+    : await DeliverySpeedRule.findOne({ key, isActive: true }).lean();
   if (!rule) return { amount: 0, label: '', etaMinutes: null };
   return { amount: Math.max(0, Number(rule.extraPrice || 0)), label: rule.label, etaMinutes: rule.etaMinutes };
 };
@@ -57,19 +60,9 @@ export const estimateDeliveryPrice = async ({
   waitingMinutes = 0,
   at = new Date()
 } = {}) => {
-  const settings = await getManyRuntimeConfigs([
-    'parcel_delivery_base_price',
-    'parcel_delivery_price_per_km',
-    'parcel_delivery_min_price',
-    'parcel_delivery_same_commune_price',
-    'parcel_delivery_cross_commune_price',
-    'parcel_delivery_max_distance_km',
-    'parcel_pricing_enable_gps',
-    'parcel_pricing_enable_landmark',
-    'parcel_pricing_enable_commune',
-    'parcel_pricing_enable_location_resolver',
-    'parcel_pricing_enable_zone_matrix'
-  ]);
+  const startedAt = Date.now();
+  const pricingContext = await getPricingContext();
+  const settings = pricingContext.settings;
 
   const cascadeEnabled = settings.parcel_pricing_enable_location_resolver !== false;
   const resolverOptions = {
@@ -78,8 +71,8 @@ export const estimateDeliveryPrice = async ({
   };
 
   const [resolvedPickup, resolvedDropoff] = await Promise.all([
-    resolveLocationCoordinates(pickup, resolverOptions),
-    resolveLocationCoordinates(dropoff, resolverOptions)
+    resolveLocationCoordinates(pickup, resolverOptions, pricingContext),
+    resolveLocationCoordinates(dropoff, resolverOptions, pricingContext)
   ]);
 
   const gpsEnabled = settings.parcel_pricing_enable_gps !== false;
@@ -105,7 +98,8 @@ export const estimateDeliveryPrice = async ({
   if (settings.parcel_pricing_enable_zone_matrix) {
     zoneInfo = await resolveZoneBasePrice({
       pickupCommuneId: pickup?.communeId,
-      dropoffCommuneId: dropoff?.communeId
+      dropoffCommuneId: dropoff?.communeId,
+      pricingContext
     });
   }
 
@@ -129,9 +123,9 @@ export const estimateDeliveryPrice = async ({
 
   // ── Package / weight / speed extras ──
   const [packageInfo, weightInfo, speedInfo] = await Promise.all([
-    computePackageContribution(packageTypeId),
-    computeWeightContribution(weightKg),
-    resolveDeliverySpeedExtra(deliverySpeed)
+    computePackageContribution(packageTypeId, pricingContext),
+    computeWeightContribution(Number(weightKg), pricingContext),
+    resolveDeliverySpeedExtra(deliverySpeed, pricingContext)
   ]);
 
   if (packageInfo.amount > 0) lines.push({ label: 'Type de colis', amount: packageInfo.amount });
@@ -152,7 +146,7 @@ export const estimateDeliveryPrice = async ({
   }
 
   // ── Time-based surcharges (fuel/night/weekend/holiday/rain/peak hours) ──
-  const timeContributions = await computeTimeContributions({ at });
+  const timeContributions = await computeTimeContributions({ at, pricingContext });
   const timeLines = applyTimeContributions(timeContributions, subtotal);
   lines.push(...timeLines);
   subtotal += timeLines.reduce((sum, line) => sum + line.amount, 0);
@@ -164,7 +158,11 @@ export const estimateDeliveryPrice = async ({
   // ── Promotion ──
   let appliedPromotion = null;
   if (promoCode) {
-    appliedPromotion = await resolvePromotion({ code: promoCode, zoneId: zoneInfo?.toZoneId });
+    appliedPromotion = await resolvePromotion({
+      code: promoCode,
+      zoneId: zoneInfo?.toZoneId,
+      pricingContext
+    });
     if (appliedPromotion) {
       const discount = computePromotionDiscount(appliedPromotion, subtotal + waitingFee.amount);
       if (discount.amount !== 0) lines.push(discount);
@@ -174,14 +172,32 @@ export const estimateDeliveryPrice = async ({
   const minPrice = Math.max(0, Number(settings.parcel_delivery_min_price || 0));
   const { total, breakdown } = buildFinalPrice({ lines, minPrice });
 
-  return {
+  const result = {
     distanceMeters: Number.isFinite(distanceInfo.distanceMeters) ? Math.round(distanceInfo.distanceMeters) : 0,
     price: total,
     breakdown,
     resolvedPickup,
     resolvedDropoff,
-    appliedPromotionId: appliedPromotion?._id || null
+    appliedPromotionId: appliedPromotion?._id || null,
+    pricingVersion: pricingContext.pricingVersion
   };
+
+  void recordPricingCalculation({
+    pricingVersion: pricingContext.pricingVersion,
+    durationMs: Date.now() - startedAt,
+    cacheSource: pricingContext.cacheSource,
+    pickupCommuneId: pickup?.communeId || null,
+    dropoffCommuneId: dropoff?.communeId || null,
+    distanceMeters: result.distanceMeters,
+    price: result.price,
+    packageTypeId,
+    deliverySpeed,
+    resolvedPickupFrom: resolvedPickup.resolvedFrom,
+    resolvedDropoffFrom: resolvedDropoff.resolvedFrom,
+    breakdown
+  });
+
+  return result;
 };
 
 export const finalizePromotionUsage = (promotionId) => {

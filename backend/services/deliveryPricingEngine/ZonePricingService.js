@@ -8,23 +8,35 @@
 import DeliveryZonePrice from '../../models/deliveryZonePriceModel.js';
 import { resolveCommuneZone } from './CommuneResolver.js';
 
-export const resolveZoneBasePrice = async ({ pickupCommuneId, dropoffCommuneId }) => {
+export const resolveZoneBasePrice = async ({ pickupCommuneId, dropoffCommuneId, pricingContext = null }) => {
   const [fromZoneId, toZoneId] = await Promise.all([
-    resolveCommuneZone(pickupCommuneId),
-    resolveCommuneZone(dropoffCommuneId)
+    resolveCommuneZone(pickupCommuneId, pricingContext),
+    resolveCommuneZone(dropoffCommuneId, pricingContext)
   ]);
   if (!fromZoneId || !toZoneId) return null;
 
-  const exact = await DeliveryZonePrice.findOne({ fromZoneId, toZoneId, isActive: true }).lean();
+  const exact = pricingContext
+    ? pricingContext.zonePrices.find(
+        (entry) =>
+          String(entry.fromZoneId) === String(fromZoneId) &&
+          String(entry.toZoneId) === String(toZoneId)
+      )
+    : await DeliveryZonePrice.findOne({ fromZoneId, toZoneId, isActive: true }).lean();
   if (exact) return { price: Number(exact.price || 0), fromZoneId, toZoneId };
 
   // Zone pricing is usually symmetric — don't force admins to double-enter
   // both directions unless they actually want asymmetric pricing.
-  const reversed = await DeliveryZonePrice.findOne({
-    fromZoneId: toZoneId,
-    toZoneId: fromZoneId,
-    isActive: true
-  }).lean();
+  const reversed = pricingContext
+    ? pricingContext.zonePrices.find(
+        (entry) =>
+          String(entry.fromZoneId) === String(toZoneId) &&
+          String(entry.toZoneId) === String(fromZoneId)
+      )
+    : await DeliveryZonePrice.findOne({
+        fromZoneId: toZoneId,
+        toZoneId: fromZoneId,
+        isActive: true
+      }).lean();
   if (reversed) return { price: Number(reversed.price || 0), fromZoneId, toZoneId };
 
   return null;

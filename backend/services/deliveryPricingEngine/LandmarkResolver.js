@@ -58,26 +58,33 @@ const rankCandidates = (text, candidates) => {
 };
 
 /** Best single match — used by the pricing engine's location cascade. */
-export const matchLandmark = async ({ text, cityId }) => {
+export const matchLandmark = async ({ text, cityId, pricingContext = null }) => {
   if (!String(text || '').trim() || !cityId) return null;
-  const candidates = await Landmark.find({ cityId, status: 'ACTIVE' })
-    .select('name aliases latitude longitude cityId communeId')
-    .lean();
+  const candidates = pricingContext
+    ? pricingContext.landmarks.filter((entry) => String(entry.cityId) === String(cityId))
+    : await Landmark.find({ cityId, status: 'ACTIVE' })
+        .select('name aliases latitude longitude cityId communeId')
+        .lean();
   return rankCandidates(text, candidates)[0] || null;
 };
 
 /** Top N matches — used by the request form's autocomplete dropdown. */
-export const searchLandmarksByText = async ({ text, cityId, limit = 5 }) => {
+export const searchLandmarksByText = async ({ text, cityId, limit = 5, pricingContext = null }) => {
   if (!String(text || '').trim() || !cityId) return [];
-  const candidates = await Landmark.find({ cityId, status: 'ACTIVE' })
-    .select('name aliases latitude longitude cityId communeId')
-    .lean();
+  const candidates = pricingContext
+    ? pricingContext.landmarks.filter((entry) => String(entry.cityId) === String(cityId))
+    : await Landmark.find({ cityId, status: 'ACTIVE' })
+        .select('name aliases latitude longitude cityId communeId')
+        .lean();
   return rankCandidates(text, candidates).slice(0, Math.max(1, limit));
 };
 
 /** Direct lookup for an explicitly-selected landmark (never trust client-supplied coordinates for it). */
-export const getLandmarkById = async (landmarkId) => {
+export const getLandmarkById = async (landmarkId, pricingContext = null) => {
   if (!landmarkId) return null;
+  if (pricingContext) {
+    return pricingContext.landmarks.find((entry) => String(entry._id) === String(landmarkId)) || null;
+  }
   return Landmark.findOne({ _id: landmarkId, status: 'ACTIVE' })
     .select('name latitude longitude cityId communeId')
     .lean();

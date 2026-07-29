@@ -9,6 +9,7 @@
  * math becoming opaque to the customer.
  */
 import PeakHourRule from '../../models/peakHourRuleModel.js';
+import RuleEngine from '../../modules/delivery/rules/RuleEngine.js';
 import { getManyRuntimeConfigs } from '../configService.js';
 
 const NIGHT_START_HOUR = 22;
@@ -37,58 +38,51 @@ const matchesPeakHourRule = (rule, date) => {
   return nowMinutes >= startMinutes || nowMinutes < endMinutes; // window crosses midnight
 };
 
-export const computeTimeContributions = async ({ at = new Date() } = {}) => {
-  const settings = await getManyRuntimeConfigs([
-    'parcel_pricing_fuel_surcharge_percent',
-    'parcel_pricing_night_surcharge_percent',
-    'parcel_pricing_weekend_surcharge_percent',
-    'parcel_pricing_holiday_surcharge_percent',
-    'parcel_pricing_holiday_active',
-    'parcel_pricing_rain_surcharge_percent',
-    'parcel_pricing_rain_active',
-    'parcel_pricing_enable_surge'
-  ]);
-
-  const contributions = [];
+export const computeTimeContributions = async ({ at = new Date(), pricingContext = null } = {}) => {
+  const settings = pricingContext?.settings || await getManyRuntimeConfigs([
+      'parcel_pricing_fuel_surcharge_percent',
+      'parcel_pricing_night_surcharge_percent',
+      'parcel_pricing_weekend_surcharge_percent',
+      'parcel_pricing_holiday_surcharge_percent',
+      'parcel_pricing_holiday_active',
+      'parcel_pricing_rain_surcharge_percent',
+      'parcel_pricing_rain_active',
+      'parcel_pricing_enable_surge'
+    ]);
 
   const fuelPercent = Number(settings.parcel_pricing_fuel_surcharge_percent || 0);
-  if (fuelPercent > 0) contributions.push({ label: 'Carburant', percent: fuelPercent });
-
-  if (isNight(at)) {
-    const nightPercent = Number(settings.parcel_pricing_night_surcharge_percent || 0);
-    if (nightPercent > 0) contributions.push({ label: 'Nuit', percent: nightPercent });
-  }
-
-  if (isWeekend(at)) {
-    const weekendPercent = Number(settings.parcel_pricing_weekend_surcharge_percent || 0);
-    if (weekendPercent > 0) contributions.push({ label: 'Week-end', percent: weekendPercent });
-  }
-
-  if (settings.parcel_pricing_holiday_active) {
-    const holidayPercent = Number(settings.parcel_pricing_holiday_surcharge_percent || 0);
-    if (holidayPercent > 0) contributions.push({ label: 'Jour férié', percent: holidayPercent });
-  }
-
-  if (settings.parcel_pricing_rain_active) {
-    const rainPercent = Number(settings.parcel_pricing_rain_surcharge_percent || 0);
-    if (rainPercent > 0) contributions.push({ label: 'Intempéries', percent: rainPercent });
-  }
+  const nightPercent = Number(settings.parcel_pricing_night_surcharge_percent || 0);
+  const weekendPercent = Number(settings.parcel_pricing_weekend_surcharge_percent || 0);
+  const holidayPercent = Number(settings.parcel_pricing_holiday_surcharge_percent || 0);
+  const rainPercent = Number(settings.parcel_pricing_rain_surcharge_percent || 0);
+  const rules = [
+    { contribution: { label: 'Carburant', percent: fuelPercent } },
+    { matches: ({ date }) => isNight(date), contribution: { label: 'Nuit', percent: nightPercent } },
+    { matches: ({ date }) => isWeekend(date), contribution: { label: 'Week-end', percent: weekendPercent } },
+    {
+      enabled: Boolean(settings.parcel_pricing_holiday_active),
+      contribution: { label: 'Jour férié', percent: holidayPercent }
+    },
+    {
+      enabled: Boolean(settings.parcel_pricing_rain_active),
+      contribution: { label: 'Intempéries', percent: rainPercent }
+    }
+  ];
 
   if (settings.parcel_pricing_enable_surge) {
-    const rules = await PeakHourRule.find({ isActive: true }).lean();
-    rules.forEach((rule) => {
-      if (!matchesPeakHourRule(rule, at)) return;
-      if (rule.surchargeType === 'PERCENT') {
-        if (Number(rule.surchargeValue || 0) > 0) {
-          contributions.push({ label: rule.name, percent: Number(rule.surchargeValue) });
-        }
-      } else if (Number(rule.surchargeValue || 0) > 0) {
-        contributions.push({ label: rule.name, fixed: Number(rule.surchargeValue) });
-      }
+    const peakRules = pricingContext?.peakHourRules || await PeakHourRule.find({ isActive: true }).lean();
+    peakRules.forEach((rule) => {
+      rules.push({
+        matches: ({ date }) => matchesPeakHourRule(rule, date),
+        contribution:
+          rule.surchargeType === 'PERCENT'
+            ? { label: rule.name, percent: Number(rule.surchargeValue || 0) }
+            : { label: rule.name, fixed: Number(rule.surchargeValue || 0) }
+      });
     });
   }
 
-  return contributions;
+  return new RuleEngine(rules).evaluate({ date: at, settings });
 };
 
 /** Applies a list of {label, percent?, fixed?} contributions against a base subtotal. */

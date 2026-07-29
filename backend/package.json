@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "seed:admin": "node ./seed/seedAdmin.js",
     "seed:settings": "node ./seed/seedSettings.js",
+    "seed:delivery-demo": "node ./scripts/seedDeliveryDemoData.js",
     "normalize:phones": "node ./scripts/normalizePhones.js",
     "migrate:categories": "node ./scripts/migrateCategories.js",
     "migrate:order-message-deeplinks": "node ./scripts/migrateOrderMessageDeepLinks.js",

@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import City from '../models/cityModel.js';
+import { invalidatePricingContext } from '../modules/delivery/cache/PricingContextCache.js';
 
 export const listCitiesAdmin = asyncHandler(async (req, res) => {
   const cities = await City.find()
@@ -38,6 +39,7 @@ export const createCityAdmin = asyncHandler(async (req, res) => {
     updatedBy: req.user?._id || null
   });
 
+  await invalidatePricingContext();
   res.status(201).json(city);
 });
 
@@ -91,6 +93,7 @@ export const updateCityAdmin = asyncHandler(async (req, res) => {
   city.updatedBy = req.user?._id || null;
 
   await city.save();
+  await invalidatePricingContext();
   res.json(city);
 });
 
@@ -101,5 +104,6 @@ export const deleteCityAdmin = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Ville introuvable.' });
   }
   await city.deleteOne();
+  await invalidatePricingContext();
   res.json({ success: true });
 });

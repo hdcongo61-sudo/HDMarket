@@ -2,6 +2,7 @@ import { safeAsync } from '../utils/safeAsync.js';
 import { realtimeAnalyticsQueueName } from '../queues/realtimeAnalyticsQueue.js';
 import { getFounderIntelligence } from '../services/founderIntelligenceService.js';
 import { aggregateDailyPresenceAnalytics, runPresencePeakSnapshot } from '../services/presenceService.js';
+import { refreshPricingContext } from '../modules/delivery/loaders/PricingContextLoader.js';
 
 let WorkerClass = null;
 let analyticsWorker = null;
@@ -66,6 +67,14 @@ export const initRealtimeAnalyticsWorker = async () => {
         return getFounderIntelligence({ forceRefresh: true });
       }
 
+      if (name === 'delivery-pricing-refresh') {
+        const context = await refreshPricingContext({ source: 'AUTOMATIC' });
+        return {
+          pricingVersion: context.pricingVersion,
+          loadedAt: context.loadedAt
+        };
+      }
+
       return { skipped: true, reason: `Unknown realtime analytics job: ${name}` };
     },
     {
@@ -89,4 +98,3 @@ export const closeRealtimeAnalyticsWorker = async () => {
   await safeAsync(async () => analyticsWorker.close(), { fallback: null });
   analyticsWorker = null;
 };
-

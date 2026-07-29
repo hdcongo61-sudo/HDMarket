@@ -115,6 +115,8 @@ const parcelRequestSchema = new mongoose.Schema(
     // Itemized pricing-engine output shown to the requester — never just one
     // total. Empty on older requests created before this existed.
     priceBreakdown: { type: [priceBreakdownLineSchema], default: [] },
+    // Immutable configuration version used to reproduce the quoted price.
+    pricingVersion: { type: String, trim: true, default: '', index: true },
     packageType: { type: mongoose.Schema.Types.ObjectId, ref: 'PackageType', default: null },
     weightKg: { type: Number, min: 0, default: null },
     deliverySpeed: { type: String, trim: true, uppercase: true, default: 'STANDARD' },

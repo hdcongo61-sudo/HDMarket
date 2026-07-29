@@ -10,47 +10,19 @@
  *   4) The city's center coordinates
  * Returns { coordinates: {lng,lat} | null, resolvedFrom, landmarkId }.
  */
-import City from '../../models/cityModel.js';
-import { extractLngLatFromGeoPoint } from '../../controllers/courierDeliveryController.js';
-import { matchLandmark, getLandmarkById } from './LandmarkResolver.js';
-import { resolveCommuneCenter } from './CommuneResolver.js';
+import { getLocationProvider } from '../../modules/delivery/providers/index.js';
 
-export const resolveLocationCoordinates = async (location = {}, { enableLandmark = true, enableCommune = true } = {}) => {
-  const gps = extractLngLatFromGeoPoint(location?.coordinates);
-  if (gps) {
-    return { coordinates: gps, resolvedFrom: 'GPS', landmarkId: null };
-  }
-
-  if (enableLandmark) {
-    const pickedLandmark = location?.landmarkId ? await getLandmarkById(location.landmarkId) : null;
-    const landmarkMatch =
-      pickedLandmark || (location?.address && location?.cityId
-        ? await matchLandmark({ text: location.address, cityId: location.cityId })
-        : null);
-    if (landmarkMatch) {
-      return {
-        coordinates: { lng: landmarkMatch.longitude, lat: landmarkMatch.latitude },
-        resolvedFrom: 'LANDMARK',
-        landmarkId: landmarkMatch._id
-      };
-    }
-  }
-
-  if (enableCommune && location?.communeId) {
-    const communeCenter = await resolveCommuneCenter(location.communeId);
-    if (communeCenter) {
-      return { coordinates: communeCenter, resolvedFrom: 'COMMUNE', landmarkId: null };
-    }
-  }
-
-  if (location?.cityId) {
-    const city = await City.findById(location.cityId).select('latitude longitude').lean();
-    if (Number.isFinite(city?.latitude) && Number.isFinite(city?.longitude)) {
-      return { coordinates: { lng: city.longitude, lat: city.latitude }, resolvedFrom: 'CITY', landmarkId: null };
-    }
-  }
-
-  return { coordinates: null, resolvedFrom: 'UNRESOLVED', landmarkId: null };
+export const resolveLocationCoordinates = async (
+  location = {},
+  { enableLandmark = true, enableCommune = true } = {},
+  pricingContext = null
+) => {
+  const provider = getLocationProvider();
+  return provider.resolve(location, {
+    enableLandmark,
+    enableCommune,
+    pricingContext
+  });
 };
 
 // Re-exported so callers that only need the commune fallback (no full
