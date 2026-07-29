@@ -54,7 +54,8 @@ function ProductCard({
   categoryListing = false,
   commerceFeed = false,
   viewMode = 'grid',
-  disableProductNavigation = false
+  disableProductNavigation = false,
+  enableImageCarousel = false
 }) {
   const { user } = useContext(AuthContext);
   const { formatPrice, getRuntimeValue } = useAppSettings();
@@ -107,7 +108,7 @@ function ProductCard({
 
   const hasMultipleImages = productImages.length > 1;
   const shouldShowCarousel = hasMultipleImages; // Enable carousel for multiple images
-  const shouldAutoCarousel = productImages.length > 2;
+  const shouldAutoCarousel = Boolean(enableImageCarousel && hasMultipleImages);
   const hideDenseMobileBadges = Boolean(isShopProfileCompact || (useCompactMobile && hideMobileDiscountBadge));
   const LONG_PRESS_DELAY_MS = 430;
   const LONG_PRESS_MOVE_THRESHOLD_PX = 14;
@@ -142,6 +143,12 @@ function ProductCard({
     setCurrentImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length);
     setTimeout(() => setIsTransitioning(false), 500);
   }, [isTransitioning, productImages.length]);
+
+  useEffect(() => {
+    setCurrentImageIndex((previousIndex) => (
+      Math.min(previousIndex, Math.max(0, productImages.length - 1))
+    ));
+  }, [productImages.length]);
 
   // Auto carousel for multiple images (both mobile and desktop)
   useEffect(() => {
@@ -656,6 +663,8 @@ function ProductCard({
       <>
         <article
           ref={cardRef}
+          onMouseEnter={enableImageCarousel ? handleMouseEnter : undefined}
+          onMouseLeave={enableImageCarousel ? handleMouseLeave : undefined}
           className={`hd-product-card group relative flex h-full min-w-0 overflow-hidden transition duration-200 hover:-translate-y-0.5 dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
             useCommerceMobileCard
               ? 'border-0 bg-white shadow-sm hover:shadow-sm'
@@ -685,20 +694,123 @@ function ProductCard({
             onPointerUp={cancelLongPress}
             onPointerLeave={cancelLongPress}
             onPointerCancel={cancelLongPress}
+            {...(enableImageCarousel && hasMultipleImages ? {
+              onTouchStart: handleTouchStart,
+              onTouchMove: handleTouchMove,
+              onTouchEnd: handleTouchEnd
+            } : {})}
           >
-            <img
-              src={imageError ? 'https://via.placeholder.com/400x400?text=HDMarket' : primaryImage}
-              srcSet={imageError ? undefined : primaryImageSrcSet}
-              alt={p.title}
-              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageError(true)}
-              loading="lazy"
-              decoding="async"
-              fetchpriority="low"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            />
-            {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />}
+            {enableImageCarousel && hasMultipleImages ? (
+              <>
+                <div
+                  className="flex h-full transition-transform duration-500 ease-out"
+                  style={{
+                    transform: `translateX(-${currentImageIndex * 100}%)`,
+                    willChange: 'transform'
+                  }}
+                >
+                  {productImages.map((image, index) => {
+                    const imageFailed = imagesLoaded[index] === false;
+                    const optimizedImage = getProductCardImageUrl(image, {
+                      width: isListCard ? 420 : categoryListing ? 520 : 640,
+                      lite: useLiteImageMode
+                    });
+                    const imageSrcSet = getProductCardSrcSet(image, { lite: useLiteImageMode });
+
+                    return (
+                      <div
+                        key={`${p._id || 'product'}-preview-${index}-${image}`}
+                        className="relative h-full min-w-full"
+                      >
+                        <img
+                          src={imageFailed ? 'https://via.placeholder.com/400x400?text=HDMarket' : optimizedImage}
+                          srcSet={imageFailed ? undefined : imageSrcSet}
+                          alt={`${p.title} - Image ${index + 1}`}
+                          className="h-full w-full object-cover"
+                          onLoad={() => {
+                            setImagesLoaded((previous) => ({ ...previous, [index]: true }));
+                            if (index === 0) setImageLoaded(true);
+                          }}
+                          onError={() => {
+                            setImagesLoaded((previous) => ({ ...previous, [index]: false }));
+                            if (index === 0) setImageError(true);
+                          }}
+                          loading={index === 0 ? 'eager' : 'lazy'}
+                          decoding="async"
+                          sizes="(max-width: 640px) 100vw, 384px"
+                        />
+                        {imagesLoaded[index] === undefined ? (
+                          <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/45 px-2 py-1 backdrop-blur-sm">
+                  {productImages.map((_, index) => (
+                    <button
+                      key={`preview-dot-${index}`}
+                      type="button"
+                      className={`h-1.5 rounded-full transition-all ${
+                        currentImageIndex === index ? 'w-4 bg-white' : 'w-1.5 bg-white/60'
+                      }`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setCurrentImageIndex(index);
+                      }}
+                      aria-label={`Afficher l’image ${index + 1}`}
+                    />
+                  ))}
+                </div>
+
+                <span className="absolute bottom-2 right-2 z-20 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+                  {currentImageIndex + 1}/{productImages.length}
+                </span>
+
+                <button
+                  type="button"
+                  className="absolute left-2 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-neutral-800 shadow-md transition hover:bg-white sm:flex"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    goToPreviousImage();
+                  }}
+                  aria-label="Image précédente"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-neutral-800 shadow-md transition hover:bg-white sm:flex"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    goToNextImage();
+                  }}
+                  aria-label="Image suivante"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <img
+                  src={imageError ? 'https://via.placeholder.com/400x400?text=HDMarket' : primaryImage}
+                  srcSet={imageError ? undefined : primaryImageSrcSet}
+                  alt={p.title}
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                  loading="lazy"
+                  decoding="async"
+                  fetchpriority="low"
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                />
+                {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-neutral-200 dark:bg-neutral-800" />}
+              </>
+            )}
 
             {primaryBadge ? (
               <span className="absolute left-2 top-2 inline-flex rounded-md bg-[#e85d00] px-2 py-1 text-[10px] font-black text-white shadow-sm">

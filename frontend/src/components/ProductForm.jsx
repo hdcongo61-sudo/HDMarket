@@ -2196,6 +2196,10 @@ export default function ProductForm(props) {
 
       <form
         onSubmit={submit}
+        lang="fr"
+        spellCheck="true"
+        autoCorrect="on"
+        autoCapitalize="sentences"
         className={`space-y-4 ${
           isMobile
             ? isEmbeddedMobile
@@ -3817,10 +3821,7 @@ export default function ProductForm(props) {
                       warrantyEnabled: Boolean(form.warrantyEnabled),
                       warrantyPeriodValue: form.warrantyPeriodValue || null,
                       warrantyPeriodUnit: form.warrantyPeriodUnit || 'months',
-                      images: [
-                        ...existingImages,
-                        ...imagePreviews.map(p => p.url)
-                      ].filter(Boolean),
+                      images: studioImages.map((image) => image.url).filter(Boolean),
                       user: user ? {
                         _id: user.id,
                         name: user.name,
@@ -3837,6 +3838,7 @@ export default function ProductForm(props) {
                     }}
                     hideMobileDiscountBadge={false}
                     disableProductNavigation
+                    enableImageCarousel
                   />
                 </div>
               </div>
