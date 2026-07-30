@@ -414,6 +414,7 @@ export default function AdminDeliveryGuys() {
                         : `${application.vehicleOwnerName} · ${application.vehicleOwnerPhone}`}
                     </p>
                     <p><strong>Permis :</strong> {application.driverLicenseNumber || 'Non fourni (optionnel)'}</p>
+                    <p><strong>Acheter pour moi :</strong> {application.buyForMeOptIn ? 'Accepté' : 'Refusé'}</p>
                     <p><strong>Ville :</strong> {application.serviceCity}</p>
                     <p className="sm:col-span-2">
                       <strong>Urgence :</strong> {application.emergencyContactName} · {application.emergencyContactRelationship || 'Lien non précisé'} · {application.emergencyContactPhone}

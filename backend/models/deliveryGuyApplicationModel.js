@@ -44,6 +44,7 @@ const deliveryGuyApplicationSchema = new mongoose.Schema(
     emergencyContactRelationship: { type: String, required: true, trim: true, maxlength: 80 },
     emergencyContactUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     applicantNote: { type: String, trim: true, maxlength: 1000, default: '' },
+    buyForMeOptIn: { type: Boolean, default: false },
     declarationsAccepted: { type: Boolean, required: true },
     status: {
       type: String,

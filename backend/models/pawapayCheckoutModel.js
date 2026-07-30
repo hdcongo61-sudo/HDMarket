@@ -16,6 +16,8 @@ const pawapayCheckoutSchema = new mongoose.Schema(
         'BOOST_FUNDING',
         'SHOP_CONVERSION_FUNDING',
         'PARCEL_REQUEST_FUNDING',
+        'BUY_FOR_ME_FUNDING',
+        'BUY_FOR_ME_ADDITIONAL_FUNDING',
         'GLOBAL_NOTIFICATION_FUNDING'
       ],
       default: 'CHECKOUT_FUNDING'

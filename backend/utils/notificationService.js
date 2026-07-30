@@ -109,6 +109,8 @@ const ENTITY_TYPES = new Set([
   'user',
   'payment',
   'refund',
+  'shopping_order',
+  'shopping_dispute',
   'shopConversionRequest',
   'globalNotification'
 ]);

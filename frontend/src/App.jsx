@@ -37,6 +37,9 @@ const Register = lazy(() => import('./pages/Register'));
 const ReferralLanding = lazy(() => import('./pages/ReferralLanding'));
 const Referrals = lazy(() => import('./pages/Referrals'));
 const RequestDelivery = lazy(() => import('./pages/RequestDelivery'));
+const BuyForMe = lazy(() => import('./pages/BuyForMe'));
+const BuyForMeOrders = lazy(() => import('./pages/BuyForMeOrders'));
+const BuyForMeOrderDetail = lazy(() => import('./pages/BuyForMeOrderDetail'));
 const MyParcelRequests = lazy(() => import('./pages/MyParcelRequests'));
 const ParcelRequestDetail = lazy(() => import('./pages/ParcelRequestDetail'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
@@ -52,8 +55,10 @@ const AdminOrders = lazy(() => import('./pages/AdminOrders'));
 const AdminDeliveryGuys = lazy(() => import('./pages/AdminDeliveryGuys'));
 const AdminDeliveryRequests = lazy(() => import('./pages/AdminDeliveryRequests'));
 const AdminParcelRequests = lazy(() => import('./pages/AdminParcelRequests'));
+const AdminBuyForMe = lazy(() => import('./pages/AdminBuyForMe'));
 const CourierDashboard = lazy(() => import('./pages/CourierDashboard'));
 const ParcelJobs = lazy(() => import('./pages/delivery/ParcelJobs'));
+const BuyForMeJobs = lazy(() => import('./pages/delivery/BuyForMeJobs'));
 const DeliveryAssignmentDetail = lazy(() => import('./pages/delivery/DeliveryAssignmentDetail'));
 const DeliveryHistory = lazy(() => import('./pages/delivery/DeliveryHistory'));
 const DeliveryProfile = lazy(() => import('./pages/delivery/DeliveryProfile'));
@@ -716,6 +721,9 @@ function AppContent() {
           <Route path="/parcels/new" element={<RequestDelivery />} />
           <Route path="/parcels/:id" element={<ParcelRequestDetail />} />
           <Route path="/parcels" element={<MyParcelRequests />} />
+          <Route path="/buy-for-me" element={<BuyForMe />} />
+          <Route path="/buy-for-me/orders" element={<BuyForMeOrders />} />
+          <Route path="/buy-for-me/:id" element={<BuyForMeOrderDetail />} />
           <Route
             path="/delivery/apply"
             element={
@@ -801,6 +809,7 @@ function AppContent() {
             <Route path="dashboard" element={<CourierDashboard />} />
             <Route path="assignment/:id" element={<DeliveryAssignmentDetail />} />
             <Route path="parcels" element={<ParcelJobs />} />
+            <Route path="buy-for-me" element={<BuyForMeJobs />} />
             <Route path="history" element={<DeliveryHistory />} />
             <Route path="profile" element={<DeliveryProfile />} />
           </Route>
@@ -1194,6 +1203,14 @@ function AppContent() {
               element={platformDeliveryEnabled ? <AdminDeliveryRequests /> : <Navigate to="/admin" replace />}
             />
             <Route path="parcel-requests" element={<AdminParcelRequests />} />
+            <Route
+              path="buy-for-me"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager' || user?.canManageDelivery === true || hasAnyPermission(user, ['manage_delivery'])}>
+                  <AdminBuyForMe />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="delivery-pricing"
               element={

@@ -56,6 +56,7 @@ import shopAssistantRoutes from './routes/shopAssistantRoutes.js';
 import homeRoutes from './routes/homeRoutes.js';
 import imageStudioRoutes from './routes/imageStudioRoutes.js';
 import deliveryPricingRoutes from './routes/deliveryPricingRoutes.js';
+import buyForMeRoutes from './routes/buyForMeRoutes.js';
 
 import User from './models/userModel.js';
 import Conversation from './models/conversationModel.js';
@@ -407,6 +408,7 @@ app.use('/api/referrals', referralRoutes);
 app.use('/api/group-buys', groupBuyRoutes);
 app.use('/api/parcels', parcelRequestRoutes);
 app.use('/api/courier/parcel-jobs', courierParcelRoutes);
+app.use('/api/buy-for-me', buyForMeRoutes);
 app.use('/api/delivery-pricing', deliveryPricingRoutes);
 app.use('/api/*', notFoundApiHandler);
 

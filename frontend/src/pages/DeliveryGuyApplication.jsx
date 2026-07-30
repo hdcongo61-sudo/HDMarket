@@ -9,6 +9,7 @@ import {
   FileBadge,
   Loader2,
   ShieldCheck,
+  ShoppingBasket,
   UserRound
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
@@ -39,6 +40,7 @@ const initialForm = {
   emergencyContactPhone: '',
   emergencyContactRelationship: '',
   applicantNote: '',
+  buyForMeOptIn: '',
   declarationsAccepted: false
 };
 
@@ -466,6 +468,68 @@ export default function DeliveryGuyApplication() {
                   <textarea className={`${fieldClass} min-h-24 py-3`} value={form.applicantNote} onChange={(e) => setValue('applicantNote', e.target.value)} placeholder="Disponibilités, zones connues, expérience…" />
                 </label>
               </div>
+            </section>
+
+            <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700">
+                  <ShoppingBasket className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 className="font-black">Missions « Acheter pour moi »</h2>
+                  <p className="mt-1 text-xs leading-5 text-neutral-500">
+                    Ces missions demandent d’acheter les articles du client, de vérifier leur disponibilité, d’ajouter le reçu du magasin puis de les livrer.
+                  </p>
+                </div>
+              </div>
+              <fieldset className="mt-4 grid gap-2 sm:grid-cols-2">
+                <legend className="sr-only">Accepter les missions Acheter pour moi</legend>
+                <label className={`cursor-pointer rounded-2xl border p-4 transition ${
+                  form.buyForMeOptIn === 'true'
+                    ? 'border-violet-500 bg-violet-50 text-violet-950 ring-2 ring-violet-100'
+                    : 'border-neutral-200 text-neutral-700'
+                }`}>
+                  <span className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="buyForMeOptIn"
+                      value="true"
+                      checked={form.buyForMeOptIn === 'true'}
+                      onChange={(event) => setValue('buyForMeOptIn', event.target.value)}
+                      className="mt-1 h-4 w-4 accent-violet-600"
+                      required
+                    />
+                    <span>
+                      <span className="block text-sm font-black">Oui, j’accepte</span>
+                      <span className="mt-1 block text-xs leading-5">L’onglet Achats et les demandes disponibles seront visibles.</span>
+                    </span>
+                  </span>
+                </label>
+                <label className={`cursor-pointer rounded-2xl border p-4 transition ${
+                  form.buyForMeOptIn === 'false'
+                    ? 'border-neutral-500 bg-neutral-50 text-neutral-950 ring-2 ring-neutral-100'
+                    : 'border-neutral-200 text-neutral-700'
+                }`}>
+                  <span className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="buyForMeOptIn"
+                      value="false"
+                      checked={form.buyForMeOptIn === 'false'}
+                      onChange={(event) => setValue('buyForMeOptIn', event.target.value)}
+                      className="mt-1 h-4 w-4 accent-neutral-700"
+                      required
+                    />
+                    <span>
+                      <span className="block text-sm font-black">Non, livraisons seulement</span>
+                      <span className="mt-1 block text-xs leading-5">Vous ne verrez aucune demande « Acheter pour moi ».</span>
+                    </span>
+                  </span>
+                </label>
+              </fieldset>
+              <p className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
+                Ce choix n’empêche pas l’accès aux livraisons et aux colis ordinaires.
+              </p>
             </section>
 
             <label className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4 text-sm font-semibold">

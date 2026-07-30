@@ -200,6 +200,7 @@ export const createDeliveryGuyAdmin = asyncHandler(async (req, res) => {
     isActive: Boolean(isActive),
     active: Boolean(isActive),
     vehicleType: normalizeText(req.body?.vehicleType || ''),
+    buyForMeOptIn: req.body?.buyForMeOptIn === true,
     notes: normalizeText(req.body?.notes || '')
   });
   const populated = await DeliveryGuy.findById(deliveryGuy._id)
@@ -244,6 +245,9 @@ export const updateDeliveryGuyAdmin = asyncHandler(async (req, res) => {
   }
   if (typeof req.body?.vehicleType !== 'undefined') {
     deliveryGuy.vehicleType = normalizeText(req.body.vehicleType);
+  }
+  if (typeof req.body?.buyForMeOptIn !== 'undefined') {
+    deliveryGuy.buyForMeOptIn = req.body.buyForMeOptIn === true;
   }
   if (typeof req.body?.notes !== 'undefined') {
     deliveryGuy.notes = normalizeText(req.body.notes);

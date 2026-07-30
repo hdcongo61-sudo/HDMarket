@@ -1618,7 +1618,8 @@ export const getCourierModeBootstrap = asyncHandler(async (req, res) => {
         ? deliveryGuy.communes
         : [],
       photoUrl: publicDeliveryGuy?.photoUrl || '',
-      profileImage: publicDeliveryGuy?.profileImage || ''
+      profileImage: publicDeliveryGuy?.profileImage || '',
+      buyForMeOptIn: deliveryGuy.buyForMeOptIn === true
     }
   });
 });
@@ -1653,7 +1654,8 @@ export const getDeliveryAgentMe = asyncHandler(async (req, res) => {
         ? deliveryGuy.communes
         : [],
       photoUrl: publicDeliveryGuy?.photoUrl || '',
-      profileImage: publicDeliveryGuy?.profileImage || ''
+      profileImage: publicDeliveryGuy?.profileImage || '',
+      buyForMeOptIn: deliveryGuy.buyForMeOptIn === true
     }
   });
 });

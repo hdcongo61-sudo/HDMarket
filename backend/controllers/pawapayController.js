@@ -37,6 +37,10 @@ import { createBoostRequest } from './boostController.js';
 import { createGlobalNotificationRequest } from './globalNotificationController.js';
 import { completeShopConversionPawaPay } from './shopConversionController.js';
 import { pawaPayCreateParcelRequest } from './parcelRequestController.js';
+import {
+  pawaPayCompleteBuyForMeAdditionalPayment,
+  pawaPayCreateBuyForMeOrder
+} from './buyForMeController.js';
 
 const RESOURCE_CONFIG = {
   checkout: { idField: 'checkoutId' },
@@ -54,6 +58,8 @@ const CHECKOUT_PURPOSES = new Set([
   'BOOST_FUNDING',
   'SHOP_CONVERSION_FUNDING',
   'PARCEL_REQUEST_FUNDING',
+  'BUY_FOR_ME_FUNDING',
+  'BUY_FOR_ME_ADDITIONAL_FUNDING',
   'GLOBAL_NOTIFICATION_FUNDING'
 ]);
 const ACTION_CONTEXT_KINDS = new Set([
@@ -65,6 +71,8 @@ const ACTION_CONTEXT_KINDS = new Set([
   'SPONSORSHIP_ACCEPT',
   'SPONSORSHIP_PAY_SELF',
   'PARCEL_REQUEST_CHECKOUT',
+  'BUY_FOR_ME_ORDER',
+  'BUY_FOR_ME_ADDITIONAL_PAYMENT',
   'GLOBAL_NOTIFICATION_REQUEST'
 ]);
 
@@ -100,6 +108,8 @@ const normalizeActionContext = (value, purpose) => {
   if (kind === 'SHOP_CONVERSION_REQUEST' && purpose !== 'SHOP_CONVERSION_FUNDING') return null;
   if (kind.startsWith('SPONSORSHIP_') && purpose !== 'CHECKOUT_FUNDING') return null;
   if (kind === 'PARCEL_REQUEST_CHECKOUT' && purpose !== 'PARCEL_REQUEST_FUNDING') return null;
+  if (kind === 'BUY_FOR_ME_ORDER' && purpose !== 'BUY_FOR_ME_FUNDING') return null;
+  if (kind === 'BUY_FOR_ME_ADDITIONAL_PAYMENT' && purpose !== 'BUY_FOR_ME_ADDITIONAL_FUNDING') return null;
   if (kind === 'GLOBAL_NOTIFICATION_REQUEST' && purpose !== 'GLOBAL_NOTIFICATION_FUNDING') return null;
   parsed.kind = kind;
   return parsed;
@@ -985,6 +995,40 @@ const autoCompleteCheckoutAction = async (checkout) => {
         : '/admin/parcel-requests';
       entityId = parcelRequestId || claimed.checkoutId;
       successPath = parcelRequestId ? `/parcels/${encodeURIComponent(String(parcelRequestId))}` : '/parcels';
+    } else if (action.kind === 'BUY_FOR_ME_ORDER') {
+      result = await invokeCompletionController({
+        handler: pawaPayCreateBuyForMeOrder,
+        checkout: claimed,
+        body: {
+          storeType: action.storeType,
+          preferredStore: action.preferredStore,
+          pickup: action.pickup,
+          dropoff: action.dropoff,
+          items: action.items,
+          authorizationMode: action.authorizationMode,
+          shoppingBudget: action.shoppingBudget,
+          specialInstructions: action.specialInstructions,
+          balancePreference: action.balancePreference
+        }
+      });
+      const shoppingOrderId = result?._id || '';
+      title = 'Demande Acheter Pour Moi payée';
+      message = `Votre demande d’achat de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA est confirmée. Nous recherchons un livreur.`;
+      deepLink = shoppingOrderId ? `/admin/buy-for-me?orderId=${encodeURIComponent(String(shoppingOrderId))}` : '/admin/buy-for-me';
+      entityId = shoppingOrderId || claimed.checkoutId;
+      successPath = shoppingOrderId ? `/buy-for-me/${encodeURIComponent(String(shoppingOrderId))}` : '/buy-for-me/orders';
+    } else if (action.kind === 'BUY_FOR_ME_ADDITIONAL_PAYMENT') {
+      result = await invokeCompletionController({
+        handler: pawaPayCompleteBuyForMeAdditionalPayment,
+        checkout: claimed,
+        body: { orderId: action.orderId }
+      });
+      const shoppingOrderId = result?._id || action.orderId || '';
+      title = 'Complément Acheter Pour Moi payé';
+      message = `Le complément de ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA a été confirmé.`;
+      deepLink = shoppingOrderId ? `/admin/buy-for-me?orderId=${encodeURIComponent(String(shoppingOrderId))}` : '/admin/buy-for-me';
+      entityId = shoppingOrderId || claimed.checkoutId;
+      successPath = shoppingOrderId ? `/buy-for-me/${encodeURIComponent(String(shoppingOrderId))}` : '/buy-for-me/orders';
     } else {
       throw new Error('Action automatique PawaPay inconnue.');
     }

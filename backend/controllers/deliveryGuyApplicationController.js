@@ -105,6 +105,12 @@ export const createDeliveryGuyApplication = asyncHandler(async (req, res) => {
   const submittedIdentityType = clean(req.body.identityType) || 'national_id';
   const separateDriverLicenseRequired =
     driverLicenseRequired && submittedIdentityType !== 'driver_license';
+  const buyForMeChoice = clean(req.body.buyForMeOptIn).toLowerCase();
+  if (!['true', 'false'].includes(buyForMeChoice)) {
+    return res.status(400).json({
+      message: 'Indiquez si vous acceptez les missions « Acheter pour moi ».'
+    });
+  }
   const requiredFiles = separateDriverLicenseRequired
     ? [...baseRequiredFiles, driverLicenseFile]
     : baseRequiredFiles;
@@ -143,7 +149,8 @@ export const createDeliveryGuyApplication = asyncHandler(async (req, res) => {
     emergencyContactName: clean(req.body.emergencyContactName),
     emergencyContactPhone: clean(req.body.emergencyContactPhone),
     emergencyContactRelationship: clean(req.body.emergencyContactRelationship),
-    applicantNote: clean(req.body.applicantNote)
+    applicantNote: clean(req.body.applicantNote),
+    buyForMeOptIn: buyForMeChoice === 'true'
   };
   const requiredTextFields = [
     ['fullName', 'nom complet'], ['phone', 'numéro de téléphone'],
@@ -215,6 +222,7 @@ export const createDeliveryGuyApplication = asyncHandler(async (req, res) => {
     vehicleOwnerPhone: ownsVehicle ? fields.phone : fields.vehicleOwnerPhone,
     vehicleUseAuthorized: ownsVehicle || isTrue(req.body.vehicleUseAuthorized),
     emergencyContactUser: emergencyContactUser?._id || null,
+    buyForMeOptIn: fields.buyForMeOptIn,
     declarationsAccepted: true,
     identityFrontUrl: urls.identityFront,
     identityBackUrl: urls.identityBack,
@@ -289,6 +297,7 @@ export const reviewDeliveryGuyApplicationAdmin = asyncHandler(async (req, res) =
     deliveryGuy.vehicleOwnerName = application.vehicleOwnerName;
     deliveryGuy.vehicleOwnerPhone = application.vehicleOwnerPhone;
     deliveryGuy.phoneRegisteredInOwnName = true;
+    deliveryGuy.buyForMeOptIn = Boolean(application.buyForMeOptIn);
     deliveryGuy.emergencyContactUser = application.emergencyContactUser || null;
     deliveryGuy.emergencyContactName = application.emergencyContactName;
     deliveryGuy.emergencyContactPhone = application.emergencyContactPhone;

@@ -8,7 +8,7 @@ import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Pencil, Users } from "lucide-react";
+import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -245,6 +245,8 @@ export default function Home() {
   const [activeFlashSalesLoading, setActiveFlashSalesLoading] = useState(false);
   const [flashNow, setFlashNow] = useState(() => Date.now());
   const [heroBanner, setHeroBanner] = useState('');
+  const [buyForMeEnabled, setBuyForMeEnabled] = useState(false);
+  const [parcelDeliveryEnabled, setParcelDeliveryEnabled] = useState(false);
   const [promoBanner, setPromoBanner] = useState('');
   const [promoBannerMobile, setPromoBannerMobile] = useState('');
   const [promoBannerLink, setPromoBannerLink] = useState('');
@@ -292,6 +294,13 @@ const connectedUserDeliveryAddressLabel = useMemo(() => {
   if (effectiveUserCity) return effectiveUserCity;
   return t('home.addressNotSet', 'Adresse non renseignée');
 }, [connectedUserDeliveryAddress, effectiveUserCity, t]);
+const compactDeliveryAddressLabel = useMemo(() => {
+  const preciseAddress = String(user?.address || '').trim();
+  if (preciseAddress) return preciseAddress;
+  const commune = String(user?.commune || '').trim();
+  if (commune) return commune;
+  return t('home.addDeliveryAddress', 'Ajouter une adresse');
+}, [t, user?.address, user?.commune]);
 const hasDeliveryAddress = Boolean(connectedUserDeliveryAddress);
 const hasUserCity = useMemo(
   () =>
@@ -547,6 +556,34 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     return () => {
       active = false;
       unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/buy-for-me/capabilities')
+      .then(({ data }) => {
+        if (active) setBuyForMeEnabled(Boolean(data?.enabled));
+      })
+      .catch(() => {
+        if (active) setBuyForMeEnabled(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/parcels/capabilities')
+      .then(({ data }) => {
+        if (active) setParcelDeliveryEnabled(Boolean(data?.enabled));
+      })
+      .catch(() => {
+        if (active) setParcelDeliveryEnabled(false);
+      });
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -1211,55 +1248,13 @@ const loadDiscountProducts = async () => {
 
         <GroupBuyHomeSection enabled={groupBuyingEnabled} />
 
-        {(user || showFullPaymentHomeBanner) ? (
+        {(showFullPaymentHomeBanner || showPayForOtherBanner || buyForMeEnabled || parcelDeliveryEnabled) ? (
           <section className="order-[-1] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-sm">
-            {user ? (
-              <Link
-                to="/profile"
-                className={`flex items-center gap-3 px-4 py-3.5 transition-colors active:scale-[0.99] ${
-                  hasDeliveryAddress ? '' : 'bg-amber-50/60'
-                }`}
-              >
-                <span
-                  className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 ${
-                    hasDeliveryAddress
-                      ? 'bg-[#fff2e6] text-[#e85d00] ring-orange-100'
-                      : 'bg-amber-100 text-amber-700 ring-amber-200'
-                  }`}
-                >
-                  <MapPin className="h-[22px] w-[22px]" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">
-                      {t('home.deliveryAddress', 'Adresse de livraison')}
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black ${
-                        hasDeliveryAddress ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${hasDeliveryAddress ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                      {hasDeliveryAddress ? 'Prête' : 'À compléter'}
-                    </span>
-                  </span>
-                  <span className="mt-1 block truncate text-[15px] font-black leading-tight text-slate-950">
-                    {connectedUserDeliveryAddressLabel}
-                  </span>
-                </span>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-[11px] font-black text-gray-700">
-                  <Pencil className="h-3.5 w-3.5" />
-                  <span className="hidden min-[400px]:inline">Modifier</span>
-                </span>
-              </Link>
-            ) : null}
             {showFullPaymentHomeBanner ? (
               <Link
                 to="/products"
                 {...externalLinkProps}
-                className={`group block bg-emerald-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] ${
-                  user ? 'border-t border-gray-200' : ''
-                }`}
+                className="group block bg-emerald-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
@@ -1285,7 +1280,9 @@ const loadDiscountProducts = async () => {
               <Link
                 to="/cart"
                 {...externalLinkProps}
-                className="group block border-t border-gray-200 bg-amber-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:border-neutral-800 dark:bg-amber-950/40"
+                className={`group block bg-amber-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:bg-amber-950/40 ${
+                  showFullPaymentHomeBanner ? 'border-t border-gray-200 dark:border-neutral-800' : ''
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
@@ -1307,6 +1304,62 @@ const loadDiscountProducts = async () => {
                 </div>
               </Link>
             ) : null}
+            {buyForMeEnabled ? (
+              <Link
+                to="/buy-for-me"
+                {...externalLinkProps}
+                className={`group block bg-violet-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:bg-violet-950/40 ${
+                  showFullPaymentHomeBanner || showPayForOtherBanner ? 'border-t border-gray-200 dark:border-neutral-800' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm">
+                    <ShoppingBag className="h-[22px] w-[22px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-100">
+                      <Sparkles className="h-3 w-3" />
+                      Nouveau
+                    </span>
+                    <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
+                      Acheter Pour Moi — un livreur fait vos courses et vous livre
+                    </span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-600 px-3 py-2 text-[11px] font-black text-white shadow-sm">
+                    Essayer
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ) : null}
+            {parcelDeliveryEnabled ? (
+              <Link
+                to="/parcels/new"
+                {...externalLinkProps}
+                className={`group block bg-sky-50 px-4 py-3.5 transition-all duration-200 active:scale-[0.99] dark:bg-sky-950/40 ${
+                  showFullPaymentHomeBanner || showPayForOtherBanner || buyForMeEnabled ? 'border-t border-gray-200 dark:border-neutral-800' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-sm">
+                    <Package className="h-[22px] w-[22px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-sky-700 ring-1 ring-sky-100">
+                      <Truck className="h-3 w-3" />
+                      Course à la demande
+                    </span>
+                    <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
+                      Envoyer un colis — un livreur récupère et livre où vous voulez
+                    </span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-600 px-3 py-2 text-[11px] font-black text-white shadow-sm">
+                    Envoyer
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ) : null}
           </section>
         ) : null}
 
@@ -1319,15 +1372,31 @@ const loadDiscountProducts = async () => {
               <Link to="/" className="flex items-center gap-2" {...externalLinkProps}>
                 <span className="text-[30px] font-black leading-none tracking-tight">HDMarket</span>
               </Link>
-              <Link
-                to="/cities"
-                {...externalLinkProps}
-                className="inline-flex min-w-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1.5 text-xs font-semibold"
-              >
-                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="max-w-[86px] truncate">{effectiveUserCity || 'Local'}</span>
-                <ChevronRight className="h-3 w-3 flex-shrink-0" />
-              </Link>
+              <div className="inline-flex min-w-0 max-w-[180px] items-center rounded-full border border-white/15 bg-white/15 p-0.5 backdrop-blur-sm max-[375px]:max-w-[158px]">
+                <Link
+                  to="/cities"
+                  {...externalLinkProps}
+                  className="inline-flex min-w-0 shrink-0 items-center gap-1 rounded-full px-1.5 py-1 text-[10px] font-black"
+                  title={effectiveUserCity || 'Local'}
+                >
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="max-w-[55px] truncate max-[375px]:max-w-[45px]">{effectiveUserCity || 'Local'}</span>
+                </Link>
+                {user ? (
+                  <>
+                    <span className="h-4 w-px shrink-0 bg-white/25" aria-hidden="true" />
+                    <Link
+                      to="/profile"
+                      className={`min-w-0 flex-1 truncate rounded-full px-1.5 py-1 text-[9px] font-bold ${
+                        hasDeliveryAddress ? 'text-white/90' : 'bg-amber-300/20 text-amber-50'
+                      }`}
+                      title={`${t('home.deliveryAddress', 'Adresse de livraison')} : ${connectedUserDeliveryAddressLabel}`}
+                    >
+                      {compactDeliveryAddressLabel}
+                    </Link>
+                  </>
+                ) : null}
+              </div>
             </div>
 
             <div className="home-anim-fade-up relative mt-4 flex gap-6 overflow-x-auto pb-2 hide-scrollbar" style={{ ...scrollStyle, '--home-anim-delay': '90ms' }}>
@@ -2317,7 +2386,7 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
-        {(user || showFullPaymentHomeBanner) ? (
+        {(user || showFullPaymentHomeBanner || buyForMeEnabled) ? (
           <section className={`grid gap-3 ${user && showFullPaymentHomeBanner ? 'lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]' : 'grid-cols-1'}`}>
             {user ? (
               <Link
@@ -2374,6 +2443,56 @@ const loadDiscountProducts = async () => {
               </Link>
             ) : null}
           </section>
+        ) : null}
+        {buyForMeEnabled ? (
+          <Link
+            to="/buy-for-me"
+            {...externalLinkProps}
+            className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-200"
+          >
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
+                <ShoppingBag className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-100">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Nouveau
+                </span>
+                <span className="mt-1.5 block line-clamp-2 text-sm font-black leading-5 text-slate-950">
+                  Acheter Pour Moi — un livreur fait vos courses (supermarché, pharmacie, restaurant...) et vous livre
+                </span>
+              </span>
+            </div>
+            <span className="inline-flex shrink-0 items-center rounded-full bg-violet-600 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-violet-700">
+              Essayer
+            </span>
+          </Link>
+        ) : null}
+        {parcelDeliveryEnabled ? (
+          <Link
+            to="/parcels/new"
+            {...externalLinkProps}
+            className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-200"
+          >
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-sm">
+                <Package className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-sky-700 ring-1 ring-sky-100">
+                  <Truck className="h-3.5 w-3.5" />
+                  Course à la demande
+                </span>
+                <span className="mt-1.5 block line-clamp-2 text-sm font-black leading-5 text-slate-950">
+                  Envoyer un colis — un livreur récupère et livre où vous voulez
+                </span>
+              </span>
+            </div>
+            <span className="inline-flex shrink-0 items-center rounded-full bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-sky-700">
+              Envoyer
+            </span>
+          </Link>
         ) : null}
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">

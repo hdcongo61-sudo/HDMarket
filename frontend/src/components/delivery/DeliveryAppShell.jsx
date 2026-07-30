@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bike, ClipboardList, History, Package, UserRound } from 'lucide-react';
+import { Bike, ClipboardList, History, Package, ShoppingBasket, UserRound } from 'lucide-react';
+import api from '../../services/api';
 
 const NAV_ITEMS = [
   { key: 'missions', label: 'Missions', to: '/delivery/dashboard', icon: ClipboardList },
   { key: 'parcels', label: 'Colis', to: '/delivery/parcels', icon: Package },
+  { key: 'shopping', label: 'Achats', to: '/delivery/buy-for-me', icon: ShoppingBasket },
   { key: 'history', label: 'Historique', to: '/delivery/history', icon: History },
   { key: 'profile', label: 'Profil', to: '/delivery/profile', icon: UserRound }
 ];
@@ -23,6 +25,7 @@ export default function DeliveryAppShell() {
   const [online, setOnline] = useState(
     typeof navigator === 'undefined' ? true : navigator.onLine
   );
+  const [buyForMeAllowed, setBuyForMeAllowed] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setOnline(true);
@@ -34,6 +37,22 @@ export default function DeliveryAppShell() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/delivery/me')
+      .then(({ data }) => {
+        if (active) setBuyForMeAllowed(data?.deliveryGuy?.buyForMeOptIn === true);
+      })
+      .catch(() => {
+        if (active) setBuyForMeAllowed(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => item.key !== 'shopping' || buyForMeAllowed);
 
   return (
     <div className="min-h-[100dvh] bg-[#f5f5f5] text-gray-900 dark:bg-neutral-950 dark:text-white">
@@ -59,7 +78,7 @@ export default function DeliveryAppShell() {
         </div>
 
         <nav className="mt-6 space-y-2" aria-label="Navigation livraison">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const active = isNavItemActive(pathname, item);
             return (
@@ -93,8 +112,12 @@ export default function DeliveryAppShell() {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-100 bg-white px-3 pb-[max(8px,env(safe-area-inset-bottom,0px))] pt-2 shadow-sm backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950 lg:hidden"
         aria-label="Navigation livraison mobile"
       >
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {NAV_ITEMS.map((item) => {
+        <div
+          className={`mx-auto grid max-w-md gap-1 ${
+            visibleNavItems.length === 5 ? 'grid-cols-5' : 'grid-cols-4'
+          }`}
+        >
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const active = isNavItemActive(pathname, item);
             return (

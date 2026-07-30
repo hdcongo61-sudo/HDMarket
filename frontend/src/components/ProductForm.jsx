@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -258,8 +258,30 @@ export default function ProductForm(props) {
     preview: false
   });
   const formShellRef = useRef(null);
+  const submissionViewportRef = useRef(null);
   const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
   const isEmbeddedMobile = Boolean(isMobile && embeddedInModal);
+
+  useLayoutEffect(() => {
+    if (!loading) return undefined;
+    const snapshot = submissionViewportRef.current;
+    const scrollContainer = snapshot?.scrollContainer;
+    if (!(scrollContainer instanceof HTMLElement)) return undefined;
+
+    const previousOverflowAnchor = scrollContainer.style.overflowAnchor;
+    const keepPositionStable = () => {
+      scrollContainer.scrollTop = snapshot.scrollTop;
+    };
+    scrollContainer.style.overflowAnchor = 'none';
+    keepPositionStable();
+    const frameId = window.requestAnimationFrame(keepPositionStable);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      scrollContainer.style.overflowAnchor = previousOverflowAnchor;
+      submissionViewportRef.current = null;
+    };
+  }, [loading]);
 
   // ── Auto-save draft to localStorage (every 5s) ─────────────────────────
   const draftKey = useMemo(() => {
@@ -353,7 +375,7 @@ export default function ProductForm(props) {
       frameId = window.requestAnimationFrame(() => {
         target.scrollIntoView({
           block: 'center',
-          behavior: 'smooth'
+          behavior: 'auto'
         });
       });
     };
@@ -1537,6 +1559,14 @@ export default function ProductForm(props) {
       }
     }
 
+    const scrollContainer = isEmbeddedMobile ? formShellRef.current?.parentElement : null;
+    submissionViewportRef.current = {
+      scrollContainer,
+      scrollTop: scrollContainer instanceof HTMLElement ? scrollContainer.scrollTop : 0
+    };
+    if (isEmbeddedMobile && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setLoading(true);
     if (videoFile) {
       setIsUploadingVideo(true);
@@ -2138,7 +2168,11 @@ export default function ProductForm(props) {
     { key: 'price', label: 'Prix', done: requiredFields.category && requiredFields.price },
     { key: 'commercial', label: 'Commercial', done: Boolean(form.installmentEnabled || form.wholesaleEnabled) },
     { key: 'media', label: 'Photos', done: imagePreviews.length > 0 || existingImages.length > 0 },
-    { key: 'validation', label: 'Validation', done: !submitDisabled }
+    {
+      key: 'validation',
+      label: 'Validation',
+      done: requiredFields.title && requiredFields.description && requiredFields.category && requiredFields.price
+    }
   ];
 
   // Taobao-style shared input class
@@ -2196,6 +2230,7 @@ export default function ProductForm(props) {
 
       <form
         onSubmit={submit}
+        aria-busy={loading}
         lang="fr"
         spellCheck="true"
         autoCorrect="on"
@@ -3860,6 +3895,7 @@ export default function ProductForm(props) {
                 <button
                   type="button"
                   onClick={onCancel}
+                  disabled={loading}
                   className="hd-soft-button w-full min-h-[46px] rounded-xl text-sm font-semibold"
                 >
                   Annuler

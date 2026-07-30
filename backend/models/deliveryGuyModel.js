@@ -32,6 +32,7 @@ const deliveryGuySchema = new mongoose.Schema(
     vehicleOwnerName: { type: String, trim: true, default: '' },
     vehicleOwnerPhone: { type: String, trim: true, default: '' },
     phoneRegisteredInOwnName: { type: Boolean, default: false },
+    buyForMeOptIn: { type: Boolean, default: false, index: true },
     emergencyContactUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     emergencyContactName: { type: String, trim: true, default: '' },
     emergencyContactPhone: { type: String, trim: true, default: '' },

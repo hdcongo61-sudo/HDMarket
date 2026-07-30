@@ -25,7 +25,8 @@ import {
   Menu,
   X,
   ChevronDown,
-  Megaphone
+  Megaphone,
+  ShoppingBasket
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
@@ -126,6 +127,18 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
     to: '/admin/parcel-requests',
     label: t('nav.parcelRequests', 'Courses colis'),
     icon: Truck,
+    group: 'operations',
+    show: (u) =>
+      u?.role === 'admin' ||
+      u?.role === 'manager' ||
+      u?.role === 'founder' ||
+      u?.canManageDelivery ||
+      hasAnyPermission(u, ['manage_delivery'])
+  },
+  {
+    to: '/admin/buy-for-me',
+    label: 'Acheter Pour Moi',
+    icon: ShoppingBasket,
     group: 'operations',
     show: (u) =>
       u?.role === 'admin' ||
