@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Landmark as LandmarkIcon, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Crosshair, Landmark as LandmarkIcon, Loader2, MapPin, Plus, Trash2 } from 'lucide-react';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 
@@ -14,6 +14,7 @@ export default function LandmarksPanel() {
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState('');
+  const [locating, setLocating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,6 +59,32 @@ export default function LandmarksPanel() {
     }
   };
 
+  const useCurrentPosition = () => {
+    if (!navigator.geolocation || locating) {
+      showToast('La géolocalisation n’est pas disponible sur cet appareil.', { variant: 'error' });
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setForm((previous) => ({
+          ...previous,
+          latitude: Number(coords.latitude).toFixed(6),
+          longitude: Number(coords.longitude).toFixed(6)
+        }));
+        setLocating(false);
+        showToast('Coordonnées GPS ajoutées.', { variant: 'success' });
+      },
+      () => {
+        setLocating(false);
+        showToast('Impossible d’obtenir votre position. Vérifiez l’autorisation GPS.', {
+          variant: 'error'
+        });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+  };
+
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
@@ -81,65 +108,117 @@ export default function LandmarksPanel() {
         Utilisés pour deviner les coordonnées GPS depuis une adresse texte (ex: « Près de Total Station »).
       </p>
 
-      <form onSubmit={handleCreate} className="mb-4 grid grid-cols-1 gap-2 rounded-xl border border-dashed border-gray-200 p-3 sm:grid-cols-3">
-        <input
-          value={form.name}
-          onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-          placeholder="Nom (ex: Total Station)"
-          className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm sm:col-span-3"
-        />
-        <select
-          value={form.cityId}
-          onChange={(event) => setForm((prev) => ({ ...prev, cityId: event.target.value, communeId: '' }))}
-          className="min-h-10 rounded-lg border border-gray-200 bg-white px-2.5 text-sm"
-        >
-          <option value="">Ville</option>
-          {cities.map((city) => (
-            <option key={city._id} value={city._id}>{city.name}</option>
-          ))}
-        </select>
-        <select
-          value={form.communeId}
-          onChange={(event) => setForm((prev) => ({ ...prev, communeId: event.target.value }))}
-          className="min-h-10 rounded-lg border border-gray-200 bg-white px-2.5 text-sm"
-          disabled={!form.cityId}
-        >
-          <option value="">Commune (optionnel)</option>
-          {communesForCity.map((commune) => (
-            <option key={commune._id} value={commune._id}>{commune.name}</option>
-          ))}
-        </select>
-        <div />
-        <input
-          type="number"
-          step="0.000001"
-          value={form.latitude}
-          onChange={(event) => setForm((prev) => ({ ...prev, latitude: event.target.value }))}
-          placeholder="Latitude"
-          className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
-        />
-        <input
-          type="number"
-          step="0.000001"
-          value={form.longitude}
-          onChange={(event) => setForm((prev) => ({ ...prev, longitude: event.target.value }))}
-          placeholder="Longitude"
-          className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm"
-        />
-        <input
-          value={form.aliases}
-          onChange={(event) => setForm((prev) => ({ ...prev, aliases: event.target.value }))}
-          placeholder="Alias (séparés par virgule: Total, Station Total)"
-          className="min-h-10 rounded-lg border border-gray-200 px-2.5 text-sm sm:col-span-2"
-        />
-        <button
-          type="submit"
-          disabled={creating}
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] text-xs font-black text-white disabled:opacity-50"
-        >
-          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Ajouter
-        </button>
+      <form onSubmit={handleCreate} className="mb-4 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Plus className="h-4 w-4 text-[#e85d00]" />
+          <h3 className="text-sm font-black text-slate-950">Nouveau point de repère</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="text-xs font-bold text-gray-700 sm:col-span-2">
+            Nom du lieu *
+            <input
+              value={form.name}
+              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="Ex. Marché Total, CHU de Brazzaville"
+              className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+              required
+            />
+          </label>
+          <label className="text-xs font-bold text-gray-700">
+            Ville *
+            <select
+              value={form.cityId}
+              onChange={(event) => setForm((prev) => ({ ...prev, cityId: event.target.value, communeId: '' }))}
+              className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+              required
+            >
+              <option value="">Sélectionner une ville</option>
+              {cities.map((city) => (
+                <option key={city._id} value={city._id}>{city.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-gray-700">
+            Commune
+            <select
+              value={form.communeId}
+              onChange={(event) => setForm((prev) => ({ ...prev, communeId: event.target.value }))}
+              className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm disabled:bg-gray-100"
+              disabled={!form.cityId}
+            >
+              <option value="">Commune (optionnelle)</option>
+              {communesForCity.map((commune) => (
+                <option key={commune._id} value={commune._id}>{commune.name}</option>
+              ))}
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+            <label className="text-xs font-bold text-gray-700">
+              Latitude *
+              <input
+                type="number"
+                min="-90"
+                max="90"
+                step="0.000001"
+                value={form.latitude}
+                onChange={(event) => setForm((prev) => ({ ...prev, latitude: event.target.value }))}
+                placeholder="-4.2634"
+                className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+                required
+              />
+            </label>
+            <label className="text-xs font-bold text-gray-700">
+              Longitude *
+              <input
+                type="number"
+                min="-180"
+                max="180"
+                step="0.000001"
+                value={form.longitude}
+                onChange={(event) => setForm((prev) => ({ ...prev, longitude: event.target.value }))}
+                placeholder="15.2429"
+                className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+                required
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={useCurrentPosition}
+            disabled={locating}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-3 text-xs font-black text-[#e85d00] disabled:opacity-50 sm:col-span-2"
+          >
+            {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+            {locating ? 'Localisation…' : 'Utiliser ma position actuelle'}
+          </button>
+          <label className="text-xs font-bold text-gray-700 sm:col-span-2">
+            Autres noms utilisés
+            <input
+              value={form.aliases}
+              onChange={(event) => setForm((prev) => ({ ...prev, aliases: event.target.value }))}
+              placeholder="Ex. Total, Station Total (séparés par une virgule)"
+              className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+            />
+          </label>
+          <label className="text-xs font-bold text-gray-700 sm:col-span-2">
+            Description
+            <textarea
+              value={form.description}
+              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+              placeholder="Indications utiles pour reconnaître le lieu"
+              rows={2}
+              className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={creating || !form.name.trim() || !form.cityId || form.latitude === '' || form.longitude === ''}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#231f1b] px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2"
+          >
+            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+            {creating ? 'Ajout en cours…' : 'Ajouter le point de repère'}
+          </button>
+        </div>
       </form>
 
       {loading ? (

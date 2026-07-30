@@ -648,6 +648,14 @@ export default function Profile() {
       return String(itemCityId || '') === String(selectedCityRecord._id);
     });
   }, [communes, selectedCityRecord?._id]);
+  const selectedCommuneRecord =
+    availableCommunes.find((item) => item?.name === form.commune) || null;
+  const selectedCityId = /^[a-f\d]{24}$/i.test(String(selectedCityRecord?._id || ''))
+    ? selectedCityRecord._id
+    : '';
+  const selectedCommuneId = /^[a-f\d]{24}$/i.test(String(selectedCommuneRecord?._id || ''))
+    ? selectedCommuneRecord._id
+    : '';
   const currentShopCoordinates = useMemo(() => {
     const coords = user?.shopLocation?.coordinates;
     if (!Array.isArray(coords) || coords.length !== 2) return null;
@@ -1634,6 +1642,8 @@ export default function Profile() {
       payload.append('accountType', form.accountType);
       payload.append('city', form.city);
       payload.append('commune', form.commune || '');
+      payload.append('cityId', selectedCityId);
+      payload.append('communeId', selectedCommuneId);
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
       if (form.accountType === 'shop') {

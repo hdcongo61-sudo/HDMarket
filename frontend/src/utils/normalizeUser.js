@@ -119,6 +119,8 @@ export function normalizeUser(raw = {}) {
     country: safeString(raw.country, 'République du Congo'),
     city: safeString(raw.city, 'Brazzaville'),
     commune: safeString(raw.commune),
+    cityId: safeString(raw.cityId),
+    communeId: safeString(raw.communeId),
     address: safeString(raw.address),
     preferredLanguage: safeString(raw.preferredLanguage, 'fr'),
     preferredCurrency: safeString(raw.preferredCurrency, 'XAF').toUpperCase(),

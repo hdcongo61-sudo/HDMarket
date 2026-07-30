@@ -38,6 +38,7 @@ import {
 import { resolvePermissionsForUser } from '../services/rbacService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
+import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
@@ -198,6 +199,8 @@ const sanitizeUser = (user) => ({
   address: user.address,
   city: user.city,
   commune: user.commune || '',
+  cityId: user.cityId || null,
+  communeId: user.communeId || null,
   preferredLanguage: user.preferredLanguage || 'fr',
   preferredCurrency: user.preferredCurrency || 'XAF',
   preferredCity: user.preferredCity || user.city || '',
@@ -1114,6 +1117,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
     shopAddress,
     city,
     commune,
+    cityId,
+    communeId,
     gender,
     address,
     shopDescription,
@@ -1227,11 +1232,22 @@ export const updateProfile = asyncHandler(async (req, res) => {
     user.address = trimmed;
   }
 
-  if (typeof city !== 'undefined' && String(city).trim()) {
-    user.city = String(city).trim();
-  }
-  if (typeof commune !== 'undefined') {
-    user.commune = String(commune || '').trim();
+  if (
+    typeof city !== 'undefined' ||
+    typeof commune !== 'undefined' ||
+    typeof cityId !== 'undefined' ||
+    typeof communeId !== 'undefined'
+  ) {
+    const location = await resolveCanonicalLocation({
+      cityId,
+      communeId,
+      cityName: city || user.city,
+      communeName: typeof commune === 'undefined' ? user.commune : commune
+    });
+    user.cityId = location.cityId;
+    user.communeId = location.communeId;
+    user.city = location.cityName;
+    user.commune = location.communeName;
   }
 
   if (gender && ['homme', 'femme'].includes(gender)) {

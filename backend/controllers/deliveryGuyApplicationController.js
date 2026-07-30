@@ -11,6 +11,7 @@ import {
 import { createAuditLogEntry } from '../services/auditLogService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { buildPhoneCandidates } from '../utils/firebaseVerification.js';
+import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
 
 const clean = (value) => String(value || '').trim();
 const isTrue = (value) => ['true', '1', 'yes', 'oui', 'on'].includes(clean(value).toLowerCase());
@@ -135,7 +136,10 @@ export const createDeliveryGuyApplication = asyncHandler(async (req, res) => {
     driverLicenseNumber:
       clean(req.body.driverLicenseNumber) ||
       (submittedIdentityType === 'driver_license' ? clean(req.body.identityNumber) : ''),
+    serviceCityId: clean(req.body.serviceCityId),
+    serviceCommuneId: clean(req.body.serviceCommuneId),
     serviceCity: clean(req.body.serviceCity),
+    serviceCommune: clean(req.body.serviceCommune),
     emergencyContactName: clean(req.body.emergencyContactName),
     emergencyContactPhone: clean(req.body.emergencyContactPhone),
     emergencyContactRelationship: clean(req.body.emergencyContactRelationship),
@@ -166,6 +170,12 @@ export const createDeliveryGuyApplication = asyncHandler(async (req, res) => {
   if (!['self', 'family', 'borrowed', 'rented', 'employer', 'other'].includes(fields.vehicleOwnership)) {
     return res.status(400).json({ message: 'Statut de propriété du véhicule invalide.' });
   }
+  const serviceLocation = await resolveCanonicalLocation({
+    cityId: fields.serviceCityId,
+    communeId: fields.serviceCommuneId,
+    cityName: fields.serviceCity,
+    communeName: fields.serviceCommune
+  });
   const ownsVehicle = fields.vehicleOwnership === 'self';
   if (!ownsVehicle && (!fields.vehicleOwnerName || !fields.vehicleOwnerPhone)) {
     return res.status(400).json({
@@ -196,6 +206,10 @@ export const createDeliveryGuyApplication = asyncHandler(async (req, res) => {
   const application = await DeliveryGuyApplication.create({
     user: user._id,
     ...fields,
+    serviceCityId: serviceLocation.cityId,
+    serviceCommuneId: serviceLocation.communeId,
+    serviceCity: serviceLocation.cityName,
+    serviceCommune: serviceLocation.communeName,
     phoneRegisteredInOwnName: true,
     vehicleOwnerName: ownsVehicle ? fields.fullName : fields.vehicleOwnerName,
     vehicleOwnerPhone: ownsVehicle ? fields.phone : fields.vehicleOwnerPhone,
@@ -279,6 +293,8 @@ export const reviewDeliveryGuyApplicationAdmin = asyncHandler(async (req, res) =
     deliveryGuy.emergencyContactName = application.emergencyContactName;
     deliveryGuy.emergencyContactPhone = application.emergencyContactPhone;
     deliveryGuy.emergencyContactRelationship = application.emergencyContactRelationship;
+    deliveryGuy.cityId = application.serviceCityId;
+    deliveryGuy.communes = application.serviceCommuneId ? [application.serviceCommuneId] : [];
     deliveryGuy.identityVerifiedAt = new Date();
     deliveryGuy.driverLicenseVerifiedAt =
       application.driverLicenseNumber && application.driverLicensePhotoUrl ? new Date() : null;
@@ -287,7 +303,7 @@ export const reviewDeliveryGuyApplicationAdmin = asyncHandler(async (req, res) =
     deliveryGuy.notes = [
       `Plaque: ${application.plateNumber}`,
       `Véhicule: ${application.vehicleBrand} ${application.vehicleModel} ${application.vehicleColor}`,
-      `Ville: ${application.serviceCity}`
+      `Zone: ${application.serviceCommune ? `${application.serviceCommune}, ` : ''}${application.serviceCity}`
     ].filter(Boolean).join(' · ');
     await deliveryGuy.save();
     applicant.role = 'delivery_agent';

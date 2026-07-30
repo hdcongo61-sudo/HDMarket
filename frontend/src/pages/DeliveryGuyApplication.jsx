@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const initialForm = {
   fullName: '',
@@ -30,7 +31,10 @@ const initialForm = {
   vehicleOwnerPhone: '',
   vehicleUseAuthorized: false,
   driverLicenseNumber: '',
+  serviceCityId: '',
+  serviceCommuneId: '',
   serviceCity: '',
+  serviceCommune: '',
   emergencyContactName: '',
   emergencyContactPhone: '',
   emergencyContactRelationship: '',
@@ -90,6 +94,7 @@ function FileField({ name, label, help, value, onChange, required = true }) {
 
 export default function DeliveryGuyApplication() {
   const { user } = useContext(AuthContext);
+  const { cities = [], communes = [] } = useAppSettings();
   const [form, setForm] = useState(initialForm);
   const [files, setFiles] = useState({});
   const [application, setApplication] = useState(null);
@@ -100,13 +105,33 @@ export default function DeliveryGuyApplication() {
   const [requirements, setRequirements] = useState({ driverLicenseRequired: false });
 
   useEffect(() => {
+    const matchedCity =
+      cities.find((entry) => String(entry?._id || '') === String(user?.cityId || '')) ||
+      cities.find((entry) => String(entry?.name || '').toLowerCase() === String(user?.city || user?.preferredCity || '').toLowerCase()) ||
+      null;
+    const matchedCommune =
+      communes.find((entry) => String(entry?._id || '') === String(user?.communeId || '')) ||
+      communes.find((entry) => String(entry?.name || '').toLowerCase() === String(user?.commune || '').toLowerCase()) ||
+      null;
     setForm((previous) => ({
       ...previous,
       fullName: previous.fullName || user?.name || '',
       phone: previous.phone || user?.phone || '',
-      serviceCity: previous.serviceCity || user?.city || user?.preferredCity || ''
+      serviceCityId: previous.serviceCityId || matchedCity?._id || '',
+      serviceCommuneId: previous.serviceCommuneId || matchedCommune?._id || '',
+      serviceCity: previous.serviceCity || matchedCity?.name || user?.city || user?.preferredCity || '',
+      serviceCommune: previous.serviceCommune || matchedCommune?.name || user?.commune || ''
     }));
-  }, [user]);
+  }, [cities, communes, user]);
+
+  const serviceCommunes = useMemo(
+    () =>
+      communes.filter(
+        (entry) =>
+          String(entry?.cityId?._id || entry?.cityId || '') === String(form.serviceCityId || '')
+      ),
+    [communes, form.serviceCityId]
+  );
 
   useEffect(() => {
     api.get('/users/delivery-guy-application')
@@ -292,7 +317,43 @@ export default function DeliveryGuyApplication() {
                   <input className={`${fieldClass} uppercase`} value={form.plateNumber} onChange={(e) => setValue('plateNumber', e.target.value.toUpperCase())} required />
                 </label>
                 <label className="text-xs font-bold text-neutral-600">Ville de service
-                  <input className={fieldClass} value={form.serviceCity} onChange={(e) => setValue('serviceCity', e.target.value)} required />
+                  <select
+                    className={fieldClass}
+                    value={form.serviceCityId}
+                    onChange={(e) => {
+                      const selected = cities.find((entry) => String(entry?._id) === e.target.value);
+                      setForm((previous) => ({
+                        ...previous,
+                        serviceCityId: e.target.value,
+                        serviceCity: selected?.name || '',
+                        serviceCommuneId: '',
+                        serviceCommune: ''
+                      }));
+                    }}
+                    required
+                  >
+                    <option value="">Choisir une ville</option>
+                    {cities.map((entry) => <option key={entry._id} value={entry._id}>{entry.name}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-bold text-neutral-600">Commune de service
+                  <select
+                    className={fieldClass}
+                    value={form.serviceCommuneId}
+                    onChange={(e) => {
+                      const selected = serviceCommunes.find((entry) => String(entry?._id) === e.target.value);
+                      setForm((previous) => ({
+                        ...previous,
+                        serviceCommuneId: e.target.value,
+                        serviceCommune: selected?.name || ''
+                      }));
+                    }}
+                    disabled={!form.serviceCityId || serviceCommunes.length === 0}
+                    required={serviceCommunes.length > 0}
+                  >
+                    <option value="">Choisir une commune</option>
+                    {serviceCommunes.map((entry) => <option key={entry._id} value={entry._id}>{entry.name}</option>)}
+                  </select>
                 </label>
                 <label className="text-xs font-bold text-neutral-600 sm:col-span-2">
                   Propriétaire du véhicule

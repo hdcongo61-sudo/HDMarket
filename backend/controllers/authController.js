@@ -24,6 +24,7 @@ import {
   createNotification,
   createValidationTaskNotification
 } from '../utils/notificationService.js';
+import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -142,7 +143,7 @@ const providerLogin = async (req, res, providerName) => {
 };
 
 const providerRegister = async (req, res, providerName) => {
-  const { idToken, phone, city, commune, address, gender, acceptedLegalTerms, legalVersion, referralCode } = req.body || {};
+  const { idToken, phone, city, commune, cityId, communeId, address, gender, acceptedLegalTerms, legalVersion, referralCode } = req.body || {};
   const decoded = await verifyProviderCredential(idToken, providerName);
   const normalizedEmail = String(decoded.email).toLowerCase().trim();
   const name = String(req.body?.name || decoded.name || '').trim();
@@ -182,6 +183,12 @@ const providerRegister = async (req, res, providerName) => {
   }
 
   const referrer = await resolveReferrerForRegistration({ referralCode, newUserPhone: normalizedPhone });
+  const location = await resolveCanonicalLocation({
+    cityId,
+    communeId,
+    cityName: city,
+    communeName: commune
+  });
 
   const user = await User.create({
     name,
@@ -193,8 +200,10 @@ const providerRegister = async (req, res, providerName) => {
     accountType: 'person',
     country: 'République du Congo',
     address: address.trim(),
-    city,
-    commune: String(commune || '').trim(),
+    cityId: location.cityId,
+    communeId: location.communeId,
+    city: location.cityName,
+    commune: location.communeName,
     gender,
     referredBy: referrer?._id || null,
     profileImage: String(decoded.picture || '').trim(),
@@ -262,6 +271,8 @@ export const register = asyncHandler(async (req, res) => {
     role,
     city,
     commune,
+    cityId,
+    communeId,
     address,
     gender,
     verificationCode,
@@ -346,6 +357,12 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   const referrer = await resolveReferrerForRegistration({ referralCode, newUserPhone: normalizedPhone });
+  const location = await resolveCanonicalLocation({
+    cityId,
+    communeId,
+    cityName: city,
+    communeName: commune
+  });
 
   const user = await User.create({
     name,
@@ -357,8 +374,10 @@ export const register = asyncHandler(async (req, res) => {
     accountType: 'person',
     country: 'République du Congo',
     address: address.trim(),
-    city,
-    commune: String(commune || '').trim(),
+    cityId: location.cityId,
+    communeId: location.communeId,
+    city: location.cityName,
+    commune: location.communeName,
     gender,
     referredBy: referrer?._id || null,
     legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: 'email' }

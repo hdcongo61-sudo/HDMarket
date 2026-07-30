@@ -8,9 +8,12 @@
  * directly rather than behind an extra service layer.
  */
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import DeliveryZone from '../models/deliveryZoneModel.js';
 import DeliveryZonePrice from '../models/deliveryZonePriceModel.js';
 import Landmark from '../models/landmarkModel.js';
+import City from '../models/cityModel.js';
+import Commune from '../models/communeModel.js';
 import PackageType from '../models/packageTypeModel.js';
 import WeightRule from '../models/weightRuleModel.js';
 import DeliverySpeedRule from '../models/deliverySpeedRuleModel.js';
@@ -20,6 +23,53 @@ import { getPricingContext } from '../modules/delivery/loaders/PricingContextLoa
 import { searchLandmarksByText } from '../services/deliveryPricingEngine/LandmarkResolver.js';
 
 const notFound = (res, message) => res.status(404).json({ message });
+const escapeRegex = (value = '') =>
+  String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const validateLandmarkLocation = async ({ cityId, communeId = null }) => {
+  if (!mongoose.isValidObjectId(cityId) || (communeId && !mongoose.isValidObjectId(communeId))) {
+    const error = new Error('Ville ou commune invalide.');
+    error.statusCode = 400;
+    throw error;
+  }
+  const city = await City.findOne({ _id: cityId, isActive: true }).select('_id name').lean();
+  if (!city) {
+    const error = new Error('La ville sélectionnée est introuvable ou désactivée.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!communeId) return { city, commune: null };
+
+  const commune = await Commune.findOne({
+    _id: communeId,
+    cityId: city._id,
+    isActive: true
+  })
+    .select('_id name cityId')
+    .lean();
+  if (!commune) {
+    const error = new Error('La commune sélectionnée ne correspond pas à cette ville.');
+    error.statusCode = 400;
+    throw error;
+  }
+  return { city, commune };
+};
+
+const parseLandmarkCoordinates = (latitude, longitude) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+    const error = new Error('La latitude doit être comprise entre -90 et 90.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+    const error = new Error('La longitude doit être comprise entre -180 et 180.');
+    error.statusCode = 400;
+    throw error;
+  }
+  return { latitude: lat, longitude: lng };
+};
 
 // ─── Zones ──────────────────────────────────────────────────
 export const listZonesAdmin = asyncHandler(async (_req, res) => {
@@ -106,22 +156,34 @@ export const listLandmarksAdmin = asyncHandler(async (req, res) => {
 
 export const createLandmarkAdmin = asyncHandler(async (req, res) => {
   const { name, cityId, communeId, latitude, longitude, aliases, description, status } = req.body || {};
-  if (!String(name || '').trim()) return res.status(400).json({ message: 'Le nom est requis.' });
+  const normalizedName = String(name || '').trim();
+  if (!normalizedName) return res.status(400).json({ message: 'Le nom est requis.' });
   if (!cityId) return res.status(400).json({ message: 'La ville est requise.' });
-  if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
-    return res.status(400).json({ message: 'Coordonnées GPS requises.' });
+  await validateLandmarkLocation({ cityId, communeId });
+  const coordinates = parseLandmarkCoordinates(latitude, longitude);
+  const duplicate = await Landmark.exists({
+    cityId,
+    name: new RegExp(`^${escapeRegex(normalizedName)}$`, 'i')
+  });
+  if (duplicate) {
+    return res.status(409).json({
+      message: 'Un point de repère portant ce nom existe déjà dans cette ville.'
+    });
   }
   const landmark = await Landmark.create({
-    name: String(name).trim(),
+    name: normalizedName,
     cityId,
     communeId: communeId || null,
-    latitude: Number(latitude),
-    longitude: Number(longitude),
+    ...coordinates,
     aliases: Array.isArray(aliases) ? aliases : String(aliases || '').split(',').map((a) => a.trim()).filter(Boolean),
     description: description || '',
     status: status || 'ACTIVE',
     updatedBy: req.user?._id || null
   });
+  await landmark.populate([
+    { path: 'cityId', select: 'name' },
+    { path: 'communeId', select: 'name' }
+  ]);
   res.status(201).json(landmark);
 });
 
@@ -129,11 +191,20 @@ export const updateLandmarkAdmin = asyncHandler(async (req, res) => {
   const landmark = await Landmark.findById(req.params.id);
   if (!landmark) return notFound(res, 'Point de repère introuvable.');
   const { name, cityId, communeId, latitude, longitude, aliases, description, status } = req.body || {};
+  const nextCityId = cityId === undefined ? landmark.cityId : cityId;
+  const nextCommuneId = communeId === undefined ? landmark.communeId : communeId || null;
+  await validateLandmarkLocation({ cityId: nextCityId, communeId: nextCommuneId });
+  if (latitude !== undefined || longitude !== undefined) {
+    const coordinates = parseLandmarkCoordinates(
+      latitude === undefined ? landmark.latitude : latitude,
+      longitude === undefined ? landmark.longitude : longitude
+    );
+    landmark.latitude = coordinates.latitude;
+    landmark.longitude = coordinates.longitude;
+  }
   if (name !== undefined) landmark.name = String(name).trim();
   if (cityId !== undefined) landmark.cityId = cityId;
   if (communeId !== undefined) landmark.communeId = communeId || null;
-  if (latitude !== undefined) landmark.latitude = Number(latitude);
-  if (longitude !== undefined) landmark.longitude = Number(longitude);
   if (aliases !== undefined) {
     landmark.aliases = Array.isArray(aliases) ? aliases : String(aliases || '').split(',').map((a) => a.trim()).filter(Boolean);
   }
@@ -141,6 +212,10 @@ export const updateLandmarkAdmin = asyncHandler(async (req, res) => {
   if (status !== undefined) landmark.status = status;
   landmark.updatedBy = req.user?._id || null;
   await landmark.save();
+  await landmark.populate([
+    { path: 'cityId', select: 'name' },
+    { path: 'communeId', select: 'name' }
+  ]);
   res.json(landmark);
 });
 

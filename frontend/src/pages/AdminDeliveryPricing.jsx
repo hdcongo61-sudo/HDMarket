@@ -222,15 +222,25 @@ export default function AdminDeliveryPricing() {
             <h1 className="text-2xl font-black text-slate-950">Prix de livraison</h1>
             <p className="mt-1 text-sm text-gray-500">Moteur de tarification des courses colis et frais de livraison par commune.</p>
           </div>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => setActiveTab('landmarks')}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white"
+            >
+              <LandmarkIcon className="h-4 w-4" />
+              Ajouter un repère
+            </button>
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </button>
+          </div>
         </header>
 
         <AdminSegmentedControl options={TABS} value={activeTab} onChange={setActiveTab} />

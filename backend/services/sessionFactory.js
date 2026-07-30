@@ -141,6 +141,8 @@ export function buildSession(user, decoded = {}, token = '') {
     country: safeString(user.country, 'République du Congo'),
     city: safeString(user.city, 'Brazzaville'),
     commune: safeString(user.commune),
+    cityId: user.cityId ? String(user.cityId) : '',
+    communeId: user.communeId ? String(user.communeId) : '',
     address: safeString(user.address),
     preferredLanguage: safeString(user.preferredLanguage, 'fr'),
     preferredCurrency: safeString(user.preferredCurrency, 'XAF').toUpperCase(),

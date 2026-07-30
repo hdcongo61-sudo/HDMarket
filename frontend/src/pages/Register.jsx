@@ -236,6 +236,14 @@ export default function Register() {
       return String(itemCityId || '') === String(selectedCityRecord._id);
     });
   }, [communes, selectedCityRecord?._id]);
+  const selectedCommuneRecord =
+    availableCommunes.find((item) => item?.name === form.commune) || null;
+  const selectedCityId = /^[a-f\d]{24}$/i.test(String(selectedCityRecord?._id || ''))
+    ? selectedCityRecord._id
+    : '';
+  const selectedCommuneId = /^[a-f\d]{24}$/i.test(String(selectedCommuneRecord?._id || ''))
+    ? selectedCommuneRecord._id
+    : '';
 
   const passwordChecks = useMemo(() => getPasswordChecks(form.password), [form.password]);
   const passwordScore = [
@@ -422,6 +430,8 @@ export default function Register() {
           phone: form.phone,
           city: form.city,
           commune: form.commune || '',
+          cityId: selectedCityId,
+          communeId: selectedCommuneId,
           gender: form.gender,
           address: form.address.trim(),
           acceptedLegalTerms: true,
@@ -442,6 +452,8 @@ export default function Register() {
       payload.append('country', form.country || 'République du Congo');
       payload.append('city', form.city);
       payload.append('commune', form.commune || '');
+      payload.append('cityId', selectedCityId);
+      payload.append('communeId', selectedCommuneId);
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
       payload.append('verificationCode', (verificationCode && verificationCode.trim()) || '');

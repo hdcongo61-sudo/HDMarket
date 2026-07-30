@@ -80,6 +80,8 @@ const userSchema = new mongoose.Schema(
     accountTypeChangedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     accountTypeChangedAt: { type: Date, default: null },
     country: { type: String, default: 'République du Congo' },
+    cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City', default: null, index: true },
+    communeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Commune', default: null, index: true },
     city: { type: String, default: 'Brazzaville', trim: true },
     commune: { type: String, default: '', trim: true },
     gender: { type: String, enum: ['homme', 'femme'], default: 'homme' },

@@ -263,6 +263,7 @@ export default function Home() {
   const secondarySectionsRef = useRef(null);
   const installmentSectionRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
+  const loadMoreSentinelRef = useRef(null);
   const homeProductsAbortRef = useRef(null);
   const productsNextCursorRef = useRef('');
 const {
@@ -784,25 +785,32 @@ const loadDiscountProducts = async () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Triggers "load more" as the user nears the end of the PRODUCT GRID
+  // itself, via a sentinel placed right after it — not the bottom of the
+  // whole document. The previous scroll-based check measured against
+  // document.documentElement.scrollHeight, which includes the footer, so it
+  // only fired once the user scrolled almost all the way past the footer.
   useEffect(() => {
-    if (!isMobileView) return;
-    if (loading) return;
-    if (loadMoreError) return;
-    if (page >= totalPages) return;
-    const handleScroll = () => {
-      const now = Date.now();
-      if (now - infiniteScrollLockRef.current < 400) return;
-      const threshold = 200;
-      if (
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - threshold
-      ) {
-        infiniteScrollLockRef.current = now;
-        setPage((prev) => Math.min(prev + 1, totalPages));
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    if (!isMobileView) return undefined;
+    if (loading) return undefined;
+    if (loadMoreError) return undefined;
+    if (page >= totalPages) return undefined;
+    const node = loadMoreSentinelRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        const now = Date.now();
+        if (entry?.isIntersecting && now - infiniteScrollLockRef.current >= 400) {
+          infiniteScrollLockRef.current = now;
+          setPage((prev) => Math.min(prev + 1, totalPages));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
   }, [isMobileView, loading, loadMoreError, page, totalPages]);
 
   useEffect(() => {
@@ -2005,12 +2013,12 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Wholesale section — always reserve space to prevent scroll jump */}
-        <motion.section {...scrollReveal(reduceMotionHome)} className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
-          <div className="px-3 pb-3 pt-3 max-[375px]:px-2.5">
-            <div className="mb-3 flex items-center justify-between gap-2">
+        <motion.section {...scrollReveal(reduceMotionHome)} className="isolate overflow-hidden" style={{ minHeight: shouldLoadSecondarySections ? undefined : 220 }}>
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white">
-                  <ShoppingBag className="h-[18px] w-[18px]" />
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white">
+                  <ShoppingBag className="h-3.5 w-3.5" />
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -2022,31 +2030,31 @@ const loadDiscountProducts = async () => {
               </p>
                 </div>
             </div>
-              <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-black text-emerald-700 active:scale-95">
+              <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-emerald-700 active:scale-95">
               {t('home.viewAll', 'Voir tout')}
                 <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           {!shouldLoadSecondarySections ? (
-            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
+            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={`ws-reserve-${i}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-100" />
+                <div key={`ws-reserve-${i}`} className="h-52 w-[145px] shrink-0 animate-pulse rounded-xl bg-gray-100" />
               ))}
             </div>
           ) : wholesaleLoading && !wholesaleProducts.length ? (
-            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
+            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`wholesale-skeleton-${index}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-200 overflow-hidden" />
+                <div key={`wholesale-skeleton-${index}`} className="h-52 w-[145px] shrink-0 animate-pulse overflow-hidden rounded-xl bg-gray-200" />
               ))}
             </div>
           ) : wholesaleProducts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
-              {wholesaleProducts.slice(0, 4).map((product) => {
+            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+              {wholesaleProducts.slice(0, 8).map((product) => {
                 const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                 return (
-                  <div key={`wholesale-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white">
+                  <div key={`wholesale-mobile-${product._id}`} className="flex w-[150px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                     <div className="min-h-0 flex-1">
-                      <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                      <ProductCard p={product} productLink={buildHomeProductLink(product)} compactCartAction />
                     </div>
                     <div className="flex items-center justify-between gap-1.5 border-t border-gray-100 px-2 py-1.5 max-[375px]:px-1.5">
                       <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-bold text-emerald-700">
@@ -2068,12 +2076,12 @@ const loadDiscountProducts = async () => {
         </motion.section>
 
         {/* Installment section — always reserve space to prevent scroll jump */}
-        <motion.section {...scrollReveal(reduceMotionHome)} ref={installmentSectionRef} className="isolate overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ minHeight: shouldLoadSecondarySections ? undefined : 320 }}>
-          <div className="px-3 pb-3 pt-3 max-[375px]:px-2.5">
-            <div className="mb-3 flex items-center justify-between gap-2">
+        <motion.section {...scrollReveal(reduceMotionHome)} ref={installmentSectionRef} className="isolate overflow-hidden" style={{ minHeight: shouldLoadSecondarySections ? undefined : 220 }}>
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-600 text-white">
-                  <CreditCard className="h-[18px] w-[18px]" />
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-600 text-white">
+                  <CreditCard className="h-3.5 w-3.5" />
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -2087,33 +2095,33 @@ const loadDiscountProducts = async () => {
               </p>
                 </div>
             </div>
-              <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-sky-50 px-2.5 py-1.5 text-[11px] font-black text-sky-700 active:scale-95">
+              <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-sky-700 active:scale-95">
               {t('home.viewAll', 'Voir tout')}
                 <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           {!shouldLoadSecondarySections ? (
-            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
+            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={`is-reserve-${i}`} className="aspect-[3/4] max-h-48 animate-pulse rounded-xl bg-gray-100" />
+                <div key={`is-reserve-${i}`} className="h-52 w-[145px] shrink-0 animate-pulse rounded-xl bg-gray-100" />
               ))}
             </div>
           ) : installmentLoading && !activeInstallmentProducts.length ? (
-            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
+            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`installment-skeleton-${index}`} className="h-48 animate-pulse rounded-xl bg-gray-200" />
+                <div key={`installment-skeleton-${index}`} className="h-52 w-[145px] shrink-0 animate-pulse rounded-xl bg-gray-200" />
               ))}
             </div>
           ) : activeInstallmentProducts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 max-[375px]:grid-cols-1 max-[375px]:gap-2.5">
+            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
               {activeInstallmentProducts
-                .slice(0, 4)
+                .slice(0, 8)
                 .map((product) => {
                   const firstPayment = getInstallmentFirstPaymentAmount(product);
                   return (
-                    <div key={`installment-mobile-${product._id}`} className="flex flex-col overflow-hidden rounded-xl border border-sky-100 bg-white">
+                    <div key={`installment-mobile-${product._id}`} className="flex w-[150px] shrink-0 flex-col overflow-hidden rounded-xl border border-sky-100 bg-white shadow-sm">
                       <div className="min-h-0 flex-1">
-                        <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                        <ProductCard p={product} productLink={buildHomeProductLink(product)} compactCartAction />
                       </div>
                       <div className="border-t border-sky-100 bg-gradient-to-r from-sky-50 to-white px-2.5 py-2 max-[375px]:px-2">
                         <div className="flex items-center justify-between gap-1.5">
@@ -2193,6 +2201,7 @@ const loadDiscountProducts = async () => {
                   </div>
                 ))}
               </div>
+              <div ref={loadMoreSentinelRef} aria-hidden="true" className="h-px w-full" />
               {loading && page > 1 && (
                 <div className="flex justify-center py-4">
                   <div className="w-6 h-6 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
@@ -2831,7 +2840,7 @@ const loadDiscountProducts = async () => {
         </section>
         )}
 
-        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
+        <div className="space-y-5">
           {shouldLoadSecondarySections && (
           <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
             {/* Header */}
@@ -2855,8 +2864,8 @@ const loadDiscountProducts = async () => {
             </div>
 
             {wholesaleLoading && !wholesaleProducts.length ? (
-              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
+              <div className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-3 lg:grid-cols-5">
+                {Array.from({ length: 5 }).map((_, i) => (
                   <div key={`wdsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
                     <div className="aspect-[4/3] animate-pulse bg-gray-100" />
                     <div className="p-3 space-y-2">
@@ -2868,8 +2877,8 @@ const loadDiscountProducts = async () => {
                 ))}
               </div>
             ) : wholesaleProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
-                {wholesaleProducts.slice(0, 4).map((product, idx) => {
+              <div className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-3 lg:grid-cols-5">
+                {wholesaleProducts.slice(0, 5).map((product) => {
                   const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
                   const tierPrice = product?.wholesaleTiers?.[0]?.unitPrice || product?.price;
                   return (
@@ -2958,8 +2967,8 @@ const loadDiscountProducts = async () => {
             </div>
 
             {installmentLoading && !activeInstallmentProducts.length ? (
-              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
+              <div className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-3 lg:grid-cols-5">
+                {Array.from({ length: 5 }).map((_, i) => (
                   <div key={`idsk-${i}`} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
                     <div className="aspect-[4/3] animate-pulse bg-gray-100" />
                     <div className="p-3 space-y-2">
@@ -2971,10 +2980,10 @@ const loadDiscountProducts = async () => {
                 ))}
               </div>
             ) : activeInstallmentProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4 2xl:grid-cols-2">
+              <div className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-3 lg:grid-cols-5">
                 {activeInstallmentProducts
-                  .slice(0, 4)
-                  .map((product, idx) => {
+                  .slice(0, 5)
+                  .map((product) => {
                     const duration = product?.installmentDuration || 0;
                     const firstPayment = getInstallmentFirstPaymentAmount(product);
                     return (

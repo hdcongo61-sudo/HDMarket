@@ -55,7 +55,8 @@ function ProductCard({
   commerceFeed = false,
   viewMode = 'grid',
   disableProductNavigation = false,
-  enableImageCarousel = false
+  enableImageCarousel = false,
+  compactCartAction = false
 }) {
   const { user } = useContext(AuthContext);
   const { formatPrice, getRuntimeValue } = useAppSettings();
@@ -943,11 +944,15 @@ function ProductCard({
                     handleAddToCart();
                   }}
                   disabled={adding || inCart}
-                  className="inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-full bg-neutral-950 px-3 text-xs font-extrabold text-white transition active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-500 dark:bg-white dark:text-neutral-950 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
+                  className={`inline-flex w-full items-center justify-center rounded-full bg-neutral-950 font-extrabold text-white transition active:scale-[0.98] disabled:bg-neutral-100 disabled:text-neutral-500 dark:bg-white dark:text-neutral-950 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400 ${
+                    compactCartAction
+                      ? 'min-h-8 gap-1 px-2 text-[10px]'
+                      : 'min-h-[40px] gap-1.5 px-3 text-xs'
+                  }`}
                   aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
                 >
-                  <ShoppingCart className="h-4 w-4" />
-                  {inCart ? 'Dans le panier' : adding ? 'Ajout…' : 'Ajouter au panier'}
+                  <ShoppingCart className={compactCartAction ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+                  {inCart ? (compactCartAction ? 'Ajouté' : 'Dans le panier') : adding ? 'Ajout…' : compactCartAction ? 'Ajouter' : 'Ajouter au panier'}
                 </button>
               ) : (
                 <ProductDetailLink
@@ -1476,7 +1481,9 @@ function ProductCard({
               }}
               disabled={adding || inCart}
               className={`w-full inline-flex items-center justify-center ${
-                isShopProfileCompact
+                compactCartAction
+                  ? 'min-h-8 gap-1 px-2 rounded-full text-[10px]'
+                  : isShopProfileCompact
                   ? 'min-h-[40px] gap-1 px-2 rounded-full text-[9px]'
                   : useCompactMobile
                   ? 'min-h-[40px] gap-1 px-2 rounded-full text-[9px]'
@@ -1489,9 +1496,9 @@ function ProductCard({
                   : 'bg-neutral-950 text-white hover:bg-neutral-800'
               }`}
             >
-              <ShoppingCart size={12} className="sm:w-4 sm:h-4" />
+              <ShoppingCart size={compactCartAction ? 13 : 12} className={compactCartAction ? '' : 'sm:w-4 sm:h-4'} />
               <span>
-                {inCart ? 'Dans le panier' : adding ? 'Ajout...' : 'Ajouter au panier'}
+                {inCart ? (compactCartAction ? 'Ajouté' : 'Dans le panier') : adding ? 'Ajout...' : compactCartAction ? 'Ajouter' : 'Ajouter au panier'}
               </span>
             </button>
           </div>
