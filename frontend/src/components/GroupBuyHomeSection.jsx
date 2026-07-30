@@ -23,27 +23,29 @@ export default function GroupBuyHomeSection({ enabled }) {
   if (!enabled || items.length === 0) return null;
 
   return (
-    <section className="min-w-0">
-      <div className="mb-2 flex items-center gap-2">
-        <h2 className="text-[17px] font-black tracking-[-0.01em] text-[#231f1b]">
+    <section className="min-w-0 py-[22px]">
+      <div className="mb-3 flex items-center gap-2 px-5 max-[375px]:px-4">
+        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">
           🔥 Achats groupés en cours
         </h2>
       </div>
       <div
-        className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-[375px]:px-4"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {items.map((groupBuy) => {
-          const remaining = Math.max(0, groupBuy.targetSize - groupBuy.members.length);
-          const progressPct = Math.min(100, Math.round((groupBuy.members.length / groupBuy.targetSize) * 100));
+          const memberCount = Array.isArray(groupBuy.members) ? groupBuy.members.length : 0;
+          const targetSize = Math.max(1, Number(groupBuy.targetSize) || 1);
+          const remaining = Math.max(0, targetSize - memberCount);
+          const progressPct = Math.min(100, Math.round((memberCount / targetSize) * 100));
           const product = groupBuy.productId || {};
           return (
             <Link
               key={groupBuy._id}
               to={product.slug ? `/product/${product.slug}` : `/product/${product._id}`}
-              className="w-[150px] shrink-0 snap-start overflow-hidden rounded-[14px] border border-[#eee8e0] bg-white shadow-sm"
+              className="w-[172px] shrink-0 snap-start overflow-hidden rounded-[20px] border border-[#eeeff3] bg-white p-2 active:scale-[0.98]"
             >
-              <div className="aspect-square overflow-hidden bg-[#f3f0ec]">
+              <div className="h-[130px] overflow-hidden rounded-[14px] bg-[#f0f1f5]">
                 <img
                   src={getProductCardImageUrl(product.images?.[0])}
                   alt={product.title || 'Produit'}
@@ -51,14 +53,14 @@ export default function GroupBuyHomeSection({ enabled }) {
                   loading="lazy"
                 />
               </div>
-              <div className="p-2">
-                <p className="line-clamp-1 text-[12px] font-bold text-gray-800">{product.title}</p>
-                <p className="mt-0.5 text-sm font-black text-[#e85d00]">{formatCurrency(groupBuy.groupPrice)}</p>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-[#e85d00]" style={{ width: `${progressPct}%` }} />
+              <div className="px-1 pb-1 pt-2">
+                <p className="line-clamp-1 text-[13.5px] font-extrabold text-[#1b1d22]">{product.title}</p>
+                <p className="mt-0.5 text-[16px] font-black tracking-[-0.02em] text-[#f26522]">{formatCurrency(groupBuy.groupPrice)}</p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#f0f1f5]">
+                  <div className="h-full rounded-full bg-[#f26522]" style={{ width: `${progressPct}%` }} />
                 </div>
-                <p className="mt-1 flex items-center gap-1 text-[10px] font-bold text-gray-500">
-                  <Users size={10} />
+                <p className="mt-1.5 flex items-center gap-1 text-[12px] font-extrabold text-[#5b616c]">
+                  <Users size={12} />
                   {remaining > 0 ? `Il manque ${remaining}` : 'Complet'}
                 </p>
               </div>

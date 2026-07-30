@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock, AppWindow, Monitor, Globe } from 'lucide-react';
 import api, { clearCache } from '../services/api';
@@ -22,6 +22,13 @@ const AUTH_PROVIDER_CONTROLS = [
 const DEFAULT_AUTH_SETTINGS = Object.fromEntries(
   AUTH_PROVIDER_CONTROLS.flatMap((provider) => [[provider.loginKey, true], [provider.registrationKey, true]])
 );
+
+const HOME_PROMO_BACKGROUND_SLOTS = [
+  { key: 'freeDelivery', field: 'homePromoFreeDeliveryBackground', label: 'Livraison offerte', hint: 'Fond de la carte verte' },
+  { key: 'payForOther', field: 'homePromoPayForOtherBackground', label: 'Paiement par un proche', hint: 'Fond de la carte orange' },
+  { key: 'buyForMe', field: 'homePromoBuyForMeBackground', label: 'Acheter Pour Moi', hint: 'Fond de la carte violette' },
+  { key: 'parcel', field: 'homePromoParcelBackground', label: 'Envoi de colis', hint: 'Fond de la carte bleue' }
+];
 
 const DEFAULT_APP_INFORMATION = {
   appName: 'HDMarket',
@@ -240,6 +247,9 @@ export default function AdminAppSettings() {
   const [promoBannerLink, setPromoBannerLink] = useState('');
   const [promoBannerStartAt, setPromoBannerStartAt] = useState('');
   const [promoBannerEndAt, setPromoBannerEndAt] = useState('');
+  const [homePromoBackgroundFiles, setHomePromoBackgroundFiles] = useState({});
+  const [homePromoBackgroundPreviews, setHomePromoBackgroundPreviews] = useState({});
+  const homePromoBackgroundPreviewsRef = useRef({});
   const [promoBannerSaving, setPromoBannerSaving] = useState(false);
   const [promoBannerError, setPromoBannerError] = useState('');
   const [promoBannerSuccess, setPromoBannerSuccess] = useState('');
@@ -305,11 +315,19 @@ export default function AdminAppSettings() {
         setAppLogoMobilePreview(logoRes?.data?.appLogoMobile || '');
         setAppIconPreview(logoRes?.data?.appIcon || '');
         setAppFaviconPreview(logoRes?.data?.appFavicon || '');
+        const nextHomePromoBackgroundPreviews = {
+          freeDelivery: promoRes?.data?.homePromoFreeDeliveryBackground || '',
+          payForOther: promoRes?.data?.homePromoPayForOtherBackground || '',
+          buyForMe: promoRes?.data?.homePromoBuyForMeBackground || '',
+          parcel: promoRes?.data?.homePromoParcelBackground || ''
+        };
         setPromoBannerPreview(promoRes?.data?.promoBanner || '');
         setPromoBannerMobilePreview(promoRes?.data?.promoBannerMobile || '');
         setPromoBannerLink(promoRes?.data?.promoBannerLink || '');
         setPromoBannerStartAt(formatDateInput(promoRes?.data?.promoBannerStartAt));
         setPromoBannerEndAt(formatDateInput(promoRes?.data?.promoBannerEndAt));
+        homePromoBackgroundPreviewsRef.current = nextHomePromoBackgroundPreviews;
+        setHomePromoBackgroundPreviews(nextHomePromoBackgroundPreviews);
         setProhibitedWords(Array.isArray(prohibitedRes?.data) ? prohibitedRes.data : []);
         if (splashRes?.data) {
           setSplashImagePreview(splashRes.data.splashImage || '');
@@ -489,6 +507,12 @@ export default function AdminAppSettings() {
     splashImagePreview
   ]);
 
+  useEffect(() => () => {
+    Object.values(homePromoBackgroundPreviewsRef.current).forEach((url) => {
+      if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+  }, []);
+
   const onAppLogoDesktopChange = (e) => {
     const file = e.target.files?.[0] ?? null;
     setAppLogoDesktopFile(file);
@@ -564,6 +588,20 @@ export default function AdminAppSettings() {
       if (promoBannerMobilePreview?.startsWith?.('blob:')) URL.revokeObjectURL(promoBannerMobilePreview);
       setPromoBannerMobilePreview(URL.createObjectURL(file));
     }
+  };
+
+  const onHomePromoBackgroundChange = (slot) => (event) => {
+    const file = event.target.files?.[0] ?? null;
+    setHomePromoBackgroundFiles((previous) => ({ ...previous, [slot]: file }));
+    setPromoBannerError('');
+    setPromoBannerSuccess('');
+    if (!file) return;
+    setHomePromoBackgroundPreviews((previous) => {
+      if (previous[slot]?.startsWith?.('blob:')) URL.revokeObjectURL(previous[slot]);
+      const next = { ...previous, [slot]: URL.createObjectURL(file) };
+      homePromoBackgroundPreviewsRef.current = next;
+      return next;
+    });
   };
 
   const onSplashImageChange = (e) => {
@@ -696,6 +734,9 @@ export default function AdminAppSettings() {
       const payload = new FormData();
       if (promoBannerFile) payload.append('promoBanner', promoBannerFile);
       if (promoBannerMobileFile) payload.append('promoBannerMobile', promoBannerMobileFile);
+      HOME_PROMO_BACKGROUND_SLOTS.forEach(({ key, field }) => {
+        if (homePromoBackgroundFiles[key]) payload.append(field, homePromoBackgroundFiles[key]);
+      });
       payload.append('promoBannerLink', promoBannerLink.trim());
       payload.append('promoBannerStartAt', promoBannerStartAt);
       payload.append('promoBannerEndAt', promoBannerEndAt);
@@ -707,12 +748,21 @@ export default function AdminAppSettings() {
       setPromoBannerLink(data?.promoBannerLink ?? promoBannerLink);
       setPromoBannerStartAt(formatDateInput(data?.promoBannerStartAt));
       setPromoBannerEndAt(formatDateInput(data?.promoBannerEndAt));
+      const nextHomePromoBackgroundPreviews = {
+        freeDelivery: data?.homePromoFreeDeliveryBackground ?? homePromoBackgroundPreviews.freeDelivery ?? '',
+        payForOther: data?.homePromoPayForOtherBackground ?? homePromoBackgroundPreviews.payForOther ?? '',
+        buyForMe: data?.homePromoBuyForMeBackground ?? homePromoBackgroundPreviews.buyForMe ?? '',
+        parcel: data?.homePromoParcelBackground ?? homePromoBackgroundPreviews.parcel ?? ''
+      };
+      homePromoBackgroundPreviewsRef.current = nextHomePromoBackgroundPreviews;
+      setHomePromoBackgroundPreviews(nextHomePromoBackgroundPreviews);
       await clearCache('/settings/promo-banner');
       emitSettingsRefresh();
       setPromoBannerFile(null);
       setPromoBannerMobileFile(null);
-      setPromoBannerSuccess('Bannière publicitaire mise à jour avec succès.');
-      showToast('Bannière publicitaire mise à jour.', { variant: 'success' });
+      setHomePromoBackgroundFiles({});
+      setPromoBannerSuccess('Bannière publicitaire et visuels du carrousel mis à jour avec succès.');
+      showToast('Bannière publicitaire et visuels du carrousel mis à jour.', { variant: 'success' });
     } catch (err) {
       const msg = err.response?.data?.message || "Impossible d'enregistrer la bannière publicitaire.";
       setPromoBannerError(msg);
@@ -720,7 +770,7 @@ export default function AdminAppSettings() {
     } finally {
       setPromoBannerSaving(false);
     }
-  }, [promoBannerFile, promoBannerMobileFile, promoBannerLink, promoBannerStartAt, promoBannerEndAt, promoBannerPreview, promoBannerMobilePreview, showToast]);
+  }, [promoBannerFile, promoBannerMobileFile, promoBannerLink, promoBannerStartAt, promoBannerEndAt, promoBannerPreview, promoBannerMobilePreview, homePromoBackgroundFiles, homePromoBackgroundPreviews, showToast]);
 
   const saveAppLogoDesktop = useCallback(async () => {
     if (!appLogoDesktopFile) {
@@ -1304,13 +1354,48 @@ export default function AdminAppSettings() {
                 </label>
               </div>
             </div>
+            <div className="mb-6 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+              <div className="mb-4">
+                <h3 className="text-sm font-black text-gray-900">Images de fond du carrousel de services</h3>
+                <p className="mt-1 text-xs leading-relaxed text-gray-600">
+                  Ajoutez une image propre à chaque carte. L’image reste adoucie par la couleur de la carte pour préserver la lisibilité du texte.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {HOME_PROMO_BACKGROUND_SLOTS.map(({ key, label, hint }) => {
+                  const preview = homePromoBackgroundPreviews[key];
+                  return (
+                    <div key={key} className="rounded-xl border border-orange-100 bg-white p-3">
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-black text-gray-900">{label}</p>
+                          <p className="text-[11px] font-medium text-gray-500">{hint}</p>
+                        </div>
+                      </div>
+                      {preview ? (
+                        <img src={preview} alt={`Aperçu ${label}`} className="mb-3 h-24 w-full rounded-lg object-cover" />
+                      ) : (
+                        <div className="mb-3 grid h-24 place-items-center rounded-lg border border-dashed border-gray-200 bg-gray-50 text-xs text-gray-400">
+                          Aucun visuel
+                        </div>
+                      )}
+                      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">
+                        <Upload size={15} />
+                        Ajouter ou remplacer
+                        <input type="file" accept="image/*" onChange={onHomePromoBackgroundChange(key)} className="hidden" />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
             <button
               type="button"
               onClick={savePromoBanner}
               disabled={promoBannerSaving}
               className="w-full rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {promoBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière publicitaire'}
+              {promoBannerSaving ? 'Mise à jour…' : 'Enregistrer la bannière et les visuels'}
             </button>
           </div>
 

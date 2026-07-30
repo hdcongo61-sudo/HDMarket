@@ -56,7 +56,8 @@ function ProductCard({
   viewMode = 'grid',
   disableProductNavigation = false,
   enableImageCarousel = false,
-  compactCartAction = false
+  compactCartAction = false,
+  homeFeed = false
 }) {
   const { user } = useContext(AuthContext);
   const { formatPrice, getRuntimeValue } = useAppSettings();
@@ -600,6 +601,7 @@ function ProductCard({
     const primaryImageSrcSet = getProductCardSrcSet(primaryImageOriginal, { lite: useLiteImageMode });
     const shopName = p?.user?.shopName || 'Boutique HDMarket';
     const useCommerceMobileCard = Boolean((isMobile || commerceFeed) && !isListCard && !isShopProfileCompact);
+    const useHomeFeed = Boolean(homeFeed && useCommerceMobileCard);
     const mobilePromoLabel = hasActivePromo
       ? `${promoScopeLabel} -${promoPercentLabel}%`
       : hasDiscount
@@ -623,11 +625,13 @@ function ProductCard({
         : p.certified
           ? { key: 'certified', label: 'Certifié' }
           : null;
-    const cardRadius = useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-2xl';
+    const cardRadius = useHomeFeed ? 'rounded-[20px]' : useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-2xl';
     const imageAspect = isListCard
       ? 'h-auto min-h-[132px] w-[38%] shrink-0'
       : isShopProfileCompact
       ? 'aspect-[4/3]'
+      : useHomeFeed
+        ? 'h-[135px]'
       : useCommerceMobileCard
         ? 'aspect-[1/1]'
       : useCompactMobile && !categoryListing
@@ -668,7 +672,9 @@ function ProductCard({
           onMouseLeave={enableImageCarousel ? handleMouseLeave : undefined}
           className={`hd-product-card group relative flex h-full min-w-0 overflow-hidden transition duration-200 hover:-translate-y-0.5 dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
             useCommerceMobileCard
-              ? 'border-0 bg-white shadow-sm hover:shadow-sm'
+              ? useHomeFeed
+                ? 'border border-[#eeeff3] bg-white shadow-none hover:shadow-none'
+                : 'border-0 bg-white shadow-sm hover:shadow-sm'
               : 'border hover:shadow-sm'
           } ${
             isListCard ? 'flex-row' : 'flex-col'
@@ -828,7 +834,7 @@ function ProductCard({
                   ? 'bg-[#e85d00] text-white shadow-sm'
                   : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-950/90 dark:text-neutral-200'
               } inline-flex ${
-                isShopProfileCompact ? 'h-8 w-8' : 'h-11 w-11'
+                isShopProfileCompact ? 'h-8 w-8' : useHomeFeed ? 'h-[30px] w-[30px]' : 'h-11 w-11'
               } ${favoritePending ? 'scale-95 opacity-80' : ''}`}
               aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             >
@@ -878,7 +884,7 @@ function ProductCard({
             )}
 
             <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard ? '-mt-0.5' : ''}`}>
-              <span className={`${useCommerceMobileCard ? 'text-[17px] leading-none' : priceClass} hd-product-price font-black tracking-tight text-neutral-950 dark:text-white`}>
+              <span className={`${useCommerceMobileCard ? 'text-[15px] leading-none' : priceClass} hd-product-price font-black tracking-tight ${useHomeFeed ? 'text-[#f26522]' : 'text-neutral-950 dark:text-white'}`}>
                 {discountedPrice}
               </span>
               {originalPrice && !isShopProfileCompact && !useCommerceMobileCard ? (
@@ -888,7 +894,7 @@ function ProductCard({
 
             {useCommerceMobileCard ? (
               <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-[#8a8378]">
-                {ratingAverage > 0 ? <span className="inline-flex items-center gap-1"><Star className="h-3 w-3 fill-[#e85d00] text-[#e85d00]" />{ratingAverage}</span> : null}
+                {ratingAverage > 0 ? <span className="inline-flex items-center gap-1"><Star className={`h-3 w-3 fill-current ${useHomeFeed ? 'text-[#ffb300]' : 'text-[#e85d00]'}`} />{ratingAverage}</span> : null}
                 {salesCount > 0 ? <span>{formatSalesCount(salesCount)} vendus</span> : null}
                 {productCity ? <span className="truncate">{productCity}</span> : null}
               </div>

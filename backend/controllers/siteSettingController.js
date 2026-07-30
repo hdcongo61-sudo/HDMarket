@@ -62,7 +62,11 @@ export const getPromoBanner = asyncHandler(async (req, res) => {
     promoBannerMobile: settings?.promoBannerMobile || null,
     promoBannerLink: settings?.promoBannerLink || '',
     promoBannerStartAt: settings?.promoBannerStartAt || null,
-    promoBannerEndAt: settings?.promoBannerEndAt || null
+    promoBannerEndAt: settings?.promoBannerEndAt || null,
+    homePromoFreeDeliveryBackground: settings?.homePromoFreeDeliveryBackground || '',
+    homePromoPayForOtherBackground: settings?.homePromoPayForOtherBackground || '',
+    homePromoBuyForMeBackground: settings?.homePromoBuyForMeBackground || '',
+    homePromoParcelBackground: settings?.homePromoParcelBackground || ''
   });
 });
 
@@ -217,13 +221,26 @@ export const updateAppFavicon = createAppLogoUpdater('appFavicon', 'favicon');
 export const updatePromoBanner = asyncHandler(async (req, res) => {
   const promoBannerFile = req.files?.promoBanner?.[0] || req.file || null;
   const promoBannerMobileFile = req.files?.promoBannerMobile?.[0] || null;
-  const hasFile = Boolean(promoBannerFile || promoBannerMobileFile);
+  const homePromoBackgroundFields = [
+    'homePromoFreeDeliveryBackground',
+    'homePromoPayForOtherBackground',
+    'homePromoBuyForMeBackground',
+    'homePromoParcelBackground'
+  ];
+  const homePromoBackgroundFiles = Object.fromEntries(
+    homePromoBackgroundFields.map((field) => [field, req.files?.[field]?.[0] || null])
+  );
+  const hasFile = Boolean(
+    promoBannerFile ||
+    promoBannerMobileFile ||
+    homePromoBackgroundFields.some((field) => homePromoBackgroundFiles[field])
+  );
   const hasLink = typeof req.body?.promoBannerLink === 'string';
   const startResult = parsePromoDate(req.body?.promoBannerStartAt, 'start');
   const endResult = parsePromoDate(req.body?.promoBannerEndAt, 'end');
   const hasDates = startResult.value !== undefined || endResult.value !== undefined;
   if (!hasFile && !hasLink && !hasDates) {
-    return res.status(400).json({ message: 'Veuillez sélectionner une bannière, un lien ou des dates.' });
+    return res.status(400).json({ message: 'Veuillez sélectionner une bannière, un visuel, un lien ou des dates.' });
   }
   if (startResult.error || endResult.error) {
     return res.status(400).json({ message: 'Dates de bannière invalides.' });
@@ -234,7 +251,12 @@ export const updatePromoBanner = asyncHandler(async (req, res) => {
   if (promoBannerMobileFile && !promoBannerMobileFile.mimetype?.startsWith('image/')) {
     return res.status(400).json({ message: 'Le fichier doit être une image.' });
   }
-  if ((promoBannerFile || promoBannerMobileFile) && !isCloudinaryConfigured()) {
+  if (homePromoBackgroundFields.some((field) => (
+    homePromoBackgroundFiles[field] && !homePromoBackgroundFiles[field].mimetype?.startsWith('image/')
+  ))) {
+    return res.status(400).json({ message: 'Les visuels de fond doivent être des images.' });
+  }
+  if (hasFile && !isCloudinaryConfigured()) {
     return res
       .status(503)
       .json({ message: 'Cloudinary n’est pas configuré. Définissez CLOUDINARY_* pour publier des médias.' });
@@ -272,6 +294,17 @@ export const updatePromoBanner = asyncHandler(async (req, res) => {
     });
     updates.promoBannerMobile = uploaded.secure_url || uploaded.url;
   }
+  for (const field of homePromoBackgroundFields) {
+    const file = homePromoBackgroundFiles[field];
+    if (!file) continue;
+    const folder = getCloudinaryFolder(['site', 'home-promo-cards']);
+    const uploaded = await uploadToCloudinary({
+      buffer: file.buffer,
+      resourceType: 'image',
+      folder
+    });
+    updates[field] = uploaded.secure_url || uploaded.url;
+  }
   if (hasLink) {
     updates.promoBannerLink = req.body.promoBannerLink.trim();
   }
@@ -287,6 +320,14 @@ export const updatePromoBanner = asyncHandler(async (req, res) => {
     promoBannerMobile: settings?.promoBannerMobile || updates.promoBannerMobile || null,
     promoBannerLink: settings?.promoBannerLink || updates.promoBannerLink || '',
     promoBannerStartAt: settings?.promoBannerStartAt || updates.promoBannerStartAt || null,
-    promoBannerEndAt: settings?.promoBannerEndAt || updates.promoBannerEndAt || null
+    promoBannerEndAt: settings?.promoBannerEndAt || updates.promoBannerEndAt || null,
+    homePromoFreeDeliveryBackground:
+      settings?.homePromoFreeDeliveryBackground || updates.homePromoFreeDeliveryBackground || '',
+    homePromoPayForOtherBackground:
+      settings?.homePromoPayForOtherBackground || updates.homePromoPayForOtherBackground || '',
+    homePromoBuyForMeBackground:
+      settings?.homePromoBuyForMeBackground || updates.homePromoBuyForMeBackground || '',
+    homePromoParcelBackground:
+      settings?.homePromoParcelBackground || updates.homePromoParcelBackground || ''
   });
 });

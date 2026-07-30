@@ -523,7 +523,11 @@ router.put(
   '/promo-banner',
   upload.fields([
     { name: 'promoBanner', maxCount: 1 },
-    { name: 'promoBannerMobile', maxCount: 1 }
+    { name: 'promoBannerMobile', maxCount: 1 },
+    { name: 'homePromoFreeDeliveryBackground', maxCount: 1 },
+    { name: 'homePromoPayForOtherBackground', maxCount: 1 },
+    { name: 'homePromoBuyForMeBackground', maxCount: 1 },
+    { name: 'homePromoParcelBackground', maxCount: 1 }
   ]),
   adminMutationIdempotency,
   updatePromoBanner
