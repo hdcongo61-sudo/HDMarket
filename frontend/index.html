@@ -14,7 +14,10 @@
     <meta name="apple-mobile-web-app-title" content="HDMarket" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Served dynamically by the backend (reflects admin-edited app name/
+         description live, including on first load and for non-JS crawlers)
+         instead of the static /manifest.webmanifest file. -->
+    <link rel="manifest" href="%VITE_API_URL%/settings/manifest.webmanifest" />
     <title>HDMarket</title>
   </head>
   <body>

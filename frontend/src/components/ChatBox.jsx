@@ -1,13 +1,8 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  MessageCircle,
   X,
   Shield,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  EyeOff,
   RotateCcw,
   ArrowLeft,
   ChevronDown,
@@ -131,24 +126,6 @@ const ChatBox = () => {
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [contextHint, setContextHint] = useState(null);
 
-  const [isChatHidden, setIsChatHidden] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const saved = localStorage.getItem('hdmarket_chat_hidden');
-      return saved === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [isButtonCollapsed, setIsButtonCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const saved = localStorage.getItem('hdmarket_chat_button_collapsed');
-      return saved === 'true';
-    } catch {
-      return false;
-    }
-  });
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth < MOBILE_CHAT_BREAKPOINT;
@@ -175,6 +152,15 @@ const ChatBox = () => {
     };
     window.addEventListener('hdmarket:scroll-top-visibility', handler);
     return () => window.removeEventListener('hdmarket:scroll-top-visibility', handler);
+  }, []);
+
+  // Opened from the "Assistant HDMarket" entry in the bottom menu (Navbar.jsx) —
+  // there is no floating launcher button anymore, so this is the only way in.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handler = () => setIsOpen(true);
+    window.addEventListener('hdmarket:open-assistant-chat', handler);
+    return () => window.removeEventListener('hdmarket:open-assistant-chat', handler);
   }, []);
 
   useEffect(() => {
@@ -362,110 +348,22 @@ const ChatBox = () => {
     navigate(link);
   };
 
-  const handleHideChat = () => {
-    setIsChatHidden(true);
-    try {
-      localStorage.setItem('hdmarket_chat_hidden', 'true');
-    } catch {
-      // noop
-    }
-  };
+  if (!token || !isOpen) return null;
 
-  const handleShowChat = () => {
-    setIsChatHidden(false);
-    setIsOpen(true);
-    setIsButtonCollapsed(false);
-    try {
-      localStorage.removeItem('hdmarket_chat_hidden');
-      localStorage.removeItem('hdmarket_chat_button_collapsed');
-    } catch {
-      // noop
-    }
-  };
-
-  const handleCollapseButton = () => {
-    setIsOpen(false);
-    setIsButtonCollapsed(true);
-    try {
-      localStorage.setItem('hdmarket_chat_button_collapsed', 'true');
-    } catch {
-      // noop
-    }
-  };
-
-  const handleExpandButton = () => {
-    setIsButtonCollapsed(false);
-    try {
-      localStorage.removeItem('hdmarket_chat_button_collapsed');
-    } catch {
-      // noop
-    }
-  };
-
-  if (!token) return null;
-
-  if (isChatHidden) {
-    return (
-      <div
-        className="fixed z-50 flex items-center transition-all duration-300 ease-out sm:right-6"
-        style={{
-          bottom: isMobileViewport
-            ? `calc(env(safe-area-inset-bottom, 0px) + ${chatBottomOffset}px)`
-            : '24px',
-          right: isButtonCollapsed ? 0 : '1rem'
-        }}
-      >
-        <div className="relative flex items-center">
-          <button
-            type="button"
-            onClick={isButtonCollapsed ? handleExpandButton : handleShowChat}
-            className={`flex items-center justify-center gap-2 rounded-full bg-[#e85d00] text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
-              isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-4 py-2.5 pl-4 pr-12'
-            }`}
-            title="Afficher l'assistant"
-          >
-            {isButtonCollapsed ? (
-              <ChevronLeft className="h-5 w-5" />
-            ) : (
-              <>
-                <Eye className="h-4 w-4" />
-                <span className="text-sm font-medium">Assistant</span>
-              </>
-            )}
-          </button>
-          {!isButtonCollapsed && (
-            <button
-              type="button"
-            onClick={(event) => {
-                event.stopPropagation();
-                handleCollapseButton();
-              }}
-              className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-[#111827] text-white shadow-md transition-colors hover:bg-[#e85d00]"
-              title="Rentrer le bouton"
-              aria-label="Rentrer le bouton"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  const fabContainerStyle = {
+  const panelContainerStyle = {
     bottom: isMobileViewport
       ? `calc(env(safe-area-inset-bottom, 0px) + ${chatBottomOffset}px)`
       : '24px',
-    right: isButtonCollapsed ? 0 : '1rem'
+    right: '1rem'
   };
 
   return (
     <div
       className="fixed z-50 flex flex-col items-end transition-all duration-300 ease-out sm:right-6"
-      style={fabContainerStyle}
+      style={panelContainerStyle}
     >
       {isOpen && (
-        <div className="mb-3 w-[380px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm ring-1 ring-white/80 dark:border-orange-950/60 dark:bg-neutral-950">
+        <div className="w-[380px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm ring-1 ring-white/80 dark:border-orange-950/60 dark:bg-neutral-950">
           <div className="sticky top-0 z-10 border-b border-gray-200/80 bg-[#e85d00] px-4 pb-3 pt-4 text-white dark:border-orange-950/60">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -478,15 +376,6 @@ const ChatBox = () => {
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleHideChat}
-                  className="rounded-full p-2 text-white/80 transition hover:bg-white/15 hover:text-white"
-                  aria-label="Masquer le chat"
-                  title="Masquer le chat"
-                >
-                  <EyeOff className="h-4 w-4" />
-                </button>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
@@ -633,40 +522,6 @@ const ChatBox = () => {
           </div>
         </div>
       )}
-
-      <div className="relative flex items-center">
-        <button
-          type="button"
-          onClick={isButtonCollapsed ? handleExpandButton : () => setIsOpen((prev) => !prev)}
-          className={`group relative flex items-center justify-center gap-2 rounded-full bg-[#e85d00] text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#f05f00] active:translate-y-0 ${
-            isButtonCollapsed ? 'h-11 w-11 min-w-11 rounded-l-full' : 'px-5 py-3 pl-5 pr-12'
-          }`}
-          title={isButtonCollapsed ? "Afficher l'assistant" : isOpen ? 'Fermer' : 'Assistant'}
-        >
-          {isButtonCollapsed ? (
-            <ChevronLeft className="h-5 w-5" />
-          ) : (
-            <>
-              <MessageCircle className={`h-5 w-5 transition-transform duration-300 ${isOpen ? 'rotate-12' : 'group-hover:scale-110'}`} />
-              <span className="font-medium">{isOpen ? 'Fermer' : 'Assistant'}</span>
-            </>
-          )}
-        </button>
-        {!isButtonCollapsed && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              handleCollapseButton();
-            }}
-            className="absolute -right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-[#111827] text-white shadow-md transition-colors hover:bg-[#e85d00]"
-            title="Rentrer le bouton"
-            aria-label="Rentrer le bouton"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
-      </div>
     </div>
   );
 };

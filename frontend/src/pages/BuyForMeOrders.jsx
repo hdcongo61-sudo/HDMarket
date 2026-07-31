@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { ChevronRight, Plus, ShoppingBasket } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -22,6 +22,7 @@ const STATUS = {
 
 export default function BuyForMeOrders() {
   const { user } = useContext(AuthContext);
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +31,7 @@ export default function BuyForMeOrders() {
     api.get('/buy-for-me/mine').then(({ data }) => setOrders(Array.isArray(data?.items) ? data.items : [])).catch(() => setOrders([])).finally(() => setLoading(false));
   }, [user]);
 
-  if (!user) return <div className="px-4 py-16 text-center text-sm text-gray-500">Connectez-vous pour voir vos demandes d’achat.</div>;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   return (
     <div className="min-h-screen bg-[#faf8f5] pb-20">
       <GlassHeader title="Mes achats délégués" subtitle="Suivez chaque demande Acheter Pour Moi" backTo="/" right={<Link to="/buy-for-me" className="grid h-9 w-9 place-items-center rounded-full bg-[#e85d00] text-white" aria-label="Nouvelle demande"><Plus size={16} /></Link>} />

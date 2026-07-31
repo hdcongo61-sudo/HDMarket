@@ -14,6 +14,7 @@ import AnalyticsTracker from './components/AnalyticsTracker';
 import CookieConsent from './components/CookieConsent';
 import PendingActionHandler from './components/PendingActionHandler';
 import AppButtonFeedback from './components/AppButtonFeedback';
+import FeatureFeedbackWidget from './components/FeatureFeedbackWidget';
 import { useAppSettings } from './context/AppSettingsContext';
 import AuthContext from './context/AuthContext';
 import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfileLoadContext';
@@ -74,6 +75,7 @@ const CategoryProducts = lazy(() => import('./pages/CategoryProducts'));
 const Products = lazy(() => import('./pages/Products'));
 const Plans = lazy(() => import('./pages/Plans'));
 const Benefits = lazy(() => import('./pages/Benefits'));
+const About = lazy(() => import('./pages/About'));
 const CityProducts = lazy(() => import('./pages/CityProducts'));
 const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const ProductDetailsWrapper = () => {
@@ -119,6 +121,7 @@ const PaymentVerification = lazy(() => import('./pages/PaymentVerification'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
 const AdminAppSettings = lazy(() => import('./pages/AdminAppSettings'));
 const AdminSystemSettings = lazy(() => import('./pages/AdminSystemSettings'));
+const AdminFeatureManagement = lazy(() => import('./pages/AdminFeatureManagement'));
 const AdminComplaints = lazy(() => import('./pages/AdminComplaints'));
 const AdminPromoCodes = lazy(() => import('./pages/AdminPromoCodes'));
 const AdminTaskCenter = lazy(() => import('./pages/AdminTaskCenter'));
@@ -497,6 +500,7 @@ function AppContent() {
 
   const showLoader = !showSplash && (bootLoading || routeLoading || showShopProfileLoader);
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
+  const buyForMeFeatureEnabled = isFeatureEnabled('enable_buy_for_me', { defaultValue: true });
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
   const globalNotificationsEnabled = isFeatureEnabled('enable_global_notifications', { defaultValue: true });
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
@@ -700,6 +704,8 @@ function AppContent() {
           <Route path="/discover" element={<Discover />} />
           <Route path="/avantages" element={<Benefits />} />
           <Route path="/benefits" element={<Benefits />} />
+          <Route path="/a-propos" element={<About />} />
+          <Route path="/about" element={<About />} />
           <Route path="/explore" element={<Explorer />} />
           <Route path="/flash-sales" element={<FlashSales />} />
           <Route
@@ -721,9 +727,9 @@ function AppContent() {
           <Route path="/parcels/new" element={<RequestDelivery />} />
           <Route path="/parcels/:id" element={<ParcelRequestDetail />} />
           <Route path="/parcels" element={<MyParcelRequests />} />
-          <Route path="/buy-for-me" element={<BuyForMe />} />
-          <Route path="/buy-for-me/orders" element={<BuyForMeOrders />} />
-          <Route path="/buy-for-me/:id" element={<BuyForMeOrderDetail />} />
+          <Route path="/buy-for-me" element={buyForMeFeatureEnabled ? <BuyForMe /> : <Navigate to="/" replace />} />
+          <Route path="/buy-for-me/orders" element={buyForMeFeatureEnabled ? <BuyForMeOrders /> : <Navigate to="/" replace />} />
+          <Route path="/buy-for-me/:id" element={buyForMeFeatureEnabled ? <BuyForMeOrderDetail /> : <Navigate to="/" replace />} />
           <Route
             path="/delivery/apply"
             element={
@@ -1317,6 +1323,14 @@ function AppContent() {
               }
             />
             <Route
+              path="features"
+              element={
+                <ProtectedRoute roles={['admin', 'founder']}>
+                  <AdminFeatureManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="settings/categories"
               element={
                 <ProtectedRoute roles={['admin', 'founder']} permissions={['manage_settings']}>
@@ -1398,6 +1412,9 @@ function AppContent() {
         <Suspense fallback={null}>
           <ChatBox />
         </Suspense>
+      ) : null}
+      {pathname.startsWith('/buy-for-me') ? (
+        <FeatureFeedbackWidget featureName="enable_buy_for_me" />
       ) : null}
     </>
   );

@@ -37,6 +37,21 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'admin', 'manager', 'founder', 'delivery_agent'],
       default: 'user'
     },
+    // Beta access is a membership, not an account role: a buyer, shop, or
+    // delivery agent keeps their normal permissions while being eligible for betas.
+    betaTester: { type: Boolean, default: false, index: true },
+    betaTesterApplication: {
+      status: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'rejected'],
+        default: 'none',
+        index: true
+      },
+      requestedAt: { type: Date, default: null },
+      reviewedAt: { type: Date, default: null },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewNote: { type: String, trim: true, default: '' }
+    },
     permissions: { type: [String], default: [], index: true },
     isActive: { type: Boolean, default: true, index: true },
     deactivatedAt: { type: Date, default: null },

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { CheckCircle2, CircleAlert, Loader2, MapPin, ReceiptText, ShoppingBasket, Truck, XCircle } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -25,7 +25,7 @@ const balancePreferenceLabel = (preference) => ({
 
 export default function BuyForMeOrderDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
   const [order, setOrder] = useState(null);
@@ -47,7 +47,7 @@ export default function BuyForMeOrderDetail() {
     if (result) { setOverageAdjustments({}); showToast('Vos ajustements ont été envoyés au livreur.', { variant: 'success' }); }
   };
 
-  if (!user) { navigate('/login'); return null; }
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   if (loading) return <p className="py-12 text-center text-sm text-gray-400">Chargement…</p>;
   if (!order) return <p className="py-12 text-center text-sm text-gray-400">Demande introuvable.</p>;
   const needsAdditionalPayment = order.additionalPayment?.status === 'REQUIRED';

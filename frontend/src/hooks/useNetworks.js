@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 
@@ -15,10 +15,14 @@ export function useNetworks() {
   const [networks, setNetworks] = useState(FALLBACK_NETWORKS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasLoadedOnce = useRef(false);
 
   const fetchNetworks = async () => {
     try {
-      setLoading(true);
+      // Only show the loading state for the very first fetch — background
+      // refreshes (triggered by subscribeToSettingsRefresh) shouldn't flash
+      // "Chargement..." next to contacts that are already displayed.
+      if (!hasLoadedOnce.current) setLoading(true);
       setError(null);
       const res = await api.get('/settings/networks', { skipCache: true, silentGlobalError: true });
       const list = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.data) ? res.data.data : [];
@@ -27,6 +31,7 @@ export function useNetworks() {
       setError(err.response?.data?.message || 'Erreur lors du chargement des réseaux.');
       setNetworks(FALLBACK_NETWORKS);
     } finally {
+      hasLoadedOnce.current = true;
       setLoading(false);
     }
   };

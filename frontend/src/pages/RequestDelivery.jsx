@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft, ShieldCheck, Wallet, MapPinned, X } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -174,6 +174,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity }) {
 export default function RequestDelivery() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
   const { cities = [], communes = [] } = useAppSettings();
 
@@ -354,11 +355,7 @@ export default function RequestDelivery() {
   };
 
   if (!user) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-10 text-center">
-        <p className="text-sm text-gray-500">Connectez-vous pour demander une livraison de colis.</p>
-      </div>
-    );
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (!enabled) {

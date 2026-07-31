@@ -21,7 +21,10 @@ const linkClassName =
 const contactClassName =
   'group flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-neutral-200 transition hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]';
 
-const normalizePhoneHref = (value = '') => `tel:${String(value).replace(/[^+\d]/g, '')}`;
+const normalizePhoneHref = (value) => {
+  const digits = String(value ?? '').replace(/[^+\d]/g, '');
+  return digits ? `tel:${digits}` : '';
+};
 const normalizeExternalUrl = (value = '') => {
   try {
     const url = new URL(String(value || '').trim());
@@ -41,7 +44,7 @@ export default function Footer() {
   const supportPhone = String(appInformation.supportPhone || '').trim();
   const location = [appInformation.city, appInformation.country].filter(Boolean).join(', ') || 'Brazzaville, Congo';
   const brandDescription = String(
-    appInformation.description || `Marketplace opérée par ${companyName}. Achetez et vendez en toute confiance, partout au Congo.`
+    appInformation.description || `Marketplace opérée par ${companyName}. Achetez et vendez en toute confiance, envoyez des colis et faites livrer vos courses, partout au Congo.`
   );
   const tagline = String(appInformation.tagline || 'Marketplace sécurisée pour les vendeurs et acheteurs congolais.');
   const website = normalizeExternalUrl(appInformation.website);
@@ -57,7 +60,7 @@ export default function Footer() {
   const supportNetworks = useMemo(
     () =>
       networks
-        .filter((network) => network.isActive && network.phoneNumber)
+        .filter((network) => network.isActive && normalizePhoneHref(network.phoneNumber))
         .sort((a, b) => (a.order || 0) - (b.order || 0))
         .slice(0, 2),
     [networks]
@@ -67,7 +70,8 @@ export default function Footer() {
     { to: '/', label: t('nav.home', 'Accueil') },
     { to: '/products', label: t('nav.products', 'Produits') },
     { to: '/discover', label: t('nav.discover', 'Découvrir') },
-    { to: '/shops/verified', label: t('nav.verifiedShops', 'Boutiques vérifiées') }
+    { to: '/shops/verified', label: t('nav.verifiedShops', 'Boutiques vérifiées') },
+    { to: '/a-propos', label: t('nav.about', 'À propos') }
   ];
 
   const serviceLinks = [
@@ -159,7 +163,7 @@ export default function Footer() {
                 <span className="min-w-0 truncate">{supportEmail}</span>
               </a>
 
-              {supportPhone ? (
+              {supportPhone && normalizePhoneHref(supportPhone) ? (
                 <a href={normalizePhoneHref(supportPhone)} className={contactClassName}>
                   <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
                   <span className="min-w-0 truncate">{supportPhone}</span>

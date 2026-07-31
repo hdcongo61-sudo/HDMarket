@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { CircleDollarSign, ImagePlus, Loader2, MapPin, Minus, PackagePlus, Plus, ReceiptText, ShoppingBasket, Store, Truck, X } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -85,6 +85,7 @@ function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, co
 
 export default function BuyForMe() {
   const { user } = useContext(AuthContext);
+  const location = useLocation();
   const { cities = [], communes = [] } = useAppSettings();
   const [enabled, setEnabled] = useState(true);
   const [supportedStoreTypes, setSupportedStoreTypes] = useState(STORE_TYPES.map(([key]) => key));
@@ -233,7 +234,7 @@ export default function BuyForMe() {
     };
   };
 
-  if (!user) return <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-gray-500">Connectez-vous pour demander à un livreur de faire vos achats.</div>;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   if (!enabled) return <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-gray-500">Le service Acheter Pour Moi est temporairement indisponible.</div>;
 
   return (

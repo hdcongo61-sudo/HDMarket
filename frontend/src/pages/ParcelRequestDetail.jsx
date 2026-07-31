@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { Image as ImageIcon, Loader2, Phone, ShieldCheck, Upload, Wallet, X } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -137,7 +137,7 @@ const buildTrackingData = (parcelRequest) => {
 export default function ParcelRequestDetail() {
   const { id } = useParams();
   const { user } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
   const [parcelRequest, setParcelRequest] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -209,8 +209,7 @@ export default function ParcelRequestDetail() {
   };
 
   if (!user) {
-    navigate('/login');
-    return null;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   if (loading) {
     return <p className="py-10 text-center text-sm text-gray-400">Chargement…</p>;

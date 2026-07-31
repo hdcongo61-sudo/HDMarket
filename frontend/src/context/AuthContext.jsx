@@ -83,7 +83,8 @@ export const AuthProvider = ({ children }) => {
     } catch {}
   };
 
-  const login = async (data) => {
+  const login = async (data, { rememberMe = true } = {}) => {
+    storage.setRememberMe(rememberMe);
     await storage.set('qm_token', data.token);
     const userData = normalizeUser(data);
     await persistUser(userData);
@@ -101,6 +102,7 @@ export const AuthProvider = ({ children }) => {
     abortPendingRequests('USER_LOGOUT');
 
     // 3. Clear persisted storage
+    storage.setRememberMe(true);
     await Promise.allSettled([
       storage.remove('qm_token'),
       storage.remove('qm_user'),

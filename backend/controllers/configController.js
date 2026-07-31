@@ -231,8 +231,15 @@ export const getRuntimePublicConfig = asyncHandler(async (req, res) => {
     environment: resolveEnvironmentFromRequest(req),
     role: req.user?.role,
     userId: req.user?.id,
+    accountType: req.user?.accountType,
+    country: req.user?.country,
+    city: req.user?.city,
+    commune: req.user?.commune,
+    isBetaTester: req.user?.betaTester,
     sessionId: req.headers?.['x-session-id'],
-    deviceId: req.headers?.['x-device-id']
+    deviceId: req.headers?.['x-device-id'],
+    platform: req.headers?.['x-app-platform'] || req.headers?.['x-platform'],
+    appVersion: req.headers?.['x-app-version']
   });
   return res.json(payload);
 });

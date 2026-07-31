@@ -106,7 +106,7 @@ export default function Login() {
   const slowNetworkTimerRef = useRef(null);
 
   const [form, setForm] = useState({ phone: '', password: '' });
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [providerLoading, setProviderLoading] = useState('');
@@ -263,7 +263,7 @@ export default function Login() {
         : { phone: identifier, password: form.password };
       const { data } = await api.post('/auth/login', credentials);
       // Redirect directly — no success interstitial
-      await login(data);
+      await login(data, { rememberMe });
       nav(from, { replace: true });
     } catch (requestError) {
       setInactiveAccount(

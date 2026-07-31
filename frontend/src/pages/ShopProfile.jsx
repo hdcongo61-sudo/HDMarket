@@ -25,8 +25,8 @@ import useNetworkProfile from '../hooks/useNetworkProfile';
 import { setPendingAction } from '../utils/pendingAction';
 import { isGeneratedTimestampSlug } from '../utils/links';
 import { buildShopWhatsappLink } from '../utils/whatsapp';
-import ShopTopHeader from '../components/shop/ShopTopHeader';
 import ShopHero from '../components/shop/ShopHero';
+import ShopPromoBanner from '../components/shop/ShopPromoBanner';
 import ShopQuickInfo from '../components/shop/ShopQuickInfo';
 import ShopOpeningHoursCard from '../components/shop/ShopOpeningHoursCard';
 import ShopActionsCard from '../components/shop/ShopActionsCard';
@@ -58,17 +58,9 @@ const formatPercentLabel = (value) => {
   return `${Math.round(parsed)}%`;
 };
 
-const normalizeShopColor = (value) =>
-  /^#[0-9A-F]{6}$/i.test(String(value || '').trim())
-    ? String(value).trim().toUpperCase()
-    : '#e85d00';
-
-const getReadableTextColor = (hexColor) => {
-  const hex = normalizeShopColor(hexColor).slice(1);
-  const [red, green, blue] = [0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
-  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
-  return luminance >= 150 ? '#111827' : '#FFFFFF';
-};
+// Taobao-style fixed theme for the shop page (per-shop color is no longer the accent).
+const SHOP_THEME_COLOR = '#FF5000';
+const SHOP_THEME_CONTRAST = '#FFFFFF';
 
 const haversineDistanceKm = (from, to) => {
   if (!from || !to) return null;
@@ -108,6 +100,7 @@ export default function ShopProfile() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [promoOnly, setPromoOnly] = useState(false);
   const [productFeed, setProductFeed] = useState('all');
+  const [productSearch, setProductSearch] = useState('');
   const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
   const [reviewSuccess, setReviewSuccess] = useState('');
   const [reviewError, setReviewError] = useState('');
@@ -196,8 +189,8 @@ export default function ShopProfile() {
   });
 
   const shop = shopQuery.data?.shop || null;
-  const shopColor = normalizeShopColor(shop?.shopColor);
-  const shopColorContrast = getReadableTextColor(shopColor);
+  const shopColor = SHOP_THEME_COLOR;
+  const shopColorContrast = SHOP_THEME_CONTRAST;
   const products = useMemo(
     () => (Array.isArray(shopQuery.data?.products) ? shopQuery.data.products : []),
     [shopQuery.data?.products]
@@ -288,6 +281,7 @@ export default function ShopProfile() {
     setActiveCategory('all');
     setPromoOnly(false);
     setProductFeed('all');
+    setProductSearch('');
     setReviewSuccess('');
     setReviewError('');
   }, [slug]);
@@ -390,20 +384,40 @@ export default function ShopProfile() {
   );
 
   const displayProducts = useMemo(() => {
-    if (productFeed === 'featured') return featuredProducts;
-    if (productFeed === 'latest') return latestProducts;
-    if (productFeed === 'popular') return topSellingProducts;
-    if (!rapid3GActive) return filteredProducts;
-    return filteredProducts.slice(0, Math.max(Number(compactProductsPageSize || 8) * 2, 12));
+    let list;
+    if (productFeed === 'featured') list = featuredProducts;
+    else if (productFeed === 'latest') list = latestProducts;
+    else if (productFeed === 'popular') list = topSellingProducts;
+    else if (!rapid3GActive) list = filteredProducts;
+    else list = filteredProducts.slice(0, Math.max(Number(compactProductsPageSize || 8) * 2, 12));
+    const query = String(productSearch || '').trim().toLowerCase();
+    if (!query) return list;
+    return list.filter((product) =>
+      String(product?.title || product?.name || '').toLowerCase().includes(query)
+    );
   }, [
     compactProductsPageSize,
     featuredProducts,
     filteredProducts,
     latestProducts,
     productFeed,
+    productSearch,
     rapid3GActive,
     topSellingProducts
   ]);
+
+  const promoProduct = useMemo(
+    () => products.find((product) => Boolean(product?.hasActivePromo)) || null,
+    [products]
+  );
+
+  const handleViewPromos = useCallback(() => {
+    setProductFeed('all');
+    setActiveCategory('all');
+    setPromoOnly(true);
+    const node = document.getElementById('products');
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const isFollowing = useMemo(() => {
     if (!shop?._id || !Array.isArray(user?.followingShops)) return false;
@@ -1016,7 +1030,7 @@ export default function ShopProfile() {
 
   return (
     <main
-      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#f5f5f5] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
+      className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#F6F6F6] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
         isMobile ? 'pb-36' : 'pb-12'
       }`}
       style={{
@@ -1047,8 +1061,25 @@ export default function ShopProfile() {
             hasFreeDelivery={hasFreeDelivery}
             yearsActiveLabel={yearsActiveLabel}
             customerSatisfaction={customerSatisfaction}
+            followersCount={followersCount}
+            completedOrders={completedOrders}
+            isOwnShop={isOwnShop}
+            isFollowing={isFollowing}
+            followDisabled={followDisabled}
+            followPending={followPending}
+            onFollowToggle={handleFollowToggle}
+            productSearch={productSearch}
+            onProductSearchChange={setProductSearch}
             onBack={() => navigate(-1)}
             onShare={handleShareShop}
+            t={t}
+          />
+
+          <ShopPromoBanner
+            shop={shop}
+            hasActivePromo={hasActivePromo}
+            promoProduct={promoProduct}
+            onViewPromos={handleViewPromos}
             t={t}
           />
 
@@ -1089,12 +1120,29 @@ export default function ShopProfile() {
                 topSellingProducts={topSellingProducts}
                 loading={shopQuery.isLoading}
                 useCompactCards={isMobile}
+                productSearch={productSearch}
+                onClearProductSearch={() => setProductSearch('')}
                 t={t}
                 onGoReviews={() => {
                   const node = document.getElementById('reviews');
                   if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               />
+
+              <ShopQuickInfo
+                openingSummary={openingSummary}
+                trustQuickInfo={trustQuickInfo}
+                hasFreeDelivery={hasFreeDelivery}
+                t={t}
+              />
+
+              <div className="lg:hidden">
+                <ShopOpeningHoursCard
+                  openingSummary={openingSummary}
+                  isCertifiedShop={isCertifiedShop}
+                  t={t}
+                />
+              </div>
 
               <ShopAboutSection
                 shop={shop}
@@ -1179,6 +1227,10 @@ export default function ShopProfile() {
           isFollowing={isFollowing}
           followDisabled={followDisabled}
           followPending={followPending}
+          onGoReviews={() => {
+            const node = document.getElementById('reviews');
+            if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
           t={t}
         />
       )}

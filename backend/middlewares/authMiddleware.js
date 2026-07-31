@@ -12,6 +12,22 @@ const SSE_PATHS = ['/notifications/stream'];
 const isSseEndpoint = (req) =>
   SSE_PATHS.some((p) => req.originalUrl?.includes(p));
 
+const USER_SESSION_FIELDS =
+  'name email phone phoneVerified role permissions accountType profileImage gender ' +
+  'isActive isBlocked blockedReason isLocked lockReason sessionsInvalidatedAt ' +
+  'canReadFeedback canVerifyPayments canManageBoosts canManageComplaints ' +
+  'canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter ' +
+  'betaTester betaTesterApplication ' +
+  'shopName shopAddress shopLogo shopBanner shopBannerMobile shopColor shopDescription shopVerified ' +
+  'followersCount followingShops freeDeliveryEnabled freeDeliveryNote ' +
+  'shopBoosted shopBoostScore shopBoostedBy shopBoostedAt shopBoostStartDate shopBoostEndDate ' +
+  'shopLocation shopLocationVerified shopLocationAccuracy shopLocationUpdatedAt ' +
+  'shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags ' +
+  'shopHours ' +
+  'sellerLevel sellerLevelUpdatedAt totalCompletedOrders avgRating totalReviews disputeRate ' +
+  'country city commune address preferredLanguage preferredCurrency preferredCity theme ' +
+  'restrictions';
+
 export const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization || '';
   let token = extractBearerToken(authHeader) || null;
@@ -31,21 +47,7 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select(
-      'name email phone phoneVerified role permissions accountType profileImage gender ' +
-      'isActive isBlocked blockedReason isLocked lockReason sessionsInvalidatedAt ' +
-      'canReadFeedback canVerifyPayments canManageBoosts canManageComplaints ' +
-      'canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter ' +
-      'shopName shopAddress shopLogo shopBanner shopBannerMobile shopColor shopDescription shopVerified ' +
-      'followersCount followingShops freeDeliveryEnabled freeDeliveryNote ' +
-      'shopBoosted shopBoostScore shopBoostedBy shopBoostedAt shopBoostStartDate shopBoostEndDate ' +
-      'shopLocation shopLocationVerified shopLocationAccuracy shopLocationUpdatedAt ' +
-      'shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags ' +
-      'shopHours ' +
-      'sellerLevel sellerLevelUpdatedAt totalCompletedOrders avgRating totalReviews disputeRate ' +
-      'country city commune address preferredLanguage preferredCurrency preferredCity theme ' +
-      'restrictions'
-    ).lean();
+    const user = await User.findById(decoded.id).select(USER_SESSION_FIELDS).lean();
     if (!user) {
       return res.status(401).json({
         message: 'Session expirée. Veuillez vous reconnecter.',
@@ -87,12 +89,35 @@ export const protect = async (req, res, next) => {
     req.authToken = token;
     req.authDecoded = decoded;
     next();
-  } catch (e) {
+  } catch (_error) {
     return res.status(401).json({
       message: 'Session expirée. Veuillez vous reconnecter.',
       code: 'AUTH_TOKEN_INVALID'
     });
   }
+};
+
+// Public settings are still available to visitors, but an authenticated request
+// needs a session so flags can be resolved per beta membership, location, and
+// platform. Invalid optional credentials intentionally behave as a guest here.
+export const optionalProtect = async (req, _res, next) => {
+  const token = extractBearerToken(req.headers.authorization || '');
+  if (!token) return next();
+  try {
+    if (await isTokenBlacklisted(token)) return next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select(USER_SESSION_FIELDS).lean();
+    if (!user || !user.isActive || user.isBlocked || user.isLocked || wasSessionInvalidated(user, decoded)) {
+      return next();
+    }
+    req.user = buildReqUser(user, decoded);
+    req.authToken = token;
+    req.authDecoded = decoded;
+  } catch {
+    // A public endpoint must remain available when an expired client token is
+    // present; protected endpoints continue to use the strict middleware above.
+  }
+  return next();
 };
 
 export const admin = (req, res, next) => {

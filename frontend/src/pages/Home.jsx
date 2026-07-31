@@ -21,7 +21,8 @@ import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapsh
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 import {
   filterActiveInstallmentProducts,
-  getInstallmentFirstPaymentAmount
+  getInstallmentFirstPaymentAmount,
+  isInstallmentOfferActive
 } from '../utils/installmentAvailability';
 
 const normalizeCityName = (value) =>
@@ -404,13 +405,7 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
     .padStart(2, '0')}`;
 };
   const defaultPromoBanner = '/promo-default.svg';
-  const buildHomeProductLink = useCallback(
-    (product) => {
-      if (!product?.slug) return buildProductPath(product);
-      return isMobileView ? `/product-preview/${product.slug}` : buildProductPath(product);
-    },
-    [isMobileView]
-  );
+  const buildHomeProductLink = useCallback((product) => buildProductPath(product), []);
   const parsePromoDate = useCallback((value) => {
     if (!value) return null;
     const parsed = new Date(value);
@@ -1266,7 +1261,7 @@ const loadDiscountProducts = async () => {
     const promoCards = [
       { badge: 'LIVRAISON OFFERTE', text: fullPaymentBannerText, cta: 'Voir', color: '#00A860', bg: '#E7F8EF', icon: Truck, to: '/products', backgroundImage: homePromoBackgrounds.freeDelivery },
       { badge: 'PAIEMENT PAR UN PROCHE', text: payForOtherBannerText, cta: 'Voir', color: '#F26522', bg: '#FDF3E7', icon: Users, to: '/cart', backgroundImage: homePromoBackgrounds.payForOther },
-      { badge: 'NOUVEAU', text: 'Acheter Pour Moi — un livreur fait vos courses.', cta: 'Essayer', color: '#7C3AED', bg: '#F1EDFB', icon: ShoppingBag, to: '/buy-for-me', backgroundImage: homePromoBackgrounds.buyForMe },
+      ...(buyForMeEnabled ? [{ badge: 'NOUVEAU', text: 'Acheter Pour Moi — un livreur fait vos courses.', cta: 'Essayer', color: '#7C3AED', bg: '#F1EDFB', icon: ShoppingBag, to: '/buy-for-me', backgroundImage: homePromoBackgrounds.buyForMe }] : []),
       { badge: 'ENVOI DE COLIS', text: 'Un livreur récupère et livre où vous voulez.', cta: 'Envoyer', color: '#0B87D4', bg: '#EBF4FD', icon: Package, to: '/parcels/new', backgroundImage: homePromoBackgrounds.parcel }
     ];
 
@@ -1743,6 +1738,12 @@ const loadDiscountProducts = async () => {
                         -{product.discount}%
                       </span>
                     )}
+                    {isInstallmentOfferActive(product) && (
+                      <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
+                        <Clock className="h-2.5 w-2.5" />
+                        Tranche
+                      </span>
+                    )}
                   </div>
                   <div className="flex min-h-0 flex-col px-1 pb-1 pt-2">
                     <p className="truncate text-[13px] font-extrabold text-[#1b1d22]">{product.title}</p>
@@ -1929,6 +1930,12 @@ const loadDiscountProducts = async () => {
                       showHint={false}
                     />
                     <span className="absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[#1b1d22] text-[11px] font-black text-white">{idx + 1}</span>
+                    {isInstallmentOfferActive(product) && (
+                      <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
+                        <Clock className="h-2.5 w-2.5" />
+                        Tranche
+                      </span>
+                    )}
                   </div>
                   <div className="flex min-h-0 flex-col px-1 pb-1 pt-2">
                     <p className="truncate text-[13px] font-extrabold text-[#1b1d22]">{product.title}</p>
@@ -2104,6 +2111,12 @@ const loadDiscountProducts = async () => {
                         <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-white/90 text-gray-600">
                           {product.condition === 'new' ? 'Neuf' : 'Occasion'}
                         </span>
+                        {isInstallmentOfferActive(product) && (
+                          <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+                            <Clock className="h-2.5 w-2.5" />
+                            Tranche
+                          </span>
+                        )}
                       </div>
                       <div className="p-2 flex flex-col min-h-0">
                         <p className="text-xs font-bold text-gray-900 truncate">{Number(product.price || 0).toLocaleString()} F</p>
@@ -2203,8 +2216,14 @@ const loadDiscountProducts = async () => {
                 const wholesalePrice = Number(product?.wholesalePrice || product?.wholesaleTiers?.[0]?.price || product?.price || 0);
                 return (
                   <Link key={`wholesale-mobile-${product._id}`} to={buildHomeProductLink(product)} {...externalLinkProps} className="flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[20px] border border-[#eeeff3] bg-white p-2 active:scale-[0.98]">
-                    <div className="h-[120px] overflow-hidden rounded-[14px] bg-[#f0f1f5]">
+                    <div className="relative h-[120px] overflow-hidden rounded-[14px] bg-[#f0f1f5]">
                       <PreviewableImage product={product} src={resolveProductPrimaryImage(product)} images={resolveProductImageSet(product)} alt={product.title} className="h-full w-full object-cover" loading="lazy" reportContext={buildImageReportContext(product, buildHomeProductLink(product))} showHint={false} />
+                      {isInstallmentOfferActive(product) && (
+                        <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
+                          <Clock className="h-2.5 w-2.5" />
+                          Tranche
+                        </span>
+                      )}
                     </div>
                     <div className="px-1 pb-2 pt-2">
                       <p className="truncate text-[13px] font-extrabold text-[#1b1d22]">{product.title}</p>
@@ -2722,6 +2741,12 @@ const loadDiscountProducts = async () => {
                       {product.discount > 0 && (
                         <span className="absolute top-1.5 left-1.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
                       )}
+                      {isInstallmentOfferActive(product) && (
+                        <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
+                          <Clock className="h-2.5 w-2.5" />
+                          Tranche
+                        </span>
+                      )}
                     </div>
                     <div className="p-2.5 flex flex-col flex-1 min-h-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F</p>
@@ -2792,6 +2817,12 @@ const loadDiscountProducts = async () => {
                       <span className="absolute top-2 right-2 rounded-md bg-neutral-900/90 px-2 py-0.5 text-[10px] font-semibold text-white">
                         {Number(product.totalSoldToday || 0)} vendu(s)
                       </span>
+                      {isInstallmentOfferActive(product) && (
+                        <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                          <Clock className="h-2.5 w-2.5" />
+                          Tranche
+                        </span>
+                      )}
                     </div>
                     <div className="p-3 flex flex-col flex-1 min-h-0">
                       <p className="text-sm font-medium text-gray-700 truncate">{product.title}</p>
@@ -2844,6 +2875,12 @@ const loadDiscountProducts = async () => {
                         idx === 0 ? 'bg-neutral-500' : idx === 1 ? 'bg-gray-400' : 'bg-neutral-600'
                       }`}>
                         {idx + 1}
+                      </span>
+                    )}
+                    {isInstallmentOfferActive(product) && (
+                      <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                        <Clock className="h-2.5 w-2.5" />
+                        Tranche
                       </span>
                     )}
                   </div>
@@ -2970,6 +3007,12 @@ const loadDiscountProducts = async () => {
                       }`}>
                         {index + 1}
                       </span>
+                      {isInstallmentOfferActive(product) && (
+                        <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+                          <Clock className="h-2.5 w-2.5" />
+                          Tranche
+                        </span>
+                      )}
                     </div>
                     <div className="p-3 flex flex-col flex-1 min-h-0">
                       <p className="text-sm font-medium text-gray-700 truncate group-hover:text-neutral-900 transition-colors">{product.title}</p>
@@ -3106,6 +3149,12 @@ const loadDiscountProducts = async () => {
                           <Tag className="h-3 w-3" />
                           GROS
                         </span>
+                        {isInstallmentOfferActive(product) && (
+                          <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
+                            <Clock className="h-3 w-3" />
+                            Tranche
+                          </span>
+                        )}
                         {/* Tier price badge */}
                         {tierPrice && tierPrice !== product.price && (
                           <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white">

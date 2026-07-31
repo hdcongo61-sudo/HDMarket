@@ -224,6 +224,13 @@ export const AppSettingsProvider = ({ children }) => {
     }
   }, [normalizePublicPayload]);
 
+  // Feature flags can be targeted by user, beta membership, role, location, or
+  // app version. Refresh the public projection whenever the authenticated user
+  // changes so a post-login beta assignment is reflected without a reload.
+  useEffect(() => {
+    void loadPublicSettings({ forceRefresh: true });
+  }, [user?._id, user?.id, loadPublicSettings]);
+
   useEffect(() => {
     let refreshing = false;
     const handleRefresh = async () => {
@@ -315,6 +322,17 @@ export const AppSettingsProvider = ({ children }) => {
       );
     }
   }, [language]);
+
+  // Keeps the SEO/social <meta name="description"> in sync with the
+  // admin-editable app_information.description (Admin > App Settings >
+  // Identité > "Description publique") — previously only shown in the Footer.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const description = String(publicSettings.app?.information?.description || '').trim();
+    if (!description) return;
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute('content', description);
+  }, [publicSettings.app?.information?.description]);
 
   useEffect(() => {
     storage.set(STORAGE_KEYS.currency, currencyCode);

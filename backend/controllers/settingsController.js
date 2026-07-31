@@ -9,6 +9,7 @@ import { invalidateSettingsCache } from '../utils/cache.js';
 import {
   ensureRuntimeConfigBootstrap,
   getPublicRuntimeConfig,
+  getRuntimeConfig,
   setRuntimeConfig
 } from '../services/configService.js';
 import {
@@ -131,6 +132,53 @@ const writeSystemSettingsAudit = async (
   });
 };
 
+// The frontend is a static site (Netlify/Render static hosting) with no
+// per-request rendering, so it can't read app_information.appName/description
+// into its own manifest.webmanifest at serve time. This dynamic endpoint is
+// served cross-origin instead — the <link rel="manifest"> in index.html
+// points here directly, so even the very first "Add to Home Screen" check
+// (before any app JS runs) and non-JS crawlers see live admin-edited values.
+// Per the Web App Manifest spec, member URLs (start_url/scope/icons) resolve
+// relative to the MANIFEST's own URL, not the page's — so they must be
+// absolute frontend URLs here, not the relative paths the static file used.
+export const getPublicManifest = asyncHandler(async (req, res) => {
+  const information = (await getRuntimeConfig('app_information', { fallback: {} })) || {};
+  const frontendOrigin = String(process.env.CLIENT_URL || 'https://www.hdmarket.store').replace(/\/+$/, '');
+  const appName = String(information.appName || '').trim() || 'HDMarket';
+  const description =
+    String(information.description || '').trim() || 'HDMarket - Marketplace et boutiques vérifiées';
+
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('application/manifest+json').json({
+    name: appName,
+    short_name: appName,
+    description,
+    start_url: `${frontendOrigin}/`,
+    scope: `${frontendOrigin}/`,
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    theme_color: '#FF6A00',
+    background_color: '#fff8f1',
+    categories: ['shopping', 'lifestyle'],
+    icons: [
+      { src: `${frontendOrigin}/favicon.svg`, sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+      {
+        src: `${frontendOrigin}/icons/icon-192.svg`,
+        sizes: '192x192',
+        type: 'image/svg+xml',
+        purpose: 'any maskable'
+      },
+      {
+        src: `${frontendOrigin}/icons/icon-512.svg`,
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'any maskable'
+      }
+    ],
+    screenshots: []
+  });
+});
+
 export const getPublicSettings = asyncHandler(async (req, res) => {
   try {
     const [payload, runtimePayload] = await Promise.all([
@@ -138,8 +186,15 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
       getPublicRuntimeConfig({
         role: req.user?.role,
         userId: req.user?.id,
+        accountType: req.user?.accountType,
+        country: req.user?.country,
+        city: req.user?.city,
+        commune: req.user?.commune,
+        isBetaTester: req.user?.betaTester,
         sessionId: req.headers?.['x-session-id'],
-        deviceId: req.headers?.['x-device-id']
+        deviceId: req.headers?.['x-device-id'],
+        platform: req.headers?.['x-app-platform'] || req.headers?.['x-platform'],
+        appVersion: req.headers?.['x-app-version']
       })
     ]);
     res.json({

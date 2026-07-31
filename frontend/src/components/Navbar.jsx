@@ -71,7 +71,10 @@ import {
   Compass,
   BadgePercent,
   Gift,
-  Bike
+  Bike,
+  Flag,
+  MessageCircle,
+  ShoppingBag
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -163,6 +166,7 @@ export default function Navbar() {
   const shopConversionEnabled = isTruthyFlag(getRuntimeValue('enable_shop_conversion', true));
   const referralProgramEnabled = isTruthyFlag(getRuntimeValue('enable_referral_program', false));
   const parcelDeliveryEnabled = isTruthyFlag(getRuntimeValue('enable_parcel_delivery', true));
+  const [buyForMeEnabled, setBuyForMeEnabled] = useState(false);
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
   const cartCount = cart?.totals?.quantity || 0;
@@ -205,6 +209,25 @@ export default function Navbar() {
   const { counts } = useAdminCounts(shouldLoadAdminCounts);
   const waitingPayments = counts.waitingPayments || 0;
   const unreadFeedback = counts.unreadFeedback || 0;
+  const pendingAdminTasks = Number(counts.pendingTasks || 0);
+  const hasAdminMenuAccess = Boolean(
+    canAccessBackOffice ||
+      canManageProducts ||
+      canManageDelivery ||
+      canManageChatTemplates ||
+      isAdminLike ||
+      canReadFeedback ||
+      canVerifyPayments ||
+      canManageComplaints ||
+      canManageBoosts
+  );
+  // Sum of every unconfirmed admin queue (payments awaiting verification, unread
+  // feedback, and the task-center's own pending items — boosts, product/shop
+  // validation, delivery ops, disputes, refunds, shop conversions, sponsored ads).
+  // These three counters never overlap, so a plain sum is safe.
+  const adminPendingTotal = hasAdminMenuAccess
+    ? waitingPayments + unreadFeedback + pendingAdminTasks
+    : 0;
   const { counts: userNotifications } = useUserNotifications(Boolean(user));
   const commentAlerts = userNotifications.commentAlerts || 0;
   const hasActiveOrders = activeOrders > 0;
@@ -725,6 +748,25 @@ export default function Navbar() {
     });
   }, [buildDefaultSearchTemplates]);
 
+  // Buy For Me's on/off switch lives in its own BuyForMeConfig document, not
+  // the runtimeSettingsCatalog flags getRuntimeValue reads — same capability
+  // check Home.jsx uses for its promo banner, so the nav entry never
+  // advertises the feature while it's disabled.
+  useEffect(() => {
+    let active = true;
+    api
+      .get('/buy-for-me/capabilities')
+      .then(({ data }) => {
+        if (active) setBuyForMeEnabled(Boolean(data?.enabled));
+      })
+      .catch(() => {
+        if (active) setBuyForMeEnabled(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Load custom navigation items from localStorage
   useEffect(() => {
     try {
@@ -743,7 +785,7 @@ export default function Navbar() {
     { id: 'discover', label: t('nav.discover', 'Découvrir'), path: '/discover', icon: Compass, badge: null, visible: true, order: 1 },
     { id: 'favorites', label: t('nav.favorites', 'Favoris'), path: '/favorites', icon: Heart, badge: favoritesCount, visible: true, order: 2 },
     { id: 'cart', label: t('nav.cart', 'Panier'), path: '/cart', icon: ShoppingCart, badge: cartCount, visible: true, order: 3 },
-    { id: 'menu', label: t('nav.menu', 'Menu'), path: null, icon: Menu, badge: null, visible: true, order: 4, isButton: true },
+    { id: 'menu', label: t('nav.menu', 'Menu'), path: null, icon: Menu, badge: adminPendingTotal, visible: true, order: 4, isButton: true },
     // Additional items for expanded view
     { id: 'shops', label: t('nav.shops', 'Boutiques'), path: '/shops/verified', icon: Store, badge: null, visible: true, order: 5 },
     { id: 'profile', label: t('nav.profile', 'Profil'), path: '/profile', icon: User, badge: null, visible: user ? true : false, order: 6 },
@@ -755,6 +797,7 @@ export default function Navbar() {
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
     { id: 'referrals', label: t('nav.referrals', 'Parrainage'), path: '/referrals', icon: Gift, badge: null, visible: user ? referralProgramEnabled : false, order: 14.5 },
+    { id: 'buy-for-me', label: t('nav.buyForMe', 'Acheter pour moi'), path: '/buy-for-me', icon: ShoppingBag, badge: null, visible: user ? buyForMeEnabled : false, order: 14.6 },
     { id: 'parcels', label: t('nav.parcels', 'Envoyer un colis'), path: '/parcels/new', icon: Bike, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.7 },
     { id: 'my-parcels', label: t('nav.myParcels', 'Mes colis'), path: '/parcels', icon: Truck, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.8 },
     { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: BadgePercent, badge: null, visible: true, order: 15 }
@@ -3886,13 +3929,18 @@ export default function Navbar() {
                 <NavLink
                   to="/admin"
                   className={({ isActive }) =>
-                    `flex items-center gap-1.5 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
+                    `relative flex items-center gap-1.5 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 ${
                       isActive ? 'bg-white/20' : 'hover:bg-white/10'
                     }`
                   }
                 >
                   <Settings size={16} />
                   {isManager ? t('nav.management', 'Gestion') : t('nav.admin', 'Admin')}
+                  {adminPendingTotal > 0 && (
+                    <span className="ml-1 min-w-[18px] rounded-full bg-white px-1.5 py-0.5 text-center text-[10px] font-bold text-[#e85d00]">
+                      {adminPendingTotal > 99 ? '99+' : adminPendingTotal}
+                    </span>
+                  )}
                 </NavLink>
               )}
 
@@ -3978,6 +4026,21 @@ export default function Navbar() {
                 {t('nav.home', 'Accueil')}
               </NavLink>
 
+              {/* Assistant HDMarket (guided help chat) */}
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    window.dispatchEvent(new CustomEvent('hdmarket:open-assistant-chat'));
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl bg-gray-100 px-4 py-3 text-left font-medium text-gray-700 transition-all duration-200 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  <MessageCircle size={20} />
+                  {t('nav.assistantChat', 'Assistant HDMarket')}
+                </button>
+              )}
+
               {/* Boutiques mobile */}
               <NavLink
                 to="/shops/verified"
@@ -4022,6 +4085,21 @@ export default function Navbar() {
               >
                 <Sparkles size={20} />
                 {t('nav.benefits', 'Pourquoi HDMarket')}
+              </NavLink>
+
+              <NavLink
+                to="/a-propos"
+                onClick={() => setIsMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[#e85d00] text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                  }`
+                }
+              >
+                <Store size={20} />
+                {t('nav.about', 'À propos')}
               </NavLink>
 
               {aiRecommendationsEnabled && (
@@ -4450,6 +4528,14 @@ export default function Navbar() {
                             <SlidersHorizontal size={20} />
                             {t('nav.systemSettings', 'Paramètres système')}
                           </NavLink>
+                          <NavLink
+                            to="/admin/features"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            <Flag size={20} />
+                            Gestion des fonctionnalités
+                          </NavLink>
                         </>
                       )}
                 </>
@@ -4591,6 +4677,11 @@ export default function Navbar() {
                     <span className={`text-[11px] leading-4 ${isMenuOpen ? 'font-extrabold text-[#e85d00]' : 'font-semibold'}`}>
                       {item.label}
                     </span>
+                    {badge > 0 && (
+                      <span className="absolute right-1 top-0 min-w-[18px] rounded-full bg-[#e85d00] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
                     {/* Quick Actions Menu */}
                     {enableBottomBarQuickActions && showQuickActions === item.id && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">

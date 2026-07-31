@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Package, ChevronRight, Plus } from 'lucide-react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -18,6 +18,7 @@ const STATUS_LABELS = {
 
 export default function MyParcelRequests() {
   const { user } = useContext(AuthContext);
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,6 +33,8 @@ export default function MyParcelRequests() {
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [user]);
+
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
   return (
     <div className="min-h-screen bg-[#faf8f5] pb-24">

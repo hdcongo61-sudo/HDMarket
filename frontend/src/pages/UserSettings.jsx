@@ -6,6 +6,7 @@ import {
   Bot,
   ChevronRight,
   Coins,
+  FlaskConical,
   Globe,
   Monitor,
   Moon,
@@ -116,6 +117,8 @@ export default function UserSettings() {
   const [hardRefreshing, setHardRefreshing] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState(null);
   const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
+  const [betaStatus, setBetaStatus] = useState(null);
+  const [requestingBeta, setRequestingBeta] = useState(false);
   const themeOptions = useMemo(
     () => [
       { value: 'system', label: t('settings.theme.system', 'Systeme'), icon: Monitor },
@@ -154,6 +157,36 @@ export default function UserSettings() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/features/beta/me')
+      .then(({ data }) => {
+        if (!cancelled) setBetaStatus(data || { betaTester: false, application: { status: 'none' } });
+      })
+      .catch(() => {
+        if (!cancelled) setBetaStatus({ betaTester: false, application: { status: 'none' } });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const requestBetaAccess = useCallback(async () => {
+    if (requestingBeta || betaStatus?.betaTester || betaStatus?.application?.status === 'pending') return;
+    setRequestingBeta(true);
+    try {
+      const { data } = await api.post('/features/beta/request', {});
+      setBetaStatus((current) => ({
+        ...(current || {}),
+        betaTester: Boolean(data?.betaTester),
+        application: { ...(current?.application || {}), status: data?.status || 'pending' }
+      }));
+      showToast(data?.message || 'Demande bêta envoyée.', { variant: 'success' });
+    } catch (error) {
+      showToast(error?.response?.data?.message || 'Impossible d’envoyer la demande bêta.', { variant: 'error' });
+    } finally {
+      setRequestingBeta(false);
+    }
+  }, [betaStatus?.application?.status, betaStatus?.betaTester, requestingBeta, showToast]);
 
   const handleNotifToggle = useCallback(async (key) => {
     if (!notifPrefs || savingNotifPrefs) return;
@@ -426,6 +459,32 @@ export default function UserSettings() {
             checked={assistantChatEnabled}
             onChange={() => setAssistantChatEnabled(!assistantChatEnabled)}
           />
+        </SectionCard>
+
+        <SectionCard
+          icon={FlaskConical}
+          title="Programme bêta"
+          subtitle="Testez en avant-première les fonctionnalités HDMarket et partagez vos retours."
+        >
+          {betaStatus?.betaTester ? (
+            <div className="rounded-xl bg-emerald-50 px-3 py-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+              Vous êtes testeur bêta approuvé. Les nouveautés qui vous sont attribuées apparaîtront automatiquement.
+            </div>
+          ) : betaStatus?.application?.status === 'pending' ? (
+            <div className="rounded-xl bg-amber-50 px-3 py-3 text-sm font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+              Votre demande est en cours d’examen par l’équipe HDMarket.
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={requestBetaAccess}
+              disabled={requestingBeta}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-black text-white transition active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-neutral-900"
+            >
+              <FlaskConical size={16} className={requestingBeta ? 'animate-pulse' : ''} />
+              {requestingBeta ? 'Envoi…' : 'Devenir testeur bêta'}
+            </button>
+          )}
         </SectionCard>
 
         {/* ── Notification Preferences ── */}

@@ -1,5 +1,6 @@
 import express from 'express';
-import { protect } from '../middlewares/authMiddleware.js';
+import { optionalProtect, protect } from '../middlewares/authMiddleware.js';
+import { requireFeatureAccess } from '../middlewares/featureFlagMiddleware.js';
 import { deliveryProofUpload } from '../utils/deliveryProofUpload.js';
 import {
   cancelAdminBuyForMeOrder,
@@ -32,6 +33,11 @@ import {
 } from '../controllers/buyForMeCourierController.js';
 
 const router = express.Router();
+
+// Resolve the flag before every route. Authenticated requests carry their
+// targeting context; visitors are evaluated as guests and only see a released
+// feature. Individual mutations below still use the strict protect middleware.
+router.use(optionalProtect, requireFeatureAccess('enable_buy_for_me'));
 
 router.get('/capabilities', getBuyForMeCapabilities);
 router.post('/estimate', protect, estimateBuyForMe);

@@ -2486,10 +2486,12 @@ export default function ProductDetails() {
           {galleryImages.length > 1 && (
             <>
               <button type="button" onClick={(e) => { e.stopPropagation(); goToPrevImage(); }}
+                aria-label="Image précédente"
                 className="absolute left-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white active:scale-95">
                 <ChevronLeft size={20} />
               </button>
               <button type="button" onClick={(e) => { e.stopPropagation(); goToNextImage(); }}
+                aria-label="Image suivante"
                 className="absolute right-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white active:scale-95">
                 <ChevronRight size={20} />
               </button>

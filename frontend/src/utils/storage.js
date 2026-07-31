@@ -1,6 +1,13 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
+// Keys that can be scoped to the current browser tab/session instead of
+// persisted, when the user opts out of "remember me" on login. Native
+// platforms have no meaningful "close the browser" boundary, so this only
+// applies on web.
+const SESSION_SCOPED_KEYS = new Set(['qm_token', 'qm_user']);
+const REMEMBER_ME_FLAG_KEY = 'qm_remember_me_off';
+
 /**
  * Unified storage utility that works on both web and mobile
  * Uses Capacitor Preferences on native platforms and localStorage on web
@@ -14,9 +21,36 @@ class UnifiedStorage {
     }
     this.maxLocalStorageSize = 5 * 1024 * 1024; // 5MB limit for localStorage
   }
-  
+
   _useNativeStorage() {
     return this.isNative;
+  }
+
+  _isSessionScoped(key) {
+    if (this.isNative || typeof window === 'undefined' || !SESSION_SCOPED_KEYS.has(key)) {
+      return false;
+    }
+    try {
+      return localStorage.getItem(REMEMBER_ME_FLAG_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Sets whether the current auth session should be tab-scoped (sessionStorage,
+   * cleared when the browser/tab closes) rather than persisted across restarts.
+   * No-op on native platforms.
+   */
+  setRememberMe(remember) {
+    if (this.isNative || typeof window === 'undefined') return;
+    try {
+      if (remember) {
+        localStorage.removeItem(REMEMBER_ME_FLAG_KEY);
+      } else {
+        localStorage.setItem(REMEMBER_ME_FLAG_KEY, '1');
+      }
+    } catch {}
   }
 
   /**
@@ -26,9 +60,19 @@ class UnifiedStorage {
    */
   async get(key) {
     try {
+      if (this._isSessionScoped(key)) {
+        const rawValue = sessionStorage.getItem(key);
+        if (!rawValue || rawValue === 'null') return null;
+        try {
+          return JSON.parse(rawValue);
+        } catch {
+          return rawValue;
+        }
+      }
+
       const useNative = this._useNativeStorage();
       let rawValue = null;
-      
+
       if (useNative) {
         const result = await Preferences.get({ key });
         rawValue = result?.value;
@@ -67,8 +111,16 @@ class UnifiedStorage {
   async set(key, value) {
     try {
       const serialized = JSON.stringify(value);
+
+      if (this._isSessionScoped(key)) {
+        sessionStorage.setItem(key, serialized);
+        // Make sure no persistent copy from a prior "remembered" session lingers.
+        try { localStorage.removeItem(key); } catch {}
+        return true;
+      }
+
       const useNative = this._useNativeStorage();
-      
+
       if (useNative) {
         await Preferences.set({ key, value: serialized });
         return true;
@@ -109,6 +161,9 @@ class UnifiedStorage {
    */
   async remove(key) {
     try {
+      if (SESSION_SCOPED_KEYS.has(key) && typeof window !== 'undefined' && !this.isNative) {
+        try { sessionStorage.removeItem(key); } catch {}
+      }
       const useNative = this._useNativeStorage();
       if (useNative) {
         await Preferences.remove({ key });

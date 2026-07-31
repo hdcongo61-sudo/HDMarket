@@ -34,7 +34,7 @@ const DEFAULT_APP_INFORMATION = {
   appName: 'HDMarket',
   companyName: 'ETS HD Tech Filial',
   tagline: 'Marketplace sécurisée pour les vendeurs et acheteurs congolais.',
-  description: 'Achetez et vendez en toute confiance, partout au Congo.',
+  description: 'Achetez et vendez en toute confiance, envoyez des colis et faites livrer vos courses, partout au Congo.',
   supportEmail: 'support@hdmarket.cg',
   legalEmail: 'support@hdmarket.cg',
   supportPhone: '',

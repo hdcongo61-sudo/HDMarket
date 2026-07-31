@@ -850,6 +850,17 @@ function ProductCard({
                 <span className="truncate">{productCity}</span>
               </span>
             ) : null}
+
+            {installmentAvailable ? (
+              <span
+                className={`absolute z-20 inline-flex items-center gap-1 rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm ${
+                  useCommerceMobileCard ? 'bottom-1.5 left-1.5 sm:bottom-2 sm:left-2' : 'bottom-1.5 right-1.5 sm:bottom-2 sm:right-2'
+                }`}
+              >
+                <Clock className="h-3 w-3 shrink-0" />
+                Tranche
+              </span>
+            ) : null}
           </ProductDetailLink>
 
           <div className={`flex flex-1 flex-col gap-2 ${bodyPadding}`}>
@@ -1260,7 +1271,7 @@ function ProductCard({
               Certifié
             </div>
           )}
-          {installmentAvailable && !useCompactMobile && (
+          {installmentAvailable && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-800 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               <Clock className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Paiement en tranche
@@ -1284,6 +1295,16 @@ function ProductCard({
               Livraison gratuite
             </div>
           )}
+          </div>
+        )}
+
+        {/* Ultra-compact shop-profile cards hide the whole promo badge stack above,
+            but the installment badge stays visible on its own — purchase-affecting
+            info shouldn't disappear just because the grid is dense. */}
+        {isShopProfileCompact && installmentAvailable && (
+          <div className="absolute top-1 left-1 z-20 inline-flex items-center gap-0.5 rounded bg-neutral-800 px-1 py-0.5 text-[7px] font-bold text-white shadow-md">
+            <Clock className="w-2 h-2" />
+            Tranche
           </div>
         )}
 

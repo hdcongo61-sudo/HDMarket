@@ -3,8 +3,11 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
+  Heart,
+  Loader2,
   MapPin,
   PackageCheck,
+  Search,
   Share2,
   ShieldCheck,
   Sparkles,
@@ -27,12 +30,15 @@ const getDesktopBannerUrl = (url = '') =>
 const getMobileBannerUrl = (url = '') =>
   injectTransform(url, 'c_fill,g_auto,w_900,h_620,q_auto,f_auto');
 
+const getLogoUrl = (url = '') =>
+  injectTransform(url, 'c_fill,g_auto,w_256,h_256,q_auto,f_auto');
+
 const HeroButton = ({ label, onClick, children }) => (
   <button
     type="button"
     onClick={onClick}
     aria-label={label}
-    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/30 text-white shadow-sm backdrop-blur-md transition hover:bg-black/45 active:scale-95"
+    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/30 bg-black/30 text-white shadow-sm backdrop-blur-md transition hover:bg-black/45 active:scale-95"
   >
     {children}
   </button>
@@ -49,6 +55,15 @@ export default function ShopHero({
   hasFreeDelivery,
   yearsActiveLabel,
   customerSatisfaction,
+  followersCount,
+  completedOrders,
+  isOwnShop,
+  isFollowing,
+  followDisabled,
+  followPending,
+  onFollowToggle,
+  productSearch,
+  onProductSearchChange,
   onBack,
   onShare,
   t
@@ -66,15 +81,20 @@ export default function ShopHero({
       "Cette boutique n'a pas encore de description publique."
     );
 
+  const proofParts = [
+    `${formatCount(followersCount)} ${t('shop_profile.followers', 'Abonnés')}`,
+    `${formatCount(completedOrders)} ${t('shop_profile.orders', 'Commandes')}`
+  ];
+  if (location) proofParts.push(location);
+
   return (
-    <section className="overflow-hidden bg-white shadow-sm ring-1 ring-black/5 sm:rounded-3xl dark:bg-neutral-950 dark:ring-white/10">
-      <div className="relative h-[190px] overflow-hidden bg-neutral-900 sm:h-[280px] lg:h-[320px]">
+    <section className="sm:rounded-3xl">
+      {/* ── En-tête orange façon Taobao ─────────────────────────────── */}
+      <div className="relative overflow-hidden sm:rounded-t-3xl">
         <div
           className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(135deg, color-mix(in srgb, var(--shop-color) 84%, #111827), var(--shop-color))'
-          }}
+          style={{ background: 'linear-gradient(135deg, #FF5000 0%, #FF3D00 100%)' }}
+          aria-hidden="true"
         />
 
         {banner ? (
@@ -82,14 +102,22 @@ export default function ShopHero({
             <img
               src={getDesktopBannerUrl(banner)}
               alt={`${t('shop_profile.banner', 'Bannière')} ${shopName}`}
-              className="relative hidden h-full w-full object-cover sm:block"
+              className="absolute inset-0 hidden h-full w-full object-cover sm:block"
               loading="eager"
             />
             <img
               src={getMobileBannerUrl(mobileBanner)}
               alt={`${t('shop_profile.banner', 'Bannière')} ${shopName}`}
-              className="relative h-full w-full object-cover sm:hidden"
+              className="absolute inset-0 h-full w-full object-cover sm:hidden"
               loading="eager"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(255,80,0,0.88) 0%, rgba(255,61,0,0.88) 100%)'
+              }}
+              aria-hidden="true"
             />
           </>
         ) : (
@@ -99,154 +127,164 @@ export default function ShopHero({
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/5 to-black/70" />
-
-        <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between p-3 sm:p-5">
-          <HeroButton label={t('common.back', 'Retour')} onClick={onBack}>
-            <ArrowLeft size={19} />
-          </HeroButton>
+        <div className="relative z-10 px-3 pb-14 pt-3 sm:px-5 sm:pb-16 sm:pt-4">
+          {/* Rangée haute : retour, recherche en boutique, partage */}
           <div className="flex items-center gap-2">
-            {hasActivePromo ? (
-              <span className="hidden min-h-10 items-center gap-1.5 rounded-full border border-white/25 bg-black/30 px-3 text-xs font-black text-white backdrop-blur-md sm:inline-flex">
-                <Sparkles size={14} />
-                {formatCount(shop?.activePromoCountNow)} promo(s)
-              </span>
-            ) : null}
+            <HeroButton label={t('common.back', 'Retour')} onClick={onBack}>
+              <ArrowLeft size={19} />
+            </HeroButton>
+            <div className="relative min-w-0 flex-1">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
+              />
+              <input
+                type="text"
+                value={productSearch}
+                onChange={(e) => onProductSearchChange(e.target.value)}
+                placeholder={t('shop_profile.search_in_shop', 'Rechercher dans la boutique')}
+                aria-label={t('shop_profile.search_in_shop', 'Rechercher dans la boutique')}
+                className="h-10 w-full rounded-full border-0 bg-white pl-10 pr-4 text-sm font-medium text-neutral-900 shadow-sm outline-none ring-0 transition placeholder:text-neutral-400 focus:ring-2 focus:ring-white/70 dark:bg-neutral-900 dark:text-white dark:placeholder:text-neutral-500"
+              />
+            </div>
             <HeroButton label={t('shop_profile.share', 'Partager')} onClick={onShare}>
               <Share2 size={18} />
             </HeroButton>
           </div>
-        </div>
 
-        <div className="absolute bottom-4 right-3 z-10 flex flex-wrap justify-end gap-2 sm:bottom-5 sm:right-5">
-          {isCertifiedShop ? (
-            <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3 text-[11px] font-black text-emerald-700 shadow-lg">
-              <ShieldCheck size={14} />
-              {t('shop_profile.verified', 'Boutique vérifiée')}
-            </span>
-          ) : null}
-          {hasActivePromo ? (
-            <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[var(--shop-color)] px-3 text-[11px] font-black text-[var(--shop-color-contrast)] shadow-lg sm:hidden">
-              <Sparkles size={13} />
-              Promotions
-            </span>
-          ) : null}
+          {/* Identité de la boutique */}
+          <div className="mt-4 flex items-center gap-3 sm:mt-5 sm:gap-4">
+            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 border-white/80 bg-white shadow-md sm:h-20 sm:w-20 dark:bg-neutral-900">
+              {shop?.shopLogo ? (
+                <img
+                  src={getLogoUrl(shop.shopLogo)}
+                  alt={`Logo ${shopName}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-2xl font-black text-[var(--shop-color)] sm:text-3xl">
+                  {initial}
+                </span>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <h1 className="line-clamp-2 text-lg font-black leading-tight tracking-tight text-white sm:text-2xl">
+                  {shopName}
+                </h1>
+                {isCertifiedShop ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-emerald-700 shadow-sm">
+                    <ShieldCheck size={12} />
+                    {t('shop_profile.verified', 'Boutique vérifiée')}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 flex min-w-0 items-center gap-1 truncate text-[11px] font-semibold text-white/85 sm:text-xs">
+                <MapPin size={12} className="shrink-0" />
+                <span className="truncate">{proofParts.join(' · ')}</span>
+              </p>
+            </div>
+
+            {!isOwnShop ? (
+              <button
+                type="button"
+                onClick={onFollowToggle}
+                disabled={followDisabled || followPending}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-black text-[#FF3D00] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {followPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Heart size={14} className={isFollowing ? 'fill-current' : ''} />
+                )}
+                {isFollowing
+                  ? t('shop_profile.following', 'Suivi')
+                  : t('shop_profile.follow', 'Suivre')}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="relative px-4 pb-5 sm:px-7 sm:pb-7">
-        <div className="flex items-start gap-2.5 sm:gap-4">
-          <div className="relative z-10 -mt-7 grid h-[68px] w-[68px] shrink-0 place-items-center overflow-hidden rounded-[18px] border-[3px] border-white bg-white shadow-md ring-1 ring-black/5 sm:-mt-9 sm:h-[88px] sm:w-[88px] sm:rounded-[22px] dark:border-neutral-950 dark:bg-neutral-900 dark:ring-white/10">
-            {shop?.shopLogo ? (
-              <img
-                src={shop.shopLogo}
-                alt={`Logo ${shopName}`}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="text-xl font-black text-[var(--shop-color)] sm:text-3xl">
-                {initial}
-              </span>
-            )}
-          </div>
-
-          <div
-            className="z-10 mt-2 min-w-0 flex-1 border-l-[3px] bg-white px-2 py-0.5 sm:mt-3 sm:px-3 sm:py-1 dark:bg-neutral-950"
-            style={{ borderLeftColor: 'var(--shop-color)' }}
-          >
-            <div className="flex min-w-0 items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[var(--shop-color)] sm:text-[9px]">
-                  {t('shop_profile.badge_shop', 'Boutique')}
-                </p>
-                <h1 className="mt-0.5 line-clamp-2 text-[17px] font-black leading-[1.08] tracking-tight text-neutral-950 sm:text-[24px] dark:text-white">
-                  {shopName}
-                </h1>
-              </div>
-              {isCertifiedShop ? (
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 sm:h-auto sm:w-auto sm:gap-1 sm:px-2 sm:py-1 sm:text-[9px] sm:font-black dark:bg-emerald-500/10 dark:text-emerald-300">
-                  <ShieldCheck className="h-4 w-4 shrink-0 sm:h-3.5 sm:w-3.5" />
-                  <span className="hidden sm:inline">
-                    {t('shop_profile.verified', 'Vérifiée')}
-                  </span>
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-1 flex min-w-0 items-center gap-1 text-[10px] font-bold text-neutral-500 sm:text-xs dark:text-neutral-400">
-              <MapPin className="h-3 w-3 shrink-0 text-[var(--shop-color)]" />
-              <span className="truncate">{location || 'HDMarket'}</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-black ${
-              isOpen
-                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'
-            }`}
-          >
-            <span className={`h-2 w-2 rounded-full ${isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-            {openingSummary?.statusText}
-          </span>
-          <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-black text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-            <Star size={13} className="fill-current" />
-            {formatRatingLabel(ratingAverage)}
-            <span className="font-semibold opacity-70">
-              ({formatCount(ratingCount)})
-            </span>
-          </span>
-          {hasFreeDelivery ? (
-            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-sky-50 px-3 text-xs font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
-              <PackageCheck size={13} />
-              Livraison offerte
-            </span>
-          ) : (
-            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-neutral-100 px-3 text-xs font-black text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-              <Store size={13} />
-              Retrait disponible
-            </span>
-          )}
-        </div>
-
-        <p className="mt-4 max-w-4xl text-sm font-medium leading-6 text-neutral-600 sm:text-[15px] dark:text-neutral-300">
-          {description}
-        </p>
-
-        <div className="mt-5 grid grid-cols-4 overflow-hidden rounded-2xl border border-neutral-100 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/70">
+      {/* ── Carte stats blanche chevauchant l'en-tête ───────────────── */}
+      <div className="relative z-20 -mt-9 px-3 sm:-mt-10 sm:px-5">
+        <div className="grid grid-cols-4 rounded-2xl bg-white px-1 py-3 shadow-lg ring-1 ring-black/5 sm:py-4 dark:bg-neutral-900 dark:ring-white/10">
           {stats.map((item) => (
-            <div
-              key={item.label}
-              className="min-w-0 border-r border-neutral-200 px-1.5 py-3 text-center last:border-r-0 sm:px-4 sm:py-4 dark:border-neutral-800"
-            >
-              <p className="truncate text-base font-black text-neutral-950 sm:text-xl dark:text-white">
+            <div key={item.label} className="min-w-0 px-1 text-center sm:px-2">
+              <p className="truncate text-base font-black text-[#FF3D00] sm:text-xl">
                 {item.value}
               </p>
-              <p className="mt-0.5 truncate text-[10px] font-bold text-neutral-500 sm:text-xs dark:text-neutral-400">
+              <p className="mt-0.5 truncate text-[10px] font-medium text-neutral-500 sm:text-xs dark:text-neutral-400">
                 {item.label}
               </p>
             </div>
           ))}
         </div>
+      </div>
 
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {ratingCount > 0 && customerSatisfaction ? (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
-              <Star size={12} />
-              {customerSatisfaction} satisfaction
+      {/* ── Informations détaillées ─────────────────────────────────── */}
+      <div className="mt-3 px-3 pb-4 sm:px-5">
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-5 dark:bg-neutral-900 dark:ring-white/10">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-black ${
+                isOpen
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                  : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              {openingSummary?.statusText}
             </span>
-          ) : null}
-          {yearsActiveLabel ? (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
-              <Clock size={12} />
-              Ancienneté : {yearsActiveLabel}
+            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-black text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+              <Star size={13} className="fill-current" />
+              {formatRatingLabel(ratingAverage)}
+              <span className="font-semibold opacity-70">
+                ({formatCount(ratingCount)})
+              </span>
             </span>
-          ) : null}
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
-            <Calendar size={12} />
-            {t('shop_profile.member_since', 'Membre depuis')} {formatDate(shop?.createdAt)}
-          </span>
+            {hasActivePromo ? (
+              <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-[var(--shop-color)] px-3 text-xs font-black text-[var(--shop-color-contrast)]">
+                <Sparkles size={13} />
+                {formatCount(shop?.activePromoCountNow)} promo(s)
+              </span>
+            ) : null}
+            {hasFreeDelivery ? (
+              <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-sky-50 px-3 text-xs font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
+                <PackageCheck size={13} />
+                Livraison offerte
+              </span>
+            ) : (
+              <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-neutral-100 px-3 text-xs font-black text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                <Store size={13} />
+                Retrait disponible
+              </span>
+            )}
+          </div>
+
+          <p className="mt-3 text-sm font-medium leading-6 text-neutral-600 sm:text-[15px] dark:text-neutral-300">
+            {description}
+          </p>
+
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {ratingCount > 0 && customerSatisfaction ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
+                <Star size={12} />
+                {customerSatisfaction} satisfaction
+              </span>
+            ) : null}
+            {yearsActiveLabel ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
+                <Clock size={12} />
+                Ancienneté : {yearsActiveLabel}
+              </span>
+            ) : null}
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
+              <Calendar size={12} />
+              {t('shop_profile.member_since', 'Membre depuis')} {formatDate(shop?.createdAt)}
+            </span>
+          </div>
         </div>
       </div>
     </section>

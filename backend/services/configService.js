@@ -11,6 +11,7 @@ import {
   normalizeConfigEnvironment,
   validateSettingValue
 } from '../config/runtimeSettingsCatalog.js';
+import { catalogFeatureNames, getCatalogFeature } from '../config/featureCatalog.js';
 
 const CACHE_PREFIX = 'hdmarket:config:';
 const CACHE_TTL_SECONDS = Math.max(15, Number(process.env.CONFIG_CACHE_TTL_SECONDS || 120));
@@ -354,16 +355,107 @@ const hashString = (value) => {
 const featureFlagCacheKey = (featureName, environment = 'all') =>
   makeCacheKey({ type: 'feature', environment, key: featureName });
 
+const cleanText = (value) => String(value || '').trim();
+const cleanStringArray = (value) =>
+  Array.from(new Set((Array.isArray(value) ? value : []).map(cleanText).filter(Boolean)));
+const clampRollout = (value, fallback = 100) =>
+  Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : fallback));
+const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key);
+
+const normalizeTargeting = (targeting = {}, legacyRoles = []) => ({
+  userIds: Array.from(
+    new Set((Array.isArray(targeting?.userIds) ? targeting.userIds : []).map((item) => String(item || '')).filter(Boolean))
+  ),
+  roles: cleanStringArray(targeting?.roles?.length ? targeting.roles : legacyRoles),
+  countries: cleanStringArray(targeting?.countries),
+  cities: cleanStringArray(targeting?.cities),
+  communes: cleanStringArray(targeting?.communes),
+  platforms: cleanStringArray(targeting?.platforms)
+    .map((item) => item.toLowerCase())
+    .filter((item) => ['android', 'ios', 'web', 'pwa'].includes(item)),
+  minAppVersion: cleanText(targeting?.minAppVersion),
+  betaTestersOnly: Boolean(targeting?.betaTestersOnly)
+});
+
+const normalizeSchedule = (schedule = {}) => ({
+  releaseAt: schedule?.releaseAt ? new Date(schedule.releaseAt) : null,
+  expiresAt: schedule?.expiresAt ? new Date(schedule.expiresAt) : null,
+  timezone: cleanText(schedule?.timezone) || 'Africa/Brazzaville'
+});
+
+const normalizeExperiments = (experiments = []) =>
+  (Array.isArray(experiments) ? experiments : [])
+    .map((experiment) => ({
+      key: cleanText(experiment?.key),
+      name: cleanText(experiment?.name),
+      rolloutPercentage: clampRollout(experiment?.rolloutPercentage, 0),
+      config:
+        experiment?.config && typeof experiment.config === 'object' && !Array.isArray(experiment.config)
+          ? experiment.config
+          : {}
+    }))
+    .filter((experiment) => experiment.key);
+
 const getFeatureFlagDefault = (featureName) => {
-  const defaults = FEATURE_FLAG_DEFAULTS[featureName];
-  if (!defaults) return null;
+  const legacy = FEATURE_FLAG_DEFAULTS[featureName] || null;
+  const catalog = getCatalogFeature(featureName);
+  if (!legacy && !catalog) return null;
+
+  const enabled = catalog?.enabled ?? legacy?.enabled ?? false;
+  const rolesAllowed = cleanStringArray(legacy?.rolesAllowed || catalog?.rolesAllowed || []);
   return {
     featureName,
-    enabled: Boolean(defaults.enabled),
-    rolesAllowed: Array.isArray(defaults.rolesAllowed) ? defaults.rolesAllowed : [],
-    rolloutPercentage: Number(defaults.rolloutPercentage || 0),
-    description: String(defaults.description || ''),
-    environment: 'all'
+    displayName: catalog?.displayName || featureName,
+    category: catalog?.category || 'other',
+    icon: catalog?.icon || 'Sparkles',
+    version: catalog?.version || '1.0.0',
+    enabled: Boolean(enabled),
+    emergencyDisabled: false,
+    releaseStage: catalog?.releaseStage || (enabled ? 'released' : 'development'),
+    rolesAllowed,
+    rolloutPercentage: clampRollout(catalog?.rolloutPercentage ?? legacy?.rolloutPercentage, enabled ? 100 : 0),
+    description: String(catalog?.description || legacy?.description || ''),
+    targeting: normalizeTargeting(catalog?.targeting || {}, rolesAllowed),
+    dependencies: cleanStringArray(catalog?.dependencies),
+    remoteConfig: catalog?.remoteConfig || {},
+    schedule: normalizeSchedule(catalog?.schedule),
+    experiments: normalizeExperiments(catalog?.experiments),
+    environment: 'all',
+    isCatalogDefault: true
+  };
+};
+
+const normalizeFeatureFlag = (record = {}) => {
+  if (!record) return null;
+  const featureName = cleanText(record.featureName);
+  const fallback = getFeatureFlagDefault(featureName) || {};
+  const rolesAllowed = cleanStringArray(record.rolesAllowed ?? fallback.rolesAllowed ?? []);
+  const targeting = normalizeTargeting(record.targeting ?? fallback.targeting ?? {}, rolesAllowed);
+  return {
+    ...fallback,
+    ...record,
+    featureName,
+    displayName: cleanText(record.displayName || fallback.displayName || featureName),
+    category: cleanText(record.category || fallback.category || 'other'),
+    icon: cleanText(record.icon || fallback.icon || 'Sparkles'),
+    version: cleanText(record.version || fallback.version || '1.0.0'),
+    enabled: Boolean(record.enabled ?? fallback.enabled),
+    emergencyDisabled: Boolean(record.emergencyDisabled),
+    releaseStage: ['development', 'beta', 'released', 'archived'].includes(record.releaseStage)
+      ? record.releaseStage
+      : fallback.releaseStage || 'development',
+    rolesAllowed,
+    rolloutPercentage: clampRollout(record.rolloutPercentage ?? fallback.rolloutPercentage, 100),
+    description: String(record.description ?? fallback.description ?? ''),
+    targeting,
+    dependencies: cleanStringArray(record.dependencies ?? fallback.dependencies ?? []),
+    remoteConfig:
+      record.remoteConfig && typeof record.remoteConfig === 'object' && !Array.isArray(record.remoteConfig)
+        ? record.remoteConfig
+        : fallback.remoteConfig || {},
+    schedule: normalizeSchedule(record.schedule ?? fallback.schedule ?? {}),
+    experiments: normalizeExperiments(record.experiments ?? fallback.experiments ?? []),
+    environment: normalizeEnv(record.environment || fallback.environment || 'all')
   };
 };
 
@@ -372,7 +464,7 @@ const fetchFeatureFlagRecord = async (featureName, environment = 'all') => {
   const record =
     (await FeatureFlag.findOne({ featureName, environment: env }).lean()) ||
     (await FeatureFlag.findOne({ featureName, environment: 'all' }).lean());
-  return record || getFeatureFlagDefault(featureName);
+  return normalizeFeatureFlag(record || getFeatureFlagDefault(featureName));
 };
 
 export const getFeatureFlag = async (featureName, options = {}) => {
@@ -394,6 +486,69 @@ export const getFeatureFlag = async (featureName, options = {}) => {
   return record;
 };
 
+const compareVersions = (currentVersion = '', minimumVersion = '') => {
+  const parse = (value) =>
+    cleanText(value)
+      .replace(/^v/i, '')
+      .split(/[.+-]/)
+      .map((part) => (Number.isFinite(Number(part)) ? Number(part) : 0));
+  const current = parse(currentVersion);
+  const minimum = parse(minimumVersion);
+  const width = Math.max(current.length, minimum.length, 3);
+  for (let index = 0; index < width; index += 1) {
+    const currentPart = current[index] || 0;
+    const minimumPart = minimum[index] || 0;
+    if (currentPart > minimumPart) return 1;
+    if (currentPart < minimumPart) return -1;
+  }
+  return 0;
+};
+
+const getEffectiveStage = (record, referenceDate = new Date()) => {
+  const configuredStage = record.releaseStage || 'development';
+  const schedule = record.schedule || {};
+  const expiresAt = schedule.expiresAt ? new Date(schedule.expiresAt) : null;
+  if (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt <= referenceDate) {
+    return { stage: configuredStage, expired: true, automaticallyReleased: false };
+  }
+  const releaseAt = schedule.releaseAt ? new Date(schedule.releaseAt) : null;
+  const automaticallyReleased =
+    configuredStage === 'beta' && releaseAt && !Number.isNaN(releaseAt.getTime()) && releaseAt <= referenceDate;
+  return {
+    stage: automaticallyReleased ? 'released' : configuredStage,
+    expired: false,
+    automaticallyReleased
+  };
+};
+
+const withFeatureRuntimeState = (record) => {
+  const state = getEffectiveStage(record);
+  return {
+    ...record,
+    effectiveReleaseStage: state.stage,
+    isExpired: state.expired,
+    automaticallyReleased: state.automaticallyReleased
+  };
+};
+
+const evaluateExperiment = (record, seed) => {
+  const experiments = normalizeExperiments(record.experiments);
+  const bucket = hashString(`${record.featureName}:experiment:${seed}`) % 100;
+  let threshold = 0;
+  for (const experiment of experiments) {
+    threshold += experiment.rolloutPercentage;
+    if (bucket < threshold) {
+      return {
+        variant: experiment.key,
+        experiment: experiment.name || experiment.key,
+        bucket,
+        config: { ...(record.remoteConfig || {}), ...(experiment.config || {}) }
+      };
+    }
+  }
+  return { variant: 'control', experiment: '', bucket, config: { ...(record.remoteConfig || {}) } };
+};
+
 export const isFeatureEnabled = async (featureName, options = {}) => {
   const record = await getFeatureFlag(featureName, options);
   if (!record || !record.enabled) {
@@ -404,38 +559,118 @@ export const isFeatureEnabled = async (featureName, options = {}) => {
     };
   }
 
+  if (record.emergencyDisabled) {
+    return { featureName, enabled: false, reason: 'emergency_disabled' };
+  }
+
+  const nowDate = options.now instanceof Date ? options.now : new Date();
+  const stageState = getEffectiveStage(record, nowDate);
+  if (stageState.expired) {
+    return { featureName, enabled: false, reason: 'feature_expired' };
+  }
+  if (stageState.stage === 'archived') {
+    return { featureName, enabled: false, reason: 'feature_archived' };
+  }
+
   const role = String(options.role || '').trim();
-  if (Array.isArray(record.rolesAllowed) && record.rolesAllowed.length > 0) {
-    if (!role || !record.rolesAllowed.includes(role)) {
+  const targeting = normalizeTargeting(record.targeting, record.rolesAllowed);
+  const isPrivilegedDeveloper =
+    Boolean(options.isDeveloper) || ['founder', 'admin'].includes(String(role || '').toLowerCase());
+  if (stageState.stage === 'development' && !isPrivilegedDeveloper) {
+    return { featureName, enabled: false, reason: 'development_only' };
+  }
+
+  const userId = String(options.userId || '');
+  const isSpecificallyTargeted = targeting.userIds.includes(userId);
+  if (targeting.userIds.length > 0 && !isSpecificallyTargeted) {
+    return { featureName, enabled: false, reason: 'user_not_targeted' };
+  }
+
+  const isBetaTester = Boolean(options.isBetaTester);
+  if (stageState.stage === 'beta' && !isSpecificallyTargeted && !isBetaTester) {
+    return { featureName, enabled: false, reason: 'beta_tester_required' };
+  }
+  if (targeting.betaTestersOnly && !isSpecificallyTargeted && !isBetaTester) {
+    return { featureName, enabled: false, reason: 'beta_tester_required' };
+  }
+
+  if (targeting.roles.length > 0) {
+    const roles = [role, String(options.accountType || '').trim()].filter(Boolean);
+    if (!roles.some((candidate) => targeting.roles.includes(candidate))) {
       return {
         featureName,
         enabled: false,
         reason: 'role_not_allowed',
-        rolesAllowed: record.rolesAllowed
+        rolesAllowed: targeting.roles
+      };
+    }
+  }
+
+  const locationRules = [
+    ['countries', options.country, 'country_not_allowed'],
+    ['cities', options.city, 'city_not_allowed'],
+    ['communes', options.commune, 'commune_not_allowed']
+  ];
+  for (const [field, requestedValue, reason] of locationRules) {
+    if (targeting[field].length > 0 && !targeting[field].includes(cleanText(requestedValue))) {
+      return { featureName, enabled: false, reason };
+    }
+  }
+
+  const platform = cleanText(options.platform).toLowerCase();
+  if (targeting.platforms.length > 0 && !targeting.platforms.includes(platform)) {
+    return { featureName, enabled: false, reason: 'platform_not_allowed' };
+  }
+
+  if (
+    targeting.minAppVersion &&
+    compareVersions(cleanText(options.appVersion), targeting.minAppVersion) < 0
+  ) {
+    return {
+      featureName,
+      enabled: false,
+      reason: 'app_version_too_old',
+      minAppVersion: targeting.minAppVersion
+    };
+  }
+
+  const visited = options._visited instanceof Set ? options._visited : new Set();
+  if (visited.has(featureName)) {
+    return { featureName, enabled: false, reason: 'dependency_cycle' };
+  }
+  const nextVisited = new Set(visited);
+  nextVisited.add(featureName);
+  for (const dependency of record.dependencies || []) {
+    // Dependencies keep the same audience and deterministic seed as the parent.
+    const dependencyResult = await isFeatureEnabled(dependency, { ...options, _visited: nextVisited });
+    if (!dependencyResult.enabled) {
+      return {
+        featureName,
+        enabled: false,
+        reason: 'dependency_not_available',
+        dependency,
+        dependencyReason: dependencyResult.reason
       };
     }
   }
 
   const rollout = Number(record.rolloutPercentage || 0);
-  if (rollout >= 100) {
-    return {
-      featureName,
-      enabled: true,
-      reason: 'fully_enabled',
-      rolloutPercentage: rollout
-    };
-  }
-
   const seed = options.userId || options.sessionId || options.deviceId || 'anonymous';
   const bucket = hashString(`${featureName}:${seed}`) % 100;
-  const enabled = bucket < rollout;
+  const enabled = rollout >= 100 || bucket < rollout;
+  const experiment = enabled ? evaluateExperiment(record, seed) : null;
 
   return {
     featureName,
     enabled,
-    reason: enabled ? 'rollout_enabled' : 'rollout_disabled',
+    reason: enabled ? (rollout >= 100 ? 'fully_enabled' : 'rollout_enabled') : 'rollout_disabled',
     rolloutPercentage: rollout,
-    bucket
+    bucket,
+    releaseStage: stageState.stage,
+    automaticallyReleased: stageState.automaticallyReleased,
+    variant: experiment?.variant || 'control',
+    experiment: experiment?.experiment || '',
+    config: experiment?.config || {}
   };
 };
 
@@ -448,13 +683,72 @@ export const upsertFeatureFlag = async (featureName, payload = {}, options = {})
   }
 
   const env = normalizeEnv(options.environment);
-  const enabled = Boolean(payload.enabled);
-  const rollout = Math.max(0, Math.min(100, Number(payload.rolloutPercentage ?? 100)));
-  const rolesAllowed = Array.isArray(payload.rolesAllowed)
-    ? payload.rolesAllowed
-        .map((role) => String(role || '').trim())
-        .filter(Boolean)
-    : [];
+  const existing = await fetchFeatureFlagRecord(cleanName, env);
+  const catalog = getCatalogFeature(cleanName) || {};
+  const existingTargeting = normalizeTargeting(existing?.targeting, existing?.rolesAllowed);
+  const requestedTargeting = hasOwn(payload, 'targeting')
+    ? payload.targeting || {}
+    : existingTargeting;
+  const rolesAllowed = cleanStringArray(
+    hasOwn(payload, 'rolesAllowed') ? payload.rolesAllowed : requestedTargeting?.roles || existing?.rolesAllowed || []
+  );
+  const targeting = normalizeTargeting(
+    {
+      ...existingTargeting,
+      ...(requestedTargeting && typeof requestedTargeting === 'object' ? requestedTargeting : {}),
+      ...(hasOwn(payload, 'rolesAllowed') ? { roles: rolesAllowed } : {})
+    },
+    rolesAllowed
+  );
+  const enabled = hasOwn(payload, 'enabled') ? Boolean(payload.enabled) : Boolean(existing?.enabled ?? catalog.enabled);
+  const releaseStage = hasOwn(payload, 'releaseStage')
+    ? cleanText(payload.releaseStage).toLowerCase()
+    : existing?.releaseStage || catalog.releaseStage || 'development';
+  if (!['development', 'beta', 'released', 'archived'].includes(releaseStage)) {
+    const error = new Error('Invalid release stage');
+    error.statusCode = 400;
+    throw error;
+  }
+  const dependencies = cleanStringArray(
+    hasOwn(payload, 'dependencies') ? payload.dependencies : existing?.dependencies || catalog.dependencies || []
+  ).filter((dependency) => dependency !== cleanName);
+  const schedule = normalizeSchedule(
+    hasOwn(payload, 'schedule') ? payload.schedule : existing?.schedule || catalog.schedule || {}
+  );
+  if (schedule.releaseAt && Number.isNaN(schedule.releaseAt.getTime())) {
+    const error = new Error('Invalid release date');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (schedule.expiresAt && Number.isNaN(schedule.expiresAt.getTime())) {
+    const error = new Error('Invalid expiration date');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (schedule.releaseAt && schedule.expiresAt && schedule.expiresAt <= schedule.releaseAt) {
+    const error = new Error('Expiration must be after the release date');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (enabled && releaseStage !== 'archived') {
+    for (const dependency of dependencies) {
+      const dependencyRecord = await getFeatureFlag(dependency, { environment: env });
+      const dependencyState = dependencyRecord ? getEffectiveStage(dependencyRecord) : null;
+      if (
+        !dependencyRecord ||
+        !dependencyRecord.enabled ||
+        dependencyRecord.emergencyDisabled ||
+        dependencyState?.expired ||
+        dependencyState?.stage === 'archived'
+      ) {
+        const error = new Error(`Dependency ${dependency} is not enabled`);
+        error.statusCode = 409;
+        error.dependency = dependency;
+        throw error;
+      }
+    }
+  }
 
   const doc = await FeatureFlag.findOneAndUpdate(
     { featureName: cleanName, environment: env },
@@ -462,9 +756,27 @@ export const upsertFeatureFlag = async (featureName, payload = {}, options = {})
       $set: {
         featureName: cleanName,
         enabled,
+        displayName: cleanText(payload.displayName ?? existing?.displayName ?? catalog.displayName ?? cleanName),
+        category: cleanText(payload.category ?? existing?.category ?? catalog.category ?? 'other'),
+        icon: cleanText(payload.icon ?? existing?.icon ?? catalog.icon ?? 'Sparkles'),
+        version: cleanText(payload.version ?? existing?.version ?? catalog.version ?? '1.0.0'),
+        emergencyDisabled: hasOwn(payload, 'emergencyDisabled')
+          ? Boolean(payload.emergencyDisabled)
+          : Boolean(existing?.emergencyDisabled),
+        releaseStage,
         rolesAllowed,
-        rolloutPercentage: rollout,
-        description: String(payload.description || ''),
+        rolloutPercentage: clampRollout(payload.rolloutPercentage ?? existing?.rolloutPercentage, 100),
+        description: String(payload.description ?? existing?.description ?? catalog.description ?? ''),
+        targeting,
+        dependencies,
+        remoteConfig:
+          hasOwn(payload, 'remoteConfig') && payload.remoteConfig && typeof payload.remoteConfig === 'object'
+            ? payload.remoteConfig
+            : existing?.remoteConfig || catalog.remoteConfig || {},
+        schedule,
+        experiments: normalizeExperiments(
+          hasOwn(payload, 'experiments') ? payload.experiments : existing?.experiments || catalog.experiments || []
+        ),
         updatedBy: options.updatedBy || null,
         environment: env
       }
@@ -473,7 +785,7 @@ export const upsertFeatureFlag = async (featureName, payload = {}, options = {})
   ).lean();
 
   await invalidateFeatureFlagCache(cleanName);
-  return doc;
+  return normalizeFeatureFlag(doc);
 };
 
 export const listFeatureFlags = async (options = {}) => {
@@ -494,20 +806,13 @@ export const listFeatureFlags = async (options = {}) => {
     }
   });
 
-  Object.entries(FEATURE_FLAG_DEFAULTS).forEach(([featureName, defaults]) => {
+  Array.from(new Set([...Object.keys(FEATURE_FLAG_DEFAULTS), ...catalogFeatureNames()])).forEach((featureName) => {
     if (!byName.has(featureName)) {
-      byName.set(featureName, {
-        featureName,
-        enabled: Boolean(defaults.enabled),
-        rolesAllowed: Array.isArray(defaults.rolesAllowed) ? defaults.rolesAllowed : [],
-        rolloutPercentage: Number(defaults.rolloutPercentage || 0),
-        description: String(defaults.description || ''),
-        environment: 'all'
-      });
+      byName.set(featureName, getFeatureFlagDefault(featureName));
     }
   });
 
-  const items = Array.from(byName.values()).sort((a, b) =>
+  const items = Array.from(byName.values()).map(normalizeFeatureFlag).map(withFeatureRuntimeState).sort((a, b) =>
     String(a.featureName || '').localeCompare(String(b.featureName || ''))
   );
 
@@ -584,7 +889,15 @@ export const getPublicRuntimeConfig = async (options = {}) => {
         role: options.role,
         userId: options.userId,
         sessionId: options.sessionId,
-        deviceId: options.deviceId
+        deviceId: options.deviceId,
+        accountType: options.accountType,
+        country: options.country,
+        city: options.city,
+        commune: options.commune,
+        platform: options.platform,
+        appVersion: options.appVersion,
+        isBetaTester: options.isBetaTester,
+        isDeveloper: options.isDeveloper
       });
       return [
         item.featureName,
@@ -592,7 +905,9 @@ export const getPublicRuntimeConfig = async (options = {}) => {
           enabled: Boolean(result.enabled),
           rolloutPercentage: Number(item.rolloutPercentage || 0),
           rolesAllowed: Array.isArray(item.rolesAllowed) ? item.rolesAllowed : [],
-          reason: result.reason || 'unknown'
+          reason: result.reason || 'unknown',
+          variant: result.variant || 'control',
+          config: result.enabled ? result.config || {} : {}
         }
       ];
     })
@@ -634,22 +949,36 @@ export const ensureRuntimeConfigBootstrap = async () => {
 
   await Promise.all(operations);
 
-  const featureOps = Object.entries(FEATURE_FLAG_DEFAULTS).map(([featureName, defaults]) =>
-    FeatureFlag.updateOne(
+  const featureOps = Array.from(
+    new Set([...Object.keys(FEATURE_FLAG_DEFAULTS), ...catalogFeatureNames()])
+  ).map((featureName) => {
+    const defaults = getFeatureFlagDefault(featureName);
+    return FeatureFlag.updateOne(
       { featureName, environment: 'all' },
       {
         $setOnInsert: {
           featureName,
-          enabled: Boolean(defaults.enabled),
-          rolesAllowed: Array.isArray(defaults.rolesAllowed) ? defaults.rolesAllowed : [],
-          rolloutPercentage: Number(defaults.rolloutPercentage || 0),
-          description: String(defaults.description || ''),
+          displayName: defaults?.displayName || featureName,
+          category: defaults?.category || 'other',
+          icon: defaults?.icon || 'Sparkles',
+          version: defaults?.version || '1.0.0',
+          enabled: Boolean(defaults?.enabled),
+          emergencyDisabled: false,
+          releaseStage: defaults?.releaseStage || 'development',
+          rolesAllowed: defaults?.rolesAllowed || [],
+          rolloutPercentage: Number(defaults?.rolloutPercentage || 0),
+          description: String(defaults?.description || ''),
+          targeting: defaults?.targeting || {},
+          dependencies: defaults?.dependencies || [],
+          remoteConfig: defaults?.remoteConfig || {},
+          schedule: defaults?.schedule || {},
+          experiments: defaults?.experiments || [],
           environment: 'all'
         }
       },
-      { upsert: true }
-    )
-  );
+      { upsert: true, setDefaultsOnInsert: false }
+    );
+  });
 
   await Promise.all(featureOps);
 };

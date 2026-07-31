@@ -92,6 +92,12 @@ export function buildSession(user, decoded = {}, token = '') {
 
     // ── Account type & profile ──
     accountType: user.accountType || 'person',
+    betaTester: toBool(user.betaTester),
+    betaTesterApplication: {
+      status: user.betaTesterApplication?.status || 'none',
+      requestedAt: user.betaTesterApplication?.requestedAt || null,
+      reviewedAt: user.betaTesterApplication?.reviewedAt || null
+    },
     profileImage: safeString(user.profileImage),
     gender: user.gender || 'homme',
 

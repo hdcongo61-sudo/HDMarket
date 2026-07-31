@@ -193,6 +193,12 @@ const sanitizeUser = (user) => ({
   phone: user.phone,
   phoneVerified: Boolean(user.phoneVerified),
   role: user.role,
+  betaTester: Boolean(user.betaTester),
+  betaTesterApplication: {
+    status: user.betaTesterApplication?.status || 'none',
+    requestedAt: user.betaTesterApplication?.requestedAt || null,
+    reviewedAt: user.betaTesterApplication?.reviewedAt || null
+  },
   permissions: resolvePermissionsForUser(user),
   accountType: user.accountType,
   country: user.country,

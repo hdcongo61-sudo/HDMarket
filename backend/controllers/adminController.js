@@ -45,6 +45,12 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
       email: user.email,
       phone: user.phone,
       role: user.role,
+      betaTester: Boolean(user.betaTester),
+      betaTesterApplication: {
+        status: user.betaTesterApplication?.status || 'none',
+        requestedAt: user.betaTesterApplication?.requestedAt || null,
+        reviewedAt: user.betaTesterApplication?.reviewedAt || null
+      },
       accountType: user.accountType,
       gender: user.gender || '',
       city: user.city || '',
@@ -1061,7 +1067,7 @@ export const getOrdersByHour = asyncHandler(async (req, res) => {
 
 export const listUsers = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
-  const { search = '', accountType, reactivationStatus, limit = 25 } = req.query;
+  const { search = '', accountType, reactivationStatus, role, betaTester, limit = 25 } = req.query;
 
   const query = {};
   if (accountType && ['person', 'shop'].includes(accountType)) {
@@ -1072,6 +1078,12 @@ export const listUsers = asyncHandler(async (req, res) => {
     ['none', 'pending', 'approved', 'rejected'].includes(reactivationStatus)
   ) {
     query['reactivationRequest.status'] = reactivationStatus;
+  }
+  if (role && ['user', 'admin', 'manager', 'founder', 'delivery_agent'].includes(role)) {
+    query.role = role;
+  }
+  if (typeof betaTester !== 'undefined' && ['true', 'false'].includes(String(betaTester).toLowerCase())) {
+    query.betaTester = String(betaTester).toLowerCase() === 'true';
   }
 
   if (search) {
@@ -1093,7 +1105,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType gender city preferredCity shopName slug shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isActive deactivatedAt deactivationReason reactivationRequest isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+      'name email phone role accountType gender city preferredCity shopName slug shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isActive deactivatedAt deactivationReason reactivationRequest betaTester betaTesterApplication isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email');
 
