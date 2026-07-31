@@ -39,7 +39,7 @@ export default function ShopReviewsSection({
         <button
           type="button"
           onClick={() => setShowCommentsModal(true)}
-          className="inline-flex min-h-11 items-center gap-1.5 px-2 text-[13px] font-bold text-[#e85d00] transition dark:text-orange-300"
+          className="inline-flex min-h-11 items-center gap-1.5 px-2 text-[13px] font-bold text-[#FF5000] transition dark:text-orange-300"
         >
           <span>{t('shop_profile.view_all', 'Voir tout')}</span>
           <ExternalLink size={13} />
@@ -50,7 +50,7 @@ export default function ShopReviewsSection({
       {ratingCount > 0 && (
         <div className="mt-4 flex items-center gap-4 border-b border-gray-100 pb-4 dark:border-neutral-800">
           <div className="text-center">
-            <p className="text-4xl font-black text-neutral-950">{formatRatingLabel(ratingAverage)}</p>
+            <p className="text-4xl font-black text-[#FF3D00] dark:text-[#FF6A00]">{formatRatingLabel(ratingAverage)}</p>
             <div className="mt-1 flex items-center justify-center gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star

@@ -1,7 +1,11 @@
 import React from 'react';
-import { Heart, Loader2, MessageCircle, Navigation, Rocket, Share2, Store, WalletCards } from 'lucide-react';
+import { MessageCircle, Pencil, Rocket, Star, Store, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+/**
+ * Mobile fixed bottom bar — Taobao style, one row of 4 slots.
+ * Share / directions / follow live in the hero, actions card and about section.
+ */
 export default function ShopBottomActions({
   user,
   whatsappLink,
@@ -15,110 +19,69 @@ export default function ShopBottomActions({
   isFollowing,
   followDisabled,
   followPending = false,
+  onGoReviews,
   t
 }) {
-  const btnBase =
-    'inline-flex min-h-[46px] w-full items-center justify-center gap-1.5 rounded px-3 text-xs font-black transition active:scale-95';
+  const slot =
+    'inline-flex min-h-[46px] w-full flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-bold transition active:scale-95';
+  const neutral = 'text-gray-600 hover:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800';
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/96 px-3 py-2 [padding-bottom:calc(env(safe-area-inset-bottom)+0.5rem)] dark:border-neutral-800 dark:bg-neutral-950/96">
-      <div className="grid grid-cols-[1fr_1fr_1.45fr] gap-2">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/96 px-2 py-1.5 [padding-bottom:calc(env(safe-area-inset-bottom)+0.375rem)] dark:border-neutral-800 dark:bg-neutral-950/96">
+      <div className="grid grid-cols-4 gap-1">
         {isOwnShop ? (
-          <Link
-            to="/seller/boosts"
-            className={`${btnBase} bg-gray-100 text-[var(--shop-color)] hover:bg-gray-200 dark:bg-neutral-800`}
-          >
-            <Rocket size={15} />
-            <span className="truncate">{t('shop_profile.boost_shop', 'Booster')}</span>
-          </Link>
+          <button type="button" onClick={onPrimaryAction} className={`${slot} ${neutral}`}>
+            <Pencil size={17} />
+            <span className="truncate">{t('shop_profile.edit_profile', 'Modifier profil')}</span>
+          </button>
         ) : (
-          <button
-            type="button"
-            onClick={onMessage}
-            className={`${btnBase} bg-gray-100 text-[var(--shop-color)] hover:bg-gray-200 dark:bg-neutral-800`}
-          >
-            <MessageCircle size={15} />
+          <button type="button" onClick={onMessage} className={`${slot} ${neutral}`}>
+            <MessageCircle size={17} />
             <span className="truncate">{t('shop_profile.message', 'Message')}</span>
           </button>
         )}
 
         {isOwnShop ? (
-          <Link
-            to="/my/settlements"
-            className={`${btnBase} bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-100`}
-          >
-            <WalletCards size={15} />
-            <span className="truncate">Versements</span>
+          <Link to="/seller/boosts" className={`${slot} ${neutral}`}>
+            <Rocket size={17} />
+            <span className="truncate">{t('shop_profile.boost_shop', 'Booster')}</span>
           </Link>
         ) : user && whatsappLink ? (
           <a
             href={whatsappLink}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${btnBase} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30`}
+            className={`${slot} text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10`}
           >
-            <MessageCircle size={15} />
+            <MessageCircle size={17} />
             <span className="truncate">WhatsApp</span>
           </a>
         ) : (
-          <Link
-            to="/login"
-            state={{ from: `/shop/${slug}` }}
-            className={`${btnBase} bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-100`}
-          >
-            <MessageCircle size={15} />
+          <Link to="/login" state={{ from: `/shop/${slug}` }} className={`${slot} ${neutral}`}>
+            <MessageCircle size={17} />
             <span className="truncate">WhatsApp</span>
           </Link>
         )}
 
-        <button
-          type="button"
-          onClick={onPrimaryAction}
-          className={`${btnBase} bg-[var(--shop-color)] text-[var(--shop-color-contrast)] shadow-sm hover:brightness-95`}
-        >
-          <Store size={15} />
-          <span className="truncate">{isOwnShop ? t('shop_profile.edit_profile', 'Modifier profil') : t('shop_profile.view_products', 'Produits')}</span>
-        </button>
-      </div>
+        {isOwnShop ? (
+          <Link to="/my/settlements" className={`${slot} ${neutral}`}>
+            <WalletCards size={17} />
+            <span className="truncate">Versements</span>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={onPrimaryAction}
+            className={`${slot} text-[#FF5000] hover:bg-orange-50 dark:hover:bg-orange-500/10`}
+          >
+            <Store size={17} />
+            <span className="truncate">{t('shop_profile.view_products', 'Produits')}</span>
+          </button>
+        )}
 
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <button
-          type="button"
-          onClick={onDirections}
-          className={`${btnBase} bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-100`}
-        >
-          <Navigation size={15} />
-          <span className="truncate">GPS</span>
-        </button>
-        <button
-          type="button"
-          onClick={onShare}
-          className={`${btnBase} bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-100`}
-        >
-          <Share2 size={15} />
-          <span className="truncate">{t('shop_profile.share', 'Partager')}</span>
-        </button>
-        <button
-          type="button"
-          onClick={onFollowToggle}
-          disabled={followDisabled}
-          aria-busy={followPending}
-          className={`${btnBase} ${
-            isFollowing
-              ? 'bg-rose-50 text-rose-700'
-              : 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-100'
-          } ${followPending ? 'scale-[0.99]' : ''} ${followDisabled ? 'cursor-not-allowed bg-neutral-100 text-neutral-400 shadow-none dark:bg-neutral-900' : ''}`}
-        >
-          {followPending ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <Heart size={15} className={isFollowing ? 'fill-current' : ''} />
-          )}
-          <span className="truncate">
-            {isFollowing
-              ? t('shop_profile.following', 'Suivie')
-              : t('shop_profile.follow', 'Suivre')}
-          </span>
+        <button type="button" onClick={onGoReviews} className={`${slot} ${neutral}`}>
+          <Star size={17} />
+          <span className="truncate">{t('shop_profile.tab_reviews', 'Avis')}</span>
         </button>
       </div>
     </div>

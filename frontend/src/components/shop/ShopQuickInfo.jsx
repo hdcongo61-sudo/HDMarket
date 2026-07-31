@@ -1,41 +1,53 @@
 import React from 'react';
+import { BadgeCheck, Truck } from 'lucide-react';
 
-export default function ShopQuickInfo({ openingSummary, trustQuickInfo, t }) {
+/**
+ * Taobao-style trust services strip ("Paiements suivis · Livraison locale · Retrait disponible").
+ * Pure display — surfaces the shop's trust facts in one compact scrollable row.
+ */
+export default function ShopQuickInfo({ openingSummary, trustQuickInfo, hasFreeDelivery, t }) {
+  const items = Array.isArray(trustQuickInfo) ? trustQuickInfo : [];
+
   return (
-    <section className="overflow-hidden rounded-none bg-white px-4 py-3.5 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="min-w-0 flex-1 truncate text-[17px] font-black text-gray-900 dark:text-white">
-          {t('shop_profile.trust_badges', 'Confiance & vérification')}
-        </h2>
-        <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-bold ${
-            openingSummary?.isOpen
-              ? 'bg-emerald-50 text-emerald-700'
-              : 'bg-rose-50 text-rose-700'
-          }`}
-        >
+    <section className="overflow-hidden rounded-none bg-white px-4 py-3 shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800">
+      <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-max items-center gap-4">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${openingSummary?.isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`}
-          />
-          {openingSummary?.isOpen
-            ? t('shop_profile.open_now', 'Ouvert maintenant')
-            : t('shop_profile.closed', 'Fermé')}
-        </span>
-      </div>
-
-      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {trustQuickInfo.map((item) => (
-          <article
-            key={item.id}
-            className="rounded border border-gray-100 bg-gray-50 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-900"
+            className={`inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold ${
+              openingSummary?.isOpen ? 'text-emerald-600' : 'text-rose-600'
+            }`}
           >
-            <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">
-              <span className="text-[var(--shop-color)]">{item.icon}</span>
-              <span className="truncate">{item.label}</span>
-            </p>
-            <p className="mt-2 line-clamp-2 text-[12px] font-black leading-tight text-gray-900 dark:text-white">{item.value}</p>
-          </article>
-        ))}
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${openingSummary?.isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`}
+            />
+            {openingSummary?.isOpen
+              ? t('shop_profile.open_now', 'Ouvert maintenant')
+              : t('shop_profile.closed', 'Fermé')}
+          </span>
+
+          {hasFreeDelivery && (
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold text-[#FF5000]">
+              <Truck size={13} />
+              {t('shop_profile.free_delivery', 'Livraison gratuite')}
+            </span>
+          )}
+
+          <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-neutral-300">
+            <BadgeCheck size={13} className="text-[#FF5000]" />
+            {t('shop_profile.tracked_payments', 'Paiements suivis')}
+          </span>
+
+          {items.map((item) => (
+            <span
+              key={item.id}
+              className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-neutral-300"
+              title={`${item.label} : ${item.value}`}
+            >
+              {item.icon}
+              <span className="truncate">{item.value}</span>
+            </span>
+          ))}
+        </div>
       </div>
     </section>
   );

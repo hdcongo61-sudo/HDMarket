@@ -57,7 +57,8 @@ function ProductCard({
   disableProductNavigation = false,
   enableImageCarousel = false,
   compactCartAction = false,
-  homeFeed = false
+  homeFeed = false,
+  taobaoStyle = false
 }) {
   const { user } = useContext(AuthContext);
   const { formatPrice, getRuntimeValue } = useAppSettings();
@@ -895,13 +896,28 @@ function ProductCard({
             )}
 
             <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard ? '-mt-0.5' : ''}`}>
-              <span className={`${useCommerceMobileCard ? 'text-[15px] leading-none' : priceClass} hd-product-price font-black tracking-tight ${useHomeFeed ? 'text-[#f26522]' : 'text-neutral-950 dark:text-white'}`}>
+              <span className={`${useCommerceMobileCard ? 'text-[15px] leading-none' : priceClass} hd-product-price font-black tracking-tight ${useHomeFeed ? 'text-[#f26522]' : taobaoStyle ? 'text-[#FF3D00]' : 'text-neutral-950 dark:text-white'}`}>
                 {discountedPrice}
               </span>
               {originalPrice && !isShopProfileCompact && !useCommerceMobileCard ? (
                 <span className="text-xs font-medium text-neutral-400 line-through">{originalPrice}</span>
               ) : null}
             </div>
+
+            {taobaoStyle && (freeDeliveryAvailable || installmentAvailable) ? (
+              <div className="flex flex-wrap items-center gap-1">
+                {freeDeliveryAvailable ? (
+                  <span className="inline-flex items-center rounded border border-[#FF5000]/40 px-1 py-px text-[9px] font-bold leading-3 text-[#FF5000]">
+                    Livraison offerte
+                  </span>
+                ) : null}
+                {installmentAvailable ? (
+                  <span className="inline-flex items-center rounded border border-[#FF5000]/40 px-1 py-px text-[9px] font-bold leading-3 text-[#FF5000]">
+                    Tranche
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
 
             {useCommerceMobileCard ? (
               <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-[#8a8378]">

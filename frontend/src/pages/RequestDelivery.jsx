@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft, ShieldCheck, Wallet, MapPinned, X } from 'lucide-react';
+import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft, ShieldCheck, Wallet, MapPinned, X, User } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -20,7 +20,7 @@ const emptyLocation = () => ({
   landmarkName: ''
 });
 
-function LocationFields({ title, value, onChange, cities, communesForCity }) {
+function LocationFields({ title, value, onChange, cities, communesForCity, onAutofill }) {
   const [locating, setLocating] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
@@ -78,26 +78,38 @@ function LocationFields({ title, value, onChange, cities, communesForCity }) {
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-1.5 text-sm font-black text-gray-900">
-          <MapPin size={15} className="text-[#e85d00]" /> {title}
+          <MapPin size={15} className="text-[#FF5000]" /> {title}
         </h3>
-        <button
-          type="button"
-          onClick={handleUseCurrentLocation}
-          disabled={locating}
-          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#e85d00] disabled:opacity-50"
-        >
-          {locating ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
-          {value.coordinates ? 'Position capturée' : 'Utiliser ma position'}
-        </button>
+        <div className="flex items-center gap-3">
+          {onAutofill ? (
+            <button
+              type="button"
+              onClick={onAutofill}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF5000]"
+            >
+              <User size={12} />
+              Mes infos
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={locating}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF5000] disabled:opacity-50"
+          >
+            {locating ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+            {value.coordinates ? 'Position capturée' : 'Utiliser ma position'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <select
           value={value.cityId}
           onChange={(e) => onChange({ ...value, cityId: e.target.value, communeId: '' })}
-          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]"
         >
           <option value="">Ville</option>
           {cities.map((entry) => (
@@ -108,7 +120,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity }) {
           value={value.communeId}
           onChange={(e) => onChange({ ...value, communeId: e.target.value })}
           disabled={!value.cityId}
-          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none disabled:opacity-50 focus:border-[#e85d00]"
+          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none disabled:opacity-50 focus:border-[#FF5000]"
         >
           <option value="">Commune</option>
           {communesForCity.map((entry) => (
@@ -123,7 +135,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity }) {
           value={value.address}
           onChange={(e) => onChange({ ...value, address: e.target.value, landmarkId: '', landmarkName: '' })}
           placeholder="Adresse précise (quartier, rue, repère — ex: Près de Total Station)"
-          className="min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+          className="min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]"
         />
         {suggestions.length > 0 ? (
           <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
@@ -134,7 +146,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity }) {
                 onClick={() => handlePickLandmark(landmark)}
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-gray-800 hover:bg-gray-50"
               >
-                <MapPinned size={14} className="shrink-0 text-[#e85d00]" />
+                <MapPinned size={14} className="shrink-0 text-[#FF5000]" />
                 {landmark.name}
               </button>
             ))}
@@ -157,14 +169,14 @@ function LocationFields({ title, value, onChange, cities, communesForCity }) {
           value={value.contactName}
           onChange={(e) => onChange({ ...value, contactName: e.target.value })}
           placeholder="Nom du contact"
-          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm text-gray-800 outline-none focus:border-[#e85d00]"
+          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm text-gray-800 outline-none focus:border-[#FF5000]"
         />
         <input
           type="tel"
           value={value.contactPhone}
           onChange={(e) => onChange({ ...value, contactPhone: e.target.value })}
           placeholder="Téléphone"
-          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm text-gray-800 outline-none focus:border-[#e85d00]"
+          className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm text-gray-800 outline-none focus:border-[#FF5000]"
         />
       </div>
     </div>
@@ -222,6 +234,40 @@ export default function RequestDelivery() {
   const dropoffCommunes = useMemo(
     () => communes.filter((entry) => String(entry?.cityId?._id || entry?.cityId || '') === String(dropoff.cityId || '')),
     [communes, dropoff.cityId]
+  );
+
+  // Autofill a location (pickup or dropoff) from the connected user's profile.
+  const buildUserAutofill = useCallback(() => {
+    if (!user) return null;
+    const cityId = cities.some((entry) => String(entry?._id) === String(user.cityId || ''))
+      ? user.cityId
+      : '';
+    const communeId = communes.some((entry) => String(entry?._id) === String(user.communeId || ''))
+      ? user.communeId
+      : '';
+    return {
+      cityId,
+      communeId: cityId ? communeId : '',
+      address: user.address || '',
+      contactName: user.name || '',
+      contactPhone: user.phone || ''
+    };
+  }, [user, cities, communes]);
+
+  // Only fills when the user clicks "Mes infos" — never automatically.
+  const applyUserAutofill = useCallback(
+    (setter) => {
+      const autofill = buildUserAutofill();
+      if (!autofill) return;
+      setter((prev) => ({
+        ...prev,
+        ...autofill,
+        // Address text changes: drop the picked landmark, keep the GPS point.
+        landmarkId: '',
+        landmarkName: ''
+      }));
+    },
+    [buildUserAutofill]
   );
 
   useEffect(() => {
@@ -368,16 +414,16 @@ export default function RequestDelivery() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] pb-28">
+    <div className="min-h-screen bg-[#F6F6F6] pb-28">
       <GlassHeader title="Envoyer un colis" subtitle="Course à la demande" backTo="/profile" />
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-3 px-4 py-4">
-        <LocationFields title="Retrait" value={pickup} onChange={setPickup} cities={cities} communesForCity={pickupCommunes} />
-        <LocationFields title="Dépôt" value={dropoff} onChange={setDropoff} cities={cities} communesForCity={dropoffCommunes} />
+        <LocationFields title="Retrait" value={pickup} onChange={setPickup} cities={cities} communesForCity={pickupCommunes} onAutofill={() => applyUserAutofill(setPickup)} />
+        <LocationFields title="Dépôt" value={dropoff} onChange={setDropoff} cities={cities} communesForCity={dropoffCommunes} onAutofill={() => applyUserAutofill(setDropoff)} />
 
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-black text-gray-900">
-            <Package size={15} className="text-[#e85d00]" /> Le colis
+            <Package size={15} className="text-[#FF5000]" /> Le colis
           </h3>
           <textarea
             value={parcelDescription}
@@ -385,7 +431,7 @@ export default function RequestDelivery() {
             rows={2}
             maxLength={300}
             placeholder="Description (ex : un carton, un document, une commande à récupérer...)"
-            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:border-[#e85d00]"
+            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:border-[#FF5000]"
           />
 
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -393,7 +439,7 @@ export default function RequestDelivery() {
               <select
                 value={packageTypeId}
                 onChange={(e) => setPackageTypeId(e.target.value)}
-                className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+                className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]"
               >
                 <option value="">Type de colis</option>
                 {packageTypes.map((type) => (
@@ -408,7 +454,7 @@ export default function RequestDelivery() {
               value={weightKg}
               onChange={(e) => setWeightKg(e.target.value)}
               placeholder="Poids estimé (kg)"
-              className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+              className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]"
             />
           </div>
 
@@ -421,7 +467,7 @@ export default function RequestDelivery() {
                   onClick={() => setDeliverySpeed(rule.key)}
                   className={`min-h-10 shrink-0 rounded-xl border px-3 text-xs font-black transition ${
                     deliverySpeed === rule.key
-                      ? 'border-[#e85d00] bg-[#e85d00] text-white'
+                      ? 'border-[#FF5000] bg-[#FF5000] text-white'
                       : 'border-gray-200 text-gray-600'
                   }`}
                 >
@@ -436,7 +482,7 @@ export default function RequestDelivery() {
             value={promoCode}
             onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
             placeholder="Code promo (optionnel)"
-            className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]"
+            className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]"
           />
 
           <label className="mt-3 block text-[11px] font-bold text-gray-500">
@@ -459,7 +505,7 @@ export default function RequestDelivery() {
             value={referenceCode}
             onChange={(e) => setReferenceCode(e.target.value)}
             placeholder="Référence / numéro de commande (optionnel)"
-            className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#e85d00]"
+            className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]"
           />
           <textarea
             value={notes}
@@ -467,7 +513,7 @@ export default function RequestDelivery() {
             rows={2}
             maxLength={500}
             placeholder="Consignes pour le livreur (ex : demander M. X à la réception)"
-            className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:border-[#e85d00]"
+            className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:border-[#FF5000]"
           />
         </div>
 
@@ -490,7 +536,7 @@ export default function RequestDelivery() {
               onClick={() => setPaymentMethod('cod')}
               className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black transition ${
                 paymentMethod === 'cod'
-                  ? 'border-[#e85d00] bg-orange-50 text-[#e85d00]'
+                  ? 'border-[#FF5000] bg-orange-50 text-[#FF5000]'
                   : 'border-gray-200 text-gray-500'
               }`}
             >
@@ -504,7 +550,7 @@ export default function RequestDelivery() {
           </p>
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white px-4 py-3">
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white px-4 py-3 [padding-bottom:calc(env(safe-area-inset-bottom)+0.75rem)]">
           <div className="mx-auto max-w-lg">
             {estimate?.breakdown?.length > 0 && showBreakdown ? (
               <div className="mb-2 space-y-1 rounded-xl bg-gray-50 p-2.5">
@@ -525,7 +571,7 @@ export default function RequestDelivery() {
               >
                 {estimate?.breakdown?.length ? (showBreakdown ? 'Masquer le détail' : 'Prix estimé (détail)') : 'Prix estimé'}
               </button>
-              <p className="text-lg font-black text-neutral-950">
+              <p className="text-lg font-black text-[#FF3D00]">
                 {estimating ? '…' : estimate ? formatCurrency(estimate.price) : '—'}
               </p>
             </div>
@@ -546,7 +592,7 @@ export default function RequestDelivery() {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-50"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF5000] to-[#FF3D00] px-4 text-sm font-black text-white shadow-sm transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeft size={16} className="rotate-180" />}
                 {submitting ? 'Envoi…' : 'Commander la course (cash)'}

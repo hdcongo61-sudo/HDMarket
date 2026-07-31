@@ -14,16 +14,46 @@
     <meta name="apple-mobile-web-app-title" content="HDMarket" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      // Swaps the favicon/apple-touch-icon to the admin-uploaded branding
+      // (cached by src/App.jsx after its first fetch of /settings/app-logo)
+      // before the app's JS bundle loads. Without this, every load briefly
+      // shows the generic placeholder icon while React boots — on a slow
+      // connection that "briefly" can be several seconds.
+      (function () {
+        try {
+          var cached = JSON.parse(localStorage.getItem('hdmarket:brand-icons') || 'null');
+          var faviconHref = cached && (cached.favicon || cached.icon);
+          var appleHref = cached && (cached.icon || cached.favicon);
+          if (faviconHref) {
+            var iconLink = document.querySelector('link[rel="icon"]');
+            if (iconLink) {
+              iconLink.setAttribute('type', 'image/png');
+              iconLink.setAttribute('href', faviconHref);
+            }
+          }
+          if (appleHref) {
+            var appleLink = document.querySelector('link[rel="apple-touch-icon"]');
+            if (appleLink) appleLink.setAttribute('href', appleHref);
+          }
+        } catch (e) {
+          /* ignore — static fallback icons stay in place */
+        }
+      })();
+    </script>
+    <!-- Served dynamically by the backend (reflects admin-edited app name/
+         description live, including on first load and for non-JS crawlers)
+         instead of the static /manifest.webmanifest file. -->
+    <link rel="manifest" href="https://hdmarket-backend.onrender.com/api/settings/manifest.webmanifest" />
     <title>HDMarket</title>
-    <script type="module" crossorigin src="/assets/index-DMXLopLR.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-CTPfro5E.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-query-7bbnEEOm.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-CeqdPssp.js">
+    <script type="module" crossorigin src="/assets/index-C4VS7ed-.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-BNJCTLAB.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-query-Dg64f6J3.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-DUnMmyFZ.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-socket-DElUTK9t.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-Be_nXZ9a.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-motion-BS6Juwdh.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-ja8PTHAv.css">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-motion-CO-l6t4G.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Dm2eIIM6.css">
   </head>
   <body>
     <div id="root">
@@ -114,6 +144,25 @@
         <div class="hd-boot-card">
           <div class="hd-boot-logo">
             <img src="/favicon.svg" alt="HDMarket" />
+            <script>
+              // Same idea as the favicon swap above, for the boot-screen logo:
+              // uses the brand logo cached by src/hooks/useAppBrandLogo.js from
+              // a previous visit so returning users see the real logo
+              // immediately instead of the generic placeholder while the app
+              // takes its time to load.
+              (function () {
+                try {
+                  var cached = JSON.parse(localStorage.getItem('hdmarket:brand-logos') || 'null');
+                  if (!cached) return;
+                  var isMobile = window.innerWidth < 768;
+                  var src = isMobile ? cached.mobile || cached.desktop : cached.desktop || cached.mobile;
+                  var img = document.currentScript.previousElementSibling;
+                  if (src && img && img.tagName === 'IMG') img.src = src;
+                } catch (e) {
+                  /* ignore — static placeholder stays in place */
+                }
+              })();
+            </script>
           </div>
           <p class="hd-boot-title">HDMarket</p>
           <div class="hd-boot-loader" aria-hidden="true"></div>

@@ -524,7 +524,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
     if (currentPoints.length >= 2 && startPoints.length >= 2) {
       const currentDistance = Math.hypot(currentPoints[1].x - currentPoints[0].x, currentPoints[1].y - currentPoints[0].y);
       const startDistance = Math.max(1, Math.hypot(startPoints[1].x - startPoints[0].x, startPoints[1].y - startPoints[0].y));
-      const zoom = Math.max(.7, Math.min(3, dragRef.current.zoom * currentDistance / startDistance));
+      const zoom = Math.max(.3, Math.min(3, dragRef.current.zoom * currentDistance / startDistance));
       change((prev) => ({ ...prev, zoom }));
       return;
     }
@@ -561,7 +561,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
         <StudioButton icon={FlipHorizontal} active={state.flipX} onClick={() => change((prev) => ({ ...prev, flipX: !prev.flipX }))}>Miroir H</StudioButton>
         <StudioButton icon={FlipVertical} active={state.flipY} onClick={() => change((prev) => ({ ...prev, flipY: !prev.flipY }))}>Miroir V</StudioButton>
       </div>
-      <Range label="Zoom" value={state.zoom} min={0.7} max={3} step={0.01} display={`${Math.round(state.zoom * 100)}%`} onChange={(zoom) => change((prev) => ({ ...prev, zoom }))} />
+      <Range label="Zoom" value={state.zoom} min={0.3} max={3} step={0.01} display={`${Math.round(state.zoom * 100)}%`} onChange={(zoom) => change((prev) => ({ ...prev, zoom }))} />
       <div className="grid grid-cols-2 gap-3"><NumberField label="Largeur" value={state.output.width} onChange={(width) => change((prev) => ({ ...prev, output: { ...prev.output, width } }))} /><NumberField label="Hauteur" value={state.output.height} onChange={(height) => change((prev) => ({ ...prev, output: { ...prev.output, height } }))} /></div>
     </div>;
     if (activeTool === 'adjust') return <div className="space-y-4"><PanelTitle title="Réglages professionnels" subtitle="Chaque réglage est appliqué instantanément." />{ADJUSTMENT_DEFINITIONS.map((item) => <Range key={item.key} label={item.label} value={state.adjustments[item.key]} min={item.min} max={item.max} step={1} display={`${state.adjustments[item.key]}${item.unit}`} onChange={(value) => change((prev) => ({ ...prev, preset: 'Personnalisé', adjustments: { ...prev.adjustments, [item.key]: value } }))} />)}</div>;
@@ -585,7 +585,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
         <StudioButton icon={FlipHorizontal} active={state.flipX} onClick={() => change((prev) => ({ ...prev, flipX: !prev.flipX }))}>Miroir H</StudioButton>
         <StudioButton icon={FlipVertical} active={state.flipY} onClick={() => change((prev) => ({ ...prev, flipY: !prev.flipY }))}>Miroir V</StudioButton>
       </div>
-      <Range label="Zoom" value={state.zoom} min={0.7} max={3} step={0.01} display={`${Math.round(state.zoom * 100)}%`} onChange={(zoom) => change((prev) => ({ ...prev, zoom }))} />
+      <Range label="Zoom" value={state.zoom} min={0.3} max={3} step={0.01} display={`${Math.round(state.zoom * 100)}%`} onChange={(zoom) => change((prev) => ({ ...prev, zoom }))} />
     </div>;
     if (activeTool === 'filters') return <div className="grid grid-cols-3 gap-2">
       {Object.keys(FILTER_PRESETS).map((name) => <button key={name} type="button" onClick={() => change((prev) => applyPreset(prev, name))} className={`overflow-hidden rounded-xl border-2 text-left transition ${state.preset === name ? 'border-[#e85d00]' : 'border-[#e2dcd2]'}`}>
@@ -635,7 +635,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
             {compare ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-0.5 bg-white shadow"><span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow"><PanelRightClose className="h-4 w-4" /></span></div> : null}
           </div>
         </div>
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 p-1.5 text-white"><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.max(.7, prev.zoom - .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomOut className="h-4 w-4" /></button><span className="w-12 text-center text-xs font-black">{Math.round(state.zoom * 100)}%</span><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.min(3, prev.zoom + .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomIn className="h-4 w-4" /></button></div>
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 p-1.5 text-white"><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.max(.3, prev.zoom - .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomOut className="h-4 w-4" /></button><span className="w-12 text-center text-xs font-black">{Math.round(state.zoom * 100)}%</span><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.min(3, prev.zoom + .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomIn className="h-4 w-4" /></button></div>
         {images.length > 1 ? <div className="flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none] lg:hidden">{images.map((item, index) => <button key={item?.url || item?.name || index} type="button" onClick={() => setSelectedIndex(index)} className={`h-11 w-11 shrink-0 overflow-hidden rounded-xl border-2 bg-white shadow-sm ${selectedIndex === index ? 'border-[#e85d00]' : 'border-white'}`}><img src={resolveSource(item)} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" /></button>)}</div> : null}
       </main>
       <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-[#e2dcd2] bg-[#faf8f5] p-5 lg:block">{renderPanel()}</aside>
