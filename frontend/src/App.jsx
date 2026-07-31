@@ -438,12 +438,23 @@ function AppContent() {
   useEffect(() => {
     let active = true;
     const branding = { icon: '', favicon: '' };
+    // Cached so index.html's inline script can apply these to the favicon/
+    // apple-touch-icon links before the app bundle even loads on a repeat visit
+    // — see the two inline <script> blocks there for the read side.
+    const cacheBrandIcons = ({ icon, favicon }) => {
+      try {
+        window.localStorage.setItem('hdmarket:brand-icons', JSON.stringify({ icon, favicon }));
+      } catch {
+        // Storage is an optimization; the API remains the source of truth.
+      }
+    };
     const onLogoUpdate = (event) => {
       const { appIcon, appFavicon } = event?.detail || {};
       if (!appIcon && !appFavicon) return;
       if (appIcon) branding.icon = appIcon;
       if (appFavicon) branding.favicon = appFavicon;
       applyAppBranding(branding);
+      cacheBrandIcons(branding);
     };
     window.addEventListener('hdmarket:app-logo-updated', onLogoUpdate);
     api
@@ -452,7 +463,10 @@ function AppContent() {
         if (!active) return;
         branding.icon = res?.data?.appIcon || '';
         branding.favicon = res?.data?.appFavicon || '';
-        if (branding.icon || branding.favicon) applyAppBranding(branding);
+        if (branding.icon || branding.favicon) {
+          applyAppBranding(branding);
+          cacheBrandIcons(branding);
+        }
       })
       .catch(() => {});
     return () => {
