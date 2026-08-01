@@ -72,6 +72,49 @@ const ATTRIBUTE_TEMPLATE = {
   required: false,
   defaultValue: ''
 };
+const createEmptyProductForm = () => ({
+  title: '',
+  description: '',
+  price: '',
+  category: '',
+  condition: 'used',
+  operator: 'MTN',
+  discount: '',
+  perishableStartDate: '',
+  perishableEndDate: '',
+  installmentEnabled: false,
+  installmentMinAmount: '',
+  installmentDuration: '',
+  installmentStartDate: '',
+  installmentEndDate: '',
+  installmentLatePenaltyRate: '',
+  installmentMaxMissedPayments: 3,
+  installmentRequireGuarantor: false,
+  wholesaleEnabled: false,
+  wholesaleTiers: [],
+  warrantyEnabled: false,
+  warrantyPeriodValue: '',
+  warrantyPeriodUnit: 'months',
+  attributes: [],
+  physical: {
+    weight: { value: '', unit: 'kg' },
+    dimensions: { length: '', width: '', height: '', unit: 'cm' }
+  },
+  deliveryAvailable: true,
+  pickupAvailable: true,
+  deliveryFeeEnabled: true,
+  deliveryFee: '',
+  socialVideoUrl: ''
+});
+const createDefaultExpandedSections = () => ({
+  info: true,
+  commercialisation: true,
+  options: true,
+  images: true,
+  media: true,
+  validation: true,
+  preview: false
+});
 const pickVideoRecorderMimeType = () => {
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
     return '';
@@ -121,40 +164,7 @@ export default function ProductForm(props) {
   const { runtime, app } = useAppSettings();
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const { categoryGroups, getCategoryMeta } = useCategories();
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    price: '',
-    category: '',
-    condition: 'used',
-    operator: 'MTN',
-    discount: '',
-    perishableStartDate: '',
-    perishableEndDate: '',
-    installmentEnabled: false,
-    installmentMinAmount: '',
-    installmentDuration: '',
-    installmentStartDate: '',
-    installmentEndDate: '',
-    installmentLatePenaltyRate: '',
-    installmentMaxMissedPayments: 3,
-    installmentRequireGuarantor: false,
-    wholesaleEnabled: false,
-    wholesaleTiers: [],
-    warrantyEnabled: false,
-    warrantyPeriodValue: '',
-    warrantyPeriodUnit: 'months',
-    attributes: [],
-    physical: {
-      weight: { value: '', unit: 'kg' },
-      dimensions: { length: '', width: '', height: '', unit: 'cm' }
-    },
-    deliveryAvailable: true,
-    pickupAvailable: true,
-    deliveryFeeEnabled: true,
-    deliveryFee: '',
-    socialVideoUrl: ''
-  });
+  const [form, setForm] = useState(createEmptyProductForm);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -196,6 +206,19 @@ export default function ProductForm(props) {
   const [isCompressingVideo, setIsCompressingVideo] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const [originalVideoSize, setOriginalVideoSize] = useState(0);
+
+  // Stable preview URL: creating the blob URL inline in JSX made a new URL on
+  // every render (each keystroke reloaded the video and shifted the layout).
+  const videoPreviewUrl = useMemo(
+    () => (videoFile ? URL.createObjectURL(videoFile) : ''),
+    [videoFile]
+  );
+  useEffect(
+    () => () => {
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    },
+    [videoPreviewUrl]
+  );
   
   // Image cropping states
   const [croppingImage, setCroppingImage] = useState(null);
@@ -216,6 +239,7 @@ export default function ProductForm(props) {
   const cropMoveRef = useRef(() => {});
   const cropUpRef = useRef(() => {});
   const submitIdempotencyKeyRef = useRef('');
+  const draftGenerationRef = useRef(0);
   // New: pinch-to-zoom tracking refs
   const pinchDistRef = useRef(null);
   const pinchScaleRef = useRef(null);
@@ -248,15 +272,7 @@ export default function ProductForm(props) {
     }
     return DEFAULT_MAX_IMAGES;
   }, [app?.maxUploadImages, runtime?.maxUploadImages, runtime?.max_image_upload]);
-  const [expandedSections, setExpandedSections] = useState({
-    info: true,
-    commercialisation: true,
-    options: true,
-    images: true,
-    media: true,
-    validation: true,
-    preview: false
-  });
+  const [expandedSections, setExpandedSections] = useState(createDefaultExpandedSections);
   const formShellRef = useRef(null);
   const submissionViewportRef = useRef(null);
   const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
@@ -311,7 +327,9 @@ export default function ProductForm(props) {
   // Save draft periodically
   useEffect(() => {
     if (!draftKey) return;
+    const generation = draftGenerationRef.current;
     const interval = setInterval(() => {
+      if (generation !== draftGenerationRef.current) return;
       try {
         localStorage.setItem(draftKey, JSON.stringify({
           form,
@@ -328,6 +346,68 @@ export default function ProductForm(props) {
     if (!draftKey) return;
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
   }, [draftKey]);
+
+  const resetPublishedForm = useCallback(() => {
+    draftGenerationRef.current += 1;
+    clearDraft();
+
+    imagePreviewsRef.current.forEach((preview) => {
+      if (preview?.url?.startsWith('blob:')) URL.revokeObjectURL(preview.url);
+    });
+    Object.values(imageReplacementsRef.current).forEach((replacement) => {
+      if (replacement?.url?.startsWith('blob:')) URL.revokeObjectURL(replacement.url);
+    });
+    imagePreviewsRef.current = [];
+    imageReplacementsRef.current = {};
+
+    setForm(createEmptyProductForm());
+    setFiles([]);
+    setImagePreviews([]);
+    setExistingImages([]);
+    setRemovedImages([]);
+    setImageReplacements({});
+    setStudioImageIndex(null);
+    setImageError('');
+    setImageVariantName('Couleur');
+    setImageVariants({});
+
+    setVideoFile(null);
+    setExistingVideoUrl(null);
+    setRemoveExistingVideo(false);
+    setVideoMuted(true);
+    setVideoError('');
+    setPdfFile(null);
+    setPdfError('');
+    setExistingPdf(null);
+    setRemovePdf(false);
+
+    setUploadProgress(0);
+    setMediaOptimization({ active: false, optimizedCount: 0, savedBytes: 0 });
+    setIsUploadingVideo(false);
+    setIsCompressingVideo(false);
+    setCompressionProgress(0);
+    setOriginalVideoSize(0);
+
+    setCroppingImage(null);
+    setCropData({ x: 0, y: 0, width: 0, height: 0 });
+    setIsDragging(false);
+    setIsPanning(false);
+    setIsResizingCrop(null);
+    setImageScale(1);
+    setImagePosition({ x: 0, y: 0 });
+    setCropAspect('1:1');
+    setCropTab('crop');
+    setImageFilters({ brightness: 100, contrast: 100, saturate: 100 });
+    setShowPreview(false);
+
+    setExpandedSections(createDefaultExpandedSections());
+    setFieldErrors({});
+    setInstallmentError('');
+    setWholesaleError('');
+    setWarrantyError('');
+    submissionViewportRef.current = null;
+    submitIdempotencyKeyRef.current = '';
+  }, [clearDraft]);
 
   // ── Per-field validation ──────────────────────────────────────────────
   const [fieldErrors, setFieldErrors] = useState({});
@@ -1337,7 +1417,7 @@ export default function ProductForm(props) {
             value={entry.label || ''}
             onChange={(e) => updateImageVariant(combinedIndex, 'label', e.target.value)}
             placeholder={`${String(imageVariantName || '').trim() || 'Option'} (ex: Rouge)`}
-            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#e85d00] focus:outline-none"
+            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#FF5000] focus:outline-none"
           />
         </label>
         <label className="block">
@@ -1349,7 +1429,7 @@ export default function ProductForm(props) {
             value={entry.price ?? ''}
             onChange={(e) => updateImageVariant(combinedIndex, 'price', e.target.value)}
             placeholder="Prix (optionnel)"
-            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#e85d00] focus:outline-none"
+            className="min-h-10 w-full rounded-lg border border-gray-200 px-2.5 text-xs font-semibold focus:border-[#FF5000] focus:outline-none"
           />
         </label>
         <label className={`flex min-h-9 cursor-pointer items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${entry.outOfStock ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-gray-50 text-gray-600'}`}>
@@ -1697,68 +1777,18 @@ export default function ProductForm(props) {
       if (productId) {
         onUpdated?.(res.data);
       } else {
+        // Reset before notifying the parent, because the success callback can
+        // close the modal while this component remains mounted for its next use.
+        resetPublishedForm();
         onCreated?.(res.data);
-        clearDraft();
-        submitIdempotencyKeyRef.current = '';
       }
-      
-      // Réinitialiser le formulaire
-      imagePreviewsRef.current.forEach((preview) => {
-        if (preview?.url?.startsWith('blob:')) URL.revokeObjectURL(preview.url);
-      });
-      setForm({
-        title: '',
-        description: '',
-        price: '',
-        category: '',
-        condition: 'used',
-        operator: 'MTN',
-        discount: '',
-        installmentEnabled: false,
-        installmentMinAmount: '',
-        installmentDuration: '',
-        installmentStartDate: '',
-        installmentEndDate: '',
-        installmentLatePenaltyRate: '',
-        installmentMaxMissedPayments: 3,
-        installmentRequireGuarantor: false,
-        wholesaleEnabled: false,
-        wholesaleTiers: [],
-        warrantyEnabled: false,
-        warrantyPeriodValue: '',
-        warrantyPeriodUnit: 'months',
-        attributes: [],
-        physical: {
-          weight: { value: '', unit: 'kg' },
-          dimensions: { length: '', width: '', height: '', unit: 'cm' }
-        },
-        deliveryAvailable: true,
-        pickupAvailable: true,
-        deliveryFeeEnabled: true,
-        deliveryFee: ''
-      });
-      setFiles([]);
-      setImagePreviews([]);
-      setExistingImages([]);
-      setRemovedImages([]);
-      setImageError('');
-      setVideoFile(null);
-      setExistingVideoUrl(null);
-      setRemoveExistingVideo(false);
-      setVideoError('');
-      setPdfFile(null);
-      setPdfError('');
-      setExistingPdf(null);
-      setRemovePdf(false);
-      setWholesaleError('');
-      setWarrantyError('');
-      
+
     } catch (e) {
       if (!productId && isApiPossiblyCommittedError(e)) {
         try {
           const recoveredProduct = await findRecentlyCreatedProduct();
           if (recoveredProduct?._id) {
-            submitIdempotencyKeyRef.current = '';
+            resetPublishedForm();
             onCreated?.(recoveredProduct);
             await appAlert(
               'Annonce enregistrée. Le réseau a mis du temps à répondre, mais le produit est déjà dans vos annonces.'
@@ -2105,7 +2135,7 @@ export default function ProductForm(props) {
         if (!disabled) onChange?.(!checked);
       }}
       className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:ring-offset-2 ${
-        checked ? 'border-[#e85d00] bg-[#e85d00]' : 'border-gray-200 bg-gray-100'
+        checked ? 'border-[#FF5000] bg-[#FF5000]' : 'border-gray-200 bg-gray-100'
       } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer active:scale-95'}`}
     >
       <span
@@ -2118,7 +2148,7 @@ export default function ProductForm(props) {
   // Unified, branded header used by every section of the form. Collapsible
   // sections fold on mobile (chevron); static sections always render expanded.
   const renderSectionHeader = ({ id, icon: Icon, title, subtitle, collapsible = true, accent = 'orange' }) => {
-    const badgeClass = accent === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-[#FFF1E6] text-[#e85d00]';
+    const badgeClass = accent === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-[#FFEDE3] text-[#FF5000]';
     const badge = (
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${badgeClass}`}>
         <Icon className="h-[18px] w-[18px]" />
@@ -2176,11 +2206,11 @@ export default function ProductForm(props) {
   ];
 
   // Taobao-style shared input class
-  const tbInput = 'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#e85d00] focus:ring-2 focus:ring-[#e85d00]/15 transition-colors';
+  const tbInput = 'w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#FF5000] focus:ring-2 focus:ring-[#FF5000]/15 transition-colors';
   // Section title with orange left accent
   const SectionTitle = ({ children }) => (
     <h3 className="flex items-center gap-2">
-      <span className="w-[3px] h-[18px] rounded-full bg-[#e85d00] flex-shrink-0" />
+      <span className="w-[3px] h-[18px] rounded-full bg-[#FF5000] flex-shrink-0" />
       <span className="text-sm font-black text-gray-900">{children}</span>
     </h3>
   );
@@ -2192,15 +2222,15 @@ export default function ProductForm(props) {
         isMobile
           ? isEmbeddedMobile
             ? 'px-0 pb-24 scroll-pb-40'
-            : 'px-0 pb-28 bg-[#f5f5f5] min-h-screen'
-          : 'bg-[#f5f5f5]'
+            : 'px-0 pb-28 bg-[#F6F6F6] min-h-screen'
+          : 'bg-[#F6F6F6]'
       }`}
     >
       {/* ── TAOBAO HEADER ── */}
       {!hideHeader && (
         <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
-            {isEditing ? <Edit className="w-4 h-4 text-[#e85d00]" /> : <Plus className="w-4 h-4 text-[#e85d00]" />}
+          <div className="w-9 h-9 rounded-full bg-[#FFEDE3] flex items-center justify-center flex-shrink-0">
+            {isEditing ? <Edit className="w-4 h-4 text-[#FF5000]" /> : <Plus className="w-4 h-4 text-[#FF5000]" />}
           </div>
           <div className="min-w-0">
             <p className="text-[15px] font-black text-gray-900 leading-tight">{headerTitle}</p>
@@ -2213,15 +2243,15 @@ export default function ProductForm(props) {
       <div className="bg-white px-4 py-3 border-b border-gray-50">
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-xs font-semibold text-gray-500">Progression</p>
-          <span className="text-xs font-black text-[#e85d00]">{requiredCompletedCount}/{requiredTotalCount}</span>
+          <span className="text-xs font-black text-[#FF5000]">{requiredCompletedCount}/{requiredTotalCount}</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-          <div className="h-full rounded-full bg-[#e85d00] transition-all duration-300" style={{ width: `${completionPercent}%` }} />
+          <div className="h-full rounded-full bg-[#FF5000] transition-all duration-300" style={{ width: `${completionPercent}%` }} />
         </div>
         <div className="mt-2 flex gap-1.5">
           {sectionProgressItems.map((item) => (
             <span key={item.key}
-              className={`flex-1 py-1 text-center text-[10px] font-bold rounded transition-colors ${item.done ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-400'}`}>
+              className={`flex-1 py-1 text-center text-[10px] font-bold rounded transition-colors ${item.done ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-400'}`}>
               {item.label}
             </span>
           ))}
@@ -2647,10 +2677,10 @@ export default function ProductForm(props) {
           {(!isMobile || expandedSections.commercialisation) && (
             <div className="space-y-4 pt-1">
 
-          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.installmentEnabled ? 'border-[#e85d00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
+          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.installmentEnabled ? 'border-[#FF5000]/40 bg-[#FFEDE3]' : 'border-gray-200 bg-white'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.installmentEnabled ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.installmentEnabled ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'}`}>
                   <CreditCard className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
@@ -2679,8 +2709,8 @@ export default function ProductForm(props) {
               <div className="space-y-3">
                 {/* Live plan preview */}
                 {installmentPlanPreview && (
-                  <div className="rounded-xl border border-[#e85d00]/30 bg-white p-3">
-                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
+                  <div className="rounded-xl border border-[#FF5000]/30 bg-white p-3">
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF5000]">
                       <CreditCard className="h-3.5 w-3.5" />
                       Aperçu de l'échéancier
                     </div>
@@ -2707,7 +2737,7 @@ export default function ProductForm(props) {
                     </div>
                     {installmentPlanPreview.days > 0 && (
                       <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
-                        <Clock className="h-3.5 w-3.5 text-[#e85d00]" />
+                        <Clock className="h-3.5 w-3.5 text-[#FF5000]" />
                         Solde à régler sur {installmentPlanPreview.days} jour
                         {installmentPlanPreview.days > 1 ? 's' : ''}.
                       </p>
@@ -2718,7 +2748,7 @@ export default function ProductForm(props) {
                 {/* Group: amount & duration */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-[#e85d00]" />
+                    <DollarSign className="h-4 w-4 text-[#FF5000]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Montant &amp; durée</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2758,7 +2788,7 @@ export default function ProductForm(props) {
                 {/* Group: schedule window */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-[#e85d00]" />
+                    <Calendar className="h-4 w-4 text-[#FF5000]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Période de l'échéancier</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2790,7 +2820,7 @@ export default function ProductForm(props) {
                 {/* Group: late rules & guarantees */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-[#e85d00]" />
+                    <ShieldCheck className="h-4 w-4 text-[#FF5000]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Règles &amp; garanties</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2833,14 +2863,14 @@ export default function ProductForm(props) {
                   <label
                     className={`mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-3 transition-colors ${
                       form.installmentRequireGuarantor
-                        ? 'border-[#e85d00]/40 bg-[#FFF7ED]'
+                        ? 'border-[#FF5000]/40 bg-[#FFEDE3]'
                         : 'border-gray-200 bg-gray-50'
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
                       <span
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                          form.installmentRequireGuarantor ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500'
+                          form.installmentRequireGuarantor ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'
                         }`}
                       >
                         <Users className="h-4 w-4" />
@@ -2858,7 +2888,7 @@ export default function ProductForm(props) {
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, installmentRequireGuarantor: e.target.checked }))
                       }
-                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-[#e85d00] focus:ring-[#e85d00]"
+                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-[#FF5000] focus:ring-[#FF5000]"
                     />
                   </label>
                 </div>
@@ -2873,10 +2903,10 @@ export default function ProductForm(props) {
             )}
           </div>
 
-          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.wholesaleEnabled ? 'border-[#e85d00]/40 bg-[#FFF7ED]' : 'border-gray-200 bg-white'}`}>
+          <div className={`min-w-0 space-y-4 overflow-hidden rounded-2xl border p-4 transition-colors ${form.wholesaleEnabled ? 'border-[#FF5000]/40 bg-[#FFEDE3]' : 'border-gray-200 bg-white'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.wholesaleEnabled ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.wholesaleEnabled ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'}`}>
                   <Boxes className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
@@ -2963,8 +2993,8 @@ export default function ProductForm(props) {
                 </button>
 
                 {normalizedWholesalePreviewTiers.length > 0 && (
-                  <div className="rounded-xl border border-[#e85d00]/30 bg-white p-3">
-                    <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#e85d00]">
+                  <div className="rounded-xl border border-[#FF5000]/30 bg-white p-3">
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF5000]">
                       <Boxes className="h-3.5 w-3.5" />
                       Aperçu des prix appliqués
                     </div>
@@ -3312,7 +3342,7 @@ export default function ProductForm(props) {
                       type="text"
                       value={imageVariantName}
                       onChange={(e) => setImageVariantName(e.target.value)}
-                      className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#e85d00] focus:outline-none"
+                      className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-[#FF5000] focus:outline-none"
                       placeholder="Ex: Couleur, Modèle, Dimension"
                     />
                     <span className="w-full text-[11px] text-gray-500 sm:w-auto">
@@ -3477,14 +3507,14 @@ export default function ProductForm(props) {
             {existingVideoUrl && !videoFile && !removeExistingVideo ? (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-gray-700">Vidéo actuelle</p>
-                <div className="rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                <div className="rounded-xl overflow-hidden bg-black border border-gray-200">
                   <div className="relative">
                     <video
                       src={existingVideoUrl}
                       controls
                       playsInline
                       muted={videoMuted}
-                      className="w-full max-h-64 object-contain"
+                      className="w-full aspect-video object-contain"
                     />
                     <button
                       type="button"
@@ -3590,13 +3620,13 @@ export default function ProductForm(props) {
             
             {videoFile && !isCompressingVideo && (
               <div className="space-y-2">
-                <div className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                <div className="relative rounded-xl overflow-hidden bg-black border border-gray-200">
                   <video
-                    src={URL.createObjectURL(videoFile)}
+                    src={videoPreviewUrl}
                     controls
                     playsInline
                     muted={videoMuted}
-                    className="w-full max-h-48 object-contain"
+                    className="w-full aspect-video object-contain"
                   />
                   <button
                     type="button"
@@ -3887,7 +3917,7 @@ export default function ProductForm(props) {
             className={
               isEmbeddedMobile
                 ? 'sticky bottom-0 z-30 mt-4 border-t border-neutral-200/80 bg-white/95 px-0 pt-3 pb-[calc(0.9rem+env(safe-area-inset-bottom))] safe-area-pb'
-                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#f6f6f3]/95 border-t border-neutral-200/70 safe-area-pb'
+                : 'fixed bottom-0 left-0 right-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#F6F6F6]/95 border-t border-neutral-200/70 safe-area-pb'
             }
           >
             {isEmbeddedMobile && onCancel ? (
@@ -3905,7 +3935,7 @@ export default function ProductForm(props) {
             <button
               type="submit"
               disabled={submitDisabled}
-              className="hd-primary-button flex min-h-[54px] w-full items-center justify-center gap-2 rounded-xl py-4 text-[17px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF5000] to-[#FF3D00] py-4 text-[17px] font-black text-white shadow-lg shadow-[#FF5000]/25 transition hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -3924,7 +3954,7 @@ export default function ProductForm(props) {
           <button
             type="submit"
             disabled={submitDisabled}
-            className="hd-primary-button flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF5000] to-[#FF3D00] py-4 font-black text-white shadow-lg shadow-[#FF5000]/25 transition hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -3967,7 +3997,7 @@ export default function ProductForm(props) {
               {/* ── Header ── */}
               <div className={`flex items-center justify-between bg-[#1a1a1a] border-b border-white/10 flex-shrink-0 ${isMobile ? 'px-4 py-3 safe-area-top' : 'px-4 py-3'}`}>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#e85d00] flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#FF5000] flex items-center justify-center flex-shrink-0">
                     <Crop className="w-4 h-4 text-white" />
                   </div>
                   <div>
@@ -3996,7 +4026,7 @@ export default function ProductForm(props) {
                   <button key={label} type="button" onClick={() => applyCropAspectPreset(key)}
                     className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all touch-manipulation ${
                       cropAspect === key
-                        ? 'bg-[#e85d00] text-white shadow-sm'
+                        ? 'bg-[#FF5000] text-white shadow-sm'
                         : 'bg-white/10 text-white/70 active:bg-white/20'
                     }`}>
                     {label}
@@ -4074,7 +4104,7 @@ export default function ProductForm(props) {
                       <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-white/20" style={{ top: `${(i / 3) * 100}%` }} />
                     ))}
                     {/* Orange border frame */}
-                    <div className="absolute inset-0 border-2 border-[#e85d00]/80 pointer-events-none" />
+                    <div className="absolute inset-0 border-2 border-[#FF5000]/80 pointer-events-none" />
                     {/* Corner accents */}
                     {[
                       'top-0 left-0 border-t-2 border-l-2',
@@ -4082,7 +4112,7 @@ export default function ProductForm(props) {
                       'bottom-0 left-0 border-b-2 border-l-2',
                       'bottom-0 right-0 border-b-2 border-r-2',
                     ].map((cls, i) => (
-                      <div key={i} className={`absolute w-5 h-5 border-[#e85d00] ${cls}`} />
+                      <div key={i} className={`absolute w-5 h-5 border-[#FF5000] ${cls}`} />
                     ))}
                   </div>
                 </div>
@@ -4105,7 +4135,7 @@ export default function ProductForm(props) {
                         <Icon className="w-3.5 h-3.5" />
                         {label}
                         {id === 'filters' && !filtersAreDefault && (
-                          <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[#e85d00]" />
+                          <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[#FF5000]" />
                         )}
                       </button>
                     );
@@ -4148,13 +4178,13 @@ export default function ProductForm(props) {
                       <input type="range" min={sliderMinScale} max={sliderMaxScale} step={0.001} value={imageScale}
                         onChange={handleZoomInput}
                         className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20"
-                        style={{ accentColor: '#e85d00' }} />
+                        style={{ accentColor: '#FF5000' }} />
                       <button type="button" onClick={() => handleZoomChange(0.15)}
                         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white active:bg-white/20 touch-manipulation"
                         aria-label="Zoom avant">
                         <ZoomIn className="w-4 h-4" />
                       </button>
-                      <span className="w-12 flex-shrink-0 text-right text-xs font-black text-[#e85d00]">{zoomPct}%</span>
+                      <span className="w-12 flex-shrink-0 text-right text-xs font-black text-[#FF5000]">{zoomPct}%</span>
                     </div>
                   </div>
                 ) : (
@@ -4170,14 +4200,14 @@ export default function ProductForm(props) {
                             <Icon className="w-3.5 h-3.5 text-white/50" />
                             {label}
                           </span>
-                          <span className="w-12 text-right text-[11px] font-black text-[#e85d00]">
+                          <span className="w-12 text-right text-[11px] font-black text-[#FF5000]">
                             {imageFilters[key]}%
                           </span>
                         </div>
                         <input type="range" min={min} max={max} step={1} value={imageFilters[key]}
                           onChange={(e) => setImageFilters((f) => ({ ...f, [key]: Number(e.target.value) }))}
                           className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20"
-                          style={{ accentColor: '#e85d00' }} />
+                          style={{ accentColor: '#FF5000' }} />
                       </div>
                     ))}
                     <button type="button" onClick={() => setImageFilters(DEFAULT_IMAGE_FILTERS)} disabled={filtersAreDefault}
@@ -4195,7 +4225,7 @@ export default function ProductForm(props) {
                   Annuler
                 </button>
                 <button type="button" onClick={handleCropConfirm}
-                  className="flex-1 py-4 text-sm font-bold text-[#e85d00] active:bg-[#e85d00]/10 transition-colors touch-manipulation">
+                  className="flex-1 py-4 text-sm font-bold text-[#FF5000] active:bg-[#FF5000]/10 transition-colors touch-manipulation">
                   Confirmer
                 </button>
               </div>

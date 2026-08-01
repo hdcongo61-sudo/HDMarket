@@ -3599,7 +3599,11 @@ export default function Navbar() {
             {/* === BOUTON MENU MOBILE === */}
             <div className="flex items-center gap-2 md:hidden">
               <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                onClick={() => {
+                  setIsMenuOpen((open) => !open);
+                  setBottomBarExpanded(false);
+                  setShowQuickActions(null);
+                }}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 active:scale-95 ${
                   isMenuOpen
                     ? 'bg-neutral-100 dark:bg-neutral-900/40 text-neutral-900 dark:text-neutral-300 shadow-md'
@@ -4658,7 +4662,9 @@ export default function Navbar() {
                     type="button"
                     data-item-id={item.id}
                     onClick={() => {
-                      setIsMenuOpen(true);
+                      setIsMenuOpen((open) => !open);
+                      setBottomBarExpanded(false);
+                      setShowQuickActions(null);
                       triggerHaptic('light');
                     }}
                     onTouchStart={handleBottomBarTouchStart}

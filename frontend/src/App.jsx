@@ -696,7 +696,7 @@ function AppContent() {
       <main
         className={isCourierRoute
           ? 'app-main-shell min-h-[100dvh] p-0 main-content no-ios-callout'
-          : 'app-main-shell pt-[calc(env(safe-area-inset-top,0px)+4rem)] pb-24 md:pb-0 lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] main-content mobile-nav-safe no-ios-callout'}
+          : 'app-main-shell pt-[calc(env(safe-area-inset-top,0px)+4rem)] lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] no-ios-callout'}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

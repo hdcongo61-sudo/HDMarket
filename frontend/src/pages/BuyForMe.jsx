@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { CircleDollarSign, ImagePlus, Loader2, MapPin, Minus, PackagePlus, Plus, ReceiptText, ShoppingBasket, Store, Truck, X } from 'lucide-react';
+import { CircleDollarSign, ImagePlus, Loader2, MapPin, Minus, PackagePlus, Plus, ReceiptText, ShoppingBasket, Store, Truck, User, X } from 'lucide-react';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -53,31 +53,38 @@ function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, co
   );
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="grid h-8 w-8 place-items-center rounded-xl bg-orange-50 text-[#e85d00]"><MapPin size={16} /></span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h2 className="text-sm font-black text-gray-900">{title}</h2>
-            {optional ? <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500">Facultatif</span> : null}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#FFEDE3] text-[#FF5000]"><MapPin size={16} /></span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h2 className="text-sm font-black text-gray-900">{title}</h2>
+              {optional ? <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500">Facultatif</span> : null}
+            </div>
+            <p className="text-[11px] font-medium text-gray-500">{subtitle}</p>
           </div>
-          <p className="text-[11px] font-medium text-gray-500">{subtitle}</p>
         </div>
+        {onAutofill ? (
+          <button type="button" onClick={onAutofill} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold text-[#FF5000]">
+            <User size={12} />
+            Mes infos
+          </button>
+        ) : null}
       </div>
-      {onAutofill ? <div className="mb-3 rounded-xl border border-sky-100 bg-sky-50 p-2.5"><button type="button" onClick={onAutofill} className="text-xs font-black text-sky-700">Utiliser mon adresse enregistrée</button><p className="mt-1 text-[10px] leading-4 text-sky-700">Remplissage uniquement après votre clic, depuis votre profil. Aucune géolocalisation ni adresse n’est partagée automatiquement.</p></div> : null}
       <div className="grid grid-cols-2 gap-2">
-        <select value={value.cityId} onChange={(event) => onChange({ ...value, cityId: event.target.value, communeId: '' })} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00]">
+        <select value={value.cityId} onChange={(event) => onChange({ ...value, cityId: event.target.value, communeId: '' })} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]">
           <option value="">Ville</option>
           {cities.map((city) => <option key={city._id} value={city._id}>{city.name}</option>)}
         </select>
-        <select value={value.communeId} onChange={(event) => onChange({ ...value, communeId: event.target.value })} disabled={!value.cityId} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#e85d00] disabled:opacity-50">
+        <select value={value.communeId} onChange={(event) => onChange({ ...value, communeId: event.target.value })} disabled={!value.cityId} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000] disabled:opacity-50">
           <option value="">Commune</option>
           {localCommunes.map((commune) => <option key={commune._id} value={commune._id}>{commune.name}</option>)}
         </select>
       </div>
-      <input value={value.address} onChange={(event) => onChange({ ...value, address: event.target.value })} placeholder="Adresse précise, quartier, repère…" className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#e85d00]" />
+      <input value={value.address} onChange={(event) => onChange({ ...value, address: event.target.value })} placeholder="Adresse précise, quartier, repère…" className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <input value={value.contactName} onChange={(event) => onChange({ ...value, contactName: event.target.value })} placeholder="Nom du contact" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#e85d00]" />
-        <input value={value.contactPhone} onChange={(event) => onChange({ ...value, contactPhone: event.target.value })} placeholder="Téléphone" type="tel" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#e85d00]" />
+        <input value={value.contactName} onChange={(event) => onChange({ ...value, contactName: event.target.value })} placeholder="Nom du contact" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
+        <input value={value.contactPhone} onChange={(event) => onChange({ ...value, contactPhone: event.target.value })} placeholder="Téléphone" type="tel" className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
       </div>
     </section>
   );
@@ -238,29 +245,29 @@ export default function BuyForMe() {
   if (!enabled) return <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-gray-500">Le service Acheter Pour Moi est temporairement indisponible.</div>;
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] pb-28">
-      <GlassHeader title="Acheter Pour Moi" subtitle="Un livreur fait les achats et vous livre" backTo="/" right={<Link to="/buy-for-me/orders" className="text-xs font-black text-[#e85d00]">Mes demandes</Link>} />
+    <div className="min-h-screen bg-[#F6F6F6] pb-36">
+      <GlassHeader title="Acheter Pour Moi" subtitle="Un livreur fait les achats et vous livre" backTo="/" right={<Link to="/buy-for-me/orders" className="text-xs font-black text-[#FF5000]">Mes demandes</Link>} />
       <main className="mx-auto max-w-lg space-y-3 px-4 py-4">
-        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#e85d00] to-[#ff8c3a] p-4 text-white shadow-sm">
+        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#FF5000] to-[#FF3D00] p-4 text-white shadow-sm">
           <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15"><ShoppingBasket size={22} /></span><div><p className="text-base font-black">Vous choisissez, on achète.</p><p className="mt-1 text-xs font-medium leading-5 text-white/85">Indiquez les prix estimés, ou fixez un budget si vous ne les connaissez pas. Le livreur ne dépasse jamais le montant autorisé sans votre accord.</p></div></div>
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h2 className="text-sm font-black text-gray-900">Comment autoriser les achats ?</h2>
           <p className="mt-1 text-xs text-gray-500">Vous ne connaissez pas les prix ? Choisissez l’option budget: le livreur reste dans le montant indiqué.</p>
-          <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setAuthorizationMode('ITEM_ESTIMATES')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'ITEM_ESTIMATES' ? 'border-[#e85d00] bg-orange-50 text-[#a73f00]' : 'border-gray-200 text-gray-600'}`}>Prix par article<span className="mt-1 block text-[10px] font-medium">Vous connaissez les prix.</span></button><button type="button" onClick={() => setAuthorizationMode('SHOPPING_BUDGET')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'SHOPPING_BUDGET' ? 'border-[#e85d00] bg-orange-50 text-[#a73f00]' : 'border-gray-200 text-gray-600'}`}>Budget d’achats<span className="mt-1 block text-[10px] font-medium">Vous ne connaissez pas les prix.</span></button></div>
+          <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setAuthorizationMode('ITEM_ESTIMATES')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'ITEM_ESTIMATES' ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}>Prix par article<span className="mt-1 block text-[10px] font-medium">Vous connaissez les prix.</span></button><button type="button" onClick={() => setAuthorizationMode('SHOPPING_BUDGET')} className={`rounded-xl border p-3 text-left text-xs font-black ${authorizationMode === 'SHOPPING_BUDGET' ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}>Budget d’achats<span className="mt-1 block text-[10px] font-medium">Vous ne connaissez pas les prix.</span></button></div>
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><Store size={16} className="text-[#e85d00]" /> Magasin souhaité</h2>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><Store size={16} className="text-[#FF5000]" /> Magasin souhaité</h2>
           <div className="grid grid-cols-2 gap-2">
-            {STORE_TYPES.filter(([key]) => supportedStoreTypes.includes(key)).map(([key, label]) => <button key={key} type="button" onClick={() => setStoreType(key)} className={`min-h-11 rounded-xl border px-2 text-xs font-bold ${storeType === key ? 'border-[#e85d00] bg-orange-50 text-[#c54d00]' : 'border-gray-200 text-gray-500'}`}>{label}</button>)}
+            {STORE_TYPES.filter(([key]) => supportedStoreTypes.includes(key)).map(([key, label]) => <button key={key} type="button" onClick={() => setStoreType(key)} className={`min-h-11 rounded-xl border px-2 text-xs font-bold ${storeType === key ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-500'}`}>{label}</button>)}
           </div>
-          <input value={preferredStore} onChange={(event) => setPreferredStore(event.target.value)} placeholder="Magasin préféré (ou « n’importe quel magasin proche »)" className="mt-3 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#e85d00]" />
+          <input value={preferredStore} onChange={(event) => setPreferredStore(event.target.value)} placeholder="Magasin préféré (ou « n’importe quel magasin proche »)" className="mt-3 min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-[#FF5000]" />
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-black text-gray-900"><PackagePlus size={16} className="text-[#e85d00]" /> Liste d’achats</h2><button type="button" onClick={() => setItems((previous) => [...previous, emptyItem()])} className="inline-flex items-center gap-1 text-xs font-black text-[#e85d00]"><Plus size={14} /> Ajouter</button></div>
+          <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-black text-gray-900"><PackagePlus size={16} className="text-[#FF5000]" /> Liste d’achats</h2><button type="button" onClick={() => setItems((previous) => [...previous, emptyItem()])} className="inline-flex items-center gap-1 text-xs font-black text-[#FF5000]"><Plus size={14} /> Ajouter</button></div>
           <div className="space-y-2">
             {items.map((item, index) => (
               <div key={index} className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
@@ -271,7 +278,7 @@ export default function BuyForMe() {
                       value={item.name}
                       onChange={(event) => updateItem(index, { name: event.target.value })}
                       placeholder="Ex. lait entier, riz parfumé…"
-                      className="min-h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold outline-none focus:border-[#e85d00]"
+                      className="min-h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold outline-none focus:border-[#FF5000]"
                     />
                   </label>
                   <button type="button" onClick={() => removeItem(index)} className="mt-4 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-transparent text-gray-400 hover:border-red-100 hover:bg-white hover:text-red-500" aria-label={`Retirer le produit ${index + 1}`}><Minus size={15} /></button>
@@ -279,20 +286,20 @@ export default function BuyForMe() {
                 <div className={`mt-2 grid gap-2 ${authorizationMode === 'ITEM_ESTIMATES' ? 'grid-cols-[72px_minmax(0,1fr)]' : 'grid-cols-1'}`}>
                   <label>
                     <span className="mb-1 block text-center text-[10px] font-bold text-gray-500">Qté</span>
-                    <input value={item.quantity} onChange={(event) => updateItem(index, { quantity: event.target.value })} placeholder="1" type="number" min="0.001" step="0.001" inputMode="decimal" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-1.5 text-center text-sm font-black outline-none focus:border-[#e85d00]" />
+                    <input value={item.quantity} onChange={(event) => updateItem(index, { quantity: event.target.value })} placeholder="1" type="number" min="0.001" step="0.001" inputMode="decimal" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-1.5 text-center text-sm font-black outline-none focus:border-[#FF5000]" />
                   </label>
                   {authorizationMode === 'ITEM_ESTIMATES' ? <label>
                     <span className="mb-1 block text-[10px] font-bold text-gray-500">Prix unitaire estimé (FCFA)</span>
-                    <input value={item.estimatedUnitPrice} onChange={(event) => updateItem(index, { estimatedUnitPrice: event.target.value })} placeholder="Ex. 2 500" type="number" min="1" step="1" inputMode="numeric" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-[#e85d00]" />
+                    <input value={item.estimatedUnitPrice} onChange={(event) => updateItem(index, { estimatedUnitPrice: event.target.value })} placeholder="Ex. 2 500" type="number" min="1" step="1" inputMode="numeric" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-sm font-semibold outline-none focus:border-[#FF5000]" />
                   </label> : <p className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800">Prix non requis : cet article sera acheté dans le budget autorisé.</p>}
                 </div>
                 {authorizationMode === 'ITEM_ESTIMATES' ? <div className="mt-2 flex items-center justify-between rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-xs">
                   <span className="font-bold text-orange-800">Total estimé</span>
-                  <span className="font-black text-[#c54d00]">{formatCurrency(getItemEstimatedTotal(item))}</span>
+                  <span className="font-black text-[#FF3D00]">{formatCurrency(getItemEstimatedTotal(item))}</span>
                 </div> : null}
                 <label className="mt-2 block">
                   <span className="mb-1 block text-[10px] font-bold text-gray-500">Précision facultative</span>
-                  <input value={item.note} onChange={(event) => updateItem(index, { note: event.target.value })} placeholder="Marque, taille, préférence…" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-xs outline-none focus:border-[#e85d00]" />
+                  <input value={item.note} onChange={(event) => updateItem(index, { note: event.target.value })} placeholder="Marque, taille, préférence…" className="min-h-10 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-xs outline-none focus:border-[#FF5000]" />
                 </label>
                 <div className="mt-2">
                   {item.imagePreview || item.imageUrl ? (
@@ -302,10 +309,10 @@ export default function BuyForMe() {
                         <p className="text-xs font-black text-gray-800">{item.imageUploading ? 'Envoi de la photo…' : item.imageUrl ? 'Photo ajoutée' : 'Photo sélectionnée'}</p>
                         <p className="mt-0.5 text-[10px] text-gray-500">Le livreur pourra reconnaître le produit.</p>
                       </div>
-                      {item.imageUploading ? <Loader2 size={17} className="shrink-0 animate-spin text-[#e85d00]" /> : <button type="button" onClick={() => clearItemImage(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500" aria-label={`Supprimer la photo du produit ${index + 1}`}><X size={14} /></button>}
+                      {item.imageUploading ? <Loader2 size={17} className="shrink-0 animate-spin text-[#FF5000]" /> : <button type="button" onClick={() => clearItemImage(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500" aria-label={`Supprimer la photo du produit ${index + 1}`}><X size={14} /></button>}
                     </div>
                   ) : (
-                    <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-orange-200 bg-orange-50/60 px-3 text-xs font-black text-[#c54d00]">
+                    <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-orange-200 bg-orange-50/60 px-3 text-xs font-black text-[#FF3D00]">
                       <ImagePlus size={16} />
                       Ajouter une photo <span className="font-semibold text-orange-700/70">(facultatif)</span>
                       <input type="file" accept="image/*,.heic,.heif" className="sr-only" onChange={(event) => { uploadItemImage(index, event.target.files?.[0]); event.target.value = ''; }} />
@@ -318,19 +325,28 @@ export default function BuyForMe() {
           </div>
         </section>
 
-        {authorizationMode === 'SHOPPING_BUDGET' ? <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><label className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#e85d00]" /> Budget d’achats autorisé</label><input type="number" min="1" value={shoppingBudget} onChange={(event) => setShoppingBudget(event.target.value)} placeholder="Ex. 25 000" className="min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 text-lg font-black text-gray-900 outline-none focus:border-[#e85d00]" /><p className="mt-2 text-[11px] font-medium text-gray-500">Utilisez cette option si vous ne connaissez pas les prix. Le livreur ne dépassera pas ce budget sans votre accord.</p></section> : <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#e85d00]" /> Valeur estimée des achats</p><p className="mt-1 text-[11px] font-medium text-gray-600">Calculée automatiquement à partir de chaque article.</p></div><p className="text-lg font-black text-[#c54d00]">{formatCurrency(estimatedShoppingValue)}</p></div><p className="mt-3 text-[11px] font-medium text-gray-500">Ce montant autorise les achats. S’il est dépassé, les achats sont suspendus jusqu’à votre choix ou paiement complémentaire.</p></section>}
+        {authorizationMode === 'SHOPPING_BUDGET' ? <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><label className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#FF5000]" /> Budget d’achats autorisé</label><input type="number" min="1" value={shoppingBudget} onChange={(event) => setShoppingBudget(event.target.value)} placeholder="Ex. 25 000" className="min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 text-lg font-black text-gray-900 outline-none focus:border-[#FF5000]" /><p className="mt-2 text-[11px] font-medium text-gray-500">Utilisez cette option si vous ne connaissez pas les prix. Le livreur ne dépassera pas ce budget sans votre accord.</p></section> : <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#FF5000]" /> Valeur estimée des achats</p><p className="mt-1 text-[11px] font-medium text-gray-600">Calculée automatiquement à partir de chaque article.</p></div><p className="text-lg font-black text-[#FF3D00]">{formatCurrency(estimatedShoppingValue)}</p></div><p className="mt-3 text-[11px] font-medium text-gray-500">Ce montant autorise les achats. S’il est dépassé, les achats sont suspendus jusqu’à votre choix ou paiement complémentaire.</p></section>}
 
         <LocationCard title="Adresse du magasin" subtitle="Indiquez-la seulement si vous avez un magasin précis en tête" value={pickup} onChange={setPickup} onAutofill={canAutofillAddress ? () => setPickup({ ...savedAddress }) : null} cities={cities} communes={communes} optional />
         <LocationCard title="Adresse de livraison" subtitle="Où nous vous remettons les achats" value={dropoff} onChange={setDropoff} onAutofill={canAutofillAddress ? () => setDropoff({ ...savedAddress }) : null} cities={cities} communes={communes} />
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><label className="text-sm font-black text-gray-900">Instructions particulières</label><textarea value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} rows={3} placeholder="Ex. Vérifier la date d’expiration, sans piment, prendre le moins cher…" className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-[#e85d00]" /></section>
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><label className="text-sm font-black text-gray-900">Instructions particulières</label><textarea value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} rows={3} placeholder="Ex. Vérifier la date d’expiration, sans piment, prendre le moins cher…" className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-[#FF5000]" /></section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><h2 className="text-sm font-black text-gray-900">S’il reste de l’argent</h2><p className="mt-1 text-xs text-gray-500">Votre choix est appliqué après la livraison, selon le reçu du magasin.</p><div className="mt-3 space-y-2">{[['WALLET_REFUND', 'Remboursement sur votre portefeuille HDMarket'], ['DRIVER_TIP', 'Donner le solde au livreur (pourboire)'], ['PLATFORM_DONATION', 'Faire don du solde à HDMarket']].map(([key, label]) => <label key={key} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-xs font-bold ${balancePreference === key ? 'border-[#e85d00] bg-orange-50 text-[#a73f00]' : 'border-gray-200 text-gray-600'}`}><input type="radio" checked={balancePreference === key} onChange={() => setBalancePreference(key)} />{label}</label>)}</div></section>
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><h2 className="text-sm font-black text-gray-900">S’il reste de l’argent</h2><p className="mt-1 text-xs text-gray-500">Votre choix est appliqué après la livraison, selon le reçu du magasin.</p><div className="mt-3 space-y-2">{[['WALLET_REFUND', 'Remboursement sur votre portefeuille HDMarket'], ['DRIVER_TIP', 'Donner le solde au livreur (pourboire)'], ['PLATFORM_DONATION', 'Faire don du solde à HDMarket']].map(([key, label]) => <label key={key} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-xs font-bold ${balancePreference === key ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}><input type="radio" checked={balancePreference === key} onChange={() => setBalancePreference(key)} />{label}</label>)}</div></section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><ReceiptText size={16} className="text-[#e85d00]" /> Détail avant paiement</div>{quote?.breakdown?.map((line) => <div key={line.key} className="mb-2 flex items-center justify-between text-sm text-gray-600"><span>{line.label}</span><span className="font-bold text-gray-900">{formatCurrency(line.amount)}</span></div>)}<div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3"><span className="font-black text-gray-900">Total à payer</span><span className="text-xl font-black text-[#e85d00]">{quoting ? '…' : quote ? formatCurrency(quote.total) : '—'}</span></div>{quoteError ? <p className="mt-2 text-xs font-bold text-red-600">{quoteError}</p> : null}</section>
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><ReceiptText size={16} className="text-[#FF5000]" /> Détail avant paiement</div>{quote?.breakdown?.map((line) => <div key={line.key} className="mb-2 flex items-center justify-between text-sm text-gray-600"><span>{line.label}</span><span className="font-bold text-gray-900">{formatCurrency(line.amount)}</span></div>)}{quoteError ? <p className="mt-2 text-xs font-bold text-red-600">{quoteError}</p> : null}</section>
 
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3"><p className="flex items-center gap-2 text-xs font-bold text-emerald-800"><Truck size={15} /> Paiement sécurisé avant le début des achats</p><p className="mt-1 text-[11px] text-emerald-700">La valeur estimée de vos articles est réservée. Vous recevez le reçu du magasin et suivez chaque étape.</p></div>
-        <PawaPayButton amount={quote?.total} purpose="BUY_FOR_ME_FUNDING" returnPath="/buy-for-me/orders" label="Payer et trouver un livreur" onBeforeStart={beforePay} />
+
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white px-4 py-3 [padding-bottom:calc(env(safe-area-inset-bottom)+0.75rem)]">
+          <div className="mx-auto max-w-lg">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-500">Total à payer</span>
+              <p className="text-lg font-black text-[#FF3D00]">{quoting ? '…' : quote ? formatCurrency(quote.total) : '—'}</p>
+            </div>
+            <PawaPayButton amount={quote?.total} purpose="BUY_FOR_ME_FUNDING" returnPath="/buy-for-me/orders" label="Payer et trouver un livreur" onBeforeStart={beforePay} />
+          </div>
+        </div>
       </main>
     </div>
   );

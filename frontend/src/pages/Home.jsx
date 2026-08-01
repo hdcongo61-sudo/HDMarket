@@ -27,6 +27,23 @@ import {
 
 const normalizeCityName = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+// Deterministic (seeded) Fisher-Yates shuffle — same seed always produces the
+// same order, so a stable per-mount seed gives "random on each page load"
+// without the selection jumping around on every unrelated re-render.
+const seededShuffle = (list, seed) => {
+  let state = seed || 1;
+  const nextRandom = () => {
+    state = (state * 1103515245 + 12345) & 0x7fffffff;
+    return state / 0x7fffffff;
+  };
+  const result = [...list];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(nextRandom() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
 const normalizeSettingBoolean = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value !== 0;
@@ -278,6 +295,9 @@ export default function Home() {
   const loadMoreSentinelRef = useRef(null);
   const homeProductsAbortRef = useRef(null);
   const productsNextCursorRef = useRef('');
+  // Stable per-mount seed so "Sélection du jour" shows a random set of photos
+  // on each page load/refresh, without reshuffling on every unrelated re-render.
+  const heroShuffleSeedRef = useRef(Math.floor(Math.random() * 2 ** 31) || 1);
 const {
   rapid3GActive,
   compactProductsPageSize,
@@ -1239,11 +1259,15 @@ const loadDiscountProducts = async () => {
       ...discountProducts.filter(p => !highlights.topDeals.some(d => d._id === p._id)).slice(0, 4)
     ].slice(0, 8);
     const displayFlashDeals = (flashDeals.length ? flashDeals : fallbackDeals).slice(0, 8);
-    const heroProducts = [
-      ...displayFlashDeals,
-      ...topSalesProducts,
-      ...items
-    ].filter(Boolean).slice(0, 4);
+    const heroProductsPool = [...displayFlashDeals, ...topSalesProducts, ...items].filter(Boolean);
+    const seenHeroProductIds = new Set();
+    const uniqueHeroProductsPool = heroProductsPool.filter((product) => {
+      const id = String(product?._id || '');
+      if (!id || seenHeroProductIds.has(id)) return false;
+      seenHeroProductIds.add(id);
+      return true;
+    });
+    const heroProducts = seededShuffle(uniqueHeroProductsPool, heroShuffleSeedRef.current).slice(0, 4);
     const discoveryTabs = [
       { label: 'Recommandé', to: '/' },
       { label: 'Mode', to: '/categories/pret-porter' },
