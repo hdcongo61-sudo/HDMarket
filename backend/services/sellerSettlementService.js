@@ -53,23 +53,35 @@ const normalizePayoutPhone = (value) => {
   return digits;
 };
 
-const settings = async () => {
-  const values = await getManyRuntimeConfigs([
-    'commission_rate',
-    'seller_min_payout',
-    'seller_settlement_hold_hours',
-    'dispute_window_hours'
-  ]);
+export const resolveSellerSettlementPolicy = (values = {}) => {
+  const immediateOnCompletion = !['false', '0', 'no', 'off'].includes(
+    String(values.seller_payout_immediate_on_completion ?? true).trim().toLowerCase()
+  );
   return {
     commissionRate: Math.min(100, Math.max(0, Number(values.commission_rate ?? 3))),
-    minimumPayout: Math.max(0, Number(values.seller_min_payout ?? 5000)),
-    holdHours: Math.max(
-      0,
-      Number(values.seller_settlement_hold_hours ?? 72),
-      Number(values.dispute_window_hours ?? 72)
-    )
+    immediateOnCompletion,
+    minimumPayout: immediateOnCompletion
+      ? 0
+      : Math.max(0, Number(values.seller_min_payout ?? 5000)),
+    holdHours: immediateOnCompletion
+      ? 0
+      : Math.max(
+          0,
+          Number(values.seller_settlement_hold_hours ?? 72),
+          Number(values.dispute_window_hours ?? 72)
+        )
   };
 };
+
+const settings = async () => resolveSellerSettlementPolicy(
+  await getManyRuntimeConfigs([
+    'commission_rate',
+    'seller_min_payout',
+    'seller_payout_immediate_on_completion',
+    'seller_settlement_hold_hours',
+    'dispute_window_hours'
+  ])
+);
 
 const updateOrderSettlement = async (settlement, patch = {}) => {
   const statusMap = {
@@ -192,6 +204,9 @@ export const ensureSellerSettlementForOrder = async (orderOrId) => {
         settlementStatus: status
       });
     }
+    if (status === 'READY' && config.immediateOnCompletion) {
+      await initiateSellerPayoutBatch(sellerId, [settlement], 0);
+    }
     return settlement;
   } catch (error) {
     if (error?.code === 11000) return SellerSettlement.findOne({ order: order._id });
@@ -199,12 +214,19 @@ export const ensureSellerSettlementForOrder = async (orderOrId) => {
   }
 };
 
-const refreshSettlementState = async (settlement, now = new Date()) => {
+const refreshSettlementState = async (settlement, now = new Date(), configOverride = null) => {
+  const config = configOverride || await settings();
   const [order, seller, blockingDispute] = await Promise.all([
     Order.findById(settlement.order),
     User.findById(settlement.seller).select('payoutAccount'),
     Dispute.exists({ orderId: settlement.order, status: { $in: OPEN_DISPUTE_STATUSES } })
   ]);
+  if (order) {
+    const baseline = new Date(
+      order.completedAt || order.clientDeliveryConfirmedAt || order.deliveredAt || settlement.createdAt || now
+    );
+    settlement.releaseAt = new Date(baseline.getTime() + config.holdHours * 60 * 60 * 1000);
+  }
   if (!order || order.status === 'cancelled') {
     settlement.status = 'CANCELLED';
     settlement.failureReason = 'Commande annulée.';
@@ -432,6 +454,7 @@ export const reconcileSellerPayout = async (payoutId, payload) => {
 };
 
 export const processSellerSettlements = async ({ limit = 100 } = {}) => {
+  const config = await settings();
   const candidates = await Order.find({
     paymentSource: 'pawapay',
     status: { $in: PAYABLE_ORDER_STATUSES },
@@ -450,10 +473,9 @@ export const processSellerSettlements = async ({ limit = 100 } = {}) => {
     status: { $in: ['HELD', 'WAITING_ACCOUNT', 'BLOCKED'] }
   }).sort({ releaseAt: 1 }).limit(limit);
   for (const settlement of refreshable) {
-    await refreshSettlementState(settlement);
+    await refreshSettlementState(settlement, new Date(), config);
   }
 
-  const config = await settings();
   const sellers = await SellerSettlement.distinct('seller', { status: 'READY', payout: null });
   let initiated = 0;
   for (const sellerId of sellers) {

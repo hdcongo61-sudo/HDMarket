@@ -40,6 +40,13 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     isPublic: false,
     min: 0
   },
+  seller_payout_immediate_on_completion: {
+    category: 'fees_rules',
+    description: 'Verse automatiquement chaque vente au vendeur dès que la commande est terminée.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
   seller_settlement_hold_hours: {
     category: 'fees_rules',
     description: 'Délai de sécurité avant versement automatique au vendeur (heures).',
