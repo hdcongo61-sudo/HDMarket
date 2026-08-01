@@ -451,7 +451,7 @@ const sendOrderSms = async ({ phone, message, context }) => {
 
 const baseOrderQuery = () =>
   Order.find()
-    .populate('customer', 'name email phone address city commune')
+    .populate('customer', 'name email phone address city commune accountType')
     .populate({
       path: 'items.product',
       select: 'title price images attributes status user slug category categoryId subcategoryId',
@@ -919,7 +919,8 @@ const buildOrderResponse = (order) => {
           phone: obj.customer.phone,
           address: obj.customer.address,
           city: obj.customer.city,
-          commune: obj.customer.commune || ''
+          commune: obj.customer.commune || '',
+          accountType: obj.customer.accountType || 'person'
         }
       : null,
     createdBy: obj.createdBy

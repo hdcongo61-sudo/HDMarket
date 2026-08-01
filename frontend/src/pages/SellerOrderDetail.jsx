@@ -941,6 +941,23 @@ export default function SellerOrderDetail() {
     String(order?.shippingAddressSnapshot?.phone || '').trim() ||
     String(order?.customerPhone || '').trim() ||
     String(order?.customer?.phone || '').trim();
+  const buyerName = String(order?.customer?.name || order?.customerName || 'Client HDMarket').trim();
+  const buyerEmail = String(order?.customer?.email || '').trim();
+  const buyerPersonalAddress = String(order?.customer?.address || '').trim();
+  const buyerCommune = String(
+    order?.shippingAddressSnapshot?.communeName || order?.customer?.commune || ''
+  ).trim();
+  const buyerCity = String(
+    order?.shippingAddressSnapshot?.cityName || order?.deliveryCity || order?.customer?.city || ''
+  ).trim();
+  const buyerDeliveryAddress = String(
+    order?.deliveryAddress || order?.shippingAddressSnapshot?.addressLine || buyerPersonalAddress || ''
+  ).trim();
+  const buyerAccountType = String(order?.customer?.accountType || 'person').trim().toLowerCase();
+  const buyerAccountLabel = buyerAccountType === 'shop' ? 'Boutique' : 'Particulier';
+  const buyerPersonalLocation = [buyerPersonalAddress, buyerCommune, buyerCity]
+    .filter((value, index, values) => value && values.indexOf(value) === index)
+    .join(', ');
   const installmentPlan = isInstallmentOrder ? order.installmentPlan || {} : null;
   const installmentSchedule = Array.isArray(installmentPlan?.schedule) ? installmentPlan.schedule : [];
   const installmentWorkflow = isInstallmentOrder ? getInstallmentWorkflow(order) : null;
@@ -1041,10 +1058,10 @@ export default function SellerOrderDetail() {
   const canRequestProof = canRequestDeliveryProof || canRequestPickupProof;
   const canShowDeliveryProofForm = canRequestProof && showDeliveryProofForm;
   const sellerCity = String(user?.city || '').trim();
-  const buyerCity = String(order.deliveryCity || '').trim();
+  const deliveryDestinationCity = String(order.deliveryCity || '').trim();
   // Same rule as the buyer-side page: default to offering a refund when
   // cancelling a cross-city order.
-  const cityMismatch = Boolean(sellerCity && buyerCity) && sellerCity.toLowerCase() !== buyerCity.toLowerCase();
+  const cityMismatch = Boolean(sellerCity && deliveryDestinationCity) && sellerCity.toLowerCase() !== deliveryDestinationCity.toLowerCase();
   const platformDeliveryEnabled =
     ['true', '1', 'yes', 'on'].includes(
       String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
@@ -1242,14 +1259,66 @@ export default function SellerOrderDetail() {
                 <span className="text-lg font-black text-[#231f1b]">{formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}</span>
               </div>
 
-              <div className="flex items-center gap-3 rounded-xl border border-[#eee8e0] px-3 py-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-sm font-black text-[#c2410c]">{String(order.customer?.name || 'C').charAt(0).toUpperCase()}</div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-black text-[#231f1b]">{order.customer?.name || 'Client'}</p>
-                  <p className="truncate text-xs text-[#8a8378]">{order.deliveryAddress || order.deliveryCity || 'Adresse non renseignée'}</p>
+              <section className="overflow-hidden rounded-xl border border-[#eee8e0] bg-white">
+                <div className="flex items-center gap-3 border-b border-[#eee8e0] px-3 py-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-sm font-black text-[#c2410c]">
+                    {buyerName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8a8378]">Informations de l’acheteur</p>
+                    <p className="truncate text-sm font-black text-[#231f1b]">{buyerName}</p>
+                    <span className="mt-1 inline-flex rounded-full bg-[#f5f2ee] px-2 py-0.5 text-[10px] font-black text-[#6b6459]">
+                      Compte {buyerAccountLabel.toLowerCase()}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    {orderContactPhone ? (
+                      <a href={`tel:${orderContactPhone}`} className="grid h-11 w-11 place-items-center rounded-full border border-[#e2dcd2] text-[#231f1b]" aria-label="Appeler l’acheteur">
+                        <Phone className="h-4 w-4" />
+                      </a>
+                    ) : null}
+                    {buyerEmail ? (
+                      <a href={`mailto:${buyerEmail}`} className="grid h-11 w-11 place-items-center rounded-full border border-[#e2dcd2] text-[#231f1b]" aria-label="Envoyer un e-mail à l’acheteur">
+                        <Mail className="h-4 w-4" />
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
-                {orderContactPhone ? <a href={`tel:${orderContactPhone}`} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#231f1b]" aria-label="Appeler le client"><Phone className="h-4 w-4" /></a> : null}
-              </div>
+                <dl className="divide-y divide-[#f1ece5] px-3 text-xs">
+                  <div className="grid grid-cols-[5.5rem_1fr] gap-2 py-2.5">
+                    <dt className="font-bold text-[#8a8378]">Téléphone</dt>
+                    <dd className="break-words text-right font-black text-[#231f1b]">{orderContactPhone || 'Non renseigné'}</dd>
+                  </div>
+                  <div className="grid grid-cols-[5.5rem_1fr] gap-2 py-2.5">
+                    <dt className="font-bold text-[#8a8378]">E-mail</dt>
+                    <dd className="break-all text-right font-black text-[#231f1b]">{buyerEmail || 'Non renseigné'}</dd>
+                  </div>
+                  <div className="grid grid-cols-[5.5rem_1fr] gap-2 py-2.5">
+                    <dt className="font-bold text-[#8a8378]">{isPickupOrder ? 'Adresse client' : 'Livraison'}</dt>
+                    <dd className="text-right font-black leading-5 text-[#231f1b]">
+                      {isPickupOrder ? buyerPersonalLocation || 'Non renseignée' : buyerDeliveryAddress || 'Non renseignée'}
+                    </dd>
+                  </div>
+                  {!isPickupOrder ? (
+                    <div className="grid grid-cols-[5.5rem_1fr] gap-2 py-2.5">
+                      <dt className="font-bold text-[#8a8378]">Localité</dt>
+                      <dd className="text-right font-black text-[#231f1b]">{[buyerCommune, buyerCity].filter(Boolean).join(', ') || 'Non renseignée'}</dd>
+                    </div>
+                  ) : null}
+                  {buyerPersonalLocation && buyerPersonalLocation.toLowerCase() !== buyerDeliveryAddress.toLowerCase() ? (
+                    <div className="grid grid-cols-[5.5rem_1fr] gap-2 py-2.5">
+                      <dt className="font-bold text-[#8a8378]">Profil</dt>
+                      <dd className="text-right font-semibold leading-5 text-[#6b6459]">{buyerPersonalLocation}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+                {order.trackingNote ? (
+                  <div className="border-t border-[#eee8e0] bg-[#fffaf5] px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-[#c2410c]">Instructions du client</p>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-[#6b6459]">{order.trackingNote}</p>
+                  </div>
+                ) : null}
+              </section>
 
               {order.deliveryCode ? (
                 <div className="flex items-center justify-between rounded-xl border border-[#eee8e0] px-3 py-3">
@@ -1469,11 +1538,32 @@ export default function SellerOrderDetail() {
                 </div>
               )}
               <div>
-                <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /> Client</h4>
+                <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /> Informations de l’acheteur</h4>
                 <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <p className="text-sm font-semibold text-gray-900">{order.customer?.name || 'Client'}</p>
-	                  {orderContactPhone && <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{orderContactPhone}</p>}
-                  {order.customer?.email && <p className="text-xs text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3" />{order.customer.email}</p>}
+                  <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-gray-900">{buyerName}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-gray-500">Compte {buyerAccountLabel.toLowerCase()}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      {orderContactPhone ? <a href={`tel:${orderContactPhone}`} className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 text-gray-700" aria-label="Appeler l’acheteur"><Phone className="h-4 w-4" /></a> : null}
+                      {buyerEmail ? <a href={`mailto:${buyerEmail}`} className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 text-gray-700" aria-label="Envoyer un e-mail à l’acheteur"><Mail className="h-4 w-4" /></a> : null}
+                    </div>
+                  </div>
+                  <dl className="divide-y divide-gray-100 text-xs">
+                    <div className="flex justify-between gap-4 py-2">
+                      <dt className="font-semibold text-gray-500">Téléphone</dt>
+                      <dd className="text-right font-bold text-gray-800">{orderContactPhone || 'Non renseigné'}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4 py-2">
+                      <dt className="font-semibold text-gray-500">E-mail</dt>
+                      <dd className="break-all text-right font-bold text-gray-800">{buyerEmail || 'Non renseigné'}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4 py-2">
+                      <dt className="font-semibold text-gray-500">Adresse du profil</dt>
+                      <dd className="max-w-[65%] text-right font-bold leading-5 text-gray-800">{buyerPersonalLocation || 'Non renseignée'}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
             </motion.div>
@@ -1491,8 +1581,8 @@ export default function SellerOrderDetail() {
                   </>
                 ) : (
 	                  <>
-	                    <p className="text-sm font-semibold text-gray-900">{order.deliveryAddress || 'Non renseignée'}</p>
-	                    <p className="text-xs text-gray-500">{order.deliveryCity || 'Ville non renseignée'}</p>
+	                    <p className="text-sm font-semibold text-gray-900">{buyerDeliveryAddress || 'Non renseignée'}</p>
+	                    <p className="text-xs text-gray-500">{[buyerCommune, buyerCity].filter(Boolean).join(', ') || 'Ville non renseignée'}</p>
 	                    {orderContactPhone ? (
 	                      <p className="text-xs font-semibold text-gray-700">Téléphone: {orderContactPhone}</p>
 	                    ) : null}
