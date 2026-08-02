@@ -1466,6 +1466,56 @@ export const refreshPawaPayRefundAdmin = asyncHandler(async (req, res) => {
 
 const isAdminOrFounder = (user) => ['admin', 'founder'].includes(String(user?.role || '').toLowerCase());
 
+export const refreshPawaPayCheckoutAdmin = asyncHandler(async (req, res) => {
+  if (!isAdminOrFounder(req.user)) {
+    return res.status(403).json({ message: 'Accès refusé.' });
+  }
+  const checkout = await PawaPayCheckout.findOne({
+    checkoutId: String(req.params.checkoutId || '').trim()
+  });
+  if (!checkout) return res.status(404).json({ message: 'Paiement PawaPay introuvable.' });
+
+  checkout.lastProviderStatusCheckAt = null;
+  await checkout.save();
+  const reconciled = await reconcileCheckoutStatusFromProvider(checkout);
+  return res.json({
+    message: 'Statut synchronisé avec PawaPay.',
+    checkout: reconciled
+  });
+});
+
+export const retryPawaPayCheckoutCompletionAdmin = asyncHandler(async (req, res) => {
+  if (!isAdminOrFounder(req.user)) {
+    return res.status(403).json({ message: 'Accès refusé.' });
+  }
+  const checkout = await PawaPayCheckout.findOne({
+    checkoutId: String(req.params.checkoutId || '').trim()
+  });
+  if (!checkout) return res.status(404).json({ message: 'Paiement PawaPay introuvable.' });
+  if (checkout.status !== 'COMPLETED' || checkout.paymentState !== 'CONFIRMED') {
+    return res.status(409).json({
+      message: 'La finalisation ne peut être relancée que pour un paiement confirmé par PawaPay.'
+    });
+  }
+  if (checkout.autoValidationState === 'COMPLETED') {
+    return res.json({ message: 'Ce paiement est déjà finalisé.', checkout });
+  }
+  if (checkout.autoValidationState !== 'FAILED') {
+    return res.status(409).json({
+      message: 'Cette transaction ne présente aucun échec de finalisation à relancer.'
+    });
+  }
+
+  const reconciled = await reconcileCheckoutStatusFromProvider(checkout);
+  if (reconciled?.autoValidationState === 'FAILED') {
+    return res.status(422).json({
+      message: reconciled.autoValidationError || 'La finalisation a encore échoué.',
+      checkout: reconciled
+    });
+  }
+  return res.json({ message: 'Paiement finalisé avec succès.', checkout: reconciled });
+});
+
 // Replaces the old wallet oversight view (soldes/files d'attente/mouvements)
 // now that PawaPay is the real payment rail: checkout status breakdown, stuck
 // payments needing attention, checkouts whose payment succeeded but order

@@ -19,6 +19,8 @@ import {
   getMyPawaPayCheckout,
   listPawaPayRefundsAdmin,
   refreshPawaPayRefundAdmin,
+  refreshPawaPayCheckoutAdmin,
+  retryPawaPayCheckoutCompletionAdmin,
   getAdminPawaPayOverview,
   verifyPawaPayContentDigest,
   verifyPawaPaySignature
@@ -80,6 +82,8 @@ router.post(
 );
 router.get('/pawapay/checkouts/:checkoutId', protect, getMyPawaPayCheckout);
 router.get('/pawapay/admin/overview', protect, getAdminPawaPayOverview);
+router.post('/pawapay/admin/checkouts/:checkoutId/refresh', protect, requirePaymentVerification, refreshPawaPayCheckoutAdmin);
+router.post('/pawapay/admin/checkouts/:checkoutId/retry-completion', protect, requirePaymentVerification, retryPawaPayCheckoutCompletionAdmin);
 router.get('/pawapay/refunds', protect, requirePaymentVerification, listPawaPayRefundsAdmin);
 router.post('/pawapay/refunds/:refundId/refresh', protect, requirePaymentVerification, refreshPawaPayRefundAdmin);
 router.get('/pawapay/payouts', protect, requirePaymentVerification, listSellerPayoutsAdmin);
