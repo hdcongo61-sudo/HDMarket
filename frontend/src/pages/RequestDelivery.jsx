@@ -8,6 +8,8 @@ import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 import GlassHeader from '../components/orders/GlassHeader';
 import PawaPayButton from '../components/PawaPayButton';
+import AddressHistoryChips from '../components/AddressHistoryChips';
+import { readAddressHistory, saveAddressToHistory } from '../utils/addressHistory';
 
 const emptyLocation = () => ({
   cityId: '',
@@ -20,7 +22,7 @@ const emptyLocation = () => ({
   landmarkName: ''
 });
 
-function LocationFields({ title, value, onChange, cities, communesForCity, onAutofill }) {
+function LocationFields({ title, value, onChange, cities, communesForCity, allCommunes = [], onAutofill, addressHistory = [], onPickHistory }) {
   const [locating, setLocating] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
@@ -104,6 +106,12 @@ function LocationFields({ title, value, onChange, cities, communesForCity, onAut
           </button>
         </div>
       </div>
+
+      {onPickHistory && addressHistory.length > 0 ? (
+        <div className="mb-3">
+          <AddressHistoryChips items={addressHistory} cities={cities} communes={allCommunes} onPick={onPickHistory} />
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2">
         <select
@@ -209,6 +217,7 @@ export default function RequestDelivery() {
   const [packageTypes, setPackageTypes] = useState([]);
   const [speedRules, setSpeedRules] = useState([]);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [addressHistory, setAddressHistory] = useState(readAddressHistory);
 
   useEffect(() => {
     api
@@ -269,6 +278,29 @@ export default function RequestDelivery() {
     },
     [buildUserAutofill]
   );
+
+  // Fills a location (pickup or dropoff) from a saved history entry.
+  const applyAddressHistory = useCallback(
+    (setter, item) => {
+      setter((prev) => ({
+        ...prev,
+        cityId: item.cityId || '',
+        communeId: item.communeId || '',
+        address: item.address || '',
+        contactName: item.contactName || '',
+        contactPhone: item.contactPhone || '',
+        landmarkId: '',
+        landmarkName: ''
+      }));
+    },
+    []
+  );
+
+  // Remembers both addresses once the form is valid enough to submit.
+  const persistLocationsToHistory = useCallback(() => {
+    saveAddressToHistory(pickup);
+    setAddressHistory(saveAddressToHistory(dropoff));
+  }, [pickup, dropoff]);
 
   useEffect(() => {
     const readyForEstimate =
@@ -340,6 +372,7 @@ export default function RequestDelivery() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canSubmit) return;
+    persistLocationsToHistory();
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -374,6 +407,7 @@ export default function RequestDelivery() {
     if (!canSubmit) {
       return 'Renseignez le retrait, le dépôt et le justificatif avant de payer.';
     }
+    persistLocationsToHistory();
     try {
       const uploadData = new FormData();
       uploadData.append('proofImage', proofFile);
@@ -418,8 +452,8 @@ export default function RequestDelivery() {
       <GlassHeader title="Envoyer un colis" subtitle="Course à la demande" backTo="/profile" />
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-3 px-4 py-4">
-        <LocationFields title="Retrait" value={pickup} onChange={setPickup} cities={cities} communesForCity={pickupCommunes} onAutofill={() => applyUserAutofill(setPickup)} />
-        <LocationFields title="Dépôt" value={dropoff} onChange={setDropoff} cities={cities} communesForCity={dropoffCommunes} onAutofill={() => applyUserAutofill(setDropoff)} />
+        <LocationFields title="Retrait" value={pickup} onChange={setPickup} cities={cities} communesForCity={pickupCommunes} allCommunes={communes} onAutofill={() => applyUserAutofill(setPickup)} addressHistory={addressHistory} onPickHistory={(item) => applyAddressHistory(setPickup, item)} />
+        <LocationFields title="Dépôt" value={dropoff} onChange={setDropoff} cities={cities} communesForCity={dropoffCommunes} allCommunes={communes} onAutofill={() => applyUserAutofill(setDropoff)} addressHistory={addressHistory} onPickHistory={(item) => applyAddressHistory(setDropoff, item)} />
 
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-black text-gray-900">

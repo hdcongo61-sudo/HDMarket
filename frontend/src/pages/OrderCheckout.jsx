@@ -17,13 +17,16 @@ import {
   Truck,
   Store,
   MapPin,
-  Users
+  Users,
+  User
 } from 'lucide-react';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import RewardPointsRedeemBox from '../components/RewardPointsRedeemBox';
 import PawaPayButton from '../components/PawaPayButton';
+import AddressHistoryChips from '../components/AddressHistoryChips';
+import { readAddressHistory, saveAddressToHistory } from '../utils/addressHistory';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -132,6 +135,36 @@ export default function OrderCheckout() {
     addressLine: user?.address || '',
     phone: user?.phone || ''
   });
+  const [addressHistory, setAddressHistory] = useState(readAddressHistory);
+
+  // Fill the delivery address from a saved history entry (click only).
+  const applyShippingFromHistory = (item) => {
+    setShippingAddress((prev) => ({
+      ...prev,
+      cityId: item.cityId || '',
+      communeId: item.communeId || '',
+      addressLine: item.address || '',
+      phone: item.contactPhone || prev.phone
+    }));
+  };
+
+  // Fill the delivery address from the connected user's profile (click only).
+  const autofillShippingFromProfile = () => {
+    if (!user) return;
+    const profileCityId = String(user.cityId?._id || user.cityId || '');
+    const profileCommuneId = String(user.communeId?._id || user.communeId || '');
+    const cityId = cities.some((entry) => String(entry?._id) === profileCityId) ? profileCityId : '';
+    const communeId = communes.some((entry) => String(entry?._id) === profileCommuneId)
+      ? profileCommuneId
+      : '';
+    setShippingAddress((prev) => ({
+      ...prev,
+      cityId,
+      communeId: cityId ? communeId : '',
+      addressLine: user.address || '',
+      phone: user.phone || prev.phone
+    }));
+  };
 
   const totals = cart.totals || { subtotal: 0, quantity: 0 };
   const fullPaymentPromotionEnabled = normalizeBoolean(
@@ -913,6 +946,13 @@ export default function OrderCheckout() {
         setError('Renseignez le numéro de téléphone pour la livraison.');
         return;
       }
+      setAddressHistory(saveAddressToHistory({
+        cityId: shippingAddress.cityId,
+        communeId: shippingAddress.communeId,
+        address: shippingAddress.addressLine,
+        contactName: user?.name || '',
+        contactPhone: shippingAddress.phone
+      }));
     }
     if (isSponsorPayment) {
       const phone = String(sponsorPhone || '').trim();
@@ -1661,6 +1701,27 @@ export default function OrderCheckout() {
               )}
               {deliveryMode === 'DELIVERY' ? (
                 <div className="grid grid-cols-1 gap-3 rounded-xl border border-[#eee8e0] bg-[#faf8f5] p-3 md:grid-cols-2">
+                  <div className="flex justify-end md:col-span-2">
+                    <button
+                      type="button"
+                      onClick={autofillShippingFromProfile}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF5000]"
+                    >
+                      <User size={12} />
+                      {t('checkout.my_info', 'Mes infos')}
+                    </button>
+                  </div>
+                  {addressHistory.length > 0 ? (
+                    <div className="mb-3">
+                      <AddressHistoryChips
+                        items={addressHistory}
+                        cities={cities}
+                        communes={communes}
+                        onPick={applyShippingFromHistory}
+                        label={t('checkout.recent_addresses', 'Adresses récentes')}
+                      />
+                    </div>
+                  ) : null}
                   <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-[#8a8378]">{t('checkout.city', 'Ville')}</label>
                     <select

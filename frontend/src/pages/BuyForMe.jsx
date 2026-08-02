@@ -6,6 +6,8 @@ import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import PawaPayButton from '../components/PawaPayButton';
 import GlassHeader from '../components/orders/GlassHeader';
+import AddressHistoryChips from '../components/AddressHistoryChips';
+import { readAddressHistory, saveAddressToHistory } from '../utils/addressHistory';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 import { normalizeFileUrl } from '../utils/deliveryUi';
 
@@ -46,7 +48,7 @@ const buildLocationPayload = (value, cities, communes) => ({
   communeName: communes.find((commune) => String(commune._id) === String(value.communeId))?.name || ''
 });
 
-function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, communes, optional = false }) {
+function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, communes, optional = false, addressHistory = [], onPickHistory }) {
   const localCommunes = useMemo(
     () => communes.filter((commune) => String(commune?.cityId?._id || commune?.cityId || '') === String(value.cityId || '')),
     [communes, value.cityId]
@@ -71,6 +73,11 @@ function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, co
           </button>
         ) : null}
       </div>
+      {onPickHistory && addressHistory.length > 0 ? (
+        <div className="mb-3">
+          <AddressHistoryChips items={addressHistory} cities={cities} communes={communes} onPick={onPickHistory} />
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-2">
         <select value={value.cityId} onChange={(event) => onChange({ ...value, cityId: event.target.value, communeId: '' })} className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-2 text-sm font-semibold text-gray-800 outline-none focus:border-[#FF5000]">
           <option value="">Ville</option>
@@ -108,6 +115,7 @@ export default function BuyForMe() {
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
+  const [addressHistory, setAddressHistory] = useState(readAddressHistory);
   const previewUrlsRef = useRef(new Set());
 
   useEffect(() => () => {
@@ -225,6 +233,8 @@ export default function BuyForMe() {
     if (!canPay) return authorizationMode === 'SHOPPING_BUDGET'
       ? 'Complétez le nom et la quantité de chaque article, indiquez le budget autorisé, puis attendez le devis.'
       : 'Complétez le nom, la quantité et le prix estimé de chaque article, puis attendez le devis.';
+    if (pickup.address.trim()) saveAddressToHistory(pickup);
+    setAddressHistory(saveAddressToHistory(dropoff));
     return {
       actionContext: {
         kind: 'BUY_FOR_ME_ORDER',
@@ -327,8 +337,8 @@ export default function BuyForMe() {
 
         {authorizationMode === 'SHOPPING_BUDGET' ? <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><label className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#FF5000]" /> Budget d’achats autorisé</label><input type="number" min="1" value={shoppingBudget} onChange={(event) => setShoppingBudget(event.target.value)} placeholder="Ex. 25 000" className="min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 text-lg font-black text-gray-900 outline-none focus:border-[#FF5000]" /><p className="mt-2 text-[11px] font-medium text-gray-500">Utilisez cette option si vous ne connaissez pas les prix. Le livreur ne dépassera pas ce budget sans votre accord.</p></section> : <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#FF5000]" /> Valeur estimée des achats</p><p className="mt-1 text-[11px] font-medium text-gray-600">Calculée automatiquement à partir de chaque article.</p></div><p className="text-lg font-black text-[#FF3D00]">{formatCurrency(estimatedShoppingValue)}</p></div><p className="mt-3 text-[11px] font-medium text-gray-500">Ce montant autorise les achats. S’il est dépassé, les achats sont suspendus jusqu’à votre choix ou paiement complémentaire.</p></section>}
 
-        <LocationCard title="Adresse du magasin" subtitle="Indiquez-la seulement si vous avez un magasin précis en tête" value={pickup} onChange={setPickup} onAutofill={canAutofillAddress ? () => setPickup({ ...savedAddress }) : null} cities={cities} communes={communes} optional />
-        <LocationCard title="Adresse de livraison" subtitle="Où nous vous remettons les achats" value={dropoff} onChange={setDropoff} onAutofill={canAutofillAddress ? () => setDropoff({ ...savedAddress }) : null} cities={cities} communes={communes} />
+        <LocationCard title="Adresse du magasin" subtitle="Indiquez-la seulement si vous avez un magasin précis en tête" value={pickup} onChange={setPickup} onAutofill={canAutofillAddress ? () => setPickup({ ...savedAddress }) : null} cities={cities} communes={communes} optional addressHistory={addressHistory} onPickHistory={(item) => setPickup({ cityId: item.cityId || '', communeId: item.communeId || '', address: item.address || '', contactName: item.contactName || '', contactPhone: item.contactPhone || '' })} />
+        <LocationCard title="Adresse de livraison" subtitle="Où nous vous remettons les achats" value={dropoff} onChange={setDropoff} onAutofill={canAutofillAddress ? () => setDropoff({ ...savedAddress }) : null} cities={cities} communes={communes} addressHistory={addressHistory} onPickHistory={(item) => setDropoff({ cityId: item.cityId || '', communeId: item.communeId || '', address: item.address || '', contactName: item.contactName || '', contactPhone: item.contactPhone || '' })} />
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><label className="text-sm font-black text-gray-900">Instructions particulières</label><textarea value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} rows={3} placeholder="Ex. Vérifier la date d’expiration, sans piment, prendre le moins cher…" className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-[#FF5000]" /></section>
 
