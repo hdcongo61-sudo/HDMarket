@@ -14,6 +14,7 @@ import { getHighestProductPrice, hydrateImageVariantsFromAttributes, normalizePr
 import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles, PRODUCT_IMAGE_ACCEPT } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
+import TagSelector from './tags/TagSelector';
 
 const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
 
@@ -75,6 +76,9 @@ const ATTRIBUTE_TEMPLATE = {
 const createEmptyProductForm = () => ({
   title: '',
   description: '',
+  brand: '',
+  tagIds: [],
+  aiTagIds: [],
   price: '',
   category: '',
   condition: 'used',
@@ -1678,7 +1682,7 @@ export default function ProductForm(props) {
       };
       const data = new FormData();
       Object.entries(form).forEach(([k, v]) => {
-        if (['wholesaleTiers', 'attributes', 'physical'].includes(k)) return;
+        if (['wholesaleTiers', 'attributes', 'physical', 'tagIds', 'aiTagIds'].includes(k)) return;
         if (k === 'wholesaleEnabled' && !isBoutiqueOwner) return;
         if (
           ['discount', 'installmentMinAmount', 'installmentDuration', 'installmentLatePenaltyRate', 'deliveryFee'].includes(k) &&
@@ -1705,6 +1709,8 @@ export default function ProductForm(props) {
       }
       data.append('attributes', JSON.stringify(normalizedAttributes));
       data.append('physical', JSON.stringify(physicalPayload));
+      data.append('tagIds', JSON.stringify(form.tagIds || []));
+      data.append('aiTagIds', JSON.stringify(form.aiTagIds || []));
       files.slice(0, maxImagesLimit).forEach((item) => {
         const file = item?.file || item;
         if (file instanceof File) {
@@ -1885,6 +1891,13 @@ export default function ProductForm(props) {
     setForm({
       title: initialValues.title || '',
       description: initialValues.description || '',
+      brand: initialValues.brand || '',
+      tagIds: Array.isArray(initialValues.tags)
+        ? initialValues.tags.filter((tag) => !tag?.assignmentSource || tag.assignmentSource === 'manual').map((tag) => String(tag?._id || tag)).filter(Boolean).slice(0, 10)
+        : [],
+      aiTagIds: Array.isArray(initialValues.tags)
+        ? initialValues.tags.filter((tag) => tag?.assignmentSource === 'ai').map((tag) => String(tag?._id || tag)).filter(Boolean)
+        : [],
       price:
         initialValues.priceBeforeDiscount !== undefined && initialValues.priceBeforeDiscount !== null
           ? initialValues.priceBeforeDiscount
@@ -2317,6 +2330,36 @@ export default function ProductForm(props) {
             />
             {fieldErrors.description && <p className="text-xs font-semibold text-red-500 mt-1">{fieldErrors.description}</p>}
           </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <Package className="h-4 w-4 text-neutral-500" />
+                <span>Marque</span>
+              </label>
+              <input
+                className={inputClass}
+                placeholder="Ex: Apple, Samsung, Nike"
+                value={form.brand}
+                onChange={(event) => setForm((current) => ({ ...current, brand: event.target.value }))}
+                maxLength={100}
+              />
+            </div>
+          </div>
+
+          <TagSelector
+            value={form.tagIds || []}
+            aiValue={form.aiTagIds || []}
+            initialTags={Array.isArray(initialValues?.tags) ? initialValues.tags.filter((tag) => tag && typeof tag === 'object') : []}
+            onChange={(tagIds) => setForm((current) => ({ ...current, tagIds }))}
+            onAiChange={(aiTagIds) => setForm((current) => ({ ...current, aiTagIds }))}
+            productContext={{
+              title: form.title,
+              description: form.description,
+              category: form.category,
+              brand: form.brand
+            }}
+          />
 
           {/* Catégorie et Prix en ligne */}
           <div className={`grid ${priceGridClass} gap-4`}>

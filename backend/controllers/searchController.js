@@ -4,6 +4,8 @@ import Category from '../models/categoryModel.js';
 import User from '../models/userModel.js';
 import Rating from '../models/ratingModel.js';
 import SearchAnalytics from '../models/searchAnalyticsModel.js';
+import Tag from '../models/tagModel.js';
+import TagAssignment from '../models/tagAssignmentModel.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
 
@@ -34,6 +36,28 @@ export const globalSearch = asyncHandler(async (req, res) => {
 
   const regex = new RegExp(q.trim(), 'i');
   const query = q.trim();
+  const matchingTags = await Tag.find({
+    status: 'active',
+    visibility: 'public',
+    deletedAt: null,
+    $or: [{ name: regex }, { slug: regex }, { aliases: regex }]
+  })
+    .select('_id name slug color icon type')
+    .sort({ popularityScore: -1 })
+    .limit(50)
+    .lean();
+  const matchingTagIds = matchingTags.map((tag) => tag._id);
+  const taggedAssignments = matchingTagIds.length
+    ? await TagAssignment.find({
+        tag: { $in: matchingTagIds },
+        entityType: { $in: ['shop', 'campaign', 'collection'] }
+      })
+        .select('tag entityType entityId')
+        .lean()
+    : [];
+  const taggedShopIds = taggedAssignments
+    .filter((assignment) => assignment.entityType === 'shop')
+    .map((assignment) => assignment.entityId);
 
   // Build base product filter
   const baseProductFilter = { status: 'approved' };
@@ -76,7 +100,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
   // Find shops matching the search query
   let shopFilter = {
     accountType: 'shop',
-    shopName: regex
+    $or: [{ shopName: regex }, ...(taggedShopIds.length ? [{ _id: { $in: taggedShopIds } }] : [])]
   };
 
   // Apply shop verification filter
@@ -93,8 +117,13 @@ export const globalSearch = asyncHandler(async (req, res) => {
   // Find products matching the search query
   const orFilters = [
     { title: regex },
-    { description: regex }
+    { description: regex },
+    { brand: regex }
   ];
+
+  if (matchingTagIds.length) {
+    orFilters.push({ tags: { $in: matchingTagIds } });
+  }
 
   // Only add category to OR if not already filtered
   if (!categoryFilter || !categoryFilter.trim()) {
@@ -115,6 +144,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
   const [products, productCount] = await Promise.all([
     Product.find(productFilter)
       .populate('user', 'name shopName accountType shopVerified shopLogo shopAddress slug')
+      .populate('tags', 'name slug color icon type visibility status')
       .sort('-createdAt')
       .limit(10)
       .lean(),
@@ -188,6 +218,8 @@ export const globalSearch = asyncHandler(async (req, res) => {
         title: product.title,
         description: product.description || '',
         category: product.category,
+        brand: product.brand || '',
+        tags: (product.tags || []).filter((tag) => tag?.status === 'active' && tag?.visibility === 'public'),
         price: product.price,
         discount: product.discount || 0,
         condition: product.condition || 'new',
@@ -219,6 +251,19 @@ export const globalSearch = asyncHandler(async (req, res) => {
     type: 'shop'
   }));
 
+  const matchingTagMap = new Map(matchingTags.map((tag) => [String(tag._id), tag]));
+  const formatTaggedEntities = (entityType) =>
+    taggedAssignments
+      .filter((assignment) => assignment.entityType === entityType)
+      .slice(0, 10)
+      .map((assignment) => ({
+        _id: assignment.entityId,
+        type: entityType,
+        tag: matchingTagMap.get(String(assignment.tag)) || null
+      }));
+  const campaigns = formatTaggedEntities('campaign');
+  const collections = formatTaggedEntities('collection');
+
   // Extract unique categories from products
   const categoryMatches = products
     .filter((product) => product.category && regex.test(product.category))
@@ -236,7 +281,14 @@ export const globalSearch = asyncHandler(async (req, res) => {
     products: formattedProducts.length,
     shops: formattedShops.length,
     categories: categoryMatches.length,
-    total: formattedProducts.length + formattedShops.length + categoryMatches.length
+    campaigns: campaigns.length,
+    collections: collections.length,
+    total:
+      formattedProducts.length +
+      formattedShops.length +
+      categoryMatches.length +
+      campaigns.length +
+      collections.length
   };
 
   // Track search analytics (async, don't wait for it)
@@ -244,12 +296,23 @@ export const globalSearch = asyncHandler(async (req, res) => {
     SearchAnalytics.incrementSearch(query).catch((err) => {
       console.error('Error tracking search analytics:', err);
     });
+    if (matchingTagIds.length) {
+      Tag.updateMany(
+        { _id: { $in: matchingTagIds } },
+        { $inc: { searchCount: 1, popularityScore: 1.5 } }
+      ).catch((err) => {
+        console.error('Error tracking tag search analytics:', err);
+      });
+    }
   }
 
   res.json({
     products: formattedProducts,
     shops: formattedShops,
     categories: categoryMatches,
+    campaigns,
+    collections,
+    tags: matchingTags.slice(0, 10),
     totals
   });
 });

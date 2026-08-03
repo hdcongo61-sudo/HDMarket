@@ -48,11 +48,20 @@ import {
   normalizeProductPhysical
 } from '../utils/productAttributes.js';
 import imageStudioService from '../services/imageStudioService.js';
+import {
+  getEntityTags,
+  removeAllEntityTags,
+  replaceEntityTags,
+  resolveTagFilter,
+  validateTagSelection
+} from '../services/tagService.js';
 
 const MAX_PRODUCT_IMAGES = 3;
 const MAX_PRODUCT_IMAGES_HARD_LIMIT = 20;
 const SHOP_SELECT_FIELDS =
   'name phone accountType shopName shopAddress shopLogo city country shopVerified isBlocked slug followersCount createdAt freeDeliveryEnabled';
+const PUBLIC_TAG_SELECT_FIELDS =
+  'name slug description category type color icon visibility status priority popularityScore featured campaignStartsAt campaignEndsAt';
 const CATEGORY_SELECT_FIELDS = '_id name slug parentId level isDeleted isActive';
 const PRODUCT_VIEW_TODAY_KEY_TTL_SECONDS = 48 * 60 * 60;
 const PRODUCT_VIEW_DEFAULT_DEDUP_MINUTES = Math.max(
@@ -788,6 +797,9 @@ export const createProduct = asyncHandler(async (req, res) => {
   const {
     title,
     description,
+    brand,
+    tagIds,
+    aiTagIds,
     price,
     category,
     categoryId,
@@ -824,6 +836,11 @@ export const createProduct = asyncHandler(async (req, res) => {
   if (normalizedSocialVideoUrl === null) {
     return res.status(400).json({ message: 'Lien vidéo invalide. Utilisez un lien Facebook ou TikTok.' });
   }
+  const validatedTagIds = await validateTagSelection(tagIds, { publicOnly: true });
+  const validatedAiTagIds = await validateTagSelection(aiTagIds, {
+    publicOnly: true,
+    enforceManualLimit: false
+  });
 
   const creationRequestId = getMutationRequestId(req);
   if (creationRequestId) {
@@ -1093,6 +1110,8 @@ export const createProduct = asyncHandler(async (req, res) => {
     product = await Product.create({
       title,
       description,
+      brand: String(brand || '').trim(),
+      tags: Array.from(new Set([...validatedTagIds, ...validatedAiTagIds].map(String))),
       price: finalPrice,
       category: categorySelection.category,
       categoryId: categorySelection.categoryId,
@@ -1156,6 +1175,27 @@ export const createProduct = asyncHandler(async (req, res) => {
     }
   });
 
+  if (validatedTagIds.length) {
+    await replaceEntityTags({
+      entityType: 'product',
+      entityId: product._id,
+      tagIds: validatedTagIds,
+      source: 'manual',
+      assignedBy: req.user.id,
+      publicOnly: true
+    });
+  }
+  if (validatedAiTagIds.length) {
+    await replaceEntityTags({
+      entityType: 'product',
+      entityId: product._id,
+      tagIds: validatedAiTagIds,
+      source: 'ai',
+      assignedBy: req.user.id,
+      publicOnly: true
+    });
+  }
+
   // Invalidate product cache after creation
   invalidateProductCache();
 
@@ -1186,7 +1226,8 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     sort: sortParam = 'new',
     page = 1,
     limit = 12,
-    cursor = ''
+    cursor = '',
+    tags: tagFilterValue
   } = req.query;
 
   // Normalize sort: accept 'newest' as alias for 'new'
@@ -1248,7 +1289,17 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // Search query
   if (q) {
     const matcher = new RegExp(q.trim(), 'i');
-    filter.$or = [{ title: matcher }, { description: matcher }];
+    const matchingTagIds = await resolveTagFilter(q);
+    filter.$or = [{ title: matcher }, { description: matcher }, { brand: matcher }];
+    if (matchingTagIds.length) filter.$or.push({ tags: { $in: matchingTagIds } });
+  }
+
+  if (tagFilterValue) {
+    const selectedTagIds = await resolveTagFilter(tagFilterValue);
+    if (!selectedTagIds.length) {
+      return res.json({ items: [], pagination: { page: 1, limit: Number(limit) || 12, total: 0, pages: 1 } });
+    }
+    filter.tags = { $all: selectedTagIds };
   }
 
   // Category filter
@@ -1507,7 +1558,10 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     });
   }
 
-  await Product.populate(itemsRaw, { path: 'user', select: SHOP_SELECT_FIELDS });
+  await Product.populate(itemsRaw, [
+    { path: 'user', select: SHOP_SELECT_FIELDS },
+    { path: 'tags', match: { status: 'active', visibility: 'public', deletedAt: null }, select: PUBLIC_TAG_SELECT_FIELDS }
+  ]);
   await ensureModelSlugsForItems({ Model: Product, items: itemsRaw, sourceValueKey: 'title' });
 
   // Filter by shopVerified if requested (after populate)
@@ -2221,7 +2275,9 @@ export const getPublicPickupOnlyProducts = asyncHandler(async (req, res) => {
 
 export const getPublicProductById = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
-  const productDoc = await Product.findOne(query).populate('user', SHOP_SELECT_FIELDS);
+  const productDoc = await Product.findOne(query)
+    .populate('user', SHOP_SELECT_FIELDS)
+    .populate({ path: 'tags', match: { status: 'active', visibility: 'public', deletedAt: null }, select: PUBLIC_TAG_SELECT_FIELDS });
   await ensureProductSlug(productDoc);
   const listingFeeSettled = await isListingFeeSettledForProduct(productDoc);
   if (!productDoc || productDoc.status !== 'approved' || !listingFeeSettled) {
@@ -2571,7 +2627,9 @@ export const getProductById = asyncHandler(async (req, res) => {
   if (product.status === 'disabled' && product.user.toString() !== req.user.id && !isModerator) {
     return res.status(403).json({ message: 'Forbidden' });
   }
-  res.json(withCategoryCompatibility(product));
+  const payload = withCategoryCompatibility(product);
+  payload.tags = await getEntityTags({ entityType: 'product', entityId: product._id, publicOnly: false });
+  res.json(payload);
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -2610,6 +2668,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const {
     title,
     description,
+    brand,
+    tagIds,
+    aiTagIds,
     price,
     category,
     categoryId,
@@ -2640,6 +2701,15 @@ export const updateProduct = asyncHandler(async (req, res) => {
     perishableEndDate
   } = req.body;
 
+  const hasTagPayload = tagIds !== undefined;
+  const validatedTagIds = hasTagPayload
+    ? await validateTagSelection(tagIds, { publicOnly: true })
+    : null;
+  const hasAiTagPayload = aiTagIds !== undefined;
+  const validatedAiTagIds = hasAiTagPayload
+    ? await validateTagSelection(aiTagIds, { publicOnly: true, enforceManualLimit: false })
+    : null;
+
   if (perishableStartDate !== undefined || perishableEndDate !== undefined) {
     return res.status(400).json({
       message: 'La date de péremption d’un produit ne peut pas être modifiée après sa création.'
@@ -2648,6 +2718,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   if (title) product.title = title;
   if (description) product.description = description;
+  if (brand !== undefined) product.brand = String(brand || '').trim();
 
   if (socialVideoUrl !== undefined) {
     const normalizedSocialVideoUrl = await normalizeSocialVideoUrl(socialVideoUrl);
@@ -3031,6 +3102,28 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   await product.save();
 
+  if (hasTagPayload) {
+    await replaceEntityTags({
+      entityType: 'product',
+      entityId: product._id,
+      tagIds: validatedTagIds,
+      source: 'manual',
+      assignedBy: req.user.id,
+      publicOnly: true
+    });
+    product.tags = validatedTagIds;
+  }
+  if (hasAiTagPayload) {
+    await replaceEntityTags({
+      entityType: 'product',
+      entityId: product._id,
+      tagIds: validatedAiTagIds,
+      source: 'ai',
+      assignedBy: req.user.id,
+      publicOnly: true
+    });
+  }
+
   await logProductAction({
     productId: product._id,
     action: 'updated',
@@ -3080,7 +3173,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
   // Invalidate product cache after update
   invalidateProductCache();
 
-  res.json(withCategoryCompatibility(product));
+  const responsePayload = withCategoryCompatibility(product);
+  responsePayload.tags = await getEntityTags({ entityType: 'product', entityId: product._id, publicOnly: false });
+  res.json(responsePayload);
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {
@@ -3101,6 +3196,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
     details: { title: product.title }
   });
 
+  await removeAllEntityTags({ entityType: 'product', entityId: product._id });
   await product.deleteOne();
   
   // Invalidate product cache after deletion
@@ -3337,6 +3433,10 @@ export const bulkDeleteProducts = asyncHandler(async (req, res) => {
         details: { title: product.title }
       })
     )
+  );
+
+  await Promise.all(
+    productIdsToDelete.map((entityId) => removeAllEntityTags({ entityType: 'product', entityId }))
   );
 
   // Delete related comments and ratings

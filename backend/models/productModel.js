@@ -53,6 +53,7 @@ const productSchema = new mongoose.Schema(
     title: { type: String, required: true },
     creationRequestId: { type: String, trim: true, default: '' },
     description: { type: String, required: true },
+    brand: { type: String, trim: true, maxlength: 100, default: '', index: true },
     price: { type: Number, required: true, min: 0 },
     discount: { type: Number, min: 0, max: 100, default: 0 },
     priceBeforeDiscount: { type: Number, min: 0 },
@@ -65,6 +66,7 @@ const productSchema = new mongoose.Schema(
     socialVideoUrl: { type: String, trim: true, default: '' },
     pdf: { type: String },
     category: { type: String, required: true },
+    tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag', index: true }],
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
     subcategoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null, index: true },
     legacyCategoryName: { type: String, default: '' },
@@ -152,6 +154,7 @@ const productSchema = new mongoose.Schema(
 
 // Indexes for search & sorting
 productSchema.index({ title: 'text', description: 'text' });
+productSchema.index({ tags: 1, status: 1, createdAt: -1 });
 productSchema.index({ status: 1, category: 1, price: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, subcategoryId: 1, createdAt: -1 });
 productSchema.index({ salesCount: -1, status: 1 });

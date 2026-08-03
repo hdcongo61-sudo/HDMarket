@@ -101,6 +101,48 @@ const scrollReveal = (reduceMotion) =>
         transition: { duration: 0.4, ease: 'easeOut' }
       };
 
+const FeaturedTagSections = ({ t }) => {
+  const [sections, setSections] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/tags/featured/sections', { params: { limit: 6, productsPerTag: 6 } })
+      .then(({ data }) => {
+        if (active) setSections(Array.isArray(data) ? data.filter((section) => section?.products?.length) : []);
+      })
+      .catch(() => {
+        if (active) setSections([]);
+      });
+    return () => { active = false; };
+  }, []);
+
+  if (!sections.length) return null;
+  return (
+    <div className="mx-auto max-w-7xl space-y-8 px-2 py-8 sm:px-4 lg:px-8">
+      {sections.map(({ tag, products }) => (
+        <section key={tag._id} className="rounded-3xl border border-neutral-200 bg-white p-4 sm:p-5">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em]" style={{ color: tag.color || '#E85D00' }}>
+                {tag.type === 'campaign' ? t('home.campaign', 'Campagne') : t('home.tagCollection', 'Collection')}
+              </p>
+              <h2 className="mt-1 text-xl font-black text-neutral-950 sm:text-2xl">{tag.homepageTitle || tag.name}</h2>
+            </div>
+            <Link to={`/search?tags=${encodeURIComponent(tag.slug)}`} className="inline-flex items-center gap-1 text-xs font-black text-orange-600">
+              {t('home.viewAll', 'Voir tout')} <ChevronRight size={15} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {products.map((product) => (
+              <ProductCard key={product._id} p={product} productLink={buildProductPath(product)} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+};
+
 const PourVousSection = ({ user, t, formatPrice, buildProductLink, externalLinkProps }) => {
   const [recommendedProducts, setRecommendedProducts] = useState([]);
   const [recsLoading, setRecsLoading] = useState(true);
@@ -3521,6 +3563,7 @@ const loadDiscountProducts = async () => {
         </div>
       )}
       {isMobileView ? renderMobileHome() : renderDesktopHome()}
+      <FeaturedTagSections t={t} />
 
       {/* Category Modal (shared between mobile and desktop) */}
       <BaseModal

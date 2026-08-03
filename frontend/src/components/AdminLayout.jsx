@@ -27,7 +27,8 @@ import {
   ChevronDown,
   Megaphone,
   ShoppingBasket,
-  Flag
+  Flag,
+  Tags
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
@@ -110,6 +111,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
   { to: '/admin/payments', label: t('nav.payments', 'Paiements'), icon: DollarSign, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['verify_payments']) },
   { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
   { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
+  { to: '/admin/tags', label: 'Tags universels', icon: Tags, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
   { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, group: 'operations', show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
   {
     to: '/admin/delivery-requests',

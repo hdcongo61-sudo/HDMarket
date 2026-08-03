@@ -725,11 +725,16 @@ export default function ProductDetails() {
           const relatedLimit = rapid3GActive ? 2 : 4;
           setRelatedLoading(true);
           void api
-            .get(`/products/public?category=${data.category}&limit=${relatedLimit}`)
+            .get(`/tags/products/${data._id}/related?limit=${relatedLimit}`)
             .then((relatedResponse) => {
-              const relatedItems = Array.isArray(relatedResponse.data?.items)
-                ? relatedResponse.data.items
-                : [];
+              const relatedItems = Array.isArray(relatedResponse.data) ? relatedResponse.data : [];
+              if (!relatedItems.length) {
+                return api.get(`/products/public?category=${data.category}&limit=${relatedLimit + 1}`)
+                  .then((fallbackResponse) => fallbackResponse.data?.items || []);
+              }
+              return relatedItems;
+            })
+            .then((relatedItems) => {
               const filteredItems = relatedItems.filter((item) => {
                 if (!item) return false;
                 if (data?._id && item._id && item._id === data._id) return false;
@@ -1917,7 +1922,14 @@ export default function ProductDetails() {
   const productTags = useMemo(() => {
     if (Array.isArray(product?.tags)) {
       return product.tags
-        .map((tag) => String(tag || '').trim())
+        .map((tag) => {
+          if (tag && typeof tag === 'object') {
+            const name = String(tag.name || tag.slug || '').trim();
+            return name ? { id: String(tag._id || tag.slug || name), name, slug: tag.slug || '', color: tag.color || '#64748B' } : null;
+          }
+          const name = String(tag || '').trim();
+          return name ? { id: name, name, slug: '', color: '#64748B' } : null;
+        })
         .filter(Boolean)
         .slice(0, 12);
     }
@@ -1926,10 +1938,15 @@ export default function ProductDetails() {
         .split(',')
         .map((tag) => tag.trim())
         .filter(Boolean)
+        .map((name) => ({ id: name, name, slug: '', color: '#64748B' }))
         .slice(0, 12);
     }
     return [];
   }, [product?.tags]);
+  const trackTagClick = useCallback((tag) => {
+    if (!/^[a-f0-9]{24}$/i.test(String(tag?.id || ''))) return;
+    void api.post(`/tags/${tag.id}/events`, { event: 'click' }).catch(() => {});
+  }, []);
   const variantRows = useMemo(() => {
     const legacyVariants = Array.isArray(product?.variants)
       ? product.variants
@@ -2867,7 +2884,15 @@ export default function ProductDetails() {
             {productTags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {productTags.map((tag) => (
-                  <span key={`tab-tag-${tag}`} className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[11px] text-gray-600">#{tag}</span>
+                  <Link
+                    key={`tab-tag-${tag.id}`}
+                    to={`/search?tags=${encodeURIComponent(tag.slug || tag.name)}`}
+                    onClick={() => trackTagClick(tag)}
+                    className="rounded border bg-white px-2 py-0.5 text-[11px] font-semibold"
+                    style={{ borderColor: `${tag.color}55`, color: tag.color }}
+                  >
+                    #{tag.name}
+                  </Link>
                 ))}
               </div>
             )}
@@ -4284,12 +4309,15 @@ export default function ProductDetails() {
                       <h4 className="text-sm font-bold text-gray-800 mb-2">Tags produit</h4>
                       <div className="flex flex-wrap gap-2">
                         {productTags.map((tag) => (
-                          <span
-                            key={`desktop-tag-${tag}`}
-                            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700"
+                          <Link
+                            key={`desktop-tag-${tag.id}`}
+                            to={`/search?tags=${encodeURIComponent(tag.slug || tag.name)}`}
+                            onClick={() => trackTagClick(tag)}
+                            className="rounded-full border bg-white px-3 py-1 text-xs font-semibold"
+                            style={{ borderColor: `${tag.color}55`, color: tag.color }}
                           >
-                            #{tag}
-                          </span>
+                            #{tag.name}
+                          </Link>
                         ))}
                       </div>
                     </div>

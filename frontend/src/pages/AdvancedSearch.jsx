@@ -60,6 +60,10 @@ export default function AdvancedSearch() {
   const [minFavorites, setMinFavorites] = useState(searchParams.get('minFavorites') || '');
   const [minSales, setMinSales] = useState(searchParams.get('minSales') || '');
   const [sort, setSort] = useState(searchParams.get('sort') || 'new');
+  const [selectedTags, setSelectedTags] = useState(() =>
+    (searchParams.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean)
+  );
+  const [availableTags, setAvailableTags] = useState([]);
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
   const loadMoreSentinelRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
@@ -99,6 +103,18 @@ export default function AdvancedSearch() {
     }
     return Array.from(new Set(dynamicCities));
   }, [cities, city]);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/tags', { params: { limit: 40 } })
+      .then(({ data }) => {
+        if (active) setAvailableTags(Array.isArray(data) ? data : data?.items || []);
+      })
+      .catch(() => {
+        if (active) setAvailableTags([]);
+      });
+    return () => { active = false; };
+  }, []);
   const snapshotKey = useMemo(
     () =>
       [
@@ -115,7 +131,8 @@ export default function AdvancedSearch() {
         minRating || '0',
         minFavorites || '0',
         minSales || '0',
-        sort || 'new'
+        sort || 'new',
+        selectedTags.join(',') || 'no-tags'
       ].join(':'),
     [
       searchQuery,
@@ -130,7 +147,8 @@ export default function AdvancedSearch() {
       minRating,
       minFavorites,
       minSales,
-      sort
+      sort,
+      selectedTags
     ]
   );
 
@@ -150,9 +168,10 @@ export default function AdvancedSearch() {
     if (minFavorites) params.set('minFavorites', minFavorites);
     if (minSales) params.set('minSales', minSales);
     if (sort) params.set('sort', sort);
+    if (selectedTags.length) params.set('tags', selectedTags.join(','));
     if (page > 1) params.set('page', String(page));
     return params;
-  }, [searchQuery, category, city, condition, minPrice, maxPrice, certified, shopVerified, hasDiscount, minRating, minFavorites, minSales, sort, page]);
+  }, [searchQuery, category, city, condition, minPrice, maxPrice, certified, shopVerified, hasDiscount, minRating, minFavorites, minSales, sort, selectedTags, page]);
 
   // Update URL when filters change
   useEffect(() => {
@@ -260,8 +279,9 @@ export default function AdvancedSearch() {
     if (minRating) count++;
     if (minFavorites) count++;
     if (minSales) count++;
+    if (selectedTags.length) count++;
     return count;
-  }, [searchQuery, category, city, condition, minPrice, maxPrice, certified, shopVerified, hasDiscount, minRating, minFavorites, minSales]);
+  }, [searchQuery, category, city, condition, minPrice, maxPrice, certified, shopVerified, hasDiscount, minRating, minFavorites, minSales, selectedTags]);
 
   // Clear all filters
   const clearAllFilters = () => {
@@ -278,6 +298,7 @@ export default function AdvancedSearch() {
     setMinRating('');
     setMinFavorites('');
     setMinSales('');
+    setSelectedTags([]);
     setSort('new');
     setPage(1);
   };
@@ -321,6 +342,11 @@ export default function AdvancedSearch() {
       key: 'discount',
       label: t('search.withDiscount', 'Avec remise'),
       clear: () => setHasDiscount(false)
+    },
+    selectedTags.length > 0 && {
+      key: 'tags',
+      label: selectedTags.map((slug) => availableTags.find((tag) => tag.slug === slug)?.name || slug).join(' + '),
+      clear: () => setSelectedTags([])
     }
   ].filter(Boolean);
 
@@ -469,6 +495,30 @@ export default function AdvancedSearch() {
                       </optgroup>
                     ))}
                   </select>
+                </FilterSection>
+
+                <FilterSection title={t('search.tags', 'Tags')} icon={Tag} section="tags">
+                  <p className="mb-2 text-xs text-gray-500">Sélectionnez plusieurs tags pour une recherche ET.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => {
+                      const selected = selectedTags.includes(tag.slug);
+                      return (
+                        <button
+                          type="button"
+                          key={tag._id}
+                          onClick={() => {
+                            setSelectedTags((current) => selected
+                              ? current.filter((slug) => slug !== tag.slug)
+                              : [...current, tag.slug]);
+                            setPage(1);
+                          }}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-bold ${selected ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 bg-white text-gray-600'}`}
+                        >
+                          {selected ? '✓ ' : ''}#{tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </FilterSection>
 
                 {/* Price Range */}

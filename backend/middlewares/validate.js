@@ -170,6 +170,15 @@ export const schemas = {
   productCreate: Joi.object({
     title: Joi.string().min(2).max(120).required(),
     description: Joi.string().min(5).max(5000).required(),
+    brand: Joi.string().trim().max(100).allow('', null),
+    tagIds: Joi.alternatives().try(
+      Joi.string().max(1000).allow('', null),
+      Joi.array().items(Joi.string().hex().length(24)).max(10)
+    ).optional(),
+    aiTagIds: Joi.alternatives().try(
+      Joi.string().max(5000).allow('', null),
+      Joi.array().items(Joi.string().hex().length(24)).max(100)
+    ).optional(),
     price: Joi.number().min(0).required(),
     category: Joi.string().min(2).max(60),
     categoryId: Joi.string().hex().length(24).allow('', null),
@@ -219,6 +228,15 @@ export const schemas = {
   productUpdate: Joi.object({
     title: Joi.string().min(2).max(120),
     description: Joi.string().min(5).max(5000),
+    brand: Joi.string().trim().max(100).allow('', null),
+    tagIds: Joi.alternatives().try(
+      Joi.string().max(1000).allow('', null),
+      Joi.array().items(Joi.string().hex().length(24)).max(10)
+    ),
+    aiTagIds: Joi.alternatives().try(
+      Joi.string().max(5000).allow('', null),
+      Joi.array().items(Joi.string().hex().length(24)).max(100)
+    ),
     price: Joi.number().min(0),
     category: Joi.string().min(2).max(60),
     categoryId: Joi.string().hex().length(24).allow('', null),

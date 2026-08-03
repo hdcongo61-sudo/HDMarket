@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import Product from './productModel.js';
+import Tag from './tagModel.js';
 
 const orderItemSelectedAttributeSchema = new mongoose.Schema(
   {
@@ -469,6 +471,7 @@ orderSchema.index({ reviewGiven: 1, confirmationGiven: 1, deliveredAt: -1 });
 orderSchema.index({ reviewStatus: 1, reviewReminderDisabled: 1, deliveredAt: -1 });
 
 orderSchema.pre('save', function orderStatusTracking(next) {
+  this.$locals.wasNewOrder = this.isNew;
   if (this.isModified('status')) {
     this.statusStuckSince = new Date();
   }
@@ -498,6 +501,34 @@ orderSchema.pre('save', function orderStatusTracking(next) {
     }
   }
   next();
+});
+
+// A completed checkout is a tag conversion. Keep this close to the Order model
+// so every order-creation path (standard, sponsored, installment, multi-seller)
+// records the same analytics without duplicating controller logic.
+orderSchema.post('save', async function recordTagConversions(doc, next) {
+  if (!doc?.$locals?.wasNewOrder || doc.isDraft) return next();
+  try {
+    const productIds = Array.from(
+      new Set((doc.items || []).map((item) => String(item?.product || '')).filter(mongoose.Types.ObjectId.isValid))
+    );
+    if (!productIds.length) return next();
+    const products = await Product.find({ _id: { $in: productIds } }).select('tags').lean();
+    const tagIds = Array.from(
+      new Set(products.flatMap((product) => (product.tags || []).map(String)))
+    ).filter(mongoose.Types.ObjectId.isValid);
+    if (tagIds.length) {
+      await Tag.updateMany(
+        { _id: { $in: tagIds }, deletedAt: null },
+        { $inc: { conversionCount: 1, popularityScore: 8 } }
+      );
+    }
+    return next();
+  } catch (error) {
+    // Analytics must never prevent a checkout from completing.
+    console.error('Tag conversion analytics error:', error);
+    return next();
+  }
 });
 
 export default mongoose.model('Order', orderSchema);

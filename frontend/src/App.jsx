@@ -124,6 +124,7 @@ const AdminSystemSettings = lazy(() => import('./pages/AdminSystemSettings'));
 const AdminFeatureManagement = lazy(() => import('./pages/AdminFeatureManagement'));
 const AdminComplaints = lazy(() => import('./pages/AdminComplaints'));
 const AdminPromoCodes = lazy(() => import('./pages/AdminPromoCodes'));
+const AdminTags = lazy(() => import('./pages/AdminTags'));
 const AdminTaskCenter = lazy(() => import('./pages/AdminTaskCenter'));
 const AdminBoostManagement = lazy(() => import('./pages/AdminBoostManagement'));
 const SettingsCategoriesPage = lazy(() => import('./pages/SettingsCategoriesPage'));
@@ -1253,6 +1254,14 @@ function AppContent() {
               element={
                 <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager' || user?.canManageProducts === true || hasAnyPermission(user, ['manage_products'])}>
                   <AdminProducts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="tags"
+              element={
+                <ProtectedRoute roles={['admin', 'founder']}>
+                  <AdminTags />
                 </ProtectedRoute>
               }
             />
