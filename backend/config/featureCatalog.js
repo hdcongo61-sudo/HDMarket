@@ -163,6 +163,17 @@ export const FEATURE_CATALOG = Object.freeze({
     releaseStage: 'released',
     rolloutPercentage: 100,
     remoteConfig: {}
+  },
+  product_videos: {
+    displayName: 'HDMarket Videos',
+    category: 'discovery',
+    icon: 'Clapperboard',
+    version: '1.0.0',
+    description: 'Flux vertical de courtes vidéos produit achetables.',
+    enabled: true,
+    releaseStage: 'released',
+    rolloutPercentage: 100,
+    remoteConfig: {}
   }
 });
 

@@ -82,6 +82,8 @@ const notificationSchema = new mongoose.Schema(
       'improvement_feedback_created',
       'product_approved',
       'product_rejected',
+      'product_video_approved',
+      'product_video_rejected',
       'boost_expired',
       'promo_expired',
       'admin_broadcast',

@@ -1,11 +1,21 @@
 import { isFeatureEnabled } from '../services/configService.js';
 
+const decodeHeader = (value) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return undefined;
+  try {
+    return decodeURIComponent(normalized);
+  } catch {
+    return normalized;
+  }
+};
+
 const getFeatureContext = (req) => ({
   role: req.user?.role,
   accountType: req.user?.accountType,
   userId: req.user?.id || req.user?._id,
-  country: req.user?.country,
-  city: req.user?.city,
+  country: req.user?.country || decodeHeader(req.headers?.['x-user-country']),
+  city: req.user?.city || decodeHeader(req.headers?.['x-user-city']),
   commune: req.user?.commune,
   isBetaTester: Boolean(req.user?.betaTester),
   isDeveloper: ['admin', 'founder'].includes(String(req.user?.role || '').toLowerCase()),

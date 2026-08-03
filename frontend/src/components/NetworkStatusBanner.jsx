@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CloudOff, Wifi, WifiOff } from 'lucide-react';
 import { recordNetworkMetric } from '../utils/networkMetrics';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 
-const ACTION_VISIBILITY_MS = 6000;
+const RECONNECTED_VISIBILITY_MS = 3500;
 
 export default function NetworkStatusBanner() {
-  const location = useLocation();
   const {
     offline,
     rapid3GActive,
@@ -14,7 +13,8 @@ export default function NetworkStatusBanner() {
     offlineBannerText,
     rapid3GBannerText
   } = useNetworkProfile();
-  const [showAction, setShowAction] = useState(true);
+  const [showReconnected, setShowReconnected] = useState(false);
+  const wasOfflineRef = useRef(false);
 
   useEffect(() => {
     recordNetworkMetric({
@@ -28,57 +28,70 @@ export default function NetworkStatusBanner() {
     });
   }, [offline, rapid3GActive]);
 
+  // When the network comes back, confirm it briefly instead of letting the
+  // offline pill vanish without feedback.
+  useEffect(() => {
+    if (offline) {
+      wasOfflineRef.current = true;
+      setShowReconnected(false);
+      return undefined;
+    }
+    if (!wasOfflineRef.current) return undefined;
+    wasOfflineRef.current = false;
+    setShowReconnected(true);
+    const timer = setTimeout(() => setShowReconnected(false), RECONNECTED_VISIBILITY_MS);
+    return () => clearTimeout(timer);
+  }, [offline]);
+
   const content = useMemo(() => {
     if (offline) {
       return {
-        tone: 'border-rose-200 bg-rose-50 text-rose-700',
-        message: offlineBrowsingEnabled
+        icon: WifiOff,
+        tone: 'border-slate-700 bg-slate-900/95 text-white',
+        iconTone: 'bg-rose-500/20 text-rose-300',
+        title: 'Vous êtes hors ligne',
+        subtitle: offlineBrowsingEnabled
           ? offlineBannerText
-          : 'Vous êtes hors ligne. Certaines actions peuvent échouer.',
-        action: 'Actualiser'
+          : 'Certaines actions peuvent échouer tant que le réseau est coupé.'
       };
     }
     if (rapid3GActive) {
       return {
-        tone: 'border-sky-200 bg-sky-50 text-sky-700',
-        message: rapid3GBannerText,
-        action: ''
+        icon: CloudOff,
+        tone: 'border-sky-700 bg-sky-950/95 text-white',
+        iconTone: 'bg-sky-400/20 text-sky-300',
+        title: rapid3GBannerText,
+        subtitle: ''
+      };
+    }
+    if (showReconnected) {
+      return {
+        icon: Wifi,
+        tone: 'border-emerald-700 bg-emerald-950/95 text-white',
+        iconTone: 'bg-emerald-400/20 text-emerald-300',
+        title: 'Connexion rétablie',
+        subtitle: ''
       };
     }
     return null;
-  }, [offline, offlineBannerText, offlineBrowsingEnabled, rapid3GActive, rapid3GBannerText]);
-
-  useEffect(() => {
-    if (!content) {
-      setShowAction(true);
-      return;
-    }
-
-    setShowAction(true);
-    const timer = setTimeout(() => {
-      setShowAction(false);
-    }, ACTION_VISIBILITY_MS);
-
-    return () => clearTimeout(timer);
-  }, [content, location.pathname]);
+  }, [offline, offlineBannerText, offlineBrowsingEnabled, rapid3GActive, rapid3GBannerText, showReconnected]);
 
   if (!content) return null;
 
   return (
-    <div className="fixed left-2.5 right-2.5 top-[calc(env(safe-area-inset-top,0px)+4.9rem)] z-[95] sm:left-5 sm:right-5">
-      <div className={`rounded-xl border px-3 py-2 text-xs shadow-sm ${content.tone}`}>
-        <div className="flex items-center justify-between gap-2">
-          <p className="font-medium">{content.message}</p>
-          {showAction && content.action ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof window !== 'undefined') window.location.reload();
-              }}
-              className="inline-flex min-h-8 shrink-0 items-center rounded-lg border border-current/25 bg-white/70 px-2.5 text-[11px] font-semibold"
-            >
-              {content.action}
-            </button>
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+4.9rem)] z-[95] flex justify-center px-4">
+      <div
+        role="status"
+        aria-live="polite"
+        className={`network-status-banner flex max-w-sm items-center gap-2.5 rounded-full border py-2 pl-2.5 pr-4 shadow-lg backdrop-blur-sm ${content.tone}`}
+      >
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${content.iconTone}`}>
+          {React.createElement(content.icon, { size: 15, strokeWidth: 2.25 })}
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold leading-tight">{content.title}</p>
+          {content.subtitle ? (
+            <p className="mt-0.5 text-[11px] leading-snug text-white/70">{content.subtitle}</p>
           ) : null}
         </div>
       </div>

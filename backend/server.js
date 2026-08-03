@@ -59,6 +59,7 @@ import deliveryPricingRoutes from './routes/deliveryPricingRoutes.js';
 import buyForMeRoutes from './routes/buyForMeRoutes.js';
 import featureRoutes from './routes/featureRoutes.js';
 import tagRoutes from './routes/tagRoutes.js';
+import productVideoRoutes from './routes/productVideoRoutes.js';
 
 import User from './models/userModel.js';
 import Conversation from './models/conversationModel.js';
@@ -422,6 +423,7 @@ app.use('/api/buy-for-me', buyForMeRoutes);
 app.use('/api/delivery-pricing', deliveryPricingRoutes);
 app.use('/api/features', featureRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/product-videos', productVideoRoutes);
 app.use('/api/*', notFoundApiHandler);
 
 app.use(globalErrorHandler);

@@ -581,6 +581,7 @@ const logProductAction = async ({ productId, action, performedBy, details = {} }
 
 const isVideoFile = (mimetype) => String(mimetype || '').split(';')[0].trim().toLowerCase().startsWith('video/');
 const isPdfFile = (mimetype) => typeof mimetype === 'string' && mimetype === 'application/pdf';
+const isVideoMutedRequest = (body) => body?.videoMuted === true || body?.videoMuted === 'true';
 
 const getProductMediaFolder = (resourceType) => {
   if (resourceType === 'video') return getCloudinaryFolder(['products', 'videos']);
@@ -588,9 +589,10 @@ const getProductMediaFolder = (resourceType) => {
   return getCloudinaryFolder(['products', 'images']);
 };
 
-const uploadProductMedia = async (file) => {
+const uploadProductMedia = async (file, { stripAudio = false } = {}) => {
   const resourceType = isVideoFile(file.mimetype) ? 'video' : 'image';
   const folder = getProductMediaFolder(resourceType === 'video' ? 'video' : 'image');
+  const muteVideo = resourceType === 'video' && stripAudio;
   const uploaded = await uploadToCloudinary({
     buffer: file.buffer,
     resourceType,
@@ -604,9 +606,18 @@ const uploadProductMedia = async (file) => {
             ]
           }
         : {
-            quality: 'auto:eco'
+            quality: 'auto:eco',
+            // audio_codec: 'none' removes the audio track; generate the muted
+            // derivative eagerly so the stored URL is ready to serve.
+            ...(muteVideo
+              ? { eager: [{ audio_codec: 'none', quality: 'auto:eco' }], eager_async: false }
+              : {})
           }
   });
+  if (muteVideo) {
+    const eagerUrl = uploaded.eager?.[0]?.secure_url || uploaded.eager?.[0]?.url;
+    if (eagerUrl) return eagerUrl;
+  }
   return uploaded.secure_url || uploaded.url;
 };
 
@@ -1077,7 +1088,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Le fichier doit être une vidéo valide.' });
     }
     try {
-      videoUrl = await uploadProductMedia(videoFile);
+      videoUrl = await uploadProductMedia(videoFile, { stripAudio: isVideoMutedRequest(req.body) });
     } catch (error) {
       console.error('Erreur upload vidéo produit', error);
       return res.status(500).json({ message: 'Erreur lors de l’upload de la vidéo.' });
@@ -3080,7 +3091,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Le fichier doit être une vidéo valide.' });
     }
     try {
-      product.video = await uploadProductMedia(videoFile);
+      product.video = await uploadProductMedia(videoFile, { stripAudio: isVideoMutedRequest(req.body) });
     } catch (error) {
       console.error('Erreur upload vidéo produit', error);
       return res.status(500).json({ message: 'Erreur lors de l’upload de la vidéo.' });

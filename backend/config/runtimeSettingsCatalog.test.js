@@ -84,3 +84,27 @@ describe('product card gallery runtime settings', () => {
     });
   });
 });
+
+describe('HDMarket Videos runtime settings', () => {
+  it('keeps client performance controls public and moderation private', () => {
+    expect(getRuntimeSettingMetadata('product_video_max_duration_seconds')).toMatchObject({
+      category: 'product_videos',
+      defaultValue: 60,
+      min: 10,
+      max: 180,
+      isPublic: true
+    });
+    expect(getRuntimeSettingMetadata('product_video_preload_count')).toMatchObject({
+      defaultValue: 1,
+      min: 0,
+      max: 2,
+      isPublic: true
+    });
+    expect(getRuntimeSettingMetadata('product_video_require_moderation')).toMatchObject({
+      defaultValue: true,
+      isPublic: false
+    });
+    expect(validateSettingValue('product_video_max_duration_seconds', 181)).toMatchObject({ ok: false });
+    expect(validateSettingValue('product_video_preload_count', 2)).toMatchObject({ ok: true, value: 2 });
+  });
+});

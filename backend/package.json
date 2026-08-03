@@ -16,7 +16,8 @@
     "migrate:categories": "node ./scripts/migrateCategories.js",
     "migrate:order-message-deeplinks": "node ./scripts/migrateOrderMessageDeepLinks.js",
     "backfill:product-stats": "node ./scripts/backfillProductStats.js",
-    "migrate:universal-tags": "node ./scripts/migrateUniversalTags.js"
+    "migrate:universal-tags": "node ./scripts/migrateUniversalTags.js",
+    "migrate:product-videos": "node ./scripts/migrateProductVideos.js"
   },
   "dependencies": {
     "@sentry/node": "^8.55.2",

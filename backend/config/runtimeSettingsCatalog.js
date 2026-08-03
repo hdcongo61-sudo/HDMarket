@@ -1139,6 +1139,63 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 0,
     max: 1
   },
+  product_video_max_duration_seconds: {
+    category: 'product_videos',
+    description: 'Durée maximale d’une vidéo produit, en secondes.',
+    valueType: 'number',
+    defaultValue: 60,
+    isPublic: true,
+    min: 10,
+    max: 180
+  },
+  product_video_max_uploads_per_product: {
+    category: 'product_videos',
+    description: 'Nombre maximum de vidéos courtes par produit.',
+    valueType: 'number',
+    defaultValue: 5,
+    isPublic: true,
+    min: 1,
+    max: 12
+  },
+  product_video_preload_count: {
+    category: 'product_videos',
+    description: 'Nombre de prochaines vidéos préparées par le lecteur.',
+    valueType: 'number',
+    defaultValue: 1,
+    isPublic: true,
+    min: 0,
+    max: 2
+  },
+  product_video_require_moderation: {
+    category: 'product_videos',
+    description: 'Place les nouvelles vidéos en attente de modération.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: false
+  },
+  product_video_autoplay_enabled: {
+    category: 'product_videos',
+    description: 'Active la lecture automatique silencieuse du flux.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  product_video_default_muted: {
+    category: 'product_videos',
+    description: 'Démarre les vidéos sans son.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  product_video_sponsored_frequency: {
+    category: 'product_videos',
+    description: 'Intervalle minimum entre deux vidéos sponsorisées.',
+    valueType: 'number',
+    defaultValue: 8,
+    isPublic: true,
+    min: 3,
+    max: 30
+  },
 
   // Backward-compatible legacy keys currently used in existing business logic.
   commissionRate: {

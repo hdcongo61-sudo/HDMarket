@@ -191,7 +191,8 @@ export default function ProductForm(props) {
   const [videoFile, setVideoFile] = useState(null);
   const [existingVideoUrl, setExistingVideoUrl] = useState(null);
   const [removeExistingVideo, setRemoveExistingVideo] = useState(false);
-  const [videoMuted, setVideoMuted] = useState(true);
+  // videoMuted is also the upload intent: a muted video is stored without audio.
+  const [videoMuted, setVideoMuted] = useState(false);
   const [videoError, setVideoError] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfError, setPdfError] = useState('');
@@ -378,7 +379,7 @@ export default function ProductForm(props) {
     setVideoFile(null);
     setExistingVideoUrl(null);
     setRemoveExistingVideo(false);
-    setVideoMuted(true);
+    setVideoMuted(false);
     setVideoError('');
     setPdfFile(null);
     setPdfError('');
@@ -1750,6 +1751,7 @@ export default function ProductForm(props) {
       removedImages.forEach((image) => data.append('removeImages', image));
       if (videoFile) {
         data.append('video', videoFile);
+        data.append('videoMuted', videoMuted ? 'true' : 'false');
       }
       if (pdfFile) {
         data.append('pdf', pdfFile);
@@ -3680,6 +3682,11 @@ export default function ProductForm(props) {
                     {videoMuted ? '🔇' : '🔊'}
                   </button>
                 </div>
+                {videoMuted && (
+                  <p className="text-xs text-amber-600 px-1">
+                    Le son est coupé : la vidéo sera publiée sans audio.
+                  </p>
+                )}
                 <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 truncate font-medium">{videoFile.name}</p>

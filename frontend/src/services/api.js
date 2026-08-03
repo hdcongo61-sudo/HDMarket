@@ -115,7 +115,8 @@ const requiresFeatureRolloutContext = (config = {}) => {
   return (
     pathname === '/settings/public' ||
     pathname === '/settings/runtime' ||
-    pathname.startsWith('/features/')
+    pathname.startsWith('/features/') ||
+    pathname.startsWith('/product-videos')
   );
 };
 

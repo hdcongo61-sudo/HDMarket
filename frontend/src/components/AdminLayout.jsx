@@ -28,7 +28,8 @@ import {
   Megaphone,
   ShoppingBasket,
   Flag,
-  Tags
+  Tags,
+  Clapperboard
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
@@ -86,7 +87,7 @@ const readAdminUiState = (storageKey) => {
   }
 };
 
-const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
+const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosEnabled = false) => [
   {
     to: '/admin/dashboard',
     end: true,
@@ -112,6 +113,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
   { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
   { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
   { to: '/admin/tags', label: 'Tags universels', icon: Tags, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
+  { to: '/admin/videos', label: 'HDMarket Videos', icon: Clapperboard, group: 'commerce', show: (u) => productVideosEnabled && (u?.role === 'admin' || u?.role === 'founder') },
   { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, group: 'operations', show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
   {
     to: '/admin/delivery-requests',
@@ -209,7 +211,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}) => [
 
 export default function AdminLayout() {
   const { user } = useContext(AuthContext);
-  const { t, getRuntimeValue } = useAppSettings();
+  const { t, getRuntimeValue, isFeatureEnabled } = useAppSettings();
   const { counts: adminCounts } = useAdminCounts(Boolean(user));
   // useNavigation() requires React Router's data-router APIs (createBrowserRouter),
   // which this app doesn't use (plain <BrowserRouter>) — it throws on every mount.
@@ -235,7 +237,8 @@ export default function AdminLayout() {
       String(getRuntimeValue('enable_delivery_requests', true)).trim().toLowerCase()
     );
 
-  const navItems = buildNavItems(t, platformDeliveryEnabled, adminCounts);
+  const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
+  const navItems = buildNavItems(t, platformDeliveryEnabled, adminCounts, productVideosEnabled);
   const mergedNavItems = navItems
     .filter((item) => ![
       '/admin/delivery-guys',

@@ -74,7 +74,8 @@ import {
   Bike,
   Flag,
   MessageCircle,
-  ShoppingBag
+  ShoppingBag,
+  Clapperboard
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -155,6 +156,7 @@ export default function Navbar() {
     defaultValue: true
   });
   const chatEnabled = isFeatureEnabled('enable_chat', { defaultValue: true });
+  const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   const platformDeliveryEnabled =
     ['true', '1', 'yes', 'on'].includes(
       String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
@@ -782,7 +784,8 @@ export default function Navbar() {
   // Default navigation items
   const defaultNavItems = [
     { id: 'home', label: t('nav.home', 'Accueil'), path: '/', icon: Home, badge: null, visible: true, order: 0 },
-    { id: 'discover', label: t('nav.discover', 'Découvrir'), path: '/discover', icon: Compass, badge: null, visible: true, order: 1 },
+    { id: 'discover', label: t('nav.discover', 'Découvrir'), path: '/discover', icon: Compass, badge: null, visible: true, order: productVideosEnabled ? 5 : 1 },
+    { id: 'videos', label: 'Vidéos', path: '/videos', icon: Clapperboard, badge: null, visible: productVideosEnabled, order: 1 },
     { id: 'favorites', label: t('nav.favorites', 'Favoris'), path: '/favorites', icon: Heart, badge: favoritesCount, visible: true, order: 2 },
     { id: 'cart', label: t('nav.cart', 'Panier'), path: '/cart', icon: ShoppingCart, badge: cartCount, visible: true, order: 3 },
     { id: 'menu', label: t('nav.menu', 'Menu'), path: null, icon: Menu, badge: adminPendingTotal, visible: true, order: 4, isButton: true },
@@ -793,6 +796,8 @@ export default function Navbar() {
     { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 8 },
     { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
     { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 10 },
+    { id: 'saved-videos', label: 'Vidéos enregistrées', path: '/profile/saved-videos', icon: Bookmark, badge: null, visible: Boolean(user) && productVideosEnabled, order: 10.2 },
+    { id: 'seller-videos', label: 'Mes vidéos produit', path: '/seller/videos', icon: Clapperboard, badge: null, visible: Boolean(user) && productVideosEnabled, order: 10.3 },
     { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },

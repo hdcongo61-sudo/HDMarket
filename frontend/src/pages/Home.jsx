@@ -8,7 +8,7 @@ import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package } from "lucide-react";
+import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package, Play, Clapperboard } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -241,6 +241,45 @@ const PourVousSection = ({ user, t, formatPrice, buildProductLink, externalLinkP
   );
 };
 
+const ProductVideosHomeSection = ({ enabled }) => {
+  const [videos, setVideos] = useState([]);
+
+  useEffect(() => {
+    if (!enabled) {
+      setVideos([]);
+      return undefined;
+    }
+    let active = true;
+    api.get('/product-videos/feed', { params: { limit: 6, filter: 'trending' }, silentGlobalError: true })
+      .then(({ data }) => active && setVideos(data?.items || []))
+      .catch(() => active && setVideos([]));
+    return () => { active = false; };
+  }, [enabled]);
+
+  if (!enabled || !videos.length) return null;
+  return (
+    <section className="order-[-9]">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-neutral-950 text-white"><Clapperboard size={16} /></span>
+          <div><h2 className="text-[18px] font-black tracking-[-0.02em]">HDMarket Videos</h2><p className="text-[10px] font-semibold text-neutral-500">Découvrez, regardez, achetez</p></div>
+        </div>
+        <Link to="/videos" className="flex items-center text-xs font-semibold text-neutral-950">Voir tout <ChevronRight size={14} /></Link>
+      </div>
+      <div className="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-2 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4">
+        {videos.map((video) => (
+          <Link key={video._id} to={`/videos?video=${video._id}`} className="group relative aspect-[3/4] w-[142px] shrink-0 snap-start overflow-hidden rounded-[20px] bg-neutral-950 text-white shadow-sm">
+            <img src={video.thumbnailUrl || video.product?.images?.[0]} alt={video.product?.title || ''} loading="lazy" className="h-full w-full object-cover transition duration-500 group-active:scale-105" />
+            <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/10" />
+            <span className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white/20 backdrop-blur-md"><Play size={14} fill="currentColor" /></span>
+            <span className="absolute inset-x-0 bottom-0 p-3"><span className="line-clamp-2 text-xs font-black">{video.product?.title}</span><span className="mt-1 block text-[10px] text-white/70">{Number(video.counters?.views || 0).toLocaleString('fr-FR')} vues</span></span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 /**
  * 🎨 PAGE D'ACCUEIL HDMarket - Design Alibaba Mobile First
  * Focus sur les bonnes affaires avec prix visibles
@@ -256,8 +295,10 @@ export default function Home() {
     formatPrice,
     t,
     language,
-    getRuntimeValue
+    getRuntimeValue,
+    isFeatureEnabled
   } = useAppSettings();
+  const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
@@ -1357,6 +1398,8 @@ const loadDiscountProducts = async () => {
         <div className="order-[-10] -mx-5 max-[375px]:-mx-4">
           <GroupBuyHomeSection enabled={groupBuyingEnabled} />
         </div>
+
+        <ProductVideosHomeSection enabled={productVideosEnabled} />
 
         {(showFullPaymentHomeBanner || showPayForOtherBanner || buyForMeEnabled || parcelDeliveryEnabled) ? (
           <section className="hidden order-[-20] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-sm">

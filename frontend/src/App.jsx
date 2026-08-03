@@ -106,6 +106,10 @@ const SellerOrderDetail = lazy(() => import('./pages/SellerOrderDetail'));
 const SellerDisputes = lazy(() => import('./pages/SellerDisputes'));
 const SellerBoosts = lazy(() => import('./pages/SellerBoosts'));
 const SellerGlobalNotifications = lazy(() => import('./pages/SellerGlobalNotifications'));
+const ProductVideos = lazy(() => import('./pages/ProductVideos'));
+const SavedProductVideos = lazy(() => import('./pages/SavedProductVideos'));
+const SellerProductVideos = lazy(() => import('./pages/SellerProductVideos'));
+const AdminProductVideos = lazy(() => import('./pages/AdminProductVideos'));
 const SellerSettlements = lazy(() => import('./pages/SellerSettlements'));
 const OrderCheckout = lazy(() => import('./pages/OrderCheckout'));
 const PawaPayReturn = lazy(() => import('./pages/PawaPayReturn'));
@@ -364,7 +368,12 @@ function AppContent() {
   const { showToast } = useToast();
   const { pathname } = location;
   const { user } = useContext(AuthContext);
-  const { isFeatureEnabled, getRuntimeValue, assistantChatEnabled } = useAppSettings();
+  const {
+    isFeatureEnabled,
+    getRuntimeValue,
+    assistantChatEnabled,
+    loading: appSettingsLoading
+  } = useAppSettings();
   const shopLoad = useShopProfileLoad();
   const { logoSrc: appBrandLogo } = useAppBrandLogo();
   const [splashConfig, setSplashConfig] = useState(null);
@@ -518,6 +527,7 @@ function AppContent() {
   const buyForMeFeatureEnabled = isFeatureEnabled('enable_buy_for_me', { defaultValue: true });
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
   const globalNotificationsEnabled = isFeatureEnabled('enable_global_notifications', { defaultValue: true });
+  const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
@@ -547,6 +557,7 @@ function AppContent() {
   const isCourierRoute =
     pathname.startsWith('/courier') ||
     (pathname.startsWith('/delivery') && !isCourierApplicationRoute);
+  const isProductVideosRoute = pathname.startsWith('/videos');
   const pageTransitionKey = getPageTransitionKey(pathname);
 
   useEffect(() => {
@@ -717,6 +728,18 @@ function AppContent() {
         <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/discover" element={<Discover />} />
+          <Route
+            path="/videos"
+            element={
+              appSettingsLoading ? (
+                <div className="min-h-[60vh]" role="status" aria-label="Chargement de HDMarket Videos" />
+              ) : productVideosEnabled ? (
+                <ProductVideos />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
           <Route path="/avantages" element={<Benefits />} />
           <Route path="/benefits" element={<Benefits />} />
           <Route path="/a-propos" element={<About />} />
@@ -865,6 +888,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Favorites />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/saved-videos"
+            element={
+              <ProtectedRoute>
+                {appSettingsLoading ? null : productVideosEnabled ? <SavedProductVideos /> : <Navigate to="/" replace />}
               </ProtectedRoute>
             }
           />
@@ -1158,6 +1189,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/seller/videos"
+            element={
+              <ProtectedRoute>
+                {appSettingsLoading ? null : productVideosEnabled ? <SellerProductVideos /> : <Navigate to="/my" replace />}
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/my/settlements"
             element={
               <ProtectedRoute>
@@ -1197,6 +1236,14 @@ function AppContent() {
           >
             <Route index element={<AdminIndexRedirect />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+            <Route
+              path="videos"
+              element={
+                <ProtectedRoute roles={['admin', 'founder']}>
+                  {appSettingsLoading ? null : productVideosEnabled ? <AdminProductVideos /> : <Navigate to="/admin" replace />}
+                </ProtectedRoute>
+              }
+            />
             <Route path="payments" element={<AdminPayments />} />
             <Route
               path="pawapay"
@@ -1426,12 +1473,12 @@ function AppContent() {
           </motion.div>
         </AnimatePresence>
       </main>
-      {!isCourierRoute ? (
+      {!isCourierRoute && !isProductVideosRoute ? (
         <Suspense fallback={null}>
           <Footer />
         </Suspense>
       ) : null}
-      {!isCourierRoute && chatEnabled && assistantChatEnabled ? (
+      {!isCourierRoute && !isProductVideosRoute && chatEnabled && assistantChatEnabled ? (
         <Suspense fallback={null}>
           <ChatBox />
         </Suspense>

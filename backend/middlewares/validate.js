@@ -222,6 +222,7 @@ export const schemas = {
       physicalSchema
     ).optional(),
     socialVideoUrl: Joi.string().max(500).allow('', null).optional(),
+    videoMuted: Joi.boolean().truthy('true').falsy('false').optional(),
     newImageStudioMetadata: imageStudioArrayPayload.optional(),
     promoCode: Joi.string().max(60).allow('', null).optional()
   }).or('category', 'categoryId', 'subcategoryId'),
@@ -284,6 +285,7 @@ export const schemas = {
     imageReplacementTargets: imageStudioArrayPayload.optional(),
     imageStudioMetadata: imageStudioArrayPayload.optional(),
     removeVideo: Joi.boolean().truthy('true').falsy('false'),
+    videoMuted: Joi.boolean().truthy('true').falsy('false').optional(),
     removePdf: Joi.boolean().truthy('true').falsy('false'),
     socialVideoUrl: Joi.string().max(500).allow('', null)
   }),
