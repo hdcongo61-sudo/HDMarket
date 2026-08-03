@@ -110,6 +110,15 @@ const getPreferredFeatureCity = async () => {
   return preferredFeatureCity;
 };
 
+const requiresFeatureRolloutContext = (config = {}) => {
+  const pathname = String(config?.url || '').split('?')[0].trim();
+  return (
+    pathname === '/settings/public' ||
+    pathname === '/settings/runtime' ||
+    pathname.startsWith('/features/')
+  );
+};
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || `http://localhost:5001/api`,
   withCredentials: true,
@@ -766,15 +775,17 @@ const bindRequestAbortSignal = (config, controller) => {
 
 api.interceptors.request.use(async (config) => {
   config.headers = config.headers || {};
-  const [featureDeviceId, preferredCity] = await Promise.all([
-    getFeatureDeviceId(),
-    getPreferredFeatureCity()
-  ]);
-  config.headers['x-device-id'] = featureDeviceId;
-  config.headers['x-session-id'] = getFeatureSessionId();
-  config.headers['x-app-platform'] = getFeaturePlatform();
-  config.headers['x-app-version'] = String(import.meta.env.VITE_APP_VERSION || '1.0.0');
-  if (preferredCity) config.headers['x-user-city'] = encodeURIComponent(String(preferredCity));
+  if (requiresFeatureRolloutContext(config)) {
+    const [featureDeviceId, preferredCity] = await Promise.all([
+      getFeatureDeviceId(),
+      getPreferredFeatureCity()
+    ]);
+    config.headers['x-device-id'] = featureDeviceId;
+    config.headers['x-session-id'] = getFeatureSessionId();
+    config.headers['x-app-platform'] = getFeaturePlatform();
+    config.headers['x-app-version'] = String(import.meta.env.VITE_APP_VERSION || '1.0.0');
+    if (preferredCity) config.headers['x-user-city'] = encodeURIComponent(String(preferredCity));
+  }
   config.__requestStartAt = Date.now();
   config.__requestKey =
     config.__requestKey || `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
