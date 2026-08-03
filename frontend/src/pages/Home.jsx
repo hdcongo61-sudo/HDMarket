@@ -1920,7 +1920,7 @@ const loadDiscountProducts = async () => {
 
         {/* Best Sellers Strip */}
         {!topSalesLoading && topSalesProducts.length > 0 && (
-          <section className="order-[6]">
+          <section className="order-[0]">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-[#1b1d22]">
