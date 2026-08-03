@@ -57,3 +57,30 @@ describe('app_information runtime setting', () => {
     })).toMatchObject({ ok: false });
   });
 });
+
+describe('product card gallery runtime settings', () => {
+  it('exposes safe public defaults and validates bounded performance controls', () => {
+    expect(getRuntimeSettingMetadata('enable_product_card_image_carousel')).toMatchObject({
+      category: 'product_cards',
+      valueType: 'boolean',
+      defaultValue: true,
+      isPublic: true
+    });
+    expect(getRuntimeSettingMetadata('product_card_gallery_max_preload')).toMatchObject({
+      defaultValue: 1,
+      min: 0,
+      max: 1,
+      isPublic: true
+    });
+    expect(validateSettingValue('product_card_gallery_default_mode', 'thumbnail')).toMatchObject({
+      ok: true,
+      value: 'thumbnail'
+    });
+    expect(validateSettingValue('product_card_gallery_default_mode', 'unknown')).toMatchObject({
+      ok: false
+    });
+    expect(validateSettingValue('product_card_gallery_max_preload', 2)).toMatchObject({
+      ok: false
+    });
+  });
+});

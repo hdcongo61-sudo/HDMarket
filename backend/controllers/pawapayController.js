@@ -51,6 +51,16 @@ const RESOURCE_CONFIG = {
 
 const FINAL_SUCCESS = new Set(['COMPLETED', 'SUCCESSFUL']);
 const FINAL_FAILURE = new Set(['FAILED', 'CANCELLED', 'EXPIRED', 'REJECTED']);
+
+export const normalizePawaPayCheckoutStatus = (value, fallback = 'WAITING_PAYMENT') => {
+  const status = String(value || '').trim().toUpperCase();
+  if (FINAL_SUCCESS.has(status)) return 'COMPLETED';
+  // PawaPay uses REJECTED, while the persisted checkout state intentionally
+  // exposes all provider rejections through the single FAILED state.
+  if (status === 'REJECTED') return 'FAILED';
+  if (FINAL_FAILURE.has(status) || status === 'PROCESSING') return status;
+  return fallback;
+};
 const CHECKOUT_PURPOSES = new Set([
   'CHECKOUT_FUNDING',
   'LISTING_FEE_FUNDING',
@@ -560,13 +570,7 @@ const reconcilePawaPayCheckout = async ({ resourceType, resourceId, status, amou
     return checkout;
   }
 
-  checkout.status = FINAL_SUCCESS.has(status)
-    ? 'COMPLETED'
-    : FINAL_FAILURE.has(status)
-      ? status
-      : status === 'PROCESSING'
-        ? 'PROCESSING'
-        : checkout.status;
+  checkout.status = normalizePawaPayCheckoutStatus(status, checkout.status);
   checkout.providerTransactionId = String(payload.providerTransactionId || payload.deposit?.providerTransactionId || '');
   const completedDeposit = Array.isArray(payload.depositsHistory)
     ? payload.depositsHistory.find((entry) => FINAL_SUCCESS.has(String(entry?.status || '').toUpperCase()))
@@ -609,7 +613,7 @@ const reconcilePawaPayCheckout = async ({ resourceType, resourceId, status, amou
   return claimed;
 };
 
-const reconcileCheckoutStatusFromProvider = async (checkout) => {
+const reconcileCheckoutStatusFromProvider = async (checkout, { force = false } = {}) => {
   if (!checkout) return checkout;
 
   const runAutomaticCompletion = async (current) => {
@@ -639,16 +643,19 @@ const reconcileCheckoutStatusFromProvider = async (checkout) => {
   if (FINAL_FAILURE.has(String(checkout.status || '').toUpperCase())) return checkout;
 
   const now = new Date();
+  const statusCheckQuery = {
+    _id: checkout._id,
+    status: { $in: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING'] }
+  };
+  if (!force) {
+    statusCheckQuery.$or = [
+      { lastProviderStatusCheckAt: null },
+      { lastProviderStatusCheckAt: { $exists: false } },
+      { lastProviderStatusCheckAt: { $lt: new Date(now.getTime() - 4_000) } }
+    ];
+  }
   const claimed = await PawaPayCheckout.findOneAndUpdate(
-    {
-      _id: checkout._id,
-      status: { $in: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING'] },
-      $or: [
-        { lastProviderStatusCheckAt: null },
-        { lastProviderStatusCheckAt: { $exists: false } },
-        { lastProviderStatusCheckAt: { $lt: new Date(now.getTime() - 4_000) } }
-      ]
-    },
+    statusCheckQuery,
     { $set: { lastProviderStatusCheckAt: now } },
     { new: true }
   );
@@ -1475,9 +1482,10 @@ export const refreshPawaPayCheckoutAdmin = asyncHandler(async (req, res) => {
   });
   if (!checkout) return res.status(404).json({ message: 'Paiement PawaPay introuvable.' });
 
-  checkout.lastProviderStatusCheckAt = null;
-  await checkout.save();
-  const reconciled = await reconcileCheckoutStatusFromProvider(checkout);
+  // Force the provider check through the existing atomic claim. Saving the
+  // whole document here can fail validation for legacy checkout records even
+  // though this action only needs to update the check timestamp.
+  const reconciled = await reconcileCheckoutStatusFromProvider(checkout, { force: true });
   return res.json({
     message: 'Statut synchronisé avec PawaPay.',
     checkout: reconciled

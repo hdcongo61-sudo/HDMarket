@@ -15,6 +15,15 @@ import { invalidateSettingsResolverCache } from '../utils/settingsResolver.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
+const decodeTargetingHeader = (value) => {
+  const normalized = normalizeText(value);
+  if (!normalized) return '';
+  try {
+    return decodeURIComponent(normalized);
+  } catch {
+    return normalized;
+  }
+};
 
 const resolveEnvironmentFromRequest = (req) => {
   const queryEnv = normalizeText(req.query?.environment || '');
@@ -232,8 +241,8 @@ export const getRuntimePublicConfig = asyncHandler(async (req, res) => {
     role: req.user?.role,
     userId: req.user?.id,
     accountType: req.user?.accountType,
-    country: req.user?.country,
-    city: req.user?.city,
+    country: req.user?.country || decodeTargetingHeader(req.headers?.['x-user-country']),
+    city: req.user?.city || decodeTargetingHeader(req.headers?.['x-user-city']),
     commune: req.user?.commune,
     isBetaTester: req.user?.betaTester,
     sessionId: req.headers?.['x-session-id'],

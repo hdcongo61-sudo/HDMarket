@@ -1069,6 +1069,76 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  enable_product_card_image_carousel: {
+    category: 'product_cards',
+    description: 'Active l’aperçu multi-images sur les cartes produit.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  enable_product_card_image_swipe: {
+    category: 'product_cards',
+    description: 'Autorise le swipe tactile et le glisser à la souris dans les cartes produit.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  enable_product_card_auto_preview: {
+    category: 'product_cards',
+    description: 'Affiche automatiquement la deuxième photo puis revient à la première.',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  enable_product_card_image_counter: {
+    category: 'product_cards',
+    description: 'Affiche le compteur de photos sur les galeries de cartes produit.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  enable_product_card_thumbnail_preview: {
+    category: 'product_cards',
+    description: 'Active la bande de miniatures au survol ou à l’appui long.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  product_card_gallery_animation_speed_ms: {
+    category: 'product_cards',
+    description: 'Durée de l’animation de changement de photo, en millisecondes.',
+    valueType: 'number',
+    defaultValue: 360,
+    isPublic: true,
+    min: 160,
+    max: 800
+  },
+  product_card_gallery_lazy_load_distance_px: {
+    category: 'product_cards',
+    description: 'Distance avant le viewport à laquelle la première photo peut être chargée.',
+    valueType: 'number',
+    defaultValue: 400,
+    isPublic: true,
+    min: 0,
+    max: 1600
+  },
+  product_card_gallery_default_mode: {
+    category: 'product_cards',
+    description: 'Mode multi-images par défaut : swipe, photos empilées ou miniatures.',
+    valueType: 'string',
+    defaultValue: 'swipe',
+    isPublic: true,
+    allowedValues: ['swipe', 'stacked', 'thumbnail']
+  },
+  product_card_gallery_max_preload: {
+    category: 'product_cards',
+    description: 'Nombre maximum de prochaines photos plein format préchargées.',
+    valueType: 'number',
+    defaultValue: 1,
+    isPublic: true,
+    min: 0,
+    max: 1
+  },
 
   // Backward-compatible legacy keys currently used in existing business logic.
   commissionRate: {

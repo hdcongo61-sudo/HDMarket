@@ -152,6 +152,17 @@ export const FEATURE_CATALOG = Object.freeze({
     releaseStage: 'development',
     rolloutPercentage: 0,
     dependencies: ['enable_delivery', 'enable_global_notifications']
+  },
+  product_card_multi_image_preview: {
+    displayName: 'Aperçu multi-images des produits',
+    category: 'discovery',
+    icon: 'Images',
+    version: '1.0.0',
+    description: 'Galerie performante et interactive directement dans les cartes produit.',
+    enabled: true,
+    releaseStage: 'released',
+    rolloutPercentage: 100,
+    remoteConfig: {}
   }
 });
 

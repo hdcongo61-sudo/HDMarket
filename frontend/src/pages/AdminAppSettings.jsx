@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Image, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock, AppWindow, Monitor, Globe } from 'lucide-react';
+import { ArrowLeft, Image, Images, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock, AppWindow, Monitor, Globe } from 'lucide-react';
 import api, { clearCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { appConfirm } from '../utils/appDialog';
@@ -22,6 +22,34 @@ const AUTH_PROVIDER_CONTROLS = [
 const DEFAULT_AUTH_SETTINGS = Object.fromEntries(
   AUTH_PROVIDER_CONTROLS.flatMap((provider) => [[provider.loginKey, true], [provider.registrationKey, true]])
 );
+
+const DEFAULT_PRODUCT_CARD_SETTINGS = Object.freeze({
+  enable_product_card_image_carousel: true,
+  enable_product_card_image_swipe: true,
+  enable_product_card_auto_preview: false,
+  enable_product_card_image_counter: true,
+  enable_product_card_thumbnail_preview: true,
+  product_card_gallery_animation_speed_ms: 360,
+  product_card_gallery_lazy_load_distance_px: 400,
+  product_card_gallery_default_mode: 'swipe',
+  product_card_gallery_max_preload: 1
+});
+
+const PRODUCT_CARD_BOOLEAN_CONTROLS = [
+  ['enable_product_card_image_carousel', 'Galerie multi-images', 'Active les indicateurs et modes d’aperçu sur les produits ayant plusieurs photos.'],
+  ['enable_product_card_image_swipe', 'Swipe et glisser', 'Gestes tactiles, trackpad et glisser à la souris avec verrouillage du scroll vertical.'],
+  ['enable_product_card_auto_preview', 'Aperçu automatique', 'Passe une fois à la deuxième photo après 2 secondes, puis revient à la première.'],
+  ['enable_product_card_image_counter', 'Compteur d’images', 'Affiche la position courante et le nombre total de photos.'],
+  ['enable_product_card_thumbnail_preview', 'Miniatures', 'Affiche une bande flottante au survol desktop ou à l’appui long mobile.']
+];
+
+const normalizeProductCardSettings = (runtime = {}) => ({
+  ...DEFAULT_PRODUCT_CARD_SETTINGS,
+  ...Object.fromEntries(Object.keys(DEFAULT_PRODUCT_CARD_SETTINGS).map((key) => [
+    key,
+    runtime?.[key] ?? DEFAULT_PRODUCT_CARD_SETTINGS[key]
+  ]))
+});
 
 const HOME_PROMO_BACKGROUND_SLOTS = [
   { key: 'freeDelivery', field: 'homePromoFreeDeliveryBackground', label: 'Livraison offerte', hint: 'Fond de la carte verte' },
@@ -233,6 +261,8 @@ export default function AdminAppSettings() {
   const [authProviderSavingKey, setAuthProviderSavingKey] = useState('');
   const [appInformation, setAppInformation] = useState(DEFAULT_APP_INFORMATION);
   const [appInformationSaving, setAppInformationSaving] = useState(false);
+  const [productCardSettings, setProductCardSettings] = useState(DEFAULT_PRODUCT_CARD_SETTINGS);
+  const [productCardSettingsSaving, setProductCardSettingsSaving] = useState(false);
 
   const [heroBannerFile, setHeroBannerFile] = useState(null);
   const [heroBannerPreview, setHeroBannerPreview] = useState('');
@@ -345,6 +375,7 @@ export default function AdminAppSettings() {
           Object.keys(DEFAULT_AUTH_SETTINGS).map((key) => [key, runtimeRes?.data?.values?.[key] !== false])
         ));
         setAppInformation(normalizeAppInformation(runtimeRes?.data?.values?.app_information));
+        setProductCardSettings(normalizeProductCardSettings(runtimeRes?.data?.values));
       } catch (err) {
         if (!active) return;
         showToast(err.response?.data?.message || 'Erreur chargement paramètres.', { variant: 'error' });
@@ -413,6 +444,30 @@ export default function AdminAppSettings() {
       setAppInformationSaving(false);
     }
   }, [appInformation, showToast]);
+
+  const saveProductCardSettings = useCallback(async (event) => {
+    event?.preventDefault?.();
+    setProductCardSettingsSaving(true);
+    try {
+      const normalized = normalizeProductCardSettings(productCardSettings);
+      normalized.product_card_gallery_animation_speed_ms = Number(normalized.product_card_gallery_animation_speed_ms);
+      normalized.product_card_gallery_lazy_load_distance_px = Number(normalized.product_card_gallery_lazy_load_distance_px);
+      normalized.product_card_gallery_max_preload = Number(normalized.product_card_gallery_max_preload);
+      await api.patch('/admin/config/runtime', {
+        items: Object.entries(normalized).map(([key, value]) => ({ key, value }))
+      });
+      setProductCardSettings(normalized);
+      await clearCache('/settings');
+      emitSettingsRefresh();
+      showToast('Configuration des cartes produit mise à jour.', { variant: 'success' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Impossible d’enregistrer les cartes produit.', {
+        variant: 'error'
+      });
+    } finally {
+      setProductCardSettingsSaving(false);
+    }
+  }, [productCardSettings, showToast]);
 
   const loadReports = useCallback(async () => {
     setReportsLoading(true);
@@ -997,6 +1052,7 @@ export default function AdminAppSettings() {
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               ['#apparence', 'Apparence'],
+              ['#cartes-produit', 'Cartes produit'],
               ['#informations-app', 'Informations'],
               ['#authentification', 'Authentification'],
               ['#identite', 'Identité'],
@@ -1053,6 +1109,133 @@ export default function AdminAppSettings() {
                     : 'Thème sombre désactivé'}
               </button>
             </div>
+          </div>
+
+          <div id="cartes-produit" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
+                  <Images size={20} />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-gray-900">Cartes produit · aperçu multi-images</h2>
+                  <p className="mt-1 max-w-2xl text-sm font-medium text-gray-500">
+                    Réglez l’expérience globale. Les variantes et audiences de déploiement peuvent surcharger ces valeurs.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/admin/features"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 text-xs font-black text-violet-700 transition hover:bg-violet-100"
+              >
+                <Flag size={15} />
+                Gérer le déploiement
+              </Link>
+            </div>
+
+            <form onSubmit={saveProductCardSettings} className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {PRODUCT_CARD_BOOLEAN_CONTROLS.map(([key, label, description]) => {
+                  const checked = productCardSettings[key] !== false;
+                  return (
+                    <div key={key} className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
+                      <div>
+                        <p className="text-sm font-black text-gray-900">{label}</p>
+                        <p className="mt-1 text-xs font-medium leading-relaxed text-gray-500">{description}</p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={checked}
+                        onClick={() => setProductCardSettings((current) => ({ ...current, [key]: !checked }))}
+                        className={`inline-flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition ${checked ? 'bg-emerald-600' : 'bg-gray-300'}`}
+                      >
+                        <span className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-4 rounded-xl border border-gray-100 p-4 sm:grid-cols-2">
+                <label className="grid gap-1.5 text-xs font-bold text-gray-600">
+                  Mode d’affichage par défaut
+                  <select
+                    value={productCardSettings.product_card_gallery_default_mode}
+                    onChange={(event) => setProductCardSettings((current) => ({
+                      ...current,
+                      product_card_gallery_default_mode: event.target.value
+                    }))}
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-900 outline-none focus:border-[#e85d00]"
+                  >
+                    <option value="swipe">Galerie swipe (recommandé)</option>
+                    <option value="stacked">Indicateur photos empilées</option>
+                    <option value="thumbnail">Aperçu par miniatures</option>
+                  </select>
+                </label>
+
+                <label className="grid gap-1.5 text-xs font-bold text-gray-600">
+                  Vitesse d’animation (ms)
+                  <input
+                    type="number"
+                    min="160"
+                    max="800"
+                    step="20"
+                    value={productCardSettings.product_card_gallery_animation_speed_ms}
+                    onChange={(event) => setProductCardSettings((current) => ({
+                      ...current,
+                      product_card_gallery_animation_speed_ms: event.target.value
+                    }))}
+                    className="min-h-11 rounded-xl border border-gray-200 px-3 text-sm font-bold text-gray-900 outline-none focus:border-[#e85d00]"
+                  />
+                </label>
+
+                <label className="grid gap-1.5 text-xs font-bold text-gray-600">
+                  Distance de lazy load (px)
+                  <input
+                    type="number"
+                    min="0"
+                    max="1600"
+                    step="100"
+                    value={productCardSettings.product_card_gallery_lazy_load_distance_px}
+                    onChange={(event) => setProductCardSettings((current) => ({
+                      ...current,
+                      product_card_gallery_lazy_load_distance_px: event.target.value
+                    }))}
+                    className="min-h-11 rounded-xl border border-gray-200 px-3 text-sm font-bold text-gray-900 outline-none focus:border-[#e85d00]"
+                  />
+                </label>
+
+                <label className="grid gap-1.5 text-xs font-bold text-gray-600">
+                  Photos plein format à précharger
+                  <select
+                    value={productCardSettings.product_card_gallery_max_preload}
+                    onChange={(event) => setProductCardSettings((current) => ({
+                      ...current,
+                      product_card_gallery_max_preload: event.target.value
+                    }))}
+                    className="min-h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-gray-900 outline-none focus:border-[#e85d00]"
+                  >
+                    <option value="0">Aucune</option>
+                    <option value="1">La prochaine uniquement</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-xl bg-violet-50 p-4 text-xs font-semibold text-violet-800 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  Le drapeau <code className="rounded bg-white/70 px-1 py-0.5">product_card_multi_image_preview</code> permet le ciblage bêta, pays, ville, plateforme, version et pourcentage.
+                </p>
+                <button
+                  type="submit"
+                  disabled={productCardSettingsSaving}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-5 text-sm font-black text-white transition hover:bg-[#c94f00] disabled:cursor-wait disabled:opacity-60"
+                >
+                  <Save size={16} />
+                  {productCardSettingsSaving ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
           </div>
 
           <div id="informations-app" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

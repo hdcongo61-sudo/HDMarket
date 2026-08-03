@@ -181,14 +181,23 @@ export const getPublicManifest = asyncHandler(async (req, res) => {
 
 export const getPublicSettings = asyncHandler(async (req, res) => {
   try {
+    const decodeTargetingHeader = (value) => {
+      const normalized = String(value || '').trim();
+      if (!normalized) return '';
+      try {
+        return decodeURIComponent(normalized);
+      } catch {
+        return normalized;
+      }
+    };
     const [payload, runtimePayload] = await Promise.all([
       resolvePublicSettings(),
       getPublicRuntimeConfig({
         role: req.user?.role,
         userId: req.user?.id,
         accountType: req.user?.accountType,
-        country: req.user?.country,
-        city: req.user?.city,
+        country: req.user?.country || decodeTargetingHeader(req.headers?.['x-user-country']),
+        city: req.user?.city || decodeTargetingHeader(req.headers?.['x-user-city']),
         commune: req.user?.commune,
         isBetaTester: req.user?.betaTester,
         sessionId: req.headers?.['x-session-id'],

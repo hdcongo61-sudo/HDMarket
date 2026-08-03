@@ -2067,24 +2067,20 @@ export default function ProductDetails() {
   }, [product]);
 
   const handleNativeShare = useCallback(async () => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({
           title: product?.title || 'Produit HDMarket',
-          text: `${product?.title} - ${formatPriceWithStoredSettings(product?.price || 0)}`,
+          text: `${product?.title || 'Produit HDMarket'} - ${formatPriceWithStoredSettings(product?.price || 0)}`,
           url: shareLink,
         });
-      } catch (_) {
-        // User cancelled or error
+      } catch (error) {
+        // A cancellation is intentional. For browser/WebView failures, keep
+        // the top action useful by opening the in-app sharing choices.
+        if (error?.name !== 'AbortError') setShareMenuOpen(true);
       }
     } else {
-      try {
-        await navigator.clipboard.writeText(shareLink);
-        setShareFeedback("Lien copié !");
-        setTimeout(() => setShareFeedback(""), 2500);
-      } catch (_) {
-        setShareMenuOpen(true);
-      }
+      setShareMenuOpen(true);
     }
   }, [product?.title, product?.price, shareLink]);
 
@@ -5048,6 +5044,66 @@ export default function ProductDetails() {
         </div>
       )}
       {isMobileView ? renderMobileProductDetails() : renderDesktopProductDetails()}
+
+      <BaseModal
+        isOpen={isMobileView && shareMenuOpen}
+        onClose={() => setShareMenuOpen(false)}
+        size="sm"
+        mobileSheet
+        ariaLabel="Partager ce produit"
+        panelClassName="product-detail-modal-panel"
+      >
+        <ModalHeader
+          title="Partager ce produit"
+          onClose={() => setShareMenuOpen(false)}
+        />
+        <ModalBody className="space-y-2 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(`${product?.title || 'Produit'} - ${shareLink}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setShareMenuOpen(false)}
+            className="flex min-h-12 items-center rounded-xl bg-[#25D366] px-4 text-sm font-black text-white"
+          >
+            Envoyer sur WhatsApp
+          </a>
+          <a
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setShareMenuOpen(false)}
+            className="flex min-h-12 items-center rounded-xl bg-[#1877F2] px-4 text-sm font-black text-white"
+          >
+            Partager sur Facebook
+          </a>
+          <a
+            href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(product?.title || 'Produit')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setShareMenuOpen(false)}
+            className="flex min-h-12 items-center rounded-xl bg-[#229ED9] px-4 text-sm font-black text-white"
+          >
+            Partager sur Telegram
+          </a>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(shareLink);
+                setShareFeedback('Lien copié !');
+              } catch {
+                setShareFeedback('Impossible de copier le lien.');
+              } finally {
+                setShareMenuOpen(false);
+                setTimeout(() => setShareFeedback(''), 2500);
+              }
+            }}
+            className="flex min-h-12 w-full items-center rounded-xl bg-gray-100 px-4 text-left text-sm font-black text-gray-800"
+          >
+            Copier le lien
+          </button>
+        </ModalBody>
+      </BaseModal>
 
       <BaseModal
         isOpen={isReviewsModalOpen}

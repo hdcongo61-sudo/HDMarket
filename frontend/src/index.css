@@ -3334,6 +3334,17 @@ body :where(.blur-2xl, .blur-3xl) {
   50% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(232, 93, 0, 0); }
 }
 
+@keyframes hdGallerySwipeHint {
+  0%, 100% { opacity: 0.82; transform: translateX(-5px) scale(0.98); }
+  50% { opacity: 1; transform: translateX(5px) scale(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hd-gallery-swipe-hint {
+    animation: hdGallerySwipeHint 1.35s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   /* Staggered entrances — delay via --home-anim-delay inline custom property */
   .home-anim-fade-up {

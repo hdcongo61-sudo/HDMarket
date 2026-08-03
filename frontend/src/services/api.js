@@ -47,9 +47,68 @@ const REQUEST_RETRY_DELAY_MS = 2000;
 const MIN_UPLOAD_THROUGHPUT_BYTES_PER_SECOND = 24 * 1024;
 const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
 const MUTATION_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+const FEATURE_DEVICE_STORAGE_KEY = 'hd_feature_rollout_device_id';
+const FEATURE_CITY_STORAGE_KEY = 'hd_pref_city';
 
 let timeoutRuntimeCache = null;
 let timeoutRuntimeCacheExpiry = 0;
+let featureDeviceIdPromise = null;
+let featureSessionId = '';
+let preferredFeatureCity = '';
+let preferredFeatureCityExpiresAt = 0;
+
+const createAnonymousId = (prefix) => {
+  const value = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  return `${prefix}-${value}`;
+};
+
+const getFeatureDeviceId = async () => {
+  if (!featureDeviceIdPromise) {
+    featureDeviceIdPromise = (async () => {
+      const existing = String(await storage.get(FEATURE_DEVICE_STORAGE_KEY) || '').trim();
+      if (existing) return existing;
+      const generated = createAnonymousId('device');
+      await storage.set(FEATURE_DEVICE_STORAGE_KEY, generated);
+      return generated;
+    })();
+  }
+  return featureDeviceIdPromise;
+};
+
+const getFeatureSessionId = () => {
+  if (featureSessionId) return featureSessionId;
+  if (typeof window !== 'undefined') {
+    try {
+      featureSessionId = window.sessionStorage.getItem('hd_feature_rollout_session_id') || '';
+      if (!featureSessionId) {
+        featureSessionId = createAnonymousId('session');
+        window.sessionStorage.setItem('hd_feature_rollout_session_id', featureSessionId);
+      }
+    } catch {
+      featureSessionId = createAnonymousId('session');
+    }
+  }
+  return featureSessionId || createAnonymousId('session');
+};
+
+const getFeaturePlatform = () => {
+  if (typeof window === 'undefined') return 'web';
+  if (window.matchMedia?.('(display-mode: standalone)').matches || window.navigator?.standalone) {
+    return 'pwa';
+  }
+  const nativePlatform = String(window.Capacitor?.getPlatform?.() || '').toLowerCase();
+  if (nativePlatform === 'android' || nativePlatform === 'ios') return nativePlatform;
+  return 'web';
+};
+
+const getPreferredFeatureCity = async () => {
+  if (preferredFeatureCityExpiresAt > Date.now()) return preferredFeatureCity;
+  preferredFeatureCity = String(await storage.get(FEATURE_CITY_STORAGE_KEY) || '').trim();
+  preferredFeatureCityExpiresAt = Date.now() + 5000;
+  return preferredFeatureCity;
+};
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || `http://localhost:5001/api`,
@@ -707,6 +766,15 @@ const bindRequestAbortSignal = (config, controller) => {
 
 api.interceptors.request.use(async (config) => {
   config.headers = config.headers || {};
+  const [featureDeviceId, preferredCity] = await Promise.all([
+    getFeatureDeviceId(),
+    getPreferredFeatureCity()
+  ]);
+  config.headers['x-device-id'] = featureDeviceId;
+  config.headers['x-session-id'] = getFeatureSessionId();
+  config.headers['x-app-platform'] = getFeaturePlatform();
+  config.headers['x-app-version'] = String(import.meta.env.VITE_APP_VERSION || '1.0.0');
+  if (preferredCity) config.headers['x-user-city'] = encodeURIComponent(String(preferredCity));
   config.__requestStartAt = Date.now();
   config.__requestKey =
     config.__requestKey || `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;

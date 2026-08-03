@@ -145,6 +145,7 @@ import {
   getAdminRuntimeSettings,
   getAdminFeatureFlags,
   patchAdminRuntimeSetting,
+  patchAdminRuntimeSettingsBulk,
   patchAdminFeatureFlag
 } from '../controllers/configController.js';
 import {
@@ -502,6 +503,7 @@ router.get('/settings', getAdminSettings);
 router.patch('/settings/:key', adminMutationIdempotency, updateAdminSetting);
 router.get('/config/runtime', getAdminRuntimeSettings);
 router.get('/config/feature-flags', getAdminFeatureFlags);
+router.patch('/config/runtime', adminMutationIdempotency, patchAdminRuntimeSettingsBulk);
 router.patch('/config/runtime/:key', adminMutationIdempotency, patchAdminRuntimeSetting);
 router.patch('/config/feature-flags/:featureName', adminMutationIdempotency, patchAdminFeatureFlag);
 router.get('/categories/tree', getAdminCategoryTree);

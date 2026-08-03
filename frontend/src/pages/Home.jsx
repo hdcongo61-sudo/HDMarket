@@ -8,7 +8,7 @@ import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, TrendingUp, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package } from "lucide-react";
+import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -2900,63 +2900,6 @@ const loadDiscountProducts = async () => {
             ) : (
               <p className="text-sm text-gray-500">Aucune vente enregistrée aujourd&apos;hui à {effectiveUserCity}.</p>
             )}
-          </section>
-        )}
-
-        {/* Zone 2: Best Sellers Row (5 columns) */}
-        {!topSalesLoading && topSalesProducts.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-neutral-500 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">{t('home.bestSales', 'Meilleures ventes')}</h2>
-              </div>
-              <Link to="/top-sales" {...externalLinkProps} className="text-sm font-semibold text-[#0A0A0A] flex items-center hover:text-[#111111]">
-                Voir tout <ChevronRight className="w-4 h-4 ml-0.5" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-3 lg:grid-cols-5 gap-4">
-              {topSalesProducts.slice(0, 5).map((product, idx) => (
-                <Link
-                  key={`bestseller-d-${product._id}-${idx}`}
-                  to={buildHomeProductLink(product)}
-                  {...externalLinkProps}
-                  className="group flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
-                >
-                  <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100">
-                    <PreviewableImage
-                      product={product}
-                      src={resolveProductPrimaryImage(product)}
-                      images={resolveProductImageSet(product)}
-                      alt={product.title}
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
-                      reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
-                      showHint={false}
-                    />
-                    {idx < 3 && (
-                      <span className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${
-                        idx === 0 ? 'bg-neutral-500' : idx === 1 ? 'bg-gray-400' : 'bg-neutral-600'
-                      }`}>
-                        {idx + 1}
-                      </span>
-                    )}
-                    {isInstallmentOfferActive(product) && (
-                      <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                        <Clock className="h-2.5 w-2.5" />
-                        Tranche
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-3 flex flex-col flex-1 min-h-0">
-                    <p className="text-sm font-medium text-gray-700 truncate">{product.title}</p>
-                    <p className="text-sm font-bold text-gray-900 mt-0.5">{formatPrice(product.price || 0)}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
           </section>
         )}
 

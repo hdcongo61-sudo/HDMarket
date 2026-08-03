@@ -14,7 +14,13 @@ import { optionalProtect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 const skipCacheByHeader = (req) =>
-  String(req.headers['x-skip-cache'] || '').trim() === '1' || Boolean(req.headers.authorization);
+  String(req.headers['x-skip-cache'] || '').trim() === '1' ||
+  Boolean(req.headers.authorization) ||
+  Boolean(req.headers['x-device-id']) ||
+  Boolean(req.headers['x-session-id']) ||
+  Boolean(req.headers['x-user-city']) ||
+  Boolean(req.headers['x-app-platform']) ||
+  Boolean(req.headers['x-app-version']);
 
 router.get('/public', optionalProtect, cacheMiddleware({ ttl: 120000, skipCache: skipCacheByHeader }), getPublicSettings);
 router.get('/runtime', optionalProtect, cacheMiddleware({ ttl: 30000, skipCache: skipCacheByHeader }), getRuntimePublicConfig);
