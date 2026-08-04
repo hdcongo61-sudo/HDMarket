@@ -1609,23 +1609,26 @@ const loadDiscountProducts = async () => {
                 key={badge}
                 to={to}
                 {...externalLinkProps}
-                className="relative flex w-[84%] shrink-0 snap-center overflow-hidden rounded-[24px] p-[18px] pb-4 active:scale-[0.99]"
+                className="relative flex min-h-[232px] w-[84%] shrink-0 snap-center overflow-hidden rounded-[24px] active:scale-[0.99]"
                 style={{ backgroundColor: bg }}
               >
                 {backgroundImage ? (
                   <>
-                    <img src={backgroundImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-45" loading="lazy" />
-                    <span className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${bg}f2 0%, ${bg}a8 100%)` }} />
+                    <img src={backgroundImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                    {/* Clear on top so the image shows, solid brand color at the bottom behind the text */}
+                    <span className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${bg}00 26%, ${bg}59 55%, ${bg}d9 78%, ${bg}f2 100%)` }} />
                   </>
                 ) : null}
-                <div className="relative flex w-full flex-col gap-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-white/85 px-3 py-1 text-[11px] font-black tracking-[0.6px]" style={{ color }}>{badge}</span>
-                    <span className="grid h-11 w-11 place-items-center rounded-[14px] text-white" style={{ backgroundColor: color }}><Icon className="h-5 w-5" /></span>
+                <div className="relative flex w-full flex-col justify-between gap-4 p-[18px] pb-4">
+                  <span className="w-fit rounded-full bg-white/85 px-3 py-1 text-[11px] font-black tracking-[0.6px]" style={{ color }}>{badge}</span>
+                  <div className="flex max-w-[85%] flex-col items-start gap-2.5">
+                    <p className="text-[17px] font-extrabold leading-[1.35] text-[#1b1d22]">{text}</p>
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-extrabold text-white" style={{ backgroundColor: color }}>{cta}<ChevronRight className="h-[13px] w-[13px] stroke-[3]" /></span>
                   </div>
-                  <p className="min-h-[44px] text-[16.5px] font-extrabold leading-[1.35] text-[#1b1d22]">{text}</p>
-                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-extrabold text-white" style={{ backgroundColor: color }}>{cta}<ChevronRight className="h-[13px] w-[13px] stroke-[3]" /></span>
                 </div>
+                {!backgroundImage ? (
+                  <span className="absolute right-[18px] top-[18px] grid h-11 w-11 place-items-center rounded-[14px] text-white" style={{ backgroundColor: color }}><Icon className="h-5 w-5" /></span>
+                ) : null}
               </Link>
             ))}
           </div>
