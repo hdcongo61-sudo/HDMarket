@@ -60,6 +60,8 @@ const TYPE_PRIORITY_MAP = Object.freeze({
   product_rejected: 'HIGH',
   product_comment: 'NORMAL',
   favorite: 'HIGH',
+  product_video_like: 'NORMAL',
+  product_video_save: 'NORMAL',
   promotional: 'LOW'
 });
 

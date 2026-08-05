@@ -4035,6 +4035,24 @@ export default function Navbar() {
                 {t('nav.home', 'Accueil')}
               </NavLink>
 
+              {/* Vidéos produits (HDMarket Videos) */}
+              {productVideosEnabled && (
+                <NavLink
+                  to="/videos"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'bg-[#e85d00] text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                    }`
+                  }
+                >
+                  <Clapperboard size={20} />
+                  {t('nav.videos', 'Vidéos')}
+                </NavLink>
+              )}
+
               {/* Assistant HDMarket (guided help chat) */}
               {user && (
                 <button

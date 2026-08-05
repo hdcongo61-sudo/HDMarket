@@ -423,6 +423,16 @@ const TEMPLATES = {
     message: `${actorName} a ajouté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''} à ses favoris. C'est un signal d'intérêt pour ce produit.`,
     actionLabel: 'Voir l\'annonce'
   }),
+  product_video_like: ({ snapshot, actorName }) => ({
+    title: 'Nouveau like sur votre vidéo',
+    message: `${actorName} a aimé votre vidéo${snapshot.productTitle ? ` pour "${snapshot.productTitle}"` : ''}.`,
+    actionLabel: 'Voir la vidéo'
+  }),
+  product_video_save: ({ snapshot, actorName }) => ({
+    title: 'Vidéo enregistrée',
+    message: `${actorName} a enregistré votre vidéo${snapshot.productTitle ? ` pour "${snapshot.productTitle}"` : ''}. Un contenu sauvegardé revient souvent en achat.`,
+    actionLabel: 'Voir la vidéo'
+  }),
   rating: ({ metadata, snapshot, actorName }) => ({
     title: 'Nouvelle note',
     message: `${actorName} a noté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''}${metadata.value ? ` ${metadata.value}/5 ⭐` : ''}. Consultez l'évaluation.`,

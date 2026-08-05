@@ -35,6 +35,20 @@ const getOrderSellerId = (order) => {
   return firstItem?.snapshot?.shopId || null;
 };
 
+// Concurrent resolve-or-create calls (double-click, StrictMode double
+// effects) can both miss the findOne and race the unique index; the loser's
+// E11000 must resolve to the winner's document, not surface as a 409.
+const createOrAdoptExisting = async (fields, uniqueFilter) => {
+  try {
+    return await Conversation.create(fields);
+  } catch (error) {
+    if (error?.code !== 11000) throw error;
+    const existing = await Conversation.findOne(uniqueFilter);
+    if (!existing) throw error;
+    return existing;
+  }
+};
+
 /**
  * Resolves an existing conversation or creates a new one.
  * Either pass `orderId` (order-anchored) or `sellerId` (+ optional
@@ -58,7 +72,10 @@ export const resolveOrCreateConversation = async ({ requesterId, orderId, seller
 
     let conversation = await Conversation.findOne({ buyerId, sellerId: resolvedSellerId, orderId });
     if (!conversation) {
-      conversation = await Conversation.create({ buyerId, sellerId: resolvedSellerId, orderId });
+      conversation = await createOrAdoptExisting(
+        { buyerId, sellerId: resolvedSellerId, orderId },
+        { buyerId, sellerId: resolvedSellerId, orderId }
+      );
     }
     return conversation;
   }
@@ -72,12 +89,10 @@ export const resolveOrCreateConversation = async ({ requesterId, orderId, seller
 
     let conversation = await Conversation.findOne({ buyerId: requesterId, sellerId, orderId: null });
     if (!conversation) {
-      conversation = await Conversation.create({
-        buyerId: requesterId,
-        sellerId,
-        orderId: null,
-        productId: productId || null
-      });
+      conversation = await createOrAdoptExisting(
+        { buyerId: requesterId, sellerId, orderId: null, productId: productId || null },
+        { buyerId: requesterId, sellerId, orderId: null }
+      );
     } else if (productId && String(conversation.productId || '') !== String(productId)) {
       conversation.productId = productId;
       await conversation.save();

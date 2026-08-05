@@ -53,6 +53,9 @@ const buildMediaFields = (upload) => {
     videoUrl: url,
     thumbnailUrl: cloudinaryTransform(url, 'so_1,w_720,h_1280,c_fill,g_auto,f_jpg,q_auto', 'jpg'),
     playbackSources: [
+      // Adaptive bitrate stream (HLS); the eager sp_hd transformation starts
+      // transcoding at upload time so the manifest is ready by first play.
+      { quality: 'hls', url: cloudinaryTransform(url, 'sp_hd', 'm3u8'), type: 'application/x-mpegURL' },
       { quality: 'auto', url: cloudinaryTransform(url, 'q_auto:eco,f_auto'), type: 'video/mp4' },
       { quality: '720p', url: cloudinaryTransform(url, 'w_720,c_limit,q_auto:eco,f_auto'), type: 'video/mp4' }
     ],
@@ -80,7 +83,14 @@ const uploadVideoFile = async (file) => {
     buffer: file.buffer,
     resourceType: 'video',
     folder: getCloudinaryFolder(['products', 'short-videos']),
-    options: { quality: 'auto:eco', format: 'mp4' }
+    options: {
+      quality: 'auto:eco',
+      format: 'mp4',
+      // Pre-generate the HLS adaptive stream asynchronously so playback can
+      // start on the manifest instead of the full-resolution MP4.
+      eager: [{ streaming_profile: 'hd', format: 'm3u8' }],
+      eager_async: true
+    }
   });
 };
 
@@ -131,7 +141,7 @@ const populateVideoQuery = (query) =>
   query
     .populate(
       'product',
-      'title slug price discount priceBeforeDiscount images category city country status user ratingAverage ratingCount viewsCount favoritesCount salesCount deliveryAvailable deliveryFee freeDeliveryEnabled wholesaleEnabled listingFeeSettled payment'
+      'title slug price discount priceBeforeDiscount images category city country status user ratingAverage ratingCount viewsCount favoritesCount salesCount deliveryAvailable deliveryFee freeDeliveryEnabled wholesaleEnabled listingFeeSettled payment attributes'
     )
     .populate('seller', 'name shopName shopLogo profileImage shopVerified followersCount city country freeDeliveryEnabled');
 
@@ -197,7 +207,13 @@ export const getProductVideoFeed = asyncHandler(async (req, res) => {
     return res.json({ items: [], nextCursor: null, hasMore: false });
   }
 
-  const videoFilter = { status: 'approved', product: { $in: visibleProductIds } };
+  const visibilityConditions = [{ status: 'approved' }];
+  const viewerId = userId(req);
+  if (viewerId) {
+    // Sellers see their own videos while they wait for moderation.
+    visibilityConditions.push({ seller: viewerId, status: 'pending' });
+  }
+  const videoFilter = { product: { $in: visibleProductIds }, $or: visibilityConditions };
   if (filter === 'featured') videoFilter.featured = true;
   if (filter === 'sponsored') videoFilter.sponsored = true;
   if (search) {
@@ -206,10 +222,14 @@ export const getProductVideoFeed = asyncHandler(async (req, res) => {
       _id: { $in: visibleProductIds },
       $or: [{ title: pattern }, { category: pattern }, { brand: pattern }]
     }).distinct('_id');
-    videoFilter.$or = [
-      { product: { $in: productMatches } },
-      { caption: pattern },
-      { hashtags: pattern }
+    videoFilter.$and = [
+      {
+        $or: [
+          { product: { $in: productMatches } },
+          { caption: pattern },
+          { hashtags: pattern }
+        ]
+      }
     ];
   }
   const candidateLimit = Math.min(160, Math.max(48, offset + limit * 5));
@@ -267,6 +287,26 @@ export const getSavedProductVideos = asyncHandler(async (req, res) => {
   res.json({ items: items.map((video) => serializeVideo(video, { saved: true })), page, hasMore: saved.length === limit });
 });
 
+export const listShopProductVideos = asyncHandler(async (req, res) => {
+  const { sellerId } = req.params;
+  if (!isValidId(sellerId)) return res.status(400).json({ message: 'Boutique invalide.' });
+  const page = clamp(req.query.page, 1, 10000, 1);
+  const limit = clamp(req.query.limit, 1, MAX_PAGE_SIZE, 12);
+  const videos = await populateVideoQuery(
+    ProductVideo.find({ seller: sellerId, status: 'approved' })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+  ).lean();
+  const items = videos.filter((video) => video.product?.status === 'approved');
+  const engagementMap = await getEngagementMap(items, req);
+  res.json({
+    items: items.map((video) => serializeVideo(video, engagementMap.get(String(video._id)))),
+    page,
+    hasMore: videos.length === limit
+  });
+});
+
 export const getProductVideoById = asyncHandler(async (req, res) => {
   const video = await populateVideoQuery(ProductVideo.findOne({ _id: req.params.id, status: 'approved' })).lean();
   if (!video?.product || video.product.status !== 'approved') return res.status(404).json({ message: 'Vidéo introuvable.' });
@@ -305,7 +345,7 @@ export const recordProductVideoView = asyncHandler(async (req, res) => {
 
 const toggleEngagement = (field, counter) =>
   asyncHandler(async (req, res) => {
-    const video = await ProductVideo.findOne({ _id: req.params.id, status: 'approved' }).select('_id');
+    const video = await ProductVideo.findOne({ _id: req.params.id, status: 'approved' }).select('_id seller product');
     if (!video) return res.status(404).json({ message: 'Vidéo introuvable.' });
     const viewerKey = viewerKeyFor(req);
     const engagement = await ProductVideoEngagement.findOneAndUpdate(
@@ -321,6 +361,24 @@ const toggleEngagement = (field, counter) =>
       { _id: video._id },
       { $inc: { [`counters.${counter}`]: active ? 1 : -1 } }
     );
+    if (active && video.seller) {
+      // Tell the seller someone liked/saved their video (self-actions are
+      // ignored by createNotification).
+      const videoLink = `/videos?video=${video._id}`;
+      await createNotification({
+        userId: video.seller,
+        actorId: userId(req),
+        productId: video.product,
+        type: field === 'liked' ? 'product_video_like' : 'product_video_save',
+        priority: 'NORMAL',
+        deepLink: videoLink,
+        actionLink: videoLink,
+        metadata: {
+          videoId: String(video._id),
+          deepLink: videoLink
+        }
+      });
+    }
     res.json({ active });
   });
 

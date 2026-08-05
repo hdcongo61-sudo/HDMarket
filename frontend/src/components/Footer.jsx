@@ -36,7 +36,8 @@ const normalizeExternalUrl = (value = '') => {
 
 export default function Footer() {
   const year = new Date().getFullYear();
-  const { t, app } = useAppSettings();
+  const { t, app, isFeatureEnabled } = useAppSettings();
+  const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   const appInformation = app?.information || {};
   const appName = String(appInformation.appName || 'HDMarket');
   const companyName = String(appInformation.companyName || 'ETS HD Tech Filial');
@@ -70,6 +71,7 @@ export default function Footer() {
     { to: '/', label: t('nav.home', 'Accueil') },
     { to: '/products', label: t('nav.products', 'Produits') },
     { to: '/discover', label: t('nav.discover', 'Découvrir') },
+    ...(productVideosEnabled ? [{ to: '/videos', label: t('nav.videos', 'Vidéos') }] : []),
     { to: '/shops/verified', label: t('nav.verifiedShops', 'Boutiques vérifiées') },
     { to: '/a-propos', label: t('nav.about', 'À propos') }
   ];

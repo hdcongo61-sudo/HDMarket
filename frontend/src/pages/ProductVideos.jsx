@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import Hls from 'hls.js';
 import {
   Bookmark,
   Check,
@@ -28,6 +29,7 @@ import CartContext from '../context/CartContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import { buildProductPath, buildShopPath } from '../utils/links';
+import useNetworkProfile from '../hooks/useNetworkProfile';
 import VerifiedBadge from '../components/VerifiedBadge';
 
 const FILTERS = [
@@ -47,8 +49,24 @@ const compactNumber = (value) =>
     Number(value || 0)
   );
 
-const getVideoSource = (video) =>
-  video?.playbackSources?.find((source) => source.quality === 'auto')?.url || video?.videoUrl || '';
+const getVideoSource = (video, lite = false) => {
+  const sources = Array.isArray(video?.playbackSources) ? video.playbackSources : [];
+  if (lite) {
+    const liteSource = sources.find((source) => source.quality === '720p');
+    if (liteSource?.url) return liteSource.url;
+  }
+  return sources.find((source) => source.quality === 'auto')?.url || video?.videoUrl || '';
+};
+
+// Mirrors the backend rule: an attribute needs a selection when it has no
+// default value and is required (select groups with options always are).
+const requiresAttributeSelection = (product) =>
+  (Array.isArray(product?.attributes) ? product.attributes : []).some(
+    (attribute) =>
+      !attribute?.defaultValue &&
+      (attribute?.required ||
+        (attribute?.type === 'select' && Array.isArray(attribute?.options) && attribute.options.length > 0))
+  );
 
 function VideoAction({ label, value, active = false, onClick, children }) {
   return (
@@ -80,6 +98,8 @@ function VideoSlide({
   autoplay,
   formatPrice,
   user,
+  preload = 'metadata',
+  liteSource = false,
   onLike,
   onSave,
   onComments,
@@ -101,13 +121,20 @@ function VideoSlide({
   const [showReplay, setShowReplay] = useState(false);
 
   const recordView = useCallback(() => {
-    if (viewedRef.current.sent || viewedRef.current.watchedMs < 500) return;
-    viewedRef.current.sent = true;
+    const tracker = viewedRef.current;
+    // Count the in-progress segment too, otherwise a view is lost whenever
+    // the slide unmounts while still active (page change, tab close).
+    if (tracker.startedAt) {
+      tracker.watchedMs += performance.now() - tracker.startedAt;
+      tracker.startedAt = 0;
+    }
+    if (tracker.sent || tracker.watchedMs < 500) return;
+    tracker.sent = true;
     api
       .post(
         `/product-videos/${video._id}/view`,
         {
-          watchTimeMs: Math.round(viewedRef.current.watchedMs),
+          watchTimeMs: Math.round(tracker.watchedMs),
           durationMs: Math.round((videoRef.current?.duration || 0) * 1000),
           completed: Boolean(
             videoRef.current?.ended ||
@@ -149,13 +176,14 @@ function VideoSlide({
       if (document.hidden) {
         element.pause();
         setPlaying(false);
+        recordView();
       } else if (active && autoplay) {
         element.play().then(() => setPlaying(true)).catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [active, autoplay]);
+  }, [active, autoplay, recordView]);
 
   const togglePlayback = () => {
     const element = videoRef.current;
@@ -201,6 +229,46 @@ function VideoSlide({
   const seller = video.seller || {};
   const originalPrice = Number(product.priceBeforeDiscount || 0);
   const discounted = Number(product.discount || 0) > 0;
+  const mp4Source = getVideoSource(video, liteSource);
+
+  // Adaptive bitrate: prefer the HLS stream when available, fall back to MP4.
+  const [hlsFailed, setHlsFailed] = useState(false);
+  const hlsUrl = useMemo(() => {
+    if (hlsFailed) return '';
+    const sources = Array.isArray(video?.playbackSources) ? video.playbackSources : [];
+    const hls = sources.find(
+      (item) =>
+        String(item?.type || '').toLowerCase().includes('mpegurl') ||
+        String(item?.url || '').endsWith('.m3u8')
+    );
+    return hls?.url || '';
+  }, [video, hlsFailed]);
+  const nativeHls = useMemo(() => {
+    if (typeof document === 'undefined') return false;
+    return Boolean(document.createElement('video').canPlayType('application/vnd.apple.mpegurl'));
+  }, []);
+  const useHlsJs = Boolean(hlsUrl) && !nativeHls && Hls.isSupported();
+  const hlsActive = Boolean(hlsUrl) && (nativeHls || useHlsJs);
+  const source = hlsActive && !useHlsJs ? hlsUrl : mp4Source;
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element || !useHlsJs) return undefined;
+    const hls = new Hls({
+      capLevelToPlayerSize: true,
+      maxBufferLength: 20,
+      backBufferLength: 10
+    });
+    hls.loadSource(hlsUrl);
+    hls.attachMedia(element);
+    hls.on(Hls.Events.ERROR, (_event, data) => {
+      if (data?.fatal) {
+        hls.destroy();
+        setHlsFailed(true);
+      }
+    });
+    return () => hls.destroy();
+  }, [hlsUrl, useHlsJs]);
 
   return (
     <article
@@ -210,14 +278,14 @@ function VideoSlide({
       onPointerUp={handlePointerUp}
       onPointerCancel={() => window.clearTimeout(longPressRef.current)}
     >
-      {!failed && getVideoSource(video) ? (
+      {!failed && (hlsActive || source) ? (
         <video
           ref={videoRef}
-          src={getVideoSource(video)}
+          src={useHlsJs ? undefined : source}
           poster={video.thumbnailUrl || product.images?.[0]}
           muted={muted}
           playsInline
-          preload={active ? 'auto' : 'metadata'}
+          preload={preload}
           loop={false}
           className="h-full w-full object-cover"
           onPlay={() => setPlaying(true)}
@@ -231,7 +299,7 @@ function VideoSlide({
             setShowReplay(true);
             recordView();
           }}
-          onError={() => setFailed(true)}
+          onError={() => (hlsActive ? setHlsFailed(true) : setFailed(true))}
         />
       ) : (
         <img
@@ -243,11 +311,18 @@ function VideoSlide({
       )}
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/85" />
-      {video.sponsored ? (
-        <span className="absolute left-4 top-4 rounded-full border border-white/25 bg-black/35 px-3 py-1 text-[11px] font-semibold backdrop-blur-md">
-          Sponsorisé
-        </span>
-      ) : null}
+      <div className="pointer-events-none absolute left-4 top-4 flex flex-col items-start gap-2">
+        {video.status === 'pending' ? (
+          <span className="rounded-full border border-amber-300/40 bg-amber-500/85 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-md">
+            En modération · visible par vous uniquement
+          </span>
+        ) : null}
+        {video.sponsored ? (
+          <span className="rounded-full border border-white/25 bg-black/35 px-3 py-1 text-[11px] font-semibold backdrop-blur-md">
+            Sponsorisé
+          </span>
+        ) : null}
+      </div>
 
       <button
         type="button"
@@ -319,7 +394,7 @@ function VideoSlide({
             <Link to={buildShopPath(seller)} onClick={(event) => event.stopPropagation()} className="hover:underline">
               @{seller.shopName || seller.name || 'HDMarket'}
             </Link>
-            {seller.shopVerified ? <VerifiedBadge size="sm" /> : null}
+            {seller.shopVerified ? <VerifiedBadge verified showLabel={false} /> : null}
             {user && String(user._id || user.id) !== String(seller._id) ? (
               <button
                 type="button"
@@ -510,8 +585,16 @@ export default function ProductVideos() {
   const [reportReason, setReportReason] = useState('');
   const [capabilities, setCapabilities] = useState(null);
   const requestedVideoId = useMemo(() => new URLSearchParams(location.search).get('video'), [location.search]);
+  const { saveData, slowConnection } = useNetworkProfile();
   const defaultMuted = capabilities?.defaultMuted ?? Boolean(getRuntimeValue('product_video_default_muted', true));
   const autoplay = capabilities?.autoplay ?? Boolean(getRuntimeValue('product_video_autoplay_enabled', true));
+  // On constrained networks, serve the 720p variant and limit preload-ahead.
+  const liteSource = Boolean(saveData || slowConnection);
+  const preloadCount = Math.max(
+    1,
+    Number(capabilities?.preloadCount ?? getRuntimeValue('product_video_preload_count', 1)) || 1
+  );
+  const effectivePreloadCount = liteSource ? Math.min(preloadCount, 1) : preloadCount;
 
   const requireLogin = useCallback(() => {
     if (user) return true;
@@ -635,6 +718,14 @@ export default function ProductVideos() {
 
   const addToCart = async (video) => {
     if (!requireLogin()) return;
+    // Products with mandatory options (size, color…) cannot be added blindly:
+    // send the viewer to the product page to pick them instead of failing.
+    if (requiresAttributeSelection(video.product)) {
+      recordAction(video, 'product_click');
+      showToast('Choisissez d’abord les options du produit (taille, couleur…).', { variant: 'info' });
+      navigate(buildProductPath(video.product));
+      return;
+    }
     try {
       await addItem(video.product?._id, 1);
       recordAction(video, 'add_to_cart');
@@ -684,21 +775,64 @@ export default function ProductVideos() {
 
   return (
     <div className="relative mx-auto h-[calc(100dvh-4rem-env(safe-area-inset-top,0px))] w-full overflow-hidden bg-neutral-950 lg:h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:max-w-[520px] lg:rounded-t-3xl lg:shadow-2xl">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-40 flex items-center gap-2 px-4 pb-3 pt-4">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            setSubmittedSearch(search.trim());
-          }}
-          className="pointer-events-auto flex h-10 min-w-0 flex-1 items-center rounded-full border border-white/15 bg-black/35 px-3 text-white backdrop-blur-xl"
-        >
-          <Search size={17} className="shrink-0 text-white/70" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Produits, boutiques, #tags" className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-white/55" />
-          {search ? <button type="button" aria-label="Effacer" onClick={() => { setSearch(''); setSubmittedSearch(''); }}><X size={16} /></button> : null}
-        </form>
-        <button type="button" onClick={() => setShowFilters((value) => !value)} className="pointer-events-auto flex h-10 items-center gap-1 rounded-full border border-white/15 bg-black/35 px-3 text-xs font-bold text-white backdrop-blur-xl">
-          {FILTERS.find(([key]) => key === filter)?.[1]} <ChevronDown size={15} />
-        </button>
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/60 via-black/25 to-transparent px-3 pb-8 pt-3">
+        <div className="flex items-center gap-2">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSubmittedSearch(search.trim());
+            }}
+            className="pointer-events-auto flex h-11 min-w-0 flex-1 items-center gap-1.5 rounded-full border border-white/20 bg-black/40 pl-3.5 pr-1.5 text-white shadow-lg backdrop-blur-2xl transition-colors focus-within:border-[#FF6A00]/80 focus-within:bg-black/55"
+          >
+            <Search size={16} className="shrink-0 text-white/60" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Produits, boutiques, #tags"
+              enterKeyHint="search"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/50"
+            />
+            {search ? (
+              <button
+                type="button"
+                aria-label="Effacer"
+                onClick={() => { setSearch(''); setSubmittedSearch(''); }}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/15 text-white/80 transition-colors hover:bg-white/25"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+            {search.trim() ? (
+              <button
+                type="submit"
+                aria-label="Rechercher"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-md"
+              >
+                <Search size={15} strokeWidth={2.5} />
+              </button>
+            ) : null}
+          </form>
+          <button
+            type="button"
+            onClick={() => setShowFilters((value) => !value)}
+            className={`pointer-events-auto flex h-11 shrink-0 items-center gap-1 rounded-full border px-3.5 text-xs font-bold shadow-lg backdrop-blur-2xl transition-colors ${showFilters || filter !== 'for_you' ? 'border-[#FF6A00]/80 bg-[#FF6A00]/25 text-white' : 'border-white/20 bg-black/40 text-white'}`}
+          >
+            {FILTERS.find(([key]) => key === filter)?.[1]}
+            <ChevronDown size={15} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+        {submittedSearch ? (
+          <div className="mt-2 flex">
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setSubmittedSearch(''); }}
+              className="pointer-events-auto flex max-w-full items-center gap-1.5 rounded-full border border-[#FF6A00]/60 bg-black/45 py-1.5 pl-3 pr-2 text-xs font-semibold text-white backdrop-blur-xl"
+            >
+              <span className="truncate">Résultats&nbsp;: «&nbsp;{submittedSearch}&nbsp;»</span>
+              <X size={13} className="shrink-0 text-white/70" />
+            </button>
+          </div>
+        ) : null}
       </header>
 
       <AnimatePresence>
@@ -727,7 +861,7 @@ export default function ProductVideos() {
         >
           {items.map((video, index) => (
             <section key={video._id} className="h-full snap-start snap-always">
-              {Math.abs(index - currentIndex) <= 1 ? (
+              {Math.abs(index - currentIndex) <= effectivePreloadCount ? (
                 <VideoSlide
                   video={video}
                   active={index === currentIndex}
@@ -735,6 +869,8 @@ export default function ProductVideos() {
                   autoplay={autoplay}
                   formatPrice={formatPrice}
                   user={user}
+                  preload={index <= currentIndex + effectivePreloadCount && index >= currentIndex ? 'auto' : 'metadata'}
+                  liteSource={liteSource}
                   onLike={() => toggle(video, 'liked')}
                   onSave={() => toggle(video, 'saved')}
                   onComments={() => requireLogin() && setCommentsVideo(video)}

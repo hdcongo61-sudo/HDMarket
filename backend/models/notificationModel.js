@@ -22,6 +22,8 @@ const notificationSchema = new mongoose.Schema(
       'product_comment',
       'reply',
       'favorite',
+      'product_video_like',
+      'product_video_save',
       'rating',
       'product_approval',
       'product_rejection',

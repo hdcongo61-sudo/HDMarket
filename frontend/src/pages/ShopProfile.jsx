@@ -32,6 +32,7 @@ import ShopOpeningHoursCard from '../components/shop/ShopOpeningHoursCard';
 import ShopActionsCard from '../components/shop/ShopActionsCard';
 import ShopProductsSection from '../components/shop/ShopProductsSection';
 import ShopAboutSection from '../components/shop/ShopAboutSection';
+import ShopVideosSection from '../components/shop/ShopVideosSection';
 import ShopReviewsSection from '../components/shop/ShopReviewsSection';
 import ShopNotFound from '../components/shop/ShopNotFound';
 import ShopLoadingSkeleton from '../components/shop/ShopLoadingSkeleton';
@@ -1128,6 +1129,8 @@ export default function ShopProfile() {
                   if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               />
+
+              <ShopVideosSection shopId={shop?._id} t={t} />
 
               <ShopQuickInfo
                 openingSummary={openingSummary}

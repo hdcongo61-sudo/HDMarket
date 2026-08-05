@@ -69,6 +69,7 @@ export default function SellerProductVideos() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [productId, setProductId] = useState('');
   const [caption, setCaption] = useState('');
   const [files, setFiles] = useState([]);
@@ -133,9 +134,13 @@ export default function SellerProductVideos() {
     body.append('caption', caption);
     files.forEach((file) => body.append('video', file));
     setUploading(true);
+    setUploadProgress(0);
     try {
       const { data } = await api.post('/product-videos/seller', body, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          if (event.total) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+        }
       });
       showToast(
         data?.moderationRequired ? 'Vidéo envoyée à la modération.' : 'Vidéo publiée.',
@@ -148,6 +153,7 @@ export default function SellerProductVideos() {
       showToast(error.response?.data?.message || 'Téléversement impossible.', { variant: 'error' });
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -192,8 +198,16 @@ export default function SellerProductVideos() {
             <input type="file" multiple accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
           </label>
           {files.length ? <div className="mt-3 space-y-2">{files.map((file) => <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-xl bg-neutral-100 px-3 py-2 text-xs dark:bg-white/10"><span className="truncate">{file.name}</span><span>{Math.round(file.size / 1024 / 1024)} Mo</span></div>)}</div> : null}
+          {uploading ? (
+            <div className="mt-4 space-y-1.5" role="status" aria-live="polite">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-white/10">
+                <div className="h-full rounded-full bg-emerald-500 transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+              </div>
+              <p className="text-center text-xs font-bold text-neutral-500">Envoi des vidéos… {uploadProgress}%</p>
+            </div>
+          ) : null}
           <button type="submit" disabled={uploading || !productId || !files.length} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
-            {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />} {uploading ? 'Optimisation en cours…' : 'Envoyer les vidéos'}
+            {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />} {uploading ? `Envoi en cours… ${uploadProgress}%` : 'Envoyer les vidéos'}
           </button>
         </form>
 

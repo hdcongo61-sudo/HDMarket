@@ -12,6 +12,7 @@ import {
   listAdminProductVideos,
   listProductVideoComments,
   listSellerProductVideos,
+  listShopProductVideos,
   moderateProductVideo,
   recordProductVideoAction,
   recordProductVideoView,
@@ -34,6 +35,7 @@ router.use(optionalProtect, requireFeatureAccess('product_videos'));
 router.get('/capabilities', getProductVideoCapabilities);
 router.get('/feed', getProductVideoFeed);
 router.get('/saved', protect, getSavedProductVideos);
+router.get('/shop/:sellerId', listShopProductVideos);
 router.get('/seller/mine', protect, listSellerProductVideos);
 router.get('/seller/analytics', protect, getSellerProductVideoAnalytics);
 router.post('/seller', protect, upload.array('video', 12), uploadProductVideos);

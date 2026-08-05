@@ -409,6 +409,16 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a ajouté votre annonce${productLabel} à ses favoris.`;
       break;
     }
+    case 'product_video_like': {
+      title = 'Nouveau like sur votre vidéo';
+      body = `${actorName} a aimé votre vidéo${productLabel}.`;
+      break;
+    }
+    case 'product_video_save': {
+      title = 'Vidéo enregistrée';
+      body = `${actorName} a enregistré votre vidéo${productLabel}.`;
+      break;
+    }
     case 'rating': {
       const ratingValue = Number(metadata.value || 0);
       const ratingText =

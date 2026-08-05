@@ -413,7 +413,7 @@ function ProductCardGallery({
             onError={() => setImageStatus((previous) => ({ ...previous, [index]: 'error' }))}
             loading={index === currentIndex ? 'eager' : 'lazy'}
             decoding="async"
-            fetchPriority={index === currentIndex ? 'auto' : 'low'}
+            fetchpriority={index === currentIndex ? 'auto' : 'low'}
             draggable="false"
             sizes={sizes}
           />
