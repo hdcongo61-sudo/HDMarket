@@ -190,6 +190,22 @@ const feedScore = (video, req) => {
   return engagement / Math.pow(ageHours + 2, 0.32) + views + quality + local + following + (video.featured ? 35 : 0);
 };
 
+// Engagement velocity: same signals as feedScore but with a steeper age
+// decay and none of the personalization/featured boosts, so "Tendances"
+// surfaces what is hot right now for everyone rather than "Pour vous" again.
+const trendingScore = (video) => {
+  const counters = video.counters || {};
+  const ageHours = Math.max(1, (Date.now() - new Date(video.createdAt).getTime()) / 3_600_000);
+  const engagement =
+    Number(counters.likes || 0) * 4 +
+    Number(counters.saves || 0) * 6 +
+    Number(counters.comments || 0) * 5 +
+    Number(counters.completions || 0) * 3 +
+    Number(counters.shares || 0) * 7 +
+    Math.log10(Number(counters.views || 0) + 1) * 12;
+  return engagement / Math.pow(ageHours + 2, 0.6);
+};
+
 export const getProductVideoCapabilities = asyncHandler(async (_req, res) => {
   const [maxDuration, maxUploads, preloadCount, autoplay, defaultMuted, sponsoredFrequency] = await Promise.all([
     getRuntimeConfig('product_video_max_duration_seconds', { fallback: 60 }),
@@ -258,12 +274,16 @@ export const getProductVideoFeed = asyncHandler(async (req, res) => {
   ).lean();
   videos = videos.filter((video) => video.product && video.seller);
   if (filter === 'verified') videos = videos.filter((video) => video.seller?.shopVerified);
-  if (filter === 'following' && req.user) {
-    const followed = new Set((req.user.followingShops || []).map(String));
+  if (filter === 'following') {
+    // Anonymous viewers follow nothing: an empty feed is honest, the
+    // previous behavior silently served the unfiltered feed instead.
+    const followed = new Set((req.user?.followingShops || []).map(String));
     videos = videos.filter((video) => followed.has(String(video.seller?._id)));
   }
   if (filter === 'newest') {
     videos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  } else if (filter === 'trending') {
+    videos.sort((a, b) => trendingScore(b) - trendingScore(a));
   } else {
     videos.sort((a, b) => feedScore(b, req) - feedScore(a, req));
   }

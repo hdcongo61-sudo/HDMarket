@@ -579,7 +579,6 @@ export default function ProductVideos() {
   const [filter, setFilter] = useState('for_you');
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [commentsVideo, setCommentsVideo] = useState(null);
   const [reportVideo, setReportVideo] = useState(null);
   const [reportReason, setReportReason] = useState('');
@@ -786,54 +785,59 @@ export default function ProductVideos() {
 
   return (
     <div className="relative mx-auto h-[calc(100dvh-4rem-env(safe-area-inset-top,0px))] w-full overflow-hidden bg-neutral-950 lg:h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:max-w-[520px] lg:rounded-t-3xl lg:shadow-2xl">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/60 via-black/25 to-transparent px-3 pb-8 pt-3">
-        <div className="flex items-center gap-2">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              setSubmittedSearch(search.trim());
-            }}
-            className="pointer-events-auto flex h-11 min-w-0 flex-1 items-center gap-1.5 rounded-full border border-white/20 bg-black/40 pl-3.5 pr-1.5 text-white shadow-lg backdrop-blur-2xl transition-colors focus-within:border-[#FF6A00]/80 focus-within:bg-black/55"
-          >
-            <Search size={16} className="shrink-0 text-white/60" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Produits, boutiques, #tags"
-              enterKeyHint="search"
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/50"
-            />
-            {search ? (
-              <button
-                type="button"
-                aria-label="Effacer"
-                onClick={() => { setSearch(''); setSubmittedSearch(''); }}
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/15 text-white/80 transition-colors hover:bg-white/25"
-              >
-                <X size={14} />
-              </button>
-            ) : null}
-            {search.trim() ? (
-              <button
-                type="submit"
-                aria-label="Rechercher"
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-md"
-              >
-                <Search size={15} strokeWidth={2.5} />
-              </button>
-            ) : null}
-          </form>
-          <button
-            type="button"
-            onClick={() => setShowFilters((value) => !value)}
-            className={`pointer-events-auto flex h-11 shrink-0 items-center gap-1 rounded-full border px-3.5 text-xs font-bold shadow-lg backdrop-blur-2xl transition-colors ${showFilters || filter !== 'for_you' ? 'border-[#FF6A00]/80 bg-[#FF6A00]/25 text-white' : 'border-white/20 bg-black/40 text-white'}`}
-          >
-            {FILTERS.find(([key]) => key === filter)?.[1]}
-            <ChevronDown size={15} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </button>
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/60 via-black/25 to-transparent pb-8 pt-3">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSubmittedSearch(search.trim());
+          }}
+          className="pointer-events-auto mx-3 flex h-11 min-w-0 items-center gap-1.5 rounded-full border border-white/20 bg-black/40 pl-3.5 pr-1.5 text-white shadow-lg backdrop-blur-2xl transition-colors focus-within:border-[#FF6A00]/80 focus-within:bg-black/55"
+        >
+          <Search size={16} className="shrink-0 text-white/60" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Produits, boutiques, #tags"
+            enterKeyHint="search"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/50"
+          />
+          {search ? (
+            <button
+              type="button"
+              aria-label="Effacer"
+              onClick={() => { setSearch(''); setSubmittedSearch(''); }}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/15 text-white/80 transition-colors hover:bg-white/25"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+          {search.trim() ? (
+            <button
+              type="submit"
+              aria-label="Rechercher"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-md"
+            >
+              <Search size={15} strokeWidth={2.5} />
+            </button>
+          ) : null}
+        </form>
+        <div className="pointer-events-auto mt-2 flex gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {FILTERS.map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                if ((key === 'following' || key === 'nearby') && !requireLogin()) return;
+                setFilter(key);
+              }}
+              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold backdrop-blur-xl transition-colors ${filter === key ? 'border-[#FF6A00] bg-[#FF6A00] text-white shadow-md' : 'border-white/20 bg-black/40 text-white/85'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         {submittedSearch ? (
-          <div className="mt-2 flex">
+          <div className="mt-2 flex px-3">
             <button
               type="button"
               onClick={() => { setSearch(''); setSubmittedSearch(''); }}
@@ -845,16 +849,6 @@ export default function ProductVideos() {
           </div>
         ) : null}
       </header>
-
-      <AnimatePresence>
-        {showFilters ? (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute left-4 right-4 top-16 z-50 flex flex-wrap gap-2 rounded-2xl border border-white/15 bg-black/75 p-3 text-white shadow-2xl backdrop-blur-xl">
-            {FILTERS.map(([key, label]) => (
-              <button key={key} type="button" onClick={() => { setFilter(key); setShowFilters(false); }} className={`rounded-full px-3 py-2 text-xs font-semibold ${filter === key ? 'bg-white text-black' : 'bg-white/10'}`}>{label}</button>
-            ))}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
 
       {!items.length ? (
         <div className="grid h-full place-items-center px-8 text-center text-white">
