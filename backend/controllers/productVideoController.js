@@ -173,7 +173,7 @@ const feedScore = (video, req) => {
 export const getProductVideoCapabilities = asyncHandler(async (_req, res) => {
   const [maxDuration, maxUploads, preloadCount, autoplay, defaultMuted, sponsoredFrequency] = await Promise.all([
     getRuntimeConfig('product_video_max_duration_seconds', { fallback: 60 }),
-    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 5 }),
+    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 1 }),
     getRuntimeConfig('product_video_preload_count', { fallback: 1 }),
     getRuntimeConfig('product_video_autoplay_enabled', { fallback: true }),
     getRuntimeConfig('product_video_default_muted', { fallback: true }),
@@ -474,9 +474,9 @@ export const uploadProductVideos = asyncHandler(async (req, res) => {
   const files = Array.isArray(req.files) ? req.files : [];
   if (!files.length) return res.status(400).json({ message: 'Sélectionnez au moins une vidéo.' });
   const [maxUploads, maxDuration, requireModeration] = await Promise.all([
-    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 5 }),
+    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 1 }),
     getRuntimeConfig('product_video_max_duration_seconds', { fallback: 60 }),
-    getRuntimeConfig('product_video_require_moderation', { fallback: true })
+    getRuntimeConfig('product_video_require_moderation', { fallback: false })
   ]);
   const currentCount = await ProductVideo.countDocuments({ product: product._id, status: { $ne: 'deleted' } });
   if (currentCount + files.length > Number(maxUploads)) {
@@ -557,7 +557,10 @@ export const updateSellerProductVideo = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: `La vidéo ne doit pas dépasser ${maxDuration} secondes.` });
     }
     Object.assign(video, buildMediaFields(upload));
-    if (!isAdmin(req)) video.status = 'pending';
+    if (!isAdmin(req)) {
+      const requireModeration = await getRuntimeConfig('product_video_require_moderation', { fallback: false });
+      if (requireModeration) video.status = 'pending';
+    }
   }
   await video.save();
   res.json(video);

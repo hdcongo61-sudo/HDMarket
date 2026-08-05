@@ -101,7 +101,7 @@ describe('HDMarket Videos runtime settings', () => {
       isPublic: true
     });
     expect(getRuntimeSettingMetadata('product_video_require_moderation')).toMatchObject({
-      defaultValue: true,
+      defaultValue: false,
       isPublic: false
     });
     expect(validateSettingValue('product_video_max_duration_seconds', 181)).toMatchObject({ ok: false });

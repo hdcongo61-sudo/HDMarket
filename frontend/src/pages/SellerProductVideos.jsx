@@ -74,7 +74,7 @@ export default function SellerProductVideos() {
   const [caption, setCaption] = useState('');
   const [files, setFiles] = useState([]);
   const maxDuration = Number(getRuntimeValue('product_video_max_duration_seconds', 60));
-  const maxUploads = Number(getRuntimeValue('product_video_max_uploads_per_product', 5));
+  const maxUploads = Number(getRuntimeValue('product_video_max_uploads_per_product', 1));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -193,9 +193,9 @@ export default function SellerProductVideos() {
           <textarea value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} placeholder="Montrez le détail qui fait la différence… #nouveauté" className="mt-2 min-h-24 w-full rounded-xl border border-neutral-200 bg-transparent p-3 outline-none focus:border-emerald-500 dark:border-white/10" />
           <label className="mt-4 flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50 p-4 text-center transition hover:border-emerald-400 dark:border-white/10 dark:bg-white/[0.03]">
             <Upload className="text-emerald-600" />
-            <span className="mt-2 text-sm font-bold">Choisir jusqu’à {maxUploads} vidéos</span>
+            <span className="mt-2 text-sm font-bold">{maxUploads > 1 ? `Choisir jusqu’à ${maxUploads} vidéos` : 'Choisir une vidéo'}</span>
             <span className="text-xs text-neutral-500">La compression adaptative est appliquée après l’envoi.</span>
-            <input type="file" multiple accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
+            <input type="file" multiple={maxUploads > 1} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
           </label>
           {files.length ? <div className="mt-3 space-y-2">{files.map((file) => <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-xl bg-neutral-100 px-3 py-2 text-xs dark:bg-white/10"><span className="truncate">{file.name}</span><span>{Math.round(file.size / 1024 / 1024)} Mo</span></div>)}</div> : null}
           {uploading ? (

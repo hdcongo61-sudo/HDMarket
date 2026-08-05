@@ -1152,7 +1152,7 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     category: 'product_videos',
     description: 'Nombre maximum de vidéos courtes par produit.',
     valueType: 'number',
-    defaultValue: 5,
+    defaultValue: 1,
     isPublic: true,
     min: 1,
     max: 12
@@ -1170,7 +1170,7 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     category: 'product_videos',
     description: 'Place les nouvelles vidéos en attente de modération.',
     valueType: 'boolean',
-    defaultValue: true,
+    defaultValue: false,
     isPublic: false
   },
   product_video_autoplay_enabled: {
