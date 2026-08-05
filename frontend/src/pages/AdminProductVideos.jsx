@@ -56,16 +56,33 @@ export default function AdminProductVideos() {
 
   useEffect(() => { load(); }, [load]);
 
+  const refreshAnalytics = useCallback(() => {
+    api.get('/product-videos/admin/analytics', { headers: { 'x-skip-cache': '1' } })
+      .then(({ data }) => setAnalytics(data || {}))
+      .catch(() => {});
+  }, []);
+
   const moderate = async (video, action, reason = '') => {
     if (action === 'ban_seller' && !window.confirm('Suspendre ce vendeur et masquer la vidéo ?')) return;
+    if (action === 'delete' && !window.confirm('Supprimer définitivement cette vidéo (fichier, commentaires et statistiques inclus) ? Cette action est irréversible.')) return;
     setBusyId(video._id);
     try {
       const { data } = await api.patch(`/product-videos/admin/${video._id}`, { action, reason });
+      if (action === 'delete') {
+        // Hard delete on the backend: drop the card, its open reports, and
+        // re-sync the counter tiles.
+        setItems((current) => current.filter((item) => item._id !== video._id));
+        setReports((current) => current.filter((report) => String(report.video?._id || '') !== String(video._id)));
+        refreshAnalytics();
+        showToast('Vidéo supprimée définitivement.', { variant: 'success' });
+        return;
+      }
       setItems((current) => current.map((item) => item._id === video._id ? { ...item, ...data } : item));
       showToast('Action de modération appliquée.', { variant: 'success' });
-      if (['approve', 'reject', 'hide', 'delete'].includes(action) && filter) {
+      if (['approve', 'reject', 'hide'].includes(action) && filter) {
         setItems((current) => current.filter((item) => item._id !== video._id));
       }
+      if (['approve', 'reject', 'hide', 'restore'].includes(action)) refreshAnalytics();
     } catch (error) {
       showToast(error.response?.data?.message || 'Action impossible.', { variant: 'error' });
     } finally {

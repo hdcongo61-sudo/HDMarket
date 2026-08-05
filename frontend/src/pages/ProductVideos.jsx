@@ -670,6 +670,13 @@ export default function ProductVideos() {
     setItems((current) => current.map((item) => (item._id === id ? updater(item) : item)));
   }, []);
 
+  // A video hard-deleted by moderation while the feed is open returns 404 on
+  // interaction: drop it from the feed instead of leaving a dead slide.
+  const removeUnavailableVideo = useCallback((videoId) => {
+    setItems((current) => current.filter((item) => item._id !== videoId));
+    showToast('Cette vidéo n’est plus disponible.', { variant: 'info' });
+  }, [showToast]);
+
   const toggle = async (video, field) => {
     if (!requireLogin()) return;
     const endpoint = field === 'liked' ? 'like' : 'save';
@@ -683,6 +690,10 @@ export default function ProductVideos() {
     try {
       await api.post(`/product-videos/${video._id}/${endpoint}`);
     } catch (error) {
+      if (error.response?.status === 404) {
+        removeUnavailableVideo(video._id);
+        return;
+      }
       patchItem(video._id, (item) => ({
         ...item,
         viewer: { ...item.viewer, [field]: previous },

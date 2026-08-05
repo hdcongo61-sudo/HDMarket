@@ -20,6 +20,11 @@ export const getCloudinaryFolder = (segments = []) => {
   return [getBaseFolder(), ...sanitizedSegments].join('/');
 };
 
+export const destroyCloudinaryAsset = (publicId, { resourceType = 'image' } = {}) => {
+  ensureConfigured();
+  return cloudinary.uploader.destroy(publicId, { resource_type: resourceType, invalidate: true });
+};
+
 export const uploadToCloudinary = ({ buffer, resourceType = 'auto', folder, options = {} }) => {
   ensureConfigured();
   return new Promise((resolve, reject) => {

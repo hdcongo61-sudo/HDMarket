@@ -10,6 +10,7 @@ import User from '../models/userModel.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import {
+  destroyCloudinaryAsset,
   getCloudinaryFolder,
   isCloudinaryConfigured,
   uploadToCloudinary
@@ -125,6 +126,25 @@ const loadProductForSeller = async (productId, req) => {
 };
 
 const ownerOrAdmin = (video, req) => isAdmin(req) || String(video?.seller) === String(userId(req));
+
+// Permanent removal: media asset + engagement trail + the video itself, so
+// deleted content can't resurface anywhere. Used by both the seller's own
+// delete and the admin moderation delete.
+const purgeProductVideo = async (video) => {
+  if (video.publicId && isCloudinaryConfigured()) {
+    try {
+      await destroyCloudinaryAsset(video.publicId, { resourceType: 'video' });
+    } catch (error) {
+      console.warn(`Cloudinary destroy failed for video ${video._id}:`, error.message);
+    }
+  }
+  await Promise.all([
+    ProductVideoComment.deleteMany({ video: video._id }),
+    ProductVideoEngagement.deleteMany({ video: video._id }),
+    ProductVideoReport.deleteMany({ video: video._id })
+  ]);
+  await video.deleteOne();
+};
 
 const serializeVideo = (video, engagement = null) => {
   const value = video?.toObject ? video.toObject() : { ...video };
@@ -570,9 +590,7 @@ export const deleteSellerProductVideo = asyncHandler(async (req, res) => {
   const video = await ProductVideo.findById(req.params.id);
   if (!video) return res.status(404).json({ message: 'Vidéo introuvable.' });
   if (!ownerOrAdmin(video, req)) return res.status(403).json({ message: 'Accès refusé.' });
-  video.status = 'deleted';
-  video.moderationReason = 'Supprimée par le propriétaire';
-  await video.save();
+  await purgeProductVideo(video);
   res.json({ deleted: true });
 });
 
@@ -617,7 +635,11 @@ export const moderateProductVideo = asyncHandler(async (req, res) => {
   const video = await ProductVideo.findById(req.params.id);
   if (!video) return res.status(404).json({ message: 'Vidéo introuvable.' });
   const action = String(req.body.action || '');
-  const statusByAction = { approve: 'approved', reject: 'rejected', hide: 'hidden', restore: 'approved', delete: 'deleted' };
+  if (action === 'delete') {
+    await purgeProductVideo(video);
+    return res.json({ deleted: true, _id: String(video._id) });
+  }
+  const statusByAction = { approve: 'approved', reject: 'rejected', hide: 'hidden', restore: 'approved' };
   if (statusByAction[action]) video.status = statusByAction[action];
   else if (action === 'feature') video.featured = true;
   else if (action === 'unfeature') video.featured = false;
