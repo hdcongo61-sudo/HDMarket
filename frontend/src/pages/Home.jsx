@@ -2469,7 +2469,7 @@ const loadDiscountProducts = async () => {
               <div className="flex min-w-0 items-center gap-2.5">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h2 className="line-clamp-1 text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">
+                    <h2 className="text-[16px] font-black leading-snug tracking-[-0.02em] text-[#1b1d22] sm:text-[18px]">
                 {t('home.installmentProducts', 'Paiement par tranche')}
               </h2>
                     <span className="shrink-0 rounded-full bg-[#ebf4fd] px-2 py-1 text-[10.5px] font-black uppercase tracking-wide text-[#0b87d4]">Flex</span>
