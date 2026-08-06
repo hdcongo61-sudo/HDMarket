@@ -770,7 +770,7 @@ function ProductCard({
                 imageWidth={isListCard ? 420 : categoryListing ? 520 : 640}
                 lite={useLiteImageMode}
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                reserveBottomSpace={Boolean((productCity && !useCommerceMobileCard) || installmentAvailable)}
+                reserveBottomSpace={Boolean((productCity && !useCommerceMobileCard) || installmentAvailable || wholesaleEnabled)}
                 compact={Boolean(isShopProfileCompact || useHomeFeed)}
               />
             ) : (
@@ -833,6 +833,23 @@ function ProductCard({
                 Tranche
               </span>
             ) : null}
+
+            {wholesaleEnabled ? (
+              <span
+                className={`absolute z-20 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm ${
+                  useCommerceMobileCard
+                    ? installmentAvailable
+                      ? 'bottom-8 left-1.5 sm:bottom-9 sm:left-2'
+                      : 'bottom-1.5 left-1.5 sm:bottom-2 sm:left-2'
+                    : installmentAvailable
+                      ? 'bottom-8 right-1.5 sm:bottom-9 sm:right-2'
+                      : 'bottom-1.5 right-1.5 sm:bottom-2 sm:right-2'
+                }`}
+              >
+                <Boxes className="h-3 w-3 shrink-0" />
+                En gros
+              </span>
+            ) : null}
           </ProductDetailLink>
 
           <div className={`flex flex-1 flex-col gap-2 ${bodyPadding}`}>
@@ -875,7 +892,7 @@ function ProductCard({
               ) : null}
             </div>
 
-            {taobaoStyle && (freeDeliveryAvailable || installmentAvailable) ? (
+            {taobaoStyle && (freeDeliveryAvailable || installmentAvailable || wholesaleEnabled) ? (
               <div className="flex flex-wrap items-center gap-1">
                 {freeDeliveryAvailable ? (
                   <span className="inline-flex items-center rounded border border-[#FF5000]/40 px-1 py-px text-[9px] font-bold leading-3 text-[#FF5000]">
@@ -885,6 +902,11 @@ function ProductCard({
                 {installmentAvailable ? (
                   <span className="inline-flex items-center rounded border border-[#FF5000]/40 px-1 py-px text-[9px] font-bold leading-3 text-[#FF5000]">
                     Tranche
+                  </span>
+                ) : null}
+                {wholesaleEnabled ? (
+                  <span className="inline-flex items-center rounded border border-emerald-600/40 px-1 py-px text-[9px] font-bold leading-3 text-emerald-700 dark:text-emerald-400">
+                    En gros{wholesaleMinQty ? ` dès ${wholesaleMinQty}` : ''}
                   </span>
                 ) : null}
               </div>
@@ -1264,7 +1286,7 @@ function ProductCard({
               Paiement en tranche
             </div>
           )}
-          {wholesaleEnabled && !useCompactMobile && (
+          {wholesaleEnabled && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-emerald-700 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
               <Boxes className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Vente en gros{wholesaleMinQty ? ` dès ${wholesaleMinQty}` : ''}

@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Hls from 'hls.js';
 import {
@@ -29,6 +29,7 @@ import CartContext from '../context/CartContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import { buildProductPath, buildShopPath } from '../utils/links';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import VerifiedBadge from '../components/VerifiedBadge';
 
@@ -211,6 +212,22 @@ function VideoSlide({
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [active, autoplay, recordView]);
 
+  // Pause while the navbar's mobile menu covers the feed; resume on close.
+  useEffect(() => {
+    const handleMenuToggle = (event) => {
+      const element = videoRef.current;
+      if (!element) return;
+      if (event.detail?.open) {
+        element.pause();
+        setPlaying(false);
+      } else if (active && autoplay && !document.hidden) {
+        element.play().then(() => setPlaying(true)).catch(() => {});
+      }
+    };
+    window.addEventListener('hdmarket:mobile-menu', handleMenuToggle);
+    return () => window.removeEventListener('hdmarket:mobile-menu', handleMenuToggle);
+  }, [active, autoplay]);
+
   const togglePlayback = () => {
     const element = videoRef.current;
     if (!element) return;
@@ -350,18 +367,6 @@ function VideoSlide({
         ) : null}
       </div>
 
-      <button
-        type="button"
-        aria-label={muted ? 'Activer le son' : 'Couper le son'}
-        onClick={(event) => {
-          event.stopPropagation();
-          setMuted((value) => !value);
-        }}
-        className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/35 backdrop-blur-md"
-      >
-        {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
-      </button>
-
       <AnimatePresence>
         {!playing || showReplay ? (
           <motion.button
@@ -412,10 +417,15 @@ function VideoSlide({
         <VideoAction label="Plus d’options" onClick={onReport}>
           <MoreHorizontal size={22} />
         </VideoAction>
+        <VideoAction label={muted ? 'Activer le son' : 'Couper le son'} onClick={() => setMuted((value) => !value)}>
+          {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+        </VideoAction>
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-[5] pr-20 sm:pr-24">
-        <div className="space-y-2 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.25rem)] sm:px-6 lg:pb-5">
+        {/* The mobile tab bar is hidden on /videos, so only the safe area
+            needs clearing — 5.25rem left a dead band under the CTA row. */}
+        <div className="space-y-2 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] sm:px-6 lg:pb-5">
           <div className="flex items-center gap-2 text-sm font-bold">
             <Link to={buildShopPath(seller)} onClick={(event) => event.stopPropagation()} className="hover:underline">
               @{seller.shopName || seller.name || 'HDMarket'}
@@ -738,6 +748,12 @@ export default function ProductVideos() {
   const [reportReason, setReportReason] = useState('');
   const [capabilities, setCapabilities] = useState(null);
   const requestedVideoId = useMemo(() => new URLSearchParams(location.search).get('video'), [location.search]);
+  // One cache entry per discovery view so returning to /videos restores the
+  // exact feed (items, pagination cursor, last slide) instead of reloading.
+  const feedCacheKey = useMemo(
+    () => ['videos:feed', filter, submittedSearch || 'all'].join(':'),
+    [filter, submittedSearch]
+  );
   const { saveData, slowConnection } = useNetworkProfile();
   const defaultMuted = capabilities?.defaultMuted ?? Boolean(getRuntimeValue('product_video_default_muted', true));
   const autoplay = capabilities?.autoplay ?? Boolean(getRuntimeValue('product_video_autoplay_enabled', true));
@@ -771,13 +787,22 @@ export default function ProductVideos() {
           silentGlobalError: true
         });
         const nextItems = data?.items || [];
+        const nextCursor = data?.nextCursor ?? pageCursor + nextItems.length;
+        const nextHasMore = Boolean(data?.hasMore);
         setItems((current) => {
           const base = reset ? [] : current;
           const existing = new Set(base.map((item) => item._id));
-          return [...base, ...nextItems.filter((item) => !existing.has(item._id))];
+          const merged = [...base, ...nextItems.filter((item) => !existing.has(item._id))];
+          writeRouteViewCache(feedCacheKey, {
+            items: merged,
+            cursor: nextCursor,
+            hasMore: nextHasMore,
+            currentIndex: readRouteViewCache(feedCacheKey)?.currentIndex || 0
+          });
+          return merged;
         });
-        setCursor(data?.nextCursor ?? pageCursor + nextItems.length);
-        setHasMore(Boolean(data?.hasMore));
+        setCursor(nextCursor);
+        setHasMore(nextHasMore);
         if (reset) {
           setCurrentIndex(0);
           containerRef.current?.scrollTo({ top: 0 });
@@ -790,16 +815,48 @@ export default function ProductVideos() {
         setLoading(false);
       }
     },
-    [cursor, filter, hasMore, showToast, submittedSearch]
+    [cursor, feedCacheKey, filter, hasMore, showToast, submittedSearch]
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Instant restore: show the cached feed exactly as it was left (including
+    // the slide position) instead of refetching and blanking the page.
+    const cached = readRouteViewCache(feedCacheKey);
+    if (cached && Array.isArray(cached.items) && cached.items.length) {
+      setItems(cached.items);
+      setCursor(Number(cached.cursor) || cached.items.length);
+      setHasMore(Boolean(cached.hasMore));
+      setCurrentIndex(Math.min(Number(cached.currentIndex) || 0, cached.items.length - 1));
+      setLoading(false);
+      return;
+    }
     setHasMore(true);
     setCursor(0);
     loadPage({ reset: true });
     // loadPage intentionally re-runs only when discovery criteria change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, submittedSearch]);
+  }, [filter, submittedSearch, feedCacheKey]);
+
+  // Keep the last-viewed slide in sync with the cache so a later restore can
+  // land on it.
+  useEffect(() => {
+    const cached = readRouteViewCache(feedCacheKey);
+    if (!cached || !Array.isArray(cached.items) || !cached.items.length) return;
+    if (Number(cached.currentIndex) === currentIndex) return;
+    writeRouteViewCache(feedCacheKey, { ...cached, currentIndex });
+  }, [currentIndex, feedCacheKey]);
+
+  // After a cached restore, jump (without animation) back to the slide the
+  // user was watching.
+  const restoredFeedRef = useRef('');
+  useLayoutEffect(() => {
+    if (!items.length || restoredFeedRef.current === feedCacheKey) return;
+    const cached = readRouteViewCache(feedCacheKey);
+    if (!cached || !Array.isArray(cached.items) || !cached.items.length) return;
+    restoredFeedRef.current = feedCacheKey;
+    const index = Math.min(Number(cached.currentIndex) || 0, items.length - 1);
+    if (index > 0) containerRef.current?.scrollTo({ top: index * containerRef.current.clientHeight });
+  }, [items.length, feedCacheKey]);
 
   useEffect(() => {
     if (!requestedVideoId) return;
@@ -967,7 +1024,8 @@ export default function ProductVideos() {
 
   return (
     <div className="relative mx-auto h-[calc(100dvh-4rem-env(safe-area-inset-top,0px))] w-full overflow-hidden bg-neutral-950 lg:h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:max-w-[520px] lg:rounded-t-3xl lg:shadow-2xl">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/60 via-black/25 to-transparent pb-8 pt-3">
+      {/* z-30 keeps the header under the navbar's mobile menu overlay (z-40). */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-black/60 via-black/25 to-transparent pb-8 pt-3">
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -1020,28 +1078,15 @@ export default function ProductVideos() {
         </div>
         {submittedSearch ? (
           <div className="mt-2 flex px-3">
-            <button
-              type="button"
-              onClick={() => { setSearch(''); setSubmittedSearch(''); }}
-              className="pointer-events-auto flex max-w-full items-center gap-1.5 rounded-full border border-[#FF6A00]/60 bg-black/45 py-1.5 pl-3 pr-2 text-xs font-semibold text-white backdrop-blur-xl"
-            >
-              <span className="truncate">Résultats&nbsp;: «&nbsp;{submittedSearch}&nbsp;»</span>
-              <X size={13} className="shrink-0 text-white/70" />
-            </button>
+            <span className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-500/85 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md">
+              <span className="truncate">#{submittedSearch.replace(/^#/, '')}</span>
+              <button type="button" aria-label="Retirer le filtre" onClick={clearSearch} className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-white/20 transition hover:bg-white/35">
+                <X size={11} />
+              </button>
+            </span>
           </div>
         ) : null}
       </header>
-
-      {submittedSearch ? (
-        <div className="pointer-events-none absolute left-4 right-4 top-16 z-40 flex">
-          <span className="pointer-events-auto flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-500/85 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md">
-            #{submittedSearch.replace(/^#/, '')}
-            <button type="button" aria-label="Retirer le filtre" onClick={clearSearch} className="grid h-4 w-4 place-items-center rounded-full bg-white/20 transition hover:bg-white/35">
-              <X size={11} />
-            </button>
-          </span>
-        </div>
-      ) : null}
 
       {!items.length ? (
         <div className="grid h-full place-items-center px-8 text-center text-white">

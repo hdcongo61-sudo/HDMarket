@@ -244,6 +244,12 @@ export default function Navbar() {
 
   // États
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Let interested pages react to the mobile menu opening/closing
+  // (e.g. /videos pauses playback while the menu covers it).
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('hdmarket:mobile-menu', { detail: { open: isMenuOpen } }));
+  }, [isMenuOpen]);
   const [systemDarkMode, setSystemDarkMode] = useState(
     () =>
       typeof window !== 'undefined' &&

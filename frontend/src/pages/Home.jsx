@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api, { isApiCanceledError } from "../services/api";
 import ProductCard from "../components/ProductCard";
@@ -18,6 +18,7 @@ import { useAppSettings } from "../context/AppSettingsContext";
 import BaseModal, { ModalBody, ModalHeader } from "../components/modals/BaseModal";
 import useNetworkProfile from "../hooks/useNetworkProfile";
 import { loadOfflineSnapshot, saveOfflineSnapshot } from "../utils/offlineSnapshots";
+import { readRouteViewCache, writeRouteViewCache } from "../utils/routeViewCache";
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 import {
   filterActiveInstallmentProducts,
@@ -581,6 +582,14 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
   }, [hasPromoAsset, parsePromoDate, promoBannerEndAt, promoBannerStartAt, promoNow]);
   // === CHARGEMENT DES PRODUITS ===
   const loadProducts = useCallback(async () => {
+    // Skip the network round-trip when the cached view already covers this
+    // page (e.g. coming back from a product): the list is already rendered.
+    const cachedView = readRouteViewCache(homeSnapshotKey);
+    if (cachedView && Number(cachedView.page || 0) >= page) {
+      productsNextCursorRef.current = String(cachedView.nextCursor || '');
+      setLoading(false);
+      return;
+    }
     if (homeProductsAbortRef.current) {
       homeProductsAbortRef.current.abort('HOME_PRODUCTS_REPLACED');
     }
@@ -624,10 +633,21 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       const total = Array.isArray(data)
         ? fetchedItems.length
         : Number(data?.pagination?.total) || fetchedItems.length;
-      setItems((prev) => (isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
       const nextCursor = String(data?.pagination?.nextCursor || data?.nextCursor || '');
+      const nextTotalPages = nextCursor && isMobileView ? Math.max(page + 1, pages) : pages;
+      setItems((prev) => {
+        const nextItems = isMobileView && page > 1 ? [...prev, ...fetchedItems] : fetchedItems;
+        writeRouteViewCache(homeSnapshotKey, {
+          items: nextItems,
+          page,
+          totalPages: nextTotalPages,
+          totalProducts: total,
+          nextCursor
+        });
+        return nextItems;
+      });
       productsNextCursorRef.current = nextCursor;
-      setTotalPages(nextCursor && isMobileView ? Math.max(page + 1, pages) : pages);
+      setTotalPages(nextTotalPages);
       setTotalProducts(total);
       setOfflineSnapshotActive(false);
     } catch (error) {
@@ -638,9 +658,19 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       if (shouldUseOfflineSnapshot) {
         const snapshot = await loadOfflineSnapshot(homeSnapshotKey);
         if (snapshot && typeof snapshot === 'object') {
-          setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
-          setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
-          setTotalProducts(Number(snapshot.totalProducts) || 0);
+          const snapshotItems = Array.isArray(snapshot.items) ? snapshot.items : [];
+          const snapshotTotalPages = Math.max(1, Number(snapshot.totalPages) || 1);
+          const snapshotTotalProducts = Number(snapshot.totalProducts) || 0;
+          setItems(snapshotItems);
+          setTotalPages(snapshotTotalPages);
+          setTotalProducts(snapshotTotalProducts);
+          writeRouteViewCache(homeSnapshotKey, {
+            items: snapshotItems,
+            page,
+            totalPages: snapshotTotalPages,
+            totalProducts: snapshotTotalProducts,
+            nextCursor: ''
+          });
           setOfflineSnapshotActive(true);
           setProductsError('');
           setLoadMoreError('');
@@ -950,6 +980,22 @@ const loadDiscountProducts = async () => {
   };
 
   // === EFFETS DE CHARGEMENT ===
+  // Restore the last viewed product list for this exact home view (layout
+  // effect so it runs before the fetch effect): coming back to the page shows
+  // the previous content instantly instead of a loading state, which also
+  // lets scroll restoration land at the right position.
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(homeSnapshotKey);
+    if (!cached) return;
+    setItems(Array.isArray(cached.items) ? cached.items : []);
+    setTotalPages(Math.max(1, Number(cached.totalPages) || 1));
+    setTotalProducts(Number(cached.totalProducts) || 0);
+    productsNextCursorRef.current = String(cached.nextCursor || '');
+    setProductsError('');
+    setLoadMoreError('');
+    setLoading(false);
+  }, [homeSnapshotKey]);
+
   useEffect(() => {
     initialPageRef.current = 1;
     setPage((prev) => (prev === 1 ? prev : 1));
