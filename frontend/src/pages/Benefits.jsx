@@ -25,12 +25,16 @@ import {
   Clock3,
   CircleCheckBig,
   ChevronRight,
-  Check
+  Check,
+  Clapperboard,
+  Hash,
+  ShoppingCart
 } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
 
 const SECTION_IDS = {
   shopping: 'achat-malin',
+  videos: 'videos',
   payments: 'paiements',
   refunds: 'remboursements',
   delivery: 'livraison',
@@ -118,7 +122,7 @@ function SectionHeader({ id, eyebrow, title, subtitle }) {
 }
 
 export default function Benefits() {
-  const { getRuntimeValue } = useAppSettings();
+  const { getRuntimeValue, isFeatureEnabled } = useAppSettings();
 
   const isFlagOn = (key, fallback = false) =>
     ['true', '1', 'yes', 'on'].includes(String(getRuntimeValue(key, fallback)).trim().toLowerCase());
@@ -128,17 +132,20 @@ export default function Benefits() {
   const groupBuyingEnabled = isFlagOn('enable_group_buying');
   const platformDeliveryEnabled = isFlagOn('enable_platform_delivery');
   const fullPaymentFreeDelivery = isFlagOn('enable_full_payment_free_delivery', true);
+  const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
 
   const navChips = useMemo(
-    () => [
-      { id: SECTION_IDS.shopping, label: 'Achat malin' },
-      { id: SECTION_IDS.payments, label: 'Paiements' },
-      { id: SECTION_IDS.refunds, label: 'Remboursements' },
-      { id: SECTION_IDS.delivery, label: 'Livraison' },
-      { id: SECTION_IDS.trust, label: 'Confiance' },
-      { id: SECTION_IDS.sellers, label: 'Vendeurs' }
-    ],
-    []
+    () =>
+      [
+        { id: SECTION_IDS.shopping, label: 'Achat malin' },
+        productVideosEnabled ? { id: SECTION_IDS.videos, label: 'Vidéos' } : null,
+        { id: SECTION_IDS.payments, label: 'Paiements' },
+        { id: SECTION_IDS.refunds, label: 'Remboursements' },
+        { id: SECTION_IDS.delivery, label: 'Livraison' },
+        { id: SECTION_IDS.trust, label: 'Confiance' },
+        { id: SECTION_IDS.sellers, label: 'Vendeurs' }
+      ].filter(Boolean),
+    [productVideosEnabled]
   );
 
   return (
@@ -249,6 +256,47 @@ export default function Benefits() {
             cta="Mes favoris"
           />
         </div>
+
+        {/* ── VIDÉOS ── */}
+        {productVideosEnabled && (
+          <>
+            <SectionHeader
+              id={SECTION_IDS.videos}
+              eyebrow="Découvrir"
+              title="HDMarket Videos"
+              subtitle="Des vidéos courtes pour voir les produits en situation, comme sur vos réseaux préférés."
+            />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <FeatureCard
+                icon={Clapperboard}
+                title="Un fil de vidéos produits"
+                benefit="Faites défiler des vidéos courtes publiées par les boutiques : le produit en vrai, ses détails et son prix, sans quitter le fil."
+                steps={['Ouvrez « Vidéos » depuis le menu ou le pied de page', 'Faites défiler : la lecture est automatique et adaptée à votre connexion']}
+                to="/videos"
+                cta="Regarder les vidéos"
+              />
+              <FeatureCard
+                icon={ShoppingCart}
+                title="Achetez sans quitter la vidéo"
+                benefit="Un produit vous plaît ? Ajoutez-le au panier directement depuis la vidéo : si des options sont à choisir, elles s’ouvrent sur place et vous continuez à défiler."
+                steps={['Touchez le panier sur la vidéo', 'Choisissez la taille ou la couleur si demandé', 'Le produit est ajouté, la lecture continue']}
+              />
+              <FeatureCard
+                icon={Hash}
+                title="Hashtags, likes et commentaires"
+                benefit="Touchez un hashtag pour voir toutes les vidéos du même thème. Likez, commentez et enregistrez celles que vous voulez retrouver."
+                steps={['Touchez un #hashtag sous une vidéo', 'Retrouvez vos vidéos enregistrées dans votre profil — elles se relisent à tout moment']}
+                to="/profile/saved-videos"
+                cta="Mes vidéos enregistrées"
+              />
+              <FeatureCard
+                icon={Bell}
+                title="Restez informé"
+                benefit="Quand vous commandez ou enregistrez depuis une vidéo, une notification confirme l’action et vous tient au courant de la suite."
+              />
+            </div>
+          </>
+        )}
 
         {/* ── PAIEMENTS ── */}
         <SectionHeader
@@ -482,6 +530,20 @@ export default function Benefits() {
             to="/plans"
             cta="Voir les plans"
           />
+          {productVideosEnabled && (
+            <FeatureCard
+              icon={Clapperboard}
+              title="Vidéos produit pour les boutiques"
+              benefit="Réservé aux comptes Boutique : publiez une vidéo par produit, mise en ligne immédiatement, et suivez vues, complétion et ajouts au panier depuis votre studio."
+              steps={[
+                'Ouvrez « Mes vidéos produit » dans le menu',
+                'Choisissez un produit, envoyez votre vidéo — elle est publiée aussitôt',
+                'Suivez ses performances dans le tableau de bord'
+              ]}
+              to="/seller/videos"
+              cta="Mon studio vidéo"
+            />
+          )}
           <FeatureCard
             icon={Rocket}
             title="Boost de visibilité"

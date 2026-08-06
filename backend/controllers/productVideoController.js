@@ -16,6 +16,7 @@ import {
   uploadToCloudinary
 } from '../utils/cloudinaryUploader.js';
 import { createNotification } from '../utils/notificationService.js';
+import cloudinary from '../utils/cloudinary.js';
 
 const MAX_PAGE_SIZE = 24;
 const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
@@ -121,6 +122,14 @@ const loadProductForSeller = async (productId, req) => {
     const error = new Error('Vous ne pouvez publier une vidéo que pour vos propres produits.');
     error.status = 403;
     throw error;
+  }
+  if (!isAdmin(req)) {
+    const seller = await User.findById(userId(req)).select('accountType');
+    if (seller?.accountType !== 'shop') {
+      const error = new Error('Seules les boutiques peuvent publier des vidéos produit.');
+      error.status = 403;
+      throw error;
+    }
   }
   return product;
 };
@@ -586,6 +595,12 @@ export const updateSellerProductVideo = asyncHandler(async (req, res) => {
   const video = await ProductVideo.findById(req.params.id);
   if (!video) return res.status(404).json({ message: 'Vidéo introuvable.' });
   if (!ownerOrAdmin(video, req)) return res.status(403).json({ message: 'Accès refusé.' });
+  if (!isAdmin(req)) {
+    const seller = await User.findById(userId(req)).select('accountType');
+    if (seller?.accountType !== 'shop') {
+      return res.status(403).json({ message: 'Seules les boutiques peuvent publier des vidéos produit.' });
+    }
+  }
   if (req.body.caption !== undefined) {
     video.caption = String(req.body.caption || '').trim();
     video.hashtags = extractHashtags(video.caption, req.body.hashtags);
@@ -656,8 +671,25 @@ export const moderateProductVideo = asyncHandler(async (req, res) => {
   if (!video) return res.status(404).json({ message: 'Vidéo introuvable.' });
   const action = String(req.body.action || '');
   if (action === 'delete') {
+    const reason = String(req.body.reason || '').trim();
+    const { seller, product } = video;
+    const videoId = String(video._id);
     await purgeProductVideo(video);
-    return res.json({ deleted: true, _id: String(video._id) });
+    await createNotification({
+      userId: seller,
+      actorId: userId(req),
+      productId: product,
+      type: 'product_video_rejected',
+      allowSelf: true,
+      title: 'Vidéo supprimée',
+      message: reason || 'Votre vidéo a été supprimée définitivement par la modération.',
+      actionLabel: 'Voir mes vidéos',
+      deepLink: '/seller/videos',
+      entityType: 'product',
+      entityId: String(product),
+      metadata: { productVideoId: videoId, moderationReason: reason }
+    });
+    return res.json({ deleted: true, _id: videoId });
   }
   const statusByAction = { approve: 'approved', reject: 'rejected', hide: 'hidden', restore: 'approved' };
   if (statusByAction[action]) video.status = statusByAction[action];

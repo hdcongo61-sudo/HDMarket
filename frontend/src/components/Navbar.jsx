@@ -149,6 +149,9 @@ export default function Navbar() {
   // tab bar (z-50) was rendered on top of it and interceptait les taps.
   const isProductDetailRoute =
     location.pathname.startsWith('/product/') || location.pathname.startsWith('/product-preview/');
+  // The videos feed is a full-screen swipe experience: the global tab bar
+  // overlapped the video actions (Ajouter/Acheter) at the bottom.
+  const isProductVideosRoute = location.pathname.startsWith('/videos');
   const { user, logout } = useContext(AuthContext);
   const { categoryGroups } = useCategories();
   const { theme, setTheme, darkThemeEnabled, t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
@@ -797,7 +800,7 @@ export default function Navbar() {
     { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
     { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 10 },
     { id: 'saved-videos', label: 'Vidéos enregistrées', path: '/profile/saved-videos', icon: Bookmark, badge: null, visible: Boolean(user) && productVideosEnabled, order: 10.2 },
-    { id: 'seller-videos', label: 'Mes vidéos produit', path: '/seller/videos', icon: Clapperboard, badge: null, visible: Boolean(user) && productVideosEnabled, order: 10.3 },
+    { id: 'seller-videos', label: 'Mes vidéos produit', path: '/seller/videos', icon: Clapperboard, badge: null, visible: Boolean(user) && user?.accountType === 'shop' && productVideosEnabled, order: 10.3 },
     { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
     { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
     { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
@@ -4647,7 +4650,7 @@ export default function Navbar() {
 
       {/* BARRE DE NAVIGATION FIXE MOBILE - DESIGN MODERNE ET AMÉLIORÉE */}
       <div
-        className={`hd-mobile-tabbar ${isProductDetailRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[68px] border-t border-[#e2dcd2] bg-white/96 shadow-sm transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-950/96 ${
+        className={`hd-mobile-tabbar ${isProductDetailRoute || isProductVideosRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[68px] border-t border-[#e2dcd2] bg-white/96 shadow-sm transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-950/96 ${
           bottomNavHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom))]' : 'translate-y-0'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', willChange: 'transform' }}

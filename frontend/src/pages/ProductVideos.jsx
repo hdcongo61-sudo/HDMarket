@@ -68,6 +68,31 @@ const requiresAttributeSelection = (product) =>
         (attribute?.type === 'select' && Array.isArray(attribute?.options) && attribute.options.length > 0))
   );
 
+const HASHTAG_TOKEN = /^#[\p{L}\p{N}_-]+$/u;
+
+// Renders a caption with its hashtags as tappable tokens.
+const renderCaption = (caption, onHashtag) =>
+  String(caption || '')
+    .split(/(\s+)/)
+    .map((token, index) => {
+      if (!HASHTAG_TOKEN.test(token)) return <span key={index}>{token}</span>;
+      return (
+        <button
+          key={index}
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onHashtag?.(token.slice(1));
+          }}
+          className="font-bold text-emerald-300 transition hover:text-emerald-200 hover:underline"
+        >
+          {token}
+        </button>
+      );
+    });
+
 function VideoAction({ label, value, active = false, onClick, children }) {
   return (
     <button
@@ -107,7 +132,8 @@ function VideoSlide({
   onReport,
   onFollow,
   onAddToCart,
-  onProductClick
+  onProductClick,
+  onHashtag
 }) {
   const videoRef = useRef(null);
   const viewedRef = useRef({ startedAt: 0, watchedMs: 0, sent: false });
@@ -408,7 +434,7 @@ function VideoSlide({
               </button>
             ) : null}
           </div>
-          {video.caption ? <p className="line-clamp-2 text-sm leading-relaxed text-white/90">{video.caption}</p> : null}
+          {video.caption ? <p className="line-clamp-2 text-sm leading-relaxed text-white/90">{renderCaption(video.caption, onHashtag)}</p> : null}
           <button
             type="button"
             onClick={(event) => {
@@ -461,6 +487,132 @@ function VideoSlide({
         <div className="h-full bg-white transition-[width] duration-100" style={{ width: `${progress * 100}%` }} />
       </div>
     </article>
+  );
+}
+
+function CartOptionsSheet({ video, formatPrice, submitting, onClose, onConfirm }) {
+  const product = video?.product || {};
+  const attributes = (Array.isArray(product.attributes) ? product.attributes : []).filter(
+    (attribute) => attribute && attribute.name
+  );
+  const requiredAttributes = attributes.filter(
+    (attribute) =>
+      !attribute.defaultValue &&
+      (attribute.required ||
+        (attribute.type === 'select' && Array.isArray(attribute.options) && attribute.options.length > 0))
+  );
+  const [selections, setSelections] = useState({});
+  const missing = requiredAttributes.filter((attribute) => !selections[attribute.name]);
+
+  const priceOverride = attributes.reduce((found, attribute) => {
+    if (found !== null) return found;
+    const value = selections[attribute.name];
+    const price = value ? Number(attribute.optionPrices?.[value]) : NaN;
+    return Number.isFinite(price) && price > 0 ? price : found;
+  }, null);
+  const displayPrice = priceOverride ?? product.price;
+
+  const confirm = () => {
+    if (missing.length || submitting) return;
+    const selectedAttributes = attributes
+      .map((attribute) => ({
+        name: attribute.name,
+        value: selections[attribute.name] || attribute.defaultValue || ''
+      }))
+      .filter((entry) => entry.value !== '');
+    onConfirm(selectedAttributes);
+  };
+
+  return (
+    <>
+      <motion.button
+        type="button"
+        aria-label="Fermer"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-[240] bg-black/55"
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choisir les options du produit"
+        className="fixed inset-x-0 bottom-0 z-[250] mx-auto max-w-lg rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] text-neutral-900 shadow-2xl dark:bg-neutral-900 dark:text-white"
+      >
+        <div className="flex items-start gap-3">
+          <img
+            src={video?.thumbnailUrl || product.images?.[0]}
+            alt=""
+            className="h-16 w-16 rounded-xl object-cover"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 font-bold">{product.title || 'Produit'}</p>
+            <p className="mt-1 text-lg font-black text-emerald-600">{formatPrice(displayPrice)}</p>
+          </div>
+          <button type="button" aria-label="Fermer" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100 dark:bg-white/10">
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="mt-4 max-h-[40vh] space-y-4 overflow-y-auto">
+          {attributes.map((attribute) => (
+            <div key={attribute.name}>
+              <p className="text-xs font-bold uppercase tracking-wide text-neutral-500">
+                {attribute.name}
+                {requiredAttributes.includes(attribute) ? <span className="text-rose-500"> *</span> : null}
+              </p>
+              {Array.isArray(attribute.options) && attribute.options.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {attribute.options.map((option) => {
+                    const selected = selections[attribute.name] === option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setSelections((current) => ({ ...current, [attribute.name]: option }))}
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                          selected
+                            ? 'border-emerald-500 bg-emerald-500 text-white'
+                            : 'border-neutral-200 bg-white text-neutral-700 dark:border-white/15 dark:bg-transparent dark:text-neutral-200'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <input
+                  value={selections[attribute.name] || ''}
+                  onChange={(event) => setSelections((current) => ({ ...current, [attribute.name]: event.target.value }))}
+                  placeholder={attribute.name}
+                  className="mt-2 h-11 w-full rounded-xl border border-neutral-200 bg-transparent px-3 outline-none focus:border-emerald-500 dark:border-white/15"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          disabled={missing.length > 0 || submitting}
+          onClick={confirm}
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-black text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {submitting ? <Loader2 size={18} className="animate-spin" /> : <ShoppingCart size={18} />}
+          {submitting
+            ? 'Ajout en cours…'
+            : missing.length
+              ? `Sélectionnez ${missing[0].name}`
+              : `Ajouter au panier · ${formatPrice(displayPrice)}`}
+        </button>
+      </motion.div>
+    </>
   );
 }
 
@@ -580,6 +732,8 @@ export default function ProductVideos() {
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [commentsVideo, setCommentsVideo] = useState(null);
+  const [cartSheetVideo, setCartSheetVideo] = useState(null);
+  const [cartSubmitting, setCartSubmitting] = useState(false);
   const [reportVideo, setReportVideo] = useState(null);
   const [reportReason, setReportReason] = useState('');
   const [capabilities, setCapabilities] = useState(null);
@@ -728,12 +882,10 @@ export default function ProductVideos() {
 
   const addToCart = async (video) => {
     if (!requireLogin()) return;
-    // Products with mandatory options (size, color…) cannot be added blindly:
-    // send the viewer to the product page to pick them instead of failing.
+    // Products with mandatory options (size, color…) open an in-page option
+    // sheet so the viewer never leaves the feed.
     if (requiresAttributeSelection(video.product)) {
-      recordAction(video, 'product_click');
-      showToast('Choisissez d’abord les options du produit (taille, couleur…).', { variant: 'info' });
-      navigate(buildProductPath(video.product));
+      setCartSheetVideo(video);
       return;
     }
     try {
@@ -742,6 +894,22 @@ export default function ProductVideos() {
       showToast('Produit ajouté au panier.', { variant: 'success' });
     } catch {
       showToast('Impossible d’ajouter ce produit.', { variant: 'error' });
+    }
+  };
+
+  const confirmAddToCart = async (selectedAttributes) => {
+    const video = cartSheetVideo;
+    if (!video || cartSubmitting) return;
+    setCartSubmitting(true);
+    try {
+      await addItem(video.product?._id, 1, selectedAttributes);
+      recordAction(video, 'add_to_cart');
+      showToast('Produit ajouté au panier.', { variant: 'success' });
+      setCartSheetVideo(null);
+    } catch {
+      showToast('Impossible d’ajouter ce produit.', { variant: 'error' });
+    } finally {
+      setCartSubmitting(false);
     }
   };
 
@@ -759,6 +927,20 @@ export default function ProductVideos() {
     const target = Math.max(0, Math.min(items.length - 1, index));
     containerRef.current?.scrollTo({ top: target * containerRef.current.clientHeight, behavior: 'smooth' });
   }, [items.length]);
+
+  // Filter the whole feed to one hashtag: the swipe experience stays, only
+  // matching videos are loaded (backend search covers caption + hashtags).
+  const openHashtag = useCallback((tag) => {
+    const value = String(tag || '').replace(/^#/, '').trim();
+    if (!value) return;
+    setSearch(`#${value}`);
+    setSubmittedSearch(value);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearch('');
+    setSubmittedSearch('');
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -850,9 +1032,29 @@ export default function ProductVideos() {
         ) : null}
       </header>
 
+      {submittedSearch ? (
+        <div className="pointer-events-none absolute left-4 right-4 top-16 z-40 flex">
+          <span className="pointer-events-auto flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-500/85 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md">
+            #{submittedSearch.replace(/^#/, '')}
+            <button type="button" aria-label="Retirer le filtre" onClick={clearSearch} className="grid h-4 w-4 place-items-center rounded-full bg-white/20 transition hover:bg-white/35">
+              <X size={11} />
+            </button>
+          </span>
+        </div>
+      ) : null}
+
       {!items.length ? (
         <div className="grid h-full place-items-center px-8 text-center text-white">
-          <div><Play className="mx-auto mb-4 opacity-50" size={42} /><h1 className="text-xl font-bold">Aucune vidéo pour le moment</h1><p className="mt-2 text-sm text-white/60">Essayez un autre filtre ou revenez bientôt.</p></div>
+          <div>
+            <Play className="mx-auto mb-4 opacity-50" size={42} />
+            <h1 className="text-xl font-bold">{submittedSearch ? `Aucune vidéo avec #${submittedSearch.replace(/^#/, '')}` : 'Aucune vidéo pour le moment'}</h1>
+            <p className="mt-2 text-sm text-white/60">{submittedSearch ? 'Ce hashtag n’a pas encore de vidéo publiée.' : 'Essayez un autre filtre ou revenez bientôt.'}</p>
+            {submittedSearch ? (
+              <button type="button" onClick={clearSearch} className="mt-4 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-neutral-950">
+                Voir toutes les vidéos
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div
@@ -884,6 +1086,7 @@ export default function ProductVideos() {
                   onFollow={() => follow(video)}
                   onAddToCart={() => addToCart(video)}
                   onProductClick={() => productClick(video)}
+                  onHashtag={openHashtag}
                 />
               ) : (
                 <div className="h-full bg-neutral-950" aria-hidden="true" />
@@ -905,6 +1108,18 @@ export default function ProductVideos() {
             <motion.button type="button" aria-label="Fermer les commentaires" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCommentsVideo(null)} className="fixed inset-0 z-[240] bg-black/55" />
             <CommentsSheet video={commentsVideo} onClose={() => setCommentsVideo(null)} onCountChange={(change) => patchItem(commentsVideo._id, (item) => ({ ...item, counters: { ...item.counters, comments: Number(item.counters?.comments || 0) + change } }))} />
           </>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {cartSheetVideo ? (
+          <CartOptionsSheet
+            video={cartSheetVideo}
+            formatPrice={formatPrice}
+            submitting={cartSubmitting}
+            onClose={() => setCartSheetVideo(null)}
+            onConfirm={confirmAddToCart}
+          />
         ) : null}
       </AnimatePresence>
 

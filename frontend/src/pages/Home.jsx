@@ -8,7 +8,7 @@ import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package, Play, Clapperboard } from "lucide-react";
+import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package, Play, Clapperboard, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -140,6 +140,59 @@ const FeaturedTagSections = ({ t }) => {
         </section>
       ))}
     </div>
+  );
+};
+
+// Time-of-day greeting for signed-in users: Bonjour with a sun until 18h,
+// Bonsoir with a moon from 18h to 5h. Mobile gets a compact gradient banner;
+// sm+ keeps the flat card (white card, gray ring, squared orange icon tile).
+const HomeGreeting = ({ user }) => {
+  if (!user?.name) return null;
+  const hour = new Date().getHours();
+  const isEvening = hour >= 18 || hour < 5;
+  const firstName = String(user.name).trim().split(/\s+/)[0];
+  const dateLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return (
+    <>
+      {/* Mobile: compact gradient banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF6A00] to-[#e85d00] px-4 py-3 shadow-sm sm:hidden">
+        <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -bottom-10 right-10 h-20 w-20 rounded-full bg-white/10" />
+        <div className="relative flex items-center gap-3">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm">
+            {isEvening ? <Moon size={18} /> : <Sun size={18} />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-black leading-tight text-white">
+              {isEvening ? 'Bonsoir' : 'Bonjour'} {firstName} 👋
+            </p>
+            <p className="truncate text-[11px] font-medium capitalize text-white/80">
+              {dateLabel} · {isEvening ? 'offres du soir' : 'offres du jour'}
+            </p>
+          </div>
+          <Sparkles size={18} className="shrink-0 text-white/70" />
+        </div>
+      </div>
+
+      {/* Desktop: flat card */}
+      <div className="hidden items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm sm:flex dark:border-neutral-800 dark:bg-neutral-950">
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-neutral-800">
+          {isEvening ? <Moon size={20} /> : <Sun size={20} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-black text-gray-900 dark:text-white">
+            {isEvening ? 'Bonsoir' : 'Bonjour'} {firstName} 👋
+          </p>
+          <p className="truncate text-xs font-medium text-gray-500 dark:text-neutral-400">
+            {isEvening ? 'Bonne soirée, découvrez les offres du moment.' : 'Belle journée, découvrez les offres du jour.'}
+          </p>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-gray-50 px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 ring-1 ring-gray-100 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
+          <Sparkles size={12} className="text-[#FF6A00]" />
+          {isEvening ? 'Offres du soir' : 'Offres du jour'}
+        </span>
+      </div>
+    </>
   );
 };
 
@@ -1384,6 +1437,12 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="mx-auto flex max-w-7xl flex-col gap-5 bg-[#f7f8fa] px-5 pb-24 pt-0 text-[#1b1d22] max-[375px]:gap-4 max-[375px]:px-4">
+        {user ? (
+          <div className="order-[-30] pt-3">
+            <HomeGreeting user={user} />
+          </div>
+        ) : null}
+
         {/* Pour Vous — AI Recommendations (placed prominently at top) */}
         <div className="hidden">
           <PourVousSection
@@ -2604,6 +2663,7 @@ const loadDiscountProducts = async () => {
 
     return (
       <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
+        {user ? <HomeGreeting user={user} /> : null}
         {(user || showFullPaymentHomeBanner || buyForMeEnabled) ? (
           <section className={`grid gap-3 ${user && showFullPaymentHomeBanner ? 'lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]' : 'grid-cols-1'}`}>
             {user ? (

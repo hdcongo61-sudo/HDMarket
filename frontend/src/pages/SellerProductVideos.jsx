@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   BarChart3,
   CheckCircle2,
@@ -12,11 +13,13 @@ import {
   RefreshCw,
   Save,
   ShoppingCart,
+  Store,
   Trash2,
   Upload,
   XCircle
 } from 'lucide-react';
 import api from '../services/api';
+import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 
@@ -62,6 +65,7 @@ function Metric({ icon: Icon, label, value, accent = 'text-neutral-900 dark:text
 }
 
 export default function SellerProductVideos() {
+  const { user } = useContext(AuthContext);
   const { getRuntimeValue, formatPrice } = useAppSettings();
   const { showToast } = useToast();
   const [videos, setVideos] = useState([]);
@@ -96,8 +100,12 @@ export default function SellerProductVideos() {
   }, [showToast]);
 
   useEffect(() => {
+    if (user && user.accountType !== 'shop') {
+      setLoading(false);
+      return;
+    }
     load();
-  }, [load]);
+  }, [load, user]);
 
   const selectedProductVideos = useMemo(
     () => videos.filter((video) => String(video.product?._id || video.product) === String(productId) && video.status !== 'deleted').length,
@@ -156,6 +164,22 @@ export default function SellerProductVideos() {
       setUploadProgress(0);
     }
   };
+
+  if (user && user.accountType !== 'shop') {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-20 text-center sm:px-6">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><Store size={26} /></span>
+        <h1 className="mt-4 text-2xl font-black text-neutral-950 dark:text-white">Réservé aux boutiques</h1>
+        <p className="mt-2 text-sm text-neutral-500">
+          Seuls les comptes Boutique peuvent publier des vidéos produit. Transformez votre compte pour présenter vos
+          articles en vidéo et suivre leurs performances.
+        </p>
+        <Link to="/shop-conversion-request" className="mt-6 inline-flex h-12 items-center gap-2 rounded-xl bg-emerald-500 px-6 font-black text-white transition active:scale-95">
+          <Store size={18} /> Devenir Boutique
+        </Link>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="animate-spin text-emerald-500" /></div>;
