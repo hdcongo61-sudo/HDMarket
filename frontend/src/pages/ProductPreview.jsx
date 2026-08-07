@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Sparkles, Star, Store, Zap, ChevronRight, Eye, MapPin, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
@@ -284,7 +285,7 @@ export default function ProductPreview() {
     });
   }, [relatedPicks, product]);
 
-  const primaryImage = product?.images?.[0] || 'https://via.placeholder.com/640x640';
+  const primaryImage = product?.images?.[0] || PLACEHOLDER_IMAGE;
   const hasProductDiscount = product?.discount > 0 && product?.priceBeforeDiscount > product?.price;
   const shopName = product?.user?.shopName || product?.shop?.name || '';
   const cityLabel = [product?.commune, product?.city].filter(Boolean).join(' - ');

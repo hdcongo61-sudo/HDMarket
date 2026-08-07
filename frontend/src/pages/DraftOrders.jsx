@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
@@ -190,7 +191,7 @@ export default function DraftOrders() {
                           <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-200">
                             <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-200">
                               <img
-                                src={item.snapshot?.image || item.product?.images?.[0] || 'https://via.placeholder.com/80'}
+                                src={item.snapshot?.image || item.product?.images?.[0] || PLACEHOLDER_IMAGE}
                                 alt={item.snapshot?.title || item.product?.title}
                                 className="w-full h-full object-cover"
                               />

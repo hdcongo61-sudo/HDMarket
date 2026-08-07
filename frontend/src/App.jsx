@@ -14,6 +14,7 @@ import AnalyticsTracker from './components/AnalyticsTracker';
 import CookieConsent from './components/CookieConsent';
 import PendingActionHandler from './components/PendingActionHandler';
 import AppButtonFeedback from './components/AppButtonFeedback';
+import OfflineOverlay from './components/OfflineOverlay';
 import FeatureFeedbackWidget from './components/FeatureFeedbackWidget';
 import { useAppSettings } from './context/AppSettingsContext';
 import AuthContext from './context/AuthContext';
@@ -1555,6 +1556,7 @@ export default function App() {
     >
       <ShopProfileLoadProvider>
         <AppButtonFeedback />
+        <OfflineOverlay />
         <AppContent key={`lang-${language || 'fr'}`} />
       </ShopProfileLoadProvider>
     </BrowserRouter>

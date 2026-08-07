@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import CartContext from '../context/CartContext';
@@ -1539,7 +1540,7 @@ export default function OrderCheckout() {
               <div key={`${product._id}-${selectionKey || 'default'}`} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 p-4 sm:grid-cols-[76px_minmax(0,1fr)_auto] sm:p-5">
                 <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-[76px] sm:w-[76px]">
                   <img
-                    src={variantImage || product.images?.[0] || 'https://via.placeholder.com/80'}
+                    src={variantImage || product.images?.[0] || PLACEHOLDER_IMAGE}
                     alt={product.title}
                     className="h-full w-full object-cover"
                   />

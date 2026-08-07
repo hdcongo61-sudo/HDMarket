@@ -404,6 +404,9 @@ export default function NotificationPage() {
     return [...alerts].sort((a, b) => {
       const pinDiff = Number(Boolean(b.pinnedAt)) - Number(Boolean(a.pinnedAt));
       if (pinDiff !== 0) return pinDiff;
+      // Unread first: a notification drops below the unread ones once read.
+      const unreadDiff = Number(Boolean(b.isNew)) - Number(Boolean(a.isNew));
+      if (unreadDiff !== 0) return unreadDiff;
       const receivedDiff =
         new Date(b.receivedAt || b.createdAt || 0).getTime() -
         new Date(a.receivedAt || a.createdAt || 0).getTime();

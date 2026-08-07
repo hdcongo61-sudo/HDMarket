@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useContext, useMemo } from 'react';
+import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import {
   Sparkles,
   Search,
@@ -495,7 +496,7 @@ export default function AdminProductBoosts() {
     const imageUrl =
       product.images?.[0] ||
       product.image ||
-      "https://via.placeholder.com/400x400?text=HDMarket";
+      PLACEHOLDER_IMAGE;
     const descriptionExcerpt = product.description
       ? `${product.description.slice(0, 100)}...`
       : 'Aucune description disponible.';
@@ -657,7 +658,7 @@ export default function AdminProductBoosts() {
   };
 
   const renderShopCard = (shop) => {
-    const logoUrl = shop.shopLogo || "https://via.placeholder.com/200x200?text=HDMarket";
+    const logoUrl = shop.shopLogo || PLACEHOLDER_IMAGE;
     const createdDate = shop.createdAt
       ? new Date(shop.createdAt).toLocaleDateString('fr-FR')
       : '-';

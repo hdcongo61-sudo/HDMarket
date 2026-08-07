@@ -1,0 +1,1 @@
+const t='<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="#f3f4f6"/><text x="200" y="210" text-anchor="middle" font-family="sans-serif" font-size="30" font-weight="700" fill="#9ca3af">HDMarket</text></svg>',e=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(t)}`;export{e as P};

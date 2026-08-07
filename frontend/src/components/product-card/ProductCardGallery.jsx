@@ -1,8 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Expand, Images } from 'lucide-react';
 import { getProductCardImageUrl, getProductCardSrcSet } from '../../utils/productImageUrl';
+import { PLACEHOLDER_IMAGE } from '../../utils/placeholderImage';
 
-const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x400?text=HDMarket';
 const SWIPE_HINT_STORAGE_KEY = 'hd_product_card_swipe_hint_completed_v1';
 let swipeHintClaimed = false;
 

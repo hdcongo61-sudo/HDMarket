@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CartContext from '../context/CartContext';
@@ -457,7 +458,7 @@ export default function Cart() {
                         className="block relative overflow-hidden rounded-xl aspect-square bg-gray-100 transition-all duration-300"
                       >
                         <img
-                          src={item.variantImage || product.images?.[0] || 'https://via.placeholder.com/300'}
+                          src={item.variantImage || product.images?.[0] || PLACEHOLDER_IMAGE}
                           alt={product.title}
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           loading="lazy"

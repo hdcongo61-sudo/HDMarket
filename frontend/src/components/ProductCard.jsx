@@ -1,4 +1,5 @@
 import React, { memo, useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes, Expand } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
@@ -108,7 +109,7 @@ function ProductCard({
   // Get all product images
   const productImages = useMemo(() => {
     const images = Array.isArray(p.images) ? p.images.filter(Boolean) : [];
-    return images.length > 0 ? images : ['https://via.placeholder.com/400x400'];
+    return images.length > 0 ? images : [PLACEHOLDER_IMAGE];
   }, [p.images]);
 
   const hasMultipleImages = productImages.length > 1;
@@ -635,7 +636,7 @@ function ProductCard({
   const useModernProductCard = true;
 
   if (useModernProductCard) {
-    const primaryImageOriginal = productImages[0] || 'https://via.placeholder.com/400x400?text=HDMarket';
+    const primaryImageOriginal = productImages[0] || PLACEHOLDER_IMAGE;
     const primaryImage = getProductCardImageUrl(primaryImageOriginal, {
       width: isListCard ? 420 : categoryListing ? 520 : 640,
       lite: useLiteImageMode
@@ -776,7 +777,7 @@ function ProductCard({
             ) : (
               <>
                 <img
-                  src={imageError ? 'https://via.placeholder.com/400x400?text=HDMarket' : primaryImage}
+                  src={imageError ? PLACEHOLDER_IMAGE : primaryImage}
                   srcSet={imageError ? undefined : primaryImageSrcSet}
                   alt={p.title}
                   className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
@@ -1059,7 +1060,7 @@ function ProductCard({
                 <img
                   src={
                     imagesLoaded[currentImageIndex] === false
-                      ? 'https://via.placeholder.com/400x400?text=HDMarket'
+                      ? PLACEHOLDER_IMAGE
                       : productImages[currentImageIndex]
                   }
                   alt={`${p.title} - Image ${currentImageIndex + 1}`}
@@ -1095,7 +1096,7 @@ function ProductCard({
               >
                 {productImages.map((image, index) => {
                   const isImageError = imagesLoaded[index] === false;
-                  const imageSrc = isImageError ? "https://via.placeholder.com/400x400?text=HDMarket" : image;
+                  const imageSrc = isImageError ? PLACEHOLDER_IMAGE : image;
                   const isImageLoaded = imagesLoaded[index] === true;
 
                   return (
@@ -1222,7 +1223,7 @@ function ProductCard({
             onPointerCancel={cancelLongPress}
           >
             <img
-              src={imageError ? "https://via.placeholder.com/400x400?text=HDMarket" : productImages[0]}
+              src={imageError ? PLACEHOLDER_IMAGE : productImages[0]}
               alt={p.title}
               className="ui-media-img ui-media-img-contain"
               onLoad={() => setImageLoaded(true)}

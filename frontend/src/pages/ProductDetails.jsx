@@ -1,3 +1,4 @@
+import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import {
@@ -2095,7 +2096,7 @@ export default function ProductDetails() {
   }, [galleryImages.length, selectedImage]);
 
   const safeSelectedImage = galleryImages.length > 0 ? Math.min(selectedImage, galleryImages.length - 1) : 0;
-  const displayedImage = galleryImages[safeSelectedImage]?.src || "https://via.placeholder.com/600x600";
+  const displayedImage = galleryImages[safeSelectedImage]?.src || PLACEHOLDER_IMAGE;
   const isDisplayedVideo = galleryImages[safeSelectedImage]?.type === 'video';
   const displayedVideoSrc = isDisplayedVideo ? galleryImages[safeSelectedImage]?.src : '';
   const imageCursorClass = "cursor-pointer";
@@ -2465,7 +2466,7 @@ export default function ProductDetails() {
                 <video src={galleryImages[0].src} controls playsInline preload="metadata"
                   className={mobileMainGalleryImageClass} onClick={(e) => e.stopPropagation()} />
               ) : (
-                <img src={galleryImages[0]?.src || "https://via.placeholder.com/600x600"}
+                <img src={galleryImages[0]?.src || PLACEHOLDER_IMAGE}
                   alt={product.title} className={mobileMainGalleryImageClass} />
               )}
             </div>
@@ -4638,7 +4639,7 @@ export default function ProductDetails() {
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                     <img
-                      src={thumbImageUrl(relatedProduct.images?.[0]) || "https://via.placeholder.com/300x300"}
+                      src={thumbImageUrl(relatedProduct.images?.[0]) || PLACEHOLDER_IMAGE}
                       alt={relatedProduct.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -4768,7 +4769,7 @@ export default function ProductDetails() {
                 >
                   <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                     <img
-                      src={thumbImageUrl(relatedProduct.images?.[0]) || "https://via.placeholder.com/300x300"}
+                      src={thumbImageUrl(relatedProduct.images?.[0]) || PLACEHOLDER_IMAGE}
                       alt={relatedProduct.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -5614,7 +5615,7 @@ function RelatedProducts({ relatedProducts, product }) {
           >
             <div className="aspect-square bg-gray-100 dark:bg-neutral-800 overflow-hidden">
               <img
-                src={relatedProduct.images?.[0] || "https://via.placeholder.com/300x300"}
+                src={relatedProduct.images?.[0] || PLACEHOLDER_IMAGE}
                 alt={relatedProduct.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
