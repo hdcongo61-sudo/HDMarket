@@ -119,17 +119,41 @@ export default function TagSelector({
     }
   };
 
+  // Selects a freshly created (or already existing) active tag right away —
+  // seller tags are auto-approved, so there is no review step to wait for.
+  const adoptTag = (tag) => {
+    const id = String(tag?._id || '');
+    if (!id || tag.status !== 'active') return false;
+    setKnownTags((current) => new Map(current).set(id, tag));
+    if (selectedIds.has(id)) {
+      setMessage(`Le tag « ${tag.name} » est déjà sur votre annonce.`);
+      return true;
+    }
+    if ((value || []).length >= max) {
+      setMessage(`Tag « ${tag.name} » disponible, mais maximum ${max} tags manuels atteint.`);
+      return true;
+    }
+    onChange([...(value || []), id]);
+    setMessage(`Tag « ${tag.name} » créé et ajouté à votre annonce.`);
+    return true;
+  };
+
   const requestTag = async () => {
     const name = query.trim();
     if (name.length < 2) return;
     setRequesting(true);
     setMessage('');
     try {
-      await api.post('/tags/requests', { name, description: `Tag proposé depuis une annonce: ${productContext.title || ''}` });
-      setMessage('Tag soumis à l’administrateur pour approbation.');
+      const { data } = await api.post('/tags/requests', { name, description: `Tag proposé depuis une annonce: ${productContext.title || ''}` });
       setQuery('');
+      if (!adoptTag(data?.tag)) setMessage(data?.message || 'Tag créé.');
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Impossible de soumettre ce tag.');
+      // A duplicate is just as usable: select the existing tag directly.
+      if (error.response?.status === 409 && adoptTag(error.response?.data?.tag)) {
+        setQuery('');
+      } else {
+        setMessage(error.response?.data?.message || 'Impossible de créer ce tag.');
+      }
     } finally {
       setRequesting(false);
     }

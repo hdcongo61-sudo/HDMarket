@@ -244,6 +244,9 @@ export default function ProductForm(props) {
   const cropMoveRef = useRef(() => {});
   const cropUpRef = useRef(() => {});
   const submitIdempotencyKeyRef = useRef('');
+  // Snapshot of the form as hydrated from initialValues — used on update to
+  // send only the fields the seller actually changed.
+  const initialFormRef = useRef(null);
   const draftGenerationRef = useRef(0);
   // New: pinch-to-zoom tracking refs
   const pinchDistRef = useRef(null);
@@ -1681,6 +1684,18 @@ export default function ProductForm(props) {
           unit: form.physical?.dimensions?.unit || 'cm'
         }
       };
+      // On update the backend applies fields partially (anything omitted keeps
+      // its current value), so only send what actually changed since the form
+      // was hydrated — smaller payloads and no accidental overwrites.
+      const baseline = productId ? initialFormRef.current : null;
+      const unchanged = (key, current) => {
+        if (!baseline) return false;
+        try {
+          return JSON.stringify(current ?? null) === JSON.stringify(baseline[key] ?? null);
+        } catch {
+          return false;
+        }
+      };
       const data = new FormData();
       Object.entries(form).forEach(([k, v]) => {
         if (['wholesaleTiers', 'attributes', 'physical', 'tagIds', 'aiTagIds'].includes(k)) return;
@@ -1695,10 +1710,11 @@ export default function ProductForm(props) {
         // Immutable after creation — never resend on an update (would be
         // rejected server-side anyway), and skip if empty on create too.
         if (['perishableStartDate', 'perishableEndDate'].includes(k) && (isEditing || !v)) return;
+        if (unchanged(k, v)) return;
         data.append(k, v);
       });
       if (isBoutiqueOwner) {
-        const normalizedWholesaleTiers = (Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : [])
+        const normalizeTiers = (tiers) => (Array.isArray(tiers) ? tiers : [])
           .map((tier) => ({
             minQty: Number(tier?.minQty),
             unitPrice: Number(tier?.unitPrice),
@@ -1706,12 +1722,19 @@ export default function ProductForm(props) {
           }))
           .filter((tier) => Number.isFinite(tier.minQty) && Number.isFinite(tier.unitPrice))
           .sort((a, b) => a.minQty - b.minQty);
-        data.append('wholesaleTiers', JSON.stringify(normalizedWholesaleTiers));
+        const normalizedWholesaleTiers = normalizeTiers(form.wholesaleTiers);
+        const baselineTiers = baseline ? normalizeTiers(baseline.wholesaleTiers) : null;
+        if (!baseline || JSON.stringify(normalizedWholesaleTiers) !== JSON.stringify(baselineTiers)) {
+          data.append('wholesaleTiers', JSON.stringify(normalizedWholesaleTiers));
+        }
       }
+      // Attributes are always sent: their payload merges the form state with
+      // the image-variant editor, so a cheap baseline comparison can't tell
+      // whether they changed. The backend write is idempotent.
       data.append('attributes', JSON.stringify(normalizedAttributes));
-      data.append('physical', JSON.stringify(physicalPayload));
-      data.append('tagIds', JSON.stringify(form.tagIds || []));
-      data.append('aiTagIds', JSON.stringify(form.aiTagIds || []));
+      if (!unchanged('physical', form.physical)) data.append('physical', JSON.stringify(physicalPayload));
+      if (!unchanged('tagIds', form.tagIds || [])) data.append('tagIds', JSON.stringify(form.tagIds || []));
+      if (!unchanged('aiTagIds', form.aiTagIds || [])) data.append('aiTagIds', JSON.stringify(form.aiTagIds || []));
       files.slice(0, maxImagesLimit).forEach((item) => {
         const file = item?.file || item;
         if (file instanceof File) {
@@ -1890,7 +1913,7 @@ export default function ProductForm(props) {
       setImageVariants({});
       setImageVariantName('Couleur');
     }
-    setForm({
+    const hydratedForm = {
       title: initialValues.title || '',
       description: initialValues.description || '',
       brand: initialValues.brand || '',
@@ -1988,7 +2011,9 @@ export default function ProductForm(props) {
           ? initialValues.deliveryFee
           : '',
       socialVideoUrl: initialValues.socialVideoUrl || ''
-    });
+    };
+    setForm(hydratedForm);
+    initialFormRef.current = hydratedForm;
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
     setImageReplacements({});
     setExistingPdf(initialValues.pdf || null);

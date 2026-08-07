@@ -222,8 +222,16 @@ export const requestSellerTag = asyncHandler(async (req, res) => {
   const payload = serializeTagPayload(req.body, { seller: true });
   const duplicate = await Tag.findOne({ normalizedName: payload.name.toLocaleLowerCase('fr'), deletedAt: null }).lean();
   if (duplicate) return res.status(409).json({ message: 'Un tag portant ce nom existe déjà.', tag: duplicate });
-  const tag = await Tag.create({ ...payload, createdBy: req.user.id });
-  res.status(201).json({ message: 'Tag soumis pour approbation.', tag });
+  // Seller tags are auto-approved: created active and public so the seller
+  // can select them immediately in the product form, no admin review step.
+  const tag = await Tag.create({
+    ...payload,
+    visibility: 'public',
+    status: 'active',
+    approvedAt: new Date(),
+    createdBy: req.user.id
+  });
+  res.status(201).json({ message: 'Tag créé et activé.', tag });
 });
 
 export const replaceTagsOnEntity = asyncHandler(async (req, res) => {
