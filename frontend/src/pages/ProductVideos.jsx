@@ -134,7 +134,9 @@ function VideoSlide({
   onFollow,
   onAddToCart,
   onProductClick,
-  onHashtag
+  onHashtag,
+  inCart = false,
+  onOpenCart
 }) {
   const videoRef = useRef(null);
   const viewedRef = useRef({ startedAt: 0, watchedMs: 0, sent: false });
@@ -474,11 +476,22 @@ function VideoSlide({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                onAddToCart();
+                if (inCart) onOpenCart();
+                else onAddToCart();
               }}
-              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-white font-bold text-neutral-950 shadow-lg transition active:scale-[0.98]"
+              className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-xl font-bold shadow-lg transition active:scale-[0.98] ${
+                inCart ? 'bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white' : 'bg-white text-neutral-950'
+              }`}
             >
-              <ShoppingCart size={18} /> Ajouter
+              {inCart ? (
+                <>
+                  <Check size={18} strokeWidth={2.5} /> Ajouté
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={18} /> Ajouter
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -726,7 +739,11 @@ function CommentsSheet({ video, onClose, onCountChange }) {
 
 export default function ProductVideos() {
   const { user } = useContext(AuthContext);
-  const { addItem } = useContext(CartContext);
+  const { addItem, cart } = useContext(CartContext);
+  const cartProductIds = useMemo(
+    () => new Set((cart?.items || []).map((item) => String(item?.product?._id || item?.product || '')).filter(Boolean)),
+    [cart?.items]
+  );
   const { formatPrice, getRuntimeValue } = useAppSettings();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -1132,6 +1149,8 @@ export default function ProductVideos() {
                   onAddToCart={() => addToCart(video)}
                   onProductClick={() => productClick(video)}
                   onHashtag={openHashtag}
+                  inCart={cartProductIds.has(String(video.product?._id || ''))}
+                  onOpenCart={() => navigate('/cart')}
                 />
               ) : (
                 <div className="h-full bg-neutral-950" aria-hidden="true" />

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
@@ -157,6 +157,32 @@ export default function UserDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [mobileVisibleCount, setMobileVisibleCount] = useState(MOBILE_ITEMS_BATCH);
   const [statusFilter, setStatusFilter] = useState('all');
+  // Reminder: ProductForm auto-saves an unpublished new-listing draft in
+  // localStorage — surface it here so the user finishes what they started.
+  const [pendingDraft, setPendingDraft] = useState(null);
+  const draftReminderKey = user?._id ? `hdmarket:draft:new:${user._id}` : null;
+  const refreshDraftReminder = useCallback(() => {
+    if (!draftReminderKey) { setPendingDraft(null); return; }
+    try {
+      const raw = localStorage.getItem(draftReminderKey);
+      if (!raw) { setPendingDraft(null); return; }
+      const saved = JSON.parse(raw);
+      const form = saved?.form || {};
+      const hasContent = Boolean(
+        String(form.title || '').trim() || String(form.description || '').trim() || Number(form.price) > 0
+      );
+      setPendingDraft(hasContent ? { savedAt: saved.savedAt || null } : null);
+    } catch { setPendingDraft(null); }
+  }, [draftReminderKey]);
+  useEffect(() => {
+    // Runs on mount and every time the form modal closes — publishing
+    // clears the draft, so the reminder disappears once the work is done.
+    if (!isProductModalOpen) refreshDraftReminder();
+  }, [isProductModalOpen, refreshDraftReminder]);
+  const discardDraft = useCallback(() => {
+    if (draftReminderKey) { try { localStorage.removeItem(draftReminderKey); } catch { /* ignore */ } }
+    setPendingDraft(null);
+  }, [draftReminderKey]);
   const [updatingId, setUpdatingId] = useState('');
   const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
@@ -1114,6 +1140,63 @@ export default function UserDashboard() {
               <span className="mt-1 text-[11px] font-bold text-[#8a8378]">À traiter</span>
             </button>
           </div>
+        </section>
+      )}
+
+      {/* ── UNFINISHED ACTIONS REMINDERS ── */}
+      {(pendingDraft || (!loading && stats.pending > 0)) && (
+        <section className="mx-auto max-w-6xl space-y-2 bg-[#f5f2ee] px-3 pt-3">
+          {pendingDraft ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-[#f0c7aa] bg-[#fff8f2] px-3.5 py-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#e85d00] ring-1 ring-[#f0c7aa]">
+                <FileText className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-black text-[#231f1b]">Annonce en brouillon</p>
+                <p className="truncate text-[11.5px] font-semibold text-[#8a7263]">
+                  Vous avez commencé une annonce sans la publier
+                  {pendingDraft.savedAt ? ` (${new Date(pendingDraft.savedAt).toLocaleDateString('fr-FR')})` : ''}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setEditingProduct(null); setProductModalOpen(true); }}
+                className="shrink-0 rounded-full bg-[#e85d00] px-3.5 py-2 text-xs font-black text-white transition-transform active:scale-95"
+              >
+                Reprendre
+              </button>
+              <button
+                type="button"
+                onClick={discardDraft}
+                aria-label="Ignorer le brouillon"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8a7263] active:bg-[#f5e8dc]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+          {!loading && stats.pending > 0 ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-600 ring-1 ring-amber-200">
+                <Clock className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-black text-[#231f1b]">
+                  {stats.pending} annonce{stats.pending > 1 ? 's' : ''} à finaliser
+                </p>
+                <p className="truncate text-[11.5px] font-semibold text-amber-800/80">
+                  Réglez les frais de publication pour les rendre visibles.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('pending'); setSelectedStatuses([]); }}
+                className="shrink-0 rounded-full bg-amber-500 px-3.5 py-2 text-xs font-black text-white transition-transform active:scale-95"
+              >
+                Terminer
+              </button>
+            </div>
+          ) : null}
         </section>
       )}
 
