@@ -349,7 +349,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
     initialPageParam: null,
     queryFn: ({ pageParam }) =>
       fetchOrderMessagePage({
-        orderId,
+        conversationId: orderId,
         before: pageParam,
         limit: CHAT_PAGE_SIZE
       }),

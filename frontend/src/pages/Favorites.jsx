@@ -1,10 +1,12 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Filter, Heart } from 'lucide-react';
+import AuthContext from '../context/AuthContext';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
 import useCategories from '../hooks/useCategories';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const PAGE_SIZE = 12;
 
@@ -19,6 +21,7 @@ const PRICE_RANGES = [
 
 export default function Favorites() {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const { favorites, loading } = useContext(FavoriteContext);
   const { getCategoryMeta } = useCategories();
   const { t } = useAppSettings();
@@ -28,11 +31,35 @@ export default function Favorites() {
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window === 'undefined' ? false : window.innerWidth <= 767
   );
+  const [cachedFavorites, setCachedFavorites] = useState([]);
+
+  // Favorites are user-specific: scope the snapshot key to the account so
+  // users never see each other's cached view.
+  const snapshotKey = useMemo(
+    () =>
+      [
+        'favorites',
+        user?._id || user?.id || 'guest',
+        isMobileView ? 'mobile' : 'desktop'
+      ].join(':'),
+    [user?._id, user?.id, isMobileView]
+  );
+
+  // While the context is (re)loading, fall back to the cached list so the
+  // first paint after back-navigation already shows the previous content.
+  const effectiveFavorites =
+    loading && favorites.length === 0 ? cachedFavorites : favorites;
+
+  const lastViewRef = useRef({
+    count: favorites.length,
+    filterCategory,
+    filterPrice
+  });
 
   const categoriesInFavorites = useMemo(() => {
     const seen = new Set();
     const list = [];
-    favorites.forEach((p) => {
+    effectiveFavorites.forEach((p) => {
       const cat = p?.category;
       if (cat && !seen.has(cat)) {
         seen.add(cat);
@@ -41,7 +68,7 @@ export default function Favorites() {
       }
     });
     return list.sort((a, b) => a.label.localeCompare(b.label));
-  }, [favorites]);
+  }, [effectiveFavorites]);
 
   const priceRange = useMemo(
     () => PRICE_RANGES.find((r) => r.value === filterPrice) || PRICE_RANGES[0],
@@ -49,21 +76,71 @@ export default function Favorites() {
   );
 
   const filteredFavorites = useMemo(() => {
-    return favorites.filter((p) => {
+    return effectiveFavorites.filter((p) => {
       if (filterCategory && (p?.category || '') !== filterCategory) return false;
       const price = Number(p?.price ?? 0);
       if (priceRange.min != null && price < priceRange.min) return false;
       if (priceRange.max != null && price > priceRange.max) return false;
       return true;
     });
-  }, [favorites, filterCategory, priceRange]);
+  }, [effectiveFavorites, filterCategory, priceRange]);
 
-  const hasFavorites = favorites.length > 0;
+  const hasFavorites = effectiveFavorites.length > 0;
   const totalPages = Math.max(1, Math.ceil(filteredFavorites.length / PAGE_SIZE));
 
+  // Restore the last viewed list/page/filters for this exact view before the
+  // first paint (layout effect) so coming back shows the previous content
+  // instantly and browser scroll restoration lands at the right position.
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(snapshotKey);
+    const restoredItems = Array.isArray(cached?.items) ? cached.items : [];
+    const restoredFilterCategory =
+      typeof cached?.filterCategory === 'string' ? cached.filterCategory : filterCategory;
+    const restoredFilterPrice =
+      typeof cached?.filterPrice === 'string' ? cached.filterPrice : filterPrice;
+    setCachedFavorites(restoredItems);
+    if (cached) {
+      setPage(Math.max(1, Number(cached.page) || 1));
+      setFilterCategory(restoredFilterCategory);
+      setFilterPrice(restoredFilterPrice);
+    }
+    lastViewRef.current = {
+      count: loading && favorites.length === 0 ? restoredItems.length : favorites.length,
+      filterCategory: restoredFilterCategory,
+      filterPrice: restoredFilterPrice
+    };
+  }, [snapshotKey]);
+
   useEffect(() => {
+    const prev = lastViewRef.current;
+    lastViewRef.current = {
+      count: effectiveFavorites.length,
+      filterCategory,
+      filterPrice
+    };
+    if (
+      prev.count === effectiveFavorites.length &&
+      prev.filterCategory === filterCategory &&
+      prev.filterPrice === filterPrice
+    ) {
+      return;
+    }
+    // The favorites list landing asynchronously after mount must not wipe a
+    // restored page.
+    if (prev.count === 0 && effectiveFavorites.length > 0) return;
     setPage(1);
-  }, [favorites.length, filterCategory, filterPrice]);
+  }, [effectiveFavorites.length, filterCategory, filterPrice]);
+
+  // Keep the snapshot fresh so back-navigation can restore this exact view.
+  useEffect(() => {
+    if (loading) return;
+    writeRouteViewCache(snapshotKey, {
+      items: favorites,
+      page,
+      filterCategory,
+      filterPrice
+    });
+  }, [snapshotKey, favorites, loading, page, filterCategory, filterPrice]);
 
   useEffect(() => {
     const handleResize = () => {

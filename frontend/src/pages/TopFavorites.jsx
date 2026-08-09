@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const LIMIT = 60;
 const PAGE_SIZE = 12;
+const CACHE_KEY = 'top:favorites';
 
 export default function TopFavorites() {
   const [items, setItems] = useState([]);
@@ -13,12 +15,25 @@ export default function TopFavorites() {
   const [page, setPage] = useState(1);
   const loadMoreSentinelRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
+  const restoredPageRef = useRef(0);
+
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(CACHE_KEY);
+    if (!cached) return;
+    restoredPageRef.current = Math.max(1, Number(cached.page || 1));
+    setItems(Array.isArray(cached.items) ? cached.items : []);
+    setPage(restoredPageRef.current);
+    setError('');
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
 
     const load = async () => {
+      const cachedView = readRouteViewCache(CACHE_KEY);
+      if (cachedView && Array.isArray(cachedView.items) && cachedView.items.length) return;
       setLoading(true);
       setError('');
       try {

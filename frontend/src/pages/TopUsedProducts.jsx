@@ -1,20 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const LIMIT = 60;
+const CACHE_KEY = 'top:used';
 
 export default function TopUsedProducts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(CACHE_KEY);
+    if (!cached) return;
+    setItems(Array.isArray(cached.items) ? cached.items : []);
+    setError('');
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
 
     const load = async () => {
+      const cachedView = readRouteViewCache(CACHE_KEY);
+      if (cachedView && Array.isArray(cachedView.items) && cachedView.items.length) return;
       setLoading(true);
       setError('');
       try {
@@ -25,6 +37,7 @@ export default function TopUsedProducts() {
         if (!active) return;
         const used = Array.isArray(data?.usedProducts) ? data.usedProducts : [];
         setItems(used);
+        writeRouteViewCache(CACHE_KEY, { items: used });
       } catch (e) {
         if (controller.signal.aborted) return;
         setError(

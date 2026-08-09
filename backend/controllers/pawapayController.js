@@ -125,13 +125,24 @@ const normalizeActionContext = (value, purpose) => {
   return parsed;
 };
 
-const checkoutReturnUrl = (checkoutId) => {
+export const checkoutReturnUrl = () => {
   const configured = String(
     process.env.PAWAPAY_CHECKOUT_RETURN_URL || 'https://www.hdmarket.store/payment/pawapay/return'
   ).trim();
   const url = new URL(configured);
-  url.searchParams.set('checkoutId', checkoutId);
+  // PawaPay now appends checkoutCode when returning the customer. Do not leak
+  // or duplicate the merchant-generated checkoutId in the browser URL.
+  url.searchParams.delete('checkoutId');
+  url.searchParams.delete('checkoutCode');
   return url.toString();
+};
+
+const checkoutVerificationUrl = (checkout) => {
+  const checkoutCode = String(checkout?.checkoutCode || '').trim();
+  if (checkoutCode) {
+    return `/payment/pawapay/return?checkoutCode=${encodeURIComponent(checkoutCode)}`;
+  }
+  return `/payment/pawapay/return?checkoutId=${encodeURIComponent(String(checkout?.checkoutId || ''))}`;
 };
 
 export const createPawaPayCheckout = asyncHandler(async (req, res) => {
@@ -238,6 +249,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     if (existingCheckout?.redirectUrl) {
       return res.status(200).json({
         checkoutId: existingCheckout.checkoutId,
+        checkoutCode: existingCheckout.checkoutCode || '',
         status: existingCheckout.status,
         redirectUrl: existingCheckout.redirectUrl,
         expiresAt: existingCheckout.expiresAt
@@ -248,7 +260,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
         checkoutId: existingCheckout.checkoutId,
         status: existingCheckout.status,
         pending: true,
-        verificationUrl: `/payment/pawapay/return?checkoutId=${encodeURIComponent(existingCheckout.checkoutId)}`,
+        verificationUrl: checkoutVerificationUrl(existingCheckout),
         message: 'Ce paiement PawaPay est déjà en cours de vérification.'
       });
     }
@@ -270,7 +282,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
   try {
     const result = await initiatePawaPayCheckout({
       checkoutId,
-      returnUrl: checkoutReturnUrl(checkoutId),
+      returnUrl: checkoutReturnUrl(),
       returnMethod: 'INSTANT',
       defaultLanguage: 'fr',
       countries: ['COG'],
@@ -301,12 +313,13 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
 
     checkout.status = 'WAITING_PAYMENT';
     checkout.redirectUrl = String(result.redirectUrl);
-    checkout.checkoutCode = String(result.checkoutCode || '');
+    checkout.checkoutCode = String(result.checkoutCode || '').trim();
     checkout.expiresAt = result.expiresAt ? new Date(result.expiresAt) : null;
     await checkout.save();
 
     return res.status(201).json({
       checkoutId,
+      checkoutCode: checkout.checkoutCode,
       status: checkout.status,
       redirectUrl: checkout.redirectUrl,
       expiresAt: checkout.expiresAt
@@ -323,7 +336,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
         checkoutId,
         status: checkout.status,
         pending: true,
-        verificationUrl: `/payment/pawapay/return?checkoutId=${encodeURIComponent(checkoutId)}`,
+        verificationUrl: checkoutVerificationUrl(checkout),
         message: error.message,
         details: error.details
       });
@@ -332,11 +345,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
   }
 });
 
-export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
-  let checkout = await PawaPayCheckout.findOne({
-    checkoutId: String(req.params.checkoutId || ''),
-    user: req.user._id
-  });
+const respondWithMyPawaPayCheckout = async (checkout, res) => {
   if (!checkout) {
     return sendPawaPayError(
       res,
@@ -355,6 +364,7 @@ export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
 
   return res.json({
     checkoutId: checkout.checkoutId,
+    checkoutCode: checkout.checkoutCode,
     amount: checkout.amount,
     currency: checkout.currency,
     purpose: checkout.purpose,
@@ -372,6 +382,22 @@ export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
     expiresAt: checkout.expiresAt,
     failureReason: failure
   });
+};
+
+export const getMyPawaPayCheckout = asyncHandler(async (req, res) => {
+  const checkout = await PawaPayCheckout.findOne({
+    checkoutId: String(req.params.checkoutId || '').trim(),
+    user: req.user._id
+  });
+  return respondWithMyPawaPayCheckout(checkout, res);
+});
+
+export const getMyPawaPayCheckoutByCode = asyncHandler(async (req, res) => {
+  const checkoutCode = String(req.params.checkoutCode || '').trim().slice(0, 200);
+  const checkout = checkoutCode
+    ? await PawaPayCheckout.findOne({ checkoutCode, user: req.user._id })
+    : null;
+  return respondWithMyPawaPayCheckout(checkout, res);
 });
 
 const sanitizePayload = (value, depth = 0) => {
@@ -572,6 +598,8 @@ const reconcilePawaPayCheckout = async ({ resourceType, resourceId, status, amou
 
   checkout.status = normalizePawaPayCheckoutStatus(status, checkout.status);
   checkout.providerTransactionId = String(payload.providerTransactionId || payload.deposit?.providerTransactionId || '');
+  const providerCheckoutCode = String(payload.checkoutCode || '').trim();
+  if (providerCheckoutCode) checkout.checkoutCode = providerCheckoutCode;
   const completedDeposit = Array.isArray(payload.depositsHistory)
     ? payload.depositsHistory.find((entry) => FINAL_SUCCESS.has(String(entry?.status || '').toUpperCase()))
     : null;

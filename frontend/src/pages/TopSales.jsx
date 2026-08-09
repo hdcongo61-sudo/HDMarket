@@ -1,11 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 import { TrendingUp, Award, ShoppingCart, ArrowLeft } from 'lucide-react';
 
 const PAGE_LIMIT = 12;
+const CACHE_KEY = 'top:sales';
 
 export default function TopSales() {
   const navigate = useNavigate();
@@ -26,6 +28,11 @@ export default function TopSales() {
   }, [pageParam]);
 
   const fetchTopSales = async () => {
+    const cachedView = readRouteViewCache(CACHE_KEY);
+    if (cachedView && Number(cachedView.page || 1) >= page) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -36,8 +43,13 @@ export default function TopSales() {
         }
       });
       const fetched = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-      setItems((prev) => (page > 1 ? [...prev, ...fetched] : fetched));
-      setTotalPages(data?.pagination?.pages || 1);
+      const nextTotalPages = data?.pagination?.pages || 1;
+      setItems((prev) => {
+        const nextItems = page > 1 ? [...prev, ...fetched] : fetched;
+        writeRouteViewCache(CACHE_KEY, { items: nextItems, page, totalPages: nextTotalPages });
+        return nextItems;
+      });
+      setTotalPages(nextTotalPages);
     } catch (e) {
       setError(
         e.response?.data?.message || e.message || "Impossible de charger les produits les plus vendus."
@@ -46,6 +58,16 @@ export default function TopSales() {
       setLoading(false);
     }
   };
+
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(CACHE_KEY);
+    if (!cached) return;
+    setItems(Array.isArray(cached.items) ? cached.items : []);
+    setPage(Math.max(1, Number(cached.page || 1)));
+    setTotalPages(Math.max(1, Number(cached.totalPages || 1)));
+    setError('');
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchTopSales();

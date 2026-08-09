@@ -17,6 +17,7 @@ import {
   receivePawaPayCallback,
   createPawaPayCheckout,
   getMyPawaPayCheckout,
+  getMyPawaPayCheckoutByCode,
   listPawaPayRefundsAdmin,
   refreshPawaPayRefundAdmin,
   refreshPawaPayCheckoutAdmin,
@@ -80,6 +81,7 @@ router.post(
   idempotencyMiddleware({ ttlMs: 15 * 60 * 1000 }),
   createPawaPayCheckout
 );
+router.get('/pawapay/checkouts/by-code/:checkoutCode', protect, getMyPawaPayCheckoutByCode);
 router.get('/pawapay/checkouts/:checkoutId', protect, getMyPawaPayCheckout);
 router.get('/pawapay/admin/overview', protect, getAdminPawaPayOverview);
 router.post('/pawapay/admin/checkouts/:checkoutId/refresh', protect, requirePaymentVerification, refreshPawaPayCheckoutAdmin);

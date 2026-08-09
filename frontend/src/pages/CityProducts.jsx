@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const PAGE_LIMIT = 12;
 
@@ -25,6 +26,11 @@ export default function CityProducts() {
   const loadMoreSentinelRef = useRef(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const infiniteScrollLockRef = useRef(0);
+  const prevCityRef = useRef(selectedCity);
+  const snapshotKey = useMemo(
+    () => `city-products:/products/public:${selectedCity || 'none'}`,
+    [selectedCity]
+  );
   const cityOptions = useMemo(() => {
     const dynamicCities = Array.isArray(cities)
       ? cities
@@ -67,8 +73,26 @@ export default function CityProducts() {
     return () => controller.abort();
   }, []);
 
+  // Restore the previous view synchronously so back navigation paints instantly
+  useLayoutEffect(() => {
+    if (!selectedCity) return;
+    const cached = readRouteViewCache(snapshotKey);
+    if (!cached) return;
+    setItems(Array.isArray(cached.items) ? cached.items : []);
+    setPage(Math.max(1, Number(cached.page) || 1));
+    setTotalPages(Math.max(1, Number(cached.totalPages) || 1));
+    setError('');
+    setLoading(false);
+  }, [selectedCity, snapshotKey]);
+
   useEffect(() => {
     if (!selectedCity) return;
+
+    const cachedView = readRouteViewCache(snapshotKey);
+    if (cachedView && Number(cachedView.page || 1) >= page) {
+      setLoading(false);
+      return;
+    }
 
     const cached = cacheRef.current.get(selectedCity);
     if (cached) {
@@ -91,7 +115,15 @@ export default function CityProducts() {
         });
         const list = Array.isArray(data) ? data : data?.items || [];
         const pages = data?.pagination?.pages || 1;
-        setItems((prev) => (page > 1 ? [...prev, ...list] : list));
+        setItems((prev) => {
+          const nextItems = page > 1 ? [...prev, ...list] : list;
+          writeRouteViewCache(snapshotKey, {
+            items: nextItems,
+            page,
+            totalPages: pages
+          });
+          return nextItems;
+        });
         setTotalPages(pages);
       } catch (e) {
         if (controller.signal.aborted) return;
@@ -104,13 +136,16 @@ export default function CityProducts() {
 
     load();
     return () => controller.abort();
-  }, [selectedCity, page]);
+  }, [selectedCity, page, snapshotKey]);
 
-  // Reset pagination when city changes
+  // Reset pagination when city changes (skip when a cached view was restored)
   useEffect(() => {
+    if (prevCityRef.current === selectedCity) return;
+    prevCityRef.current = selectedCity;
+    if (readRouteViewCache(snapshotKey)) return;
     setPage(1);
     setItems([]);
-  }, [selectedCity]);
+  }, [selectedCity, snapshotKey]);
 
   useEffect(() => {
     if (!selectedCity) return;

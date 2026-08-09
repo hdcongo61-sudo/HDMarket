@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
@@ -19,6 +19,7 @@ import {
 import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const VERIFIED_SHOPS_SNAPSHOT_MAX_AGE_MS = 1000 * 60 * 15;
 
@@ -98,9 +99,27 @@ export default function VerifiedShops() {
     [isAdmin]
   );
 
+  // Instant back-navigation restore: paint the cached view synchronously so
+  // the first render after returning already shows the previous content.
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(verifiedShopsSnapshotKey);
+    if (!cached) return;
+    setShops(Array.isArray(cached.shops) ? cached.shops : []);
+    setPendingShops(Array.isArray(cached.pendingShops) ? cached.pendingShops : []);
+    setAdminMeta(cached.adminMeta && typeof cached.adminMeta === 'object' ? cached.adminMeta : {});
+    setShopProducts(new Map(Array.isArray(cached.shopProducts) ? cached.shopProducts : []));
+    setError('');
+    setLoading(false);
+  }, [verifiedShopsSnapshotKey]);
+
   useEffect(() => {
     let active = true;
     const fetchShops = async () => {
+      if (readRouteViewCache(verifiedShopsSnapshotKey)) {
+        // View already restored from the route cache — skip the refetch.
+        setLoading(false);
+        return;
+      }
       let snapshotHydrated = false;
       try {
         const snapshot = await loadOfflineSnapshot(verifiedShopsSnapshotKey, {
@@ -194,6 +213,12 @@ export default function VerifiedShops() {
   useEffect(() => {
     if (loading && !shops.length && !pendingShops.length) return;
     saveOfflineSnapshot(verifiedShopsSnapshotKey, {
+      shops,
+      pendingShops,
+      adminMeta,
+      shopProducts: Array.from(shopProducts.entries())
+    });
+    writeRouteViewCache(verifiedShopsSnapshotKey, {
       shops,
       pendingShops,
       adminMeta,

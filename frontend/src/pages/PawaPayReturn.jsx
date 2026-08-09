@@ -4,6 +4,10 @@ import { CheckCircle2, Clock3, Loader2, RefreshCw, XCircle } from 'lucide-react'
 import api from '../services/api';
 import { getPawaPayFailure, getPawaPayRequestError } from '../utils/pawapayErrors';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import {
+  isPawaPayCheckoutWindow,
+  publishPawaPayResult
+} from '../utils/pawapayCheckoutWindow';
 
 const FAILED_STATUSES = new Set(['FAILED', 'EXPIRED', 'CANCELLED']);
 const safeInternalPath = (value, fallback = '/orders') => {
@@ -45,6 +49,17 @@ export const getPawaPaySuccessPath = (checkout) => {
 export const getPawaPayErrorPath = (checkout) =>
   safeInternalPath(checkout?.returnPath, '/orders');
 
+export const getPawaPayCheckoutStatusPath = ({ checkoutCode = '', checkoutId = '' } = {}) => {
+  const normalizedCode = String(checkoutCode || '').trim();
+  if (normalizedCode) {
+    return `/payments/pawapay/checkouts/by-code/${encodeURIComponent(normalizedCode)}`;
+  }
+  const normalizedId = String(checkoutId || '').trim();
+  return normalizedId
+    ? `/payments/pawapay/checkouts/${encodeURIComponent(normalizedId)}`
+    : '';
+};
+
 const isTerminalCheckout = (checkout) => {
   const status = String(checkout?.status || '');
   if (FAILED_STATUSES.has(status)) return true;
@@ -63,7 +78,12 @@ const isTerminalCheckout = (checkout) => {
 export default function PawaPayReturn() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const checkoutId = searchParams.get('checkoutId') || '';
+  const checkoutCode = searchParams.get('checkoutCode') || '';
+  const legacyCheckoutId = searchParams.get('checkoutId') || '';
+  const checkoutStatusPath = getPawaPayCheckoutStatusPath({
+    checkoutCode,
+    checkoutId: legacyCheckoutId
+  });
   const [checkout, setCheckout] = useState(null);
   const [error, setError] = useState('');
   const [errorHint, setErrorHint] = useState('');
@@ -71,7 +91,7 @@ export default function PawaPayReturn() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!checkoutId) {
+    if (!checkoutStatusPath) {
       setError('Référence PawaPay manquante.');
       setLoading(false);
       return undefined;
@@ -82,7 +102,7 @@ export default function PawaPayReturn() {
     let consecutiveErrors = 0;
     const load = async () => {
       try {
-        const { data } = await api.get(`/payments/pawapay/checkouts/${checkoutId}`, {
+        const { data } = await api.get(checkoutStatusPath, {
           skipCache: true,
           skipDedupe: true
         });
@@ -108,7 +128,9 @@ export default function PawaPayReturn() {
       active = false;
       clearTimeout(timer);
     };
-  }, [checkoutId, reloadKey]);
+  }, [checkoutStatusPath, reloadKey]);
+
+  const resolvedCheckoutId = checkout?.checkoutId || legacyCheckoutId;
 
   const listingPayment = checkout?.purpose === 'LISTING_FEE_FUNDING';
   const listingValidated = listingPayment && checkout?.autoValidationState === 'COMPLETED';
@@ -141,28 +163,48 @@ export default function PawaPayReturn() {
 
   useEffect(() => {
     if (!completed) return undefined;
+    if (isPawaPayCheckoutWindow()) {
+      publishPawaPayResult({
+        status: 'completed',
+        checkoutId: resolvedCheckoutId,
+        path: successPath,
+        message: 'Paiement PawaPay confirmé.'
+      });
+      const closeTimer = setTimeout(() => window.close(), 450);
+      return () => clearTimeout(closeTimer);
+    }
     const timer = setTimeout(() => {
       navigate(successPath, { replace: true });
     }, 700);
     return () => clearTimeout(timer);
-  }, [completed, navigate, successPath]);
+  }, [completed, navigate, resolvedCheckoutId, successPath]);
 
   useEffect(() => {
     if (!failed) return undefined;
+    if (isPawaPayCheckoutWindow()) {
+      publishPawaPayResult({
+        status: 'failed',
+        checkoutId: resolvedCheckoutId,
+        path: errorPath,
+        message: failureMessage
+      });
+      const closeTimer = setTimeout(() => window.close(), 900);
+      return () => clearTimeout(closeTimer);
+    }
     const timer = setTimeout(() => {
       navigate(errorPath, {
         replace: true,
         state: {
           pawaPayNotice: {
             status: 'failed',
-            checkoutId,
+            checkoutId: resolvedCheckoutId,
             message: failureMessage
           }
         }
       });
     }, 2200);
     return () => clearTimeout(timer);
-  }, [checkoutId, errorPath, failed, failureMessage, navigate]);
+  }, [errorPath, failed, failureMessage, navigate, resolvedCheckoutId]);
 
   return (
     <main className="min-h-[70vh] bg-[#f7f5f2] px-4 py-10">
@@ -217,7 +259,7 @@ export default function PawaPayReturn() {
                   ? {
                       pawaPayNotice: {
                         status: 'failed',
-                        checkoutId,
+                        checkoutId: resolvedCheckoutId,
                         message: failureMessage
                       }
                     }

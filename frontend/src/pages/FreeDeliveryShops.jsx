@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronRight, MapPin, Store, Truck, Users } from 'lucide-react';
 import api from '../services/api';
 import { buildShopPath } from '../utils/links';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 export default function FreeDeliveryShops() {
   const [searchParams] = useSearchParams();
@@ -16,8 +17,29 @@ export default function FreeDeliveryShops() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const snapshotKey = useMemo(
+    () => `free-delivery-shops:city=${city}:communeId=${communeId}`,
+    [city, communeId]
+  );
+
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(snapshotKey);
+    if (!cached) return;
+    setShops(Array.isArray(cached.items) ? cached.items : []);
+    setPage(Math.max(1, Number(cached.page || 1)));
+    setTotalPages(Math.max(1, Number(cached.totalPages || 1)));
+    setError('');
+    setLoading(false);
+  }, [snapshotKey]);
+
   const fetchPage = useCallback(
     async (nextPage, { append = false } = {}) => {
+      const cachedView = readRouteViewCache(snapshotKey);
+      if (cachedView && Number(cachedView.page || 1) >= nextPage) {
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
       try {
         if (append) setLoadingMore(true);
         else setLoading(true);
@@ -31,18 +53,27 @@ export default function FreeDeliveryShops() {
           }
         });
         const incoming = Array.isArray(data?.items) ? data.items : [];
+        const nextPageNumber = Number(data?.page || nextPage || 1);
+        const nextTotalPages = Math.max(1, Number(data?.totalPages || 1));
         setShops((prev) => {
-          if (!append) return incoming;
-          const next = [...prev];
-          incoming.forEach((item) => {
-            if (!next.some((entry) => String(entry?._id) === String(item?._id))) {
-              next.push(item);
-            }
+          let next = incoming;
+          if (append) {
+            next = [...prev];
+            incoming.forEach((item) => {
+              if (!next.some((entry) => String(entry?._id) === String(item?._id))) {
+                next.push(item);
+              }
+            });
+          }
+          writeRouteViewCache(snapshotKey, {
+            items: next,
+            page: nextPageNumber,
+            totalPages: nextTotalPages
           });
           return next;
         });
-        setPage(Number(data?.page || nextPage || 1));
-        setTotalPages(Math.max(1, Number(data?.totalPages || 1)));
+        setPage(nextPageNumber);
+        setTotalPages(nextTotalPages);
       } catch (err) {
         setError(err.response?.data?.message || 'Impossible de charger les boutiques.');
       } finally {
@@ -50,7 +81,7 @@ export default function FreeDeliveryShops() {
         setLoadingMore(false);
       }
     },
-    [city, communeId]
+    [city, communeId, snapshotKey]
   );
 
   useEffect(() => {

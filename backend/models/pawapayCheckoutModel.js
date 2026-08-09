@@ -43,7 +43,7 @@ const pawapayCheckoutSchema = new mongoose.Schema(
       default: 'PENDING'
     },
     redirectUrl: { type: String, default: '' },
-    checkoutCode: { type: String, default: '' },
+    checkoutCode: { type: String, trim: true, default: '', index: true },
     expiresAt: { type: Date, default: null },
     providerTransactionId: { type: String, default: '' },
     depositId: { type: String, trim: true, default: '', index: true },

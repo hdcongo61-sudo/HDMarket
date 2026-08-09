@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -28,6 +28,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 const PAGE_SIZE = 12;
 
 export default function AdvancedSearch() {
@@ -152,6 +153,19 @@ export default function AdvancedSearch() {
     ]
   );
 
+  // Restore cached view instantly on back-navigation
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(snapshotKey);
+    if (!cached) return;
+    setItems(Array.isArray(cached.items) ? cached.items : []);
+    setPage(Math.max(1, Number(cached.page) || 1));
+    setTotalPages(Math.max(1, Number(cached.totalPages) || 1));
+    setTotalResults(Number(cached.totalResults) || 0);
+    setOfflineSnapshotActive(Boolean(cached.offlineSnapshotActive));
+    setError('');
+    setLoading(false);
+  }, [snapshotKey]);
+
   // Build query params from filters
   const buildQueryParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -183,14 +197,20 @@ export default function AdvancedSearch() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const nextQuery = searchDraft.trim();
-      setSearchQuery((current) => (current === nextQuery ? current : nextQuery));
+      if (nextQuery === searchQuery) return;
+      setSearchQuery(nextQuery);
       setPage(1);
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [searchDraft]);
+  }, [searchDraft, searchQuery]);
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
+    const cachedView = readRouteViewCache(snapshotKey);
+    if (cachedView && Number(cachedView.page || 1) >= page) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -207,19 +227,41 @@ export default function AdvancedSearch() {
       const { data } = await api.get('/products/public', { params: apiParams });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const pagination = data?.pagination || {};
-      
-      setItems((prev) => (page > 1 ? [...prev, ...fetchedItems] : fetchedItems));
-      setTotalResults(pagination.total || fetchedItems.length);
-      setTotalPages(Math.max(1, Number(pagination.pages) || 1));
+      const nextTotalResults = pagination.total || fetchedItems.length;
+      const nextTotalPages = Math.max(1, Number(pagination.pages) || 1);
+
+      setItems((prev) => {
+        const nextItems = page > 1 ? [...prev, ...fetchedItems] : fetchedItems;
+        writeRouteViewCache(snapshotKey, {
+          items: nextItems,
+          page,
+          totalPages: nextTotalPages,
+          totalResults: nextTotalResults,
+          offlineSnapshotActive: false
+        });
+        return nextItems;
+      });
+      setTotalResults(nextTotalResults);
+      setTotalPages(nextTotalPages);
       setOfflineSnapshotActive(false);
     } catch (e) {
       if (shouldUseOfflineSnapshot) {
         const snapshot = await loadOfflineSnapshot(snapshotKey);
         if (snapshot && typeof snapshot === 'object') {
-          setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
-          setTotalResults(Number(snapshot.totalResults) || 0);
-          setTotalPages(Math.max(1, Number(snapshot.totalPages) || 1));
+          const snapshotItems = Array.isArray(snapshot.items) ? snapshot.items : [];
+          const snapshotTotalResults = Number(snapshot.totalResults) || 0;
+          const snapshotTotalPages = Math.max(1, Number(snapshot.totalPages) || 1);
+          setItems(snapshotItems);
+          setTotalResults(snapshotTotalResults);
+          setTotalPages(snapshotTotalPages);
           setOfflineSnapshotActive(true);
+          writeRouteViewCache(snapshotKey, {
+            items: snapshotItems,
+            page,
+            totalPages: snapshotTotalPages,
+            totalResults: snapshotTotalResults,
+            offlineSnapshotActive: true
+          });
           setError('');
           return;
         }

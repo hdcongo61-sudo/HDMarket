@@ -1,9 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, Loader2, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { getPawaPayRequestError } from '../utils/pawapayErrors';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import {
+  openPawaPayCheckoutWindow,
+  subscribeToPawaPayResults
+} from '../utils/pawapayCheckoutWindow';
 
 export default function PawaPayButton({
   amount,
@@ -16,11 +21,58 @@ export default function PawaPayButton({
   onBeforeStart = null,
   className = ''
 }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [errorHint, setErrorHint] = useState('');
   const idempotencyKeyRef = useRef(createIdempotencyKey('pawapay-checkout'));
+  const paymentWindowRef = useRef(null);
+  const expectedCheckoutIdRef = useRef('');
   const normalizedAmount = Math.round(Number(amount || 0));
+
+  useEffect(() => subscribeToPawaPayResults((result) => {
+    const expectedCheckoutId = expectedCheckoutIdRef.current;
+    if (!expectedCheckoutId || result.checkoutId !== expectedCheckoutId) return;
+
+    try {
+      if (paymentWindowRef.current && !paymentWindowRef.current.closed) {
+        paymentWindowRef.current.close();
+      }
+    } catch {
+      // The payment window may already have closed itself.
+    }
+    paymentWindowRef.current = null;
+    expectedCheckoutIdRef.current = '';
+    setLoading(false);
+
+    navigate(result.path, {
+      state: {
+        pawaPayNotice: {
+          status: result.status,
+          checkoutId: result.checkoutId,
+          message:
+            result.message ||
+            (result.status === 'completed'
+              ? 'Paiement PawaPay confirmé.'
+              : 'Le paiement PawaPay n’a pas pu être finalisé.')
+        }
+      }
+    });
+  }), [navigate]);
+
+  useEffect(() => {
+    if (!loading || !paymentWindowRef.current) return undefined;
+    const closeMonitor = setInterval(() => {
+      try {
+        if (!paymentWindowRef.current?.closed) return;
+        paymentWindowRef.current = null;
+        if (expectedCheckoutIdRef.current) setLoading(false);
+      } catch {
+        // Cross-origin windows can still be monitored through the result message.
+      }
+    }, 500);
+    return () => clearInterval(closeMonitor);
+  }, [loading]);
 
   const startCheckout = async () => {
     if (loading || normalizedAmount < 10) {
@@ -32,6 +84,14 @@ export default function PawaPayButton({
     setLoading(true);
     setError('');
     setErrorHint('');
+    const paymentWindow = openPawaPayCheckoutWindow();
+    paymentWindowRef.current = paymentWindow;
+    if (!paymentWindow) {
+      setError('La fenêtre de paiement PawaPay a été bloquée.');
+      setErrorHint('Autorisez les fenêtres contextuelles pour HDMarket, puis réessayez.');
+      setLoading(false);
+      return;
+    }
     try {
       let checkoutOverrides = {};
       if (onBeforeStart) {
@@ -44,6 +104,8 @@ export default function PawaPayButton({
           );
           setErrorHint('');
           setLoading(false);
+          paymentWindow?.close();
+          paymentWindowRef.current = null;
           return;
         }
         if (validation && typeof validation === 'object' && !Array.isArray(validation)) {
@@ -63,13 +125,38 @@ export default function PawaPayButton({
         },
         { headers: { 'Idempotency-Key': idempotencyKeyRef.current } }
       );
+      expectedCheckoutIdRef.current = String(data?.checkoutId || '').trim();
+      const paymentUrl = data?.pending ? data?.verificationUrl : data?.redirectUrl;
       if (data?.pending && data?.verificationUrl) {
-        window.location.assign(data.verificationUrl);
+        if (paymentWindow.closed) {
+          expectedCheckoutIdRef.current = '';
+          setError('La fenêtre de paiement PawaPay a été fermée.');
+          setErrorHint('Réessayez lorsque vous êtes prêt à terminer le paiement.');
+          setLoading(false);
+          return;
+        }
+        paymentWindow.opener = null;
+        paymentWindow.location.assign(data.verificationUrl);
         return;
       }
-      if (!data?.redirectUrl) throw new Error('Adresse de paiement indisponible.');
-      window.location.assign(data.redirectUrl);
+      if (!paymentUrl) throw new Error('Adresse de paiement indisponible.');
+      if (paymentWindow.closed) {
+        expectedCheckoutIdRef.current = '';
+        setError('La fenêtre de paiement PawaPay a été fermée.');
+        setErrorHint('Réessayez lorsque vous êtes prêt à terminer le paiement.');
+        setLoading(false);
+        return;
+      }
+      paymentWindow.opener = null;
+      paymentWindow.location.assign(paymentUrl);
     } catch (requestError) {
+      try {
+        paymentWindow?.close();
+      } catch {
+        // Ignore a payment window that was already closed.
+      }
+      paymentWindowRef.current = null;
+      expectedCheckoutIdRef.current = '';
       const presentation = getPawaPayRequestError(
         requestError,
         'Impossible d’ouvrir PawaPay pour le moment.'

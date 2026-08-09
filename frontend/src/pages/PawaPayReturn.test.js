@@ -1,8 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getPawaPayCheckoutStatusPath,
   getPawaPayErrorPath,
   getPawaPaySuccessPath
 } from './PawaPayReturn';
+
+describe('PawaPay return references', () => {
+  it('resolves checkoutCode through the corresponding local checkout', () => {
+    expect(
+      getPawaPayCheckoutStatusPath({
+        checkoutCode: 'abc123XY',
+        checkoutId: 'merchant-generated-uuid'
+      })
+    ).toBe('/payments/pawapay/checkouts/by-code/abc123XY');
+  });
+
+  it('keeps checkoutId support for returns created before the PawaPay change', () => {
+    expect(
+      getPawaPayCheckoutStatusPath({ checkoutId: 'merchant-generated-uuid' })
+    ).toBe('/payments/pawapay/checkouts/merchant-generated-uuid');
+  });
+});
 
 describe('PawaPay success destinations', () => {
   it('opens the created order after a successful checkout', () => {

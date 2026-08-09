@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  checkoutReturnUrl,
+  getMyPawaPayCheckoutByCode,
   normalizePawaPayCheckoutStatus,
   refreshPawaPayCheckoutAdmin,
   verifyPawaPayContentDigest
@@ -9,12 +11,15 @@ import PawaPayCheckout from '../models/pawapayCheckoutModel.js';
 
 const originalDigestRequirement = process.env.PAWAPAY_CONTENT_DIGEST_REQUIRED;
 const originalPawaPayEnabled = process.env.PAWAPAY_ENABLED;
+const originalCheckoutReturnUrl = process.env.PAWAPAY_CHECKOUT_RETURN_URL;
 
 afterEach(() => {
   if (originalDigestRequirement === undefined) delete process.env.PAWAPAY_CONTENT_DIGEST_REQUIRED;
   else process.env.PAWAPAY_CONTENT_DIGEST_REQUIRED = originalDigestRequirement;
   if (originalPawaPayEnabled === undefined) delete process.env.PAWAPAY_ENABLED;
   else process.env.PAWAPAY_ENABLED = originalPawaPayEnabled;
+  if (originalCheckoutReturnUrl === undefined) delete process.env.PAWAPAY_CHECKOUT_RETURN_URL;
+  else process.env.PAWAPAY_CHECKOUT_RETURN_URL = originalCheckoutReturnUrl;
   vi.restoreAllMocks();
 });
 
@@ -83,6 +88,46 @@ describe('PawaPay checkout status normalization', () => {
   it('normalizes successful provider aliases and preserves pending fallbacks', () => {
     expect(normalizePawaPayCheckoutStatus('SUCCESSFUL')).toBe('COMPLETED');
     expect(normalizePawaPayCheckoutStatus('UNKNOWN', 'PROCESSING')).toBe('PROCESSING');
+  });
+});
+
+describe('PawaPay checkout return references', () => {
+  it('lets PawaPay append checkoutCode without exposing checkoutId in returnUrl', () => {
+    process.env.PAWAPAY_CHECKOUT_RETURN_URL =
+      'https://merchant.com/payment-complete?checkoutId=merchant-generated-uuid&source=checkout';
+
+    expect(checkoutReturnUrl()).toBe(
+      'https://merchant.com/payment-complete?source=checkout'
+    );
+  });
+
+  it('finds the local checkout by checkoutCode before checking its stored checkoutId', async () => {
+    const checkout = {
+      checkoutId: 'merchant-generated-uuid',
+      checkoutCode: 'abc123XY',
+      status: 'FAILED',
+      paymentState: 'FAILED',
+      autoValidationState: 'NOT_APPLICABLE',
+      failureReason: null
+    };
+    const findOne = vi.spyOn(PawaPayCheckout, 'findOne').mockResolvedValue(checkout);
+    const req = {
+      user: { _id: 'user-id' },
+      params: { checkoutCode: 'abc123XY' }
+    };
+    const res = makeResponse();
+    const next = vi.fn();
+
+    await getMyPawaPayCheckoutByCode(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(findOne).toHaveBeenCalledWith({ checkoutCode: 'abc123XY', user: 'user-id' });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkoutId: 'merchant-generated-uuid',
+        checkoutCode: 'abc123XY'
+      })
+    );
   });
 });
 
