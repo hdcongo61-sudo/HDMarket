@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BarChart3,
@@ -22,6 +22,11 @@ import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
+import {
+  getVideoFileValidationError,
+  getVideoFilesUploadProgress,
+  getVideoUploadErrorMessage
+} from '../utils/videoUploadErrors';
 
 const statusStyles = {
   approved: 'bg-emerald-100 text-emerald-700',
@@ -64,6 +69,80 @@ function Metric({ icon: Icon, label, value, accent = 'text-neutral-900 dark:text
   );
 }
 
+function FeedbackAlert({ feedback }) {
+  if (!feedback?.message) return null;
+  const presentation = {
+    success: {
+      icon: CheckCircle2,
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-200'
+    },
+    error: {
+      icon: XCircle,
+      className: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-200'
+    },
+    info: {
+      icon: Clock3,
+      className: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-200'
+    }
+  }[feedback.type] || {};
+  const Icon = presentation.icon || Clock3;
+  return (
+    <div
+      role={feedback.type === 'error' ? 'alert' : 'status'}
+      aria-live="polite"
+      className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-xs font-bold leading-5 ${presentation.className || ''}`}
+    >
+      <Icon size={17} className="mt-0.5 shrink-0" />
+      <span>{feedback.message}</span>
+    </div>
+  );
+}
+
+function SellerVideoPlayer({ video }) {
+  const [playbackFailed, setPlaybackFailed] = useState(false);
+  const source = String(
+    video?.videoUrl ||
+      video?.playbackSources?.find((item) => String(item?.type || '').includes('mp4'))?.url ||
+      video?.playbackSources?.find((item) => item?.url)?.url ||
+      ''
+  );
+  const poster = video?.thumbnailUrl || video?.product?.images?.[0] || '';
+
+  useEffect(() => setPlaybackFailed(false), [source]);
+
+  if (!source || playbackFailed) {
+    return (
+      <div className="relative h-full w-full">
+        {poster ? <img src={poster} alt="" className="h-full w-full object-cover opacity-70" loading="lazy" /> : null}
+        <div className="absolute inset-0 grid place-items-center bg-black/45 px-5 text-center text-white">
+          <div>
+            <XCircle className="mx-auto" size={28} />
+            <p className="mt-2 text-xs font-bold">
+              {source ? 'Cette vidéo ne peut pas être lue pour le moment.' : 'Source vidéo indisponible.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <video
+      key={source}
+      src={source}
+      poster={poster || undefined}
+      controls
+      playsInline
+      preload="metadata"
+      onError={() => setPlaybackFailed(true)}
+      className="h-full w-full object-contain"
+      aria-label={`Lire la vidéo de ${video?.product?.title || 'ce produit'}`}
+    >
+      Votre navigateur ne peut pas lire cette vidéo.
+    </video>
+  );
+}
+
 export default function SellerProductVideos() {
   const { user } = useContext(AuthContext);
   const { getRuntimeValue, formatPrice } = useAppSettings();
@@ -77,6 +156,11 @@ export default function SellerProductVideos() {
   const [productId, setProductId] = useState('');
   const [caption, setCaption] = useState('');
   const [files, setFiles] = useState([]);
+  const [fileUploadProgress, setFileUploadProgress] = useState([]);
+  const [uploadFeedback, setUploadFeedback] = useState(null);
+  const [videoFeedback, setVideoFeedback] = useState({});
+  const [replacingVideoId, setReplacingVideoId] = useState('');
+  const fileInputRef = useRef(null);
   const maxDuration = Number(getRuntimeValue('product_video_max_duration_seconds', 60));
   const maxUploads = Number(getRuntimeValue('product_video_max_uploads_per_product', 1));
 
@@ -115,53 +199,144 @@ export default function SellerProductVideos() {
   const chooseFiles = async (event) => {
     const selected = Array.from(event.target.files || []);
     if (!selected.length) return;
+    setFiles([]);
+    setFileUploadProgress([]);
+    setUploadFeedback(null);
+    if (!productId) {
+      const message = 'Choisissez d’abord le produit associé à cette vidéo.';
+      setUploadFeedback({ type: 'error', message });
+      showToast(message, { variant: 'error' });
+      event.target.value = '';
+      return;
+    }
+    const fileError = selected.map(getVideoFileValidationError).find(Boolean);
+    if (fileError) {
+      setUploadFeedback({ type: 'error', message: fileError });
+      showToast(fileError, { variant: 'error' });
+      event.target.value = '';
+      return;
+    }
     if (selected.length + selectedProductVideos > maxUploads) {
-      showToast(`Maximum ${maxUploads} vidéos pour ce produit.`, { variant: 'error' });
+      const message = `Maximum ${maxUploads} vidéos pour ce produit. Supprimez ou remplacez une vidéo existante.`;
+      setUploadFeedback({ type: 'error', message });
+      showToast(message, { variant: 'error' });
       event.target.value = '';
       return;
     }
     try {
-      const durations = await Promise.all(selected.map(readDuration));
+      setUploadFeedback({ type: 'info', message: 'Vérification des vidéos sélectionnées…' });
+      const durations = await Promise.all(
+        selected.map(async (file) => {
+          try {
+            return await readDuration(file);
+          } catch {
+            throw new Error(`${file.name} est illisible ou endommagée.`);
+          }
+        })
+      );
       const invalidIndex = durations.findIndex((duration) => duration > maxDuration);
       if (invalidIndex >= 0) {
-        showToast(`${selected[invalidIndex].name} dépasse ${maxDuration} secondes.`, { variant: 'error' });
+        const message = `${selected[invalidIndex].name} dépasse la durée maximale de ${maxDuration} secondes.`;
+        setUploadFeedback({ type: 'error', message });
+        showToast(message, { variant: 'error' });
         event.target.value = '';
         return;
       }
       setFiles(selected);
+      setFileUploadProgress(selected.map(() => 0));
+      setUploadFeedback({
+        type: 'success',
+        message: `${selected.length} vidéo${selected.length > 1 ? 's' : ''} prête${selected.length > 1 ? 's' : ''} à être envoyée${selected.length > 1 ? 's' : ''}.`
+      });
     } catch (error) {
-      showToast(error.message || 'Une vidéo est illisible.', { variant: 'error' });
+      const message = error.message || 'Une vidéo est illisible.';
+      setUploadFeedback({ type: 'error', message });
+      showToast(message, { variant: 'error' });
+      event.target.value = '';
     }
   };
 
   const upload = async (event) => {
     event.preventDefault();
-    if (!productId || !files.length) return;
+    if (!productId || !files.length) {
+      setUploadFeedback({ type: 'error', message: 'Sélectionnez un produit et au moins une vidéo.' });
+      return;
+    }
     const body = new FormData();
     body.append('productId', productId);
     body.append('caption', caption);
     files.forEach((file) => body.append('video', file));
     setUploading(true);
     setUploadProgress(0);
+    setFileUploadProgress(files.map(() => 0));
+    setUploadFeedback({ type: 'info', message: 'Envoi en cours. Gardez cette page ouverte jusqu’à la confirmation.' });
     try {
       const { data } = await api.post('/product-videos/seller', body, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (event) => {
-          if (event.total) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+          if (event.total) setUploadProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+          setFileUploadProgress(getVideoFilesUploadProgress(files, event.loaded, event.total));
         }
       });
-      showToast(
-        data?.moderationRequired ? 'Vidéo envoyée à la modération.' : 'Vidéo publiée.',
-        { variant: 'success' }
-      );
+      const message = data?.moderationRequired ? 'Vidéo envoyée à la modération.' : 'Vidéo publiée avec succès.';
+      showToast(message, { variant: 'success' });
+      setUploadFeedback({ type: 'success', message });
       setCaption('');
       setFiles([]);
+      setFileUploadProgress([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       await load();
     } catch (error) {
-      showToast(error.response?.data?.message || 'Téléversement impossible.', { variant: 'error' });
+      const message = getVideoUploadErrorMessage(error);
+      setUploadFeedback({ type: 'error', message });
+      showToast(message, { variant: 'error' });
     } finally {
       setUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const replaceVideo = async (video, file, input) => {
+    if (!file) return;
+    const setFeedback = (feedback) =>
+      setVideoFeedback((current) => ({ ...current, [video._id]: feedback }));
+    const fileError = getVideoFileValidationError(file);
+    if (fileError) {
+      setFeedback({ type: 'error', message: fileError });
+      showToast(fileError, { variant: 'error' });
+      input.value = '';
+      return;
+    }
+
+    setReplacingVideoId(video._id);
+    setFeedback({ type: 'info', message: 'Vérification de la nouvelle vidéo…' });
+    try {
+      const duration = await readDuration(file);
+      if (duration > maxDuration) {
+        throw new Error(`${file.name} dépasse la durée maximale de ${maxDuration} secondes.`);
+      }
+      const body = new FormData();
+      body.append('video', file);
+      setFeedback({ type: 'info', message: 'Remplacement en cours…' });
+      await api.patch(`/product-videos/seller/${video._id}`, body, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFeedback({ type: 'success', message: 'Nouvelle version envoyée avec succès.' });
+      showToast('Nouvelle version envoyée.', { variant: 'success' });
+      await load();
+    } catch (error) {
+      const localValidationMessage = String(error?.message || '');
+      const message =
+        !error?.response &&
+        (localValidationMessage.includes('durée maximale') ||
+          localValidationMessage.includes('illisible'))
+          ? localValidationMessage
+          : getVideoUploadErrorMessage(error, 'Remplacement impossible.');
+      setFeedback({ type: 'error', message });
+      showToast(message, { variant: 'error' });
+    } finally {
+      setReplacingVideoId('');
+      input.value = '';
     }
   };
 
@@ -209,7 +384,18 @@ export default function SellerProductVideos() {
         <form onSubmit={upload} className="h-fit rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-neutral-900">
           <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><Plus /></span><div><h2 className="font-black">Nouvelle vidéo</h2><p className="text-xs text-neutral-500">MP4, MOV ou WEBM · {maxDuration}s max.</p></div></div>
           <label className="mt-5 block text-xs font-bold uppercase tracking-wide text-neutral-500">Produit</label>
-          <select required value={productId} onChange={(event) => setProductId(event.target.value)} className="mt-2 h-12 w-full rounded-xl border border-neutral-200 bg-transparent px-3 outline-none focus:border-emerald-500 dark:border-white/10">
+          <select
+            required
+            value={productId}
+            onChange={(event) => {
+              setProductId(event.target.value);
+              setFiles([]);
+              setFileUploadProgress([]);
+              setUploadFeedback(null);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            }}
+            className="mt-2 h-12 w-full rounded-xl border border-neutral-200 bg-transparent px-3 outline-none focus:border-emerald-500 dark:border-white/10"
+          >
             <option value="">Sélectionner un produit</option>
             {products.map((product) => <option key={product._id} value={product._id}>{product.title} · {formatPrice(product.price)}</option>)}
           </select>
@@ -219,9 +405,42 @@ export default function SellerProductVideos() {
             <Upload className="text-emerald-600" />
             <span className="mt-2 text-sm font-bold">{maxUploads > 1 ? `Choisir jusqu’à ${maxUploads} vidéos` : 'Choisir une vidéo'}</span>
             <span className="text-xs text-neutral-500">La compression adaptative est appliquée après l’envoi.</span>
-            <input type="file" multiple={maxUploads > 1} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
+            <input ref={fileInputRef} type="file" multiple={maxUploads > 1} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
           </label>
-          {files.length ? <div className="mt-3 space-y-2">{files.map((file) => <div key={`${file.name}-${file.size}`} className="flex items-center justify-between rounded-xl bg-neutral-100 px-3 py-2 text-xs dark:bg-white/10"><span className="truncate">{file.name}</span><span>{Math.round(file.size / 1024 / 1024)} Mo</span></div>)}</div> : null}
+          {files.length ? (
+            <div className="mt-3 space-y-2">
+              {files.map((file, index) => {
+                const progress = fileUploadProgress[index] || 0;
+                return (
+                  <div key={`${file.name}-${file.size}-${file.lastModified || index}`} className="rounded-xl bg-neutral-100 px-3 py-2.5 text-xs dark:bg-white/10">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 flex-1 truncate font-bold">{file.name}</span>
+                      <span className="shrink-0 text-neutral-500">
+                        {uploading || progress > 0 ? `${progress}%` : `${Math.round(file.size / 1024 / 1024)} Mo`}
+                      </span>
+                    </div>
+                    <div
+                      className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-white/10"
+                      role="progressbar"
+                      aria-label={`Progression de ${file.name}`}
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      aria-valuenow={progress}
+                    >
+                      <div
+                        className={`h-full rounded-full transition-all duration-200 ${progress === 100 ? 'bg-emerald-500' : 'bg-sky-500'}`}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] font-semibold text-neutral-500">
+                      {progress === 100 ? 'Vidéo envoyée' : uploading ? 'Envoi en cours…' : 'Prête à envoyer'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+          {uploadFeedback ? <div className="mt-3"><FeedbackAlert feedback={uploadFeedback} /></div> : null}
           {uploading ? (
             <div className="mt-4 space-y-1.5" role="status" aria-live="polite">
               <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-white/10">
@@ -242,17 +461,28 @@ export default function SellerProductVideos() {
             {videos.filter((video) => video.status !== 'deleted').map((video) => (
               <article key={video._id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-white/10 dark:bg-neutral-900">
                 <div className="relative aspect-[4/5] bg-neutral-950">
-                  <img src={video.thumbnailUrl || video.product?.images?.[0]} alt="" className="h-full w-full object-cover" loading="lazy" />
-                  <span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold ${statusStyles[video.status] || statusStyles.hidden}`}>{statusLabels[video.status] || video.status}</span>
-                  <span className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white"><Play size={12} fill="currentColor" /> {video.counters?.views || 0}</span>
+                  <SellerVideoPlayer video={video} />
+                  <span className={`pointer-events-none absolute left-3 top-3 z-10 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-sm ${statusStyles[video.status] || statusStyles.hidden}`}>{statusLabels[video.status] || video.status}</span>
+                  <span className="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-bold text-white shadow-sm"><Eye size={12} /> {video.counters?.views || 0}</span>
                 </div>
                 <div className="p-4">
                   <p className="line-clamp-1 font-bold">{video.product?.title || 'Produit'}</p>
                   <p className="mt-1 line-clamp-2 min-h-9 text-xs text-neutral-500">{video.caption || 'Sans légende'}</p>
                   {video.moderationReason ? <p className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30">{video.moderationReason}</p> : null}
+                  {videoFeedback[video._id] ? <div className="mt-2"><FeedbackAlert feedback={videoFeedback[video._id]} /></div> : null}
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><span><Eye size={13} className="mx-auto" />{video.counters?.views || 0}</span><span><Heart size={13} className="mx-auto" />{video.counters?.likes || 0}</span><span><Save size={13} className="mx-auto" />{video.counters?.saves || 0}</span></div>
                   <div className="mt-4 flex gap-2">
-                    <label className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-lg border border-neutral-200 text-xs font-bold dark:border-white/10"><RefreshCw size={13} /> Remplacer<input type="file" accept="video/mp4,video/quicktime,video/webm" className="sr-only" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const body = new FormData(); body.append('video', file); try { await api.patch(`/product-videos/seller/${video._id}`, body, { headers: { 'Content-Type': 'multipart/form-data' } }); showToast('Nouvelle version envoyée.', { variant: 'success' }); load(); } catch (error) { showToast(error.response?.data?.message || 'Remplacement impossible.', { variant: 'error' }); } }} /></label>
+                    <label className={`flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-neutral-200 text-xs font-bold dark:border-white/10 ${replacingVideoId === video._id ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}>
+                      {replacingVideoId === video._id ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                      {replacingVideoId === video._id ? 'Envoi…' : 'Remplacer'}
+                      <input
+                        type="file"
+                        accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+                        disabled={Boolean(replacingVideoId)}
+                        className="sr-only"
+                        onChange={(event) => replaceVideo(video, event.target.files?.[0], event.target)}
+                      />
+                    </label>
                     <button type="button" aria-label="Supprimer" onClick={async () => { if (!window.confirm('Supprimer définitivement cette vidéo ? Cette action est irréversible.')) return; try { await api.delete(`/product-videos/seller/${video._id}`); setVideos((items) => items.filter((item) => item._id !== video._id)); showToast('Vidéo supprimée.', { variant: 'success' }); } catch (error) { showToast(error.response?.data?.message || 'Suppression impossible.', { variant: 'error' }); } }} className="grid h-9 w-9 place-items-center rounded-lg border border-rose-200 text-rose-600"><Trash2 size={15} /></button>
                   </div>
                 </div>

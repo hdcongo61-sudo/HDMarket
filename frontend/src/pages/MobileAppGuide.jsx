@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Check, CheckCircle2, ChevronRight, Download, ExternalLink, Home,
   MoreVertical, RefreshCw, Share, ShieldCheck, ShoppingBag, Smartphone
@@ -10,6 +11,11 @@ export const detectMobilePlatform = (userAgent = '') => {
   if (/iphone|ipad|ipod/.test(value)) return 'ios';
   if (/android/.test(value)) return 'android';
   return 'other';
+};
+
+export const resolveGuidePlatform = (requestedPlatform = '', detectedPlatform = 'other') => {
+  if (requestedPlatform === 'ios' || requestedPlatform === 'android') return requestedPlatform;
+  return detectedPlatform === 'ios' ? 'ios' : 'android';
 };
 
 const IOS_STEPS = [
@@ -28,13 +34,19 @@ const ANDROID_STEPS = [
 ];
 
 export default function MobileAppGuide() {
+  const [searchParams] = useSearchParams();
   const platform = useMemo(() => detectMobilePlatform(typeof navigator === 'undefined' ? '' : navigator.userAgent), []);
-  const [activePlatform, setActivePlatform] = useState(platform === 'ios' ? 'ios' : 'android');
+  const requestedPlatform = searchParams.get('platform') || '';
+  const [activePlatform, setActivePlatform] = useState(() => resolveGuidePlatform(requestedPlatform, platform));
   const [canInstall, setCanInstall] = useState(pwaInstallService.canInstall());
   const [installed, setInstalled] = useState(pwaInstallService.isInstalled());
   const [installMessage, setInstallMessage] = useState('');
 
   useEffect(() => pwaInstallService.subscribe(setCanInstall), []);
+
+  useEffect(() => {
+    setActivePlatform(resolveGuidePlatform(requestedPlatform, platform));
+  }, [platform, requestedPlatform]);
 
   const installAndroid = async () => {
     const result = await pwaInstallService.requestInstall();

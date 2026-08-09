@@ -6,6 +6,7 @@ import { getPawaPayRequestError } from '../utils/pawapayErrors';
 import { createIdempotencyKey } from '../utils/idempotency';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import {
+  createPawaPayRouteState,
   openPawaPayCheckoutWindow,
   subscribeToPawaPayResults
 } from '../utils/pawapayCheckoutWindow';
@@ -46,17 +47,7 @@ export default function PawaPayButton({
     setLoading(false);
 
     navigate(result.path, {
-      state: {
-        pawaPayNotice: {
-          status: result.status,
-          checkoutId: result.checkoutId,
-          message:
-            result.message ||
-            (result.status === 'completed'
-              ? 'Paiement PawaPay confirmé.'
-              : 'Le paiement PawaPay n’a pas pu être finalisé.')
-        }
-      }
+      state: createPawaPayRouteState(result)
     });
   }), [navigate]);
 

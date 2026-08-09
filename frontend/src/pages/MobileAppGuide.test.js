@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectMobilePlatform } from './MobileAppGuide';
+import { detectMobilePlatform, resolveGuidePlatform } from './MobileAppGuide';
 
 describe('mobile app guide platform detection', () => {
   it('detects Apple mobile browsers', () => {
@@ -12,5 +12,15 @@ describe('mobile app guide platform detection', () => {
 
   it('uses a neutral fallback on desktop', () => {
     expect(detectMobilePlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X)')).toBe('other');
+  });
+});
+
+describe('mobile app guide deep links', () => {
+  it('opens the iPhone guide from the Apple footer badge', () => {
+    expect(resolveGuidePlatform('ios', 'android')).toBe('ios');
+  });
+
+  it('opens the Android guide from the Google Play footer badge', () => {
+    expect(resolveGuidePlatform('android', 'ios')).toBe('android');
   });
 });

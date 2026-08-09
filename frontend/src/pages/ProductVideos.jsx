@@ -30,6 +30,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
+import { getVideoHashtags, stripVideoHashtags } from '../utils/videoHashtags';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import VerifiedBadge from '../components/VerifiedBadge';
 
@@ -68,31 +69,6 @@ const requiresAttributeSelection = (product) =>
       (attribute?.required ||
         (attribute?.type === 'select' && Array.isArray(attribute?.options) && attribute.options.length > 0))
   );
-
-const HASHTAG_TOKEN = /^#[\p{L}\p{N}_-]+$/u;
-
-// Renders a caption with its hashtags as tappable tokens.
-const renderCaption = (caption, onHashtag) =>
-  String(caption || '')
-    .split(/(\s+)/)
-    .map((token, index) => {
-      if (!HASHTAG_TOKEN.test(token)) return <span key={index}>{token}</span>;
-      return (
-        <button
-          key={index}
-          type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onPointerUp={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onHashtag?.(token.slice(1));
-          }}
-          className="font-bold text-emerald-300 transition hover:text-emerald-200 hover:underline"
-        >
-          {token}
-        </button>
-      );
-    });
 
 function VideoAction({ label, value, active = false, onClick, children }) {
   return (
@@ -148,6 +124,7 @@ function VideoSlide({
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
   const [showReplay, setShowReplay] = useState(false);
+  const [hashtagsExpanded, setHashtagsExpanded] = useState(false);
 
   const recordView = useCallback(() => {
     const tracker = viewedRef.current;
@@ -272,6 +249,12 @@ function VideoSlide({
 
   const product = video.product || {};
   const seller = video.seller || {};
+  const captionText = useMemo(() => stripVideoHashtags(video.caption), [video.caption]);
+  const hashtags = useMemo(
+    () => getVideoHashtags(video),
+    [video.caption, video.hashtags]
+  );
+  const visibleHashtags = hashtagsExpanded ? hashtags : hashtags.slice(0, 3);
   const originalPrice = Number(product.priceBeforeDiscount || 0);
   const discounted = Number(product.discount || 0) > 0;
   const mp4Source = getVideoSource(video, liteSource);
@@ -295,6 +278,10 @@ function VideoSlide({
   const useHlsJs = Boolean(hlsUrl) && !nativeHls && Hls.isSupported();
   const hlsActive = Boolean(hlsUrl) && (nativeHls || useHlsJs);
   const source = hlsActive && !useHlsJs ? hlsUrl : mp4Source;
+
+  useEffect(() => {
+    setHashtagsExpanded(false);
+  }, [video._id]);
 
   useEffect(() => {
     const element = videoRef.current;
@@ -446,7 +433,44 @@ function VideoSlide({
               </button>
             ) : null}
           </div>
-          {video.caption ? <p className="line-clamp-2 text-sm leading-relaxed text-white/90">{renderCaption(video.caption, onHashtag)}</p> : null}
+          {captionText ? <p className="line-clamp-2 text-sm leading-relaxed text-white/90">{captionText}</p> : null}
+          {hashtags.length ? (
+            <div
+              className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-sm ${hashtagsExpanded ? 'max-h-24 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : ''}`}
+              aria-label="Hashtags de la vidéo"
+            >
+              {visibleHashtags.map((hashtag) => (
+                <button
+                  key={hashtag.toLocaleLowerCase('fr')}
+                  type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onHashtag?.(hashtag);
+                  }}
+                  className="font-bold text-emerald-300 transition hover:text-emerald-200 hover:underline"
+                >
+                  #{hashtag}
+                </button>
+              ))}
+              {hashtags.length > 3 ? (
+                <button
+                  type="button"
+                  aria-expanded={hashtagsExpanded}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setHashtagsExpanded((value) => !value);
+                  }}
+                  className="rounded-full border border-white/20 bg-black/35 px-2 py-0.5 text-[11px] font-black text-white shadow-sm backdrop-blur-md transition hover:bg-black/55"
+                >
+                  {hashtagsExpanded ? 'Voir moins' : `+${hashtags.length - 3}`}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={(event) => {

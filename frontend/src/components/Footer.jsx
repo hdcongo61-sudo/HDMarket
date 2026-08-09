@@ -77,7 +77,6 @@ export default function Footer() {
   ];
 
   const serviceLinks = [
-    { to: '/installer-application', label: t('footer.installApp', 'Installer l’application') },
     { to: '/avantages', label: t('nav.benefits', 'Pourquoi HDMarket') },
     { to: '/plans', label: t('nav.plans', 'Plans & tarifs') },
     ...(productVideosEnabled
@@ -159,7 +158,9 @@ export default function Footer() {
           <FooterLinkGroup
             title={t('footer.services', 'Services')}
             links={serviceLinks}
-          />
+          >
+            <AppInstallBadges title={t('footer.installApp', 'Installer l’application')} />
+          </FooterLinkGroup>
 
           <section aria-labelledby="footer-support-title">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-white" id="footer-support-title">
@@ -261,7 +262,7 @@ export default function Footer() {
   );
 }
 
-function FooterLinkGroup({ title, links }) {
+function FooterLinkGroup({ title, links, children = null }) {
   return (
     <section>
       <p className="text-xs font-black uppercase tracking-[0.16em] text-white">{title}</p>
@@ -275,6 +276,68 @@ function FooterLinkGroup({ title, links }) {
           </li>
         ))}
       </ul>
+      {children}
     </section>
+  );
+}
+
+function AppInstallBadges({ title }) {
+  return (
+    <div className="mt-6 border-t border-white/10 pt-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-400">
+        {title}
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2" aria-label={title}>
+        <Link
+          to="/installer-application?platform=ios#ios-guide"
+          className="group relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-white/80 bg-white px-2 py-3 text-center text-neutral-950 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]"
+          aria-label="Installer HDMarket sur iPhone ou iPad"
+        >
+          <AppleStoreLogo className="h-7 w-7 shrink-0" />
+          <span className="min-w-0 leading-none">
+            <span className="block text-[8px] font-bold uppercase tracking-[0.08em] text-neutral-500">
+              Installer sur
+            </span>
+            <span className="mt-1 block text-xs font-black tracking-tight">iPhone / iPad</span>
+          </span>
+          <ArrowUpRight className="absolute right-2 top-2 h-3.5 w-3.5 text-neutral-400 transition group-hover:text-[#e85d00]" aria-hidden="true" />
+        </Link>
+
+        <Link
+          to="/installer-application?platform=android#android-guide"
+          className="group relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-white/20 bg-neutral-900 px-2 py-3 text-center text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/40 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]"
+          aria-label="Installer HDMarket sur Android"
+        >
+          <GooglePlayLogo className="h-7 w-7 shrink-0" />
+          <span className="min-w-0 leading-none">
+            <span className="block text-[8px] font-bold uppercase tracking-[0.08em] text-neutral-400">
+              Installer sur
+            </span>
+            <span className="mt-1 block text-xs font-black tracking-tight">Android</span>
+          </span>
+          <ArrowUpRight className="absolute right-2 top-2 h-3.5 w-3.5 text-neutral-500 transition group-hover:text-[#ff6a00]" aria-hidden="true" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function AppleStoreLogo({ className = '' }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
+      <path d="M17.05 12.54c-.02-2.22 1.81-3.3 1.89-3.35a4.05 4.05 0 0 0-3.19-1.73c-1.34-.14-2.65.8-3.33.8-.7 0-1.76-.78-2.9-.76a4.24 4.24 0 0 0-3.57 2.18c-1.55 2.69-.39 6.65 1.09 8.82.74 1.06 1.6 2.24 2.74 2.2 1.12-.05 1.54-.71 2.89-.71 1.34 0 1.73.71 2.9.68 1.2-.02 1.96-1.06 2.67-2.13a8.8 8.8 0 0 0 1.22-2.48 3.85 3.85 0 0 1-2.41-3.52Z" />
+      <path d="M14.87 6.04a3.87 3.87 0 0 0 .89-2.79 3.94 3.94 0 0 0-2.56 1.33 3.7 3.7 0 0 0-.91 2.68 3.26 3.26 0 0 0 2.58-1.22Z" />
+    </svg>
+  );
+}
+
+function GooglePlayLogo({ className = '' }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path fill="#00d7fe" d="M3.45 2.42A1.8 1.8 0 0 0 3 3.65v16.7c0 .47.16.9.45 1.23L13.3 12 3.45 2.42Z" />
+      <path fill="#00f076" d="m13.3 12 3.27-3.18L5.1 2.2a1.72 1.72 0 0 0-1.65.22L13.3 12Z" />
+      <path fill="#ffea00" d="m20.08 10.86-3.51-2.04L13.3 12l3.27 3.18 3.53-2.05c1.02-.6 1.02-1.68-.02-2.27Z" />
+      <path fill="#ff3a44" d="m3.45 21.58 9.85-9.58 3.27 3.18-11.5 6.66a1.72 1.72 0 0 1-1.62-.26Z" />
+    </svg>
   );
 }

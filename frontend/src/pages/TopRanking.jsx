@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const LIMIT = 60;
 const PAGE_SIZE = 12;
+const CACHE_KEY = 'top:ranking';
 
 export default function TopRanking() {
   const [items, setItems] = useState([]);
@@ -13,8 +15,22 @@ export default function TopRanking() {
   const [page, setPage] = useState(1);
   const loadMoreSentinelRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
+  const restoredRef = useRef(false);
+
+  // Restore the previous view before first paint so back navigation shows
+  // the list instantly and scroll restoration lands correctly.
+  useLayoutEffect(() => {
+    const cached = readRouteViewCache(CACHE_KEY);
+    if (!cached || !Array.isArray(cached.items) || !cached.items.length) return;
+    restoredRef.current = true;
+    setItems(cached.items);
+    setPage(Math.max(1, Number(cached.page || 1)));
+    setError('');
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
+    if (readRouteViewCache(CACHE_KEY)?.items?.length) return undefined;
     let active = true;
     const controller = new AbortController();
 
@@ -29,6 +45,7 @@ export default function TopRanking() {
         if (!active) return;
         const ranked = Array.isArray(data?.topRated) ? data.topRated : [];
         setItems(ranked);
+        writeRouteViewCache(CACHE_KEY, { items: ranked, page: 1 });
       } catch (e) {
         if (controller.signal.aborted) return;
         setError(
@@ -50,8 +67,21 @@ export default function TopRanking() {
   }, []);
 
   useEffect(() => {
+    if (restoredRef.current) {
+      restoredRef.current = false;
+      return;
+    }
     setPage(1);
   }, [items.length]);
+
+  // Keep the displayed page in the cache so a restore re-renders the same
+  // slice of the list.
+  useEffect(() => {
+    const cached = readRouteViewCache(CACHE_KEY);
+    if (!cached || !Array.isArray(cached.items) || !cached.items.length) return;
+    if (Number(cached.page) === page) return;
+    writeRouteViewCache(CACHE_KEY, { ...cached, page });
+  }, [page]);
 
   useEffect(() => {
     if (page >= Math.max(1, Math.ceil(items.length / PAGE_SIZE))) return;

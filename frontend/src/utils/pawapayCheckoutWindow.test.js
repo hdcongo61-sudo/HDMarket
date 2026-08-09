@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createPawaPayRouteState,
   createPawaPayResultMessage,
   isPawaPayResultMessage,
   PAWAPAY_RESULT_MESSAGE_TYPE
@@ -43,5 +44,34 @@ describe('PawaPay checkout window messages', () => {
         path: '/orders'
       })
     ).toBe(false);
+  });
+
+  it('creates a route refresh state for successful payments', () => {
+    const state = createPawaPayRouteState({
+      messageId: 'payment-result-1',
+      status: 'completed',
+      checkoutId: 'checkout-123',
+      message: 'Paiement confirmé.'
+    });
+
+    expect(state).toEqual({
+      pawaPayRefreshKey: 'payment-result-1',
+      pawaPayNotice: {
+        status: 'completed',
+        checkoutId: 'checkout-123',
+        message: 'Paiement confirmé.'
+      }
+    });
+  });
+
+  it('also refreshes the destination after a failed terminal state', () => {
+    const state = createPawaPayRouteState({
+      messageId: 'payment-result-2',
+      status: 'failed',
+      checkoutId: 'checkout-456'
+    });
+
+    expect(state.pawaPayRefreshKey).toBe('payment-result-2');
+    expect(state.pawaPayNotice.status).toBe('failed');
   });
 });

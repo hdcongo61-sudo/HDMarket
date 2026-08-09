@@ -148,6 +148,36 @@ const Footer = lazy(() => import('./components/Footer'));
 const ChatBox = lazy(() => import('./components/ChatBox'));
 const PushNotificationsManager = lazy(() => import('./components/PushNotificationsManager'));
 
+function RouteLoadingFallback() {
+  return (
+    <section
+      className="mx-auto min-h-[calc(100dvh-4rem-env(safe-area-inset-top,0px))] w-full max-w-7xl px-4 py-6 sm:px-6 lg:min-h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:px-8"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Chargement de la page"
+    >
+      <div className="flex items-center gap-3 text-sm font-bold text-neutral-600 dark:text-neutral-300">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-200 border-t-[#e85d00] dark:border-neutral-700 dark:border-t-[#ff7a1a]" aria-hidden="true" />
+        <span>Chargement de la page…</span>
+      </div>
+      <div className="mt-6 animate-pulse space-y-5" aria-hidden="true">
+        <div className="h-28 rounded-2xl bg-neutral-100 dark:bg-neutral-900" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="space-y-3 rounded-2xl border border-neutral-100 p-3 dark:border-white/5">
+              <div className="aspect-[4/3] rounded-xl bg-neutral-100 dark:bg-neutral-900" />
+              <div className="h-3 w-4/5 rounded-full bg-neutral-100 dark:bg-neutral-900" />
+              <div className="h-3 w-1/2 rounded-full bg-neutral-100 dark:bg-neutral-900" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <span className="sr-only">Veuillez patienter pendant le chargement du contenu.</span>
+    </section>
+  );
+}
+
 const LAST_ADMIN_ROUTE_KEY = 'hdmarket:last-admin-route';
 const LAST_COURIER_ROUTE_KEY = 'hdmarket:last-courier-route';
 const LAST_ORDERS_ROUTE_KEY = 'hdmarket:last-orders-route';
@@ -394,7 +424,7 @@ function AppContent() {
     if (!notice?.message) return;
 
     showToast(notice.message, {
-      variant: notice.status === 'failed' ? 'error' : 'info',
+      variant: notice.status === 'failed' ? 'error' : 'success',
       duration: 8000
     });
     const nextState = { ...(location.state || {}) };
@@ -559,7 +589,8 @@ function AppContent() {
     pathname.startsWith('/courier') ||
     (pathname.startsWith('/delivery') && !isCourierApplicationRoute);
   const isProductVideosRoute = pathname.startsWith('/videos');
-  const pageTransitionKey = getPageTransitionKey(pathname);
+  const pawaPayRefreshKey = String(location.state?.pawaPayRefreshKey || '');
+  const pageTransitionKey = `${getPageTransitionKey(pathname)}:${pawaPayRefreshKey}`;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -709,7 +740,7 @@ function AppContent() {
       <main
         className={isCourierRoute
           ? 'app-main-shell min-h-[100dvh] p-0 main-content no-ios-callout'
-          : 'app-main-shell pt-[calc(env(safe-area-inset-top,0px)+4rem)] lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] no-ios-callout'}
+          : 'app-main-shell min-h-[100dvh] pt-[calc(env(safe-area-inset-top,0px)+4rem)] lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] no-ios-callout'}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -720,11 +751,7 @@ function AppContent() {
             transition={{ duration: 0.22, ease: 'easeOut' }}
           >
         <Suspense
-          fallback={
-            <div className="mx-auto max-w-7xl px-4 py-6">
-              <div className="h-28 animate-pulse rounded-2xl bg-neutral-100 dark:bg-neutral-900" />
-            </div>
-          }
+          fallback={<RouteLoadingFallback />}
         >
         <Routes location={location}>
           <Route path="/" element={<Home />} />
@@ -733,7 +760,7 @@ function AppContent() {
             path="/videos"
             element={
               appSettingsLoading ? (
-                <div className="min-h-[60vh]" role="status" aria-label="Chargement de HDMarket Videos" />
+                <RouteLoadingFallback />
               ) : productVideosEnabled ? (
                 <ProductVideos />
               ) : (

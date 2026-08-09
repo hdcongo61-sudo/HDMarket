@@ -50,6 +50,24 @@ export const createPawaPayResultMessage = ({
   sentAt: Date.now()
 });
 
+export const createPawaPayRouteState = (result = {}) => {
+  const status = String(result.status || '').toLowerCase();
+  const checkoutId = String(result.checkoutId || '').trim();
+  return {
+    pawaPayRefreshKey:
+      String(result.messageId || '').trim() || `${checkoutId}:${status}:${Date.now()}`,
+    pawaPayNotice: {
+      status,
+      checkoutId,
+      message:
+        String(result.message || '').trim() ||
+        (status === 'completed'
+          ? 'Paiement PawaPay confirmé.'
+          : 'Le paiement PawaPay n’a pas pu être finalisé.')
+    }
+  };
+};
+
 export const isPawaPayResultMessage = (value) =>
   Boolean(
     value &&
