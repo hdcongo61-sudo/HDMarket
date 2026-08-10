@@ -9,7 +9,7 @@ import useIsMobile from '../hooks/useIsMobile';
 import useCommissionRate from '../hooks/useCommissionRate';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import BaseModal from './modals/BaseModal';
-import { appAlert } from '../utils/appDialog';
+import { appAlert, appConfirm } from '../utils/appDialog';
 import { getHighestProductPrice, hydrateImageVariantsFromAttributes, normalizeProductAttributes } from '../utils/productAttributes';
 import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles, PRODUCT_IMAGE_ACCEPT } from '../utils/mediaOptimizer';
@@ -1145,6 +1145,7 @@ export default function ProductForm(props) {
     
     setOriginalVideoSize(file.size);
     setVideoError('');
+    setRemoveExistingVideo(false);
     
     // If file is larger than the accepted limit, compress it before upload.
     if (file.size > MAX_VIDEO_SIZE_BYTES) {
@@ -1198,13 +1199,17 @@ export default function ProductForm(props) {
     document.getElementById('product-form-video-input')?.click();
   };
 
-  const handleRemoveExistingVideo = () => {
+  const handleRemoveExistingVideo = async () => {
+    const confirmed = await appConfirm(
+      'Supprimer la vidéo actuelle ? La suppression sera appliquée lorsque vous enregistrerez les modifications.'
+    );
+    if (!confirmed) return;
     setRemoveExistingVideo(true);
+    setVideoError('');
   };
 
   const handleKeepExistingVideo = () => {
-    // No action needed - just keep the existing video as is
-    // This button confirms the user wants to keep the current video
+    setRemoveExistingVideo(false);
   };
 
   const handlePdfChange = (e) => {
@@ -1892,6 +1897,8 @@ export default function ProductForm(props) {
   useEffect(() => {
     if (!initialValues) {
       setExistingImages([]);
+      setExistingVideoUrl(null);
+      setRemoveExistingVideo(false);
       setExistingPdf(null);
       setRemovePdf(false);
       setRemovedImages([]);
@@ -2016,6 +2023,10 @@ export default function ProductForm(props) {
     initialFormRef.current = hydratedForm;
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
     setImageReplacements({});
+    setVideoFile(null);
+    setExistingVideoUrl(initialValues.video || null);
+    setRemoveExistingVideo(false);
+    setVideoError('');
     setExistingPdf(initialValues.pdf || null);
     setRemovePdf(false);
     setRemovedImages([]);
@@ -3559,7 +3570,7 @@ export default function ProductForm(props) {
           )}
         </div>
 
-        {canUploadVideo ? (
+        {canUploadVideo || (isEditing && Boolean(existingVideoUrl)) ? (
           <div className={sectionShellClass}>
             {renderSectionHeader({
               icon: Video,
@@ -3567,13 +3578,15 @@ export default function ProductForm(props) {
               title: 'Vidéo de présentation',
               subtitle: `Ajoutez une courte vidéo (MP4, MOV, WEBM). Taille maximale ${MAX_VIDEO_SIZE_MB} Mo.`
             })}
-            <input
-              id="product-form-video-input"
-              type="file"
-              accept="video/*"
-              onChange={handleVideoChange}
-              className="hidden"
-            />
+            {canUploadVideo ? (
+              <input
+                id="product-form-video-input"
+                type="file"
+                accept="video/*"
+                onChange={handleVideoChange}
+                className="hidden"
+              />
+            ) : null}
             {existingVideoUrl && !videoFile && !removeExistingVideo ? (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-gray-700">Vidéo actuelle</p>
@@ -3603,31 +3616,55 @@ export default function ProductForm(props) {
                     >
                       Conserver
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleReplaceVideo}
-                      className="px-3 py-2 text-sm font-semibold rounded-full bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 transition-colors"
-                    >
-                      Remplacer
-                    </button>
+                    {canUploadVideo ? (
+                      <button
+                        type="button"
+                        onClick={handleReplaceVideo}
+                        className="px-3 py-2 text-sm font-semibold rounded-full bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 transition-colors"
+                      >
+                        Remplacer
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={handleRemoveExistingVideo}
-                      className="px-3 py-2 text-sm font-semibold rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+                      aria-label="Supprimer la vidéo actuelle"
                     >
-                      Supprimer
+                      <Trash2 className="h-4 w-4" /> Supprimer
                     </button>
                   </div>
                 </div>
               </div>
-            ) : !videoFile && !isCompressingVideo ? (
+            ) : null}
+            {removeExistingVideo && !videoFile ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-800" role="status">
+                <div className="flex items-start gap-2.5">
+                  <Trash2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">Suppression de la vidéo programmée</p>
+                    <p className="mt-1 text-xs leading-5 text-red-700">
+                      Enregistrez les modifications pour supprimer définitivement cette vidéo du produit.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleKeepExistingVideo}
+                    className="shrink-0 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {canUploadVideo && !videoFile && !isCompressingVideo && (!existingVideoUrl || removeExistingVideo) ? (
               <label
                 htmlFor="product-form-video-input"
                 className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group"
               >
                 <Video className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 transition-colors mb-2" />
                 <span className="text-sm text-gray-500 text-center">
-                  {removeExistingVideo ? 'Vidéo supprimée. Cliquez pour en ajouter une nouvelle.' : 'Cliquez pour uploader votre vidéo'}
+                  {removeExistingVideo ? 'Ajouter une vidéo de remplacement' : 'Cliquez pour uploader votre vidéo'}
                 </span>
               </label>
             ) : null}
