@@ -26,9 +26,11 @@ import {
 } from '../controllers/productVideoController.js';
 import { admin, optionalProtect, protect } from '../middlewares/authMiddleware.js';
 import { requireFeatureAccess } from '../middlewares/featureFlagMiddleware.js';
+import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import { upload } from '../utils/upload.js';
 
 const router = express.Router();
+const productVideoMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
 
 router.use(optionalProtect, requireFeatureAccess('product_videos'));
 
@@ -38,8 +40,8 @@ router.get('/saved', protect, getSavedProductVideos);
 router.get('/shop/:sellerId', listShopProductVideos);
 router.get('/seller/mine', protect, listSellerProductVideos);
 router.get('/seller/analytics', protect, getSellerProductVideoAnalytics);
-router.post('/seller', protect, upload.array('video', 12), uploadProductVideos);
-router.patch('/seller/:id', protect, upload.single('video'), updateSellerProductVideo);
+router.post('/seller', protect, upload.array('video', 12), productVideoMutationIdempotency, uploadProductVideos);
+router.patch('/seller/:id', protect, upload.single('video'), productVideoMutationIdempotency, updateSellerProductVideo);
 router.delete('/seller/:id', protect, deleteSellerProductVideo);
 router.get('/admin/analytics', protect, admin, getAdminProductVideoAnalytics);
 router.get('/admin/reports', protect, admin, listAdminProductVideoReports);

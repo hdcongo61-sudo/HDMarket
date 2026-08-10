@@ -16,9 +16,10 @@ import {
   Store,
   Trash2,
   Upload,
+  WifiOff,
   XCircle
 } from 'lucide-react';
-import api from '../services/api';
+import api, { isApiCanceledError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
@@ -27,6 +28,7 @@ import {
   getVideoFilesUploadProgress,
   getVideoUploadErrorMessage
 } from '../utils/videoUploadErrors';
+import { createIdempotencyKey } from '../utils/idempotency';
 
 const statusStyles = {
   approved: 'bg-emerald-100 text-emerald-700',
@@ -157,10 +159,14 @@ export default function SellerProductVideos() {
   const [caption, setCaption] = useState('');
   const [files, setFiles] = useState([]);
   const [fileUploadProgress, setFileUploadProgress] = useState([]);
+  const [uploadAttemptStatus, setUploadAttemptStatus] = useState('idle');
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   const [uploadFeedback, setUploadFeedback] = useState(null);
   const [videoFeedback, setVideoFeedback] = useState({});
   const [replacingVideoId, setReplacingVideoId] = useState('');
   const fileInputRef = useRef(null);
+  const uploadControllerRef = useRef(null);
+  const uploadIdempotencyKeyRef = useRef('');
   const maxDuration = Number(getRuntimeValue('product_video_max_duration_seconds', 60));
   const maxUploads = Number(getRuntimeValue('product_video_max_uploads_per_product', 1));
 
@@ -191,6 +197,32 @@ export default function SellerProductVideos() {
     load();
   }, [load, user]);
 
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!uploading) return undefined;
+    const warnBeforeLeaving = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [uploading]);
+
+  useEffect(
+    () => () => uploadControllerRef.current?.abort('VIDEO_UPLOAD_PAGE_CLOSED'),
+    []
+  );
+
   const selectedProductVideos = useMemo(
     () => videos.filter((video) => String(video.product?._id || video.product) === String(productId) && video.status !== 'deleted').length,
     [productId, videos]
@@ -201,6 +233,9 @@ export default function SellerProductVideos() {
     if (!selected.length) return;
     setFiles([]);
     setFileUploadProgress([]);
+    setUploadProgress(0);
+    setUploadAttemptStatus('idle');
+    uploadIdempotencyKeyRef.current = '';
     setUploadFeedback(null);
     if (!productId) {
       const message = 'Choisissez d’abord le produit associé à cette vidéo.';
@@ -244,6 +279,7 @@ export default function SellerProductVideos() {
       }
       setFiles(selected);
       setFileUploadProgress(selected.map(() => 0));
+      setUploadAttemptStatus('ready');
       setUploadFeedback({
         type: 'success',
         message: `${selected.length} vidéo${selected.length > 1 ? 's' : ''} prête${selected.length > 1 ? 's' : ''} à être envoyée${selected.length > 1 ? 's' : ''}.`
@@ -256,10 +292,49 @@ export default function SellerProductVideos() {
     }
   };
 
+  const removeSelectedFile = (index) => {
+    if (uploading) return;
+    const remaining = files.filter((_, fileIndex) => fileIndex !== index);
+    setFiles(remaining);
+    setFileUploadProgress(remaining.map(() => 0));
+    setUploadProgress(0);
+    setUploadAttemptStatus(remaining.length ? 'ready' : 'idle');
+    uploadIdempotencyKeyRef.current = '';
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setUploadFeedback(
+      remaining.length
+        ? { type: 'success', message: `${remaining.length} vidéo${remaining.length > 1 ? 's' : ''} prête${remaining.length > 1 ? 's' : ''} à être envoyée${remaining.length > 1 ? 's' : ''}.` }
+        : null
+    );
+  };
+
+  const clearSelectedFiles = () => {
+    if (uploading) return;
+    setFiles([]);
+    setFileUploadProgress([]);
+    setUploadProgress(0);
+    setUploadAttemptStatus('idle');
+    setUploadFeedback(null);
+    uploadIdempotencyKeyRef.current = '';
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const cancelUpload = () => {
+    if (!uploading) return;
+    setUploadFeedback({ type: 'info', message: 'Annulation de l’envoi…' });
+    uploadControllerRef.current?.abort('VIDEO_UPLOAD_USER_CANCELED');
+  };
+
   const upload = async (event) => {
-    event.preventDefault();
+    event?.preventDefault?.();
+    if (uploading) return;
     if (!productId || !files.length) {
       setUploadFeedback({ type: 'error', message: 'Sélectionnez un produit et au moins une vidéo.' });
+      return;
+    }
+    if (!isOnline) {
+      setUploadAttemptStatus('error');
+      setUploadFeedback({ type: 'error', message: 'Vous êtes hors connexion. Reconnectez-vous puis appuyez sur Réessayer.' });
       return;
     }
     const body = new FormData();
@@ -267,12 +342,23 @@ export default function SellerProductVideos() {
     body.append('caption', caption);
     files.forEach((file) => body.append('video', file));
     setUploading(true);
+    setUploadAttemptStatus('uploading');
     setUploadProgress(0);
     setFileUploadProgress(files.map(() => 0));
+    const controller = new AbortController();
+    uploadControllerRef.current = controller;
+    if (!uploadIdempotencyKeyRef.current) {
+      uploadIdempotencyKeyRef.current = createIdempotencyKey('product-video-upload');
+    }
     setUploadFeedback({ type: 'info', message: 'Envoi en cours. Gardez cette page ouverte jusqu’à la confirmation.' });
     try {
       const { data } = await api.post('/product-videos/seller', body, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Idempotency-Key': uploadIdempotencyKeyRef.current
+        },
+        signal: controller.signal,
+        silentGlobalError: true,
         onUploadProgress: (event) => {
           if (event.total) setUploadProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
           setFileUploadProgress(getVideoFilesUploadProgress(files, event.loaded, event.total));
@@ -281,18 +367,32 @@ export default function SellerProductVideos() {
       const message = data?.moderationRequired ? 'Vidéo envoyée à la modération.' : 'Vidéo publiée avec succès.';
       showToast(message, { variant: 'success' });
       setUploadFeedback({ type: 'success', message });
+      setUploadAttemptStatus('success');
       setCaption('');
       setFiles([]);
       setFileUploadProgress([]);
+      setUploadProgress(100);
+      uploadIdempotencyKeyRef.current = '';
       if (fileInputRef.current) fileInputRef.current.value = '';
       await load();
     } catch (error) {
-      const message = getVideoUploadErrorMessage(error);
-      setUploadFeedback({ type: 'error', message });
-      showToast(message, { variant: 'error' });
+      const canceledByUser =
+        isApiCanceledError(error) && controller.signal.reason === 'VIDEO_UPLOAD_USER_CANCELED';
+      if (canceledByUser) {
+        const message = 'Envoi annulé. Vos vidéos restent sélectionnées et vous pouvez réessayer.';
+        setUploadAttemptStatus('cancelled');
+        setUploadFeedback({ type: 'info', message });
+        showToast(message, { variant: 'info' });
+      } else {
+        const message = getVideoUploadErrorMessage(error);
+        setUploadAttemptStatus('error');
+        setUploadFeedback({ type: 'error', message: `${message} Vos fichiers restent sélectionnés.` });
+        showToast(message, { variant: 'error' });
+        if (error?.response) uploadIdempotencyKeyRef.current = '';
+      }
     } finally {
+      if (uploadControllerRef.current === controller) uploadControllerRef.current = null;
       setUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -391,21 +491,31 @@ export default function SellerProductVideos() {
               setProductId(event.target.value);
               setFiles([]);
               setFileUploadProgress([]);
+              setUploadProgress(0);
+              setUploadAttemptStatus('idle');
               setUploadFeedback(null);
+              uploadIdempotencyKeyRef.current = '';
               if (fileInputRef.current) fileInputRef.current.value = '';
             }}
-            className="mt-2 h-12 w-full rounded-xl border border-neutral-200 bg-transparent px-3 outline-none focus:border-emerald-500 dark:border-white/10"
+            disabled={uploading}
+            className="mt-2 h-12 w-full rounded-xl border border-neutral-200 bg-transparent px-3 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10"
           >
             <option value="">Sélectionner un produit</option>
             {products.map((product) => <option key={product._id} value={product._id}>{product.title} · {formatPrice(product.price)}</option>)}
           </select>
           <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-neutral-500">Légende et hashtags</label>
-          <textarea value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} placeholder="Montrez le détail qui fait la différence… #nouveauté" className="mt-2 min-h-24 w-full rounded-xl border border-neutral-200 bg-transparent p-3 outline-none focus:border-emerald-500 dark:border-white/10" />
-          <label className="mt-4 flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50 p-4 text-center transition hover:border-emerald-400 dark:border-white/10 dark:bg-white/[0.03]">
+          <textarea disabled={uploading} value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} placeholder="Montrez le détail qui fait la différence… #nouveauté" className="mt-2 min-h-24 w-full rounded-xl border border-neutral-200 bg-transparent p-3 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10" />
+          {!isOnline ? (
+            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200" role="alert">
+              <WifiOff size={17} className="mt-0.5 shrink-0" />
+              <span>Connexion indisponible. Les fichiers restent sur cet appareil jusqu’à votre reconnexion.</span>
+            </div>
+          ) : null}
+          <label className={`mt-4 flex min-h-28 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50 p-4 text-center transition dark:border-white/10 dark:bg-white/[0.03] ${uploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-emerald-400'}`}>
             <Upload className="text-emerald-600" />
             <span className="mt-2 text-sm font-bold">{maxUploads > 1 ? `Choisir jusqu’à ${maxUploads} vidéos` : 'Choisir une vidéo'}</span>
             <span className="text-xs text-neutral-500">La compression adaptative est appliquée après l’envoi.</span>
-            <input ref={fileInputRef} type="file" multiple={maxUploads > 1} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
+            <input ref={fileInputRef} disabled={uploading} type="file" multiple={maxUploads > 1} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
           </label>
           {files.length ? (
             <div className="mt-3 space-y-2">
@@ -418,6 +528,16 @@ export default function SellerProductVideos() {
                       <span className="shrink-0 text-neutral-500">
                         {uploading || progress > 0 ? `${progress}%` : `${Math.round(file.size / 1024 / 1024)} Mo`}
                       </span>
+                      <button
+                        type="button"
+                        disabled={uploading}
+                        onClick={() => removeSelectedFile(index)}
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-rose-600 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-rose-500/10"
+                        aria-label={`Retirer ${file.name} de l’envoi`}
+                        title="Retirer cette vidéo"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                     <div
                       className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-white/10"
@@ -428,12 +548,20 @@ export default function SellerProductVideos() {
                       aria-valuenow={progress}
                     >
                       <div
-                        className={`h-full rounded-full transition-all duration-200 ${progress === 100 ? 'bg-emerald-500' : 'bg-sky-500'}`}
+                        className={`h-full rounded-full transition-all duration-200 ${uploadAttemptStatus === 'error' ? 'bg-rose-500' : uploadAttemptStatus === 'cancelled' ? 'bg-amber-500' : progress === 100 ? 'bg-emerald-500' : 'bg-sky-500'}`}
                         style={{ width: `${progress}%` }}
                       />
                     </div>
                     <p className="mt-1 text-[11px] font-semibold text-neutral-500">
-                      {progress === 100 ? 'Vidéo envoyée' : uploading ? 'Envoi en cours…' : 'Prête à envoyer'}
+                      {uploadAttemptStatus === 'cancelled'
+                        ? 'Envoi annulé — prête à réessayer'
+                        : uploadAttemptStatus === 'error'
+                          ? 'Échec — prête à réessayer'
+                          : uploading && progress === 100
+                            ? 'Transfert terminé — traitement en cours…'
+                            : uploading
+                              ? 'Envoi en cours…'
+                              : 'Prête à envoyer'}
                     </p>
                   </div>
                 );
@@ -441,17 +569,31 @@ export default function SellerProductVideos() {
             </div>
           ) : null}
           {uploadFeedback ? <div className="mt-3"><FeedbackAlert feedback={uploadFeedback} /></div> : null}
-          {uploading ? (
+          {uploading || ((uploadAttemptStatus === 'error' || uploadAttemptStatus === 'cancelled') && uploadProgress > 0) ? (
             <div className="mt-4 space-y-1.5" role="status" aria-live="polite">
               <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-white/10">
-                <div className="h-full rounded-full bg-emerald-500 transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+                <div className={`h-full rounded-full transition-all duration-200 ${uploadAttemptStatus === 'error' ? 'bg-rose-500' : uploadAttemptStatus === 'cancelled' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${uploadProgress}%` }} />
               </div>
-              <p className="text-center text-xs font-bold text-neutral-500">Envoi des vidéos… {uploadProgress}%</p>
+              <p className="text-center text-xs font-bold text-neutral-500">
+                {uploadAttemptStatus === 'cancelled' ? 'Envoi annulé' : uploadAttemptStatus === 'error' ? 'Envoi interrompu' : uploadProgress === 100 ? 'Traitement des vidéos…' : 'Envoi des vidéos…'} {uploadProgress}%
+              </p>
             </div>
           ) : null}
-          <button type="submit" disabled={uploading || !productId || !files.length} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
-            {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />} {uploading ? `Envoi en cours… ${uploadProgress}%` : 'Envoyer les vidéos'}
-          </button>
+          <div className="mt-5 flex gap-2">
+            <button type="submit" disabled={uploading || !isOnline || !productId || !files.length} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
+              {uploading ? <Loader2 size={18} className="animate-spin" /> : uploadAttemptStatus === 'error' || uploadAttemptStatus === 'cancelled' ? <RefreshCw size={18} /> : <Upload size={18} />}
+              {uploading ? `Envoi… ${uploadProgress}%` : uploadAttemptStatus === 'error' || uploadAttemptStatus === 'cancelled' ? 'Réessayer' : 'Envoyer'}
+            </button>
+            {uploading ? (
+              <button type="button" onClick={cancelUpload} className="flex h-12 items-center justify-center gap-1.5 rounded-xl border border-rose-200 px-3 text-sm font-black text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10">
+                <XCircle size={17} /> Annuler
+              </button>
+            ) : files.length ? (
+              <button type="button" onClick={clearSelectedFiles} className="flex h-12 items-center justify-center rounded-xl border border-neutral-200 px-3 text-sm font-bold text-neutral-600 hover:bg-neutral-50 dark:border-white/10 dark:text-neutral-300 dark:hover:bg-white/5">
+                Tout retirer
+              </button>
+            ) : null}
+          </div>
         </form>
 
         <section>
