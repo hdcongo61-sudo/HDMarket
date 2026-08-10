@@ -1,11 +1,15 @@
 import express from 'express';
 import {
+  appendResumableProductVideoChunk,
+  completeResumableProductVideoUpload,
   createProductVideoComment,
   deleteSellerProductVideo,
+  discardResumableProductVideoUpload,
   getAdminProductVideoAnalytics,
   getProductVideoById,
   getProductVideoCapabilities,
   getProductVideoFeed,
+  getResumableProductVideoUpload,
   getSavedProductVideos,
   getSellerProductVideoAnalytics,
   listAdminProductVideoReports,
@@ -18,6 +22,7 @@ import {
   recordProductVideoView,
   reportProductVideo,
   resolveAdminProductVideoReport,
+  startResumableProductVideoUpload,
   toggleProductVideoCommentLike,
   toggleProductVideoLike,
   toggleProductVideoSave,
@@ -40,6 +45,21 @@ router.get('/saved', protect, getSavedProductVideos);
 router.get('/shop/:sellerId', listShopProductVideos);
 router.get('/seller/mine', protect, listSellerProductVideos);
 router.get('/seller/analytics', protect, getSellerProductVideoAnalytics);
+router.post('/seller/resumable/start', protect, startResumableProductVideoUpload);
+router.get('/seller/resumable/:uploadId', protect, getResumableProductVideoUpload);
+router.put(
+  '/seller/resumable/:uploadId/chunk',
+  protect,
+  express.raw({ type: 'application/octet-stream', limit: '2mb' }),
+  appendResumableProductVideoChunk
+);
+router.post(
+  '/seller/resumable/:uploadId/complete',
+  protect,
+  productVideoMutationIdempotency,
+  completeResumableProductVideoUpload
+);
+router.delete('/seller/resumable/:uploadId', protect, discardResumableProductVideoUpload);
 router.post('/seller', protect, upload.array('video', 12), productVideoMutationIdempotency, uploadProductVideos);
 router.patch('/seller/:id', protect, upload.single('video'), productVideoMutationIdempotency, updateSellerProductVideo);
 router.delete('/seller/:id', protect, deleteSellerProductVideo);

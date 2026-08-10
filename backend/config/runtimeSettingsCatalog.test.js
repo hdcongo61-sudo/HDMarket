@@ -100,6 +100,13 @@ describe('HDMarket Videos runtime settings', () => {
       max: 2,
       isPublic: true
     });
+    expect(getRuntimeSettingMetadata('product_video_max_uploads_per_product')).toMatchObject({
+      defaultValue: 5,
+      legacyDefaultValues: [1],
+      min: 1,
+      max: 12,
+      isPublic: true
+    });
     expect(getRuntimeSettingMetadata('product_video_require_moderation')).toMatchObject({
       defaultValue: false,
       isPublic: false

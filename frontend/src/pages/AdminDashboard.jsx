@@ -34,11 +34,7 @@ import {
   CheckCircle,
   Clock,
   BarChart3,
-  Settings,
   RefreshCw,
-  Search,
-  Filter,
-  Eye,
   X,
   ChevronRight,
   Activity,
@@ -46,10 +42,8 @@ import {
   MessageSquare,
   Shield,
   FileText,
-  Calendar,
   MapPin,
   Phone,
-  Mail,
   Wifi,
   Smartphone,
   Tablet,
@@ -58,7 +52,8 @@ import {
   ArrowUpRight,
   Sparkles,
   ClipboardList,
-  Truck
+  Truck,
+  Wrench
 } from 'lucide-react';
 import useAdminCounts from '../hooks/useAdminCounts';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -429,6 +424,8 @@ export default function AdminDashboard() {
   const availableTabs = useMemo(() => {
     const tabs = [];
     if (canViewStats) tabs.push({ key: 'overview', label: t('admin.dashboard.overview', 'Vue globale') });
+    if (canViewStats) tabs.push({ key: 'analytics', label: t('admin.dashboard.analytics', 'Analytique') });
+    if (canViewStats) tabs.push({ key: 'tools', label: t('admin.dashboard.tools', 'Outils') });
     if (canManagePayments) tabs.push({ key: 'payments', label: t('admin.dashboard.payments', 'Paiements') });
     if (canAccessBackOffice) tabs.push({ key: 'orders', label: t('admin.dashboard.orders', 'Commandes'), to: '/admin/orders' });
     if (canManageComplaints) tabs.push({ key: 'complaints', label: t('admin.dashboard.complaints', 'Réclamations') });
@@ -438,7 +435,9 @@ export default function AdminDashboard() {
   const adminTabMeta = useMemo(
     () => ({
       overview: { icon: Activity, helper: 'Vue globale' },
-      users: { icon: Users, helper: 'Comptes & roles' },
+      analytics: { icon: BarChart3, helper: 'Graphiques & tendances' },
+      tools: { icon: Wrench, helper: 'Cache, notifications, exports' },
+      users: { icon: Users, helper: 'Comptes & rôles' },
       payments: { icon: DollarSign, helper: 'Validations' },
       orders: { icon: ClipboardList, helper: 'Suivi des commandes' },
       complaints: { icon: AlertCircle, helper: 'Support & litiges' }
@@ -952,13 +951,13 @@ export default function AdminDashboard() {
   }, [isFounder, loadFounderMini]);
 
   useEffect(() => {
-    if (!canViewStats) return undefined;
+    if (!canViewStats || activeAdminTab !== 'overview') return undefined;
     const timer = setInterval(() => {
       loadOnlineStats();
       loadRealtimeMonitoring();
     }, 5000);
     return () => clearInterval(timer);
-  }, [canViewStats, loadOnlineStats, loadRealtimeMonitoring]);
+  }, [canViewStats, activeAdminTab, loadOnlineStats, loadRealtimeMonitoring]);
 
   useEffect(() => {
     if (!canManagePayments) return;
@@ -1618,9 +1617,6 @@ export default function AdminDashboard() {
           <div className="space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 space-y-1.5">
-                <p className="hidden">
-                  Espace de travail
-                </p>
                 <h1 className="text-[22px] font-black tracking-tight text-[#231f1b] dark:text-white">{pageTitle}</h1>
                 {stats?.generatedAt ? (
                   <p className="text-xs font-medium text-[#8a8378] dark:text-neutral-500">
@@ -1754,7 +1750,7 @@ export default function AdminDashboard() {
                 <Crown size={18} />
               </span>
               <div>
-                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Mini widget founder</h2>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Aperçu fondateur</h2>
                 <p className="text-xs text-slate-500 dark:text-slate-300">
                   Synthèse live des métriques exécutives
                 </p>
@@ -1794,11 +1790,11 @@ export default function AdminDashboard() {
             <SectionStatCard
               label="Croissance hebdo"
               value={`${Number(founderMini?.kpis?.growthVelocity?.weekly || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
-              helper={`Daily ${Number(founderMini?.kpis?.growthVelocity?.daily || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
+              helper={`Par jour ${Number(founderMini?.kpis?.growthVelocity?.daily || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
               icon={ArrowUpRight}
             />
             <SectionStatCard
-              label="Full payment"
+              label="Paiement comptant"
               value={`${Number(founderMini?.kpis?.fullPaymentConversion?.adoptionRate || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
               helper={`${formatNumber(founderMini?.kpis?.fullPaymentConversion?.ordersPaidInFull)} commandes · ${formatCurrency(founderMini?.kpis?.fullPaymentConversion?.waivedDeliveryAmount)}`}
               icon={Sparkles}
@@ -2079,83 +2075,6 @@ export default function AdminDashboard() {
         )}
           </section>
 
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Santé du cache</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  Redis + cache mémoire (isolation par scope utilisateur/rôle)
-                </p>
-              </div>
-            </div>
-            {cacheStatsError ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm font-medium text-amber-800">{cacheStatsError}</p>
-              </div>
-            ) : null}
-            {cacheStatsLoading && !cacheStats ? (
-              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm text-gray-500 dark:text-slate-400">
-                Chargement des métriques cache…
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <SectionStatCard
-                    label="Hit ratio"
-                    value={`${cacheHitRatio.toFixed(2)} %`}
-                    helper={`${formatNumber(cacheHits)} hits / ${formatNumber(cacheReads)} lectures`}
-                    icon={TrendingUp}
-                  />
-                  <SectionStatCard
-                    label="Redis"
-                    value={cacheStats?.redis?.ready ? 'Connecté' : 'Fallback mémoire'}
-                    helper={`${formatNumber(cacheStats?.redis?.keyCount || 0)} clés`}
-                    icon={Activity}
-                  />
-                  <SectionStatCard
-                    label="Mémoire Redis"
-                    value={
-                      cacheStats?.redis?.memoryUsedHuman ||
-                      formatBytes(cacheStats?.redis?.memoryUsedBytes || 0)
-                    }
-                    helper={`L1 mémoire: ${formatNumber(cacheStats?.hotCacheSize || 0)} entrées`}
-                    icon={BarChart3}
-                  />
-                  <SectionStatCard
-                    label="Invalidations / erreurs"
-                    value={`${formatNumber(cacheStats?.invalidations || 0)} / ${formatNumber(cacheErrors)}`}
-                    helper={`SET: ${formatNumber(cacheStats?.sets || 0)} • MISS: ${formatNumber(cacheStats?.misses || 0)}`}
-                    icon={AlertCircle}
-                  />
-                </div>
-                <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">Tendance hit ratio (échantillons récents)</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">{cacheHistory.length} points</p>
-                  </div>
-                  {cacheHistory.length > 1 ? (
-                    <div className="h-24 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={cacheHistory}>
-                          <Line
-                            type="monotone"
-                            dataKey="hitRatio"
-                            stroke="#0a0a0a"
-                            strokeWidth={2}
-                            dot={false}
-                            isAnimationActive={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500 dark:text-slate-400">Pas assez de points pour afficher la tendance.</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
-
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -2285,942 +2204,6 @@ export default function AdminDashboard() {
             )}
           </section>
 
-          {canBroadcastNotifications && (
-            <>
-              <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                    <MessageSquare size={20} className="text-neutral-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Notification globale</h2>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Ciblez précisément l’audience et ajoutez une action vers une boutique.</p>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-6 shadow-sm">
-                  {broadcastError && <p className="text-sm text-red-600 mb-3">{broadcastError}</p>}
-                  {broadcastSuccess && <p className="text-sm text-emerald-600 mb-3">{broadcastSuccess}</p>}
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/40">
-                      <p className="mb-3 text-xs font-black uppercase tracking-wide text-gray-500 dark:text-slate-400">Audience</p>
-                      <div className="grid gap-3 md:grid-cols-3">
-                        <div>
-                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Type de compte</label>
-                          <select
-                            value={broadcastTarget}
-                            onChange={(e) => setBroadcastTarget(e.target.value)}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-                          >
-                            <option value="all">Tous les comptes</option>
-                            <option value="person">Particuliers</option>
-                            <option value="shop">Boutiques</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Genre</label>
-                          <select
-                            value={broadcastGender}
-                            onChange={(e) => setBroadcastGender(e.target.value)}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-                          >
-                            <option value="all">Tous les genres</option>
-                            <option value="homme">Hommes</option>
-                            <option value="femme">Femmes</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Ville</label>
-                          <input
-                            type="text"
-                            list="broadcast-city-options"
-                            value={broadcastCity}
-                            onChange={(e) => setBroadcastCity(e.target.value)}
-                            placeholder="Toutes les villes"
-                            maxLength={100}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
-                          />
-                          <datalist id="broadcast-city-options">
-                            {(cities || []).map((cityItem) => (
-                              <option key={cityItem?._id || cityItem?.name} value={cityItem?.name || ''} />
-                            ))}
-                          </datalist>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={previewBroadcastAudience}
-                          disabled={broadcastPreviewing}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                        >
-                          {broadcastPreviewing ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />}
-                          Calculer l’audience
-                        </button>
-                        {broadcastAudienceCount !== null ? (
-                          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                            {formatNumber(broadcastAudienceCount)} destinataire(s) éligible(s)
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Titre (optionnel)</label>
-                      <input
-                        type="text"
-                        value={broadcastTitle}
-                        onChange={(e) => setBroadcastTitle(e.target.value)}
-                        placeholder="Ex : Actualités"
-                        maxLength={200}
-                        className="w-full rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Message *</label>
-                      <textarea
-                        value={broadcastMessage}
-                        onChange={(e) => setBroadcastMessage(e.target.value)}
-                        placeholder="Contenu de la notification..."
-                        rows={4}
-                        maxLength={2000}
-                        className="w-full rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{broadcastMessage.length} / 2000</p>
-                    </div>
-                    <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-4 dark:border-orange-900/60 dark:bg-orange-950/20">
-                      <label className="mb-1 block text-sm font-bold text-gray-800 dark:text-slate-100">Lien vers une boutique (optionnel)</label>
-                      <p className="mb-2 text-xs text-gray-500 dark:text-slate-400">Ajoute un bouton fiable dans la notification et dans la notification push.</p>
-                      <input
-                        type="search"
-                        value={broadcastShopSearch}
-                        onChange={(e) => setBroadcastShopSearch(e.target.value)}
-                        placeholder="Rechercher une boutique par nom, ville…"
-                        className="mb-2 w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-slate-900"
-                      />
-                      <select
-                        value={broadcastShopId}
-                        onChange={(e) => {
-                          setBroadcastShopId(e.target.value);
-                          if (!e.target.value) setBroadcastActionLabel('');
-                        }}
-                        disabled={broadcastShopsLoading}
-                        className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-slate-900"
-                      >
-                        <option value="">Aucune boutique liée</option>
-                        {broadcastShops.map((shop) => (
-                          <option key={shop.id || shop._id} value={shop.id || shop._id}>
-                            {shop.shopName || shop.name || 'Boutique'}{shop.city ? ` · ${shop.city}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      {broadcastShopId ? (
-                        <div className="mt-3">
-                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-slate-200">Texte du bouton</label>
-                          <input
-                            type="text"
-                            value={broadcastActionLabel}
-                            onChange={(e) => setBroadcastActionLabel(e.target.value)}
-                            placeholder="Voir la boutique"
-                            maxLength={80}
-                            className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-slate-900"
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={sendBroadcast}
-                      disabled={broadcastSending || !broadcastMessage.trim()}
-                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {broadcastSending ? (
-                        <>
-                          <RefreshCw size={16} className="animate-spin" />
-                          Envoi en cours…
-                        </>
-                      ) : (
-                        <>
-                          <MessageSquare size={16} />
-                          Envoyer la notification
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                    <Phone size={20} className="text-neutral-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Export des numéros de téléphone</h2>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Télécharger la liste des numéros au format CSV (particuliers, boutiques ou tous)</p>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-6 shadow-sm">
-                  {exportError && <p className="text-sm text-red-600 mb-3">{exportError}</p>}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <select
-                      value={exportTarget}
-                      onChange={(e) => setExportTarget(e.target.value)}
-                      className="rounded-xl border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-                    >
-                      <option value="all">Tous les utilisateurs</option>
-                      <option value="person">Particuliers uniquement</option>
-                      <option value="shop">Boutiques uniquement</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={handleExportPhones}
-                      disabled={exportLoading}
-                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {exportLoading ? (
-                        <>
-                          <RefreshCw size={16} className="animate-spin" />
-                          Export…
-                        </>
-                      ) : (
-                        <>
-                          <FileText size={16} />
-                          Exporter en CSV
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </section>
-            </>
-          )}
-
-          <BaseModal
-            isOpen={remindersOpen}
-            onClose={() => setRemindersOpen(false)}
-            size="xl"
-            mobileSheet
-            ariaLabel="Relances commandes"
-            panelClassName="sm:max-w-3xl"
-          >
-            <ModalHeader
-              title="Suivi des statuts alignés sur /admin/orders"
-              subtitle="Les statuts livrés, paiement terminé et annulé sont exclus automatiquement."
-              onClose={() => setRemindersOpen(false)}
-            />
-            <ModalBody className="space-y-4">
-              <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50/80 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-300">
-                      Filtres commandes
-                    </p>
-                    <button
-                      type="button"
-                      onClick={resetReminderFilters}
-                      className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
-                    >
-                      <RefreshCw size={12} />
-                      Réinitialiser
-                    </button>
-                  </div>
-                  <div className="space-y-2 sm:hidden">
-                    <div>
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
-                        Statut
-                      </p>
-                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
-                        {REMINDER_STATUS_FILTER_OPTIONS.map((statusOption) => {
-                          const isActive = reminderStatusFilter === statusOption.value;
-                          return (
-                            <button
-                              key={statusOption.value}
-                              type="button"
-                              onClick={() => setReminderStatusFilter(statusOption.value)}
-                              aria-pressed={isActive}
-                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                isActive
-                                  ? 'border-neutral-700 bg-neutral-700 text-white'
-                                  : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200'
-                              }`}
-                            >
-                              {statusOption.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
-                        Paiement
-                      </p>
-                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
-                        {REMINDER_PAYMENT_TYPE_FILTER_OPTIONS.map((paymentOption) => {
-                          const optionValue = paymentOption.value || '';
-                          const isActive = reminderPaymentTypeFilter === optionValue;
-                          return (
-                            <button
-                              key={optionValue || 'all'}
-                              type="button"
-                              onClick={() =>
-                                setReminderPaymentTypeFilter((prev) =>
-                                  prev === optionValue ? '' : optionValue
-                                )
-                              }
-                              aria-pressed={isActive}
-                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                isActive
-                                  ? 'border-neutral-700 bg-neutral-700 text-white'
-                                  : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200'
-                              }`}
-                            >
-                              {paymentOption.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
-                        Livraison
-                      </p>
-                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
-                        {REMINDER_DELIVERY_MODE_FILTER_OPTIONS.map((deliveryOption) => {
-                          const optionValue = deliveryOption.value || '';
-                          const isActive = reminderDeliveryModeFilter === optionValue;
-                          return (
-                            <button
-                              key={optionValue || 'all'}
-                              type="button"
-                              onClick={() =>
-                                setReminderDeliveryModeFilter((prev) =>
-                                  prev === optionValue ? '' : optionValue
-                                )
-                              }
-                              aria-pressed={isActive}
-                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                isActive
-                                  ? 'border-neutral-700 bg-neutral-700 text-white'
-                                  : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200'
-                              }`}
-                            >
-                              {deliveryOption.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="hidden grid-cols-1 gap-2 sm:grid sm:grid-cols-3">
-                    <select
-                      value={reminderStatusFilter}
-                      onChange={(event) => setReminderStatusFilter(event.target.value)}
-                      className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
-                    >
-                      {REMINDER_STATUS_FILTER_OPTIONS.map((statusOption) => (
-                        <option key={statusOption.value} value={statusOption.value}>
-                          {statusOption.label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={reminderPaymentTypeFilter}
-                      onChange={(event) => setReminderPaymentTypeFilter(event.target.value)}
-                      className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
-                    >
-                      {REMINDER_PAYMENT_TYPE_FILTER_OPTIONS.map((paymentOption) => (
-                        <option key={paymentOption.value || 'all'} value={paymentOption.value}>
-                          {paymentOption.label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={reminderDeliveryModeFilter}
-                      onChange={(event) => setReminderDeliveryModeFilter(event.target.value)}
-                      className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
-                    >
-                      {REMINDER_DELIVERY_MODE_FILTER_OPTIONS.map((deliveryOption) => (
-                        <option key={deliveryOption.value || 'all'} value={deliveryOption.value}>
-                          {deliveryOption.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-              </div>
-
-              {remindersLoading ? (
-                <p className="text-sm text-gray-500 dark:text-slate-400">Chargement des commandes…</p>
-              ) : remindersError ? (
-                <p className="text-sm text-red-600">{remindersError}</p>
-              ) : reminderOrders.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-slate-400">Aucune commande à relancer.</p>
-              ) : (
-                <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs uppercase tracking-wide text-neutral-600">
-                        Commandes +48h non livrées
-                      </p>
-                      <span className="text-xs font-semibold text-neutral-600">
-                        {overdueReminderOrders.length}
-                      </span>
-                    </div>
-                    {overdueReminderOrders.length === 0 ? (
-                      <p className="text-sm text-gray-500 dark:text-slate-400">
-                        Aucune commande en retard pour le moment.
-                      </p>
-                    ) : (
-                      overdueReminderOrders.map(renderReminderOrderCard)
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
-                      Autres commandes à relancer
-                    </p>
-                    {regularReminderOrders.length === 0 ? (
-                      <p className="text-sm text-gray-500 dark:text-slate-400">
-                        Aucune autre commande à relancer.
-                      </p>
-                    ) : (
-                      regularReminderOrders.map(renderReminderOrderCard)
-                    )}
-                  </div>
-                </div>
-              )}
-            </ModalBody>
-          </BaseModal>
-
-          {/* Analytics Charts Section */}
-          {canViewStats && (
-            <section className="space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                  <BarChart3 size={20} className="text-neutral-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Analytics en Temps Réel</h3>
-                  <p className="text-xs text-gray-600 dark:text-slate-300 mt-0.5">
-                    Graphiques interactifs et analyses détaillées de l'activité
-                  </p>
-                </div>
-              </div>
-
-              {/* Sales Trends Chart */}
-              <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-base font-semibold text-gray-900 dark:text-slate-100">Tendances de Vente</h4>
-                  <div className="flex gap-2">
-                    {[7, 30, 90].map((days) => (
-                      <button
-                        key={days}
-                        type="button"
-                        onClick={() => {
-                          setSalesTrendsPeriod(days);
-                          loadSalesTrends();
-                        }}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                          salesTrendsPeriod === days
-                            ? 'bg-neutral-600 text-white'
-                            : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200'
-                        }`}
-                      >
-                        {days}j
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {salesTrendsLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
-                  </div>
-                ) : salesTrends?.trends?.length ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={salesTrends.trends}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
-                      <YAxis yAxisId="left" stroke="#6b7280" fontSize={12} />
-                      <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={12} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px'
-                        }}
-                        formatter={(value, name) => {
-                          if (name === 'Revenus') {
-                            return formatCurrency(value);
-                          }
-                          return value;
-                        }}
-                      />
-                      <Legend />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="orders"
-                        stroke="#4f46e5"
-                        strokeWidth={2}
-                        name="Commandes"
-                        dot={{ r: 4 }}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="revenue"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        name="Revenus"
-                        dot={{ r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-slate-400 text-center py-12">Aucune donnée disponible</p>
-                )}
-              </div>
-
-              {/* Order Heatmap */}
-              <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-6 shadow-sm">
-                <h4 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-4">Heatmap des Heures de Pointe</h4>
-                {orderHeatmapLoading ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
-                  </div>
-                ) : orderHeatmap?.heatmap?.length ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={orderHeatmap.heatmap}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
-                      <YAxis stroke="#6b7280" fontSize={12} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px'
-                        }}
-                        formatter={(value, name) => {
-                          if (name === 'Commandes') {
-                            return [`${value} commandes`, name];
-                          }
-                          return [value, name];
-                        }}
-                      />
-                      <Bar 
-                        dataKey="count" 
-                        name="Commandes" 
-                        fill="#4f46e5" 
-                        radius={[8, 8, 0, 0]}
-                        onClick={(data) => {
-                          if (data && typeof data.hour === 'number') {
-                            loadOrdersByHour(data.hour);
-                          }
-                        }}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {orderHeatmap.heatmap.map((entry, index) => {
-                          const intensity = entry.count / Math.max(...orderHeatmap.heatmap.map((h) => h.count));
-                          const isSelected = selectedHour === entry.hour;
-                          return (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={isSelected 
-                                ? `rgba(79, 70, 229, 1)` 
-                                : `rgba(79, 70, 229, ${Math.max(0.3, intensity)})`
-                              }
-                              stroke={isSelected ? '#1e1b4b' : 'none'}
-                              strokeWidth={isSelected ? 2 : 0}
-                            />
-                          );
-                        })}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-slate-400 text-center py-12">Aucune donnée disponible</p>
-                )}
-              </div>
-
-              {/* Conversion Metrics */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-6 shadow-sm">
-                  <h4 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-4">Métriques de Conversion</h4>
-                  {conversionLoading ? (
-                    <div className="h-48 flex items-center justify-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
-                    </div>
-                  ) : conversionMetrics ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                        <span className="text-sm text-gray-700 dark:text-slate-200">Visiteurs uniques</span>
-                        <span className="text-lg font-bold text-neutral-600">
-                          {conversionMetrics.metrics.uniqueVisitors.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm text-gray-700 dark:text-slate-200">Clients uniques</span>
-                        <span className="text-lg font-bold text-green-600">
-                          {conversionMetrics.metrics.uniqueCustomers.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                        <span className="text-sm text-gray-700 dark:text-slate-200">Taux de conversion</span>
-                        <span className="text-lg font-bold text-neutral-600">
-                          {conversionMetrics.metrics.visitorToOrderRate}%
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                        <span className="text-sm text-gray-700 dark:text-slate-200">Vues totales</span>
-                        <span className="text-lg font-bold text-amber-600">
-                          {conversionMetrics.metrics.totalViews.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 dark:text-slate-400 text-center py-8">Aucune donnée disponible</p>
-                  )}
-                </div>
-
-                {/* Cohort Analysis */}
-                <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-6 shadow-sm">
-                  <h4 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-4">Analyse de Cohort</h4>
-                  {cohortLoading ? (
-                    <div className="h-48 flex items-center justify-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
-                    </div>
-                  ) : cohortAnalysis?.cohorts?.length ? (
-                    <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {cohortAnalysis.cohorts.slice(-6).map((cohort) => (
-                        <div key={cohort.cohort} className="p-3 bg-gray-50 dark:bg-slate-900/70 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{cohort.label}</span>
-                            <span className="text-xs text-gray-500 dark:text-slate-400">
-                              {cohort.retentionRate}% rétention
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-slate-300">
-                            <span>{cohort.totalUsers} utilisateurs</span>
-                            <span>{cohort.activeUsers} actifs</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 dark:text-slate-400 text-center py-8">Aucune donnée disponible</p>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Orders by Hour Modal */}
-          <BaseModal
-            isOpen={selectedHour !== null}
-            onClose={() => {
-              setSelectedHour(null);
-              setHourOrders([]);
-            }}
-            size="xl"
-            mobileSheet
-            ariaLabel="Commandes par heure"
-            panelClassName="sm:max-w-4xl"
-          >
-            <ModalHeader
-              title={`Commandes créées à ${String(selectedHour ?? '').padStart(2, '0')}:00`}
-              subtitle={`Derniers 30 jours · ${hourOrders.length} commande${hourOrders.length > 1 ? 's' : ''}`}
-              onClose={() => {
-                setSelectedHour(null);
-                setHourOrders([]);
-              }}
-            />
-            <ModalBody className="pr-2">
-                  {hourOrdersLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
-                    </div>
-                  ) : hourOrdersError ? (
-                    <p className="text-sm text-red-600 text-center py-8">{hourOrdersError}</p>
-                  ) : hourOrders.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-slate-400 text-center py-12">Aucune commande trouvée pour cette heure.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {hourOrders.map((order) => (
-                        <div
-                          key={order.id}
-                          className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-4 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                                  {order.customer?.name || 'Client inconnu'}
-                                </span>
-                                <span
-                                  className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                                    order.status === 'delivered'
-                                      ? 'bg-green-100 text-green-800'
-                                      : order.status === 'cancelled'
-                                      ? 'bg-red-100 text-red-800'
-                                      : order.status === 'delivering'
-                                      ? 'bg-neutral-100 text-neutral-800'
-                                      : order.status === 'confirmed'
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200'
-                                  }`}
-                                >
-                                  {order.status === 'pending'
-                                    ? 'En attente'
-                                    : order.status === 'confirmed'
-                                    ? 'Confirmée'
-                                    : order.status === 'delivering'
-                                    ? 'En livraison'
-                                    : order.status === 'delivered'
-                                    ? 'Livrée'
-                                    : 'Annulée'}
-                                </span>
-                              </div>
-                              {order.customer?.email && (
-                                <p className="text-xs text-gray-600 dark:text-slate-300">{order.customer.email}</p>
-                              )}
-                              {order.customer?.phone && (
-                                <p className="text-xs text-gray-600 dark:text-slate-300">{order.customer.phone}</p>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-bold text-gray-900 dark:text-slate-100">
-                                {formatCurrency(order.totalAmount || 0)}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-slate-400">
-                                {formatDateTime(order.createdAt)}
-                              </p>
-                            </div>
-                          </div>
-
-                          {order.items?.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
-                              <p className="text-xs font-semibold text-gray-700 dark:text-slate-200 mb-2">Articles:</p>
-                              <div className="space-y-1">
-                                {order.items.slice(0, 3).map((item, idx) => (
-                                  <div key={idx} className="flex items-center justify-between text-xs">
-                                    <span className="text-gray-700 dark:text-slate-200">
-                                      {item.product?.title || item.snapshot?.title || 'Produit'} × {item.quantity || 1}
-                                    </span>
-                                    {item.product?.price && (
-                                      <span className="text-gray-600 dark:text-slate-300">
-                                        {formatCurrency(item.product.price * (item.quantity || 1))}
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                                {order.items.length > 3 && (
-                                  <p className="text-xs text-gray-500 dark:text-slate-400">
-                                    +{order.items.length - 3} autre{order.items.length - 3 > 1 ? 's' : ''}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {order.deliveryAddress && (
-                            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-700">
-                              <p className="text-xs text-gray-600 dark:text-slate-300">
-                                <MapPin size={12} className="inline mr-1" />
-                                {order.deliveryAddress}
-                                {order.deliveryCity && `, ${order.deliveryCity}`}
-                              </p>
-                            </div>
-                          )}
-
-                          {order.deliveryCode && (
-                            <div className="mt-2">
-                              <span className="text-xs font-semibold text-neutral-600">
-                                Code: {order.deliveryCode}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-            </ModalBody>
-          </BaseModal>
-
-          {(cityStats.length > 0 || genderStats.length > 0 || productCityStats.length > 0 || productGenderStats.length > 0) && (
-            <section className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-          {cityStats.length > 0 && (
-            <div className="rounded-lg border bg-white dark:bg-slate-900 p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Répartition des utilisateurs par ville</h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">Principales localisations des membres enregistrés.</p>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-50 dark:bg-slate-900/70">
-                    <tr>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Ville</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Utilisateurs</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Part</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cityStats.slice(0, 8).map((item) => (
-                      <tr key={item.city} className="border-b last:border-b-0">
-                        <td className="p-2 text-gray-700 dark:text-slate-200">{item.city}</td>
-                        <td className="p-2 text-gray-900 dark:text-slate-100 text-right">{formatNumber(item.count)}</td>
-                        <td className="p-2 text-gray-500 dark:text-slate-400 text-right">{formatPercent(item.count, totalUserCount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {genderStats.length > 0 && (
-            <div className="rounded-lg border bg-white dark:bg-slate-900 p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Répartition des utilisateurs par genre</h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">Déclaration lors de l’inscription.</p>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-50 dark:bg-slate-900/70">
-                    <tr>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Genre</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Utilisateurs</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Part</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {genderStats.map((item) => (
-                      <tr key={item.gender} className="border-b last:border-b-0">
-                        <td className="p-2 text-gray-700 dark:text-slate-200">{item.gender}</td>
-                        <td className="p-2 text-gray-900 dark:text-slate-100 text-right">{formatNumber(item.count)}</td>
-                        <td className="p-2 text-gray-500 dark:text-slate-400 text-right">{formatPercent(item.count, totalUserCount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {productCityStats.length > 0 && (
-            <div className="rounded-lg border bg-white dark:bg-slate-900 p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Annonces par ville</h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">Localisation déclarée des vendeurs au moment de la publication.</p>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-50 dark:bg-slate-900/70">
-                    <tr>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Ville</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Annonces</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Part</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {productCityStats.slice(0, 8).map((item) => (
-                      <tr key={item.city} className="border-b last:border-b-0">
-                        <td className="p-2 text-gray-700 dark:text-slate-200">{item.city}</td>
-                        <td className="p-2 text-gray-900 dark:text-slate-100 text-right">{formatNumber(item.count)}</td>
-                        <td className="p-2 text-gray-500 dark:text-slate-400 text-right">{formatPercent(item.count, totalProductCount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {productGenderStats.length > 0 && (
-            <div className="rounded-lg border bg-white dark:bg-slate-900 p-4 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Annonces par genre</h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">Répartition selon le genre des vendeurs.</p>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-50 dark:bg-slate-900/70">
-                    <tr>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Genre</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Annonces</th>
-                      <th className="p-2 font-medium text-gray-600 dark:text-slate-300 text-right">Part</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {productGenderStats.map((item) => (
-                      <tr key={item.gender} className="border-b last:border-b-0">
-                        <td className="p-2 text-gray-700 dark:text-slate-200">{item.gender}</td>
-                        <td className="p-2 text-gray-900 dark:text-slate-100 text-right">{formatNumber(item.count)}</td>
-                        <td className="p-2 text-gray-500 dark:text-slate-400 text-right">{formatPercent(item.count, totalProductCount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-            </section>
-          )}
-
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border bg-white dark:bg-slate-900 p-4 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Tendances des 6 derniers mois</h2>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
-            Nouveaux utilisateurs, annonces créées et revenus vérifiés par mois.
-          </p>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-900/70">
-                <tr>
-                  <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Mois</th>
-                  <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Utilisateurs</th>
-                  <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Annonces</th>
-                  <th className="p-2 font-medium text-gray-600 dark:text-slate-300">Revenus</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats?.monthly?.length ? (
-                  stats.monthly.map((row) => (
-                    <tr key={row.month} className="border-t">
-                      <td className="p-2 capitalize">{formatMonthLabel(row.month)}</td>
-                      <td className="p-2">{formatNumber(row.newUsers)}</td>
-                      <td className="p-2">{formatNumber(row.newProducts)}</td>
-                      <td className="p-2">{formatCurrency(row.revenue)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="p-2 text-sm text-gray-500 dark:text-slate-400" colSpan={4}>
-                      Aucune donnée disponible pour le moment.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-white dark:bg-slate-900 p-4 shadow-sm space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Catégories les plus actives</h2>
-            <p className="text-xs text-gray-500 dark:text-slate-400">Top 5 des catégories par nombre d&apos;annonces approuvées.</p>
-          </div>
-          {stats?.topCategories?.length ? (
-            <ul className="space-y-3">
-              {stats.topCategories.map((cat) => (
-                <li key={cat.category} className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{cat.category}</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">Prix moyen&nbsp;: {formatCurrency(cat.avgPrice)}</p>
-                  </div>
-                  <span className="text-sm font-semibold text-neutral-600">
-                    {formatNumber(cat.listings)} annonces
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-500 dark:text-slate-400">Pas encore assez de données.</p>
-          )}
-        </div>
-          </section>
-
           <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-lg border bg-white dark:bg-slate-900 p-4 shadow-sm">
           <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">Nouveaux utilisateurs</h3>
@@ -3326,6 +2309,700 @@ export default function AdminDashboard() {
           </ul>
         </div>
           </section>
+        </>
+      )}
+
+      {canViewStats && shouldShowSection('analytics') && (
+        <>
+          {/* Analytics Charts Section */}
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
+                <BarChart3 size={20} className="text-neutral-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Analytics en Temps Réel</h3>
+                <p className="text-xs text-gray-600 dark:text-neutral-300 mt-0.5">
+                  Graphiques interactifs et analyses détaillées de l'activité
+                </p>
+              </div>
+            </div>
+
+            {/* Sales Trends Chart */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-base font-semibold text-gray-900 dark:text-neutral-100">Tendances de Vente</h4>
+                <div className="flex gap-2">
+                  {[7, 30, 90].map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => {
+                        setSalesTrendsPeriod(days);
+                        loadSalesTrends();
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        salesTrendsPeriod === days
+                          ? 'bg-neutral-600 text-white'
+                          : 'bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-neutral-300 hover:bg-gray-200'
+                      }`}
+                    >
+                      {days}j
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {salesTrendsLoading ? (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
+                </div>
+              ) : salesTrends?.trends?.length ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={salesTrends.trends}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
+                    <YAxis yAxisId="left" stroke="#6b7280" fontSize={12} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value, name) => {
+                        if (name === 'Revenus') {
+                          return formatCurrency(value);
+                        }
+                        return value;
+                      }}
+                    />
+                    <Legend />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="orders"
+                      stroke="#4f46e5"
+                      strokeWidth={2}
+                      name="Commandes"
+                      dot={{ r: 4 }}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      name="Revenus"
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-neutral-400 text-center py-12">Aucune donnée disponible</p>
+              )}
+            </div>
+
+            {/* Order Heatmap */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h4 className="text-base font-semibold text-gray-900 dark:text-neutral-100 mb-4">Heatmap des Heures de Pointe</h4>
+              {orderHeatmapLoading ? (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
+                </div>
+              ) : orderHeatmap?.heatmap?.length ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={orderHeatmap.heatmap}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
+                    <YAxis stroke="#6b7280" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value, name) => {
+                        if (name === 'Commandes') {
+                          return [`${value} commandes`, name];
+                        }
+                        return [value, name];
+                      }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      name="Commandes" 
+                      fill="#4f46e5" 
+                      radius={[8, 8, 0, 0]}
+                      onClick={(data) => {
+                        if (data && typeof data.hour === 'number') {
+                          loadOrdersByHour(data.hour);
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {orderHeatmap.heatmap.map((entry, index) => {
+                        const intensity = entry.count / Math.max(...orderHeatmap.heatmap.map((h) => h.count));
+                        const isSelected = selectedHour === entry.hour;
+                        return (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={isSelected 
+                              ? `rgba(79, 70, 229, 1)` 
+                              : `rgba(79, 70, 229, ${Math.max(0.3, intensity)})`
+                            }
+                            stroke={isSelected ? '#1e1b4b' : 'none'}
+                            strokeWidth={isSelected ? 2 : 0}
+                          />
+                        );
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-neutral-400 text-center py-12">Aucune donnée disponible</p>
+              )}
+            </div>
+
+            {/* Conversion Metrics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                <h4 className="text-base font-semibold text-gray-900 dark:text-neutral-100 mb-4">Métriques de Conversion</h4>
+                {conversionLoading ? (
+                  <div className="h-48 flex items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
+                  </div>
+                ) : conversionMetrics ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                      <span className="text-sm text-gray-700 dark:text-neutral-200">Visiteurs uniques</span>
+                      <span className="text-lg font-bold text-neutral-600">
+                        {conversionMetrics.metrics.uniqueVisitors.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                      <span className="text-sm text-gray-700 dark:text-neutral-200">Clients uniques</span>
+                      <span className="text-lg font-bold text-green-600">
+                        {conversionMetrics.metrics.uniqueCustomers.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                      <span className="text-sm text-gray-700 dark:text-neutral-200">Taux de conversion</span>
+                      <span className="text-lg font-bold text-neutral-600">
+                        {conversionMetrics.metrics.visitorToOrderRate}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                      <span className="text-sm text-gray-700 dark:text-neutral-200">Vues totales</span>
+                      <span className="text-lg font-bold text-amber-600">
+                        {conversionMetrics.metrics.totalViews.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-neutral-400 text-center py-8">Aucune donnée disponible</p>
+                )}
+              </div>
+
+              {/* Cohort Analysis */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                <h4 className="text-base font-semibold text-gray-900 dark:text-neutral-100 mb-4">Analyse de Cohort</h4>
+                {cohortLoading ? (
+                  <div className="h-48 flex items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
+                  </div>
+                ) : cohortAnalysis?.cohorts?.length ? (
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {cohortAnalysis.cohorts.slice(-6).map((cohort) => (
+                      <div key={cohort.cohort} className="p-3 bg-gray-50 dark:bg-neutral-900/70 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100">{cohort.label}</span>
+                          <span className="text-xs text-gray-500 dark:text-neutral-400">
+                            {cohort.retentionRate}% rétention
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-neutral-300">
+                          <span>{cohort.totalUsers} utilisateurs</span>
+                          <span>{cohort.activeUsers} actifs</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-neutral-400 text-center py-8">Aucune donnée disponible</p>
+                )}
+              </div>
+            </div>
+          </section>
+
+
+          {(cityStats.length > 0 || genderStats.length > 0 || productCityStats.length > 0 || productGenderStats.length > 0) && (
+            <section className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+          {cityStats.length > 0 && (
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Répartition des utilisateurs par ville</h2>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-3">Principales localisations des membres enregistrés.</p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 dark:bg-neutral-900/70">
+                    <tr>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Ville</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Utilisateurs</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Part</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cityStats.slice(0, 8).map((item) => (
+                      <tr key={item.city} className="border-b last:border-b-0">
+                        <td className="p-2 text-gray-700 dark:text-neutral-200">{item.city}</td>
+                        <td className="p-2 text-gray-900 dark:text-neutral-100 text-right">{formatNumber(item.count)}</td>
+                        <td className="p-2 text-gray-500 dark:text-neutral-400 text-right">{formatPercent(item.count, totalUserCount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {genderStats.length > 0 && (
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Répartition des utilisateurs par genre</h2>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-3">Déclaration lors de l’inscription.</p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 dark:bg-neutral-900/70">
+                    <tr>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Genre</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Utilisateurs</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Part</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {genderStats.map((item) => (
+                      <tr key={item.gender} className="border-b last:border-b-0">
+                        <td className="p-2 text-gray-700 dark:text-neutral-200">{item.gender}</td>
+                        <td className="p-2 text-gray-900 dark:text-neutral-100 text-right">{formatNumber(item.count)}</td>
+                        <td className="p-2 text-gray-500 dark:text-neutral-400 text-right">{formatPercent(item.count, totalUserCount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {productCityStats.length > 0 && (
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Annonces par ville</h2>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-3">Localisation déclarée des vendeurs au moment de la publication.</p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 dark:bg-neutral-900/70">
+                    <tr>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Ville</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Annonces</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Part</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productCityStats.slice(0, 8).map((item) => (
+                      <tr key={item.city} className="border-b last:border-b-0">
+                        <td className="p-2 text-gray-700 dark:text-neutral-200">{item.city}</td>
+                        <td className="p-2 text-gray-900 dark:text-neutral-100 text-right">{formatNumber(item.count)}</td>
+                        <td className="p-2 text-gray-500 dark:text-neutral-400 text-right">{formatPercent(item.count, totalProductCount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {productGenderStats.length > 0 && (
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Annonces par genre</h2>
+              <p className="text-xs text-gray-500 dark:text-neutral-400 mb-3">Répartition selon le genre des vendeurs.</p>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 dark:bg-neutral-900/70">
+                    <tr>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Genre</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Annonces</th>
+                      <th className="p-2 font-medium text-gray-600 dark:text-neutral-300 text-right">Part</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productGenderStats.map((item) => (
+                      <tr key={item.gender} className="border-b last:border-b-0">
+                        <td className="p-2 text-gray-700 dark:text-neutral-200">{item.gender}</td>
+                        <td className="p-2 text-gray-900 dark:text-neutral-100 text-right">{formatNumber(item.count)}</td>
+                        <td className="p-2 text-gray-500 dark:text-neutral-400 text-right">{formatPercent(item.count, totalProductCount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+            </section>
+          )}
+
+
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Tendances des 6 derniers mois</h2>
+          <p className="text-xs text-gray-500 dark:text-neutral-400 mb-3">
+            Nouveaux utilisateurs, annonces créées et revenus vérifiés par mois.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-gray-50 dark:bg-neutral-900/70">
+                <tr>
+                  <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Mois</th>
+                  <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Utilisateurs</th>
+                  <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Annonces</th>
+                  <th className="p-2 font-medium text-gray-600 dark:text-neutral-300">Revenus</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats?.monthly?.length ? (
+                  stats.monthly.map((row) => (
+                    <tr key={row.month} className="border-t">
+                      <td className="p-2 capitalize">{formatMonthLabel(row.month)}</td>
+                      <td className="p-2">{formatNumber(row.newUsers)}</td>
+                      <td className="p-2">{formatNumber(row.newProducts)}</td>
+                      <td className="p-2">{formatCurrency(row.revenue)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="p-2 text-sm text-gray-500 dark:text-neutral-400" colSpan={4}>
+                      Aucune donnée disponible pour le moment.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Catégories les plus actives</h2>
+            <p className="text-xs text-gray-500 dark:text-neutral-400">Top 5 des catégories par nombre d&apos;annonces approuvées.</p>
+          </div>
+          {stats?.topCategories?.length ? (
+            <ul className="space-y-3">
+              {stats.topCategories.map((cat) => (
+                <li key={cat.category} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-neutral-100">{cat.category}</p>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400">Prix moyen&nbsp;: {formatCurrency(cat.avgPrice)}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-neutral-600">
+                    {formatNumber(cat.listings)} annonces
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-neutral-400">Pas encore assez de données.</p>
+          )}
+        </div>
+          </section>
+
+        </>
+      )}
+
+      {canViewStats && shouldShowSection('tools') && (
+        <>
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-neutral-100">Santé du cache</h3>
+                <p className="text-xs text-gray-500 dark:text-neutral-400">
+                  Redis + cache mémoire (isolation par scope utilisateur/rôle)
+                </p>
+              </div>
+            </div>
+            {cacheStatsError ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-800">{cacheStatsError}</p>
+              </div>
+            ) : null}
+            {cacheStatsLoading && !cacheStats ? (
+              <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-sm text-gray-500 dark:text-neutral-400">
+                Chargement des métriques cache…
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <SectionStatCard
+                    label="Taux de succès"
+                    value={`${cacheHitRatio.toFixed(2)} %`}
+                    helper={`${formatNumber(cacheHits)} hits / ${formatNumber(cacheReads)} lectures`}
+                    icon={TrendingUp}
+                  />
+                  <SectionStatCard
+                    label="Redis"
+                    value={cacheStats?.redis?.ready ? 'Connecté' : 'Fallback mémoire'}
+                    helper={`${formatNumber(cacheStats?.redis?.keyCount || 0)} clés`}
+                    icon={Activity}
+                  />
+                  <SectionStatCard
+                    label="Mémoire Redis"
+                    value={
+                      cacheStats?.redis?.memoryUsedHuman ||
+                      formatBytes(cacheStats?.redis?.memoryUsedBytes || 0)
+                    }
+                    helper={`L1 mémoire: ${formatNumber(cacheStats?.hotCacheSize || 0)} entrées`}
+                    icon={BarChart3}
+                  />
+                  <SectionStatCard
+                    label="Invalidations / erreurs"
+                    value={`${formatNumber(cacheStats?.invalidations || 0)} / ${formatNumber(cacheErrors)}`}
+                    helper={`SET: ${formatNumber(cacheStats?.sets || 0)} • MISS: ${formatNumber(cacheStats?.misses || 0)}`}
+                    icon={AlertCircle}
+                  />
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-neutral-100">Tendance hit ratio (échantillons récents)</p>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400">{cacheHistory.length} points</p>
+                  </div>
+                  {cacheHistory.length > 1 ? (
+                    <div className="h-24 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={cacheHistory}>
+                          <Line
+                            type="monotone"
+                            dataKey="hitRatio"
+                            stroke="#0a0a0a"
+                            strokeWidth={2}
+                            dot={false}
+                            isAnimationActive={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-neutral-400">Pas assez de points pour afficher la tendance.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
+
+          {canBroadcastNotifications && (
+            <>
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
+                    <MessageSquare size={20} className="text-neutral-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-neutral-100">Notification globale</h2>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Ciblez précisément l’audience et ajoutez une action vers une boutique.</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                  {broadcastError && <p className="text-sm text-red-600 mb-3">{broadcastError}</p>}
+                  {broadcastSuccess && <p className="text-sm text-emerald-600 mb-3">{broadcastSuccess}</p>}
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-950/40">
+                      <p className="mb-3 text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">Audience</p>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-neutral-200">Type de compte</label>
+                          <select
+                            value={broadcastTarget}
+                            onChange={(e) => setBroadcastTarget(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                          >
+                            <option value="all">Tous les comptes</option>
+                            <option value="person">Particuliers</option>
+                            <option value="shop">Boutiques</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-neutral-200">Genre</label>
+                          <select
+                            value={broadcastGender}
+                            onChange={(e) => setBroadcastGender(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                          >
+                            <option value="all">Tous les genres</option>
+                            <option value="homme">Hommes</option>
+                            <option value="femme">Femmes</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-neutral-200">Ville</label>
+                          <input
+                            type="text"
+                            list="broadcast-city-options"
+                            value={broadcastCity}
+                            onChange={(e) => setBroadcastCity(e.target.value)}
+                            placeholder="Toutes les villes"
+                            maxLength={100}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                          />
+                          <datalist id="broadcast-city-options">
+                            {(cities || []).map((cityItem) => (
+                              <option key={cityItem?._id || cityItem?.name} value={cityItem?.name || ''} />
+                            ))}
+                          </datalist>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={previewBroadcastAudience}
+                          disabled={broadcastPreviewing}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        >
+                          {broadcastPreviewing ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />}
+                          Calculer l’audience
+                        </button>
+                        {broadcastAudienceCount !== null ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                            {formatNumber(broadcastAudienceCount)} destinataire(s) éligible(s)
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-neutral-200 mb-1">Titre (optionnel)</label>
+                      <input
+                        type="text"
+                        value={broadcastTitle}
+                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                        placeholder="Ex : Actualités"
+                        maxLength={200}
+                        className="w-full rounded-xl border border-gray-200 dark:border-neutral-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-neutral-200 mb-1">Message *</label>
+                      <textarea
+                        value={broadcastMessage}
+                        onChange={(e) => setBroadcastMessage(e.target.value)}
+                        placeholder="Contenu de la notification..."
+                        rows={4}
+                        maxLength={2000}
+                        className="w-full rounded-xl border border-gray-200 dark:border-neutral-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1">{broadcastMessage.length} / 2000</p>
+                    </div>
+                    <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-4 dark:border-orange-900/60 dark:bg-orange-950/20">
+                      <label className="mb-1 block text-sm font-bold text-gray-800 dark:text-neutral-100">Lien vers une boutique (optionnel)</label>
+                      <p className="mb-2 text-xs text-gray-500 dark:text-neutral-400">Ajoute un bouton fiable dans la notification et dans la notification push.</p>
+                      <input
+                        type="search"
+                        value={broadcastShopSearch}
+                        onChange={(e) => setBroadcastShopSearch(e.target.value)}
+                        placeholder="Rechercher une boutique par nom, ville…"
+                        className="mb-2 w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-neutral-900"
+                      />
+                      <select
+                        value={broadcastShopId}
+                        onChange={(e) => {
+                          setBroadcastShopId(e.target.value);
+                          if (!e.target.value) setBroadcastActionLabel('');
+                        }}
+                        disabled={broadcastShopsLoading}
+                        className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-neutral-900"
+                      >
+                        <option value="">Aucune boutique liée</option>
+                        {broadcastShops.map((shop) => (
+                          <option key={shop.id || shop._id} value={shop.id || shop._id}>
+                            {shop.shopName || shop.name || 'Boutique'}{shop.city ? ` · ${shop.city}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {broadcastShopId ? (
+                        <div className="mt-3">
+                          <label className="mb-1 block text-xs font-bold text-gray-700 dark:text-neutral-200">Texte du bouton</label>
+                          <input
+                            type="text"
+                            value={broadcastActionLabel}
+                            onChange={(e) => setBroadcastActionLabel(e.target.value)}
+                            placeholder="Voir la boutique"
+                            maxLength={80}
+                            className="w-full rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm dark:border-orange-900 dark:bg-neutral-900"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={sendBroadcast}
+                      disabled={broadcastSending || !broadcastMessage.trim()}
+                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {broadcastSending ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          Envoi en cours…
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare size={16} />
+                          Envoyer la notification
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
+                    <Phone size={20} className="text-neutral-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-neutral-100">Export des numéros de téléphone</h2>
+                    <p className="text-xs text-gray-500 dark:text-neutral-400 mt-0.5">Télécharger la liste des numéros au format CSV (particuliers, boutiques ou tous)</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                  {exportError && <p className="text-sm text-red-600 mb-3">{exportError}</p>}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      value={exportTarget}
+                      onChange={(e) => setExportTarget(e.target.value)}
+                      className="rounded-xl border border-gray-200 dark:border-neutral-700 px-3 py-2 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    >
+                      <option value="all">Tous les utilisateurs</option>
+                      <option value="person">Particuliers uniquement</option>
+                      <option value="shop">Boutiques uniquement</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleExportPhones}
+                      disabled={exportLoading}
+                      className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {exportLoading ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          Export…
+                        </>
+                      ) : (
+                        <>
+                          <FileText size={16} />
+                          Exporter en CSV
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
+
         </>
       )}
 
@@ -4445,6 +4122,341 @@ export default function AdminDashboard() {
             </ul>
           )}
         </section>
+      )}
+      {canViewStats && (
+        <>
+          <BaseModal
+            isOpen={remindersOpen}
+            onClose={() => setRemindersOpen(false)}
+            size="xl"
+            mobileSheet
+            ariaLabel="Relances commandes"
+            panelClassName="sm:max-w-3xl"
+          >
+            <ModalHeader
+              title="Suivi des statuts alignés sur /admin/orders"
+              subtitle="Les statuts livrés, paiement terminé et annulé sont exclus automatiquement."
+              onClose={() => setRemindersOpen(false)}
+            />
+            <ModalBody className="space-y-4">
+              <div className="rounded-2xl border border-gray-200 dark:border-neutral-700 bg-gray-50/80 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-neutral-300">
+                      Filtres commandes
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetReminderFilters}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800"
+                    >
+                      <RefreshCw size={12} />
+                      Réinitialiser
+                    </button>
+                  </div>
+                  <div className="space-y-2 sm:hidden">
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">
+                        Statut
+                      </p>
+                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+                        {REMINDER_STATUS_FILTER_OPTIONS.map((statusOption) => {
+                          const isActive = reminderStatusFilter === statusOption.value;
+                          return (
+                            <button
+                              key={statusOption.value}
+                              type="button"
+                              onClick={() => setReminderStatusFilter(statusOption.value)}
+                              aria-pressed={isActive}
+                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                isActive
+                                  ? 'border-neutral-700 bg-neutral-700 text-white'
+                                  : 'border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-200'
+                              }`}
+                            >
+                              {statusOption.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">
+                        Paiement
+                      </p>
+                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+                        {REMINDER_PAYMENT_TYPE_FILTER_OPTIONS.map((paymentOption) => {
+                          const optionValue = paymentOption.value || '';
+                          const isActive = reminderPaymentTypeFilter === optionValue;
+                          return (
+                            <button
+                              key={optionValue || 'all'}
+                              type="button"
+                              onClick={() =>
+                                setReminderPaymentTypeFilter((prev) =>
+                                  prev === optionValue ? '' : optionValue
+                                )
+                              }
+                              aria-pressed={isActive}
+                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                isActive
+                                  ? 'border-neutral-700 bg-neutral-700 text-white'
+                                  : 'border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-200'
+                              }`}
+                            >
+                              {paymentOption.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-neutral-400">
+                        Livraison
+                      </p>
+                      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+                        {REMINDER_DELIVERY_MODE_FILTER_OPTIONS.map((deliveryOption) => {
+                          const optionValue = deliveryOption.value || '';
+                          const isActive = reminderDeliveryModeFilter === optionValue;
+                          return (
+                            <button
+                              key={optionValue || 'all'}
+                              type="button"
+                              onClick={() =>
+                                setReminderDeliveryModeFilter((prev) =>
+                                  prev === optionValue ? '' : optionValue
+                                )
+                              }
+                              aria-pressed={isActive}
+                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                isActive
+                                  ? 'border-neutral-700 bg-neutral-700 text-white'
+                                  : 'border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-700 dark:text-neutral-200'
+                              }`}
+                            >
+                              {deliveryOption.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="hidden grid-cols-1 gap-2 sm:grid sm:grid-cols-3">
+                    <select
+                      value={reminderStatusFilter}
+                      onChange={(event) => setReminderStatusFilter(event.target.value)}
+                      className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
+                    >
+                      {REMINDER_STATUS_FILTER_OPTIONS.map((statusOption) => (
+                        <option key={statusOption.value} value={statusOption.value}>
+                          {statusOption.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={reminderPaymentTypeFilter}
+                      onChange={(event) => setReminderPaymentTypeFilter(event.target.value)}
+                      className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
+                    >
+                      {REMINDER_PAYMENT_TYPE_FILTER_OPTIONS.map((paymentOption) => (
+                        <option key={paymentOption.value || 'all'} value={paymentOption.value}>
+                          {paymentOption.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={reminderDeliveryModeFilter}
+                      onChange={(event) => setReminderDeliveryModeFilter(event.target.value)}
+                      className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-neutral-500"
+                    >
+                      {REMINDER_DELIVERY_MODE_FILTER_OPTIONS.map((deliveryOption) => (
+                        <option key={deliveryOption.value || 'all'} value={deliveryOption.value}>
+                          {deliveryOption.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+              </div>
+
+              {remindersLoading ? (
+                <p className="text-sm text-gray-500 dark:text-neutral-400">Chargement des commandes…</p>
+              ) : remindersError ? (
+                <p className="text-sm text-red-600">{remindersError}</p>
+              ) : reminderOrders.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-neutral-400">Aucune commande à relancer.</p>
+              ) : (
+                <div className="space-y-4 max-h-[60vh] overflow-auto pr-1">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-wide text-neutral-600">
+                        Commandes +48h non livrées
+                      </p>
+                      <span className="text-xs font-semibold text-neutral-600">
+                        {overdueReminderOrders.length}
+                      </span>
+                    </div>
+                    {overdueReminderOrders.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-neutral-400">
+                        Aucune commande en retard pour le moment.
+                      </p>
+                    ) : (
+                      overdueReminderOrders.map(renderReminderOrderCard)
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-neutral-400">
+                      Autres commandes à relancer
+                    </p>
+                    {regularReminderOrders.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-neutral-400">
+                        Aucune autre commande à relancer.
+                      </p>
+                    ) : (
+                      regularReminderOrders.map(renderReminderOrderCard)
+                    )}
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+          </BaseModal>
+
+
+          {/* Orders by Hour Modal */}
+          <BaseModal
+            isOpen={selectedHour !== null}
+            onClose={() => {
+              setSelectedHour(null);
+              setHourOrders([]);
+            }}
+            size="xl"
+            mobileSheet
+            ariaLabel="Commandes par heure"
+            panelClassName="sm:max-w-4xl"
+          >
+            <ModalHeader
+              title={`Commandes créées à ${String(selectedHour ?? '').padStart(2, '0')}:00`}
+              subtitle={`Derniers 30 jours · ${hourOrders.length} commande${hourOrders.length > 1 ? 's' : ''}`}
+              onClose={() => {
+                setSelectedHour(null);
+                setHourOrders([]);
+              }}
+            />
+            <ModalBody className="pr-2">
+                  {hourOrdersLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-600" />
+                    </div>
+                  ) : hourOrdersError ? (
+                    <p className="text-sm text-red-600 text-center py-8">{hourOrdersError}</p>
+                  ) : hourOrders.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-neutral-400 text-center py-12">Aucune commande trouvée pour cette heure.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {hourOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-900/70 p-4 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-semibold text-gray-900 dark:text-neutral-100">
+                                  {order.customer?.name || 'Client inconnu'}
+                                </span>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                                    order.status === 'delivered'
+                                      ? 'bg-green-100 text-green-800'
+                                      : order.status === 'cancelled'
+                                      ? 'bg-red-100 text-red-800'
+                                      : order.status === 'delivering'
+                                      ? 'bg-neutral-100 text-neutral-800'
+                                      : order.status === 'confirmed'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-gray-100 dark:bg-neutral-800 text-gray-800 dark:text-neutral-200'
+                                  }`}
+                                >
+                                  {order.status === 'pending'
+                                    ? 'En attente'
+                                    : order.status === 'confirmed'
+                                    ? 'Confirmée'
+                                    : order.status === 'delivering'
+                                    ? 'En livraison'
+                                    : order.status === 'delivered'
+                                    ? 'Livrée'
+                                    : 'Annulée'}
+                                </span>
+                              </div>
+                              {order.customer?.email && (
+                                <p className="text-xs text-gray-600 dark:text-neutral-300">{order.customer.email}</p>
+                              )}
+                              {order.customer?.phone && (
+                                <p className="text-xs text-gray-600 dark:text-neutral-300">{order.customer.phone}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-gray-900 dark:text-neutral-100">
+                                {formatCurrency(order.totalAmount || 0)}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-neutral-400">
+                                {formatDateTime(order.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {order.items?.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-neutral-700">
+                              <p className="text-xs font-semibold text-gray-700 dark:text-neutral-200 mb-2">Articles:</p>
+                              <div className="space-y-1">
+                                {order.items.slice(0, 3).map((item, idx) => (
+                                  <div key={idx} className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-700 dark:text-neutral-200">
+                                      {item.product?.title || item.snapshot?.title || 'Produit'} × {item.quantity || 1}
+                                    </span>
+                                    {item.product?.price && (
+                                      <span className="text-gray-600 dark:text-neutral-300">
+                                        {formatCurrency(item.product.price * (item.quantity || 1))}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                                {order.items.length > 3 && (
+                                  <p className="text-xs text-gray-500 dark:text-neutral-400">
+                                    +{order.items.length - 3} autre{order.items.length - 3 > 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {order.deliveryAddress && (
+                            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-neutral-700">
+                              <p className="text-xs text-gray-600 dark:text-neutral-300">
+                                <MapPin size={12} className="inline mr-1" />
+                                {order.deliveryAddress}
+                                {order.deliveryCity && `, ${order.deliveryCity}`}
+                              </p>
+                            </div>
+                          )}
+
+                          {order.deliveryCode && (
+                            <div className="mt-2">
+                              <span className="text-xs font-semibold text-neutral-600">
+                                Code: {order.deliveryCode}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+            </ModalBody>
+          </BaseModal>
+
+        </>
       )}
       <FloatingGlassButton
         icon={RefreshCw}

@@ -949,6 +949,20 @@ export const ensureRuntimeConfigBootstrap = async () => {
 
   await Promise.all(operations);
 
+  const defaultMigrations = Object.entries(RUNTIME_SETTINGS_CATALOG)
+    .filter(([, metadata]) => Array.isArray(metadata.legacyDefaultValues) && metadata.legacyDefaultValues.length)
+    .map(([key, metadata]) =>
+      AppSetting.updateMany(
+        {
+          key: makeScopedStorageKey(key, 'all'),
+          value: { $in: metadata.legacyDefaultValues },
+          updatedBy: null
+        },
+        { $set: { value: metadata.defaultValue } }
+      )
+    );
+  await Promise.all(defaultMigrations);
+
   const featureOps = Array.from(
     new Set([...Object.keys(FEATURE_FLAG_DEFAULTS), ...catalogFeatureNames()])
   ).map((featureName) => {

@@ -1,6 +1,9 @@
 import crypto from 'crypto';
 import asyncHandler from 'express-async-handler';
+import fs from 'fs/promises';
 import mongoose from 'mongoose';
+import os from 'os';
+import path from 'path';
 import Product from '../models/productModel.js';
 import ProductVideo from '../models/productVideoModel.js';
 import ProductVideoComment from '../models/productVideoCommentModel.js';
@@ -16,11 +19,18 @@ import {
   uploadToCloudinary
 } from '../utils/cloudinaryUploader.js';
 import { createNotification } from '../utils/notificationService.js';
-import cloudinary from '../utils/cloudinary.js';
 
 const MAX_PAGE_SIZE = 24;
 const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
 const ADMIN_ROLES = new Set(['admin', 'founder']);
+const RESUMABLE_UPLOAD_ID_PATTERN = /^[a-f0-9]{32}$/;
+const RESUMABLE_UPLOAD_CHUNK_SIZE = 1024 * 1024;
+const RESUMABLE_UPLOAD_MAX_BYTES = Math.max(
+  RESUMABLE_UPLOAD_CHUNK_SIZE,
+  Number(process.env.UPLOAD_MAX_FILE_SIZE_BYTES || 50 * 1024 * 1024)
+);
+const RESUMABLE_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+const RESUMABLE_UPLOAD_DIR = path.join(os.tmpdir(), 'hdmarket-product-video-uploads');
 
 const clamp = (value, min, max, fallback) => {
   const number = Number(value);
@@ -136,6 +146,87 @@ const loadProductForSeller = async (productId, req) => {
 
 const ownerOrAdmin = (video, req) => isAdmin(req) || String(video?.seller) === String(userId(req));
 
+const resumableUploadPaths = (uploadId) => ({
+  metadata: path.join(RESUMABLE_UPLOAD_DIR, `${uploadId}.json`),
+  payload: path.join(RESUMABLE_UPLOAD_DIR, `${uploadId}.part`)
+});
+
+const ensureResumableUploadDirectory = () => fs.mkdir(RESUMABLE_UPLOAD_DIR, { recursive: true });
+
+const writeResumableUploadMetadata = async (metadata) => {
+  await ensureResumableUploadDirectory();
+  const paths = resumableUploadPaths(metadata.uploadId);
+  const temporaryPath = `${paths.metadata}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(temporaryPath, JSON.stringify({ ...metadata, updatedAt: new Date().toISOString() }));
+  await fs.rename(temporaryPath, paths.metadata);
+};
+
+const readResumableUploadMetadata = async (uploadId) => {
+  if (!RESUMABLE_UPLOAD_ID_PATTERN.test(String(uploadId || ''))) {
+    const error = new Error('Session de téléversement invalide.');
+    error.status = 400;
+    throw error;
+  }
+  try {
+    return JSON.parse(await fs.readFile(resumableUploadPaths(uploadId).metadata, 'utf8'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      const missing = new Error('Session de téléversement introuvable ou expirée.');
+      missing.status = 404;
+      throw missing;
+    }
+    throw error;
+  }
+};
+
+const getResumablePayloadSize = async (uploadId) => {
+  try {
+    const stat = await fs.stat(resumableUploadPaths(uploadId).payload);
+    return Number(stat.size || 0);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return 0;
+    throw error;
+  }
+};
+
+const assertResumableUploadOwner = (metadata, req) => {
+  if (isAdmin(req) || String(metadata?.sellerId || '') === String(userId(req))) return;
+  const error = new Error('Accès refusé à cette session de téléversement.');
+  error.status = 403;
+  throw error;
+};
+
+const removeResumableUploadFiles = async (uploadId, { keepMetadata = false } = {}) => {
+  const paths = resumableUploadPaths(uploadId);
+  await Promise.all([
+    fs.unlink(paths.payload).catch((error) => {
+      if (error?.code !== 'ENOENT') throw error;
+    }),
+    keepMetadata
+      ? Promise.resolve()
+      : fs.unlink(paths.metadata).catch((error) => {
+          if (error?.code !== 'ENOENT') throw error;
+        })
+  ]);
+};
+
+const cleanupStaleResumableUploads = async () => {
+  await ensureResumableUploadDirectory();
+  const entries = await fs.readdir(RESUMABLE_UPLOAD_DIR, { withFileTypes: true });
+  const now = Date.now();
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .map(async (entry) => {
+        const metadataPath = path.join(RESUMABLE_UPLOAD_DIR, entry.name);
+        const stat = await fs.stat(metadataPath);
+        if (now - Number(stat.mtimeMs || 0) <= RESUMABLE_UPLOAD_TTL_MS) return;
+        const uploadId = entry.name.slice(0, -5);
+        await removeResumableUploadFiles(uploadId);
+      })
+  );
+};
+
 // Permanent removal: media asset + engagement trail + the video itself, so
 // deleted content can't resurface anywhere. Used by both the seller's own
 // delete and the admin moderation delete.
@@ -218,7 +309,7 @@ const trendingScore = (video) => {
 export const getProductVideoCapabilities = asyncHandler(async (_req, res) => {
   const [maxDuration, maxUploads, preloadCount, autoplay, defaultMuted, sponsoredFrequency] = await Promise.all([
     getRuntimeConfig('product_video_max_duration_seconds', { fallback: 60 }),
-    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 1 }),
+    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 5 }),
     getRuntimeConfig('product_video_preload_count', { fallback: 1 }),
     getRuntimeConfig('product_video_autoplay_enabled', { fallback: true }),
     getRuntimeConfig('product_video_default_muted', { fallback: true }),
@@ -518,12 +609,222 @@ export const reportProductVideo = asyncHandler(async (req, res) => {
   }
 });
 
+const findCompletedResumableVideo = async (uploadId, req) => {
+  if (!RESUMABLE_UPLOAD_ID_PATTERN.test(String(uploadId || ''))) return null;
+  const query = { uploadSessionId: uploadId };
+  if (!isAdmin(req)) query.seller = userId(req);
+  return ProductVideo.findOne(query);
+};
+
+export const startResumableProductVideoUpload = asyncHandler(async (req, res) => {
+  const product = await loadProductForSeller(req.body?.productId, req);
+  const fileName = String(req.body?.fileName || '').trim().slice(0, 240);
+  const mimeType = String(req.body?.mimeType || '').trim().toLowerCase();
+  const size = Number(req.body?.size || 0);
+  if (!fileName || !VIDEO_MIME_TYPES.has(mimeType)) {
+    return res.status(400).json({ message: 'Utilisez une vidéo MP4, MOV ou WEBM valide.' });
+  }
+  if (!Number.isInteger(size) || size <= 0 || size > RESUMABLE_UPLOAD_MAX_BYTES) {
+    return res.status(400).json({
+      message: `La vidéo doit avoir une taille comprise entre 1 octet et ${Math.round(RESUMABLE_UPLOAD_MAX_BYTES / 1024 / 1024)} Mo.`
+    });
+  }
+
+  const maxUploads = Number(
+    await getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 5 })
+  );
+  const currentCount = await ProductVideo.countDocuments({
+    product: product._id,
+    status: { $ne: 'deleted' }
+  });
+  if (currentCount >= maxUploads) {
+    return res.status(400).json({ message: `Maximum ${maxUploads} vidéos par produit.` });
+  }
+
+  cleanupStaleResumableUploads().catch((error) => {
+    console.warn('Resumable video cleanup failed:', error.message);
+  });
+  await ensureResumableUploadDirectory();
+  const uploadId = crypto.randomBytes(16).toString('hex');
+  const metadata = {
+    uploadId,
+    sellerId: String(userId(req)),
+    productId: String(product._id),
+    fileName,
+    mimeType,
+    size,
+    caption: String(req.body?.caption || '').trim().slice(0, 500),
+    state: 'uploading',
+    createdAt: new Date().toISOString()
+  };
+  await writeResumableUploadMetadata(metadata);
+  await fs.writeFile(resumableUploadPaths(uploadId).payload, Buffer.alloc(0));
+  res.status(201).json({ uploadId, offset: 0, size, chunkSize: RESUMABLE_UPLOAD_CHUNK_SIZE, state: 'uploading' });
+});
+
+export const getResumableProductVideoUpload = asyncHandler(async (req, res) => {
+  const uploadId = String(req.params.uploadId || '');
+  const completedVideo = await findCompletedResumableVideo(uploadId, req);
+  if (completedVideo) {
+    return res.json({
+      uploadId,
+      offset: Number(completedVideo.bytes || 0),
+      size: Number(completedVideo.bytes || 0),
+      state: 'completed',
+      item: completedVideo
+    });
+  }
+  const metadata = await readResumableUploadMetadata(uploadId);
+  assertResumableUploadOwner(metadata, req);
+  const offset = await getResumablePayloadSize(uploadId);
+  res.json({
+    uploadId,
+    offset,
+    size: Number(metadata.size || 0),
+    chunkSize: RESUMABLE_UPLOAD_CHUNK_SIZE,
+    state: metadata.state || 'uploading'
+  });
+});
+
+export const appendResumableProductVideoChunk = asyncHandler(async (req, res) => {
+  const uploadId = String(req.params.uploadId || '');
+  const metadata = await readResumableUploadMetadata(uploadId);
+  assertResumableUploadOwner(metadata, req);
+  if (metadata.state === 'completed') {
+    return res.json({ uploadId, offset: Number(metadata.size || 0), size: Number(metadata.size || 0), state: 'completed' });
+  }
+  if (metadata.state === 'processing') {
+    return res.status(409).json({ message: 'La vidéo est déjà en cours de traitement.', code: 'UPLOAD_PROCESSING' });
+  }
+  const chunk = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  if (!chunk.length || chunk.length > RESUMABLE_UPLOAD_CHUNK_SIZE) {
+    return res.status(400).json({ message: `Chaque bloc doit contenir entre 1 octet et ${RESUMABLE_UPLOAD_CHUNK_SIZE} octets.` });
+  }
+  const requestedOffset = Number(req.headers['x-upload-offset']);
+  const currentOffset = await getResumablePayloadSize(uploadId);
+  if (!Number.isInteger(requestedOffset) || requestedOffset < 0) {
+    return res.status(400).json({ message: 'Position de téléversement invalide.', offset: currentOffset });
+  }
+  if (requestedOffset < currentOffset) {
+    return res.json({ uploadId, offset: currentOffset, size: Number(metadata.size || 0), state: 'uploading' });
+  }
+  if (requestedOffset > currentOffset) {
+    return res.status(409).json({
+      message: 'Le serveur attend un bloc antérieur.',
+      code: 'UPLOAD_OFFSET_MISMATCH',
+      offset: currentOffset
+    });
+  }
+  if (currentOffset + chunk.length > Number(metadata.size || 0)) {
+    return res.status(400).json({ message: 'Ce bloc dépasse la taille annoncée de la vidéo.', offset: currentOffset });
+  }
+  await fs.appendFile(resumableUploadPaths(uploadId).payload, chunk);
+  const offset = currentOffset + chunk.length;
+  res.json({ uploadId, offset, size: Number(metadata.size || 0), state: 'uploading' });
+});
+
+export const completeResumableProductVideoUpload = asyncHandler(async (req, res) => {
+  const uploadId = String(req.params.uploadId || '');
+  const alreadyCompleted = await findCompletedResumableVideo(uploadId, req);
+  if (alreadyCompleted) {
+    return res.json({ item: alreadyCompleted, moderationRequired: alreadyCompleted.status === 'pending', resumed: true });
+  }
+  const metadata = await readResumableUploadMetadata(uploadId);
+  assertResumableUploadOwner(metadata, req);
+  if (metadata.state === 'processing') {
+    return res.status(409).json({ message: 'La vidéo est encore en cours de traitement.', code: 'UPLOAD_PROCESSING' });
+  }
+  const offset = await getResumablePayloadSize(uploadId);
+  if (offset !== Number(metadata.size || 0)) {
+    return res.status(409).json({
+      message: 'La vidéo n’est pas encore entièrement transférée.',
+      code: 'UPLOAD_INCOMPLETE',
+      offset,
+      size: Number(metadata.size || 0)
+    });
+  }
+
+  const product = await loadProductForSeller(metadata.productId, req);
+  const [maxUploads, maxDuration, requireModeration] = await Promise.all([
+    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 5 }),
+    getRuntimeConfig('product_video_max_duration_seconds', { fallback: 60 }),
+    getRuntimeConfig('product_video_require_moderation', { fallback: false })
+  ]);
+  const currentCount = await ProductVideo.countDocuments({ product: product._id, status: { $ne: 'deleted' } });
+  if (currentCount >= Number(maxUploads)) {
+    return res.status(400).json({ message: `Maximum ${maxUploads} vidéos par produit.` });
+  }
+
+  await writeResumableUploadMetadata({ ...metadata, state: 'processing' });
+  let cloudinaryUpload = null;
+  let recordSaved = false;
+  try {
+    const buffer = await fs.readFile(resumableUploadPaths(uploadId).payload);
+    cloudinaryUpload = await uploadVideoFile({
+      buffer,
+      size: buffer.length,
+      mimetype: metadata.mimeType,
+      originalname: metadata.fileName
+    });
+    if (Number(cloudinaryUpload.duration || 0) > Number(maxDuration)) {
+      if (cloudinaryUpload.public_id) {
+        await destroyCloudinaryAsset(cloudinaryUpload.public_id, { resourceType: 'video' }).catch(() => {});
+      }
+      await writeResumableUploadMetadata({ ...metadata, state: 'uploading' });
+      return res.status(400).json({ message: `La vidéo ne doit pas dépasser ${maxDuration} secondes.` });
+    }
+    const status = isAdmin(req) || !requireModeration ? 'approved' : 'pending';
+    let record;
+    try {
+      record = await ProductVideo.create({
+        ...buildMediaFields(cloudinaryUpload),
+        uploadSessionId: uploadId,
+        product: product._id,
+        seller: product.user,
+        caption: metadata.caption,
+        hashtags: extractHashtags(metadata.caption),
+        status
+      });
+    } catch (error) {
+      if (error?.code !== 11000) throw error;
+      record = await ProductVideo.findOne({ uploadSessionId: uploadId });
+      if (!record) throw error;
+    }
+    recordSaved = true;
+    await removeResumableUploadFiles(uploadId, { keepMetadata: true });
+    await writeResumableUploadMetadata({
+      ...metadata,
+      state: 'completed',
+      completedVideoId: String(record._id)
+    });
+    res.status(201).json({ item: record, moderationRequired: status === 'pending' });
+  } catch (error) {
+    if (cloudinaryUpload?.public_id && !recordSaved) {
+      await destroyCloudinaryAsset(cloudinaryUpload.public_id, { resourceType: 'video' }).catch(() => {});
+    }
+    await writeResumableUploadMetadata({ ...metadata, state: 'uploading' }).catch(() => {});
+    throw error;
+  }
+});
+
+export const discardResumableProductVideoUpload = asyncHandler(async (req, res) => {
+  const uploadId = String(req.params.uploadId || '');
+  const completedVideo = await findCompletedResumableVideo(uploadId, req);
+  if (completedVideo) {
+    return res.status(409).json({ message: 'Cette vidéo est déjà publiée et doit être supprimée depuis la bibliothèque.' });
+  }
+  const metadata = await readResumableUploadMetadata(uploadId);
+  assertResumableUploadOwner(metadata, req);
+  await removeResumableUploadFiles(uploadId);
+  res.json({ success: true });
+});
+
 export const uploadProductVideos = asyncHandler(async (req, res) => {
   const product = await loadProductForSeller(req.body.productId, req);
   const files = Array.isArray(req.files) ? req.files : [];
   if (!files.length) return res.status(400).json({ message: 'Sélectionnez au moins une vidéo.' });
   const [maxUploads, maxDuration, requireModeration] = await Promise.all([
-    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 1 }),
+    getRuntimeConfig('product_video_max_uploads_per_product', { fallback: 5 }),
     getRuntimeConfig('product_video_max_duration_seconds', { fallback: 60 }),
     getRuntimeConfig('product_video_require_moderation', { fallback: false })
   ]);

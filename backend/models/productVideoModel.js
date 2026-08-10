@@ -40,6 +40,7 @@ const countersSchema = new mongoose.Schema(
 const productVideoSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
+    uploadSessionId: { type: String, trim: true },
     productPins: { type: [productPinSchema], default: [] },
     seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     contentType: { type: String, enum: ['product_video', 'live_replay'], default: 'product_video', index: true },
@@ -80,6 +81,10 @@ const productVideoSchema = new mongoose.Schema(
 productVideoSchema.index({ status: 1, sponsored: -1, featured: -1, createdAt: -1 });
 productVideoSchema.index({ seller: 1, status: 1, createdAt: -1 });
 productVideoSchema.index({ product: 1, status: 1, createdAt: -1 });
+productVideoSchema.index(
+  { uploadSessionId: 1 },
+  { unique: true, partialFilterExpression: { uploadSessionId: { $type: 'string' } } }
+);
 productVideoSchema.index({ caption: 'text', hashtags: 'text' });
 
 export default mongoose.model('ProductVideo', productVideoSchema);

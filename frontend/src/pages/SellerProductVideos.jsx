@@ -25,10 +25,12 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import {
   getVideoFileValidationError,
-  getVideoFilesUploadProgress,
   getVideoUploadErrorMessage
 } from '../utils/videoUploadErrors';
-import { createIdempotencyKey } from '../utils/idempotency';
+import {
+  discardResumableProductVideoUpload,
+  uploadResumableProductVideo
+} from '../services/resumableProductVideoUpload';
 
 const statusStyles = {
   approved: 'bg-emerald-100 text-emerald-700',
@@ -159,6 +161,7 @@ export default function SellerProductVideos() {
   const [caption, setCaption] = useState('');
   const [files, setFiles] = useState([]);
   const [fileUploadProgress, setFileUploadProgress] = useState([]);
+  const [fileUploadStates, setFileUploadStates] = useState([]);
   const [uploadAttemptStatus, setUploadAttemptStatus] = useState('idle');
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   const [uploadFeedback, setUploadFeedback] = useState(null);
@@ -166,12 +169,12 @@ export default function SellerProductVideos() {
   const [replacingVideoId, setReplacingVideoId] = useState('');
   const fileInputRef = useRef(null);
   const uploadControllerRef = useRef(null);
-  const uploadIdempotencyKeyRef = useRef('');
   const maxDuration = Number(getRuntimeValue('product_video_max_duration_seconds', 60));
-  const maxUploads = Number(getRuntimeValue('product_video_max_uploads_per_product', 1));
+  const maxUploads = Number(getRuntimeValue('product_video_max_uploads_per_product', 5));
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (options = {}) => {
+    const silent = options?.silent === true;
+    if (!silent) setLoading(true);
     try {
       const [videosResult, analyticsResult, productsResult] = await Promise.all([
         api.get('/product-videos/seller/mine', { headers: { 'x-skip-cache': '1' } }),
@@ -185,7 +188,7 @@ export default function SellerProductVideos() {
     } catch (error) {
       showToast(error.response?.data?.message || 'Impossible de charger votre espace vidéo.', { variant: 'error' });
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [showToast]);
 
@@ -231,11 +234,16 @@ export default function SellerProductVideos() {
   const chooseFiles = async (event) => {
     const selected = Array.from(event.target.files || []);
     if (!selected.length) return;
+    fileUploadStates.forEach((item) => {
+      if (item?.session?.uploadId && item.status !== 'completed') {
+        discardResumableProductVideoUpload(item.session.uploadId).catch(() => {});
+      }
+    });
     setFiles([]);
     setFileUploadProgress([]);
+    setFileUploadStates([]);
     setUploadProgress(0);
     setUploadAttemptStatus('idle');
-    uploadIdempotencyKeyRef.current = '';
     setUploadFeedback(null);
     if (!productId) {
       const message = 'Choisissez d’abord le produit associé à cette vidéo.';
@@ -279,6 +287,7 @@ export default function SellerProductVideos() {
       }
       setFiles(selected);
       setFileUploadProgress(selected.map(() => 0));
+      setFileUploadStates(selected.map(() => ({ status: 'ready', session: null, error: '' })));
       setUploadAttemptStatus('ready');
       setUploadFeedback({
         type: 'success',
@@ -294,12 +303,21 @@ export default function SellerProductVideos() {
 
   const removeSelectedFile = (index) => {
     if (uploading) return;
+    const removedState = fileUploadStates[index];
+    if (removedState?.session?.uploadId && removedState.status !== 'completed') {
+      discardResumableProductVideoUpload(removedState.session.uploadId).catch(() => {});
+    }
     const remaining = files.filter((_, fileIndex) => fileIndex !== index);
     setFiles(remaining);
-    setFileUploadProgress(remaining.map(() => 0));
-    setUploadProgress(0);
+    const remainingProgress = fileUploadProgress.filter((_, fileIndex) => fileIndex !== index);
+    setFileUploadProgress(remainingProgress);
+    setFileUploadStates((current) => current.filter((_, fileIndex) => fileIndex !== index));
+    const remainingBytes = remaining.reduce((sum, file, fileIndex) => {
+      return sum + Number(file?.size || 0) * (Number(remainingProgress[fileIndex] || 0) / 100);
+    }, 0);
+    const remainingTotal = remaining.reduce((sum, file) => sum + Number(file?.size || 0), 0);
+    setUploadProgress(remainingTotal ? Math.round((remainingBytes / remainingTotal) * 100) : 0);
     setUploadAttemptStatus(remaining.length ? 'ready' : 'idle');
-    uploadIdempotencyKeyRef.current = '';
     if (fileInputRef.current) fileInputRef.current.value = '';
     setUploadFeedback(
       remaining.length
@@ -310,12 +328,17 @@ export default function SellerProductVideos() {
 
   const clearSelectedFiles = () => {
     if (uploading) return;
+    fileUploadStates.forEach((item) => {
+      if (item?.session?.uploadId && item.status !== 'completed') {
+        discardResumableProductVideoUpload(item.session.uploadId).catch(() => {});
+      }
+    });
     setFiles([]);
     setFileUploadProgress([]);
+    setFileUploadStates([]);
     setUploadProgress(0);
     setUploadAttemptStatus('idle');
     setUploadFeedback(null);
-    uploadIdempotencyKeyRef.current = '';
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -337,58 +360,118 @@ export default function SellerProductVideos() {
       setUploadFeedback({ type: 'error', message: 'Vous êtes hors connexion. Reconnectez-vous puis appuyez sur Réessayer.' });
       return;
     }
-    const body = new FormData();
-    body.append('productId', productId);
-    body.append('caption', caption);
-    files.forEach((file) => body.append('video', file));
+    const pendingIndexes = files
+      .map((_, index) => index)
+      .filter((index) => fileUploadStates[index]?.status !== 'completed');
+    if (!pendingIndexes.length) {
+      setUploadFeedback({ type: 'success', message: 'Toutes les vidéos sont déjà envoyées.' });
+      return;
+    }
     setUploading(true);
     setUploadAttemptStatus('uploading');
-    setUploadProgress(0);
-    setFileUploadProgress(files.map(() => 0));
     const controller = new AbortController();
     uploadControllerRef.current = controller;
-    if (!uploadIdempotencyKeyRef.current) {
-      uploadIdempotencyKeyRef.current = createIdempotencyKey('product-video-upload');
-    }
-    setUploadFeedback({ type: 'info', message: 'Envoi en cours. Gardez cette page ouverte jusqu’à la confirmation.' });
-    try {
-      const { data } = await api.post('/product-videos/seller', body, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Idempotency-Key': uploadIdempotencyKeyRef.current
-        },
-        signal: controller.signal,
-        silentGlobalError: true,
-        onUploadProgress: (event) => {
-          if (event.total) setUploadProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
-          setFileUploadProgress(getVideoFilesUploadProgress(files, event.loaded, event.total));
-        }
+    const outcomes = new Map();
+    let nextPendingPosition = 0;
+    const totalBytes = files.reduce((sum, file) => sum + Number(file?.size || 0), 0);
+    const updateFileState = (index, patch) => {
+      setFileUploadStates((current) => {
+        const next = [...current];
+        next[index] = { ...(next[index] || { status: 'ready', session: null, error: '' }), ...patch };
+        return next;
       });
-      const message = data?.moderationRequired ? 'Vidéo envoyée à la modération.' : 'Vidéo publiée avec succès.';
-      showToast(message, { variant: 'success' });
-      setUploadFeedback({ type: 'success', message });
-      setUploadAttemptStatus('success');
-      setCaption('');
-      setFiles([]);
-      setFileUploadProgress([]);
-      setUploadProgress(100);
-      uploadIdempotencyKeyRef.current = '';
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      await load();
-    } catch (error) {
-      const canceledByUser =
-        isApiCanceledError(error) && controller.signal.reason === 'VIDEO_UPLOAD_USER_CANCELED';
-      if (canceledByUser) {
+    };
+    const updateFileProgress = (index, progress) => {
+      setFileUploadProgress((current) => {
+        const next = files.map((_, fileIndex) => Number(current[fileIndex] || 0));
+        next[index] = Math.min(100, Math.max(0, Number(progress || 0)));
+        const uploadedBytes = files.reduce(
+          (sum, file, fileIndex) => sum + Number(file?.size || 0) * (next[fileIndex] / 100),
+          0
+        );
+        setUploadProgress(totalBytes ? Math.round((uploadedBytes / totalBytes) * 100) : 0);
+        return next;
+      });
+    };
+    setFileUploadStates((current) =>
+      current.map((item, index) =>
+        pendingIndexes.includes(index)
+          ? { ...(item || {}), status: 'queued', error: '' }
+          : item
+      )
+    );
+    setUploadFeedback({
+      type: 'info',
+      message: `${pendingIndexes.length} vidéo${pendingIndexes.length > 1 ? 's' : ''} dans la file. Jusqu’à 2 transferts sont effectués en parallèle.`
+    });
+    try {
+      const worker = async () => {
+        while (nextPendingPosition < pendingIndexes.length && !controller.signal.aborted) {
+          const index = pendingIndexes[nextPendingPosition];
+          nextPendingPosition += 1;
+          const file = files[index];
+          const existingState = fileUploadStates[index] || {};
+          updateFileState(index, { status: 'uploading', error: '' });
+          try {
+            const result = await uploadResumableProductVideo({
+              file,
+              productId,
+              caption,
+              session: existingState.session || {},
+              signal: controller.signal,
+              onSession: (session) => updateFileState(index, { session }),
+              onProgress: ({ progress, state }) => {
+                updateFileProgress(index, progress);
+                updateFileState(index, { status: state === 'processing' ? 'processing' : state });
+              }
+            });
+            updateFileProgress(index, 100);
+            updateFileState(index, { status: 'completed', session: result.session, error: '' });
+            outcomes.set(index, { status: 'completed', result });
+          } catch (error) {
+            if (controller.signal.aborted || isApiCanceledError(error)) {
+              updateFileState(index, { status: 'cancelled', error: '' });
+              outcomes.set(index, { status: 'cancelled', error });
+            } else {
+              const message = getVideoUploadErrorMessage(error);
+              updateFileState(index, { status: 'error', error: message });
+              outcomes.set(index, { status: 'error', error, message });
+            }
+          }
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(2, pendingIndexes.length) }, () => worker())
+      );
+
+      const completedCount = Array.from(outcomes.values()).filter((item) => item.status === 'completed').length;
+      const failedCount = Array.from(outcomes.values()).filter((item) => item.status === 'error').length;
+      const cancelledCount = Array.from(outcomes.values()).filter((item) => item.status === 'cancelled').length;
+      const previouslyCompletedCount = fileUploadStates.filter((item) => item?.status === 'completed').length;
+      const allCompleted = previouslyCompletedCount + completedCount === files.length;
+
+      if (completedCount) await load({ silent: true });
+      if (allCompleted) {
+        const message = `${files.length} vidéo${files.length > 1 ? 's envoyées' : ' envoyée'} avec succès.`;
+        showToast(message, { variant: 'success' });
+        setUploadFeedback({ type: 'success', message });
+        setUploadAttemptStatus('success');
+        setCaption('');
+        setFiles([]);
+        setFileUploadProgress([]);
+        setFileUploadStates([]);
+        setUploadProgress(100);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else if (cancelledCount || controller.signal.aborted) {
         const message = 'Envoi annulé. Vos vidéos restent sélectionnées et vous pouvez réessayer.';
         setUploadAttemptStatus('cancelled');
         setUploadFeedback({ type: 'info', message });
         showToast(message, { variant: 'info' });
       } else {
-        const message = getVideoUploadErrorMessage(error);
+        const message = `${completedCount} vidéo${completedCount > 1 ? 's terminées' : ' terminée'}, ${failedCount} à réessayer. La reprise continuera au dernier bloc reçu.`;
         setUploadAttemptStatus('error');
-        setUploadFeedback({ type: 'error', message: `${message} Vos fichiers restent sélectionnés.` });
+        setUploadFeedback({ type: 'error', message });
         showToast(message, { variant: 'error' });
-        if (error?.response) uploadIdempotencyKeyRef.current = '';
       }
     } finally {
       if (uploadControllerRef.current === controller) uploadControllerRef.current = null;
@@ -488,13 +571,18 @@ export default function SellerProductVideos() {
             required
             value={productId}
             onChange={(event) => {
+              fileUploadStates.forEach((item) => {
+                if (item?.session?.uploadId && item.status !== 'completed') {
+                  discardResumableProductVideoUpload(item.session.uploadId).catch(() => {});
+                }
+              });
               setProductId(event.target.value);
               setFiles([]);
               setFileUploadProgress([]);
+              setFileUploadStates([]);
               setUploadProgress(0);
               setUploadAttemptStatus('idle');
               setUploadFeedback(null);
-              uploadIdempotencyKeyRef.current = '';
               if (fileInputRef.current) fileInputRef.current.value = '';
             }}
             disabled={uploading}
@@ -521,12 +609,29 @@ export default function SellerProductVideos() {
             <div className="mt-3 space-y-2">
               {files.map((file, index) => {
                 const progress = fileUploadProgress[index] || 0;
+                const fileState = fileUploadStates[index] || { status: 'ready', error: '' };
+                const fileStatus = fileState.status || 'ready';
+                const progressColor = {
+                  completed: 'bg-emerald-500',
+                  processing: 'bg-violet-500',
+                  error: 'bg-rose-500',
+                  cancelled: 'bg-amber-500'
+                }[fileStatus] || 'bg-sky-500';
+                const statusMessage = {
+                  ready: 'Prête à envoyer',
+                  queued: 'Dans la file d’attente…',
+                  uploading: `Envoi en cours — ${progress}% reçu`,
+                  processing: 'Transfert terminé — traitement en cours…',
+                  completed: 'Vidéo envoyée — elle ne sera pas renvoyée',
+                  cancelled: `Envoi suspendu à ${progress}% — Réessayer continuera ici`,
+                  error: `${fileState.error || 'Envoi interrompu.'} Réessayer continuera à ${progress}%.`
+                }[fileStatus] || 'Prête à envoyer';
                 return (
                   <div key={`${file.name}-${file.size}-${file.lastModified || index}`} className="rounded-xl bg-neutral-100 px-3 py-2.5 text-xs dark:bg-white/10">
                     <div className="flex items-center justify-between gap-3">
                       <span className="min-w-0 flex-1 truncate font-bold">{file.name}</span>
                       <span className="shrink-0 text-neutral-500">
-                        {uploading || progress > 0 ? `${progress}%` : `${Math.round(file.size / 1024 / 1024)} Mo`}
+                        {fileStatus !== 'ready' || progress > 0 ? `${progress}%` : `${Math.max(1, Math.round(file.size / 1024 / 1024))} Mo`}
                       </span>
                       <button
                         type="button"
@@ -548,20 +653,12 @@ export default function SellerProductVideos() {
                       aria-valuenow={progress}
                     >
                       <div
-                        className={`h-full rounded-full transition-all duration-200 ${uploadAttemptStatus === 'error' ? 'bg-rose-500' : uploadAttemptStatus === 'cancelled' ? 'bg-amber-500' : progress === 100 ? 'bg-emerald-500' : 'bg-sky-500'}`}
+                        className={`h-full rounded-full transition-all duration-200 ${progressColor}`}
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <p className="mt-1 text-[11px] font-semibold text-neutral-500">
-                      {uploadAttemptStatus === 'cancelled'
-                        ? 'Envoi annulé — prête à réessayer'
-                        : uploadAttemptStatus === 'error'
-                          ? 'Échec — prête à réessayer'
-                          : uploading && progress === 100
-                            ? 'Transfert terminé — traitement en cours…'
-                            : uploading
-                              ? 'Envoi en cours…'
-                              : 'Prête à envoyer'}
+                    <p className={`mt-1 text-[11px] font-semibold ${fileStatus === 'error' ? 'text-rose-600 dark:text-rose-300' : fileStatus === 'cancelled' ? 'text-amber-700 dark:text-amber-300' : fileStatus === 'completed' ? 'text-emerald-700 dark:text-emerald-300' : 'text-neutral-500'}`}>
+                      {statusMessage}
                     </p>
                   </div>
                 );
