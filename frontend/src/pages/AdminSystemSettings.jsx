@@ -837,7 +837,6 @@ export default function AdminSystemSettings() {
     try {
       for (const key of dirtyFeeKeys) {
         // same endpoint as per-field save, batched for mobile quick action
-        // eslint-disable-next-line no-await-in-loop
         await api.patch(`/admin/settings/${key}`, { value: fees[key] });
       }
 
@@ -1542,7 +1541,6 @@ export default function AdminSystemSettings() {
       const setting = (runtimeSettings || []).find((item) => String(item?.key || '') === key);
       if (!setting) continue;
       // sequential save, same endpoint as the per-row button
-      // eslint-disable-next-line no-await-in-loop
       await saveRuntimeSetting(setting);
     }
   };

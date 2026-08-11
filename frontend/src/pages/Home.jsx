@@ -144,19 +144,26 @@ const FeaturedTagSections = ({ t }) => {
   );
 };
 
-// Time-of-day greeting for signed-in users: Bonjour with a sun until 18h,
-// Bonsoir with a moon from 18h to 5h. Mobile gets a compact gradient banner;
-// sm+ keeps the flat card (white card, gray ring, squared orange icon tile).
-const HomeGreeting = ({ user }) => {
+// Time-of-day greeting info: Bonjour until 18h, Bonsoir from 18h to 5h.
+const getGreetingInfo = (user) => {
   if (!user?.name) return null;
   const hour = new Date().getHours();
-  const isEvening = hour >= 18 || hour < 5;
-  const firstName = String(user.name).trim().split(/\s+/)[0];
-  const dateLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return {
+    isEvening: hour >= 18 || hour < 5,
+    firstName: String(user.name).trim().split(/\s+/)[0],
+    dateLabel: new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+  };
+};
+
+// Mobile greeting stays focused on the welcome message. The delivery address
+// already appears beside the app name in the header above.
+const HomeGreeting = ({ user }) => {
+  const info = getGreetingInfo(user);
+  if (!info) return null;
+  const { isEvening, firstName, dateLabel } = info;
   return (
-    <>
-      {/* Mobile: compact gradient banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF6A00] to-[#e85d00] px-4 py-3 shadow-sm sm:hidden">
+    <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF6A00] to-[#e85d00] shadow-sm">
+      <div className="relative px-4 pb-2.5 pt-3">
         <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/10" />
         <div className="pointer-events-none absolute -bottom-10 right-10 h-20 w-20 rounded-full bg-white/10" />
         <div className="relative flex items-center gap-3">
@@ -174,26 +181,7 @@ const HomeGreeting = ({ user }) => {
           <Sparkles size={18} className="shrink-0 text-white/70" />
         </div>
       </div>
-
-      {/* Desktop: flat card */}
-      <div className="hidden items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm sm:flex dark:border-neutral-800 dark:bg-neutral-950">
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-neutral-800">
-          {isEvening ? <Moon size={20} /> : <Sun size={20} />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-black text-gray-900 dark:text-white">
-            {isEvening ? 'Bonsoir' : 'Bonjour'} {firstName} 👋
-          </p>
-          <p className="truncate text-xs font-medium text-gray-500 dark:text-neutral-400">
-            {isEvening ? 'Bonne soirée, découvrez les offres du moment.' : 'Belle journée, découvrez les offres du jour.'}
-          </p>
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded bg-gray-50 px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 ring-1 ring-gray-100 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
-          <Sparkles size={12} className="text-[#FF6A00]" />
-          {isEvening ? 'Offres du soir' : 'Offres du jour'}
-        </span>
-      </div>
-    </>
+    </div>
   );
 };
 
@@ -2706,117 +2694,138 @@ const loadDiscountProducts = async () => {
       usedProducts: { items: highlights.usedProducts, icon: RefreshCcw, label: t('home.usedProducts', 'Occasion'), link: '/top-used', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' }
     };
     const activeTabData = topProductsTabData[topProductsTab] || topProductsTabData.favorites;
+    const greeting = getGreetingInfo(user);
+
+    // Services mis en avant : livraison offerte, Acheter Pour Moi, colis —
+    // une seule rangée de cartes compactes au lieu de bannières empilées.
+    const desktopServiceCards = [
+      showFullPaymentHomeBanner
+        ? {
+            key: 'free-delivery',
+            badge: 'Livraison offerte',
+            title: 'Livraison offerte',
+            subtitle: fullPaymentBannerText,
+            to: '/products',
+            icon: Truck,
+            tile: 'bg-emerald-600',
+            badgeClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+            hover: 'hover:border-emerald-200'
+          }
+        : null,
+      buyForMeEnabled
+        ? {
+            key: 'buy-for-me',
+            badge: 'Nouveau',
+            title: 'Acheter Pour Moi',
+            subtitle: 'Un livreur fait vos courses (supermarché, pharmacie, restaurant…) et vous livre',
+            to: '/buy-for-me',
+            icon: ShoppingBag,
+            tile: 'bg-violet-600',
+            badgeClass: 'bg-violet-50 text-violet-700 ring-violet-100',
+            hover: 'hover:border-violet-200'
+          }
+        : null,
+      parcelDeliveryEnabled
+        ? {
+            key: 'parcels',
+            badge: 'Course à la demande',
+            title: 'Envoyer un colis',
+            subtitle: 'Un livreur récupère et livre où vous voulez',
+            to: '/parcels/new',
+            icon: Package,
+            tile: 'bg-sky-600',
+            badgeClass: 'bg-sky-50 text-sky-700 ring-sky-100',
+            hover: 'hover:border-sky-200'
+          }
+        : null
+    ].filter(Boolean);
+    const serviceGridClass =
+      desktopServiceCards.length >= 3
+        ? 'sm:grid-cols-2 xl:grid-cols-3'
+        : desktopServiceCards.length === 2
+          ? 'sm:grid-cols-2'
+          : 'grid-cols-1';
 
     return (
       <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
-        {user ? <HomeGreeting user={user} /> : null}
-        {(user || showFullPaymentHomeBanner || buyForMeEnabled) ? (
-          <section className={`grid gap-3 ${user && showFullPaymentHomeBanner ? 'lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]' : 'grid-cols-1'}`}>
-            {user ? (
+        {greeting ? (
+          <section className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex-row lg:items-stretch lg:divide-x lg:divide-y-0 dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="flex min-w-0 items-center gap-3 px-5 py-3.5">
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-100 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-neutral-800">
+                {greeting.isEvening ? <Moon size={20} /> : <Sun size={20} />}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-black text-gray-900 dark:text-white">
+                  {greeting.isEvening ? 'Bonsoir' : 'Bonjour'} {greeting.firstName} 👋
+                </p>
+                <p className="truncate text-xs font-medium capitalize text-gray-500 dark:text-neutral-400">
+                  {greeting.dateLabel}
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/profile"
+              className="group flex min-w-0 flex-1 items-center gap-3 px-5 py-3.5 transition hover:bg-gray-50 dark:hover:bg-neutral-900"
+            >
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-gray-500 ring-1 ring-gray-100 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
+                <MapPin className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wide text-gray-400 dark:text-neutral-500">
+                    {t('home.deliveryAddress', 'Adresse de livraison')}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                    hasDeliveryAddress ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                  }`}>
+                    {hasDeliveryAddress ? 'Adresse prête' : 'À compléter'}
+                  </span>
+                </span>
+                <span className="mt-0.5 block truncate text-sm font-black text-slate-950 dark:text-white">
+                  {connectedUserDeliveryAddressLabel}
+                </span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-500 ring-1 ring-gray-200 transition group-hover:bg-[#e85d00] group-hover:text-white dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
+                Modifier <ChevronRight className="h-3.5 w-3.5" />
+              </span>
+            </Link>
+            <div className="flex items-center px-5 py-3 lg:py-0">
               <Link
-                to="/profile"
-                className="group flex min-w-0 items-center gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-200"
-              >
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200">
-                  <MapPin className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">
-                      {t('home.deliveryAddress', 'Adresse de livraison')}
-                    </span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                      hasDeliveryAddress ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                    }`}>
-                      {hasDeliveryAddress ? 'Adresse prête' : 'À compléter'}
-                    </span>
-                  </span>
-                  <span className="mt-1 block truncate text-base font-black text-slate-950">
-                    {connectedUserDeliveryAddressLabel}
-                  </span>
-                  <span className="mt-0.5 block text-xs font-semibold text-slate-500">
-                    Utilisée pour calculer la livraison au checkout
-                  </span>
-                </span>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-500 ring-1 ring-gray-200 transition group-hover:bg-[#e85d00] group-hover:text-white">
-                  Modifier <ChevronRight className="h-3.5 w-3.5" />
-                </span>
-              </Link>
-            ) : null}
-            {showFullPaymentHomeBanner ? (
-              <Link
-                to="/products"
+                to="/top-deals"
                 {...externalLinkProps}
-                className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0E4] px-3.5 py-2 text-xs font-black text-[#e85d00] transition hover:bg-[#e85d00] hover:text-white dark:bg-orange-950/40 dark:text-orange-300"
               >
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
-                  <Truck className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Livraison offerte
-                  </span>
-                  <span className="mt-1.5 block line-clamp-2 text-sm font-black leading-5 text-slate-950">
-                    {fullPaymentBannerText}
-                  </span>
-                </span>
-                <span className="inline-flex shrink-0 items-center rounded-full bg-neutral-950 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-[#e85d00]">
-                  En savoir plus
-                </span>
+                <Sparkles size={13} />
+                {greeting.isEvening ? 'Offres du soir' : 'Offres du jour'}
               </Link>
-            ) : null}
+            </div>
           </section>
         ) : null}
-        {buyForMeEnabled ? (
-          <Link
-            to="/buy-for-me"
-            {...externalLinkProps}
-            className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-200"
-          >
-            <div className="flex min-w-0 items-center gap-4">
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
-                <ShoppingBag className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-100">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Nouveau
+        {desktopServiceCards.length ? (
+          <section className={`grid gap-3 ${serviceGridClass}`}>
+            {desktopServiceCards.map((card) => (
+              <Link
+                key={card.key}
+                to={card.to}
+                {...externalLinkProps}
+                className={`group flex min-w-0 items-center gap-3.5 rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 ${card.hover} dark:border-neutral-800 dark:bg-neutral-950`}
+              >
+                <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm ${card.tile}`}>
+                  <card.icon className="h-5 w-5" />
                 </span>
-                <span className="mt-1.5 block line-clamp-2 text-sm font-black leading-5 text-slate-950">
-                  Acheter Pour Moi — un livreur fait vos courses (supermarché, pharmacie, restaurant...) et vous livre
+                <span className="min-w-0 flex-1">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ring-1 ${card.badgeClass}`}>
+                    {card.badge}
+                  </span>
+                  <span className="mt-1 block truncate text-sm font-black text-slate-950 dark:text-white">{card.title}</span>
+                  {card.subtitle ? (
+                    <span className="block truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{card.subtitle}</span>
+                  ) : null}
                 </span>
-              </span>
-            </div>
-            <span className="inline-flex shrink-0 items-center rounded-full bg-violet-600 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-violet-700">
-              Essayer
-            </span>
-          </Link>
-        ) : null}
-        {parcelDeliveryEnabled ? (
-          <Link
-            to="/parcels/new"
-            {...externalLinkProps}
-            className="group flex min-w-0 items-center justify-between gap-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-sky-200"
-          >
-            <div className="flex min-w-0 items-center gap-4">
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white shadow-sm">
-                <Package className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-sky-700 ring-1 ring-sky-100">
-                  <Truck className="h-3.5 w-3.5" />
-                  Course à la demande
-                </span>
-                <span className="mt-1.5 block line-clamp-2 text-sm font-black leading-5 text-slate-950">
-                  Envoyer un colis — un livreur récupère et livre où vous voulez
-                </span>
-              </span>
-            </div>
-            <span className="inline-flex shrink-0 items-center rounded-full bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-sm transition group-hover:bg-sky-700">
-              Envoyer
-            </span>
-          </Link>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-neutral-600" />
+              </Link>
+            ))}
+          </section>
         ) : null}
         {/* Category Pills Bar */}
         <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
