@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
+import { buildProductPath } from '../utils/links';
 
 const STATUS_LABELS = {
   CREATED: 'Créé',
@@ -44,9 +45,13 @@ const formatDate = (value) =>
       })
     : '—';
 
-const getCheckoutAdminPath = (checkout) => {
+export const getCheckoutAdminPath = (checkout) => {
   const orderId = checkout?.completionResult?.orderIds?.[0];
   if (orderId) return `/admin/orders?orderId=${encodeURIComponent(String(orderId))}`;
+  if (String(checkout?.purpose || '').toUpperCase() === 'LISTING_FEE_FUNDING') {
+    const product = checkout?.product || checkout?.completionResult?.entityId;
+    if (product) return buildProductPath(product);
+  }
   const kind = String(checkout?.actionContext?.kind || checkout?.completionResult?.actionKind || '');
   if (kind.includes('BOOST')) return '/admin/product-boosts';
   if (kind.includes('SHOP_CONVERSION')) return '/admin/users';
@@ -110,6 +115,7 @@ export default function AdminPawaPayCenter() {
     const canRetryCompletion =
       checkout?.status === 'COMPLETED' && checkout?.autoValidationState === 'FAILED';
     const destination = getCheckoutAdminPath(checkout);
+    const destinationLabel = destination.startsWith('/product/') ? 'Voir produit' : 'Voir le résultat';
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2 sm:mt-0 sm:justify-end">
         {isProviderPending && (
@@ -136,7 +142,7 @@ export default function AdminPawaPayCenter() {
         )}
         {destination && checkout?.autoValidationState === 'COMPLETED' && (
           <Link to={destination} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-black text-white">
-            <ExternalLink className="h-3.5 w-3.5" /> Voir le résultat
+            <ExternalLink className="h-3.5 w-3.5" /> {destinationLabel}
           </Link>
         )}
         {checkout?.status === 'COMPLETED' && checkout?.autoValidationState !== 'FAILED' && (
@@ -162,11 +168,11 @@ export default function AdminPawaPayCenter() {
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link
-              to="/admin/payments"
+              to="/admin/payment-verification"
               className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900"
             >
               <ArrowLeft className="h-4 w-4" />
-              Paiements
+              Vérification des paiements
             </Link>
             <h1 className="text-2xl font-black text-slate-950">Centre PawaPay</h1>
             <p className="mt-1 text-sm text-gray-500">

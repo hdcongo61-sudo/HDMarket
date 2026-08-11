@@ -499,7 +499,7 @@ const payForOtherBannerText =
   ).trim() || 'Un proche peut régler votre commande — proposez-le au moment du paiement.';
 const groupBuyingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_group_buying', false), false);
 const reduceMotionHome = useReducedMotion();
-const primaryPageLimit = compactProductsPageSize || 12;
+const primaryPageLimit = compactProductsPageSize || (isMobileView ? 12 : 15);
 const secondarySectionLimit = compactSecondaryLimit || 6;
 
   useEffect(() => {
@@ -525,7 +525,8 @@ const homeSnapshotKey = useMemo(
       category || 'all',
       sort || 'new',
       installmentOnlyFilter ? 'installment' : 'standard',
-      nearMeOnlyFilter ? 'nearme' : 'all'
+      nearMeOnlyFilter ? 'nearme' : 'all',
+      `limit-${primaryPageLimit}`
     ].join(':'),
   [
     category,
@@ -533,6 +534,7 @@ const homeSnapshotKey = useMemo(
     installmentOnlyFilter,
     isMobileView,
     nearMeOnlyFilter,
+    primaryPageLimit,
     sort
   ]
 );

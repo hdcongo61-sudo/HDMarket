@@ -48,7 +48,6 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const MyListingDetail = lazy(() => import('./pages/MyListingDetail'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const AdminPayments = lazy(() => import('./pages/AdminPayments'));
 const AdminPawaPayCenter = lazy(() => import('./pages/AdminPawaPayCenter'));
 const AdminDeliveryPricing = lazy(() => import('./pages/AdminDeliveryPricing'));
 const AdminSellerPayouts = lazy(() => import('./pages/AdminSellerPayouts'));
@@ -325,6 +324,11 @@ function AdminIndexRedirect() {
     return <Navigate to={stored} replace />;
   }
   return <AdminDashboard />;
+}
+
+function LegacyAdminPaymentsRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/admin/payment-verification${location.search || ''}`} replace />;
 }
 
 function CourierEntryRedirect() {
@@ -1272,7 +1276,7 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            <Route path="payments" element={<AdminPayments />} />
+            <Route path="payments" element={<LegacyAdminPaymentsRedirect />} />
             <Route
               path="pawapay"
               element={

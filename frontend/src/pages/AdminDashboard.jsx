@@ -2270,7 +2270,7 @@ export default function AdminDashboard() {
               <p className="text-xs text-gray-500 dark:text-slate-400">5 derniers paiements reçus.</p>
             </div>
             <Link
-              to="/admin/payments"
+              to="/admin/payment-verification"
               className="text-xs font-semibold text-neutral-600 hover:text-neutral-700"
             >
               Voir tous →

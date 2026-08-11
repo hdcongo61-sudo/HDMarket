@@ -320,8 +320,17 @@ export const getMyPayments = asyncHandler(async (req, res) => {
 });
 
 export const listPaymentsAdmin = asyncHandler(async (req, res) => {
-  const { status, search, startDate, endDate } = req.query; // waiting/verified/rejected, product search, date filters
+  const { status, search, startDate, endDate, operator, paymentMethod, sort } = req.query;
   const query = status ? { status } : {};
+
+  const allowedOperators = new Set(['MTN_MONEY', 'AIRTEL_MONEY', 'ORANGE_MONEY', 'OTHER']);
+  if (allowedOperators.has(String(operator || '').toUpperCase())) {
+    query.operator = String(operator).toUpperCase();
+  }
+  const allowedPaymentMethods = new Set(['mobile_money', 'pawapay', 'promo']);
+  if (allowedPaymentMethods.has(String(paymentMethod || '').toLowerCase())) {
+    query.paymentMethod = String(paymentMethod).toLowerCase();
+  }
 
   if (search && search.trim()) {
     const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
@@ -351,7 +360,9 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
     }
   }
 
+  const sortDirection = sort === 'oldest' ? 1 : -1;
   const payments = await Payment.find(query)
+    .sort({ submittedAt: sortDirection, createdAt: sortDirection, _id: sortDirection })
     .populate('user', 'name email')
     .populate('product', 'title price status images slug')
     .populate('promoCode', 'code discountType discountValue usageLimit usedCount')

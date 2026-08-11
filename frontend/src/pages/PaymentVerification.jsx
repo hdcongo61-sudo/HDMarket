@@ -19,6 +19,10 @@ import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert, appConfirm } from '../utils/appDialog';
 import { hasAnyPermission } from '../utils/permissions';
+import {
+  getPaymentPeriodStart,
+  sortPaymentsByRecency
+} from '../utils/paymentVerificationFilters';
 import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const PAYMENT_STATUS_OPTIONS = [
@@ -30,6 +34,33 @@ const PAYMENT_STATUS_OPTIONS = [
 const PANEL_OPTIONS = [
   { value: 'payments', label: 'Paiements', icon: CreditCard },
   { value: 'verifiers', label: 'Vérificateurs', icon: ShieldCheck }
+];
+
+const OPERATOR_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tous les opérateurs' },
+  { value: 'MTN_MONEY', label: 'MTN MoMo' },
+  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
+  { value: 'ORANGE_MONEY', label: 'Orange Money' },
+  { value: 'OTHER', label: 'Autre opérateur' }
+];
+
+const METHOD_FILTER_OPTIONS = [
+  { value: 'all', label: 'Tous les moyens' },
+  { value: 'mobile_money', label: 'Mobile Money manuel' },
+  { value: 'pawapay', label: 'PawaPay' },
+  { value: 'promo', label: 'Code promotionnel' }
+];
+
+const PERIOD_FILTER_OPTIONS = [
+  { value: 'all', label: 'Toute la période' },
+  { value: 'today', label: "Aujourd’hui" },
+  { value: '7d', label: '7 derniers jours' },
+  { value: '30d', label: '30 derniers jours' }
+];
+
+const SORT_FILTER_OPTIONS = [
+  { value: 'newest', label: 'Plus récents' },
+  { value: 'oldest', label: 'Plus anciens' }
 ];
 
 const paymentStatusLabels = {
@@ -46,10 +77,26 @@ const paymentStatusStyles = {
 
 const operatorStyles = {
   MTN: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300',
+  MTN_MONEY: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300',
   Airtel: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
+  AIRTEL_MONEY: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
   Orange: 'bg-gray-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300',
+  ORANGE_MONEY: 'bg-gray-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300',
   Moov: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
+  OTHER: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
   Other: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'
+};
+
+const operatorLabels = {
+  MTN: 'MTN MoMo',
+  MTN_MONEY: 'MTN MoMo',
+  Airtel: 'Airtel Money',
+  AIRTEL_MONEY: 'Airtel Money',
+  Orange: 'Orange Money',
+  ORANGE_MONEY: 'Orange Money',
+  Moov: 'Moov Money',
+  OTHER: 'Autre',
+  Other: 'Autre'
 };
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
@@ -122,6 +169,7 @@ function UserIdentity({ user }) {
 export default function PaymentVerification({ initialPanel = 'payments' }) {
   const { user } = useContext(AuthContext);
   const [searchParams, setSearchParams] = useSearchParams();
+  const canOpenPawaPayCenter = user?.role === 'admin' || user?.role === 'founder';
   const canManageVerifiers =
     user?.role === 'admin' || user?.role === 'founder' || hasAnyPermission(user, ['manage_permissions']);
 
@@ -132,7 +180,13 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
   const [paymentStatus, setPaymentStatus] = useState(searchParams.get('status') || 'waiting');
   const [payments, setPayments] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentsError, setPaymentsError] = useState('');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams.get('search') || '');
+  const [operatorFilter, setOperatorFilter] = useState(searchParams.get('operator') || 'all');
+  const [methodFilter, setMethodFilter] = useState(searchParams.get('method') || 'all');
+  const [periodFilter, setPeriodFilter] = useState(searchParams.get('period') || 'all');
+  const [sortOrder, setSortOrder] = useState(searchParams.get('sort') || 'newest');
   const [paymentAction, setPaymentAction] = useState({ id: '', type: '' });
 
   const [verifiers, setVerifiers] = useState([]);
@@ -172,22 +226,47 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
     syncUrl({ status: status === 'waiting' ? '' : status });
   };
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
   const loadPayments = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoadingPayments(true);
+    setPaymentsError('');
     try {
       const params = new URLSearchParams();
       params.set('status', paymentStatus || 'waiting');
-      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      if (debouncedSearchQuery) params.set('search', debouncedSearchQuery);
+      if (operatorFilter !== 'all') params.set('operator', operatorFilter);
+      if (methodFilter !== 'all') params.set('paymentMethod', methodFilter);
+      const startDate = getPaymentPeriodStart(periodFilter);
+      if (startDate) params.set('startDate', startDate);
+      params.set('sort', sortOrder === 'oldest' ? 'oldest' : 'newest');
 
       const { data } = await api.get(`/payments/admin?${params.toString()}`);
-      setPayments(Array.isArray(data) ? data : []);
+      setPayments(sortPaymentsByRecency(data, sortOrder));
     } catch (error) {
       console.error('Load payments error:', error);
+      setPaymentsError(error?.response?.data?.message || 'Impossible de charger les paiements.');
       setPayments([]);
     } finally {
       if (!silent) setLoadingPayments(false);
     }
-  }, [paymentStatus, searchQuery]);
+  }, [debouncedSearchQuery, methodFilter, operatorFilter, paymentStatus, periodFilter, sortOrder]);
+
+  const changeFilter = (key, value, setter, defaultValue = 'all') => {
+    setter(value);
+    syncUrl({ [key]: value === defaultValue ? '' : value });
+  };
+
+  const resetPaymentFilters = () => {
+    setOperatorFilter('all');
+    setMethodFilter('all');
+    setPeriodFilter('all');
+    setSortOrder('newest');
+    syncUrl({ operator: '', method: '', period: '', sort: '' });
+  };
 
   const loadVerifiers = useCallback(async () => {
     if (!canManageVerifiers) return;
@@ -235,6 +314,14 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
     [canManageVerifiers]
   );
 
+  const displayedPaymentAmount = useMemo(
+    () => payments.reduce(
+      (sum, payment) => sum + Number(payment?.amountPaid ?? payment?.amount ?? 0),
+      0
+    ),
+    [payments]
+  );
+
   const paymentMetrics = [
     {
       label: paymentStatusLabels[paymentStatus] || 'Paiements',
@@ -243,10 +330,10 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
       icon: CreditCard
     },
     {
-      label: 'Action',
-      value: paymentStatus === 'waiting' ? 'Manuelle' : 'Historique',
-      help: paymentStatus === 'waiting' ? 'Valider ou rejeter' : 'Consultation',
-      icon: ShieldCheck
+      label: 'Montant affiché',
+      value: loadingPayments ? '...' : formatCurrency(displayedPaymentAmount),
+      help: 'Selon les filtres actifs',
+      icon: CreditCard
     },
     {
       label: 'Vérificateurs',
@@ -255,10 +342,10 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
       icon: UserPlus
     },
     {
-      label: 'Recherche',
-      value: searchQuery.trim() ? 'Active' : 'Libre',
-      help: searchQuery.trim() || 'Produit, annonce',
-      icon: Search
+      label: 'Action',
+      value: paymentStatus === 'waiting' ? 'Manuelle' : 'Historique',
+      help: paymentStatus === 'waiting' ? 'Valider ou rejeter' : 'Consultation',
+      icon: ShieldCheck
     }
   ];
 
@@ -366,15 +453,24 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                   onClick: () => changePanel('verifiers')
                 }
               : null,
-            {
-              label: 'Centre paiements',
-              description: 'Statistiques, portefeuille, historique',
-              icon: CreditCard,
-              tone: 'orange',
-              to: '/admin/payments'
-            }
+            canOpenPawaPayCenter
+              ? {
+                  label: 'Centre PawaPay',
+                  description: 'Encaissements, incidents et rapprochements',
+                  icon: CreditCard,
+                  tone: 'orange',
+                  to: '/admin/pawapay'
+                }
+              : null
           ].filter(Boolean)}
         />
+
+        {paymentsError && activePanel === 'payments' ? (
+          <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300" role="alert">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{paymentsError}</span>
+          </div>
+        ) : null}
 
         <AdminSegmentedControl
           options={visiblePanelOptions.map((option) => ({
@@ -408,6 +504,57 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                   value={paymentStatus}
                   onChange={changePaymentStatus}
                 />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-neutral-100 pt-3 sm:grid-cols-4 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] dark:border-neutral-800">
+                <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+                  Opérateur
+                  <select
+                    value={operatorFilter}
+                    onChange={(event) => changeFilter('operator', event.target.value, setOperatorFilter)}
+                    className="min-h-11 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-xs font-bold normal-case tracking-normal text-neutral-800 outline-none focus:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
+                  >
+                    {OPERATOR_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+                  Moyen
+                  <select
+                    value={methodFilter}
+                    onChange={(event) => changeFilter('method', event.target.value, setMethodFilter)}
+                    className="min-h-11 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-xs font-bold normal-case tracking-normal text-neutral-800 outline-none focus:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
+                  >
+                    {METHOD_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+                  Période
+                  <select
+                    value={periodFilter}
+                    onChange={(event) => changeFilter('period', event.target.value, setPeriodFilter)}
+                    className="min-h-11 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-xs font-bold normal-case tracking-normal text-neutral-800 outline-none focus:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
+                  >
+                    {PERIOD_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+                  Ordre
+                  <select
+                    value={sortOrder}
+                    onChange={(event) => changeFilter('sort', event.target.value, setSortOrder, 'newest')}
+                    className="min-h-11 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-xs font-bold normal-case tracking-normal text-neutral-800 outline-none focus:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
+                  >
+                    {SORT_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+                {(operatorFilter !== 'all' || methodFilter !== 'all' || periodFilter !== 'all' || sortOrder !== 'newest') ? (
+                  <button
+                    type="button"
+                    onClick={resetPaymentFilters}
+                    className="col-span-2 min-h-11 self-end rounded-xl border border-neutral-200 px-3 text-xs font-bold text-neutral-600 hover:bg-neutral-50 sm:col-span-4 lg:col-span-1 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                  >
+                    Réinitialiser
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -467,7 +614,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                             {paymentStatusLabels[status] || status}
                           </span>
                           <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${operatorStyles[payment.operator] || operatorStyles.Other}`}>
-                            {payment.operator || 'Opérateur inconnu'}
+                            {operatorLabels[payment.operator] || payment.operator || 'Opérateur inconnu'}
                           </span>
                           {payment.promoCodeValue ? (
                             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">

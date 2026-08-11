@@ -109,7 +109,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
     show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder'
   },
   { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
-  { to: '/admin/payments', label: t('nav.payments', 'Paiements'), icon: DollarSign, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['verify_payments']) },
+  { to: '/admin/payment-verification', label: t('nav.payments', 'Paiements'), icon: DollarSign, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments === true || hasAnyPermission(u, ['verify_payments']) },
   { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
   { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
   { to: '/admin/tags', label: 'Tags universels', icon: Tags, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
@@ -248,7 +248,7 @@ export default function AdminLayout() {
       '/admin/founder-account-control'
     ].includes(item.to))
     .map((item) => {
-      if (item.to === '/admin/payments') return { ...item, label: 'Paiements & vérification' };
+      if (item.to === '/admin/payment-verification') return { ...item, label: 'Paiements & vérification' };
       if (item.to === '/admin/product-boosts') return { ...item, label: 'Boosts & tarification' };
       if (item.to === '/admin/settings') return { ...item, label: 'Paramètres système' };
       if (item.to === '/admin/chat-templates') return { ...item, label: 'Messages & avis' };
