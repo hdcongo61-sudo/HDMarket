@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import api, { abortPendingRequests } from './services/api';
@@ -525,21 +525,13 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (firstRouteRef.current) {
       firstRouteRef.current = false;
       previousPathRef.current = pathname;
       return;
     }
-    const previousPath = String(previousPathRef.current || '');
-    const previousModule = getRouteModule(previousPath);
-    const currentModule = getRouteModule(pathname);
-    const isIntraModuleNavigation = Boolean(previousModule) && previousModule === currentModule;
     previousPathRef.current = pathname;
-    if (isIntraModuleNavigation) {
-      setRouteLoading(false);
-      return;
-    }
     setRouteLoading(true);
     const timer = setTimeout(() => setRouteLoading(false), 800);
     return () => clearTimeout(timer);

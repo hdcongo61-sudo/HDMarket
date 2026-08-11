@@ -1223,7 +1223,9 @@ export default function SellerOrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
-        <section className="space-y-3 md:hidden">
+        {/* Keep one responsive order surface for mobile and desktop, matching the
+            customer order-detail page and preventing the two layouts from drifting. */}
+        <section className="hidden" aria-hidden="true">
           <article className="overflow-hidden rounded-2xl border border-[#e2dcd2] bg-white shadow-sm">
             <div className="border-b border-[#eee8e0] px-4 py-3">
               <div className="flex items-start justify-between gap-3">
@@ -1352,7 +1354,7 @@ export default function SellerOrderDetail() {
 
         <motion.div
           {...riseIn(reduceMotion, 0)}
-          className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:block"
+          className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
         >
           <div className="relative overflow-hidden bg-[#e85d00] px-5 py-5 text-white sm:px-7 sm:py-6">
             <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
@@ -1362,7 +1364,7 @@ export default function SellerOrderDetail() {
                   <StatusIcon className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-black uppercase tracking-wide text-white/78">Commande vendeur</p>
+                  <p className="text-xs font-black uppercase tracking-wide text-white/78">Commande HDMarket</p>
                   <button
                     type="button"
                     onClick={() => copyToClipboard(order._id.slice(-6).toUpperCase(), 'orderId')}
@@ -1470,6 +1472,35 @@ export default function SellerOrderDetail() {
             );
           })()}
 
+          {order.deliveryCode && (
+            <div className="relative border-t-2 border-dashed border-gray-200 bg-white px-5 pb-5 pt-4 dark:border-neutral-800 dark:bg-neutral-950 sm:px-7">
+              <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
+              <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#e85d00]" /> Code de livraison
+                  </p>
+                  <p className="mt-1 break-all font-mono text-3xl font-black tracking-[0.2em] text-neutral-950 sm:text-4xl">
+                    {order.deliveryCode}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-gray-500">
+                    À utiliser pour sécuriser la remise de la commande.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(order.deliveryCode, 'deliveryCode')}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white transition active:scale-95"
+                  title="Copier le code"
+                  aria-label="Copier le code de livraison"
+                >
+                  {copiedKey === 'deliveryCode' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4 bg-gray-50 p-3 sm:p-5">
             <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -1527,19 +1558,10 @@ export default function SellerOrderDetail() {
               </div>
             </motion.section>
 
-            <motion.div {...riseIn(reduceMotion, 0.16)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {order.deliveryCode && (
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-neutral-500" /> Code de livraison</h4>
-                  <div className="rounded-2xl border border-gray-200 bg-gray-100 p-5">
-                    <p className="text-xs font-semibold text-neutral-700 uppercase mb-2">Code pour le livreur</p>
-                    <div className="text-4xl font-black text-neutral-900 tracking-wider font-mono text-center">{order.deliveryCode}</div>
-                  </div>
-                </div>
-              )}
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><User className="w-4 h-4 text-gray-500" /> Informations de l’acheteur</h4>
-                <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <motion.div {...riseIn(reduceMotion, 0.16)} className="grid grid-cols-1 gap-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><User className="w-4 h-4 text-[#e85d00]" /> Informations de l’acheteur</h4>
+                <div className="space-y-2 rounded-2xl border border-gray-100 bg-gray-50 p-4">
                   <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-gray-900">{buyerName}</p>
@@ -1568,11 +1590,11 @@ export default function SellerOrderDetail() {
               </div>
             </motion.div>
 
-            <div>
-              <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-500" /> {isPickupOrder ? 'Point de retrait' : 'Adresse de livraison'}
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900">
+                <MapPin className="w-4 h-4 text-[#e85d00]" /> {isPickupOrder ? 'Point de retrait' : 'Adresse de livraison'}
               </h4>
-              <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="space-y-2 rounded-2xl border border-gray-100 bg-gray-50 p-4">
                 {isPickupOrder ? (
                   <>
                     <p className="text-sm font-semibold text-gray-900">{pickupShopAddress?.shopName || 'Boutique'}</p>
@@ -1616,13 +1638,13 @@ export default function SellerOrderDetail() {
 
             {order.trackingNote && (
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h4 className="text-sm font-bold text-gray-900 uppercase mb-2 flex items-center gap-2"><Info className="w-4 h-4 text-gray-500" /> Note de suivi</h4>
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><Info className="w-4 h-4 text-[#e85d00]" /> Note de suivi</h4>
                 <p className="text-sm font-semibold leading-6 text-gray-700">{order.trackingNote}</p>
               </div>
             )}
 
             <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h4 className="text-sm font-bold text-gray-900 uppercase mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> Paiement</h4>
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCard className="w-4 h-4 text-[#e85d00]" /> Paiement</h4>
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3">
                   <div className="flex items-center gap-2 flex-wrap">

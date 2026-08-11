@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolveNotificationLink, resolvePushPayloadLink } from './notificationLinks';
+import {
+  resolveNotificationLink,
+  resolvePushPayloadLink,
+  selectVisibleNotificationActions
+} from './notificationLinks';
 
 const ORDER_ID = '507f1f77bcf86cd799439011';
 
@@ -42,5 +46,20 @@ describe('global broadcast links', () => {
     expect(resolvePushPayloadLink({
       data: { type: 'admin_broadcast', actionLink: shopPath, shopSlug: 'ma-boutique' }
     })).toBe(shopPath);
+  });
+});
+
+describe('notification actions after reading', () => {
+  const actions = [
+    { to: `/orders/detail/${ORDER_ID}`, label: 'Voir commande' },
+    { to: '/products', label: 'Voir produit' }
+  ];
+
+  it('keeps the primary destination visible on a collapsed notification', () => {
+    expect(selectVisibleNotificationActions(actions)).toEqual([actions[0]]);
+  });
+
+  it('reveals a secondary destination when details are expanded', () => {
+    expect(selectVisibleNotificationActions(actions, true)).toEqual(actions);
   });
 });

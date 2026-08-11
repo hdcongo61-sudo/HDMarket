@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 
 const STORAGE_PREFIX = 'hdmarket:scroll-position:';
@@ -99,7 +99,7 @@ export default function ScrollToTop() {
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     previousKeysRef.current = { entryKey, routeKey };
 
     const saveCurrentPosition = () => {
@@ -136,7 +136,7 @@ export default function ScrollToTop() {
     };
   }, [entryKey, routeKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
 
     let cancelled = false;
@@ -170,9 +170,7 @@ export default function ScrollToTop() {
         : null;
 
     if (!saved) {
-      window.requestAnimationFrame(() => {
-        if (!cancelled) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-      });
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       return () => {
         cancelled = true;
       };
@@ -203,7 +201,7 @@ export default function ScrollToTop() {
     return () => {
       cancelled = true;
     };
-  }, [entryKey, location.hash, navigationType, routeKey]);
+  }, [entryKey, location.hash, location.pathname, navigationType, routeKey]);
 
   return null;
 }

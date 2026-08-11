@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, ExternalLink, Loader2, MoreHorizontal, Pin, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, ExternalLink, Loader2, Pin, Trash2 } from 'lucide-react';
 import SwipeActions from './SwipeActions';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { resolveUserProfileImage } from '../../utils/userAvatar';
+import { selectVisibleNotificationActions } from '../../utils/notificationLinks';
 
 const previewText = (message, max = 120) => {
   const safe = String(message || '').trim();
@@ -81,11 +82,14 @@ export default function NotificationItem({
   const deadline = alert?.actionDueAt ? new Date(alert.actionDueAt) : null;
   const deadlineValid = deadline && !Number.isNaN(deadline.getTime());
   const deadlineOverdue = deadlineValid && deadline.getTime() < Date.now();
+  const primaryAction = useMemo(
+    () => (Array.isArray(actions) ? actions.find((item) => item?.to) || null : null),
+    [actions]
+  );
 
   const visibleActions = useMemo(() => {
-    if (!Array.isArray(actions) || !actions.length) return [];
-    return isUnread ? actions.slice(0, 1) : [];
-  }, [actions, isExpanded, isUnread]);
+    return selectVisibleNotificationActions(actions, isExpanded);
+  }, [actions, isExpanded]);
 
   const startLongPress = () => {
     didLongPress.current = false;
@@ -100,17 +104,6 @@ export default function NotificationItem({
       window.clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  };
-
-  const handlePress = () => {
-    if (didLongPress.current) {
-      didLongPress.current = false;
-      return;
-    }
-    if (isUnread) {
-      void onMarkRead?.();
-    }
-    onToggleExpand?.();
   };
 
   const handleActionClick = async (to) => {
@@ -128,6 +121,25 @@ export default function NotificationItem({
     }
   };
 
+  const handlePress = () => {
+    if (didLongPress.current) {
+      didLongPress.current = false;
+      return;
+    }
+    if (selectionMode) {
+      onToggleSelected?.();
+      return;
+    }
+    if (primaryAction?.to) {
+      void handleActionClick(primaryAction.to);
+      return;
+    }
+    if (isUnread) {
+      void onMarkRead?.();
+    }
+    onToggleExpand?.();
+  };
+
   return (
     <>
       <SwipeActions canMarkRead={isUnread} onMarkRead={onMarkRead} onDelete={onDelete}>
@@ -143,7 +155,12 @@ export default function NotificationItem({
             <div
               role="button"
               tabIndex={0}
-              onClick={handlePress}
+              aria-label={primaryAction?.to
+                ? `${meta.title}. ${primaryAction.label || t('notifications.open', 'Ouvrir')}`
+                : meta.title}
+              onClick={() => {
+                if (!isActionsOpen) handlePress();
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
@@ -153,12 +170,12 @@ export default function NotificationItem({
               onPointerDown={startLongPress}
               onPointerUp={cancelLongPress}
               onPointerLeave={cancelLongPress}
-              className={`group relative flex w-full items-start gap-3 overflow-hidden rounded-[16px] border px-3.5 py-3.5 text-left transition duration-200 sm:px-4 ${
+              className={`group relative flex w-full cursor-pointer items-start gap-3 overflow-hidden rounded-[16px] border px-3.5 py-3.5 text-left transition duration-200 sm:px-4 ${
                 isActionsOpen
                   ? 'border-red-200 bg-white/25'
                   : isUnread
                     ? 'border-orange-200 bg-white'
-                    : 'border-[#eee8e0] bg-[#faf8f5] opacity-80'
+                    : 'border-[#eee8e0] bg-[#faf8f5] hover:border-[#ded5ca] hover:bg-white'
               }`}
             >
               {selectionMode && (
@@ -230,7 +247,7 @@ export default function NotificationItem({
                 )}
 
                 <AnimatePresence initial={false}>
-                  {(isExpanded || visibleActions.length > 0) && (
+                  {(visibleActions.length > 0 || (isExpanded && isUnread)) && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -257,7 +274,9 @@ export default function NotificationItem({
                                   }}
                                   className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-black transition disabled:cursor-wait disabled:opacity-70 ${
                                     isPrimary
-                                      ? 'bg-neutral-950 text-white'
+                                      ? isUnread
+                                        ? 'bg-neutral-950 text-white'
+                                        : 'border border-[#e2dcd2] bg-white text-[#e85d00] shadow-sm hover:border-orange-200 hover:bg-orange-50 dark:border-neutral-700 dark:bg-neutral-950 dark:text-orange-300'
                                       : 'border border-gray-200 bg-white text-gray-500 shadow-sm hover:bg-gray-100 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-900'
                                   }`}
                                 >
@@ -316,14 +335,17 @@ export default function NotificationItem({
               </div>
 
               <div
-                className={`hidden flex-shrink-0 items-center gap-0.5 pt-0.5 text-neutral-300 transition-opacity duration-150 dark:text-neutral-500 ${
+                className={`flex flex-shrink-0 items-center gap-0.5 pt-0.5 text-neutral-300 transition-opacity duration-150 dark:text-neutral-500 ${
                   isActionsOpen ? 'pointer-events-none opacity-0' : 'opacity-100'
                 }`}
               >
-                <MoreHorizontal className="h-4 w-4" />
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                />
+                {primaryAction?.to ? (
+                  navigatingTo ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />
+                ) : (
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  />
+                )}
               </div>
             </div>
           </motion.article>

@@ -4,6 +4,11 @@ const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 const URL_BASE = 'https://hdmarket.local';
 
+export const selectVisibleNotificationActions = (actions, isExpanded = false) => {
+  const validActions = (Array.isArray(actions) ? actions : []).filter((item) => item?.to);
+  return validActions.slice(0, isExpanded ? 2 : 1);
+};
+
 const ORDER_TYPES = new Set([
   'order_placed',
   'order_created',

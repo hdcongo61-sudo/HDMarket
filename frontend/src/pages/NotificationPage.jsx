@@ -265,7 +265,7 @@ const getPrimaryActionLabel = (alert, to, t) => {
   if (String(to || '').includes('/orders') || String(to || '').includes('/seller/orders')) {
     return t('notifications.viewOrder', 'Voir commande');
   }
-  return alert?.display?.actionLabel || alert?.metadata?.actionLabel || t('notifications.open', 'Ouvrir');
+  return alert?.actionLabel || alert?.display?.actionLabel || alert?.metadata?.actionLabel || t('notifications.open', 'Ouvrir');
 };
 
 const buildDisputeNotificationPath = (alert, user) => {
