@@ -524,11 +524,11 @@ const fetchProducts = useCallback(async () => {
 
         {error && (
           <NetworkFallbackCard
-            title="Unable to load data."
+            title="Impossible de charger les produits"
             message={error}
             onRetry={fetchProducts}
-            retryLabel="Retry"
-            refreshLabel="Refresh page"
+            retryLabel="Réessayer"
+            refreshLabel="Actualiser la page"
           />
         )}
 
@@ -550,7 +550,7 @@ const fetchProducts = useCallback(async () => {
                   onClick={fetchProducts}
                   className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
                 >
-                  Retry
+                  Réessayer
                 </button>
               </div>
             )}

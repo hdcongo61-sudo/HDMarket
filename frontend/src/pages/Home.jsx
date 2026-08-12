@@ -1472,7 +1472,7 @@ const loadDiscountProducts = async () => {
     const stopPromoAutoplay = () => setPromoInteracted(true);
 
     return (
-      <main className="mx-auto flex max-w-7xl flex-col gap-5 bg-[#f7f8fa] px-5 pb-24 pt-0 text-[#1b1d22] max-[375px]:gap-4 max-[375px]:px-4">
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 bg-[#f7f8fa] px-5 pb-24 pt-0 text-[#1b1d22] max-[375px]:gap-4 max-[375px]:px-4">
         {user ? (
           <div className="order-[-30] pt-3">
             <HomeGreeting user={user} />
@@ -1869,7 +1869,7 @@ const loadDiscountProducts = async () => {
               </Link>
               {sellingEnabled && (
                 <Link
-                  to="/my"
+                  to="/seller/products"
                   className="inline-flex items-center rounded-xl border border-white/25 bg-white/10 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-sm transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
                 >
                   <Zap className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
@@ -2562,11 +2562,11 @@ const loadDiscountProducts = async () => {
 
           {productsError ? (
             <NetworkFallbackCard
-              title="Unable to load data."
+              title="Impossible de charger les produits"
               message={productsError}
               onRetry={loadProducts}
-              retryLabel="Retry"
-              refreshLabel="Refresh page"
+              retryLabel="Réessayer"
+              refreshLabel="Actualiser la page"
             />
           ) : loading && items.length === 0 ? (
             <ShimmerSkeleton rows={3} />
@@ -2597,7 +2597,7 @@ const loadDiscountProducts = async () => {
                     onClick={loadProducts}
                     className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
                   >
-                    Retry
+                    Réessayer
                   </button>
                 </div>
               )}
@@ -2677,7 +2677,7 @@ const loadDiscountProducts = async () => {
             </Link>
           </div>
         </section>
-      </main>
+      </div>
     );
   };
 
@@ -2749,7 +2749,7 @@ const loadDiscountProducts = async () => {
           : 'grid-cols-1';
 
     return (
-      <main className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
+      <div className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
         {greeting ? (
           <section className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex-row lg:items-stretch lg:divide-x lg:divide-y-0 dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950">
             <div className="flex min-w-0 items-center gap-3 px-5 py-3.5">
@@ -2899,7 +2899,7 @@ const loadDiscountProducts = async () => {
                 </p>
                 <div className="home-anim-fade-up flex gap-3" style={{ '--home-anim-delay': '240ms' }}>
                   {sellingEnabled && (
-                    <Link to="/my" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-sm active:scale-[0.99]">
+                    <Link to="/seller/products" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-sm active:scale-[0.99]">
                       <Zap className="w-4 h-4 mr-1.5" /> Publier
                     </Link>
                   )}
@@ -3610,11 +3610,11 @@ const loadDiscountProducts = async () => {
           {/* Product grid - 4-5 columns */}
           {productsError ? (
             <NetworkFallbackCard
-              title="Unable to load data."
+              title="Impossible de charger les produits"
               message={productsError}
               onRetry={loadProducts}
-              retryLabel="Retry"
-              refreshLabel="Refresh page"
+              retryLabel="Réessayer"
+              refreshLabel="Actualiser la page"
             />
           ) : loading ? (
             <ShimmerSkeleton rows={4} />
@@ -3647,7 +3647,7 @@ const loadDiscountProducts = async () => {
             </div>
           )}
         </section>
-      </main>
+      </div>
     );
   };
 

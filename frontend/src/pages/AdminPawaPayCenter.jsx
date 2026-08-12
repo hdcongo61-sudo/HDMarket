@@ -163,7 +163,7 @@ export default function AdminPawaPayCenter() {
   const statusOrder = ['WAITING_PAYMENT', 'PROCESSING', 'COMPLETED', 'FAILED', 'EXPIRED', 'CANCELLED', 'CREATED'];
 
   return (
-    <main className="min-h-screen bg-gray-50 px-3 py-4 sm:px-6 sm:py-8">
+    <div className="min-h-screen bg-gray-50 px-3 py-4 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -362,6 +362,6 @@ export default function AdminPawaPayCenter() {
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

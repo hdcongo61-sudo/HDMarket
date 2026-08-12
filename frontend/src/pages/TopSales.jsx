@@ -112,7 +112,7 @@ export default function TopSales() {
 
   return (
     <div className="hd-products-flow">
-      <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
         {/* Header */}
         <header className="hd-products-hero rounded-2xl p-4 text-white sm:p-6 lg:p-8">
           <button
@@ -179,7 +179,7 @@ export default function TopSales() {
             </p>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

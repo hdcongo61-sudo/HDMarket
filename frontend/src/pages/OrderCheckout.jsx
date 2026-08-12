@@ -2259,39 +2259,37 @@ export default function OrderCheckout() {
                 <p className="text-sm font-bold text-emerald-800">{checkoutStatus}</p>
               </div>
             )}
-            {paysWithPawaPay ? (
-              <PawaPayButton
-                amount={Math.max(10, Math.ceil(pawaPayRequiredAmount))}
-                purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
-                actionContext={pawaPayActionContext}
-                returnPath="/orders/checkout"
-                label="Confirmer et payer avec PawaPay"
-                onBeforeStart={validatePawaPayCheckout}
-                className="rounded-2xl px-8 py-5 text-lg sm:text-xl"
-              />
-            ) : (
-              <button
-                type="submit"
-                disabled={loading}
-                className={`inline-flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-black text-white transition active:scale-[0.98] disabled:opacity-60 sm:text-xl ${
-                  paysWithPawaPay
-                    ? 'bg-emerald-600 shadow-sm hover:bg-emerald-700'
-                    : 'bg-[#e85d00] shadow-sm hover:bg-[#f05f00]'
-                }`}
-              >
-                {loading ? (
-                  <>
-                    <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
-                    {checkoutStatus || (paysWithPawaPay ? 'Validation PawaPay...' : isFullPaymentSelected ? t('checkout.fullValidating', 'Paiement intégral...') : t('checkout.confirming', 'Confirmation...'))}
-                  </>
-                ) : (
-                  <>
-                    <Lock size={22} />
-                    {t('checkout.confirm', 'Confirmer la commande')}
-                  </>
-                )}
-              </button>
-            )}
+            <div className="hidden lg:block">
+              {paysWithPawaPay ? (
+                <PawaPayButton
+                  amount={Math.max(10, Math.ceil(pawaPayRequiredAmount))}
+                  purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
+                  actionContext={pawaPayActionContext}
+                  returnPath="/orders/checkout"
+                  label="Confirmer et payer avec PawaPay"
+                  onBeforeStart={validatePawaPayCheckout}
+                  className="rounded-2xl px-8 py-5 text-lg sm:text-xl"
+                />
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-[#e85d00] px-8 py-5 text-lg font-black text-white shadow-sm transition hover:bg-[#f05f00] active:scale-[0.98] disabled:opacity-60 sm:text-xl"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
+                      {checkoutStatus || (isFullPaymentSelected ? t('checkout.fullValidating', 'Paiement intégral...') : t('checkout.confirming', 'Confirmation...'))}
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={22} />
+                      {t('checkout.confirm', 'Confirmer la commande')}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </form>
         </section>
       </div>

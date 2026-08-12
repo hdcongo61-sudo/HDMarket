@@ -13,7 +13,6 @@ import {
   X,
   AlertCircle,
   TrendingUp,
-  DollarSign,
   Image as ImageIcon,
   Calendar,
   ArrowLeft,
@@ -34,16 +33,13 @@ import {
   ArrowUp,
   ArrowDown,
   BarChart3,
-  Award,
   Grid3x3,
   List,
   Zap,
   Sparkles,
-  Tag,
   AlertTriangle,
   CalendarClock,
   ShieldCheck,
-  Megaphone
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -127,18 +123,6 @@ const normalizeCreatedProductPayload = (payload) => {
   return payload;
 };
 
-const buildDefaultPromoForm = () => ({
-  code: '',
-  appliesTo: 'boutique',
-  productId: '',
-  discountType: 'percentage',
-  discountValue: '',
-  usageLimit: '10',
-  startDate: '',
-  endDate: '',
-  isActive: true
-});
-
 export default function UserDashboard() {
   const { categoryGroups } = useCategories();
   const { user } = useContext(AuthContext);
@@ -201,19 +185,10 @@ export default function UserDashboard() {
   const [installmentFilter, setInstallmentFilter] = useState('all'); // 'all', 'enabled', 'disabled'
   const [sortBy, setSortBy] = useState('date-desc'); // 'date-desc', 'date-asc', 'price-desc', 'price-asc', 'title-asc', 'title-desc', 'status-asc'
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [showPromoSection, setShowPromoSection] = useState(false);
   const [savedFilters, setSavedFilters] = useState([]);
   const [filterName, setFilterName] = useState('');
   const [analyticsProduct, setAnalyticsProduct] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'grid' or 'list'
-  const [promoAnalytics, setPromoAnalytics] = useState(null);
-  const [promoAnalyticsLoading, setPromoAnalyticsLoading] = useState(false);
-  const [promoCodes, setPromoCodes] = useState([]);
-  const [promoCodesLoading, setPromoCodesLoading] = useState(false);
-  const [promoCodeStatusFilter, setPromoCodeStatusFilter] = useState('active');
-  const [promoForm, setPromoForm] = useState(buildDefaultPromoForm);
-  const [promoSubmitting, setPromoSubmitting] = useState(false);
-  const [promoToggleLoadingId, setPromoToggleLoadingId] = useState('');
   const [recentlyCreatedProductId, setRecentlyCreatedProductId] = useState('');
   const [assistantAssignment, setAssistantAssignment] = useState(null);
   const [assistantInvites, setAssistantInvites] = useState([]);
@@ -252,137 +227,15 @@ export default function UserDashboard() {
     };
   }, [isShopUser, user]);
 
-  const loadPromoCodes = async (status = promoCodeStatusFilter) => {
-    if (!isShopUser) {
-      setPromoCodes([]);
-      return;
-    }
-    setPromoCodesLoading(true);
-    try {
-      const { data } = await api.get('/marketplace-promo-codes/my', {
-        params: { page: 1, limit: 20, status }
-      });
-      setPromoCodes(Array.isArray(data?.items) ? data.items : []);
-    } catch (e) {
-      const statusCode = e?.response?.status;
-      if (statusCode !== 403) {
-        showToast(e.response?.data?.message || 'Impossible de charger les codes promo.', { variant: 'error' });
-      }
-      setPromoCodes([]);
-    } finally {
-      setPromoCodesLoading(false);
-    }
-  };
-
-  const handleCreatePromoCode = async (event) => {
-    event.preventDefault();
-    if (!isShopUser) return;
-    const startDate = promoForm.startDate ? new Date(promoForm.startDate) : null;
-    const endDate = promoForm.endDate ? new Date(promoForm.endDate) : null;
-    if (!startDate || Number.isNaN(startDate.getTime()) || !endDate || Number.isNaN(endDate.getTime())) {
-      showToast('Veuillez renseigner les dates de début et fin.', { variant: 'error' });
-      return;
-    }
-    if (endDate <= startDate) {
-      showToast('La date de fin doit être postérieure à la date de début.', { variant: 'error' });
-      return;
-    }
-    if (promoForm.appliesTo === 'product' && !promoForm.productId) {
-      showToast('Veuillez sélectionner un produit pour un code produit.', { variant: 'error' });
-      return;
-    }
-
-    setPromoSubmitting(true);
-    try {
-      await api.post('/marketplace-promo-codes/my', {
-        code: promoForm.code.trim().toUpperCase(),
-        appliesTo: promoForm.appliesTo,
-        productId: promoForm.appliesTo === 'product' ? promoForm.productId : null,
-        discountType: promoForm.discountType,
-        discountValue: Number(promoForm.discountValue || 0),
-        usageLimit: Number(promoForm.usageLimit || 1),
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        isActive: Boolean(promoForm.isActive)
-      });
-      showToast('Code promo créé avec succès.', { variant: 'success' });
-      setPromoForm(buildDefaultPromoForm());
-      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load({ silent: true })]);
-    } catch (e) {
-      showToast(e.response?.data?.message || 'Impossible de créer le code promo.', { variant: 'error' });
-    } finally {
-      setPromoSubmitting(false);
-    }
-  };
-
-  const handleTogglePromoCode = async (promoItem) => {
-    if (!promoItem?.id) return;
-    if (promoToggleLoadingId === promoItem.id) return;
-    const nextIsActive = !promoItem.isActive;
-    const previousPromoCodes = promoCodes;
-    setPromoToggleLoadingId(promoItem.id);
-
-    setPromoCodes((prev) => {
-      const updated = prev.map((item) =>
-        item.id === promoItem.id ? { ...item, isActive: nextIsActive } : item
-      );
-
-      if (promoCodeStatusFilter === 'active') {
-        return updated.filter((item) => Boolean(item.isActive));
-      }
-      if (promoCodeStatusFilter === 'inactive') {
-        return updated.filter((item) => !item.isActive);
-      }
-      return updated;
-    });
-
-    try {
-      await api.patch(`/marketplace-promo-codes/my/${promoItem.id}/toggle`, {
-        isActive: nextIsActive
-      });
-      showToast(nextIsActive ? 'Code promo activé.' : 'Code promo désactivé.', { variant: 'success' });
-      await Promise.all([loadPromoCodes(promoCodeStatusFilter), load({ silent: true })]);
-    } catch (e) {
-      setPromoCodes(previousPromoCodes);
-      showToast(e.response?.data?.message || 'Impossible de modifier ce code promo.', { variant: 'error' });
-    } finally {
-      setPromoToggleLoadingId('');
-    }
-  };
-
   const load = async (options = {}) => {
     const silent = Boolean(options?.silent);
     if (!silent) {
       setLoading(true);
     }
     setError('');
-    if (isShopUser) {
-      setPromoAnalyticsLoading(true);
-    }
     try {
-      const requests = [api.get('/products')];
-      if (isShopUser) {
-        requests.push(api.get('/marketplace-promo-codes/my/analytics'));
-      }
-      const [productsResult, promoResult] = await Promise.allSettled(requests);
-
-      if (productsResult.status === 'fulfilled') {
-        const data = productsResult.value?.data;
-        setItems(Array.isArray(data) ? data : []);
-      } else {
-        const productError = productsResult.reason;
-        throw productError;
-      }
-
-      if (isShopUser) {
-        if (promoResult?.status === 'fulfilled') {
-          setPromoAnalytics(promoResult.value?.data || null);
-        } else {
-          setPromoAnalytics(null);
-        }
-      } else {
-        setPromoAnalytics(null);
-      }
+      const { data } = await api.get('/products');
+      setItems(Array.isArray(data) ? data : []);
       if (!silent) {
         setCurrentPage(1);
       }
@@ -393,9 +246,6 @@ export default function UserDashboard() {
       if (!silent) {
         setLoading(false);
       }
-      if (isShopUser) {
-        setPromoAnalyticsLoading(false);
-      }
     }
   };
 
@@ -403,11 +253,6 @@ export default function UserDashboard() {
     load();
     loadSavedFilters();
   }, [isShopUser]);
-
-  useEffect(() => {
-    if (!isShopUser) return;
-    loadPromoCodes(promoCodeStatusFilter);
-  }, [isShopUser, promoCodeStatusFilter]);
 
   // Load saved filters from localStorage
   const loadSavedFilters = async () => {
@@ -1043,6 +888,16 @@ export default function UserDashboard() {
     }
   };
 
+  const activeFilterCount =
+    selectedCategories.length +
+    (priceMin ? 1 : 0) +
+    (priceMax ? 1 : 0) +
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0) +
+    selectedStatuses.length +
+    (boostedFilter !== 'all' ? 1 : 0) +
+    (installmentFilter !== 'all' ? 1 : 0);
+
   if (loading && items.length === 0) {
     return (
       <div className="min-h-screen bg-[#f5f2ee] dark:bg-neutral-950">
@@ -1088,8 +943,7 @@ export default function UserDashboard() {
 
       {/* ── TAOBAO STICKY HEADER ── */}
       <header className="border-b border-[#e2dcd2] bg-white/96 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top,0px) + 10px)' }}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3">
           <div className="min-w-0">
             <h1 className="text-[17px] font-black leading-tight text-[#231f1b] dark:text-white">Mes annonces</h1>
             <p className="mt-0.5 text-[11px] font-semibold leading-tight text-[#8a8378]">
@@ -1122,23 +976,62 @@ export default function UserDashboard() {
 
       {/* ── INLINE KPI STRIP ── */}
       {!loading && stats.total > 0 && (
-        <section className="mx-auto max-w-6xl bg-[#f5f2ee] px-3 pt-3">
-          <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => { setStatusFilter('all'); setSelectedStatuses([]); }}
-              className="flex min-h-[72px] flex-col items-start justify-center rounded-2xl border border-[#e2dcd2] bg-white px-3 text-left active:bg-[#fff8f2] transition-colors">
-              <span className="text-[18px] font-black leading-tight text-[#231f1b]">{stats.total}</span>
-              <span className="mt-1 text-[11px] font-bold text-[#8a8378]">Total</span>
-            </button>
-            <button type="button" onClick={() => { setStatusFilter('approved'); setSelectedStatuses([]); }}
-              className="flex min-h-[72px] flex-col items-start justify-center rounded-2xl border border-[#e2dcd2] bg-white px-3 text-left active:bg-[#fff8f2] transition-colors">
-              <span className="text-[18px] font-black leading-tight text-[#231f1b]">{stats.approved}</span>
-              <span className="mt-1 text-[11px] font-bold text-[#8a8378]">En ligne</span>
-            </button>
-            <button type="button" onClick={() => { setStatusFilter('pending'); setSelectedStatuses([]); }}
-              className="flex min-h-[72px] flex-col items-start justify-center rounded-2xl border border-[#f0c7aa] bg-[#fff8f2] px-3 text-left active:bg-[#fff0e4] transition-colors">
-              <span className="text-[18px] font-black leading-tight text-[#c2410c]">{Number(stats.pending || 0) + Number(stats.rejected || 0)}</span>
-              <span className="mt-1 text-[11px] font-bold text-[#8a8378]">À traiter</span>
-            </button>
+        <section className="mx-auto max-w-6xl bg-[#f5f2ee] px-3 pt-4" aria-label="Aperçu des annonces">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+            {[
+              {
+                key: 'all',
+                label: 'Total',
+                value: stats.total,
+                icon: Package,
+                iconClass: 'bg-[#f5f2ee] text-[#6b6459]',
+                activeClass: 'border-[#231f1b] ring-[#231f1b]/5'
+              },
+              {
+                key: 'approved',
+                label: 'En ligne',
+                value: stats.approved,
+                icon: CheckCircle,
+                iconClass: 'bg-emerald-50 text-emerald-600',
+                activeClass: 'border-emerald-400 ring-emerald-500/5'
+              },
+              {
+                key: 'pending',
+                label: 'À traiter',
+                value: Number(stats.pending || 0) + Number(stats.rejected || 0),
+                icon: AlertCircle,
+                iconClass: 'bg-orange-50 text-[#e85d00]',
+                activeClass: 'border-[#e85d00] ring-orange-500/5'
+              }
+            ].map(({ key, label, value, icon: Icon, iconClass, activeClass }) => {
+              const active = statusFilter === key && selectedStatuses.length === 0;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setStatusFilter(key); setSelectedStatuses([]); }}
+                  aria-pressed={active}
+                  className={`group relative min-h-[88px] overflow-hidden rounded-[22px] border bg-white p-3 text-left shadow-[0_3px_14px_rgba(35,31,27,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 sm:min-h-[104px] sm:p-4 ${
+                    active ? `${activeClass} ring-4` : 'border-[#e2dcd2]'
+                  }`}
+                >
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="min-w-0">
+                      <span className={`block text-[22px] font-black leading-none tracking-tight sm:text-3xl ${key === 'pending' ? 'text-[#c2410c]' : 'text-[#231f1b]'}`}>
+                        {value}
+                      </span>
+                      <span className="mt-2 block truncate text-[11px] font-black text-[#6b6459] sm:text-xs">
+                        {label}
+                      </span>
+                    </span>
+                    <span className={`hidden h-10 w-10 shrink-0 place-items-center rounded-2xl sm:grid ${iconClass}`}>
+                      <Icon className="h-4.5 w-4.5" />
+                    </span>
+                  </span>
+                  <span className={`absolute inset-x-3 bottom-0 h-0.5 rounded-full transition sm:inset-x-4 ${active ? (key === 'approved' ? 'bg-emerald-500' : key === 'pending' ? 'bg-[#e85d00]' : 'bg-[#231f1b]') : 'bg-transparent'}`} />
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
@@ -1200,342 +1093,55 @@ export default function UserDashboard() {
         </section>
       )}
 
-      {/* ── QUICK SHORTCUTS ROW ── */}
-      <section className="mx-auto max-w-6xl bg-[#f5f2ee]">
-        <div className="flex gap-2 overflow-x-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[
-            { to: '/seller/boosts', icon: Sparkles, label: 'Boosts' },
-            { to: '/seller/global-notifications', icon: Megaphone, label: 'Notifs globales' },
-            { to: '/seller/analytics', icon: BarChart3, label: 'Statistiques' },
-            { to: '/orders', icon: Package, label: 'Commandes' },
-            ...(isShopUser ? [{ to: '/seller/promo-codes', icon: Tag, label: 'Codes promo' }] : []),
-          ].map(({ to, icon: Icon, label }) => (
-            <Link key={to} to={to}
-              className="flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-full border border-[#e2dcd2] bg-white px-3.5 text-xs font-bold text-[#231f1b] active:bg-[#fff8f2] transition-colors">
-              <Icon className="h-3.5 w-3.5 text-[#e85d00]" />
-              {label}
-            </Link>
-          ))}
-        </div>
-      </section>
-
       <div className="mx-auto max-w-6xl space-y-3 px-3 pb-32 lg:pb-12">
-
-        {!loading && (promoAnalyticsLoading || promoAnalytics) && (
-          <div className="mb-8 hidden space-y-4 md:block">
-            {promoAnalytics?.gamification?.isMostGenerousOfMonth ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
-                    <Award className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-amber-900">Badge vendeur</p>
-                    <p className="text-base font-bold text-amber-800">Boutique la plus généreuse du mois</p>
-                  </div>
-                </div>
-              </div>
-            ) : promoAnalytics?.gamification?.rank ? (
-              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-4">
-                <p className="text-sm font-semibold text-neutral-900">Classement promo du mois</p>
-                <p className="text-sm text-neutral-700">
-                  Position #{promoAnalytics.gamification.rank} sur {promoAnalytics.gamification.totalParticipants || 0} boutiques.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-neutral-600">
-                    <DollarSign className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(promoAnalytics?.metrics?.promoRevenueTotal || 0)}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Revenus via promo</p>
-                <p className="text-xs text-gray-500 mt-1">Chiffre d’affaires des commandes promo</p>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-emerald-600">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-2xl font-bold text-gray-900">
-                    {Number(promoAnalytics?.metrics?.clientsAcquiredViaPromo || 0).toLocaleString('fr-FR')}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Clients acquis</p>
-                <p className="text-xs text-gray-500 mt-1">Première commande obtenue via promo</p>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-neutral-600">
-                    <TrendingUp className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-2xl font-bold text-gray-900">
-                    {Number(promoAnalytics?.metrics?.conversionRate || 0).toLocaleString('fr-FR')}%
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Taux conversion</p>
-                <p className="text-xs text-gray-500 mt-1">Part des commandes avec code promo</p>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-amber-600">
-                    <BarChart3 className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-2xl font-bold text-gray-900">
-                    {Number(promoAnalytics?.metrics?.promoOrders || 0).toLocaleString('fr-FR')}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Commandes promo</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Sur {Number(promoAnalytics?.metrics?.totalOrders || 0).toLocaleString('fr-FR')} commandes
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── ASSISTANT BANNER (compact) ── */}
         {!loading && !isShopUser && (assistantAssignment || assistantInvites.length > 0) && (
-          <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-900 truncate">Assistant boutique</p>
-                <p className="text-[11px] text-gray-500 truncate">
-                  {assistantAssignment
-                    ? `Workspace: ${assistantAssignment.shop?.shopName || assistantAssignment.shop?.name || 'boutique'}`
-                    : `${assistantInvites.length} invitation${assistantInvites.length > 1 ? 's' : ''} en attente`}
-                </p>
-              </div>
-            </div>
-            <Link to="/seller/assistant/workspace"
-              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#e85d00] text-white text-xs font-bold active:scale-95 transition-transform">
-              {assistantAssignment ? 'Ouvrir' : 'Voir'}
-            </Link>
-          </div>
-        )}
-        {!loading && isShopUser && (
-          <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-[#fff0e4] flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-900">Assistant boutique</p>
-                <p className="text-[11px] text-gray-500">Déléguez la gestion de votre boutique</p>
-              </div>
-            </div>
-            <Link to="/seller/assistant"
-              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#e85d00] text-white text-xs font-bold active:scale-95 transition-transform">
-              Gérer
-            </Link>
-          </div>
-        )}
-
-        {/* ── CODES PROMO (collapsible Taobao card) ── */}
-        {!loading && isShopUser && (
-          <div className="bg-white border-b border-gray-100">
-            {/* Header row — always visible, tap to expand */}
-            <button type="button"
-              onClick={() => {
-                setShowPromoSection((prev) => !prev);
-                if (!showPromoSection) loadPromoCodes(promoCodeStatusFilter);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
-                <Tag className="w-4 h-4 text-purple-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-900">Codes promo</p>
-                <p className="text-[11px] text-gray-400">
-                  {promoCodes.length > 0
-                    ? `${promoCodes.filter((p) => p.isActive).length} actif${promoCodes.filter((p) => p.isActive).length > 1 ? 's' : ''} · ${promoCodes.length} total`
-                    : 'Créez des réductions pour votre boutique'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Link to="/seller/promo-codes"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-[11px] font-bold active:scale-95 transition-transform">
-                  Gérer
-                </Link>
-                {showPromoSection
-                  ? <ChevronUp className="w-4 h-4 text-gray-400" />
-                  : <ChevronDown className="w-4 h-4 text-gray-400" />}
-              </div>
-            </button>
-
-            {/* Expanded content */}
-            {showPromoSection && (
-              <div className="border-t border-gray-100">
-
-                {/* ── Quick create form ── */}
-                <form onSubmit={handleCreatePromoCode} className="px-4 py-3 space-y-2.5 bg-gray-50/60 border-b border-gray-100">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nouveau code</p>
-
-                  {/* Row 1: Code + Type scope */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="text" value={promoForm.code}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                      placeholder="Code (ex: SUMMER20)"
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00] uppercase placeholder-normal"
-                      required />
-                    <select value={promoForm.appliesTo}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, appliesTo: e.target.value, productId: '' }))}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]">
-                      <option value="boutique">Toute la boutique</option>
-                      <option value="product">Produit spécifique</option>
-                    </select>
-                  </div>
-
-                  {/* Row 2: Discount type + value + usage limit */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <select value={promoForm.discountType}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, discountType: e.target.value }))}
-                      className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-sm focus:outline-none focus:border-[#e85d00]">
-                      <option value="percentage">%</option>
-                      <option value="fixed">Fixe</option>
-                    </select>
-                    <input type="number" min="1" value={promoForm.discountValue}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, discountValue: e.target.value }))}
-                      placeholder={promoForm.discountType === 'percentage' ? 'Ex: 20' : 'Ex: 5000'}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
-                      required />
-                    <input type="number" min="1" value={promoForm.usageLimit}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, usageLimit: e.target.value }))}
-                      placeholder="Limite"
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
-                      required />
-                  </div>
-
-                  {/* Row 3: Date range */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="date" value={promoForm.startDate}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
-                      required />
-                    <input type="date" value={promoForm.endDate}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
-                      required />
-                  </div>
-
-                  {/* Product selector (only when product scope) */}
-                  {promoForm.appliesTo === 'product' && (
-                    <select value={promoForm.productId}
-                      onChange={(e) => setPromoForm((prev) => ({ ...prev, productId: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-[#e85d00]"
-                      required>
-                      <option value="">Sélectionner un produit approuvé</option>
-                      {promoEligibleProducts.map((p) => (
-                        <option key={p.id} value={p.id}>{p.title}</option>
-                      ))}
-                    </select>
-                  )}
-
-                  {/* Footer: activate toggle + submit */}
-                  <div className="flex items-center justify-between pt-0.5">
-                    <label className="inline-flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer">
-                      <input type="checkbox" checked={promoForm.isActive}
-                        onChange={(e) => setPromoForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-                        className="rounded border-gray-300 accent-[#e85d00]" />
-                      Activer immédiatement
-                    </label>
-                    <button type="submit" disabled={promoSubmitting}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e85d00] text-white text-xs font-bold disabled:opacity-60 active:scale-95 transition-transform">
-                      {promoSubmitting ? <><RefreshCw className="w-3 h-3 animate-spin" /> Création...</> : <><Plus className="w-3 h-3" /> Créer</>}
-                    </button>
-                  </div>
-                </form>
-
-                {/* ── Codes list ── */}
-                <div className="px-4 py-2.5">
-                  {/* Filter pills */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mb-2.5">
-                    {[
-                      { value: 'active', label: 'Actifs' },
-                      { value: 'all', label: 'Tous' },
-                      { value: 'inactive', label: 'Inactifs' },
-                      { value: 'expired', label: 'Expirés' },
-                      { value: 'upcoming', label: 'À venir' },
-                    ].map((opt) => (
-                      <button key={opt.value} type="button"
-                        onClick={() => { setPromoCodeStatusFilter(opt.value); loadPromoCodes(opt.value); }}
-                        className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
-                          promoCodeStatusFilter === opt.value ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Codes rows */}
-                  {promoCodesLoading ? (
-                    <div className="space-y-2 py-2">
-                      {[1, 2].map((i) => (
-                        <div key={i} className="flex items-center gap-3 py-2">
-                          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                          <div className="flex-1 h-3 bg-gray-100 rounded animate-pulse" />
-                          <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : promoCodes.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-4">Aucun code pour ce filtre.</p>
-                  ) : (
-                    <div className="space-y-0 divide-y divide-gray-50">
-                      {promoCodes.map((promo) => (
-                        <div key={promo.id} className="flex items-center gap-3 py-2.5">
-                          {/* Status dot */}
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${promo.isActive ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-black text-gray-900 tracking-wide">{promo.code}</span>
-                              <span className="text-[11px] text-gray-500">
-                                {promo.discountType === 'percentage'
-                                  ? `${Number(promo.discountValue || 0)}%`
-                                  : formatCurrency(promo.discountValue || 0)}
-                                {' · '}
-                                {promo.appliesTo === 'boutique' ? 'Boutique' : 'Produit'}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-gray-400">
-                              {promo.usedCount}/{promo.usageLimit} utilisations
-                              {' · '}
-                              {formatDate(promo.startDate)} → {formatDate(promo.endDate)}
-                            </p>
-                          </div>
-                          {/* Toggle button */}
-                          <button type="button"
-                            onClick={() => handleTogglePromoCode(promo)}
-                            disabled={promoToggleLoadingId === promo.id}
-                            className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all disabled:opacity-50 ${
-                              promo.isActive
-                                ? 'bg-red-50 text-red-600 border border-red-200'
-                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                            }`}>
-                            {promoToggleLoadingId === promo.id
-                              ? <RefreshCw className="w-3 h-3 animate-spin" />
-                              : promo.isActive ? 'Désact.' : 'Activer'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+          <div className="relative mt-3 overflow-hidden rounded-[24px] border border-[#eadfd5] bg-white p-4 shadow-[0_8px_28px_rgba(35,31,27,0.06)] sm:p-5">
+            <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-orange-100/70 blur-2xl" />
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3.5">
+                <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#fff0e4] to-[#ffe1cb] text-[#e85d00] ring-1 ring-orange-100 sm:h-14 sm:w-14">
+                  <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e85d00]">Espace collaboratif</p>
+                  <p className="mt-0.5 truncate text-[15px] font-black text-[#231f1b] sm:text-base">Assistant boutique</p>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378]">
+                    {assistantAssignment
+                      ? `Workspace · ${assistantAssignment.shop?.shopName || assistantAssignment.shop?.name || 'boutique'}`
+                      : `${assistantInvites.length} invitation${assistantInvites.length > 1 ? 's' : ''} à consulter`}
+                  </p>
                 </div>
               </div>
-            )}
+              <Link to="/seller/assistant/workspace"
+                className="group inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-full bg-[#231f1b] px-4 text-xs font-black text-white shadow-sm transition hover:bg-[#e85d00] active:scale-95 sm:px-5 sm:text-sm">
+                {assistantAssignment ? 'Ouvrir' : 'Voir'}
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+          </div>
+        )}
+        {!loading && isShopUser && (
+          <div className="relative mt-3 overflow-hidden rounded-[24px] border border-[#eadfd5] bg-white p-4 shadow-[0_8px_28px_rgba(35,31,27,0.06)] sm:p-5">
+            <div className="pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full bg-orange-100/70 blur-2xl" />
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3.5">
+                <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#fff0e4] to-[#ffe1cb] text-[#e85d00] ring-1 ring-orange-100 sm:h-14 sm:w-14">
+                  <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e85d00]">Équipe boutique</p>
+                  <p className="mt-0.5 text-[15px] font-black text-[#231f1b] sm:text-base">Assistant boutique</p>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378]">Invitez une personne de confiance à gérer vos annonces</p>
+                </div>
+              </div>
+              <Link to="/seller/assistant"
+                className="group inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-full bg-[#e85d00] px-4 text-xs font-black text-white shadow-[0_5px_15px_rgba(232,93,0,0.22)] transition hover:bg-[#c94f00] active:scale-95 sm:px-5 sm:text-sm">
+                Gérer
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
           </div>
         )}
 
@@ -1942,7 +1548,7 @@ export default function UserDashboard() {
 
                       {/* Action row */}
                       <div className="flex gap-2 border-t border-[#eee8e0] px-3 py-3">
-                        <Link to={`/my/annonce/${product.slug || productId}`}
+                        <Link to={`/seller/products/${product.slug || productId}`}
                           className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full bg-black px-4 text-xs font-black text-white transition-colors">
                           <FileText className="w-3.5 h-3.5" /> Détail
                         </Link>

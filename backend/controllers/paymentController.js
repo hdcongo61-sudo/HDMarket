@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Payment from '../models/paymentModel.js';
 import Product from '../models/productModel.js';
+import ListingFeePayment from '../models/listingFeePaymentModel.js';
 import User from '../models/userModel.js';
 import {
   createNotification,
@@ -367,12 +368,201 @@ export const listPaymentsAdmin = asyncHandler(async (req, res) => {
     .populate('product', 'title price status images slug')
     .populate('promoCode', 'code discountType discountValue usageLimit usedCount')
     .populate('validatedBy', 'name email');
-  res.json(payments);
+
+  const reconciliationStatus = {
+    waiting: 'PENDING',
+    verified: 'APPROVED',
+    rejected: 'REJECTED'
+  }[String(status || '')];
+  const reconciliationQuery = {
+    transactionReference: { $ne: '' },
+    submittedAt: { $ne: null },
+    ...(reconciliationStatus ? { status: reconciliationStatus } : {})
+  };
+  if (query.product) reconciliationQuery.productId = query.product;
+  if (query.createdAt) {
+    reconciliationQuery.submittedAt = { ...query.createdAt, $ne: null };
+  }
+  if (query.paymentMethod && query.paymentMethod !== 'mobile_money') {
+    reconciliationQuery._id = { $exists: false };
+  }
+  const normalizedOperator = String(operator || '').toUpperCase();
+  if (normalizedOperator && normalizedOperator !== 'ALL') {
+    const methodByOperator = {
+      MTN_MONEY: 'MTN',
+      AIRTEL_MONEY: 'Airtel',
+      ORANGE_MONEY: 'Orange',
+      OTHER: 'Other'
+    };
+    reconciliationQuery.paymentMethod = methodByOperator[normalizedOperator] || normalizedOperator;
+  }
+
+  const reconciliationPayments = await ListingFeePayment.find(reconciliationQuery)
+    .sort({ submittedAt: sortDirection, createdAt: sortDirection, _id: sortDirection })
+    .populate('sellerId', 'name email')
+    .populate('productId', 'title price status images slug pendingPrice')
+    .populate('validatedBy', 'name email');
+
+  const normalizedReconciliations = reconciliationPayments.map((entry) => ({
+    _id: entry._id,
+    paymentKind: 'LISTING_FEE_RECONCILIATION',
+    status: entry.status === 'APPROVED' ? 'verified' : entry.status === 'REJECTED' ? 'rejected' : 'waiting',
+    user: entry.sellerId,
+    product: entry.productId,
+    payerName: entry.payerName,
+    transactionNumber: entry.transactionReference,
+    amount: entry.amountPaid,
+    amountPaid: entry.amountPaid,
+    expectedAmount: entry.remainingFee,
+    commissionDueAmount: entry.remainingFee,
+    commissionBaseAmount: entry.requiredFee,
+    commissionReferencePrice: entry.newPrice,
+    paymentMethod: 'mobile_money',
+    operator: entry.paymentMethod,
+    oldPrice: entry.oldPrice,
+    newPrice: entry.newPrice,
+    oldFee: entry.oldFee,
+    requiredFee: entry.requiredFee,
+    remainingFee: entry.remainingFee,
+    submittedAt: entry.submittedAt,
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+    validatedAt: entry.validatedAt,
+    validatedBy: entry.validatedBy
+  }));
+
+  const combined = [...payments.map((payment) => payment.toObject()), ...normalizedReconciliations];
+  combined.sort((left, right) => {
+    const leftDate = new Date(left.submittedAt || left.createdAt || 0).getTime();
+    const rightDate = new Date(right.submittedAt || right.createdAt || 0).getTime();
+    return (leftDate - rightDate) * sortDirection;
+  });
+  res.json(combined);
 });
+
+const approveListingFeeReconciliation = async ({ payment, reviewerId }) => {
+  if (payment.status === 'APPROVED') {
+    return { message: 'Complément déjà validé, nouveau prix déjà publié.' };
+  }
+  if (payment.status !== 'PENDING' || !payment.submittedAt) {
+    const error = new Error('Ce complément de frais n’est pas prêt à être validé.');
+    error.status = 409;
+    throw error;
+  }
+  if (Math.abs(Number(payment.amountPaid || 0) - Number(payment.remainingFee || 0)) > 0.02) {
+    const error = new Error('Le montant reçu ne correspond pas au complément requis.');
+    error.status = 409;
+    throw error;
+  }
+
+  const now = new Date();
+  const setFields = {
+    price: Number(payment.newPrice),
+    approvedPrice: Number(payment.newPrice),
+    pendingPrice: null,
+    pendingPriceBeforeDiscount: null,
+    pendingDiscount: null,
+    listingFeePaid: Number(payment.requiredFee),
+    listingFeeRequired: Number(payment.requiredFee),
+    listingFeeRemaining: 0,
+    requiresAdditionalPayment: false,
+    listingFeeStatus: Number(payment.requiredFee) > 0 ? 'PAID' : 'NOT_REQUIRED',
+    priceChangeApprovedAt: now,
+    listingFeeSettled: true
+  };
+  if (payment.productId?.pendingPriceBeforeDiscount != null) {
+    setFields.priceBeforeDiscount = Number(payment.productId.pendingPriceBeforeDiscount);
+  }
+  if (payment.productId?.pendingDiscount != null) {
+    setFields.discount = Number(payment.productId.pendingDiscount);
+  }
+
+  const productUpdate = { $set: setFields };
+  if (payment.productId?.pendingPriceBeforeDiscount == null) {
+    productUpdate.$unset = { priceBeforeDiscount: 1 };
+  }
+  let product = await Product.findOneAndUpdate(
+    {
+      _id: payment.productId?._id || payment.productId,
+      pendingPrice: Number(payment.newPrice),
+      listingFeeStatus: 'UNDER_REVIEW'
+    },
+    productUpdate,
+    { new: true }
+  );
+  if (!product) {
+    product = await Product.findById(payment.productId?._id || payment.productId).select(
+      '+pendingPrice'
+    );
+    const alreadyApplied =
+      product &&
+      !product.requiresAdditionalPayment &&
+      product.pendingPrice == null &&
+      Math.abs(Number(product.approvedPrice ?? product.price) - Number(payment.newPrice)) < 0.01;
+    if (!alreadyApplied) {
+      const error = new Error('La demande de prix a changé; impossible de valider cet ancien paiement.');
+      error.status = 409;
+      throw error;
+    }
+  }
+
+  payment.status = 'APPROVED';
+  payment.validatedBy = reviewerId;
+  payment.validatedAt = now;
+  await payment.save();
+  invalidateVerifiedProductCache();
+  await invalidateProductCache();
+  return { message: 'Complément validé, nouveau prix publié.' };
+};
+
+const rejectListingFeeReconciliation = async ({ payment, reviewerId }) => {
+  if (payment.status === 'REJECTED') {
+    return { message: 'Complément déjà rejeté.' };
+  }
+  if (payment.status !== 'PENDING') {
+    const error = new Error('Ce complément ne peut plus être rejeté.');
+    error.status = 409;
+    throw error;
+  }
+  const now = new Date();
+  const updateResult = await Product.updateOne(
+    {
+      _id: payment.productId?._id || payment.productId,
+      pendingPrice: Number(payment.newPrice)
+    },
+    {
+      $set: {
+        listingFeeStatus: 'PAYMENT_REQUIRED',
+        requiresAdditionalPayment: true
+      }
+    }
+  );
+  if (!updateResult.matchedCount) {
+    const error = new Error('La demande de prix a changé; impossible de rejeter cet ancien paiement.');
+    error.status = 409;
+    throw error;
+  }
+  payment.status = 'REJECTED';
+  payment.validatedBy = reviewerId;
+  payment.validatedAt = now;
+  await payment.save();
+  return { message: 'Complément rejeté; l’ancien prix reste publié.' };
+};
 
 export const verifyPayment = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id).populate('product');
-  if (!payment) return res.status(404).json({ message: 'Payment not found' });
+  if (!payment) {
+    const reconciliation = await ListingFeePayment.findById(req.params.id).populate({
+      path: 'productId',
+      select: '+pendingPrice +pendingPriceBeforeDiscount +pendingDiscount'
+    });
+    if (!reconciliation) return res.status(404).json({ message: 'Payment not found' });
+    const result = await approveListingFeeReconciliation({
+      payment: reconciliation,
+      reviewerId: req.user.id
+    });
+    return res.json(result);
+  }
 
   payment.status = 'verified';
   payment.validatedBy = req.user.id;
@@ -381,9 +571,24 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   payment.verifiedAt = payment.validatedAt;
   await payment.save();
 
-  const product = await Product.findById(payment.product._id);
+  const product = await Product.findById(payment.product?._id || payment.product);
+  if (!product) return res.status(404).json({ message: 'Product not found' });
   product.status = 'approved';
   product.payment = payment._id;
+  const creditedListingFee = Number(
+    payment.commissionBaseAmount ?? payment.commissionDueAmount ?? payment.amountPaid ?? payment.amount ?? 0
+  );
+  product.listingFeePaid = Math.max(Number(product.listingFeePaid || 0), creditedListingFee);
+  product.listingFeeRequired = Math.max(
+    Number(product.listingFeeRequired || 0),
+    creditedListingFee
+  );
+  product.listingFeeRemaining = 0;
+  product.approvedPrice = Number(product.price || 0);
+  product.pendingPrice = null;
+  product.requiresAdditionalPayment = false;
+  product.listingFeeStatus = creditedListingFee > 0 ? 'PAID' : 'NOT_REQUIRED';
+  product.listingFeeSettled = true;
   await product.save();
   invalidateVerifiedProductCache();
 
@@ -426,7 +631,18 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
 export const rejectPayment = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id).populate('product');
-  if (!payment) return res.status(404).json({ message: 'Payment not found' });
+  if (!payment) {
+    const reconciliation = await ListingFeePayment.findById(req.params.id).populate({
+      path: 'productId',
+      select: '+pendingPrice +pendingPriceBeforeDiscount +pendingDiscount'
+    });
+    if (!reconciliation) return res.status(404).json({ message: 'Payment not found' });
+    const result = await rejectListingFeeReconciliation({
+      payment: reconciliation,
+      reviewerId: req.user.id
+    });
+    return res.json(result);
+  }
 
   payment.status = 'rejected';
   payment.validatedBy = req.user.id;

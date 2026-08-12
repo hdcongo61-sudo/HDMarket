@@ -197,7 +197,7 @@ export default function MyListingDetail() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => navigate('/my')}
+                    onClick={() => navigate('/seller/products')}
                     className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -282,7 +282,7 @@ export default function MyListingDetail() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <button
             type="button"
-            onClick={() => navigate('/my')}
+            onClick={() => navigate('/seller/products')}
             className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -300,7 +300,7 @@ export default function MyListingDetail() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pt-4 space-y-4">
+      <div className="mx-auto max-w-6xl px-4 pt-4 space-y-4">
         <section className="rounded-2xl border border-gray-100 bg-white/95 p-3 shadow-sm sm:p-4">
           <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-[1.1fr,1fr]">
             <div className="relative overflow-hidden rounded-2xl bg-gray-100 aspect-video">
@@ -426,7 +426,7 @@ export default function MyListingDetail() {
             </section>
           </aside>
         </div>
-      </main>
+      </div>
 
       <div className="hd-my-sticky fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-3 md:hidden">
         <div className="mx-auto flex max-w-6xl items-center gap-2">

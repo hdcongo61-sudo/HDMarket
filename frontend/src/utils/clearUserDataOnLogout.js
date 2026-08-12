@@ -5,6 +5,7 @@
  */
 
 import storage from './storage.js';
+import { clearRouteViewCache } from './routeViewCache.js';
 
 const LOCAL_STORAGE_KEYS_TO_REMOVE = [
   'qm_token',
@@ -30,6 +31,7 @@ const STORAGE_KEYS_TO_REMOVE = ['userDashboard_savedFilters'];
 const CHAT_KEY_PREFIX = 'hdmarket_chat_key_';
 const API_CACHE_KEY_PREFIX = 'hdmarket:api-cache:';
 const SHOP_SNAPSHOT_KEY_PREFIX = 'hdmarket:shop-snapshot:';
+const ROUTE_VIEW_CACHE_KEY_PREFIX = 'hdmarket:route-view:';
 
 /**
  * Clear all keys that may contain previous user's data.
@@ -57,7 +59,8 @@ export const clearUserDataOnLogout = async ({ clearBrowserCaches = true } = {}) 
         if (
           key.startsWith(CHAT_KEY_PREFIX) ||
           key.startsWith(API_CACHE_KEY_PREFIX) ||
-          key.startsWith(SHOP_SNAPSHOT_KEY_PREFIX)
+          key.startsWith(SHOP_SNAPSHOT_KEY_PREFIX) ||
+          key.startsWith(ROUTE_VIEW_CACHE_KEY_PREFIX)
         ) {
           keysToRemove.push(key);
         }
@@ -66,6 +69,8 @@ export const clearUserDataOnLogout = async ({ clearBrowserCaches = true } = {}) 
     } catch {
       // ignore
     }
+
+    clearRouteViewCache();
 
     try {
       sessionStorage.clear();

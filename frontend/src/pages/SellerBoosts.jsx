@@ -76,7 +76,7 @@ export default function SellerBoosts() {
         <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3">
             <Link
-              to="/my"
+              to="/seller/products"
               className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100"
             >
               <ArrowLeft className="h-4 w-4" />

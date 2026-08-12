@@ -1041,7 +1041,7 @@ export default function UserStats() {
                 </span>
               )}
               <Link
-                to="/my"
+                to="/seller/products"
                 className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
               >
                 <Package className="w-4 h-4" />
@@ -1105,7 +1105,7 @@ export default function UserStats() {
             </div>
           </div>
 
-          <InsightCard icon={Sparkles} title="Prochaine meilleure action" to="/my" actionLabel="Ouvrir mes annonces">
+          <InsightCard icon={Sparkles} title="Prochaine meilleure action" to="/seller/products" actionLabel="Ouvrir mes annonces">
             {performanceModel.priorities.length ? (
               <div className="space-y-3">
                 {performanceModel.priorities.slice(0, 2).map((item) => (

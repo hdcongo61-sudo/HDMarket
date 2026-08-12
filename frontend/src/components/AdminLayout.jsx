@@ -240,13 +240,7 @@ export default function AdminLayout() {
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   const navItems = buildNavItems(t, platformDeliveryEnabled, adminCounts, productVideosEnabled);
   const mergedNavItems = navItems
-    .filter((item) => ![
-      '/admin/delivery-guys',
-      '/delivery/dashboard',
-      '/admin/settings/categories',
-      '/admin/founder-notifications-intelligence',
-      '/admin/founder-account-control'
-    ].includes(item.to))
+    .filter((item) => item.to !== '/delivery/dashboard')
     .map((item) => {
       if (item.to === '/admin/payment-verification') return { ...item, label: 'Paiements & vérification' };
       if (item.to === '/admin/product-boosts') return { ...item, label: 'Boosts & tarification' };
@@ -377,7 +371,7 @@ export default function AdminLayout() {
     });
 
   return (
-    <div className="hd-admin-flow hd-commerce-shell min-h-screen flex flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:h-[calc(100vh-5rem)] lg:min-h-0 lg:flex-row lg:overflow-hidden">
+    <div className="hd-admin-flow hd-commerce-shell min-h-[100dvh] flex flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:h-[100dvh] lg:min-h-0 lg:flex-row lg:overflow-hidden">
       <header className="lg:hidden flex shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
         <button
           type="button"
@@ -399,7 +393,7 @@ export default function AdminLayout() {
         />
       )}
       <aside
-        className={`lg:hidden fixed left-0 top-20 z-40 flex h-[calc(100vh-5rem)] w-72 max-w-[88vw] flex-col border-r border-neutral-200 bg-white/95 shadow-sm transition-transform duration-200 ease-out dark:border-neutral-800 dark:bg-neutral-950/95 ${
+        className={`lg:hidden fixed left-0 top-[69px] z-40 flex h-[calc(100dvh-69px)] w-72 max-w-[88vw] flex-col border-r border-neutral-200 bg-white/95 shadow-sm transition-transform duration-200 ease-out dark:border-neutral-800 dark:bg-neutral-950/95 ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -419,7 +413,7 @@ export default function AdminLayout() {
             </button>
           </div>
         </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4" aria-label="Navigation d’administration mobile">
           {renderSectionList(false, () => setMobileMenuOpen(false))}
         </nav>
       </aside>
@@ -453,13 +447,13 @@ export default function AdminLayout() {
               </button>
             </div>
           </div>
-          <nav className={`flex-1 overflow-y-auto overscroll-contain ${sidebarCollapsed ? 'px-2 py-3 space-y-2' : 'px-2.5 py-3 space-y-4'}`}>
+          <nav aria-label="Navigation d’administration" className={`flex-1 overflow-y-auto overscroll-contain ${sidebarCollapsed ? 'px-2 py-3 space-y-2' : 'px-2.5 py-3 space-y-4'}`}>
             {renderSectionList(sidebarCollapsed)}
           </nav>
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 lg:h-full lg:overflow-y-auto">
+      <div className="flex-1 min-w-0 lg:h-full lg:overflow-y-auto">
         {/* Top loading bar — subtle orange pulse during navigation */}
         {isNavigating && (
           <div className="sticky top-0 z-30 h-1 w-full overflow-hidden bg-transparent">
@@ -467,7 +461,7 @@ export default function AdminLayout() {
           </div>
         )}
         <Outlet />
-      </main>
+      </div>
     </div>
   );
 }

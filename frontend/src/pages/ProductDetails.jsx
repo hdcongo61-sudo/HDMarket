@@ -3528,7 +3528,7 @@ export default function ProductDetails() {
         </div>
       </nav>
 
-      <main className="product-detail-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-8">
+      <div className="product-detail-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-8">
         {/* 🍞 BREADCRUMB ENHANCED */}
         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600 mb-6 sm:mb-8">
           <Link to="/" className="hover:text-neutral-800 transition-colors font-medium">Accueil</Link>
@@ -3762,45 +3762,6 @@ export default function ProductDetails() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 py-4 border-y border-gray-100">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 bg-neutral-50 px-4 py-2.5 rounded-2xl border border-neutral-200">
-                    <Star className="w-6 h-6 text-neutral-500" fill="currentColor" />
-                    <span className="text-2xl font-black text-gray-900">{ratingAverage}</span>
-                    <span className="text-gray-600 font-semibold">({ratingCount})</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-4 text-sm">
-                  <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-200">
-                    <MessageCircle size={16} className="text-neutral-800" />
-                    <span className="font-semibold text-gray-700">{commentCount}</span>
-                    <span className="text-gray-500">commentaires</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-200">
-                    <Eye size={16} className="text-neutral-800" />
-                    <span className="font-semibold text-gray-700">{formattedTotalViews}</span>
-                    <span className="text-gray-500">vues</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-200">
-                    <ShoppingCart size={16} className="text-neutral-800" />
-                    <span className="font-semibold text-gray-700">{formattedTotalOrdersQty}</span>
-                    <span className="text-gray-500">commandes</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-100">
-                    <Heart size={16} className="text-neutral-500" fill="currentColor" />
-                    <span className="font-semibold text-gray-700">{favoriteCount}</span>
-                    <span className="text-gray-500">favoris</span>
-                  </div>
-                </div>
-              </div>
-              {(todayViews > 0 || uniqueViewers > 0) && (
-                <div className="rounded-xl border border-neutral-100 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
-                  {todayViews > 0 ? `${formattedTodayViews} vues aujourd'hui` : null}
-                  {todayViews > 0 && uniqueViewers > 0 ? ' · ' : null}
-                  {uniqueViewers > 0 ? `${formattedUniqueViewers} visiteurs uniques` : null}
-                </div>
-              )}
-
               <div className="home-anim-pop space-y-3">
                 {hasDiscount ? (
                   <>
@@ -3817,6 +3778,27 @@ export default function ProductDetails() {
                 ) : (
                   <span className="text-4xl sm:text-5xl font-black text-[#FF3D00]">{formatPriceWithStoredSettings(finalPrice)}</span>
                 )}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 border-y border-gray-100 py-3 text-xs text-gray-600">
+                <span className="inline-flex items-center gap-1.5 font-bold text-gray-900">
+                  <Star className="h-4 w-4 text-amber-500" fill="currentColor" />
+                  {ratingAverage} ({ratingCount})
+                </span>
+                <span>{commentCount} commentaires</span>
+                <span>{formattedTotalOrdersQty} commandes</span>
+                <details className="relative">
+                  <summary className="cursor-pointer font-bold text-gray-500">Plus d’indicateurs</summary>
+                  <div className="absolute right-0 top-7 z-20 min-w-56 rounded-xl border border-gray-100 bg-white p-3 text-xs shadow-lg">
+                    <p>{formattedTotalViews} vues · {favoriteCount} favoris</p>
+                    {(todayViews > 0 || uniqueViewers > 0) ? (
+                      <p className="mt-1 text-gray-500">
+                        {todayViews > 0 ? `${formattedTodayViews} vues aujourd'hui` : null}
+                        {todayViews > 0 && uniqueViewers > 0 ? ' · ' : null}
+                        {uniqueViewers > 0 ? `${formattedUniqueViewers} visiteurs uniques` : null}
+                      </p>
+                    ) : null}
+                  </div>
+                </details>
               </div>
               {installmentOffer.available && (
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
@@ -4787,7 +4769,7 @@ export default function ProductDetails() {
             </div>
           </section>
         )}
-      </main>
+      </div>
 
     </motion.div>
   );

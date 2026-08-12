@@ -257,7 +257,7 @@ export default function BuyForMe() {
   return (
     <div className="min-h-screen bg-[#F6F6F6] pb-36">
       <GlassHeader title="Acheter Pour Moi" subtitle="Un livreur fait les achats et vous livre" backTo="/" right={<Link to="/buy-for-me/orders" className="text-xs font-black text-[#FF5000]">Mes demandes</Link>} />
-      <main className="mx-auto max-w-lg space-y-3 px-4 py-4">
+      <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
         <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#FF5000] to-[#FF3D00] p-4 text-white shadow-sm">
           <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15"><ShoppingBasket size={22} /></span><div><p className="text-base font-black">Vous choisissez, on achète.</p><p className="mt-1 text-xs font-medium leading-5 text-white/85">Indiquez les prix estimés, ou fixez un budget si vous ne les connaissez pas. Le livreur ne dépasse jamais le montant autorisé sans votre accord.</p></div></div>
         </section>
@@ -357,7 +357,7 @@ export default function BuyForMe() {
             <PawaPayButton amount={quote?.total} purpose="BUY_FOR_ME_FUNDING" returnPath="/buy-for-me/orders" label="Payer et trouver un livreur" onBeforeStart={beforePay} />
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

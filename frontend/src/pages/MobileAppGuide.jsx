@@ -80,7 +80,7 @@ export default function MobileAppGuide() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-16">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-16">
         <section aria-labelledby="platform-title">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[.14em] text-[#c34d00]">Guide pas à pas</p><h2 id="platform-title" className="mt-2 text-3xl font-black tracking-[-.035em]">Choisissez votre téléphone</h2></div><div className="inline-flex rounded-2xl bg-[#eee7de] p-1"><PlatformButton active={activePlatform === 'ios'} onClick={() => setActivePlatform('ios')}>iPhone / iPad</PlatformButton><PlatformButton active={activePlatform === 'android'} onClick={() => setActivePlatform('android')}>Android</PlatformButton></div></div>
           <div id={`${activePlatform}-guide`} className="scroll-mt-24">
@@ -92,7 +92,7 @@ export default function MobileAppGuide() {
           <article className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><RefreshCw className="h-7 w-7 text-amber-700" /><h2 className="mt-4 text-xl font-black">L’option d’installation n’apparaît pas ?</h2><ul className="mt-4 space-y-3 text-sm leading-6 text-amber-950"><li>• Vérifiez que vous utilisez Safari sur iPhone ou Chrome sur Android.</li><li>• Actualisez www.hdmarket.store, puis ouvrez de nouveau le menu.</li><li>• Si HDMarket est déjà installé, recherchez son icône sur l’écran d’accueil.</li><li>• Désactivez temporairement le mode navigation privée.</li></ul><div className="mt-5 flex flex-wrap gap-2"><a href="https://support.apple.com/guide/iphone/iphea86e5236/ios" target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-black text-amber-950">Guide officiel Apple<ExternalLink className="h-3.5 w-3.5" /></a><a href="https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DAndroid" target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-black text-amber-950">Guide officiel Google<ExternalLink className="h-3.5 w-3.5" /></a></div></article>
           <article className="rounded-2xl bg-[#201f1d] p-6 text-white"><ShieldCheck className="h-7 w-7 text-[#ff7a22]" /><h2 className="mt-4 text-xl font-black">Installation sûre et légère</h2><p className="mt-3 text-sm leading-6 text-white/65">L’application installée utilise directement www.hdmarket.store. Elle ne demande aucun téléchargement provenant d’un site tiers.</p><a href="https://www.hdmarket.store" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-black text-[#201f1d]">Ouvrir HDMarket<ExternalLink className="h-4 w-4" /></a></article>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

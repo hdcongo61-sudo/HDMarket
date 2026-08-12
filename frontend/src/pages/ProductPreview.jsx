@@ -314,7 +314,7 @@ export default function ProductPreview() {
           </div>
         </header>
 
-        <main className="space-y-3 px-2.5 pt-3">
+        <div className="space-y-3 px-2.5 pt-3">
         {loading ? (
           <div className="space-y-3">
             <div className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-sm">
@@ -539,7 +539,7 @@ export default function ProductPreview() {
             </section>
           </div>
         ) : null}
-        </main>
+        </div>
       </div>
     </div>
   );

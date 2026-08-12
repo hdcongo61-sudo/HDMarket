@@ -677,7 +677,7 @@ export default function NotificationPage() {
 
   if (!user) {
     return (
-      <main className="hd-commerce-shell min-h-screen px-5 py-16 text-center">
+      <div className="hd-commerce-shell min-h-screen px-5 py-16 text-center">
         <div className="mx-auto max-w-sm">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
             <Bell className="h-7 w-7" />
@@ -687,12 +687,12 @@ export default function NotificationPage() {
             {t('notifications.loginHint', 'Connectez-vous pour voir vos mises à jour commandes, boosts et litiges.')}
           </p>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="hd-commerce-shell min-h-screen text-neutral-900 dark:text-neutral-100">
+    <div className="hd-commerce-shell min-h-screen text-neutral-900 dark:text-neutral-100">
       <header className="border-b border-[#f5f2ee] bg-white/95 dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto flex min-h-[60px] max-w-3xl items-center px-2">
           <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b] dark:text-white" aria-label={t('common.back', 'Retour')}><ArrowLeft className="h-5 w-5" /></button>
@@ -798,11 +798,11 @@ export default function NotificationPage() {
             <div className="mt-6">
               <div className="rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
                 <NetworkFallbackCard
-                  title={t('notifications.errors.loadTitle', 'Unable to load data.')}
-                  message={t('notifications.errors.load', 'Loading is taking longer than expected. Please try again shortly.')}
+                  title={t('notifications.errors.loadTitle', 'Impossible de charger les notifications')}
+                  message={t('notifications.errors.load', 'Le chargement prend plus de temps que prévu. Réessayez dans un instant.')}
                   onRetry={refresh}
-                  retryLabel={t('common.retry', 'Retry')}
-                  refreshLabel={t('common.refreshPage', 'Refresh page')}
+                  retryLabel={t('common.retry', 'Réessayer')}
+                  refreshLabel={t('common.refreshPage', 'Actualiser la page')}
                 />
               </div>
             </div>
@@ -915,6 +915,6 @@ export default function NotificationPage() {
           <button type="button" onClick={restoreLastDeleted} className="rounded-xl bg-white/15 px-3 py-2 text-xs font-black text-orange-300">Annuler</button>
         </div>
       )}
-    </main>
+    </div>
   );
 }

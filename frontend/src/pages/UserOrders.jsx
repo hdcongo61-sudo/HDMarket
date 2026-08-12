@@ -860,26 +860,30 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
     <MotionLink
       {...riseIn(reduceMotion, Math.min(index, 6) * 0.06)}
       to={`/orders/detail/${order._id}`}
-      className="group block overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-sm transition active:scale-[0.995] dark:border-neutral-800 dark:bg-neutral-950"
+      className="group block overflow-hidden rounded-[24px] border border-[#e7dfd5] bg-white shadow-[0_8px_28px_rgba(35,31,27,0.06)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(35,31,27,0.1)] active:scale-[0.995] dark:border-neutral-800 dark:bg-neutral-950"
     >
       {/* Seller + Status header */}
-      <div className="flex items-center justify-between gap-2 px-3.5 pt-3 dark:border-neutral-800 sm:px-4">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Store className="h-[15px] w-[15px] shrink-0 text-[#8a8378]" />
-          <span className="truncate text-[13px] font-black text-[#231f1b] dark:text-white">{shopName}</span>
-          <span className="shrink-0 text-[11px] text-[#a49c8f]">{order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}</span>
-          {isAssignedOrder && (
-            <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-              Assigné
-            </span>
-          )}
+      <div className="flex items-start justify-between gap-3 px-3.5 pt-3.5 dark:border-neutral-800 sm:px-4 sm:pt-4">
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-black uppercase tracking-[0.12em] text-[#a49c8f]">
+            {t('orders.order', 'Commande')} #{String(order._id || '').slice(-6)} · {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+          </p>
+          <div className="mt-1 flex min-w-0 items-center gap-1.5">
+            <Store className="h-[15px] w-[15px] shrink-0 text-[#e85d00]" />
+            <span className="truncate text-[13px] font-black text-[#231f1b] dark:text-white">{shopName}</span>
+            {isAssignedOrder && (
+              <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                Assigné
+              </span>
+            )}
+          </div>
         </div>
         <StatusBadge status={statusBadgeKey} />
       </div>
       {/* Product summary */}
-      <div className="flex gap-3 px-3.5 py-3 sm:px-4">
+      <div className="flex gap-3 px-3.5 py-3.5 sm:px-4">
         {firstItem?.snapshot?.image ? (
-          <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
+          <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100">
             <img
               src={firstItem.snapshot.image}
               alt={productTitle}
@@ -889,7 +893,7 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
             />
           </div>
         ) : (
-          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100">
+          <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100">
             <Package className="w-8 h-8 text-[#e85d00]" />
           </div>
         )}
@@ -901,7 +905,7 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
               ? `Acompte payé · reste ${formatCurrency(Math.max(0, installmentTotal - installmentPaid))}`
               : 'Paiement intégral'}{pickupOrder ? ' · Retrait boutique' : ' · Livraison suivie'}
           </p>
-          <p className="mt-1 text-[15px] font-black text-neutral-950">{formatCurrency(totalAmount)}</p>
+          <p className="mt-1.5 text-base font-black tracking-tight text-neutral-950 dark:text-white">{formatCurrency(totalAmount)}</p>
           <SelectedAttributesList
             selectedAttributes={firstItem?.selectedAttributes}
             compact
@@ -914,11 +918,11 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
         progress={uiState.progress}
         urgent={uiState.isUrgent}
         stops={isInstallmentOrder ? 4 : 5}
-        className="px-3.5 pb-3 sm:px-4"
+        className="mx-3.5 mb-3 rounded-2xl bg-[#faf7f3] px-3 py-2.5 sm:mx-4"
       />
       {/* Footer: total + CTA */}
       <div className="px-3.5 pb-3.5 sm:px-4">
-        <span className={`flex min-h-11 w-full items-center justify-center rounded-full px-4 text-sm font-black ${uiState.primaryAction.tone === 'urgent' ? 'bg-[#e85d00] text-white' : 'bg-neutral-950 text-white'}`}>
+        <span className={`flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-black ${uiState.primaryAction.tone === 'urgent' ? 'bg-[#e85d00] text-white' : 'bg-neutral-950 text-white'}`}>
           {uiState.primaryAction.label}<ChevronRight className="ml-1.5 h-4 w-4" />
         </span>
       </div>
@@ -1661,9 +1665,9 @@ export default function UserOrders() {
 
   if (loading && orders.length === 0) {
     return (
-      <div className="hd-commerce-shell min-h-screen dark:bg-neutral-950">
+      <div className="hd-order-flow min-h-screen bg-[#f6f3ee] dark:bg-neutral-950">
         <GlassHeader title={t('orders.title', 'Mes commandes')} subtitle={t('common.loading', 'Chargement...')} backTo="/" />
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="mx-auto max-w-6xl px-4 py-6">
           <OrderListSkeleton items={5} />
         </div>
       </div>
@@ -1672,7 +1676,7 @@ export default function UserOrders() {
 
   return (
     <div
-      className="hd-commerce-shell min-h-screen dark:bg-neutral-950"
+      className="hd-order-flow min-h-screen bg-[#f6f3ee] dark:bg-neutral-950"
       ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -1711,32 +1715,19 @@ export default function UserOrders() {
       )}
 
       <div className={!isOnline ? 'mt-10' : ''}>
-        <div className="border-b border-gray-100 bg-white px-3 sm:px-6 lg:px-8">
-          <div className="mx-auto flex min-h-[60px] max-w-7xl items-center justify-between gap-2">
-            <Link
-              to="/"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#231f1b] transition active:scale-95"
-              aria-label={t('common.back', 'Retour')}
-            >
-              <ArrowLeft className="h-4 w-4" />
+        <GlassHeader
+          title={t('orders.title', 'Mes commandes')}
+          subtitle={`${stats.total || meta.total || 0} ${t('orders.orderCount', `commande${Number(stats.total || meta.total || 0) > 1 ? 's' : ''}`)}`}
+          backTo="/"
+          right={(
+            <Link to="/stats" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f6f3ee] text-[#44403a] transition active:scale-95" aria-label={t('orders.stats', 'Stats')}>
+              <TrendingUp className="h-4 w-4" />
             </Link>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[17px] font-black text-neutral-950 dark:text-white">
-                {t('orders.title', 'Mes commandes')}
-              </h1>
-            </div>
-            <Link
-              to="/stats"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#44403a] transition active:scale-95"
-              aria-label={t('orders.stats', 'Stats')}
-            >
-              <TrendingUp className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </div>
+          )}
+        />
       </div>
 
-      <div className={`mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 ${isMobile ? 'py-3 pb-6' : 'py-6 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
+      <div className={`mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 ${isMobile ? 'py-3 pb-6' : 'py-6 pb-12'} pb-[env(safe-area-inset-bottom)]`}>
         <div className="mb-5 sm:mb-6">
           <OrderCommandCenter
             eyebrow={t('orders.buyerCommandCenter', 'Suivi personnel')}
@@ -1905,7 +1896,7 @@ export default function UserOrders() {
 
             {/* Card View - Summary cards linking to order detail */}
             {(viewMode === 'card' || isMobile) && (
-            <div className={`space-y-3 sm:space-y-6 ${isMobile ? 'pb-4' : ''}`}>
+            <div className={`grid gap-3 lg:grid-cols-2 lg:gap-5 ${isMobile ? 'pb-4' : ''}`}>
               {orders.map((order, index) => (
                 <OrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} index={index} />
               ))}

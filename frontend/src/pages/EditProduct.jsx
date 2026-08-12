@@ -55,18 +55,18 @@ export default function EditProduct() {
 
   if (loading) {
     return (
-      <main className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
+      <div className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
         <div className="rounded-2xl border border-[#e2dcd2] bg-white px-8 py-10 text-center shadow-sm">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#e85d00]" />
           <p className="mt-3 text-sm font-bold text-stone-600">Chargement de toutes les options…</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (error || !product) {
     return (
-      <main className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
+      <div className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
         <div className="w-full max-w-md rounded-2xl border border-[#e2dcd2] bg-white p-7 text-center shadow-sm">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0e4]">
             <PackageSearch className="h-7 w-7 text-[#b94700]" />
@@ -75,18 +75,18 @@ export default function EditProduct() {
           <p className="mt-2 text-sm text-stone-600">{error || 'Annonce introuvable.'}</p>
           <button
             type="button"
-            onClick={() => navigate('/my')}
+            onClick={() => navigate('/seller/products')}
             className="mt-6 min-h-11 rounded-full bg-[#231f1b] px-5 text-sm font-black text-white"
           >
             Retour à mes annonces
           </button>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f2ee] pb-24">
+    <div className="min-h-screen bg-[#f5f2ee] pb-24">
       <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/95">
         <div className="mx-auto flex min-h-16 max-w-3xl items-center gap-3 px-4">
           <button
@@ -115,11 +115,19 @@ export default function EditProduct() {
           submitLabel="Enregistrer les modifications"
           onCancel={() => navigate(-1)}
           onUpdated={(updatedProduct) => {
+            if (updatedProduct?.requiresAdditionalPayment) {
+              showToast(
+                'Prix enregistré. Payez uniquement la différence de commission pour le publier.',
+                { variant: 'info' }
+              );
+              navigate(`/my/annonce/${updatedProduct?._id || product._id}`);
+              return;
+            }
             showToast('Annonce mise à jour avec succès !', { variant: 'success' });
             navigate(updatedProduct?.slug ? `/product/${updatedProduct.slug}` : '/my');
           }}
         />
       </div>
-    </main>
+    </div>
   );
 }

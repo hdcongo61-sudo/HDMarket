@@ -505,11 +505,11 @@ export default function CategoryProducts() {
 
       {error && (
         <NetworkFallbackCard
-          title="Unable to load data."
+          title="Impossible de charger les produits"
           message={error}
           onRetry={() => setLoadMoreRetryTick((tick) => tick + 1)}
-          retryLabel="Retry"
-          refreshLabel="Refresh page"
+          retryLabel="Réessayer"
+          refreshLabel="Actualiser la page"
         />
       )}
 
@@ -542,7 +542,7 @@ export default function CategoryProducts() {
                 }}
                 className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
               >
-                Retry
+                Réessayer
               </button>
             </div>
           )}

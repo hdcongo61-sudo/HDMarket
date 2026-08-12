@@ -8,6 +8,7 @@ import Rating from '../models/ratingModel.js';
 import User from '../models/userModel.js';
 import Order from '../models/orderModel.js';
 import Payment from '../models/paymentModel.js';
+import ListingFeePayment from '../models/listingFeePaymentModel.js';
 import City from '../models/cityModel.js';
 import ProhibitedWord from '../models/prohibitedWordModel.js';
 import ProductAuditLog from '../models/productAuditLogModel.js';
@@ -47,6 +48,11 @@ import {
   normalizeProductAttributes,
   normalizeProductPhysical
 } from '../utils/productAttributes.js';
+import {
+  calculateListingFee,
+  normalizeListingFeeRate,
+  roundMoney
+} from '../utils/listingFeeUtils.js';
 import imageStudioService from '../services/imageStudioService.js';
 import {
   getEntityTags,
@@ -898,6 +904,15 @@ export const createProduct = asyncHandler(async (req, res) => {
     productAttributes: normalizedAttributes,
     basePrice: finalPrice
   });
+  const configuredListingFeeRate = Number(
+    await getRuntimeConfig('commission_rate', { fallback: 3 })
+  );
+  const listingFeeRate = normalizeListingFeeRate(configuredListingFeeRate, 3);
+  const initialListingFee = calculateListingFee({
+    price: highestListingPrice,
+    rate: listingFeeRate,
+    paid: 0
+  });
 
   const resolvedCondition = (condition || 'used').toString().toLowerCase();
   const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
@@ -1147,6 +1162,15 @@ export const createProduct = asyncHandler(async (req, res) => {
       creationRequestId,
       user: req.user.id,
       status: 'pending',
+      listingFeeRate,
+      listingFeePaid: 0,
+      listingFeeRequired: initialListingFee.requiredFee,
+      listingFeeRemaining: initialListingFee.remainingFee,
+      approvedPrice: null,
+      pendingPrice: null,
+      requiresAdditionalPayment: false,
+      listingFeeStatus:
+        initialListingFee.requiredFee > 0 ? 'PAYMENT_REQUIRED' : 'NOT_REQUIRED',
       city: ownerCity,
       country: ownerCountry,
       attributes: normalizedAttributes,
@@ -2395,6 +2419,9 @@ export const registerPublicProductView = asyncHandler(async (req, res) => {
 
 export const getMyProducts = asyncHandler(async (req, res) => {
   const products = await Product.find({ user: req.user.id })
+    .select(
+      '+pendingPrice +pendingPriceBeforeDiscount +pendingDiscount +listingFeeRate +listingFeePaid +listingFeeRequired +listingFeeRemaining'
+    )
     .populate('payment')
     .sort('-createdAt');
   if (products.length) {
@@ -2628,24 +2655,39 @@ export const getProductHistory = asyncHandler(async (req, res) => {
 
 export const getProductById = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
-  const product = await Product.findOne(query);
+  const product = await Product.findOne(query).select(
+    '+pendingPrice +pendingPriceBeforeDiscount +pendingDiscount +listingFeeRate +listingFeePaid +listingFeeRequired +listingFeeRemaining'
+  );
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
   const isModerator =
     ['admin', 'founder', 'manager'].includes(req.user.role) ||
     req.user.canManageProducts === true;
+  const canViewFeeReconciliation =
+    isModerator || String(product.user) === String(req.user.id);
 
   if (product.status === 'disabled' && product.user.toString() !== req.user.id && !isModerator) {
     return res.status(403).json({ message: 'Forbidden' });
   }
   const payload = withCategoryCompatibility(product);
+  if (!canViewFeeReconciliation) {
+    delete payload.pendingPrice;
+    delete payload.pendingPriceBeforeDiscount;
+    delete payload.pendingDiscount;
+    delete payload.listingFeeRate;
+    delete payload.listingFeePaid;
+    delete payload.listingFeeRequired;
+    delete payload.listingFeeRemaining;
+  }
   payload.tags = await getEntityTags({ entityType: 'product', entityId: product._id, publicOnly: false });
   res.json(payload);
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
   const query = buildIdentifierQuery(req.params.id);
-  const product = await Product.findOne(query);
+  const product = await Product.findOne(query).select(
+    '+pendingPrice +pendingPriceBeforeDiscount +pendingDiscount +listingFeeRate +listingFeePaid +listingFeeRequired +listingFeeRemaining'
+  );
   await ensureProductSlug(product);
   if (!product) return res.status(404).json({ message: 'Not found' });
   if (
@@ -2653,6 +2695,18 @@ export const updateProduct = asyncHandler(async (req, res) => {
     !['admin', 'founder'].includes(String(req.user.role || ''))
   )
     return res.status(403).json({ message: 'Forbidden' });
+  const wasApproved = product.status === 'approved';
+  const isProductOwner = String(product.user) === String(req.user.id);
+  const originalPriceState = {
+    price: Number(product.price || 0),
+    priceBeforeDiscount:
+      product.priceBeforeDiscount === undefined || product.priceBeforeDiscount === null
+        ? undefined
+        : Number(product.priceBeforeDiscount),
+    discount: Number(product.discount || 0)
+  };
+  let priceChangeReconciliation = null;
+  let priceChangeCancellation = false;
   const updatedFields = Object.keys(req.body || {});
 
   const seller =
@@ -2929,6 +2983,135 @@ export const updateProduct = asyncHandler(async (req, res) => {
     product.physical = normalizeProductPhysical(physical);
   }
 
+  const hasPriceMutationPayload = hasPricePayload || discount !== undefined;
+  const proposedVisiblePrice = Number(product.price || 0);
+  const approvedVisiblePrice = Number(product.approvedPrice ?? originalPriceState.price);
+
+  if (
+    wasApproved &&
+    isProductOwner &&
+    hasPriceMutationPayload &&
+    product.requiresAdditionalPayment &&
+    Math.abs(proposedVisiblePrice - approvedVisiblePrice) <= 0.001
+  ) {
+    if (product.listingFeeStatus === 'UNDER_REVIEW') {
+      return res.status(409).json({
+        message:
+          'Le complément est déjà en cours de vérification. Attendez la décision avant d’annuler ce changement de prix.'
+      });
+    }
+
+    const configuredRate = Number(await getRuntimeConfig('commission_rate', { fallback: 3 }));
+    const rate = normalizeListingFeeRate(product.listingFeeRate, configuredRate);
+    const approvedRequiredFee = calculateListingFee({
+      price: approvedVisiblePrice,
+      rate
+    }).requiredFee;
+
+    product.status = 'approved';
+    product.price = originalPriceState.price;
+    product.discount = originalPriceState.discount;
+    product.priceBeforeDiscount = originalPriceState.priceBeforeDiscount;
+    product.approvedPrice = approvedVisiblePrice;
+    product.pendingPrice = null;
+    product.pendingPriceBeforeDiscount = null;
+    product.pendingDiscount = null;
+    product.listingFeeRequired = approvedRequiredFee;
+    product.listingFeeRemaining = 0;
+    product.requiresAdditionalPayment = false;
+    product.listingFeeStatus = approvedRequiredFee > 0 ? 'PAID' : 'NOT_REQUIRED';
+    product.priceChangeApprovedAt = new Date();
+    priceChangeCancellation = true;
+  } else if (
+    wasApproved &&
+    isProductOwner &&
+    hasPriceMutationPayload &&
+    Math.abs(Number(product.price || 0) - originalPriceState.price) > 0.001
+  ) {
+    if (product.listingFeeStatus === 'UNDER_REVIEW') {
+      return res.status(409).json({
+        message:
+          'Un changement de prix est déjà en cours de vérification. Attendez la décision avant de modifier à nouveau le prix.'
+      });
+    }
+
+    const configuredRate = Number(await getRuntimeConfig('commission_rate', { fallback: 3 }));
+    const rate = normalizeListingFeeRate(product.listingFeeRate, configuredRate);
+    const oldFee = calculateListingFee({ price: originalPriceState.price, rate }).requiredFee;
+    let paidFee = roundMoney(product.listingFeePaid || 0);
+
+    if (paidFee <= 0) {
+      const verifiedPayments = await Payment.find({
+        product: product._id,
+        paymentType: 'LISTING_FEE',
+        status: { $in: ['verified', 'VERIFIED'] }
+      })
+        .select('commissionBaseAmount commissionDueAmount amountPaid amount')
+        .lean();
+      paidFee = roundMoney(
+        verifiedPayments.reduce(
+          (sum, payment) =>
+            sum +
+            Number(
+              payment.commissionBaseAmount ??
+                payment.commissionDueAmount ??
+                payment.amountPaid ??
+                payment.amount ??
+                0
+            ),
+          0
+        )
+      );
+      if (paidFee <= 0 && product.listingFeeSettled) {
+        paidFee = oldFee;
+      }
+    }
+
+    const proposedPrice = roundMoney(product.price);
+    const proposedPriceBeforeDiscount =
+      product.priceBeforeDiscount === undefined || product.priceBeforeDiscount === null
+        ? null
+        : roundMoney(product.priceBeforeDiscount);
+    const proposedDiscount = Number(product.discount || 0);
+    const fee = calculateListingFee({ price: proposedPrice, rate, paid: paidFee });
+
+    product.listingFeeRate = rate;
+    product.listingFeePaid = paidFee;
+    product.listingFeeRequired = fee.requiredFee;
+
+    if (fee.remainingFee > 0) {
+      product.approvedPrice = Number(product.approvedPrice ?? originalPriceState.price);
+      product.pendingPrice = proposedPrice;
+      product.pendingPriceBeforeDiscount = proposedPriceBeforeDiscount;
+      product.pendingDiscount = proposedDiscount;
+      product.priceChangeRequestedAt = new Date();
+      product.listingFeeRemaining = fee.remainingFee;
+      product.requiresAdditionalPayment = true;
+      product.listingFeeStatus = 'PAYMENT_REQUIRED';
+
+      product.price = originalPriceState.price;
+      product.discount = originalPriceState.discount;
+      product.priceBeforeDiscount = originalPriceState.priceBeforeDiscount;
+
+      priceChangeReconciliation = {
+        oldPrice: originalPriceState.price,
+        newPrice: proposedPrice,
+        oldFee,
+        requiredFee: fee.requiredFee,
+        remainingFee: fee.remainingFee
+      };
+    } else {
+      product.approvedPrice = proposedPrice;
+      product.pendingPrice = null;
+      product.pendingPriceBeforeDiscount = null;
+      product.pendingDiscount = null;
+      product.priceChangeApprovedAt = new Date();
+      product.listingFeeRemaining = 0;
+      product.requiresAdditionalPayment = false;
+      product.listingFeeStatus = fee.requiredFee > 0 ? 'PAID' : 'NOT_REQUIRED';
+    }
+  }
+
   const removeImagesRaw = req.body?.removeImages;
   const removeImagesList = Array.isArray(removeImagesRaw)
     ? removeImagesRaw
@@ -3112,6 +3295,55 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   await product.save();
+
+  if (priceChangeCancellation) {
+    await ListingFeePayment.updateMany(
+      {
+        productId: product._id,
+        status: 'PENDING',
+        submittedAt: null
+      },
+      {
+        $set: {
+          status: 'REJECTED',
+          validatedAt: new Date(),
+          validatedBy: req.user.id
+        }
+      }
+    );
+  }
+
+  if (priceChangeReconciliation) {
+    const existingPending = await ListingFeePayment.findOne({
+      productId: product._id,
+      status: 'PENDING'
+    });
+    if (existingPending?.submittedAt) {
+      return res.status(409).json({
+        message: 'Le complément précédent est déjà en cours de vérification.'
+      });
+    }
+    if (existingPending) {
+      Object.assign(existingPending, {
+        ...priceChangeReconciliation,
+        sellerId: product.user,
+        amountPaid: 0,
+        paymentMethod: '',
+        transactionReference: '',
+        payerName: '',
+        submittedAt: null,
+        validatedAt: null,
+        validatedBy: null
+      });
+      await existingPending.save();
+    } else {
+      await ListingFeePayment.create({
+        productId: product._id,
+        sellerId: product.user,
+        ...priceChangeReconciliation
+      });
+    }
+  }
 
   if (hasTagPayload) {
     await replaceEntityTags({

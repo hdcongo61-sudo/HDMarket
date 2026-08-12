@@ -349,8 +349,12 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
     }
   ];
 
-  const handleVerify = async (paymentId) => {
-    if (!(await appConfirm('Voulez-vous vérifier ce paiement ? Le produit sera approuvé.'))) return;
+  const handleVerify = async (paymentId, paymentKind = '') => {
+    const confirmationMessage =
+      paymentKind === 'LISTING_FEE_RECONCILIATION'
+        ? 'Valider ce complément et publier le nouveau prix ?'
+        : 'Voulez-vous vérifier ce paiement ? Le produit sera approuvé.';
+    if (!(await appConfirm(confirmationMessage))) return;
 
     const previousPayments = payments;
     setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
@@ -368,8 +372,12 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
     }
   };
 
-  const handleReject = async (paymentId) => {
-    if (!(await appConfirm('Voulez-vous rejeter ce paiement ? Le produit sera rejeté.'))) return;
+  const handleReject = async (paymentId, paymentKind = '') => {
+    const confirmationMessage =
+      paymentKind === 'LISTING_FEE_RECONCILIATION'
+        ? 'Rejeter ce complément ? L’ancien prix restera visible.'
+        : 'Voulez-vous rejeter ce paiement ? Le produit sera rejeté.';
+    if (!(await appConfirm(confirmationMessage))) return;
 
     const previousPayments = payments;
     setPayments((prev) => prev.filter((item) => item?._id !== paymentId));
@@ -621,6 +629,11 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                               Promo {payment.promoCodeValue}
                             </span>
                           ) : null}
+                          {payment.paymentKind === 'LISTING_FEE_RECONCILIATION' ? (
+                            <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
+                              Complément changement de prix
+                            </span>
+                          ) : null}
                         </div>
 
                         <div className="mt-3 flex items-start gap-2">
@@ -673,7 +686,11 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                           </p>
                           <p>
                             <span className="block text-[11px] font-bold uppercase text-neutral-400">Prix produit</span>
-                            <span className="font-bold text-neutral-950 dark:text-white">{formatCurrency(payment.product?.price)}</span>
+                            <span className="font-bold text-neutral-950 dark:text-white">
+                              {payment.paymentKind === 'LISTING_FEE_RECONCILIATION'
+                                ? `${formatCurrency(payment.oldPrice)} → ${formatCurrency(payment.newPrice)}`
+                                : formatCurrency(payment.product?.price)}
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -683,7 +700,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                           <>
                             <button
                               type="button"
-                              onClick={() => handleVerify(payment._id)}
+                              onClick={() => handleVerify(payment._id, payment.paymentKind)}
                               disabled={isRowLoading}
                               className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60"
                             >
@@ -692,7 +709,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleReject(payment._id)}
+                              onClick={() => handleReject(payment._id, payment.paymentKind)}
                               disabled={isRowLoading}
                               className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-700 transition hover:bg-red-100 active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
                             >

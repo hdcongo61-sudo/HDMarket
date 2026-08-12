@@ -194,7 +194,7 @@ export default function SellerPromoCodes() {
       {/* Header */}
       <header className="ui-glass-header border-b border-purple-100">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
-          <Link to="/my" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
+          <Link to="/seller/products" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
             <ArrowLeft size={18} />
           </Link>
           <div className="flex items-center gap-2">

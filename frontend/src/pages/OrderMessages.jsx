@@ -551,7 +551,7 @@ export default function OrderMessages() {
 
   if ((loading && effectiveConversations.length === 0 && !offlineSnapshotActive) || inquiryLoading) {
     return (
-      <div className="min-h-screen bg-[#fff4e8] text-slate-950 dark:bg-neutral-950 dark:text-white relative">
+      <div className="hd-order-flow relative min-h-screen bg-[#f6f3ee] text-slate-950 dark:bg-neutral-950 dark:text-white">
         {inquiryLoading && (
           <BaseModal
             isOpen={inquiryLoading}
@@ -585,9 +585,9 @@ export default function OrderMessages() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 text-slate-950 dark:bg-neutral-950 dark:text-white">
-      <header className="border-b border-gray-200 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-4">
+    <div className="hd-order-flow min-h-screen bg-[#f6f3ee] text-slate-950 dark:bg-neutral-950 dark:text-white">
+      <header className="border-b border-[#e7dfd5] bg-white dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 text-[12px] font-black text-slate-500 [scrollbar-width:none] dark:text-gray-400 [&::-webkit-scrollbar]:hidden">
             <Link to="/" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-800">Accueil</Link>
             <Link to="/orders" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-800">Commandes</Link>
@@ -619,7 +619,7 @@ export default function OrderMessages() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-5">
+      <div className="mx-auto max-w-6xl px-3 py-3 pb-28 sm:px-6 sm:py-5">
         {(offlineSnapshotActive || rapid3GActive) && (
           <section
             className={`mb-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ring-1 ${
@@ -634,7 +634,7 @@ export default function OrderMessages() {
           </section>
         )}
         {/* Toolbar: search + filters */}
-        <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800">
+        <div className="mb-3 rounded-[24px] bg-white p-3 shadow-sm ring-1 ring-[#e7dfd5] dark:bg-neutral-950 dark:ring-neutral-800">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#e85d00]" />
@@ -711,7 +711,7 @@ export default function OrderMessages() {
         {error && !offlineSnapshotActive && (
           <div className="mb-4">
             <NetworkFallbackCard
-              title="Impossible de charger les conversations."
+              title="Impossible de charger les conversations"
               message="Les conversations mettent plus de temps à charger. Réessayez dans un instant."
               onRetry={() => {
                 setError('');
@@ -800,7 +800,7 @@ export default function OrderMessages() {
                   tabIndex={0}
                   onClick={() => openConversation(conversation)}
                   onKeyDown={(e) => e.key === 'Enter' && openConversation(conversation)}
-                  className={`group cursor-pointer rounded-2xl transition-all duration-200 ${
+                  className={`group cursor-pointer rounded-[24px] transition-all duration-200 ${
                     isSelected
                       ? 'bg-white ring-2 ring-[#e85d00]/35 shadow-sm dark:bg-neutral-950'
                       : hasUnread

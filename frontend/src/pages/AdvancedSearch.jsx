@@ -788,7 +788,7 @@ export default function AdvancedSearch() {
           </aside>
 
           {/* Results */}
-          <main className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0">
             {(offlineSnapshotActive || rapid3GActive) && (
               <section
                 className={`mb-4 rounded-2xl border px-4 py-3 text-sm shadow-sm ${
@@ -932,7 +932,7 @@ export default function AdvancedSearch() {
                 </button>
               </div>
             )}
-          </main>
+          </div>
         </div>
       </div>
     </div>

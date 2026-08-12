@@ -1030,7 +1030,7 @@ export default function ShopProfile() {
   }
 
   return (
-    <main
+    <div
       className={`w-full max-w-full overflow-x-clip [overflow-wrap:anywhere] bg-[#F6F6F6] text-slate-900 dark:bg-neutral-950 dark:text-slate-100 ${
         isMobile ? 'pb-24' : 'pb-12'
       }`}
@@ -1237,6 +1237,6 @@ export default function ShopProfile() {
           t={t}
         />
       )}
-    </main>
+    </div>
   );
 }

@@ -13,14 +13,12 @@ import {
   Calendar,
   Download,
   Store,
-  Sparkles,
   X,
   ArrowLeft,
   AlertCircle,
   Info,
   CreditCard,
   Receipt,
-  ChevronRight,
   Copy,
   Check,
   Eye,
@@ -42,6 +40,7 @@ import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import PawaPayButton from '../components/PawaPayButton';
 import OrderMiniRail from '../components/orders/OrderMiniRail';
+import CategoryProductMiniRail from '../components/orders/CategoryProductMiniRail';
 import BaseModal from '../components/modals/BaseModal';
 import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
@@ -62,6 +61,7 @@ import { appAlert, appConfirm } from '../utils/appDialog';
 import OrderTrackingMap from '../components/OrderTrackingMap';
 import useDeliveryLocationUpdates from '../hooks/useDeliveryLocationUpdates';
 import useNetworkProfile from '../hooks/useNetworkProfile';
+import useOrderCategorySuggestions from '../hooks/useOrderCategorySuggestions';
 import { createIdempotencyKey } from '../utils/idempotency';
 import {
   enqueueOrderStatusOfflineAction,
@@ -331,8 +331,8 @@ export default function OrderDetail() {
   const [skipLoadingId, setSkipLoadingId] = useState(null);
   const [reordering, setReordering] = useState(false);
   const [editAddressModalOpen, setEditAddressModalOpen] = useState(false);
-  const [suggestionsProducts, setSuggestionsProducts] = useState([]);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const { products: suggestionsProducts, loading: suggestionsLoading } =
+    useOrderCategorySuggestions(order, aiRecommendationsEnabled);
   const [proofPreview, setProofPreview] = useState(null);
   const [queuedDeliveryActionCount, setQueuedDeliveryActionCount] = useState(0);
   const [deliveryQueueSyncing, setDeliveryQueueSyncing] = useState(false);
@@ -665,46 +665,6 @@ export default function OrderDetail() {
       });
     }
   });
-
-  // Load suggestions / similar products from the ordered product category.
-  useEffect(() => {
-    if (!aiRecommendationsEnabled) {
-      setSuggestionsProducts([]);
-      setSuggestionsLoading(false);
-      return;
-    }
-    if (!order?.items?.length && !order?.productSnapshot) return;
-    const orderProductIds = new Set(
-      (order?.items || []).map((i) => i.product?._id || i.product).filter(Boolean).map(String)
-    );
-    if (order?.productSnapshot && order?.product) {
-      orderProductIds.add(String(order.product._id || order.product));
-    }
-    let active = true;
-    setSuggestionsLoading(true);
-    const category = (order?.items || [])
-      .map((item) => item?.product?.category || item?.snapshot?.category)
-      .find(Boolean);
-    api
-      .get('/products/public', {
-        params: { limit: 12, sort: 'new', ...(category ? { category } : {}) }
-      })
-      .then((res) => {
-        if (!active) return;
-        const raw = Array.isArray(res.data) ? res.data : res.data?.items || res.data?.data || [];
-        const filtered = raw.filter((p) => p?._id && !orderProductIds.has(String(p._id)));
-        setSuggestionsProducts(filtered.slice(0, 9));
-      })
-      .catch(() => {
-        if (active) setSuggestionsProducts([]);
-      })
-      .finally(() => {
-        if (active) setSuggestionsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [aiRecommendationsEnabled, order?._id, order?.items]);
 
   const handleSkipCancellationWindow = async () => {
     if (!order || !(await appConfirm('En confirmant, vous autorisez le vendeur à traiter immédiatement cette commande.'))) return;
@@ -1077,7 +1037,7 @@ export default function OrderDetail() {
           <div class="hero-card"><span class="label">Paiement</span><strong>${escapeHtml(getPaymentModeLabel(pdfPaymentMode))}</strong></div>
         </div>
       </section>
-      <main class="content">
+      <div class="content">
         <div class="grid">
           <section class="card">
             <h2>Client</h2>
@@ -1100,7 +1060,7 @@ export default function OrderDetail() {
           <section class="card"><h2>Payé</h2><strong>${formatCurrency(paidAmountPdf)}</strong></section>
           <section class="card"><h2>Reste</h2><strong>${formatCurrency(remainingAmountPdf)}</strong></section>
         </div>
-      </main>
+      </div>
       <footer class="footer">
         <span>Document généré par HDMarket.</span>
         <span>Conservez ce bon pour le suivi de votre commande.</span>
@@ -2391,64 +2351,12 @@ export default function OrderDetail() {
           </div>
         </motion.div>
 
-        {aiRecommendationsEnabled && (
-          <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:mt-8 sm:p-4">
-            <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
-              <h3 className="flex min-w-0 items-center gap-2 text-sm font-black text-gray-900 sm:text-base">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                <span className="truncate">Produits de la même catégorie</span>
-              </h3>
-              <Link to="/suggestions" className="flex shrink-0 items-center gap-0.5 text-xs font-black text-gray-500 sm:text-sm">
-                Voir tout <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            {suggestionsLoading ? (
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="aspect-[3/4] rounded-2xl bg-gray-50 animate-pulse" />
-                ))}
-              </div>
-            ) : suggestionsProducts.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {suggestionsProducts.map((product) => {
-                  const imageUrl = Array.isArray(product.images) ? product.images[0] : product.image;
-                  const price = product.price != null ? product.price : product.prix;
-                  return (
-                    <Link
-                      key={product._id}
-                      to={buildProductPath(product)}
-                      {...externalLinkProps}
-                      className="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
-                    >
-                      <div className="relative aspect-square w-full bg-gray-100">
-                        {imageUrl ? (
-                          <img src={imageUrl} alt={product.title || 'Produit'} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center">
-                            <Package className="h-7 w-7 text-[#e85d00]/45" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-2 sm:p-2.5">
-                        <p className="line-clamp-2 min-h-[2rem] text-[11px] font-bold leading-4 text-gray-900 sm:text-xs">{product.title || 'Produit'}</p>
-                        <p className="mt-1 truncate text-[11px] font-black text-[#e85d00] sm:text-xs">{formatCurrency(price)}</p>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : (
-              <Link
-                to="/suggestions"
-                className="block rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-6 text-center text-sm font-semibold text-gray-500 hover:border-gray-200"
-              >
-                Découvrir des suggestions personnalisées
-              </Link>
-            )}
-          </section>
-        )}
+        {aiRecommendationsEnabled ? (
+          <CategoryProductMiniRail
+            products={suggestionsProducts}
+            loading={suggestionsLoading}
+          />
+        ) : null}
       </div>
 
       <EditAddressModal

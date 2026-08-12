@@ -557,7 +557,7 @@ export default function HelpPage() {
         </div>
       </header>
 
-      <main className="relative mx-auto grid max-w-6xl gap-4 px-4 py-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
+      <div className="relative mx-auto grid max-w-6xl gap-4 px-4 py-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
         <section className="space-y-4">
           {isAdmin ? (
             <motion.section
@@ -957,7 +957,7 @@ export default function HelpPage() {
             </ul>
           </motion.section>
         </aside>
-      </main>
+      </div>
     </div>
   );
 }

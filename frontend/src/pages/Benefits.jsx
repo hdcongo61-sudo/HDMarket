@@ -149,7 +149,7 @@ export default function Benefits() {
   );
 
   return (
-    <main className="hd-commerce-shell min-h-screen bg-[#f5f5f5] pb-16 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div className="hd-commerce-shell min-h-screen bg-[#f5f5f5] pb-16 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       {/* ── HERO ── */}
       <section className="bg-white px-4 pb-6 pt-8 text-center dark:bg-neutral-900">
         <p className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">
@@ -584,6 +584,6 @@ export default function Benefits() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

@@ -447,7 +447,7 @@ export default function VerifiedShops() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-3 py-4 pb-24 sm:px-5 sm:py-6">
+      <div className="mx-auto max-w-5xl px-3 py-4 pb-24 sm:px-5 sm:py-6">
         {!loading && filteredShops.length > 0 ? (
           <div className="mb-3 flex items-end justify-between gap-3 px-1">
             <div>
@@ -681,7 +681,7 @@ export default function VerifiedShops() {
             {t('market.backHome', 'Retourner à l’accueil')}
           </Link>
         </div>
-      </main>
+      </div>
 
       <BaseModal
         isOpen={allShopsModalOpen}

@@ -195,9 +195,9 @@ export default function DeliveryGuyApplication() {
 
   if (loading) {
     return (
-      <main className="grid min-h-[60vh] place-items-center bg-[#f7f6f3]">
+      <div className="grid min-h-[60vh] place-items-center bg-[#f7f6f3]">
         <Loader2 className="h-8 w-8 animate-spin text-[#e85d00]" />
-      </main>
+      </div>
     );
   }
 
@@ -205,7 +205,7 @@ export default function DeliveryGuyApplication() {
   const StatusIcon = meta?.icon;
 
   return (
-    <main className="min-h-screen bg-[#f7f6f3] pb-24 text-neutral-950">
+    <div className="min-h-screen bg-[#f7f6f3] pb-24 text-neutral-950">
       <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
         <section className="overflow-hidden rounded-3xl bg-neutral-950 p-5 text-white shadow-sm sm:p-8">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black">
@@ -543,6 +543,6 @@ export default function DeliveryGuyApplication() {
           </form>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

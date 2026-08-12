@@ -3041,7 +3041,7 @@ export default function Profile() {
                       </div>
                     )}
                     <Link
-                      to="/my"
+                      to="/seller/products"
                       className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm block hover:bg-neutral-800 active:scale-[0.98] transition-all"
                     >
                       <div className="flex items-center justify-between mb-3">

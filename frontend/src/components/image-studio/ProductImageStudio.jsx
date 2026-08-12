@@ -626,7 +626,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
     </header>
     <div className="flex min-h-0 flex-1">
       <nav className="hidden w-24 shrink-0 border-r border-[#e2dcd2] bg-white py-3 lg:block">{TOOLS.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setActiveTool(id)} className={`mx-2 mb-1 flex min-h-[68px] w-20 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-bold ${activeTool === id ? 'bg-[#fff0e4] text-[#b94700]' : 'text-stone-600 hover:bg-[#f5f2ee]'}`}><Icon className="h-5 w-5" />{label}</button>)}</nav>
-      <main className="relative flex min-w-0 flex-1 flex-col bg-[#302d2a]">
+      <div className="relative flex min-w-0 flex-1 flex-col bg-[#302d2a]">
         <div className="absolute left-3 top-3 z-10 flex items-center gap-2"><button type="button" onClick={() => setCompare((value) => !value)} className={`min-h-9 rounded-full px-3 text-[11px] font-black shadow ${compare ? 'bg-[#e85d00] text-white' : 'bg-black/55 text-white lg:bg-white/90 lg:text-[#231f1b]'}`}>Avant / Après</button>{draftRestored ? <span className="hidden rounded-full bg-white/90 px-3 py-2 text-[11px] font-bold sm:inline"><Cloud className="mr-1 inline h-3.5 w-3.5 text-emerald-600" />Brouillon restauré</span> : null}</div>
         {quality.score > 0 && quality.score < 60 && quality.suggestions?.length ? <button type="button" onClick={() => { setActiveTool('adjust'); setMobilePanelOpen(true); }} className="absolute left-3 top-16 z-10 flex max-w-[80vw] items-center gap-1.5 rounded-full bg-amber-500 px-3 py-2 text-left text-[11px] font-black text-white shadow lg:hidden"><CircleGauge className="h-4 w-4 shrink-0" />{quality.suggestions[0]}</button> : null}
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-3 sm:p-8">
@@ -637,7 +637,7 @@ export default function ProductImageStudio({ isOpen, image, images = [], initial
         </div>
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 p-1.5 text-white"><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.max(.3, prev.zoom - .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomOut className="h-4 w-4" /></button><span className="w-12 text-center text-xs font-black">{Math.round(state.zoom * 100)}%</span><button type="button" onClick={() => change((prev) => ({ ...prev, zoom: Math.min(3, prev.zoom + .1) }))} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"><ZoomIn className="h-4 w-4" /></button></div>
         {images.length > 1 ? <div className="flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none] lg:hidden">{images.map((item, index) => <button key={item?.url || item?.name || index} type="button" onClick={() => setSelectedIndex(index)} className={`h-11 w-11 shrink-0 overflow-hidden rounded-xl border-2 bg-white shadow-sm ${selectedIndex === index ? 'border-[#e85d00]' : 'border-white'}`}><img src={resolveSource(item)} alt={`Photo ${index + 1}`} className="h-full w-full object-cover" /></button>)}</div> : null}
-      </main>
+      </div>
       <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-[#e2dcd2] bg-[#faf8f5] p-5 lg:block">{renderPanel()}</aside>
     </div>
     <div className="border-t border-[#e8e1d8] bg-white pb-[env(safe-area-inset-bottom)] shadow-sm lg:hidden">

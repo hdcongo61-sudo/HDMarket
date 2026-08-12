@@ -189,7 +189,9 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
         'L’annonce à valider est requise pour ce paiement.'
       );
     }
-    product = await Product.findById(productId).select('_id user status').lean();
+    product = await Product.findById(productId)
+      .select('_id user status requiresAdditionalPayment')
+      .lean();
     if (!product) {
       return sendPawaPayError(res, 404, 'PAWAPAY_PRODUCT_NOT_FOUND', 'Annonce introuvable.');
     }
@@ -202,6 +204,14 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
         403,
         'PAWAPAY_PRODUCT_FORBIDDEN',
         'Vous ne pouvez pas payer pour cette annonce.'
+      );
+    }
+    if (product.requiresAdditionalPayment) {
+      return sendPawaPayError(
+        res,
+        409,
+        'PAWAPAY_LISTING_FEE_RECONCILIATION_UNSUPPORTED',
+        'Utilisez le formulaire de complément pour payer uniquement la différence de commission.'
       );
     }
   }
@@ -723,6 +733,37 @@ const reconcileCheckoutStatusFromProvider = async (checkout, { force = false } =
   return PawaPayCheckout.findById(claimed._id);
 };
 
+// Callbacks and the client's own status poll (when it returns to the app)
+// are the primary way a checkout resolves — but if the client closes the tab
+// right after paying, or a callback is dropped, nothing else ever re-checks
+// it. This periodic pass sweeps checkouts still stuck in WAITING_PAYMENT/
+// PROCESSING and reconciles them against PawaPay directly, same as the
+// refund/settlement reconciliation passes already scheduled in server.js.
+export const reconcilePendingPawaPayCheckouts = async ({ limit = 50 } = {}) => {
+  const staleBefore = new Date(Date.now() - 60_000);
+  const checkouts = await PawaPayCheckout.find({
+    status: { $in: ['CREATED', 'WAITING_PAYMENT', 'PROCESSING'] },
+    $or: [
+      { lastProviderStatusCheckAt: null },
+      { lastProviderStatusCheckAt: { $exists: false } },
+      { lastProviderStatusCheckAt: { $lt: staleBefore } }
+    ]
+  })
+    .sort({ lastProviderStatusCheckAt: 1, createdAt: 1 })
+    .limit(limit);
+
+  let reconciledCount = 0;
+  for (const checkout of checkouts) {
+    try {
+      await reconcileCheckoutStatusFromProvider(checkout);
+      reconciledCount += 1;
+    } catch {
+      // A later scheduled pass or a provider callback will safely retry this checkout.
+    }
+  }
+  return reconciledCount;
+};
+
 const invokeCompletionController = async ({ handler, checkout, body = {}, params = {} }) => {
   const actor = await User.findById(checkout.user).lean();
   if (!actor) throw new Error('Utilisateur introuvable pendant la finalisation PawaPay.');
@@ -1199,6 +1240,21 @@ const autoValidateListingCheckout = async (checkout) => {
     if (existingPayment) {
       product.payment = existingPayment._id;
       product.status = 'approved';
+      const creditedFee = Number(
+        existingPayment.commissionBaseAmount ??
+          existingPayment.commissionDueAmount ??
+          existingPayment.amountPaid ??
+          existingPayment.amount ??
+          0
+      );
+      product.listingFeePaid = Math.max(Number(product.listingFeePaid || 0), creditedFee);
+      product.listingFeeRequired = Math.max(Number(product.listingFeeRequired || 0), creditedFee);
+      product.listingFeeRemaining = 0;
+      product.approvedPrice = Number(product.price || 0);
+      product.pendingPrice = null;
+      product.requiresAdditionalPayment = false;
+      product.listingFeeStatus = creditedFee > 0 ? 'PAID' : 'NOT_REQUIRED';
+      product.listingFeeSettled = true;
       await product.save();
       claimed.autoValidationState = 'COMPLETED';
       claimed.autoValidatedPayment = existingPayment._id;
@@ -1316,6 +1372,15 @@ const autoValidateListingCheckout = async (checkout) => {
 
     product.payment = payment._id;
     product.status = 'approved';
+    const creditedFee = Number(commission.baseAmount || dueAmount || 0);
+    product.listingFeePaid = Math.max(Number(product.listingFeePaid || 0), creditedFee);
+    product.listingFeeRequired = Math.max(Number(product.listingFeeRequired || 0), creditedFee);
+    product.listingFeeRemaining = 0;
+    product.approvedPrice = Number(product.price || 0);
+    product.pendingPrice = null;
+    product.requiresAdditionalPayment = false;
+    product.listingFeeStatus = creditedFee > 0 ? 'PAID' : 'NOT_REQUIRED';
+    product.listingFeeSettled = true;
     await product.save();
     invalidateVerifiedProductCache();
     await invalidateProductCache();

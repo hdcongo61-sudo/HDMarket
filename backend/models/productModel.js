@@ -88,6 +88,25 @@ const productSchema = new mongoose.Schema(
     // Listing fee settled without a Payment row (waived by promo / zero commission).
     // Grants public visibility alongside verified LISTING_FEE payments.
     listingFeeSettled: { type: Boolean, default: false, index: true },
+    listingFeeRate: { type: Number, min: 0, max: 1, default: 0.03, select: false },
+    listingFeePaid: { type: Number, min: 0, default: 0, select: false },
+    listingFeeRequired: { type: Number, min: 0, default: 0, select: false },
+    listingFeeRemaining: { type: Number, min: 0, default: 0, select: false },
+    approvedPrice: { type: Number, min: 0, default: null },
+    pendingPrice: { type: Number, min: 0, default: null, select: false },
+    // Internal companions preserve the promotion representation while the
+    // public price remains unchanged during fee review.
+    pendingPriceBeforeDiscount: { type: Number, min: 0, default: null, select: false },
+    pendingDiscount: { type: Number, min: 0, max: 100, default: null, select: false },
+    priceChangeRequestedAt: { type: Date, default: null },
+    priceChangeApprovedAt: { type: Date, default: null },
+    requiresAdditionalPayment: { type: Boolean, default: false, index: true },
+    listingFeeStatus: {
+      type: String,
+      enum: ['NOT_REQUIRED', 'PAID', 'PAYMENT_REQUIRED', 'UNDER_REVIEW'],
+      default: 'NOT_REQUIRED',
+      index: true
+    },
     country: { type: String, default: 'République du Congo' },
     city: { type: String, default: 'Brazzaville', trim: true },
     validationDate: { type: Date, default: null, index: true },

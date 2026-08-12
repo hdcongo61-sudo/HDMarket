@@ -52,35 +52,53 @@ export default class GlobalErrorBoundary extends React.Component {
     }
   };
 
+  handleHome = () => {
+    if (typeof window === 'undefined') return;
+    window.history.replaceState({}, '', '/');
+    this.setState({ hasError: false, errorMessage: '', requestId: '' }, () => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+  };
+
   render() {
     if (!this.state.hasError) {
       return this.props.children;
     }
 
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+
     return (
-      <div className="min-h-screen bg-[#fff4e8] px-4 py-10 text-slate-950 dark:bg-neutral-950 dark:text-white">
-        <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
+      <div className="min-h-screen bg-gradient-to-br from-[#fff4e8] via-white to-amber-50 px-4 py-10 text-slate-950 dark:from-neutral-950 dark:via-neutral-950 dark:to-amber-950/20 dark:text-white">
+        <div className="mx-auto max-w-md rounded-3xl bg-white/95 p-6 shadow-xl shadow-orange-950/10 ring-1 ring-gray-200 dark:bg-neutral-900/95 dark:ring-neutral-800">
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#e85d00]">
             HDMarket
           </p>
-          <h1 className="mt-2 text-xl font-black">Actualisation nécessaire</h1>
+          <div className="mt-3 text-4xl" aria-hidden="true">{offline ? '🛶' : '🛠️'}</div>
+          <h1 className="mt-2 text-xl font-black">
+            {offline ? 'Cette page attend le réseau' : 'Actualisation nécessaire'}
+          </h1>
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
-            Nous avons besoin de recharger cette page pour rétablir l’affichage.
+            {offline
+              ? 'Les pages déjà visitées restent disponibles. Revenez à l’accueil pour continuer avec le contenu enregistré.'
+              : 'Nous avons besoin de recharger cette page pour rétablir l’affichage.'}
           </p>
           <div className="mt-5 flex gap-2">
             <button
               type="button"
-              onClick={this.handleRetry}
+              onClick={this.handleHome}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#e85d00] px-6 text-sm font-black text-white transition hover:bg-[#f45f00]"
             >
-              Actualiser
-            </button>
-            <a
-              href="/"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-gray-50 px-6 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-950 dark:text-slate-200 dark:ring-neutral-800"
-            >
               Accueil
-            </a>
+            </button>
+            {!offline && (
+              <button
+                type="button"
+                onClick={this.handleRetry}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-gray-50 px-6 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-950 dark:text-slate-200 dark:ring-neutral-800"
+              >
+                Actualiser
+              </button>
+            )}
           </div>
         </div>
       </div>

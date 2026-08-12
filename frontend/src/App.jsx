@@ -26,6 +26,7 @@ import useAppBrandLogo from './hooks/useAppBrandLogo';
 import pwaInstallService from './services/pwaInstallService';
 import { subscribeToSettingsRefresh } from './utils/settingsRefresh';
 import { useToast } from './context/ToastContext';
+import { getRouteHierarchy } from './utils/routeHierarchy';
 
 const Home = lazy(() => import('./pages/Home'));
 const Discover = lazy(() => import('./pages/Discover'));
@@ -64,6 +65,7 @@ const DeliveryAssignmentDetail = lazy(() => import('./pages/delivery/DeliveryAss
 const DeliveryHistory = lazy(() => import('./pages/delivery/DeliveryHistory'));
 const DeliveryProfile = lazy(() => import('./pages/delivery/DeliveryProfile'));
 const DeliveryAppShell = lazy(() => import('./components/delivery/DeliveryAppShell'));
+const SellerLayout = lazy(() => import('./components/seller/SellerLayout'));
 const TopDeals = lazy(() => import('./pages/TopDeals'));
 const TopRanking = lazy(() => import('./pages/TopRanking'));
 const TopFavorites = lazy(() => import('./pages/TopFavorites'));
@@ -243,8 +245,8 @@ const getRouteModule = (path = '') => {
   if (!normalized) return '';
   if (normalized.startsWith('/admin')) return 'admin';
   if (normalized.startsWith('/delivery') || normalized.startsWith('/courier')) return 'courier';
+  if (normalized.startsWith('/seller')) return 'seller';
   if (normalized.startsWith('/orders') || normalized.startsWith('/order')) return 'orders';
-  if (normalized.startsWith('/seller/orders') || normalized.startsWith('/seller/order')) return 'seller-orders';
   if (
     normalized === '/my' ||
     normalized.startsWith('/profile') ||
@@ -304,6 +306,13 @@ function LegacyOrderReviewRedirect() {
   const targetId = String(orderId || '').trim();
   if (!targetId) return <Navigate to="/orders" replace />;
   return <Navigate to={`/orders/${encodeURIComponent(targetId)}/review`} replace />;
+}
+
+function LegacyMyListingRedirect() {
+  const { listingId = '' } = useParams();
+  const targetId = String(listingId || '').trim();
+  if (!targetId) return <Navigate to="/seller/products" replace />;
+  return <Navigate to={`/seller/products/${encodeURIComponent(targetId)}`} replace />;
 }
 
 function OrdersStatusRouteResolver() {
@@ -584,7 +593,7 @@ function AppContent() {
   const isCourierRoute =
     pathname.startsWith('/courier') ||
     (pathname.startsWith('/delivery') && !isCourierApplicationRoute);
-  const isProductVideosRoute = pathname.startsWith('/videos');
+  const routeHierarchy = getRouteHierarchy(pathname);
   const pawaPayRefreshKey = String(location.state?.pawaPayRefreshKey || '');
   const pageTransitionKey = `${getPageTransitionKey(pathname)}:${pawaPayRefreshKey}`;
 
@@ -731,10 +740,12 @@ function AppContent() {
       <AnalyticsTracker />
       <CookieConsent />
       <ScrollToTop />
-      {!isCourierRoute ? <Navbar /> : null}
+      {routeHierarchy.showGlobalNav ? (
+        <Navbar hideMobileTabBar={!routeHierarchy.showGlobalMobileNav} />
+      ) : null}
       <NetworkStatusBanner />
       <main
-        className={isCourierRoute
+        className={!routeHierarchy.showGlobalNav
           ? 'app-main-shell min-h-[100dvh] p-0 main-content no-ios-callout'
           : 'app-main-shell min-h-[100dvh] pt-[calc(env(safe-area-inset-top,0px)+4rem)] lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] no-ios-callout'}
       >
@@ -778,10 +789,6 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-          <Route path="/seller/analytics" element={<SellerAnalyticsV2 />} />
-          <Route path="/seller/promo-codes" element={<SellerPromoCodes />} />
-          <Route path="/seller/assistant" element={<ShopAssistant />} />
-          <Route path="/seller/assistant/workspace" element={<ShopAssistant />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/r/:code" element={<ReferralLanding />} />
@@ -983,7 +990,7 @@ function AppContent() {
             path="/my"
             element={
               <ProtectedRoute>
-                <UserDashboard />
+                <Navigate to="/seller/products" replace />
               </ProtectedRoute>
             }
           />
@@ -991,7 +998,7 @@ function AppContent() {
             path="/my/annonce/:listingId"
             element={
               <ProtectedRoute>
-                <MyListingDetail />
+                <LegacyMyListingRedirect />
               </ProtectedRoute>
             }
           />
@@ -1016,14 +1023,6 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Navigate to="/stats" replace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/analytics"
-            element={
-              <ProtectedRoute>
-                <UserStats />
               </ProtectedRoute>
             }
           />
@@ -1125,106 +1124,48 @@ function AppContent() {
           />
           <Route path="/order/:legacyValue" element={<LegacyOrderRouteResolver />} />
           <Route
-            path="/seller/dashboard"
+            path="/seller"
             element={
               <ProtectedRoute>
-                <Navigate to="/my" replace />
+                <SellerLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/seller/products"
-            element={
-              <ProtectedRoute>
-                <ShopAssistant />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/orders/detail/:orderId"
-            element={
-              <ProtectedRoute>
-                <SellerOrderDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/order/detail/:orderId"
-            element={
-              <ProtectedRoute>
-                <SellerOrderDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/orders"
-            element={
-              <ProtectedRoute>
-                <SellerOrdersEntryRedirect />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/orders/:status?"
-            element={
-              <ProtectedRoute>
-                <SellerOrders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/order"
-            element={
-              <ProtectedRoute>
-                <SellerOrdersEntryRedirect />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/order/:status?"
-            element={
-              <ProtectedRoute>
-                <SellerOrders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/disputes"
-            element={
-              <ProtectedRoute>
-                <SellerDisputes />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/boosts"
-            element={
-              <ProtectedRoute>
-                {boostEnabled ? <SellerBoosts /> : <Navigate to="/my" replace />}
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/global-notifications"
-            element={
-              <ProtectedRoute>
-                {globalNotificationsEnabled ? <SellerGlobalNotifications /> : <Navigate to="/my" replace />}
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/seller/videos"
-            element={
-              <ProtectedRoute>
-                {appSettingsLoading ? null : productVideosEnabled ? <SellerProductVideos /> : <Navigate to="/my" replace />}
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route index element={<Navigate to="/seller/products" replace />} />
+            <Route path="dashboard" element={<Navigate to="/seller/products" replace />} />
+            <Route path="products" element={<UserDashboard />} />
+            <Route path="products/:listingId" element={<MyListingDetail />} />
+            <Route path="analytics" element={<SellerAnalyticsV2 />} />
+            <Route path="promo-codes" element={<SellerPromoCodes />} />
+            <Route path="assistant" element={<ShopAssistant />} />
+            <Route path="assistant/workspace" element={<ShopAssistant />} />
+            <Route path="orders/detail/:orderId" element={<SellerOrderDetail />} />
+            <Route path="order/detail/:orderId" element={<SellerOrderDetail />} />
+            <Route path="orders" element={<SellerOrdersEntryRedirect />} />
+            <Route path="orders/:status" element={<SellerOrders />} />
+            <Route path="order" element={<SellerOrdersEntryRedirect />} />
+            <Route path="order/:status" element={<SellerOrders />} />
+            <Route path="disputes" element={<SellerDisputes />} />
+            <Route
+              path="boosts"
+              element={boostEnabled ? <SellerBoosts /> : <Navigate to="/seller/products" replace />}
+            />
+            <Route
+              path="global-notifications"
+              element={globalNotificationsEnabled ? <SellerGlobalNotifications /> : <Navigate to="/seller/products" replace />}
+            />
+            <Route
+              path="videos"
+              element={appSettingsLoading ? null : productVideosEnabled ? <SellerProductVideos /> : <Navigate to="/seller/products" replace />}
+            />
+            <Route path="settlements" element={<SellerSettlements />} />
+            <Route path="*" element={<Navigate to="/seller/products" replace />} />
+          </Route>
           <Route
             path="/my/settlements"
             element={
               <ProtectedRoute>
-                <SellerSettlements />
+                <Navigate to="/seller/settlements" replace />
               </ProtectedRoute>
             }
           />
@@ -1497,12 +1438,12 @@ function AppContent() {
           </motion.div>
         </AnimatePresence>
       </main>
-      {!isCourierRoute && !isProductVideosRoute ? (
+      {routeHierarchy.showFooter ? (
         <Suspense fallback={null}>
           <Footer />
         </Suspense>
       ) : null}
-      {!isCourierRoute && !isProductVideosRoute && chatEnabled && assistantChatEnabled ? (
+      {routeHierarchy.showChat && chatEnabled && assistantChatEnabled ? (
         <Suspense fallback={null}>
           <ChatBox />
         </Suspense>

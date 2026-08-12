@@ -84,6 +84,14 @@ class IndexedDBManager {
    * Get value from IndexedDB
    */
   async get(storeName, key) {
+    const entry = await this.getEntry(storeName, key);
+    return entry?.data ?? null;
+  }
+
+  /**
+   * Get the full stored entry so callers can apply their own freshness policy.
+   */
+  async getEntry(storeName, key, options = {}) {
     await this.init();
     if (!this.db) return null;
 
@@ -96,11 +104,11 @@ class IndexedDBManager {
         const result = request.result;
         if (result && result.data) {
           // Check if expired
-          if (result.expiry && Date.now() > result.expiry) {
+          if (result.expiry && Date.now() > result.expiry && !options.allowExpired) {
             this.delete(storeName, key);
             resolve(null);
           } else {
-            resolve(result.data);
+            resolve(result);
           }
         } else {
           resolve(null);

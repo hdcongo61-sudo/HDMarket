@@ -207,7 +207,7 @@ export default function PawaPayReturn() {
   }, [errorPath, failed, failureMessage, navigate, resolvedCheckoutId]);
 
   return (
-    <main className="min-h-[70vh] bg-[#f7f5f2] px-4 py-10">
+    <div className="min-h-[70vh] bg-[#f7f5f2] px-4 py-10">
       <section className="mx-auto max-w-md rounded-2xl border border-[#e5e0d8] bg-white p-6 text-center shadow-sm sm:p-8">
         {loading ? (
           <Loader2 className="mx-auto h-12 w-12 animate-spin text-[#0b6b4f]" />
@@ -285,6 +285,6 @@ export default function PawaPayReturn() {
           )}
         </div>
       </section>
-    </main>
+    </div>
   );
 }

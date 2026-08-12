@@ -42,6 +42,7 @@ import InstallmentOrderTracking from '../components/orders/InstallmentOrderTrack
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import OrderMiniRail from '../components/orders/OrderMiniRail';
+import CategoryProductMiniRail from '../components/orders/CategoryProductMiniRail';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
@@ -54,6 +55,7 @@ import useSellerOrderDetailQuery from '../hooks/useSellerOrderDetailQuery';
 import useSellerOrderStatusMutation from '../hooks/useSellerOrderStatusMutation';
 import useOrderRealtimeSync from '../hooks/useOrderRealtimeSync';
 import useNetworkProfile from '../hooks/useNetworkProfile';
+import useOrderCategorySuggestions from '../hooks/useOrderCategorySuggestions';
 import { orderQueryKeys } from '../hooks/useOrderQueryKeys';
 
 const STATUS_LABELS = {
@@ -384,12 +386,17 @@ export default function SellerOrderDetail() {
   const { orderId } = useParams();
   const { showToast } = useToast();
   const { user } = useContext(AuthContext);
-  const { getRuntimeValue } = useAppSettings();
+  const { getRuntimeValue, isFeatureEnabled } = useAppSettings();
+  const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
+    defaultValue: true
+  });
   const externalLinkProps = useDesktopExternalLink();
   const queryClient = useQueryClient();
   const { rapid3GActive, offlineBannerText, rapid3GBannerText } = useNetworkProfile();
 
   const [order, setOrder] = useState(null);
+  const { products: suggestionsProducts, loading: suggestionsLoading } =
+    useOrderCategorySuggestions(order, aiRecommendationsEnabled);
   const [unreadCount, setUnreadCount] = useState(0);
   const [copiedKey, setCopiedKey] = useState('');
   const reduceMotion = useReducedMotion();
@@ -2620,6 +2627,13 @@ export default function SellerOrderDetail() {
             </div>
           </div>
         </motion.div>
+
+        {aiRecommendationsEnabled ? (
+          <CategoryProductMiniRail
+            products={suggestionsProducts}
+            loading={suggestionsLoading}
+          />
+        ) : null}
       </div>
 
       <BaseModal

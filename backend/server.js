@@ -96,6 +96,7 @@ import { initRedis, closeRedis } from './config/redisClient.js';
 import { getRuntimeConfig, preloadRuntimeConfigCache } from './services/configService.js';
 import { maintenanceModeMiddleware } from './middlewares/maintenanceModeMiddleware.js';
 import { reconcilePendingRefunds } from './services/refundService.js';
+import { reconcilePendingPawaPayCheckouts } from './controllers/pawapayController.js';
 import {
   processSellerSettlements,
   reconcilePendingSellerPayouts
@@ -656,6 +657,21 @@ httpServer.listen(port, () => {
   };
   setTimeout(runRefundReconciliation, 30_000);
   setInterval(runRefundReconciliation, 5 * 60 * 1000);
+
+  let checkoutReconciliationRunning = false;
+  const runPawaPayCheckoutReconciliation = async () => {
+    if (checkoutReconciliationRunning) return;
+    checkoutReconciliationRunning = true;
+    try {
+      await reconcilePendingPawaPayCheckouts();
+    } catch (error) {
+      console.error('[pawapay-checkouts] reconciliation failed:', error?.message || error);
+    } finally {
+      checkoutReconciliationRunning = false;
+    }
+  };
+  setTimeout(runPawaPayCheckoutReconciliation, 40_000);
+  setInterval(runPawaPayCheckoutReconciliation, 2 * 60 * 1000);
 
   let settlementPassRunning = false;
   const runSellerSettlementPass = async () => {

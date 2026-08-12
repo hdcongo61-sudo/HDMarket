@@ -359,7 +359,7 @@ export default function AdminFeatureManagement() {
   }));
 
   return (
-    <main className="mx-auto max-w-[1600px] space-y-6 px-3 pb-12 pt-4 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-3 pb-12 pt-4 sm:px-6 lg:px-8">
       <AdminCommandHero
         eyebrow="Système de publication"
         title="Gestion des fonctionnalités"
@@ -540,6 +540,6 @@ export default function AdminFeatureManagement() {
         <div className="relative mb-4 max-w-xl"><input value={betaUserSearch} onChange={(event) => searchBetaUsers(event.target.value)} placeholder="Ajouter manuellement : rechercher nom, email, téléphone ou boutique" className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-900" />{betaUserResults.length > 0 && <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">{betaUserResults.map((user) => <button key={user._id || user.id} type="button" onClick={() => setManualBetaTester(user._id || user.id, true)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"><span><b>{user.name}</b><span className="ml-2 text-neutral-500">{user.email || user.phone}</span></span><span className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white">Ajouter</span></button>)}</div>}</div>
         {betaRequests.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{betaRequests.map((request) => <div key={request._id} className="rounded-2xl border border-neutral-200 p-3 dark:border-neutral-800"><div className="font-semibold text-neutral-900 dark:text-white">{request.name}</div><div className="mt-0.5 text-xs text-neutral-500">{request.email || request.phone} · {request.role}</div><div className="mt-2 text-xs text-neutral-600 dark:text-neutral-300">Statut : <b>{request.betaTesterApplication?.status || (request.betaTester ? 'approved' : 'none')}</b></div>{request.betaTesterApplication?.status === 'pending' && <div className="mt-3 flex gap-2"><button type="button" onClick={() => reviewBetaRequest(request._id, 'approved')} className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white">Approuver</button><button type="button" onClick={() => reviewBetaRequest(request._id, 'rejected')} className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-700 dark:border-red-900 dark:text-red-300">Refuser</button></div>}{request.betaTester && <button type="button" onClick={() => setManualBetaTester(request._id, false)} className="mt-3 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-700 dark:border-red-900 dark:text-red-300">Retirer du programme</button>}</div>)}</div> : <p className="text-sm text-neutral-500">Aucune demande bêta pour le moment.</p>}
       </section>
-    </main>
+    </div>
   );
 }

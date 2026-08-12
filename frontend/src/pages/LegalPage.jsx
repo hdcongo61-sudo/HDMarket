@@ -128,7 +128,7 @@ export default function LegalPage({ type }) {
   const missingLegalIdentity = document.legalNotice && (!operator.address || !operator.rccm || !operator.niu || !operator.director || !operator.host);
 
   return (
-    <main className="min-h-screen bg-[#f7f5f1] px-4 py-6 text-neutral-950 sm:py-10">
+    <div className="min-h-screen bg-[#f7f5f1] px-4 py-6 text-neutral-950 sm:py-10">
       <div className="mx-auto max-w-5xl">
         <Link to="/" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-neutral-700"><ArrowLeft className="h-4 w-4" />Retour à HDMarket</Link>
         <header className="mt-4 rounded-2xl border border-neutral-200 bg-white p-5 sm:p-8">
@@ -148,7 +148,7 @@ export default function LegalPage({ type }) {
           </article>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

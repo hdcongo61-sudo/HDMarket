@@ -100,7 +100,9 @@ export default function Login() {
   const { isMobile, logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
-  const from = location.state?.from || '/';
+  const from = typeof location.state === 'string'
+    ? location.state
+    : location.state?.from || '/';
   const identifierRef = useRef(null);
   const passwordRef = useRef(null);
   const slowNetworkTimerRef = useRef(null);
@@ -314,7 +316,7 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-neutral-100 px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
+    <div className="min-h-screen overflow-hidden bg-neutral-100 px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
       <motion.div
         variants={staggerContainer}
         initial="hidden"
@@ -571,6 +573,6 @@ export default function Login() {
           </motion.div>
         </div>
       </motion.div>
-    </main>
+    </div>
   );
 }

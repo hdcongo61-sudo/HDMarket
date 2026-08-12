@@ -47,7 +47,10 @@ export default function ProtectedRoute({ children, role, roles, permissions, all
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!user) {
+    const returnPath = `${location.pathname}${location.search || ''}${location.hash || ''}`;
+    return <Navigate to="/login" state={returnPath} replace />;
+  }
 
   // If custom allowAccess function is provided, use it
   if (allowAccess && typeof allowAccess === 'function') {

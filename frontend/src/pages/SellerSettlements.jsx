@@ -72,11 +72,11 @@ export default function SellerSettlements() {
   const providerName = account.provider === 'MTN_MOMO_COG' ? 'MTN MoMo' : account.provider === 'AIRTEL_COG' ? 'Airtel Money' : '';
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl bg-[#f7f7f5] px-4 py-6 pb-28 sm:px-6">
+    <div className="mx-auto min-h-screen max-w-6xl bg-[#f7f7f5] px-4 py-6 pb-28 sm:px-6">
       <header className="mb-5 flex items-start justify-between gap-3">
         <div>
           <Link
-            to="/my"
+            to="/seller/products"
             className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-700 hover:bg-neutral-100"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -152,6 +152,6 @@ export default function SellerSettlements() {
           </div>
         ))}
       </section>
-    </main>
+    </div>
   );
 }

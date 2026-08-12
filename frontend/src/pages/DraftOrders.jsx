@@ -18,6 +18,7 @@ import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert, appConfirm } from '../utils/appDialog';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
+import GlassHeader from '../components/orders/GlassHeader';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -81,36 +82,32 @@ export default function DraftOrders() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-neutral-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Chargement...</p>
+      <div className="hd-order-flow min-h-screen bg-[#f6f3ee]">
+        <GlassHeader title="Commandes en brouillon" subtitle="Chargement..." backTo="/orders" />
+        <div className="mx-auto max-w-5xl px-3 py-5 sm:px-6">
+          <div className="animate-pulse rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-[#e7dfd5]">
+            <div className="h-5 w-36 rounded bg-gray-200" />
+            <div className="mt-4 h-24 rounded-2xl bg-gray-100" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-        {/* Header */}
-        <header className="bg-neutral-50 rounded-2xl p-6 sm:p-8 border-2 border-neutral-100 shadow-sm">
-          <Link
-            to="/profile"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span className="font-medium text-sm">Retour au profil</span>
-          </Link>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-neutral-500 rounded-2xl flex items-center justify-center shadow-sm">
-              <ClipboardList size={24} className="text-white" />
+    <div className="hd-order-flow min-h-screen bg-[#f6f3ee]">
+      <GlassHeader title="Commandes en brouillon" subtitle={`${drafts.length} commande${drafts.length > 1 ? 's' : ''} à finaliser`} backTo="/orders" />
+      <div className="mx-auto max-w-5xl space-y-4 px-3 py-4 pb-28 sm:px-6 sm:py-6">
+        <header className="relative overflow-hidden rounded-[28px] bg-[#171411] p-5 text-white shadow-[0_16px_45px_rgba(35,31,27,0.16)] sm:p-7">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-[#e85d00]/40 blur-3xl" />
+          <div className="relative flex items-center gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e85d00]">
+              <ClipboardList size={23} />
             </div>
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black text-gray-900">Mes commandes en brouillon</h1>
-              <p className="text-gray-600 font-medium mt-1">
-                Commandes non finalisées que vous pouvez compléter
-              </p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-300">Reprendre plus tard</p>
+              <h1 className="mt-1 text-xl font-black sm:text-2xl">Finalisez votre commande</h1>
+              <p className="mt-1 text-xs font-semibold leading-5 text-white/60 sm:text-sm">Vos articles et informations déjà saisis restent disponibles ici.</p>
             </div>
           </div>
         </header>
@@ -123,7 +120,7 @@ export default function DraftOrders() {
         )}
 
         {drafts.length === 0 ? (
-          <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-8 sm:p-12 text-center">
+          <div className="rounded-[28px] border border-[#e7dfd5] bg-white p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
               <ClipboardList size={32} className="text-gray-400" />
             </div>
@@ -133,14 +130,14 @@ export default function DraftOrders() {
             </p>
             <Link
               to="/cart"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-6 text-sm font-black text-white transition active:scale-95"
             >
               <ShoppingCart size={18} />
               Voir mon panier
             </Link>
           </div>
         ) : (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 lg:grid-cols-2">
             {drafts.map((draft) => {
               const depositAmount = Number(draft.paidAmount || 0);
               const remainingAmount =
@@ -152,12 +149,12 @@ export default function DraftOrders() {
               return (
                 <div
                   key={draft._id}
-                  className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm overflow-hidden hover:shadow-sm transition-all duration-300"
+                  className="overflow-hidden rounded-[24px] border border-[#e7dfd5] bg-white shadow-[0_8px_28px_rgba(35,31,27,0.06)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(35,31,27,0.1)]"
                 >
                   {/* Draft Header */}
-                  <div className="bg-amber-50 border-b-2 border-amber-200 px-5 sm:px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center justify-between border-b border-orange-100 bg-[#fff4e8] px-4 py-3.5 sm:px-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center shadow-sm">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e85d00] shadow-sm">
                         <Clock size={20} className="text-white" />
                       </div>
                       <div>
@@ -246,7 +243,7 @@ export default function DraftOrders() {
                     )}
 
                     {/* Summary */}
-                    <div className="border-t-2 border-gray-200 pt-4 space-y-3">
+                    <div className="space-y-2 border-t border-gray-100 pt-4">
                       <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-xl">
                         <span className="text-gray-700 font-semibold">Total commande</span>
                         <span className="font-black text-gray-900 text-lg">
@@ -268,10 +265,10 @@ export default function DraftOrders() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t-2 border-gray-200">
+                    <div className="flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row">
                       <Link
                         to="/orders/checkout"
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-all duration-200 active:scale-95 shadow-sm"
+                        className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-5 text-sm font-black text-white transition active:scale-95"
                       >
                         <CreditCard size={18} />
                         Continuer la commande

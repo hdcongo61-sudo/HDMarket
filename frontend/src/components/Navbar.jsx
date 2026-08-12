@@ -141,7 +141,7 @@ const isTruthyFlag = (value) => {
   return false;
 };
 
-export default function Navbar() {
+export default function Navbar({ hideMobileTabBar = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isCourierRoute = location.pathname.startsWith('/delivery') || location.pathname.startsWith('/courier');
@@ -804,7 +804,7 @@ export default function Navbar() {
     { id: 'notifications', label: t('nav.notifications', 'Notifications'), path: '/notifications', icon: Bell, badge: commentAlerts, visible: user ? true : false, order: 7 },
     { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 8 },
     { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
-    { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/my', icon: Package, badge: null, visible: user ? true : false, order: 10 },
+    { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/seller/products', icon: Package, badge: null, visible: user ? true : false, order: 10 },
     { id: 'saved-videos', label: 'Vidéos enregistrées', path: '/profile/saved-videos', icon: Bookmark, badge: null, visible: Boolean(user) && productVideosEnabled, order: 10.2 },
     { id: 'seller-videos', label: 'Mes vidéos produit', path: '/seller/videos', icon: Clapperboard, badge: null, visible: Boolean(user) && user?.accountType === 'shop' && productVideosEnabled, order: 10.3 },
     { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
@@ -3059,6 +3059,7 @@ export default function Navbar() {
 
       {/* 🎯 NAVBAR PRINCIPALE - Proposal A: Two-Tier Layout */}
       <nav
+        aria-label={t('nav.mainNavigation', 'Navigation principale')}
         className={`hd-main-nav fixed top-0 left-0 right-0 z-50 shadow-sm transition-transform duration-300 ${
           topNavHidden ? '-translate-y-full' : 'translate-y-0'
         }`}
@@ -3372,7 +3373,7 @@ export default function Navbar() {
                           <span className="text-sm font-medium">{t('nav.preferences', 'Préférences')}</span>
                         </Link>
                         <Link
-                          to="/my"
+                          to="/seller/products"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
                           <Package size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
@@ -3965,7 +3966,7 @@ export default function Navbar() {
               {/* Vendre Button */}
               {user && sellingEnabled && (
                 <Link
-                  to="/my"
+                  to="/seller/products"
                   className="hd-soft-button ml-auto flex items-center gap-2 px-4 py-2 text-sm font-bold"
                 >
                   <Plus size={16} />
@@ -4182,7 +4183,7 @@ export default function Navbar() {
                     Mon compte
                   </p>
                   <NavLink
-                    to="/my"
+                    to="/seller/products"
                     onClick={() => setIsMenuOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
@@ -4657,8 +4658,11 @@ export default function Navbar() {
       )}
 
       {/* BARRE DE NAVIGATION FIXE MOBILE - DESIGN MODERNE ET AMÉLIORÉE */}
+      {!hideMobileTabBar && !isProductDetailRoute && !isProductVideosRoute ? (
       <div
-        className={`hd-mobile-tabbar ${isProductDetailRoute || isProductVideosRoute ? 'hidden' : 'md:hidden'} fixed bottom-0 left-0 right-0 z-50 min-h-[68px] border-t border-[#e2dcd2] bg-white/96 shadow-sm transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-950/96 ${
+        role="navigation"
+        aria-label={t('nav.mobileNavigation', 'Navigation principale mobile')}
+        className={`hd-mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-50 min-h-[68px] border-t border-[#e2dcd2] bg-white/96 shadow-sm transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-950/96 ${
           bottomNavHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom))]' : 'translate-y-0'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)', willChange: 'transform' }}
@@ -4933,6 +4937,7 @@ export default function Navbar() {
           )}
         </div>
       </div>
+      ) : null}
 
     </>
   );

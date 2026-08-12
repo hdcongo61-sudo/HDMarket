@@ -132,6 +132,7 @@ const inFlightGetRequests = new Map();
 
 // Cache configuration
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes default
+const OFFLINE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_PREFIX = 'hdmarket:api-cache:';
 const CACHE_STORAGE_KEY = 'hdmarket:cache-keys'; // Track all cache keys for cleanup
 
@@ -588,8 +589,7 @@ const cleanupExpiredCache = async () => {
       try {
         const cached = await storage.get(key);
         if (cached) {
-          const ttl = getCacheTTL(key.replace(CACHE_PREFIX, ''));
-          if (Date.now() - cached.timestamp < ttl) {
+          if (Date.now() - cached.timestamp < OFFLINE_CACHE_MAX_AGE_MS) {
             validKeys.push(key);
           } else {
             await storage.remove(key);
@@ -622,14 +622,22 @@ if (typeof window !== 'undefined') {
   });
 }
 
-const readCache = async (key, normalizedUrl) => {
+const readCache = async (key, normalizedUrl, options = {}) => {
   if (!isCacheEnabled()) return null;
+  const allowStale = Boolean(options.allowStale);
   
   try {
     // Check if should use IndexedDB
     if (shouldUseIndexedDB(normalizedUrl, 0)) {
-      const cached = await indexedDB.get(STORES.CACHE, key);
-      return cached;
+      const cached = await indexedDB.getEntry(STORES.CACHE, key, { allowExpired: true });
+      if (!cached || typeof cached !== 'object') return null;
+      const ageMs = Date.now() - Number(cached.timestamp || 0);
+      if (ageMs > OFFLINE_CACHE_MAX_AGE_MS) {
+        await indexedDB.delete(STORES.CACHE, key);
+        return null;
+      }
+      if (!allowStale && ageMs > getCacheTTL(normalizedUrl)) return null;
+      return cached.data ?? null;
     }
     
     // Use unified storage
@@ -637,10 +645,12 @@ const readCache = async (key, normalizedUrl) => {
     if (!cached || typeof cached !== 'object') return null;
     
     const ttl = getCacheTTL(normalizedUrl);
-    if (Date.now() - cached.timestamp > ttl) {
+    const ageMs = Date.now() - Number(cached.timestamp || 0);
+    if (ageMs > OFFLINE_CACHE_MAX_AGE_MS) {
       await storage.remove(key);
       return null;
     }
+    if (!allowStale && ageMs > ttl) return null;
     
     return cached.data;
   } catch {
@@ -653,11 +663,10 @@ const writeCache = async (key, data, normalizedUrl) => {
   
   try {
     const dataSize = new Blob([JSON.stringify(data)]).size;
-    const ttl = getCacheTTL(normalizedUrl);
     
     // Use IndexedDB for large datasets
     if (shouldUseIndexedDB(normalizedUrl, dataSize)) {
-      await indexedDB.set(STORES.CACHE, key, data, ttl);
+      await indexedDB.set(STORES.CACHE, key, data, OFFLINE_CACHE_MAX_AGE_MS);
     } else {
       // Use unified storage for smaller data
       await storage.set(key, { timestamp: Date.now(), data });
@@ -670,10 +679,8 @@ const writeCache = async (key, data, normalizedUrl) => {
       await cleanupExpiredCache();
       try {
         const dataSize = new Blob([JSON.stringify(data)]).size;
-        const ttl = getCacheTTL(normalizedUrl);
-        
         if (shouldUseIndexedDB(normalizedUrl, dataSize)) {
-          await indexedDB.set(STORES.CACHE, key, data, ttl);
+          await indexedDB.set(STORES.CACHE, key, data, OFFLINE_CACHE_MAX_AGE_MS);
         } else {
           await storage.set(key, { timestamp: Date.now(), data });
         }
@@ -822,13 +829,14 @@ api.interceptors.request.use(async (config) => {
   if (shouldCacheRequest(config)) {
     const normalized = normalizeUrl(config);
     const key = buildCacheKey(config);
-    const cached = await readCache(key, normalized);
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    const cached = await readCache(key, normalized, { allowStale: offline });
     if (cached) {
       config.adapter = async () => ({
         data: cached,
         status: 200,
         statusText: 'OK',
-        headers: { 'x-cache': 'HIT' },
+        headers: { 'x-cache': offline ? 'STALE' : 'HIT', 'x-offline-cache': offline ? '1' : '0' },
         config,
         request: { fromCache: true }
       });
@@ -936,6 +944,33 @@ api.interceptors.response.use(
       config.__retryCount = retryCount + 1;
       await new Promise((r) => setTimeout(r, REQUEST_RETRY_DELAY_MS));
       return api.request(config);
+    }
+
+    if (!isMutationMethod && (isNetworkError || isTimeoutError || isRetryableStatus) && shouldCacheRequest(config)) {
+      const normalized = config.__normalizedUrl || normalizeUrl(config);
+      const key = config.__cacheKey || buildCacheKey(config);
+      const cached = await readCache(key, normalized, { allowStale: true });
+      if (cached) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('hdmarket:offline-cache-hit', { detail: { url: normalized } }));
+        }
+        trackRequestMetric({
+          config,
+          status: 200,
+          durationMs: error.requestDurationMs,
+          success: true,
+          networkError: true,
+          retried: Number(config.__retryCount || 0)
+        });
+        return {
+          data: cached,
+          status: 200,
+          statusText: 'OK',
+          headers: { 'x-cache': 'STALE', 'x-offline-cache': '1' },
+          config,
+          request: { fromCache: true, stale: true }
+        };
+      }
     }
 
     trackRequestMetric({

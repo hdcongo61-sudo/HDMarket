@@ -17,6 +17,48 @@ const ACTIVE_PAYOUT_STATUSES = ['CREATED', 'PROCESSING', 'ENQUEUED', 'NEEDS_ATTE
 const OPEN_DISPUTE_STATUSES = ['OPEN', 'SELLER_RESPONDED', 'UNDER_REVIEW'];
 const PROVIDER_SUCCESS = new Set(['COMPLETED', 'SUCCESSFUL']);
 const PROVIDER_FAILURE = new Set(['FAILED', 'REJECTED', 'CANCELLED']);
+
+// PawaPay per-transaction limits for Mobile Money payouts (XAF). A batch that
+// aggregates several settlements must never exceed the recipient provider's
+// ceiling, or PawaPay rejects the whole payout.
+const PAWAPAY_PAYOUT_LIMITS = {
+  MTN_MOMO_COG: { min: 1, max: 2_000_000 },
+  AIRTEL_COG: { min: 10, max: 1_500_000 }
+};
+// Conservative fallback (tighter of the two providers) for an account whose
+// provider isn't recognized yet — never assume the more permissive ceiling.
+const DEFAULT_PAYOUT_LIMITS = { min: 10, max: 1_500_000 };
+
+export const payoutLimitsForProvider = (provider) =>
+  PAWAPAY_PAYOUT_LIMITS[String(provider || '')] || DEFAULT_PAYOUT_LIMITS;
+
+// Greedily packs ready settlements (already sorted oldest-release-first) into
+// payout-sized batches so no single PawaPay payout exceeds maxAmount. A
+// settlement whose own netAmount already exceeds the ceiling can never fit
+// any batch — it is returned separately instead of being silently dropped or
+// sent in a request PawaPay is guaranteed to reject.
+export const chunkSettlementsForPayout = (settlements = [], maxAmount) => {
+  const batches = [];
+  const oversized = [];
+  let current = [];
+  let currentTotal = 0;
+  for (const settlement of settlements) {
+    const net = Number(settlement?.netAmount || 0);
+    if (net > maxAmount) {
+      oversized.push(settlement);
+      continue;
+    }
+    if (current.length && currentTotal + net > maxAmount) {
+      batches.push(current);
+      current = [];
+      currentTotal = 0;
+    }
+    current.push(settlement);
+    currentTotal += net;
+  }
+  if (current.length) batches.push(current);
+  return { batches, oversized };
+};
 const settlementCutoverAt = (() => {
   const parsed = new Date(process.env.SELLER_SETTLEMENT_CUTOVER_AT || '');
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
@@ -216,6 +258,7 @@ export const ensureSellerSettlementForOrder = async (orderOrId) => {
 
 const refreshSettlementState = async (settlement, now = new Date(), configOverride = null) => {
   const config = configOverride || await settings();
+  const wasAlreadyBlocked = settlement.status === 'BLOCKED';
   const [order, seller, blockingDispute] = await Promise.all([
     Order.findById(settlement.order),
     User.findById(settlement.seller).select('payoutAccount'),
@@ -259,22 +302,59 @@ const refreshSettlementState = async (settlement, now = new Date(), configOverri
     settlement.refundedAmount = order.refundStatus === 'processed' ? Number(order.refundAmount || 0) : 0;
     settlement.commissionAmount = Math.round(grossAmount * settlement.commissionRate / 100);
     settlement.netAmount = Math.max(0, grossAmount - settlement.commissionAmount);
-    settlement.status = settlement.netAmount > 0 ? 'READY' : 'CANCELLED';
-    settlement.failureReason = '';
+    const limits = payoutLimitsForProvider(seller.payoutAccount.provider);
+    if (settlement.netAmount <= 0) {
+      settlement.status = 'CANCELLED';
+      settlement.failureReason = '';
+    } else if (settlement.netAmount > limits.max) {
+      // A single order's payout alone exceeds the provider's per-transaction
+      // ceiling — no amount of batching can fix this, it needs a manual
+      // split. Stay BLOCKED instead of cycling back to READY every pass.
+      settlement.status = 'BLOCKED';
+      settlement.failureReason =
+        `Montant (${settlement.netAmount} XAF) supérieur à la limite de versement ` +
+        `${seller.payoutAccount.provider} (${limits.max} XAF). Nécessite un versement fractionné manuel.`;
+    } else {
+      settlement.status = 'READY';
+      settlement.failureReason = '';
+    }
   }
   await settlement.save();
   await updateOrderSettlement(settlement);
+  if (settlement.status === 'BLOCKED' && !wasAlreadyBlocked && settlement.failureReason.includes('limite de versement')) {
+    await notifySettlementStaff({
+      title: 'Versement vendeur bloqué — plafond dépassé',
+      message: settlement.failureReason,
+      orderId: String(settlement.order),
+      settlementStatus: 'BLOCKED',
+      amount: settlement.netAmount
+    });
+  }
   return settlement;
 };
 
 const initiateSellerPayoutBatch = async (sellerId, readySettlements, minimumPayout) => {
   const amount = readySettlements.reduce((sum, item) => sum + Number(item.netAmount || 0), 0);
-  if (!readySettlements.length || amount < minimumPayout || amount < 1) return null;
+  if (!readySettlements.length || amount < 1) return null;
   const seller = await User.findById(sellerId).select('name shopName payoutAccount');
   if (!seller?.payoutAccount?.verifiedAt) return null;
   const phoneNumber = normalizePayoutPhone(seller.payoutAccount.phoneNumber);
   const provider = String(seller.payoutAccount.provider || '');
   if (!phoneNumber || !provider) return null;
+
+  const limits = payoutLimitsForProvider(provider);
+  const effectiveMinimum = Math.max(Number(minimumPayout || 0), limits.min);
+  if (amount < effectiveMinimum) return null;
+  // Defense in depth: the caller is expected to chunk batches within
+  // limits.max before calling this. If it somehow didn't, refuse rather than
+  // send a request PawaPay is guaranteed to reject.
+  if (amount > limits.max) {
+    console.error(
+      `[seller-settlements] refused oversized payout batch for seller ${sellerId}: ` +
+        `${amount} XAF exceeds ${provider} limit of ${limits.max} XAF.`
+    );
+    return null;
+  }
 
   const settlementIds = readySettlements.map((item) => String(item._id)).sort();
   const batchKey = crypto.createHash('sha256').update(settlementIds.join(':')).digest('hex');
@@ -484,8 +564,41 @@ export const processSellerSettlements = async ({ limit = 100 } = {}) => {
       status: 'READY',
       payout: null
     }).sort({ releaseAt: 1 }).limit(100);
-    const payout = await initiateSellerPayoutBatch(sellerId, ready, config.minimumPayout);
-    if (payout && !['CANCELLED', 'FAILED'].includes(payout.status)) initiated += 1;
+    if (!ready.length) continue;
+
+    const seller = await User.findById(sellerId).select('payoutAccount');
+    const limits = payoutLimitsForProvider(seller?.payoutAccount?.provider);
+    // Split into payout-sized batches so no single PawaPay payout exceeds the
+    // recipient provider's per-transaction ceiling (e.g. 1.5M XAF for Airtel).
+    const { batches, oversized } = chunkSettlementsForPayout(ready, limits.max);
+
+    for (const settlement of oversized) {
+      // refreshSettlementState should already keep an over-ceiling settlement
+      // BLOCKED before it reaches READY — this only guards a settlement that
+      // was force-flipped back to READY outside that path (e.g. a payout retry).
+      const wasAlreadyBlocked = settlement.status === 'BLOCKED';
+      settlement.status = 'BLOCKED';
+      settlement.payout = null;
+      settlement.failureReason =
+        `Montant (${settlement.netAmount} XAF) supérieur à la limite de versement ` +
+        `${seller?.payoutAccount?.provider || 'inconnue'} (${limits.max} XAF). Nécessite un versement fractionné manuel.`;
+      await settlement.save();
+      await updateOrderSettlement(settlement);
+      if (!wasAlreadyBlocked) {
+        await notifySettlementStaff({
+          title: 'Versement vendeur bloqué — plafond dépassé',
+          message: settlement.failureReason,
+          orderId: String(settlement.order),
+          settlementStatus: 'BLOCKED',
+          amount: settlement.netAmount
+        });
+      }
+    }
+
+    for (const batch of batches) {
+      const payout = await initiateSellerPayoutBatch(sellerId, batch, config.minimumPayout);
+      if (payout && !['CANCELLED', 'FAILED'].includes(payout.status)) initiated += 1;
+    }
   }
   return { created: candidates.length, refreshed: refreshable.length, initiated };
 };

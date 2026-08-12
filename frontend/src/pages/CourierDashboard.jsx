@@ -927,11 +927,11 @@ export default function CourierDashboard() {
           ) : hardError ? (
             <div className="rounded-2xl border border-gray-100 bg-white p-1 dark:border-neutral-800 dark:bg-neutral-950">
               <NetworkFallbackCard
-                title={extractMessage(hardError, 'Unable to load data.')}
+                title={extractMessage(hardError, 'Impossible de charger les données')}
                 message={
                   timeoutDetected
-                    ? 'Loading is taking longer than expected. Please try again shortly.'
-                    : 'Unable to load deliveries right now.'
+                    ? 'Le chargement prend plus de temps que prévu. Réessayez dans un instant.'
+                    : 'Impossible de charger les livraisons pour le moment.'
                 }
                 onRetry={handleRefresh}
                 retryLabel="Réessayer"
@@ -940,7 +940,7 @@ export default function CourierDashboard() {
             </div>
           ) : !modeEnabled ? (
             <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-              Le mode livreur est desactive par la configuration systeme.
+              Le mode livreur est désactivé par la configuration système.
             </div>
           ) : previewMode && !selectedDeliveryGuyId ? (
             <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 text-sm font-semibold text-purple-800 shadow-sm dark:border-purple-900 dark:bg-purple-950 dark:text-purple-300">

@@ -26,6 +26,7 @@ import {
   MessageCircle,
   Ellipsis,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   RefreshCw
 } from 'lucide-react';
@@ -507,7 +508,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
   const { t } = useAppSettings();
   const { user } = useContext(AuthContext);
   const reduceMotion = useReducedMotion();
-  const [expanded, setExpanded] = useState(index === 1);
+  const [expanded, setExpanded] = useState(false);
   const [deliveryCodeVisible, setDeliveryCodeVisible] = useState(false);
   const orderItems = getOrderItems(order);
   const totalAmount = getOrderTotal(order);
@@ -547,30 +548,27 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
   return (
     <motion.article
       {...riseIn(reduceMotion, Math.min(index, 6) * 0.06)}
-      className={`group block overflow-hidden rounded-2xl bg-white transition dark:bg-neutral-950 ${expanded ? 'border-[1.5px] border-[#e2dcd2] shadow-sm' : 'border border-[#eee8e0] shadow-sm'}`}
+      className={`group block overflow-hidden rounded-[24px] bg-white transition duration-200 dark:bg-neutral-950 ${expanded ? 'border-[1.5px] border-[#e85d00]/40 shadow-[0_14px_36px_rgba(35,31,27,0.1)]' : 'border border-[#e7dfd5] shadow-[0_8px_28px_rgba(35,31,27,0.06)] hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(35,31,27,0.1)]'}`}
     >
-      <button type="button" onClick={() => setExpanded((value) => !value)} className={`flex w-full items-center justify-between gap-2 px-3.5 py-3 text-left sm:px-4 ${expanded ? 'border-b border-[#f5f2ee]' : ''}`} aria-expanded={expanded}>
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="truncate text-sm font-black text-gray-950 dark:text-white">#{String(order._id || '').slice(-6)}</span>
-          <span className="text-[11px] text-[#a49c8f]">· {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}</span>
-          {isOwnOrder && (
-            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-              Ma commande
-            </span>
-          )}
+      <button type="button" onClick={() => setExpanded((value) => !value)} className={`flex w-full items-start justify-between gap-3 px-3.5 pt-3.5 text-left sm:px-4 sm:pt-4 ${expanded ? 'pb-3.5' : ''}`} aria-expanded={expanded}>
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-black uppercase tracking-[0.12em] text-[#a49c8f]">
+            {t('orders.order', 'Commande')} #{String(order._id || '').slice(-6)} · {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+          </p>
+          <div className="mt-1 flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[13px] font-black text-gray-950 dark:text-white">{customerName}</span>
+            {isOwnOrder && (
+              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                Ma commande
+              </span>
+            )}
+          </div>
         </div>
         <StatusBadge status={statusBadgeKey} />
       </button>
-      <OrderMiniRail
-        label={uiState.nextStep}
-        progress={uiState.progress}
-        urgent={uiState.isUrgent}
-        stops={isInstallmentOrder ? 4 : 5}
-        className="hidden"
-      />
-      <div className={`flex items-center gap-2.5 px-3.5 ${expanded ? 'py-3' : 'pb-3.5'} sm:px-4`}>
+      <div className={`flex items-center gap-3 px-3.5 ${expanded ? 'border-t border-[#f5f2ee] py-3.5' : 'py-3.5'} sm:px-4`}>
         {firstItem?.snapshot?.image ? (
-          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-[10px] bg-gray-100">
+          <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100">
             <img
               src={firstItem.snapshot.image}
               alt={productTitle}
@@ -580,25 +578,34 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
             />
           </div>
         ) : (
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[10px] bg-gray-100">
+          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100">
             <Package className="h-5 w-5 text-[#e85d00]" />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-bold text-gray-950 dark:text-white">{productTitle} × {firstItem?.quantity ?? 1}{!expanded ? ` · ${customerName}` : ''}</p>
+          <p className="line-clamp-2 text-[13px] font-black leading-5 text-gray-950 dark:text-white">{productTitle} × {firstItem?.quantity ?? 1}</p>
           {itemCount > 1 && <p className="text-xs text-gray-500 mt-0.5">+{itemCount - 1} autre{itemCount > 2 ? 's' : ''}</p>}
           {expanded && isInstallmentOrder ? <p className="mt-0.5 truncate text-[11px] text-[#8a8378]">Acompte {formatCurrency(installmentPaid)} versé · reste {formatCurrency(Math.max(0, installmentTotal - installmentPaid))}</p> : null}
-          {!expanded ? <p className="mt-1 text-[15px] font-black text-neutral-950">{formatCurrency(totalAmount)}</p> : null}
+          {!expanded ? <p className="mt-1 text-base font-black tracking-tight text-neutral-950 dark:text-white">{formatCurrency(totalAmount)}</p> : null}
           <SelectedAttributesList
             selectedAttributes={firstItem?.selectedAttributes}
             compact
             className="mt-2"
           />
         </div>
-        {expanded ? <span className="shrink-0 text-[15px] font-black text-neutral-950">{formatCurrency(totalAmount)}</span> : (
-          <Link to={`/seller/orders/detail/${order._id}`} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-[#e85d00] px-4 text-xs font-black text-white">{compactActionLabel}</Link>
+        {expanded ? <span className="shrink-0 text-[15px] font-black text-neutral-950 dark:text-white">{formatCurrency(totalAmount)}</span> : (
+          <Link to={`/seller/orders/detail/${order._id}`} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-[#e85d00] px-3.5 text-xs font-black text-white">{compactActionLabel}</Link>
         )}
       </div>
+      {!expanded ? (
+        <OrderMiniRail
+          label={uiState.nextStep}
+          progress={uiState.progress}
+          urgent={uiState.isUrgent}
+          stops={isInstallmentOrder ? 4 : 5}
+          className="mx-3.5 mb-3.5 rounded-2xl bg-[#faf7f3] px-3 py-2.5 sm:mx-4"
+        />
+      ) : null}
       {expanded ? (
         <div className="space-y-3 px-3.5 pb-3.5 sm:px-4">
           <div className="flex items-center gap-3 rounded-xl bg-[#faf8f5] p-2.5">
@@ -613,10 +620,10 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
               <span className="inline-flex items-center gap-2 text-xs font-black text-[#e85d00]"><span className="font-mono text-sm tracking-[0.15em] text-[#a49c8f]">{deliveryCodeVisible ? order.deliveryCode : '••••'}</span>{deliveryCodeVisible ? t('common.hide', 'Masquer') : t('common.show', 'Afficher')}</span>
             </button>
           ) : null}
-          <OrderMiniRail label={uiState.nextStep} progress={uiState.progress} urgent={uiState.isUrgent} stops={isInstallmentOrder ? 4 : 5} />
+          <OrderMiniRail label={uiState.nextStep} progress={uiState.progress} urgent={uiState.isUrgent} stops={isInstallmentOrder ? 4 : 5} className="rounded-2xl bg-[#faf7f3] px-3 py-2.5" />
           <div className="flex gap-2">
-            <Link to={`/seller/orders/detail/${order._id}`} className="flex min-h-12 flex-1 items-center justify-center rounded-full bg-neutral-950 px-4 text-sm font-black text-white">{uiState.primaryAction.label}</Link>
-            <button type="button" onClick={() => setExpanded(false)} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('common.more', 'Plus')}><Ellipsis className="h-5 w-5" /></button>
+            <Link to={`/seller/orders/detail/${order._id}`} className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-neutral-950 px-4 text-sm font-black text-white">{uiState.primaryAction.label}</Link>
+            <button type="button" onClick={() => setExpanded(false)} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#e2dcd2] text-[#44403a]" aria-label={t('common.close', 'Fermer')}><ChevronUp className="h-5 w-5" /></button>
           </div>
           <Link to={`/seller/orders/detail/${order._id}?action=cancel`} className="block min-h-11 text-center text-xs font-bold leading-[44px] text-[#b91c1c]">{t('orders.cancelOrder', 'Annuler la commande')}</Link>
         </div>
@@ -1823,9 +1830,9 @@ export default function SellerOrders() {
 
   if (loading && orders.length === 0) {
     return (
-      <div className="hd-commerce-shell min-h-screen dark:bg-neutral-950">
-        <GlassHeader title={t('orders.sellerTitle', 'Commandes vendeur')} subtitle={t('common.loading', 'Chargement...')} backTo="/" />
-        <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="hd-order-flow min-h-screen bg-[#f6f3ee] dark:bg-neutral-950">
+        <GlassHeader title={t('orders.sellerTitle', 'Commandes vendeur')} subtitle={t('common.loading', 'Chargement...')} backTo="/seller/products" />
+        <div className="mx-auto max-w-6xl px-4 py-6">
           <OrderListSkeleton items={5} />
         </div>
       </div>
@@ -1833,7 +1840,7 @@ export default function SellerOrders() {
   }
 
   return (
-    <div className="hd-commerce-shell min-h-screen dark:bg-neutral-950" {...bind}>
+    <div className="hd-order-flow min-h-screen bg-[#f6f3ee] dark:bg-neutral-950" {...bind}>
       {(pullDistance > 0 || refreshing) && (
         <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-center gap-2 bg-neutral-900 py-2 text-white">
           <RefreshCw
@@ -1845,30 +1852,18 @@ export default function SellerOrders() {
           </span>
         </div>
       )}
-      <div className="border-b border-gray-100 bg-white px-3 sm:px-6 lg:px-8">
-        <div className="mx-auto flex min-h-[60px] max-w-7xl items-center justify-between gap-2">
-          <Link
-            to="/"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#231f1b] transition active:scale-95"
-            aria-label={t('common.back', 'Retour')}
-          >
-            <ArrowLeft className="h-4 w-4" />
+      <GlassHeader
+        title={t('orders.sellerTitle', 'Commandes vendeur')}
+        subtitle={`${stats.total || meta.total || 0} ${t('orders.orderCount', `commande${Number(stats.total || meta.total || 0) > 1 ? 's' : ''}`)}`}
+        backTo="/seller/products"
+        right={(
+          <Link to="/stats" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f6f3ee] text-[#44403a] transition active:scale-95" aria-label={t('orders.stats', 'Stats')}>
+            <TrendingUp className="h-4 w-4" />
           </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[17px] font-black text-neutral-950 dark:text-white">
-              {t('orders.sellerTitle', 'Commandes vendeur')}
-            </h1>
-          </div>
-          <Link
-            to="/stats"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#44403a] transition active:scale-95"
-          >
-            <TrendingUp className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </div>
+        )}
+      />
 
-      <div className="mx-auto max-w-7xl px-3 py-3 pb-[env(safe-area-inset-bottom)] sm:px-6 sm:py-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-3 py-3 pb-[env(safe-area-inset-bottom)] sm:px-6 sm:py-6 lg:px-8">
         {(queuedStatusActionCount > 0 || statusQueueSyncing) && (
           <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-bold text-gray-500 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
             {statusQueueSyncing
@@ -1876,7 +1871,7 @@ export default function SellerOrders() {
               : `${queuedStatusActionCount} changement${queuedStatusActionCount > 1 ? 's' : ''} de statut en attente de connexion.`}
           </div>
         )}
-        <div className="mb-5 hidden md:block">
+        <div className="mb-5 sm:mb-6">
           <OrderCommandCenter
             eyebrow={t('orders.sellerCommandCenter', 'File vendeur')}
             title={t('orders.sellerHubTitle', 'Traiter les commandes importantes')}
@@ -1971,7 +1966,7 @@ export default function SellerOrders() {
             <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
             <Link
-              to="/my"
+              to="/seller/products"
               className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
             >
               <Sparkles className="w-4 h-4" />
@@ -1980,7 +1975,7 @@ export default function SellerOrders() {
           </div>
         ) : (
           <>
-            <div className="space-y-3 sm:space-y-6">
+            <div className="grid gap-3 lg:grid-cols-2 lg:gap-5">
               {orders.map((order, index) => (
                 <SellerOrderSummaryCard key={order._id} order={order} assistantShop={assistantShop} index={index} unreadCount={Number(orderUnreadCounts?.[order._id] || 0)} />
               ))}

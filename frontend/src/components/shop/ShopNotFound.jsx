@@ -5,7 +5,7 @@ import GlassCard from '../ui/GlassCard';
 
 export default function ShopNotFound({ t }) {
   return (
-    <main className="mx-auto max-w-xl px-4 py-10">
+    <div className="mx-auto max-w-xl px-4 py-10">
       <GlassCard className="text-center">
         <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           <Store size={24} />
@@ -23,7 +23,7 @@ export default function ShopNotFound({ t }) {
           {t('shop_profile.back_home', "Retour à l'accueil")}
         </Link>
       </GlassCard>
-    </main>
+    </div>
   );
 }
 

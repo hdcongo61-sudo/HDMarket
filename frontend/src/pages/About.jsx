@@ -135,7 +135,7 @@ export default function About() {
     <div className="min-h-screen bg-[#f5f5f5] pb-24 dark:bg-neutral-950">
       <GlassHeader title="À propos" backTo="/" />
 
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-5">
+      <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
         <section className="rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900 sm:p-8">
           <span className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gray-50 p-2 ring-1 ring-gray-100 dark:bg-neutral-800 dark:ring-neutral-700">
             <img src={logoSrc} alt="" className="h-full w-full object-contain" />
@@ -229,7 +229,7 @@ export default function About() {
             Mentions légales
           </Link>
         </section>
-      </main>
+      </div>
     </div>
   );
 }

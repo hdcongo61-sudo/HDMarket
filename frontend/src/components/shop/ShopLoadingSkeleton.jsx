@@ -4,7 +4,7 @@ import { ShimmerBlock } from '../ui/ShimmerSkeleton';
 
 export default function ShopLoadingSkeleton() {
   return (
-    <main className="mx-auto max-w-7xl bg-[#F6F6F6] pb-24 dark:bg-neutral-950">
+    <div className="mx-auto max-w-7xl bg-[#F6F6F6] pb-24 dark:bg-neutral-950">
       {/* Orange gradient header block */}
       <div className="bg-gradient-to-br from-[#FF5000] to-[#FF3D00] px-4 pb-14 pt-4 sm:px-6">
         <div className="flex items-center gap-2">
@@ -40,6 +40,6 @@ export default function ShopLoadingSkeleton() {
           </div>
         </GlassCard>
       </div>
-    </main>
+    </div>
   );
 }

@@ -401,6 +401,15 @@ export const schemas = {
     amount: Joi.number().min(0).default(0),
     operator: Joi.string().valid('MTN', 'Airtel', 'Orange', 'Moov', 'Other').allow('', null),
   }),
+  listingFeePaymentSubmit: Joi.object({
+    payerName: Joi.string().trim().min(2).max(120).required(),
+    paymentMethod: Joi.string().trim().min(2).max(40).required(),
+    transactionReference: Joi.string()
+      .pattern(/^\d{10}$/)
+      .required()
+      .messages({ 'string.pattern.base': 'Le numéro de transaction doit contenir exactement 10 chiffres.' }),
+    amountPaid: Joi.number().min(0).required()
+  }),
   transactionCodeVerify: Joi.object({
     transactionCode: Joi.string()
       .pattern(/^\d{10}$/)

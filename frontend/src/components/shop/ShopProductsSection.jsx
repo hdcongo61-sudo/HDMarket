@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { X, Sparkles, Tag, Clock, Flame, Grid3x3, Home, Star } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { X, Sparkles, Tag, Clock, Flame, Grid3x3, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ShimmerSkeleton from '../ui/ShimmerSkeleton';
 import ProductCard from '../ProductCard';
@@ -33,10 +33,6 @@ export default function ShopProductsSection({
     ? 'grid w-full grid-cols-2 gap-2'
     : 'grid grid-cols-2 gap-3 sm:grid-cols-3';
 
-  // 'home' (Accueil) vs 'products' (Produits) both use the 'all' feed;
-  // the distinction only controls the popular-products strip.
-  const [homeTab, setHomeTab] = useState('home');
-
   const promoCount = useMemo(
     () => products.filter((product) => Boolean(product?.hasActivePromo)).length,
     [products]
@@ -50,22 +46,20 @@ export default function ShopProductsSection({
         ? 'featured'
         : productFeed === 'popular'
           ? 'popular'
-          : homeTab;
+          : 'products';
 
-  const goAll = (tab) => {
+  const goAll = () => {
     setPromoOnly(false);
     setProductFeed('all');
-    setHomeTab(tab);
   };
 
   const TABS = [
-    { id: 'home', label: t('shop_profile.tab_home', 'Accueil'), icon: Home, onSelect: () => goAll('home') },
     {
       id: 'products',
       label: t('shop_profile.tab_products', 'Produits'),
       icon: Grid3x3,
       count: products.length,
-      onSelect: () => goAll('products')
+      onSelect: goAll
     },
     {
       id: 'latest',
@@ -89,27 +83,7 @@ export default function ShopProductsSection({
         setPromoOnly(true);
       }
     },
-    { id: 'reviews', label: t('shop_profile.tab_reviews', 'Avis'), icon: Star, onSelect: onGoReviews },
-    {
-      id: 'featured',
-      label: t('shop_profile.tab_featured', 'Recommandés'),
-      icon: Flame,
-      count: featuredProducts.length,
-      onSelect: () => {
-        setPromoOnly(false);
-        setProductFeed('featured');
-      }
-    },
-    {
-      id: 'popular',
-      label: t('shop_profile.tab_popular', 'Populaires'),
-      icon: Tag,
-      count: topSellingProducts.length,
-      onSelect: () => {
-        setPromoOnly(false);
-        setProductFeed('popular');
-      }
-    }
+    { id: 'reviews', label: t('shop_profile.tab_reviews', 'Avis'), icon: Star, onSelect: onGoReviews }
   ];
 
   const activeChip =
@@ -118,7 +92,7 @@ export default function ShopProductsSection({
     'inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-3.5 text-[11px] font-semibold text-gray-600 transition active:scale-95 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300';
 
   const searchQuery = String(productSearch || '').trim();
-  const showPopularStrip = activeTabId === 'home' && !searchQuery;
+  const showPopularStrip = activeTabId === 'products' && !searchQuery;
 
   return (
     <section className="overflow-hidden rounded-none bg-white shadow-sm sm:rounded-2xl sm:ring-1 sm:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800" id="products">
@@ -163,8 +137,8 @@ export default function ShopProductsSection({
         <div className="flex w-max items-center gap-1.5">
           <button
             type="button"
-            onClick={() => { setActiveCategory('all'); }}
-            className={activeCategory === 'all' && !promoOnly ? activeChip : inactiveChip}
+            onClick={() => { setActiveCategory('all'); setPromoOnly(false); setProductFeed('all'); }}
+            className={activeCategory === 'all' && !promoOnly && productFeed === 'all' ? activeChip : inactiveChip}
           >
             <Grid3x3 size={11} />
             <span>{t('shop_profile.tab_all', 'Tous')}</span>
@@ -180,8 +154,8 @@ export default function ShopProductsSection({
               <button
                 key={category}
                 type="button"
-                onClick={() => { setActiveCategory(category); setPromoOnly(false); }}
-                className={isActive ? activeChip : inactiveChip}
+                onClick={() => { setActiveCategory(category); setPromoOnly(false); setProductFeed('all'); }}
+                className={isActive && productFeed === 'all' ? activeChip : inactiveChip}
               >
                 <span className="max-w-[7rem] truncate">{category}</span>
                 <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${
@@ -192,6 +166,30 @@ export default function ShopProductsSection({
               </button>
             );
           })}
+
+          {(featuredProducts.length > 0 || topSellingProducts.length > 0) && (
+            <span className="mx-0.5 h-5 w-px bg-gray-200 dark:bg-neutral-700" />
+          )}
+          {featuredProducts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setActiveCategory('all'); setPromoOnly(false); setProductFeed('featured'); }}
+              className={productFeed === 'featured' ? activeChip : inactiveChip}
+            >
+              <Flame size={11} />
+              <span>{t('shop_profile.tab_featured', 'Recommandés')}</span>
+            </button>
+          )}
+          {topSellingProducts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setActiveCategory('all'); setPromoOnly(false); setProductFeed('popular'); }}
+              className={productFeed === 'popular' ? activeChip : inactiveChip}
+            >
+              <Tag size={11} />
+              <span>{t('shop_profile.tab_popular', 'Populaires')}</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -1282,7 +1282,7 @@ export default function ShopAssistant() {
       <div className="border-b border-gray-100 bg-white/95">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Link to="/my" className="rounded-lg p-2 hover:bg-gray-100" aria-label="Retour">
+            <Link to="/seller/products" className="rounded-lg p-2 hover:bg-gray-100" aria-label="Retour">
               <ArrowLeft size={20} className="text-gray-600" />
             </Link>
             <div className="min-w-0">
@@ -1299,7 +1299,7 @@ export default function ShopAssistant() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <div className="mx-auto max-w-5xl px-4 py-6">
         {!user ? (
           <section className="rounded-lg border border-gray-100 bg-white p-10 text-center shadow-sm">
             <AlertCircle size={32} className="mx-auto text-gray-300" />
@@ -1312,7 +1312,7 @@ export default function ShopAssistant() {
         ) : (
           <AssistantView />
         )}
-      </main>
+      </div>
     </div>
   );
 }

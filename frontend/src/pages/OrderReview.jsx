@@ -5,6 +5,7 @@ import { CheckCircle2, MessageSquare, ShieldOff, Star } from 'lucide-react';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
+import GlassHeader from '../components/orders/GlassHeader';
 
 const ReviewActionButton = ({ onClick, disabled, variant = 'secondary', children }) => {
   const tone =
@@ -137,18 +138,24 @@ export default function OrderReview() {
 
   if (reviewQuery.isLoading) {
     return (
-      <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-6">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
-          <p className="text-sm text-gray-600">Chargement de la page d'avis...</p>
+      <div className="hd-order-flow min-h-screen bg-[#f6f3ee]">
+        <GlassHeader title="Votre avis" subtitle="Chargement..." backTo={`/orders/detail/${encodeURIComponent(orderId || '')}`} />
+        <div className="mx-auto max-w-3xl px-3 py-5 sm:px-6">
+          <div className="animate-pulse rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-[#e7dfd5]">
+            <div className="h-5 w-40 rounded bg-gray-200" />
+            <div className="mt-4 h-28 rounded-2xl bg-gray-100" />
+          </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (reviewQuery.error) {
     return (
-      <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-6">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+      <div className="hd-order-flow min-h-screen bg-[#f6f3ee]">
+        <GlassHeader title="Votre avis" subtitle="Commande indisponible" backTo="/orders" />
+        <div className="mx-auto max-w-3xl px-3 py-5 sm:px-6">
+          <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-red-100">
           <p className="text-sm text-red-700">
             {reviewQuery.error?.response?.data?.message ||
               reviewQuery.error?.message ||
@@ -159,56 +166,59 @@ export default function OrderReview() {
               Retour aux commandes
             </Link>
           </div>
+          </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="hd-order-flow hd-commerce-shell min-h-screen px-4 py-4 sm:px-6">
-      <div className="mx-auto max-w-3xl space-y-4">
-        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+    <div className="hd-order-flow min-h-screen bg-[#f6f3ee]">
+      <GlassHeader title="Votre avis" subtitle={`Commande #${String(orderId || '').slice(-6)}`} backTo={`/orders/detail/${encodeURIComponent(orderId || '')}`} />
+      <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-28 sm:px-6 sm:py-6">
+        <section className="relative overflow-hidden rounded-[28px] bg-[#e85d00] p-5 text-white shadow-[0_16px_42px_rgba(232,93,0,0.22)] sm:p-6">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-white/20 blur-3xl" />
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+            <div className="relative">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-white/70">
                 Avis post-achat
               </p>
-              <h1 className="mt-2 text-2xl font-black text-gray-900">Comment s&apos;est passée votre commande ?</h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-gray-600">
+              <h1 className="mt-2 text-2xl font-black">Comment s&apos;est passée votre commande ?</h1>
+              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-white/75">
                 Partagez votre expérience pour aider les autres acheteurs et donner un retour utile au vendeur.
               </p>
             </div>
             <Link
               to={`/orders/detail/${encodeURIComponent(orderId || '')}`}
-              className="inline-flex min-h-[44px] items-center rounded-2xl border border-gray-200 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              className="relative inline-flex min-h-[44px] items-center rounded-xl bg-white px-4 text-sm font-black text-[#e85d00] transition active:scale-95"
             >
               Voir la commande
             </Link>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-            <span className="rounded-full bg-gray-100 px-3 py-1.5 text-gray-700">
+            <span className="rounded-full bg-white/15 px-3 py-1.5 text-white">
               Statut avis: {reviewState.status || 'PENDING'}
             </span>
             {reviewState.sentAt ? (
-              <span className="rounded-full bg-blue-50 px-3 py-1.5 text-blue-700">
+              <span className="rounded-full bg-white/15 px-3 py-1.5 text-white">
                 Rappel envoyé
               </span>
             ) : null}
             {reviewCompleted ? (
-              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">
+              <span className="rounded-full bg-emerald-400/20 px-3 py-1.5 text-white">
                 Avis terminé
               </span>
             ) : null}
             {reminderDisabled ? (
-              <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700">
+              <span className="rounded-full bg-black/10 px-3 py-1.5 text-white">
                 Rappel désactivé
               </span>
             ) : null}
           </div>
         </section>
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-[#e7dfd5]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Produits achetés</h2>
@@ -226,7 +236,7 @@ export default function OrderReview() {
                   onClick={() => setSelectedProductId(item.productId)}
                   className={`rounded-2xl border p-3 text-left transition ${
                     active
-                      ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm shadow-neutral-900/10'
+                      ? 'border-[#e85d00] bg-[#e85d00] text-white shadow-sm shadow-orange-900/10'
                       : 'border-gray-200 bg-gray-50 text-gray-900 hover:border-gray-300 hover:bg-white'
                   }`}
                 >
@@ -267,7 +277,7 @@ export default function OrderReview() {
         </section>
 
         {selectedItem ? (
-          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+          <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-[#e7dfd5]">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <h2 className="text-xl font-black text-gray-900">{selectedItem.title}</h2>
@@ -393,6 +403,6 @@ export default function OrderReview() {
           </section>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }

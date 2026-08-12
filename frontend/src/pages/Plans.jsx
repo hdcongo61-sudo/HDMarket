@@ -169,7 +169,7 @@ export default function Plans() {
       : { to: '/register', label: 'Créer un compte' };
 
   return (
-    <main className="min-h-screen bg-[#f6f7f9] pb-20 text-gray-950 dark:bg-neutral-950 dark:text-white">
+    <div className="min-h-screen bg-[#f6f7f9] pb-20 text-gray-950 dark:bg-neutral-950 dark:text-white">
       <section className="relative overflow-hidden bg-gray-950 text-white">
         <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-orange-200">
@@ -358,6 +358,6 @@ export default function Plans() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import Payment from '../models/paymentModel.js';
 import ShopConversionRequest from '../models/shopConversionRequestModel.js';
 import BoostRequest from '../models/boostRequestModel.js';
 import Order from '../models/orderModel.js';
+import ListingFeePayment from '../models/listingFeePaymentModel.js';
 
 const TRANSACTION_CODE_REGEX = /^\d{10}$/;
 
@@ -18,7 +19,8 @@ const collectDistinctCodes = async (codes) => {
     orderPaymentCodes,
     orderDraftPaymentCodes,
     installmentCodes,
-    refundCodes
+    refundCodes,
+    listingFeeReconciliationCodes
   ] =
     await Promise.all([
       Payment.distinct('transactionNumber', { transactionNumber: { $in: codes } }),
@@ -33,7 +35,10 @@ const collectDistinctCodes = async (codes) => {
       Order.distinct('installmentPlan.schedule.transactionProof.transactionCode', {
         'installmentPlan.schedule.transactionProof.transactionCode': { $in: codes }
       }),
-      Order.distinct('refundTransactionNumber', { refundTransactionNumber: { $in: codes } })
+      Order.distinct('refundTransactionNumber', { refundTransactionNumber: { $in: codes } }),
+      ListingFeePayment.distinct('transactionReference', {
+        transactionReference: { $in: codes }
+      })
     ]);
 
   return [
@@ -44,7 +49,8 @@ const collectDistinctCodes = async (codes) => {
     ...(Array.isArray(orderPaymentCodes) ? orderPaymentCodes : []),
     ...(Array.isArray(orderDraftPaymentCodes) ? orderDraftPaymentCodes : []),
     ...(Array.isArray(installmentCodes) ? installmentCodes : []),
-    ...(Array.isArray(refundCodes) ? refundCodes : [])
+    ...(Array.isArray(refundCodes) ? refundCodes : []),
+    ...(Array.isArray(listingFeeReconciliationCodes) ? listingFeeReconciliationCodes : [])
   ];
 };
 

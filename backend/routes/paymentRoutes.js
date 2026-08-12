@@ -32,6 +32,10 @@ import {
   refreshSellerPayoutAdmin,
   retrySellerPayoutAdmin
 } from '../controllers/settlementController.js';
+import {
+  getProductListingFeePayment,
+  submitListingFeePayment
+} from '../controllers/listingFeePaymentController.js';
 
 const router = express.Router();
 
@@ -118,6 +122,16 @@ router.post(
   createPayment
 );
 router.get('/me', protect, getMyPayments);
+router.get('/listing-fees/product/:productId', protect, getProductListingFeePayment);
+router.post(
+  '/listing-fees/product/:productId/submit',
+  protect,
+  rejectLegacyPaymentWhenPawaPayOnly,
+  paymentSubmissionLimiter,
+  idempotencyMiddleware(),
+  validate(schemas.listingFeePaymentSubmit),
+  submitListingFeePayment
+);
 
 // Payment verification - accessible by admin OR users with canVerifyPayments permission
 router.get('/admin', protect, requirePaymentVerification, listPaymentsAdmin);

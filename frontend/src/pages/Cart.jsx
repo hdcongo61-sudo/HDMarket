@@ -221,17 +221,9 @@ export default function Cart() {
     navigate('/orders/checkout');
   };
 
-  const handleCancelCheckout = async () => {
-    setPending({ all: true });
-    try {
-      await clearCart();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setPending({});
-      setShowDistanceWarning(false);
-      navigate('/products');
-    }
+  const handleCancelCheckout = () => {
+    // Closing a delivery warning must never mutate the user's cart.
+    setShowDistanceWarning(false);
   };
 
   const disableAll = Boolean(pending.all);
@@ -250,7 +242,7 @@ export default function Cart() {
   );
 
   return ( 
-    <main className="hd-products-flow min-h-screen">
+    <div className="hd-products-flow min-h-screen">
       <div className="max-w-7xl mx-auto px-3 py-5 pb-24 sm:px-6 sm:py-8 lg:px-8 space-y-5 sm:space-y-7">
       <header className="flex min-h-[60px] items-center border-b border-[#f5f2ee] bg-white px-2 sm:rounded-2xl sm:border">
         <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b]" aria-label="Retour">
@@ -710,6 +702,6 @@ export default function Cart() {
         </div>
       )}
       </div>
-    </main>
+    </div>
   );
 }

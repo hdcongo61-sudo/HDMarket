@@ -15,6 +15,7 @@ import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles, PRODUCT_IMAGE_ACCEPT } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
 import TagSelector from './tags/TagSelector';
+import { getListingFeeChangePreview, getMissingProductFormFields } from '../utils/productFormUx';
 
 const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
 
@@ -112,10 +113,10 @@ const createEmptyProductForm = () => ({
 });
 const createDefaultExpandedSections = () => ({
   info: true,
-  commercialisation: true,
-  options: true,
+  commercialisation: false,
+  options: false,
   images: true,
-  media: true,
+  media: false,
   validation: true,
   preview: false
 });
@@ -282,7 +283,12 @@ export default function ProductForm(props) {
   }, [app?.maxUploadImages, runtime?.maxUploadImages, runtime?.max_image_upload]);
   const [expandedSections, setExpandedSections] = useState(createDefaultExpandedSections);
   const formShellRef = useRef(null);
+  const sectionRefs = useRef({});
+  const fieldRefs = useRef({});
   const submissionViewportRef = useRef(null);
+  const [draftOffer, setDraftOffer] = useState(null);
+  const [draftSavedAt, setDraftSavedAt] = useState(null);
+  const [validationSummary, setValidationSummary] = useState([]);
   const toggleSection = (key) => setExpandedSections((s) => ({ ...s, [key]: !s[key] }));
   const isEmbeddedMobile = Boolean(isMobile && embeddedInModal);
 
@@ -315,7 +321,8 @@ export default function ProductForm(props) {
       : `hdmarket:draft:new:${user._id}`;
   }, [user?._id, isEditing, productId]);
 
-  // Restore draft on mount
+  // Offer restoration explicitly: silently replacing an empty form with old
+  // data makes it difficult to understand where that content came from.
   useEffect(() => {
     if (!draftKey || isEditing) return; // Only restore drafts for new products
     try {
@@ -323,14 +330,33 @@ export default function ProductForm(props) {
       if (!raw) return;
       const saved = JSON.parse(raw);
       if (saved && typeof saved === 'object' && saved.form) {
-        setForm((prev) => ({ ...prev, ...saved.form }));
-        if (saved.expandedSections) setExpandedSections(saved.expandedSections);
-        if (saved.imagePreviews?.length) {
-          setImagePreviews(saved.imagePreviews.filter((url) => typeof url === 'string'));
-        }
+        const hasMeaningfulContent = Boolean(
+          String(saved.form.title || '').trim() ||
+          String(saved.form.description || '').trim() ||
+          String(saved.form.price || '').trim() ||
+          String(saved.form.category || '').trim() ||
+          String(saved.form.brand || '').trim()
+        );
+        if (hasMeaningfulContent) setDraftOffer(saved);
       }
     } catch { /* ignore */ }
   }, [draftKey, isEditing]);
+
+  const resumeDraft = useCallback(() => {
+    if (!draftOffer?.form) return;
+    setForm((prev) => ({ ...prev, ...draftOffer.form }));
+    if (draftOffer.expandedSections) setExpandedSections(draftOffer.expandedSections);
+    setDraftSavedAt(Number(draftOffer.savedAt || 0) || null);
+    setDraftOffer(null);
+  }, [draftOffer]);
+
+  const discardDraft = useCallback(() => {
+    if (draftKey) {
+      try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    }
+    setDraftOffer(null);
+    setDraftSavedAt(null);
+  }, [draftKey]);
 
   // Save draft periodically
   useEffect(() => {
@@ -338,12 +364,22 @@ export default function ProductForm(props) {
     const generation = draftGenerationRef.current;
     const interval = setInterval(() => {
       if (generation !== draftGenerationRef.current) return;
+      const hasMeaningfulContent = Boolean(
+        String(form.title || '').trim() ||
+        String(form.description || '').trim() ||
+        String(form.price || '').trim() ||
+        String(form.category || '').trim() ||
+        String(form.brand || '').trim()
+      );
+      if (!hasMeaningfulContent) return;
       try {
+        const savedAt = Date.now();
         localStorage.setItem(draftKey, JSON.stringify({
           form,
           expandedSections,
-          savedAt: Date.now()
+          savedAt
         }));
+        setDraftSavedAt(savedAt);
       } catch { /* ignore */ }
     }, 5000);
     return () => clearInterval(interval);
@@ -353,6 +389,8 @@ export default function ProductForm(props) {
   const clearDraft = useCallback(() => {
     if (!draftKey) return;
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    setDraftOffer(null);
+    setDraftSavedAt(null);
   }, [draftKey]);
 
   const resetPublishedForm = useCallback(() => {
@@ -436,6 +474,22 @@ export default function ProductForm(props) {
     });
   };
 
+  const clearFieldIssue = (name) => {
+    setFieldErrors((current) => ({ ...current, [name]: '' }));
+    setValidationSummary((current) => current.filter((field) => field.name !== name));
+  };
+
+  const focusFirstInvalidField = useCallback((missingFields) => {
+    const first = missingFields[0];
+    if (!first) return;
+    setExpandedSections((current) => ({ ...current, info: true }));
+    window.setTimeout(() => {
+      const target = fieldRefs.current[first.name];
+      target?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      target?.focus?.({ preventScroll: true });
+    }, 80);
+  }, []);
+
   useEffect(() => {
     if (!isEmbeddedMobile || !formShellRef.current) return undefined;
 
@@ -474,6 +528,15 @@ export default function ProductForm(props) {
       container.removeEventListener('focusin', handleFocusIn);
     };
   }, [isEmbeddedMobile]);
+
+  useEffect(() => {
+    const targetSection = installmentError || wholesaleError ? 'commercialisation' : warrantyError ? 'info' : '';
+    if (!targetSection) return;
+    setExpandedSections((current) => ({ ...current, [targetSection]: true }));
+    window.setTimeout(() => {
+      sectionRefs.current[targetSection]?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }, [installmentError, warrantyError, wholesaleError]);
 
   const handleImageChange = async (e) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -1530,6 +1593,19 @@ export default function ProductForm(props) {
     setWholesaleError('');
     setWarrantyError('');
 
+    const missingFields = getMissingProductFormFields(form);
+    if (missingFields.length) {
+      const nextErrors = missingFields.reduce((errors, field) => ({
+        ...errors,
+        [field.name]: `${field.label} requis.`
+      }), {});
+      setFieldErrors((current) => ({ ...current, ...nextErrors }));
+      setValidationSummary(missingFields);
+      focusFirstInvalidField(missingFields);
+      return;
+    }
+    setValidationSummary([]);
+
     if (form.socialVideoUrl?.trim() && !isValidSocialVideoUrl(form.socialVideoUrl)) {
       await appAlert('Le lien vidéo doit être un lien Facebook ou TikTok valide.');
       return;
@@ -1931,7 +2007,11 @@ export default function ProductForm(props) {
         ? initialValues.tags.filter((tag) => tag?.assignmentSource === 'ai').map((tag) => String(tag?._id || tag)).filter(Boolean)
         : [],
       price:
-        initialValues.priceBeforeDiscount !== undefined && initialValues.priceBeforeDiscount !== null
+        initialValues.pendingPriceBeforeDiscount !== undefined && initialValues.pendingPriceBeforeDiscount !== null
+          ? initialValues.pendingPriceBeforeDiscount
+          : initialValues.pendingPrice !== undefined && initialValues.pendingPrice !== null
+            ? initialValues.pendingPrice
+        : initialValues.priceBeforeDiscount !== undefined && initialValues.priceBeforeDiscount !== null
           ? initialValues.priceBeforeDiscount
           : initialValues.price || '',
       category: initialValues.category || '',
@@ -1944,7 +2024,9 @@ export default function ProductForm(props) {
       condition: initialValues.condition || 'new',
       operator: initialValues.operator || 'MTN',
       discount:
-        typeof initialValues.discount === 'number' || typeof initialValues.discount === 'string'
+        typeof initialValues.pendingDiscount === 'number' || typeof initialValues.pendingDiscount === 'string'
+          ? initialValues.pendingDiscount
+          : typeof initialValues.discount === 'number' || typeof initialValues.discount === 'string'
           ? initialValues.discount
           : '',
       installmentEnabled: Boolean(initialValues.installmentEnabled),
@@ -2122,8 +2204,6 @@ export default function ProductForm(props) {
   const headerSubtitle = isEditing
     ? 'Mettez à jour les informations de votre produit'
     : 'Remplissez les détails de votre produit pour commencer à vendre';
-  const buttonLabel =
-    submitLabel || (isEditing ? "Mettre à jour l'annonce" : "Publier l'annonce");
   const requiredFields = useMemo(
     () => ({
       title: Boolean(String(form.title || '').trim()),
@@ -2138,9 +2218,27 @@ export default function ProductForm(props) {
     [requiredFields]
   );
   const requiredTotalCount = 4;
+  const missingRequiredCount = requiredTotalCount - requiredCompletedCount;
   const completionPercent = Math.round((requiredCompletedCount / requiredTotalCount) * 100);
-  const submitDisabled =
-    loading || !requiredFields.title || !requiredFields.description || !requiredFields.category || !requiredFields.price;
+  const buttonLabel = missingRequiredCount > 0
+    ? `${missingRequiredCount} champ${missingRequiredCount > 1 ? 's' : ''} à compléter`
+    : submitLabel || (isEditing ? "Mettre à jour l'annonce" : "Publier l'annonce");
+  const submitDisabled = loading;
+  const listingReferencePrice = getHighestListingPrice();
+  const listingFeeRequiredPreview = calculateCommission();
+  const {
+    approvedReferencePrice,
+    estimatedPreviouslyPaidFee,
+    returnsToApprovedPrice,
+    additionalFee: additionalListingFeePreview
+  } = getListingFeeChangePreview({
+    isEditing,
+    approvedPrice: initialValues?.approvedPrice || initialValues?.price || 0,
+    currentReferencePrice: listingReferencePrice,
+    currentRequiredFee: listingFeeRequiredPreview,
+    previouslyPaidFee: initialValues?.listingFeePaid || 0,
+    ratePercent: commissionRatePercent
+  });
   const priceGridClass = isEditing ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2';
   const normalizedWholesalePreviewTiers = (Array.isArray(form.wholesaleTiers) ? form.wholesaleTiers : [])
     .map((tier) => ({
@@ -2198,7 +2296,7 @@ export default function ProductForm(props) {
   );
   // Unified, branded header used by every section of the form. Collapsible
   // sections fold on mobile (chevron); static sections always render expanded.
-  const renderSectionHeader = ({ id, icon: Icon, title, subtitle, collapsible = true, accent = 'orange' }) => {
+  const renderSectionHeader = ({ id, icon: Icon, title, subtitle, collapsible = true, accent = 'orange', optional = false, recommended = false }) => {
     const badgeClass = accent === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-[#FFEDE3] text-[#FF5000]';
     const badge = (
       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${badgeClass}`}>
@@ -2218,7 +2316,11 @@ export default function ProductForm(props) {
           <span className="flex min-w-0 items-center gap-3">
             {badge}
             <span className="min-w-0">
-              <span className="block text-[15px] font-black text-gray-900">{title}</span>
+              <span className="flex flex-wrap items-center gap-1.5 text-[15px] font-black text-gray-900">
+                {title}
+                {optional && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500">Facultatif</span>}
+                {recommended && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700">Recommandé</span>}
+              </span>
               {subtitle && <span className="mt-0.5 block truncate text-xs text-gray-500">{subtitle}</span>}
             </span>
           </span>
@@ -2233,7 +2335,11 @@ export default function ProductForm(props) {
       <div className="mb-4 flex items-center gap-3">
         {badge}
         <div className="min-w-0">
-          <h2 className="text-base font-black text-gray-900 sm:text-lg">{title}</h2>
+          <h2 className="flex flex-wrap items-center gap-2 text-base font-black text-gray-900 sm:text-lg">
+            {title}
+            {optional && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500">Facultatif</span>}
+            {recommended && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700">Recommandé</span>}
+          </h2>
           {subtitle && <p className="text-xs text-gray-500 sm:text-sm">{subtitle}</p>}
         </div>
       </div>
@@ -2245,15 +2351,10 @@ export default function ProductForm(props) {
   const inputClass =
     'ui-input w-full min-w-0 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400';
   const sectionProgressItems = [
-    { key: 'info', label: 'Infos', done: requiredFields.title && requiredFields.description },
-    { key: 'price', label: 'Prix', done: requiredFields.category && requiredFields.price },
-    { key: 'commercial', label: 'Commercial', done: Boolean(form.installmentEnabled || form.wholesaleEnabled) },
-    { key: 'media', label: 'Photos', done: imagePreviews.length > 0 || existingImages.length > 0 },
-    {
-      key: 'validation',
-      label: 'Validation',
-      done: requiredFields.title && requiredFields.description && requiredFields.category && requiredFields.price
-    }
+    { key: 'title', label: 'Titre', done: requiredFields.title },
+    { key: 'description', label: 'Description', done: requiredFields.description },
+    { key: 'category', label: 'Catégorie', done: requiredFields.category },
+    { key: 'price', label: 'Prix', done: requiredFields.price }
   ];
 
   // Taobao-style shared input class
@@ -2309,8 +2410,39 @@ export default function ProductForm(props) {
         </div>
       </div>
 
+      {draftOffer && !isEditing && (
+        <div className="mx-4 mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-950" role="status">
+          <div className="flex items-start gap-3">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-sky-700" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black">Brouillon retrouvé</p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-sky-800">
+                {draftOffer.savedAt
+                  ? `Enregistré le ${new Date(draftOffer.savedAt).toLocaleString('fr-FR')}. Les photos locales devront être ajoutées à nouveau.`
+                  : 'Reprenez votre annonce là où vous vous étiez arrêté.'}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={resumeDraft} className="min-h-10 rounded-full bg-sky-700 px-4 text-xs font-black text-white">
+                  Reprendre
+                </button>
+                <button type="button" onClick={discardDraft} className="min-h-10 rounded-full bg-white px-4 text-xs font-black text-sky-800 ring-1 ring-sky-200">
+                  Ignorer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!draftOffer && draftSavedAt && !isEditing && (
+        <p className="px-4 pt-2 text-right text-[11px] font-semibold text-emerald-700" aria-live="polite">
+          Brouillon enregistré à {new Date(draftSavedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
+
       <form
         onSubmit={submit}
+        noValidate
         aria-busy={loading}
         lang="fr"
         spellCheck="true"
@@ -2325,7 +2457,7 @@ export default function ProductForm(props) {
         }`}
       >
         {/* Section Informations de base */}
-        <div className={sectionShellClass}>
+        <div ref={(node) => { sectionRefs.current.info = node; }} className={sectionShellClass}>
           {renderSectionHeader({
             id: 'info',
             icon: FileText,
@@ -2341,10 +2473,11 @@ export default function ProductForm(props) {
               <span>Titre de l'annonce *</span>
             </label>
             <input
+              ref={(node) => { fieldRefs.current.title = node; }}
               className={`${inputClass} min-h-[50px] text-base ${fieldErrors.title ? 'border-red-300 ring-1 ring-red-200' : ''}`}
               placeholder="Ex: iPhone 13 Pro Max 256GB - État neuf"
               value={form.title}
-              onChange={(e) => { setForm({ ...form, title: e.target.value }); setFieldErrors((p) => ({ ...p, title: '' })); }}
+              onChange={(e) => { setForm({ ...form, title: e.target.value }); clearFieldIssue('title'); }}
               onBlur={handleBlur('title')}
               required
             />
@@ -2358,11 +2491,12 @@ export default function ProductForm(props) {
               <span>Description détaillée *</span>
             </label>
             <textarea
+              ref={(node) => { fieldRefs.current.description = node; }}
               rows={4}
               className={`${inputClass} resize-none ${fieldErrors.description ? 'border-red-300 ring-1 ring-red-200' : ''}`}
               placeholder="Décrivez votre produit en détail : caractéristiques, état, accessoires inclus..."
               value={form.description}
-              onChange={(e) => { setForm({ ...form, description: e.target.value }); setFieldErrors((p) => ({ ...p, description: '' })); }}
+              onChange={(e) => { setForm({ ...form, description: e.target.value }); clearFieldIssue('description'); }}
               onBlur={handleBlur('description')}
               required
             />
@@ -2408,9 +2542,10 @@ export default function ProductForm(props) {
                 <span>Catégorie *</span>
               </label>
               <select
-                className={inputClass}
+                ref={(node) => { fieldRefs.current.category = node; }}
+                className={`${inputClass} ${fieldErrors.category ? 'border-red-300 ring-1 ring-red-200' : ''}`}
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => { setForm({ ...form, category: e.target.value }); clearFieldIssue('category'); }}
                 required
               >
                 <option value="">Sélectionnez une catégorie</option>
@@ -2424,6 +2559,7 @@ export default function ProductForm(props) {
                   </optgroup>
                 ))}
               </select>
+              {fieldErrors.category && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.category}</p>}
             </div>
 
             {/* Prix */}
@@ -2433,11 +2569,12 @@ export default function ProductForm(props) {
                 <span>Prix *</span>
               </label>
               <input
+                ref={(node) => { fieldRefs.current.price = node; }}
                 type="number"
                 className={`${inputClass} ${fieldErrors.price ? 'border-red-300 ring-1 ring-red-200' : ''}`}
                 placeholder="Ex: 250000"
                 value={form.price}
-                onChange={(e) => { setForm({ ...form, price: e.target.value }); setFieldErrors((p) => ({ ...p, price: '' })); }}
+                onChange={(e) => { setForm({ ...form, price: e.target.value }); clearFieldIssue('price'); }}
                 onBlur={handleBlur('price')}
                 required
                 min="0"
@@ -2747,12 +2884,13 @@ export default function ProductForm(props) {
         </div>
 
         {/* Section Commercialisation */}
-        <div className={sectionShellClass}>
+        <div ref={(node) => { sectionRefs.current.commercialisation = node; }} className={sectionShellClass}>
           {renderSectionHeader({
             id: 'commercialisation',
             icon: Megaphone,
             title: 'Commercialisation',
-            subtitle: 'Outils de vente optionnels — activez seulement ce dont vous avez besoin.'
+            subtitle: 'Outils de vente avancés — activez seulement ce dont vous avez besoin.',
+            optional: true
           })}
 
           {(!isMobile || expandedSections.commercialisation) && (
@@ -3122,12 +3260,13 @@ export default function ProductForm(props) {
           )}
         </div>
 
-        <div className={sectionShellClass}>
+        <div ref={(node) => { sectionRefs.current.options = node; }} className={sectionShellClass}>
           {renderSectionHeader({
             id: 'options',
             icon: Package,
             title: 'Options & dimensions',
-            subtitle: 'Ajoutez seulement les options utiles à la commande.'
+            subtitle: 'Ajoutez seulement les options utiles à la commande.',
+            optional: true
           })}
 
           {(!isMobile || expandedSections.options) && (
@@ -3375,7 +3514,8 @@ export default function ProductForm(props) {
             id: 'images',
             icon: Camera,
             title: 'Photos & variantes',
-            subtitle: 'Chaque photo peut devenir une variante : option et prix sous l’image.'
+            subtitle: 'Chaque photo peut devenir une variante : option et prix sous l’image.',
+            recommended: true
           })}
 
           {/* Image upload content - shown on desktop always, on mobile when expanded */}
@@ -3911,41 +4051,80 @@ export default function ProductForm(props) {
           </div>
         )}
 
-        {!isEditing && (
-          <div className={sectionShellClass}>
+        <div className={sectionShellClass}>
             {renderSectionHeader({
               icon: ShieldCheck,
               collapsible: false,
               accent: 'amber',
-              title: "Validation de l'annonce",
-              subtitle: 'Résumé des frais avant publication.'
+              title: "Vérification de l'annonce",
+              subtitle: isEditing
+                ? 'Consultez le statut prévu avant d’enregistrer.'
+                : 'Résumé des frais et du statut avant publication.'
             })}
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-start space-x-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="space-y-3 flex-1">
-                  <h3 className="font-semibold text-amber-800 text-sm">Commission de publication</h3>
-                  <p className="text-amber-700 text-sm">
-                    Pour valider votre annonce, payez <span className="font-bold">{formatPriceWithStoredSettings(calculateCommission())}</span> ({commissionRateLabel}% du prix de référence).
-                  </p>
+                  <h3 className="text-sm font-black text-amber-900">
+                    {isEditing ? 'Impact de cette modification' : 'Commission de publication'}
+                  </h3>
+                  {isEditing ? (
+                    <div className="space-y-2 text-sm text-amber-800">
+                      <div className="grid grid-cols-2 gap-2 rounded-xl border border-amber-200 bg-white p-3">
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-500">Prix approuvé</p>
+                          <p className="font-black text-gray-950">{formatPriceWithStoredSettings(approvedReferencePrice)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-500">Nouveau prix de référence</p>
+                          <p className="font-black text-gray-950">{formatPriceWithStoredSettings(listingReferencePrice)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-500">Frais déjà couverts</p>
+                          <p className="font-black text-gray-950">{formatPriceWithStoredSettings(estimatedPreviouslyPaidFee)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-500">Différence estimée</p>
+                          <p className="font-black text-[#e85d00]">{formatPriceWithStoredSettings(additionalListingFeePreview)}</p>
+                        </div>
+                      </div>
+                      <div className={`rounded-xl border px-3 py-2.5 font-bold ${
+                        additionalListingFeePreview > 0
+                          ? 'border-orange-200 bg-orange-100 text-orange-900'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      }`}>
+                        {returnsToApprovedPrice
+                          ? 'Aucun paiement supplémentaire : ce prix correspond au prix approuvé et l’annonce retrouvera le statut approuvé.'
+                          : additionalListingFeePreview > 0
+                            ? `Après enregistrement : paiement complémentaire requis (${formatPriceWithStoredSettings(additionalListingFeePreview)}). L’ancien prix reste visible jusqu’au paiement.`
+                            : 'Aucun paiement supplémentaire : l’annonce restera ou redeviendra approuvée après enregistrement.'}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-amber-800">
+                      Pour valider votre annonce, payez <span className="font-black">{formatPriceWithStoredSettings(listingFeeRequiredPreview)}</span> ({commissionRateLabel}% du prix de référence).
+                    </p>
+                  )}
                   <div className="rounded-xl border border-amber-200 bg-white px-3 py-2.5">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xs font-semibold text-gray-600">Prix retenu pour le calcul</span>
                       <span className="text-sm font-black text-gray-950">
-                        {formatPriceWithStoredSettings(getHighestListingPrice())}
+                        {formatPriceWithStoredSettings(listingReferencePrice)}
                       </span>
                     </div>
                     <p className="mt-1 text-[11px] font-medium leading-4 text-gray-500">
-                      {getHighestListingPrice() > getEffectiveBaseListingPrice()
+                      {listingReferencePrice > getEffectiveBaseListingPrice()
                         ? 'Votre annonce contient plusieurs prix : l’option la plus élevée est utilisée pour calculer les frais.'
                         : 'Le prix principal est le prix le plus élevé de cette annonce.'}
                     </p>
                   </div>
 
-                  <p className="text-amber-700 text-sm">
-                    Le paiement et les codes promo sont disponibles depuis la fiche de l’annonce dans <span className="font-semibold">/my</span>.
-                  </p>
+                  {!isEditing && (
+                    <p className="text-sm text-amber-800">
+                      Le paiement et les codes promo seront disponibles depuis la fiche de l’annonce dans <span className="font-semibold">Mes annonces</span>.
+                    </p>
+                  )}
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Le règlement est sécurisé par PawaPay et confirmé automatiquement.</span>
@@ -3953,8 +4132,7 @@ export default function ProductForm(props) {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+        </div>
 
         {/* Preview Section */}
         {(form.title || imagePreviews.length > 0 || existingImages.length > 0) && (
@@ -4020,6 +4198,22 @@ export default function ProductForm(props) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {validationSummary.length > 0 && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4" role="alert" aria-live="assertive">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <div>
+                <p className="text-sm font-black text-red-900">
+                  {validationSummary.length} champ{validationSummary.length > 1 ? 's' : ''} à compléter
+                </p>
+                <ul className="mt-1 list-disc pl-4 text-xs font-semibold text-red-700">
+                  {validationSummary.map((field) => <li key={field.name}>{field.label}</li>)}
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 

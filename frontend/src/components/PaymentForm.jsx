@@ -46,18 +46,26 @@ const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 export default function PaymentForm({ product, onSubmitted }) {
   const { commissionRatePercent, commissionRateLabel } = useCommissionRate();
   const submitIdempotencyKeyRef = useRef('');
+  const isReconciliation =
+    Boolean(product?.requiresAdditionalPayment) && product?.pendingPrice !== null && product?.pendingPrice !== undefined;
   const listingReferencePrice = useMemo(
     () =>
-      getHighestProductPrice({
-        productAttributes: product?.attributes || [],
-        basePrice: product?.price || 0
-      }),
-    [product?.attributes, product?.price]
+      isReconciliation
+        ? Number(product?.pendingPrice || 0)
+        : getHighestProductPrice({
+            productAttributes: product?.attributes || [],
+            basePrice: product?.price || 0
+          }),
+    [isReconciliation, product?.attributes, product?.pendingPrice, product?.price]
   );
-  const usesHighestOptionPrice = listingReferencePrice > Number(product?.price || 0);
+  const usesHighestOptionPrice =
+    !isReconciliation && listingReferencePrice > Number(product?.price || 0);
   const expected = useMemo(
-    () => Math.round(listingReferencePrice * (commissionRatePercent / 100) * 100) / 100,
-    [commissionRatePercent, listingReferencePrice]
+    () =>
+      isReconciliation
+        ? Number(product?.listingFeeRemaining || 0)
+        : Math.round(listingReferencePrice * (commissionRatePercent / 100) * 100) / 100,
+    [commissionRatePercent, isReconciliation, listingReferencePrice, product?.listingFeeRemaining]
   );
 
   const [form, setForm] = useState({
@@ -79,7 +87,7 @@ export default function PaymentForm({ product, onSubmitted }) {
   const normalizedPromoCode = (form.promoCode || '').trim().toUpperCase();
   const isValidatedPromo = promoState.status === 'valid' && promoState.code === normalizedPromoCode;
 
-  const commission = isValidatedPromo
+  const commission = !isReconciliation && isValidatedPromo
     ? promoState.commission
     : emptyCommission(expected);
 
@@ -122,6 +130,18 @@ export default function PaymentForm({ product, onSubmitted }) {
     const normalizedTransaction = String(transactionNumber || '').replace(/\D/g, '').trim();
     if (!productId) return false;
     try {
+      if (isReconciliation) {
+        const { data } = await api.get(`/payments/listing-fees/product/${productId}`, {
+          skipCache: true,
+          skipDedupe: true,
+          timeout: 15_000,
+          headers: { 'x-skip-cache': '1', 'x-skip-dedupe': '1' }
+        });
+        return Boolean(
+          data?.submittedAt &&
+            (!normalizedTransaction || String(data?.transactionReference || '') === normalizedTransaction)
+        );
+      }
       const { data } = await api.get('/payments/me', {
         skipCache: true,
         skipDedupe: true,
@@ -145,8 +165,14 @@ export default function PaymentForm({ product, onSubmitted }) {
     }
   };
 
-  const paymentStatus = product.payment?.status || null;
-  const hasPayment = Boolean(product.payment);
+  const paymentStatus = isReconciliation
+    ? product.listingFeeStatus === 'UNDER_REVIEW'
+      ? 'waiting'
+      : null
+    : product.payment?.status || null;
+  const hasPayment = isReconciliation
+    ? product.listingFeeStatus === 'UNDER_REVIEW'
+    : Boolean(product.payment);
 
   const validatePromo = async () => {
     if (!normalizedPromoCode) {
@@ -189,7 +215,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     e.preventDefault();
     if (hasPayment || loading) return;
 
-    if (normalizedPromoCode && !isValidatedPromo) {
+    if (!isReconciliation && normalizedPromoCode && !isValidatedPromo) {
       appAlert('Veuillez valider le code promo avant de soumettre le paiement.');
       return;
     }
@@ -258,7 +284,7 @@ export default function PaymentForm({ product, onSubmitted }) {
         paymentMethod: hasCommissionDue ? 'mobile_money' : 'promo'
       };
 
-      if (isValidatedPromo) {
+      if (!isReconciliation && isValidatedPromo) {
         payload.promoCode = normalizedPromoCode;
       }
 
@@ -272,7 +298,18 @@ export default function PaymentForm({ product, onSubmitted }) {
         submitIdempotencyKeyRef.current = createIdempotencyKey(`listing-payment-${product._id}`);
       }
 
-      const { data } = await api.post('/payments', payload, {
+      const endpoint = isReconciliation
+        ? `/payments/listing-fees/product/${product._id}/submit`
+        : '/payments';
+      const requestPayload = isReconciliation
+        ? {
+            payerName,
+            paymentMethod: form.operator,
+            transactionReference: digitsOnly,
+            amountPaid: safeCommissionDue
+          }
+        : payload;
+      const { data } = await api.post(endpoint, requestPayload, {
         silentGlobalError: true,
         timeout: 45_000,
         headers: {
@@ -367,7 +404,16 @@ export default function PaymentForm({ product, onSubmitted }) {
     }
   };
 
-  const statusConfig = paymentStatusConfig[paymentStatus] || {
+  const statusConfig = isReconciliation && paymentStatus === 'waiting'
+    ? {
+        title: 'Complément en cours de vérification',
+        description:
+          'Votre prix actuel reste visible. Le nouveau prix sera publié automatiquement après validation du complément.',
+        icon: Clock,
+        tone: 'bg-amber-50 border-amber-200 text-amber-800',
+        iconColor: 'text-amber-500'
+      }
+    : paymentStatusConfig[paymentStatus] || {
     title: 'Paiement enregistré',
     description: 'Statut en cours de mise à jour.',
     icon: Clock,
@@ -377,9 +423,15 @@ export default function PaymentForm({ product, onSubmitted }) {
 
   if (hasPayment) {
     const StatusIcon = statusConfig.icon;
-    const paidCommissionBase = Number(product.payment?.commissionBaseAmount ?? expected);
-    const paidCommissionDiscount = Number(product.payment?.commissionDiscountAmount ?? 0);
-    const paidCommissionDue = Number(product.payment?.commissionDueAmount ?? product.payment?.amount ?? expected);
+    const paidCommissionBase = isReconciliation
+      ? Number(product.listingFeeRequired || 0)
+      : Number(product.payment?.commissionBaseAmount ?? expected);
+    const paidCommissionDiscount = isReconciliation
+      ? 0
+      : Number(product.payment?.commissionDiscountAmount ?? 0);
+    const paidCommissionDue = isReconciliation
+      ? Number(product.listingFeeRemaining || expected)
+      : Number(product.payment?.commissionDueAmount ?? product.payment?.amount ?? expected);
 
     return (
       <div className="hd-my-flow max-w-2xl mx-auto">
@@ -413,9 +465,11 @@ export default function PaymentForm({ product, onSubmitted }) {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500 dark:text-slate-400">Prix du produit:</span>
-                <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(product.price)}</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">
+                  {formatCurrency(isReconciliation ? product.pendingPrice : product.price)}
+                </span>
               </div>
-              {product.payment?.promoCodeValue && (
+              {!isReconciliation && product.payment?.promoCodeValue && (
                 <div className="flex justify-between">
                   <span className="text-gray-500 dark:text-slate-400">Code promo:</span>
                   <span className="font-semibold text-emerald-700">{product.payment.promoCodeValue}</span>
@@ -468,17 +522,27 @@ export default function PaymentForm({ product, onSubmitted }) {
         <div className="w-16 h-16 bg-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <CreditCard className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">Validation de l'annonce</h1>
-        <p className="text-gray-500 dark:text-slate-400">Finalisez votre publication en payant la commission</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+          {isReconciliation ? 'Complément de frais de publication' : "Validation de l'annonce"}
+        </h1>
+        <p className="text-gray-500 dark:text-slate-400">
+          {isReconciliation
+            ? `Le prix actuel reste à ${formatCurrency(product.price)} jusqu’à validation.`
+            : 'Finalisez votre publication en payant la commission'}
+        </p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 space-y-6">
         <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4 dark:border-slate-700 dark:bg-slate-900/70">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-neutral-900 dark:text-slate-100">Commission de publication</h3>
+              <h3 className="text-sm font-semibold text-neutral-900 dark:text-slate-100">
+                {isReconciliation ? 'Différence de commission' : 'Commission de publication'}
+              </h3>
               <p className="text-xs text-neutral-700 dark:text-slate-300">
-                Base {commissionRateLabel}% du {usesHighestOptionPrice ? 'prix d’option le plus élevé' : 'prix du produit'}
+                {isReconciliation
+                  ? `${formatCurrency(product.listingFeePaid || 0)} déjà réglés sur ${formatCurrency(product.listingFeeRequired || 0)}`
+                  : `Base ${commissionRateLabel}% du ${usesHighestOptionPrice ? 'prix d’option le plus élevé' : 'prix du produit'}`}
               </p>
             </div>
             <div className="text-right">
@@ -508,7 +572,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-4 space-y-3">
+        {!isReconciliation && <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-4 space-y-3">
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
             <Ticket className="w-4 h-4 text-neutral-600" />
             Code promo commission
@@ -536,7 +600,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               {promoState.message || 'Code en attente de validation.'}
             </div>
           )}
-        </div>
+        </div>}
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-start space-x-3">
@@ -545,7 +609,9 @@ export default function PaymentForm({ product, onSubmitted }) {
               <h3 className="font-semibold text-amber-800 text-sm">Instructions de paiement</h3>
               {hasCommissionDue ? (
                 <p className="text-amber-700 text-sm">
-                  Utilisez PawaPay avec MTN MoMo ou Airtel Money. La confirmation est automatique et aucun ID de transaction n’est demandé.
+                  {isReconciliation
+                    ? `Envoyez uniquement la différence de ${formatCurrency(commissionDue)}, puis saisissez la référence reçue par SMS.`
+                    : 'Utilisez PawaPay avec MTN MoMo ou Airtel Money. La confirmation est automatique et aucun ID de transaction n’est demandé.'}
                 </p>
               ) : (
                 <p className="text-amber-700 text-sm">
@@ -557,7 +623,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         </div>
 
-        {hasCommissionDue && (
+        {hasCommissionDue && !isReconciliation && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
             <p className="text-sm font-black text-emerald-900">Payer avec PawaPay</p>
             <p className="mb-3 mt-1 text-xs font-semibold leading-5 text-emerald-800">
@@ -592,7 +658,7 @@ export default function PaymentForm({ product, onSubmitted }) {
           </div>
         )}
 
-        {!hasCommissionDue && <form onSubmit={submit} className="space-y-4">
+        {(isReconciliation || !hasCommissionDue) && <form onSubmit={submit} className="space-y-4">
           {hasCommissionDue && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3">
@@ -722,7 +788,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               <>
                 <Send className="w-5 h-5" />
                 <span>
-                  {hasCommissionDue ? 'Soumettre le paiement' : 'Soumettre la validation promo'}
+                  {hasCommissionDue ? 'Soumettre le complément' : 'Soumettre la validation promo'}
                 </span>
               </>
             )}

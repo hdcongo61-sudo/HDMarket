@@ -384,7 +384,7 @@ export default function Sponsorships() {
     <div className="min-h-screen bg-[#f5f5f5] pb-16 dark:bg-neutral-950">
       <GlassHeader title="Paiement par un proche" subtitle="Demandes reçues et envoyées" backTo="/orders" />
 
-      <main className="mx-auto max-w-2xl space-y-3 px-4 py-4">
+      <div className="mx-auto max-w-2xl space-y-3 px-4 py-4">
         <div className="flex gap-2">
           <button
             type="button"
@@ -413,7 +413,7 @@ export default function Sponsorships() {
         ) : (
           list.map((req) => (tab === 'incoming' ? renderIncoming(req) : renderSent(req)))
         )}
-      </main>
+      </div>
 
       <BaseModal
         isOpen={Boolean(confirmAction)}
