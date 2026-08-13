@@ -9,6 +9,9 @@ const siteSettingSchema = new mongoose.Schema(
     appLogoMobile: { type: String, default: '' },
     appIcon: { type: String, default: '' },
     appFavicon: { type: String, default: '' },
+    // Distinct from appLogo*: shown only on Register/Login, independent of
+    // the navbar/site-wide brand mark. Falls back to the site logo when unset.
+    authLogo: { type: String, default: '' },
     promoBanner: { type: String, default: '' },
     promoBannerMobile: { type: String, default: '' },
     promoBannerLink: { type: String, default: '' },

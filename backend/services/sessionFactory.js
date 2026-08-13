@@ -68,6 +68,7 @@ export function buildSession(user, decoded = {}, token = '') {
     phone: safeString(user.phone),
     phoneVerified: toBool(user.phoneVerified),
     email: safeString(user.email),
+    emailVerified: toBool(user.emailVerified),
     name: safeString(user.name),
 
     // ── Permissions ──

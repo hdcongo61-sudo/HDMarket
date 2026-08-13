@@ -6,15 +6,16 @@ import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 const APP_LOGO_CACHE_KEY = 'hdmarket:brand-logos';
 
 const readCachedLogos = () => {
-  if (typeof window === 'undefined') return { mobile: '', desktop: '' };
+  if (typeof window === 'undefined') return { mobile: '', desktop: '', auth: '' };
   try {
     const cached = JSON.parse(window.localStorage.getItem(APP_LOGO_CACHE_KEY) || '{}');
     return {
       mobile: String(cached?.mobile || ''),
-      desktop: String(cached?.desktop || '')
+      desktop: String(cached?.desktop || ''),
+      auth: String(cached?.auth || '')
     };
   } catch {
-    return { mobile: '', desktop: '' };
+    return { mobile: '', desktop: '', auth: '' };
   }
 };
 
@@ -43,7 +44,8 @@ export default function useAppBrandLogo() {
       setLogos((prev) => {
         const next = {
           mobile: event?.detail?.appLogoMobile || prev.mobile,
-          desktop: event?.detail?.appLogoDesktop || prev.desktop
+          desktop: event?.detail?.appLogoDesktop || prev.desktop,
+          auth: event?.detail?.authLogo || prev.auth
         };
         cacheLogos(next);
         return next;
@@ -60,7 +62,8 @@ export default function useAppBrandLogo() {
         if (!active) return;
         const next = {
           mobile: res?.data?.appLogoMobile || '',
-          desktop: res?.data?.appLogoDesktop || ''
+          desktop: res?.data?.appLogoDesktop || '',
+          auth: res?.data?.authLogo || ''
         };
         cacheLogos(next);
         setLogos(next);
@@ -87,10 +90,15 @@ export default function useAppBrandLogo() {
     return logos.desktop || logos.mobile || getFallbackLogo();
   }, [isMobile, logos.desktop, logos.mobile]);
 
+  // Register/Login-only logo, set independently in Admin App Settings.
+  // Falls back to the site-wide logo (then the favicon) when unset.
+  const resolvedAuthLogo = logos.auth || resolvedLogo;
+
   return {
     isMobile,
     logoSrc: resolvedLogo,
     mobileLogo: logos.mobile || '',
-    desktopLogo: logos.desktop || ''
+    desktopLogo: logos.desktop || '',
+    authLogoSrc: resolvedAuthLogo
   };
 }

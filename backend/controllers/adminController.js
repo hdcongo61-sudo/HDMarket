@@ -42,8 +42,10 @@ const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
     return {
       id: user._id.toString(),
       name: user.name,
-      email: user.email,
+      email: user.email || null,
+      emailVerified: Boolean(user.emailVerified),
       phone: user.phone,
+      phoneVerified: Boolean(user.phoneVerified),
       role: user.role,
       betaTester: Boolean(user.betaTester),
       betaTesterApplication: {
@@ -1105,7 +1107,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .select(
-      'name email phone role accountType gender city preferredCity shopName slug shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isActive deactivatedAt deactivationReason reactivationRequest betaTester betaTesterApplication isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
+      'name email emailVerified phone phoneVerified role accountType gender city preferredCity shopName slug shopAddress shopLogo profileImage shopVerified shopVerifiedBy shopVerifiedAt shopLocation shopLocationAccuracy shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags shopLocationHistory createdAt updatedAt isActive deactivatedAt deactivationReason reactivationRequest betaTester betaTesterApplication isBlocked blockedAt blockedReason followersCount restrictions canReadFeedback canVerifyPayments canManageBoosts canManageComplaints canManageProducts canManageDelivery canManageHelpCenter canManageChatTemplates'
     )
     .populate('shopVerifiedBy', 'name email');
 

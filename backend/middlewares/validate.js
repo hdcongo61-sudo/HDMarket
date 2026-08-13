@@ -83,10 +83,12 @@ const selectedAttributeSchema = Joi.object({
 export const schemas = {
   register: Joi.object({
     name: Joi.string().min(2).max(60).required(),
-    email: Joi.string().email().required(),
+    // Phone-first registration: email is optional, added later from the profile.
+    email: Joi.string().email().allow('', null),
     password: Joi.string().min(6).max(100).required(),
     phone: Joi.string().min(5).max(30).required(),
-    // Optional in production (email verification disabled)
+    // Legacy field name, still accepted but unused now that phone
+    // verification is proven server-side via hasRecentlyVerifiedPhone.
     verificationCode: Joi.string().min(0).max(10).optional(),
     role: Joi.string().valid('user', 'admin', 'manager').optional(),
     accountType: Joi.string().valid('person').default('person'),
@@ -105,6 +107,13 @@ export const schemas = {
     email: Joi.string().email(),
     phone: Joi.string().min(5).max(30)
   }).or('email', 'phone'),
+  registerPhoneSendCode: Joi.object({
+    phone: Joi.string().min(5).max(30).required()
+  }),
+  registerPhoneVerifyCode: Joi.object({
+    phone: Joi.string().min(5).max(30).required(),
+    verificationCode: Joi.string().min(3).max(10).required()
+  }),
   login: Joi.object({
     email: Joi.string().trim().email(),
     phone: Joi.string().trim().min(5).max(30),
@@ -157,6 +166,14 @@ export const schemas = {
   }).or('email', 'phone'),
   passwordForgotLink: Joi.object({
     email: Joi.string().email().required()
+  }),
+  passwordForgotPhone: Joi.object({
+    phone: Joi.string().min(5).max(30).required()
+  }),
+  passwordResetPhone: Joi.object({
+    phone: Joi.string().min(5).max(30).required(),
+    verificationCode: Joi.string().min(3).max(10).required(),
+    newPassword: Joi.string().min(6).max(100).required()
   }),
   passwordResetToken: Joi.object({
     token: Joi.string().min(10).required(),
@@ -348,6 +365,12 @@ export const schemas = {
     communeId: Joi.string().hex().length(24).allow('', null),
     gender: Joi.string().valid('homme', 'femme')
   }).min(0),
+  profileEmailAdd: Joi.object({
+    email: Joi.string().email().required()
+  }),
+  profileEmailVerify: Joi.object({
+    verificationCode: Joi.string().min(3).max(10).required()
+  }),
   shopLocationUpdate: Joi.object({
     latitude: Joi.number().min(-90).max(90).required(),
     longitude: Joi.number().min(-180).max(180).required(),

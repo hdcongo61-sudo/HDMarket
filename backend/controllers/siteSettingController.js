@@ -51,7 +51,10 @@ export const getAppLogo = asyncHandler(async (req, res) => {
     appLogoDesktop: settings?.appLogoDesktop || legacyLogo,
     appLogoMobile: settings?.appLogoMobile || legacyLogo,
     appIcon: settings?.appIcon || '',
-    appFavicon: settings?.appFavicon || ''
+    appFavicon: settings?.appFavicon || '',
+    // Register/Login only — independent of the two fields above; falls back
+    // to them client-side when unset, so this key can legitimately be empty.
+    authLogo: settings?.authLogo || ''
   });
 });
 
@@ -217,6 +220,7 @@ export const updateAppLogoDesktop = createAppLogoUpdater('appLogoDesktop', 'desk
 export const updateAppLogoMobile = createAppLogoUpdater('appLogoMobile', 'mobile');
 export const updateAppIcon = createAppLogoUpdater('appIcon', 'icon');
 export const updateAppFavicon = createAppLogoUpdater('appFavicon', 'favicon');
+export const updateAuthLogo = createAppLogoUpdater('authLogo', 'auth');
 
 export const updatePromoBanner = asyncHandler(async (req, res) => {
   const promoBannerFile = req.files?.promoBanner?.[0] || req.file || null;

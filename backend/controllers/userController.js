@@ -35,6 +35,11 @@ import {
   isEmailConfigured,
   sendVerificationCode
 } from '../utils/firebaseVerification.js';
+import {
+  checkPhoneVerificationCode,
+  isPhoneOtpConfigured,
+  sendPhoneVerificationCode
+} from '../utils/phoneVerification.js';
 import { resolvePermissionsForUser } from '../services/rbacService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
@@ -189,7 +194,8 @@ const formatShopLocation = (user = {}) => {
 const sanitizeUser = (user) => ({
   _id: user._id,
   name: user.name,
-  email: user.email,
+  email: user.email || null,
+  emailVerified: Boolean(user.emailVerified),
   phone: user.phone,
   phoneVerified: Boolean(user.phoneVerified),
   role: user.role,
@@ -1148,6 +1154,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Email déjà utilisé' });
     }
     user.email = normalizedEmail;
+    // Any email change (including via this generic form) must be reverified —
+    // the dedicated Profile "Add Email" flow is what actually confirms it.
+    user.emailVerified = false;
   }
 
   if (typeof phone !== 'undefined') {
@@ -1699,13 +1708,26 @@ export const updateProfileLocation = asyncHandler(async (req, res) => {
 });
 
 export const sendPasswordChangeCode = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id).select('email phone');
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+
+  // Phone-only accounts (no email added yet) verify the password change by
+  // SMS instead — the account must stay fully usable without an email.
+  if (!user.email) {
+    if (!isPhoneOtpConfigured()) {
+      return res.status(503).json({
+        message: 'L’envoi de SMS n’est pas configuré. Définissez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_FROM_NUMBER.'
+      });
+    }
+    await sendPhoneVerificationCode(user.phone, 'password_change');
+    return res.json({ message: 'Code de vérification envoyé par SMS.' });
+  }
+
   // In production: skip sending verification email to facilitate testing
   const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction) {
-    const user = await User.findById(req.user.id).select('email');
-    if (!user || !user.email) {
-      return res.status(404).json({ message: 'Utilisateur introuvable ou email manquant.' });
-    }
     return res.json({ message: 'En production, changement de mot de passe possible sans code pour les tests.' });
   }
   if (!isEmailConfigured()) {
@@ -1714,40 +1736,113 @@ export const sendPasswordChangeCode = asyncHandler(async (req, res) => {
         "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
     });
   }
-  const user = await User.findById(req.user.id).select('email');
-  if (!user || !user.email) {
-    return res.status(404).json({ message: 'Utilisateur introuvable ou email manquant.' });
-  }
   await sendVerificationCode(user.email, 'password_change');
   res.json({ message: 'Code de vérification envoyé par email.' });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { verificationCode, newPassword } = req.body;
-  // In production: skip email verification check to facilitate testing
-  const isProduction = process.env.NODE_ENV === 'production';
-  if (!isProduction && !isEmailConfigured()) {
-    return res.status(503).json({
-      message:
-        "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
-    });
+  const user = await User.findById(req.user.id).select('email phone');
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
-  const user = await User.findById(req.user.id).select('email');
-  if (!user || !user.email) {
-    return res.status(404).json({ message: 'Utilisateur introuvable ou email manquant.' });
-  }
-  if (!isProduction) {
-    const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'password_change');
+
+  if (!user.email) {
+    const verificationCheck = await checkPhoneVerificationCode(user.phone, verificationCode, 'password_change');
     if (verificationCheck?.status !== 'approved') {
-      return res.status(400).json({ 
-        message: verificationCheck?.message || 'Code de vérification invalide.' 
+      return res.status(400).json({
+        message: verificationCheck?.message || 'Code de vérification invalide.'
       });
+    }
+  } else {
+    // In production: skip email verification check to facilitate testing
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!isProduction && !isEmailConfigured()) {
+      return res.status(503).json({
+        message:
+          "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
+      });
+    }
+    if (!isProduction) {
+      const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'password_change');
+      if (verificationCheck?.status !== 'approved') {
+        return res.status(400).json({
+          message: verificationCheck?.message || 'Code de vérification invalide.'
+        });
+      }
     }
   }
   user.password = newPassword;
   user.phoneVerified = true;
   await user.save();
   res.json({ message: 'Mot de passe mis à jour.' });
+});
+
+// Profile "Add Email Address" card — validate format + uniqueness, save
+// immediately as unverified, then best-effort send a verification code
+// (skipped silently if SMTP isn't configured, matching the rest of the
+// email infrastructure's graceful-degradation pattern).
+export const addProfileEmail = asyncHandler(async (req, res) => {
+  const rawEmail = String(req.body?.email || '').trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!rawEmail || !emailRegex.test(rawEmail)) {
+    return res.status(400).json({ message: 'Adresse email invalide.' });
+  }
+
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+
+  const exists = await User.findOne({ email: rawEmail });
+  if (exists && String(exists._id) !== String(user._id)) {
+    return res.status(400).json({ message: 'Cette adresse email est déjà utilisée.' });
+  }
+
+  user.email = rawEmail;
+  user.emailVerified = false;
+  await user.save();
+  await invalidateUserCache(user._id, ['users']);
+
+  let verificationSent = false;
+  if (isEmailConfigured()) {
+    try {
+      await sendVerificationCode(rawEmail, 'profile_email_add');
+      verificationSent = true;
+    } catch {
+      // Email was still saved — verification can be retried from the profile.
+    }
+  }
+
+  res.json({
+    message: verificationSent
+      ? 'Adresse email ajoutée. Un code de vérification a été envoyé.'
+      : 'Adresse email ajoutée.',
+    verificationSent,
+    user: sanitizeUser(user)
+  });
+});
+
+export const verifyProfileEmail = asyncHandler(async (req, res) => {
+  const verificationCode = String(req.body?.verificationCode || '').trim();
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (!user.email) {
+    return res.status(400).json({ message: 'Aucune adresse email à vérifier.' });
+  }
+  if (user.emailVerified) {
+    return res.json({ message: 'Cette adresse email est déjà vérifiée.', user: sanitizeUser(user) });
+  }
+
+  const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'profile_email_add');
+  if (verificationCheck?.status !== 'approved') {
+    return res.status(400).json({
+      message: verificationCheck?.message || 'Code de vérification invalide.'
+    });
+  }
+
+  user.emailVerified = true;
+  await user.save();
+  await invalidateUserCache(user._id, ['users']);
+  res.json({ message: 'Votre email a été vérifié avec succès.', user: sanitizeUser(user) });
 });
 
 const NOTIFICATION_TITLES = Object.freeze({

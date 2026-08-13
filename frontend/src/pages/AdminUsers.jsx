@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, UserX, AlertCircle, MapPin, Truck, Clock } from 'lucide-react';
+import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, UserX, AlertCircle, MapPin, Truck, Clock, Phone, Mail } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -1842,7 +1842,30 @@ export default function AdminUsers() {
                           <p className="truncate text-sm font-semibold text-neutral-900">{user.name}</p>
                           {user.accountType === 'shop' && <VerifiedBadge verified={Boolean(user.shopVerified)} />}
                         </div>
-                        <p className="truncate text-xs text-neutral-500">{user.email}</p>
+                        <div className="space-y-0.5">
+                          <p className="flex items-center gap-1 truncate text-xs text-neutral-500">
+                            <Phone size={10} className="shrink-0 text-neutral-400" />
+                            <span className="truncate">{user.phone}</span>
+                            {user.phoneVerified ? (
+                              <CheckCircle2 size={10} className="shrink-0 text-emerald-500" />
+                            ) : null}
+                          </p>
+                          <p className="flex items-center gap-1 truncate text-xs text-neutral-500">
+                            <Mail size={10} className="shrink-0 text-neutral-400" />
+                            {user.email ? (
+                              <>
+                                <span className="truncate">{user.email}</span>
+                                {user.emailVerified ? (
+                                  <CheckCircle2 size={10} className="shrink-0 text-emerald-500" />
+                                ) : (
+                                  <span className="shrink-0 text-[10px] font-semibold text-amber-600">Non vérifié</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="italic text-neutral-400">Non ajouté</span>
+                            )}
+                          </p>
+                        </div>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${getRoleBadgeClass(user.role)}`}>
                             {formatRoleLabel(user.role)}
@@ -2206,8 +2229,26 @@ export default function AdminUsers() {
                                 <span className="truncate text-sm font-semibold text-neutral-900">{user.name}</span>
                                 {user.accountType === 'shop' && <VerifiedBadge verified={Boolean(user.shopVerified)} />}
                               </div>
-                              <span className="text-xs text-neutral-500">{user.email}</span>
-                              <span className="ml-2 text-xs text-neutral-400">{user.phone || '—'}</span>
+                              <span className="inline-flex items-center gap-1 text-xs text-neutral-500">
+                                {user.email ? (
+                                  <>
+                                    {user.email}
+                                    {user.emailVerified ? (
+                                      <CheckCircle2 size={11} className="shrink-0 text-emerald-500" />
+                                    ) : (
+                                      <span className="shrink-0 text-[10px] font-semibold text-amber-600">Non vérifié</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="italic text-neutral-400">Email non ajouté</span>
+                                )}
+                              </span>
+                              <span className="ml-2 inline-flex items-center gap-1 text-xs text-neutral-400">
+                                {user.phone || '—'}
+                                {user.phoneVerified ? (
+                                  <CheckCircle2 size={11} className="shrink-0 text-emerald-500" />
+                                ) : null}
+                              </span>
                             {user.accountType === 'shop' && user.shopName ? (
                               <div className="text-xs text-gray-500 mt-1 space-y-1">
                                 <span className="text-neutral-600 font-semibold">

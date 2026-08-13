@@ -2,8 +2,9 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useToast } from '../context/ToastContext';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
@@ -42,6 +43,15 @@ const mapRegisterErrorMessage = (error, isFrench = true) => {
     : 'Unable to create account right now. Please retry.';
 };
 
+// The User model stores a single `name` field; provider (Google/Apple)
+// profiles only give a full name, so split it best-effort into first/last
+// for the two-field form.
+const splitName = (fullName = '') => {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { firstName: '', lastName: '' };
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+};
+
 const getPasswordChecks = (password = '') => {
   const value = String(password || '');
   return {
@@ -61,8 +71,9 @@ const strengthLabelOf = (score) => {
 
 export default function Register() {
   const { user, login } = useContext(AuthContext);
+  const { showToast } = useToast();
   const { cities, communes, language, runtime } = useAppSettings();
-  const { isMobile, logoSrc } = useAppBrandLogo();
+  const { isMobile, authLogoSrc: logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -82,20 +93,27 @@ export default function Register() {
       : 'Join HDMarket to buy, sell and manage your orders easily.',
     step1: isFrench ? 'Étape 1 : Profil' : 'Step 1: Profile',
     step2: isFrench ? 'Étape 2 : Sécurité' : 'Step 2: Security',
-    fullName: isFrench ? 'Nom complet' : 'Full name',
-    fullNamePlaceholder: isFrench ? 'Votre nom complet' : 'Your full name',
-    email: 'Email',
-    emailPlaceholder: isFrench ? 'nom@email.com' : 'name@email.com',
+    firstName: isFrench ? 'Prénom' : 'First name',
+    firstNamePlaceholder: isFrench ? 'Votre prénom' : 'Your first name',
+    lastName: isFrench ? 'Nom' : 'Last name',
+    lastNamePlaceholder: isFrench ? 'Votre nom' : 'Your last name',
+    country: isFrench ? 'Pays' : 'Country',
     phone: isFrench ? 'Téléphone' : 'Phone',
     phonePlaceholder: isFrench ? '060000000' : '060000000',
-    verificationTitle: isFrench ? 'Code de vérification email (optionnel)' : 'Email verification code (optional)',
-    verificationPlaceholder: isFrench ? 'Entrez le code' : 'Enter code',
-    sendCode: isFrench ? 'Envoyer' : 'Send',
+    verificationTitle: isFrench ? 'Vérification du téléphone' : 'Phone verification',
+    verificationPlaceholder: isFrench ? 'Entrez le code reçu par SMS' : 'Enter the code you received by SMS',
+    sendCode: isFrench ? 'Recevoir OTP' : 'Receive OTP',
     sendingCode: isFrench ? 'Envoi...' : 'Sending...',
     resendCode: isFrench ? 'Renvoyer' : 'Resend',
+    verifyCode: isFrench ? 'Vérifier OTP' : 'Verify OTP',
+    verifyingCode: isFrench ? 'Vérification...' : 'Verifying...',
     codeSentMessage: isFrench
-      ? 'Code envoyé par email. Vérifiez votre boîte de réception.'
-      : 'Code sent by email. Check your inbox.',
+      ? 'Code envoyé par SMS. Vérifiez vos messages.'
+      : 'Code sent by SMS. Check your messages.',
+    phoneVerifiedMessage: isFrench ? 'Numéro de téléphone vérifié.' : 'Phone number verified.',
+    phoneNotVerifiedError: isFrench
+      ? 'Veuillez vérifier votre numéro de téléphone avant de continuer.'
+      : 'Please verify your phone number before continuing.',
     continueStep2: isFrench ? "Continuer vers l'étape 2" : 'Continue to Step 2',
     password: isFrench ? 'Mot de passe' : 'Password',
     passwordPlaceholder: isFrench ? 'Mot de passe' : 'Password',
@@ -131,9 +149,8 @@ export default function Register() {
     googleConnected: isFrench ? 'Compte Google vérifié' : 'Google account verified',
     appleConnected: isFrench ? 'Compte Apple vérifié' : 'Apple account verified',
     nextStepError: isFrench
-      ? 'Renseignez nom, email et téléphone pour continuer.'
-      : 'Enter name, email and phone to continue.',
-    emailRequired: isFrench ? 'Veuillez renseigner votre adresse email.' : 'Please enter your email address.',
+      ? 'Renseignez votre prénom, nom et téléphone vérifié pour continuer.'
+      : 'Enter your first name, last name and a verified phone to continue.',
     cityGenderRequired: isFrench
       ? 'Veuillez sélectionner votre ville et votre genre.'
       : 'Please select your city and gender.',
@@ -151,13 +168,18 @@ export default function Register() {
       ? 'Votre compte est prêt. Commençons.'
       : "Your account is ready. Let's get started.",
     successStatus: isFrench ? 'Préparation de votre espace...' : 'Preparing your workspace...',
+    welcomeToast: isFrench
+      ? '🎉 Bienvenue sur HDMarket ! Votre compte a été créé avec succès.'
+      : '🎉 Welcome to HDMarket! Your account has been created successfully.',
     goDashboard: isFrench ? 'Aller au tableau de bord' : 'Go to Dashboard',
     completeProfile: isFrench ? 'Compléter mon profil' : 'Complete Profile'
   };
 
   const [step, setStep] = useState(1);
+  const initialProviderName = splitName(initialProviderAuth?.profile?.name);
   const [form, setForm] = useState({
-    name: initialProviderAuth?.profile?.name || '',
+    firstName: initialProviderName.firstName,
+    lastName: initialProviderName.lastName,
     email: initialProviderAuth?.profile?.email || '',
     password: '',
     confirmPassword: '',
@@ -179,6 +201,8 @@ export default function Register() {
   const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [codeSending, setCodeSending] = useState(false);
+  const [codeVerifying, setCodeVerifying] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
   const [codeMessage, setCodeMessage] = useState('');
   const [codeError, setCodeError] = useState('');
   const [formError, setFormError] = useState('');
@@ -193,7 +217,7 @@ export default function Register() {
   const [finalizing, setFinalizing] = useState(false);
 
   const nameRef = useRef(null);
-  const emailRef = useRef(null);
+  const lastNameRef = useRef(null);
   const phoneRef = useRef(null);
   const passwordRef = useRef(null);
   const confirmRef = useRef(null);
@@ -260,11 +284,16 @@ export default function Register() {
     Fort: isFrench ? 'Fort' : 'Strong'
   }[passwordStrength.label] || passwordStrength.label;
 
-  const canGoToStep2 = Boolean(form.name.trim() && form.email.trim() && form.phone.trim());
+  // Provider (Google/Apple) sign-up already proves identity via the OAuth
+  // token, so phone OTP is only mandatory on the password path.
+  const canGoToStep2 = Boolean(
+    form.firstName.trim() && form.lastName.trim() && form.phone.trim() && (providerAuth || phoneVerified)
+  );
   const canSubmit = Boolean(
-    form.name.trim() &&
-      form.email.trim() &&
+    form.firstName.trim() &&
+      form.lastName.trim() &&
       form.phone.trim() &&
+      (providerAuth || phoneVerified) &&
       (providerAuth ||
         (form.password &&
           form.confirmPassword &&
@@ -300,24 +329,46 @@ export default function Register() {
     };
   }, [successPayload]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sendVerificationCode = async () => {
+  const sendPhoneOtp = async () => {
     if (!authAvailability.email.registration) return;
-    if (!form.email.trim()) {
-      setCodeError(copy.emailRequired);
-      return;
-    }
+    if (!form.phone.trim()) return;
     setCodeSending(true);
     setCodeError('');
     setCodeMessage('');
     setFormError('');
     try {
-      await api.post('/auth/register/send-code', { email: form.email });
+      // silentGlobalError: this step already shows its own inline message
+      // below — without it, a backend failure also raises the raw internal
+      // error text as a global toast (e.g. leaking unconfigured env names).
+      await api.post('/auth/register/phone/send-code', { phone: form.phone }, { silentGlobalError: true });
       setCodeSent(true);
+      setPhoneVerified(false);
       setCodeMessage(copy.codeSentMessage);
     } catch (requestError) {
       setCodeError(mapRegisterErrorMessage(requestError, isFrench));
     } finally {
       setCodeSending(false);
+    }
+  };
+
+  const verifyPhoneOtp = async () => {
+    if (!verificationCode.trim()) return;
+    setCodeVerifying(true);
+    setCodeError('');
+    setCodeMessage('');
+    try {
+      await api.post(
+        '/auth/register/phone/verify-code',
+        { phone: form.phone, verificationCode },
+        { silentGlobalError: true }
+      );
+      setPhoneVerified(true);
+      setCodeMessage(copy.phoneVerifiedMessage);
+    } catch (requestError) {
+      setPhoneVerified(false);
+      setCodeError(mapRegisterErrorMessage(requestError, isFrench));
+    } finally {
+      setCodeVerifying(false);
     }
   };
 
@@ -330,9 +381,11 @@ export default function Register() {
       const { data } = await api.post('/auth/provider/google/registration-profile', { idToken });
       const nextProviderAuth = { provider: 'google', idToken, profile: data.profile };
       setProviderAuth(nextProviderAuth);
+      const { firstName, lastName } = splitName(data.profile?.name);
       setForm((previous) => ({
         ...previous,
-        name: data.profile?.name || previous.name,
+        firstName: firstName || previous.firstName,
+        lastName: lastName || previous.lastName,
         email: data.profile?.email || previous.email,
         password: '',
         confirmPassword: ''
@@ -365,9 +418,11 @@ export default function Register() {
         email: appleCredential.profile?.email || data.profile?.email || ''
       };
       setProviderAuth({ provider: 'apple', idToken: appleCredential.idToken, profile });
+      const { firstName, lastName } = splitName(profile.name);
       setForm((previous) => ({
         ...previous,
-        name: profile.name || previous.name,
+        firstName: firstName || previous.firstName,
+        lastName: lastName || previous.lastName,
         email: profile.email || previous.email,
         password: '',
         confirmPassword: ''
@@ -422,11 +477,13 @@ export default function Register() {
     if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
     slowNetworkTimerRef.current = setTimeout(() => setSlowNetwork(true), SLOW_NETWORK_MS);
 
+    const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+
     try {
       if (providerAuth) {
         const { data } = await api.post(`/auth/provider/${providerAuth.provider}/register`, {
           idToken: providerAuth.idToken,
-          name: form.name,
+          name: fullName,
           phone: form.phone,
           city: form.city,
           commune: form.commune || '',
@@ -439,13 +496,18 @@ export default function Register() {
           referralCode
         });
         setSuccessPayload(data || null);
+        showToast(copy.welcomeToast, { variant: 'success' });
         if (referralCode) storage.remove(REFERRAL_CODE_STORAGE_KEY);
         return;
       }
 
+      if (!phoneVerified) {
+        setFormError(copy.phoneNotVerifiedError);
+        return;
+      }
+
       const payload = new FormData();
-      payload.append('name', form.name);
-      payload.append('email', form.email);
+      payload.append('name', fullName);
       payload.append('password', form.password);
       payload.append('phone', form.phone);
       payload.append('accountType', form.accountType || 'person');
@@ -456,7 +518,6 @@ export default function Register() {
       payload.append('communeId', selectedCommuneId);
       payload.append('gender', form.gender);
       payload.append('address', form.address.trim());
-      payload.append('verificationCode', (verificationCode && verificationCode.trim()) || '');
       payload.append('acceptedLegalTerms', 'true');
       payload.append('legalVersion', '2026-07-18');
       if (referralCode) payload.append('referralCode', referralCode);
@@ -465,6 +526,7 @@ export default function Register() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setSuccessPayload(data || null);
+      showToast(copy.welcomeToast, { variant: 'success' });
       if (referralCode) storage.remove(REFERRAL_CODE_STORAGE_KEY);
     } catch (requestError) {
       setFormError(mapRegisterErrorMessage(requestError, isFrench));
@@ -490,8 +552,9 @@ export default function Register() {
           </Link>
           <Link
             to="/login"
-            className="rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#e85d00] transition hover:bg-orange-100 dark:bg-orange-400/10 dark:text-orange-100"
+            className="hd-soft-button inline-flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold active:scale-[0.98]"
           >
+            <LogIn size={13} />
             {copy.signIn}
           </Link>
         </nav>
@@ -557,66 +620,109 @@ export default function Register() {
                 )}
 
                 {providerAuth || authAvailability.email.registration ? <>
-                <div className="mb-5 grid grid-cols-2 gap-2">
-                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 1 ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
+                <div className="mb-5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setFormError(''); setStep(1); }}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${
+                      step === 1
+                        ? 'hd-primary-button'
+                        : 'border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-300'
+                    }`}
+                  >
+                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${
+                      step === 1 ? 'bg-white/25 text-white' : 'bg-white text-gray-400 dark:bg-neutral-800 dark:text-slate-500'
+                    }`}>
+                      1
+                    </span>
                     {copy.step1}
-                  </div>
-                  <div className={`rounded px-3 py-2 text-xs font-black ${step === 2 ? 'bg-[#e85d00] text-white' : 'bg-gray-100 text-gray-500 dark:bg-neutral-900 dark:text-slate-300'}`}>
+                  </button>
+                  <div className={`h-px w-4 shrink-0 rounded-full transition ${step === 2 ? 'bg-[#e85d00]' : 'bg-gray-200 dark:bg-neutral-800'}`} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (step === 1 && !canGoToStep2) {
+                        setFormError(copy.nextStepError);
+                        return;
+                      }
+                      setFormError('');
+                      setStep(2);
+                    }}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${
+                      step === 2
+                        ? 'hd-primary-button'
+                        : 'border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-300'
+                    }`}
+                  >
+                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${
+                      step === 2 ? 'bg-white/25 text-white' : 'bg-white text-gray-400 dark:bg-neutral-800 dark:text-slate-500'
+                    }`}>
+                      2
+                    </span>
                     {copy.step2}
-                  </div>
+                  </button>
                 </div>
 
                 <form onSubmit={submit} className="space-y-4">
                   {step === 1 ? (
                     <>
-                      <div className="space-y-1.5">
-                        <label htmlFor="register-name" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                          {copy.fullName}
-                        </label>
-                        <input
-                          id="register-name"
-                          ref={nameRef}
-                          type="text"
-                          autoComplete="name"
-                          className="ui-input min-h-[48px] rounded px-3 text-sm"
-                          placeholder={copy.fullNamePlaceholder}
-                          value={form.name}
-                          onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              emailRef.current?.focus();
-                            }
-                          }}
-                          required
-                        />
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <label htmlFor="register-first-name" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                            {copy.firstName}
+                          </label>
+                          <input
+                            id="register-first-name"
+                            ref={nameRef}
+                            type="text"
+                            autoComplete="given-name"
+                            className="ui-input min-h-[48px] rounded px-3 text-sm"
+                            placeholder={copy.firstNamePlaceholder}
+                            value={form.firstName}
+                            onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                lastNameRef.current?.focus();
+                              }
+                            }}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label htmlFor="register-last-name" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                            {copy.lastName}
+                          </label>
+                          <input
+                            id="register-last-name"
+                            ref={lastNameRef}
+                            type="text"
+                            autoComplete="family-name"
+                            className="ui-input min-h-[48px] rounded px-3 text-sm"
+                            placeholder={copy.lastNamePlaceholder}
+                            value={form.lastName}
+                            onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                phoneRef.current?.focus();
+                              }
+                            }}
+                            required
+                          />
+                        </div>
                       </div>
 
                       <div className="space-y-1.5">
-                        <label htmlFor="register-email" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                          {copy.email}
+                        <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                          {copy.country}
                         </label>
-                        <input
-                          id="register-email"
-                          ref={emailRef}
-                          type="email"
-                          autoComplete="email"
-                          className="ui-input min-h-[48px] rounded px-3 text-sm"
-                          placeholder={copy.emailPlaceholder}
-                          value={form.email}
-                          onChange={(e) => {
-                            setForm((prev) => ({ ...prev, email: e.target.value }));
-                            setCodeError('');
-                          }}
-                          readOnly={Boolean(providerAuth)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              phoneRef.current?.focus();
-                            }
-                          }}
-                          required
-                        />
+                        <div className="ui-input flex min-h-[48px] items-center gap-2 rounded px-3 text-sm text-gray-700 dark:text-slate-200">
+                          <span aria-hidden="true">🇨🇬</span>
+                          <span className="font-semibold">Congo</span>
+                          <span className="text-gray-400 dark:text-slate-500">+242</span>
+                        </div>
                       </div>
 
                       <div className="space-y-1.5">
@@ -632,7 +738,13 @@ export default function Register() {
                           className="ui-input min-h-[48px] rounded px-3 text-sm"
                           placeholder={copy.phonePlaceholder}
                           value={form.phone}
-                          onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                          onChange={(e) => {
+                            setForm((prev) => ({ ...prev, phone: e.target.value }));
+                            setPhoneVerified(false);
+                            setCodeSent(false);
+                            setCodeError('');
+                            setCodeMessage('');
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -644,28 +756,55 @@ export default function Register() {
                       </div>
 
                       {!providerAuth ? (
-                      <div className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-                        <p className="text-xs font-black text-slate-700 dark:text-slate-100">
-                          {copy.verificationTitle}
-                        </p>
-                        <div className="mt-2 flex gap-2">
-                          <input
-                            type="text"
-                            autoComplete="one-time-code"
-                            className="ui-input min-h-[48px] flex-1 rounded px-3 text-sm"
-                            placeholder={copy.verificationPlaceholder}
-                            value={verificationCode}
-                            onChange={(e) => setVerificationCode(e.target.value)}
-                          />
+                      <div className={`rounded border p-3 ${phoneVerified ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-400/20 dark:bg-emerald-500/10' : 'border-gray-100 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-900'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-black text-slate-700 dark:text-slate-100">
+                            {copy.verificationTitle}
+                          </p>
+                          {phoneVerified ? (
+                            <span className="text-xs font-black text-emerald-700 dark:text-emerald-200">✅</span>
+                          ) : null}
+                        </div>
+                        {!codeSent ? (
                           <button
                             type="button"
-                            onClick={sendVerificationCode}
-                            disabled={codeSending || !form.email.trim()}
-                            className="min-h-[48px] rounded border border-gray-200 bg-white px-3 text-xs font-black text-[#e85d00] transition hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-orange-100"
+                            onClick={sendPhoneOtp}
+                            disabled={codeSending || !form.phone.trim()}
+                            className="mt-2 min-h-[48px] w-full rounded border border-gray-200 bg-white px-3 text-xs font-black text-[#e85d00] transition hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-orange-100"
                           >
-                            {codeSending ? copy.sendingCode : codeSent ? copy.resendCode : copy.sendCode}
+                            {codeSending ? copy.sendingCode : copy.sendCode}
                           </button>
-                        </div>
+                        ) : phoneVerified ? null : (
+                          <div className="mt-2 flex gap-2">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              autoComplete="one-time-code"
+                              className="ui-input min-h-[48px] flex-1 rounded px-3 text-sm"
+                              placeholder={copy.verificationPlaceholder}
+                              value={verificationCode}
+                              onChange={(e) => setVerificationCode(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={verifyPhoneOtp}
+                              disabled={codeVerifying || !verificationCode.trim()}
+                              className="min-h-[48px] rounded bg-[#e85d00] px-3 text-xs font-black text-white transition hover:bg-[#e85f00] disabled:opacity-60"
+                            >
+                              {codeVerifying ? copy.verifyingCode : copy.verifyCode}
+                            </button>
+                          </div>
+                        )}
+                        {!phoneVerified && codeSent ? (
+                          <button
+                            type="button"
+                            onClick={sendPhoneOtp}
+                            disabled={codeSending}
+                            className="mt-2 text-xs font-bold text-[#e85d00] hover:underline disabled:opacity-60 dark:text-orange-100"
+                          >
+                            {codeSending ? copy.sendingCode : copy.resendCode}
+                          </button>
+                        ) : null}
                         {codeError ? <p className="mt-2 text-xs text-red-600 dark:text-red-100">{codeError}</p> : null}
                         {codeMessage ? <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-100">{codeMessage}</p> : null}
                       </div>
@@ -685,7 +824,7 @@ export default function Register() {
                             else passwordRef.current?.focus();
                           }, 80);
                         }}
-                        className="inline-flex min-h-[48px] w-full items-center justify-center rounded bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00]"
+                        className="hd-primary-button inline-flex min-h-[48px] w-full items-center justify-center px-4 text-sm font-black active:scale-[0.98]"
                       >
                         {copy.continueStep2}
                       </button>
@@ -904,15 +1043,15 @@ export default function Register() {
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <button
                           type="button"
-                          onClick={() => setStep(1)}
-                          className="min-h-[48px] rounded border border-gray-200 bg-gray-50 px-4 text-sm font-black text-gray-800 transition hover:bg-gray-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-100"
+                          onClick={() => { setFormError(''); setStep(1); }}
+                          className="hd-soft-button min-h-[48px] px-4 text-sm font-black active:scale-[0.98]"
                         >
                           {copy.back}
                         </button>
                         <button
                           type="submit"
                           disabled={!canSubmit}
-                          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#e85f00] disabled:opacity-60"
+                          className="hd-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
                         >
                           {loading ? <Loader2 size={16} className="animate-spin" /> : null}
                           {loading ? copy.creatingAccount : copy.createAccount}

@@ -9,7 +9,11 @@ const escapeRegex = (value = '') => String(value || '').replace(/[.*+?^${}()|[\]
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
+    // Optional: phone-first registration collects no email. Never store ''
+    // — always null when absent (see pre-validate hook below) so the
+    // partial unique index only enforces uniqueness among real addresses.
+    email: { type: String, default: null, lowercase: true },
+    emailVerified: { type: Boolean, default: false },
     password: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
     authProviders: {
@@ -388,10 +392,20 @@ userSchema.index({ accountType: 1, shopVerified: 1, createdAt: -1 });
 userSchema.index({ canVerifyPayments: 1, isActive: 1 });
 userSchema.index({ canManageDelivery: 1, isActive: 1 });
 userSchema.index({ shopLocation: '2dsphere' }, { sparse: true });
+// Partial index: only documents with a real email string are subject to the
+// uniqueness constraint, so any number of accounts can share `email: null`
+// (a plain sparse/unique index would still collide on repeated nulls).
+userSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { email: { $type: 'string' } } }
+);
 
 userSchema.pre('validate', async function (next) {
   if (typeof this.email === 'string') {
-    this.email = this.email.trim().toLowerCase();
+    const trimmed = this.email.trim().toLowerCase();
+    // Never persist '' — an unset email is null, matching every other
+    // "no email" check in this codebase (`!user.email`).
+    this.email = trimmed || null;
   }
   if (typeof this.phone === 'string') {
     this.phone = this.phone.trim();

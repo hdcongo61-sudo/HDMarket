@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, Phone, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import AuthTrustPanel from '../components/auth/AuthTrustPanel';
@@ -19,7 +19,7 @@ const mapForgotErrorMessage = (error, scope = 'send', isFrench = true) => {
 
   if (scope === 'send') {
     if (status === 404 || rawMessage.includes('not found') || rawMessage.includes('introuvable')) {
-      return isFrench ? 'Aucun compte trouvé avec cet email.' : 'No account found with this email.';
+      return isFrench ? 'Aucun compte trouvé.' : 'No account found.';
     }
     return isFrench
       ? 'Impossible d’envoyer le code pour le moment. Veuillez réessayer.'
@@ -71,18 +71,24 @@ export default function ForgotPassword() {
     appBadge: 'HDMarket',
     title: isFrench ? 'Réinitialiser votre mot de passe' : 'Reset your password',
     subtitle: isFrench
-      ? 'Recevez un code par email puis définissez un nouveau mot de passe sécurisé.'
-      : 'Receive a code by email, then set a new secure password.',
+      ? 'Recevez un code par SMS puis définissez un nouveau mot de passe sécurisé.'
+      : 'Receive a code by SMS, then set a new secure password.',
+    channelPhone: isFrench ? 'Téléphone' : 'Phone',
+    channelEmail: 'Email',
     stepCode: isFrench ? 'Étape 1 : Code' : 'Step 1: Code',
     stepReset: isFrench ? 'Étape 2 : Réinitialiser' : 'Step 2: Reset',
     email: isFrench ? 'Adresse email' : 'Email address',
     emailPlaceholder: isFrench ? 'nom@email.com' : 'name@email.com',
+    phone: isFrench ? 'Numéro de téléphone' : 'Phone number',
+    phonePlaceholder: isFrench ? '060000000' : '060000000',
     sendCode: isFrench ? 'Envoyer le code' : 'Send code',
     resendCode: isFrench ? 'Renvoyer le code' : 'Resend code',
     sending: isFrench ? 'Envoi...' : 'Sending...',
     hasCode: isFrench ? "J'ai déjà un code" : 'I already have a code',
     verificationCode: isFrench ? 'Code de vérification' : 'Verification code',
-    codePlaceholder: isFrench ? 'Code reçu par email' : 'Code received by email',
+    codePlaceholder: isFrench ? 'Code reçu' : 'Code received',
+    codePlaceholderPhone: isFrench ? 'Code reçu par SMS' : 'Code received by SMS',
+    codePlaceholderEmail: isFrench ? 'Code reçu par email' : 'Code received by email',
     newPassword: isFrench ? 'Nouveau mot de passe' : 'New password',
     newPasswordPlaceholder: isFrench ? 'Votre nouveau mot de passe' : 'Your new password',
     confirmPassword: isFrench ? 'Confirmer le mot de passe' : 'Confirm password',
@@ -98,7 +104,10 @@ export default function ForgotPassword() {
     updatePassword: isFrench ? 'Mettre à jour le mot de passe' : 'Update password',
     updating: isFrench ? 'Confirmation...' : 'Confirming...',
     backToLogin: isFrench ? 'Retour à la connexion' : 'Back to sign in',
-    codeSent: isFrench
+    codeSentPhone: isFrench
+      ? 'Code envoyé par SMS. Vérifiez vos messages.'
+      : 'Code sent by SMS. Check your messages.',
+    codeSentEmail: isFrench
       ? 'Code envoyé par email. Vérifiez votre boîte de réception.'
       : 'Code sent by email. Check your inbox.',
     slowNetwork: isFrench ? 'Demande en cours, merci de patienter.' : 'Request in progress, please wait.',
@@ -109,9 +118,10 @@ export default function ForgotPassword() {
     redirecting: isFrench ? 'Redirection vers la connexion...' : 'Redirecting to login...',
     signInNow: isFrench ? 'Se connecter maintenant' : 'Sign in now',
     emailRequired: isFrench ? 'Veuillez saisir votre adresse email.' : 'Please enter your email address.',
+    phoneRequired: isFrench ? 'Veuillez saisir votre numéro de téléphone.' : 'Please enter your phone number.',
     codeRequired: isFrench
-      ? 'Veuillez saisir le code reçu par email.'
-      : 'Please enter the code received by email.',
+      ? 'Veuillez saisir le code reçu.'
+      : 'Please enter the code you received.',
     passwordRequired: isFrench
       ? 'Veuillez saisir un nouveau mot de passe.'
       : 'Please enter a new password.',
@@ -120,8 +130,12 @@ export default function ForgotPassword() {
       : 'Password must include 8 characters, one uppercase letter and one number.',
     mismatch: isFrench ? 'Les mots de passe ne correspondent pas.' : 'Passwords do not match.'
   };
+  // Phone-first recovery is the default; email stays available for accounts
+  // that have added one.
+  const [channel, setChannel] = useState('phone');
   const [form, setForm] = useState({
     email: '',
+    phone: '',
     verificationCode: '',
     newPassword: '',
     confirmPassword: ''
@@ -173,7 +187,12 @@ export default function ForgotPassword() {
   }, [success, navigate]);
 
   const sendCode = async () => {
-    if (!form.email.trim()) {
+    const isPhoneChannel = channel === 'phone';
+    if (isPhoneChannel && !form.phone.trim()) {
+      setError(copy.phoneRequired);
+      return;
+    }
+    if (!isPhoneChannel && !form.email.trim()) {
       setError(copy.emailRequired);
       return;
     }
@@ -184,10 +203,17 @@ export default function ForgotPassword() {
     if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
     slowNetworkTimerRef.current = setTimeout(() => setSlowNetwork('send'), SLOW_NETWORK_MS);
     try {
-      await api.post('/auth/password/forgot', { email: form.email });
+      // silentGlobalError: this screen already shows its own inline message
+      // below — without it, a backend failure also raises the raw internal
+      // error text as a global toast (e.g. leaking unconfigured env var names).
+      if (isPhoneChannel) {
+        await api.post('/auth/password/forgot-phone', { phone: form.phone }, { silentGlobalError: true });
+      } else {
+        await api.post('/auth/password/forgot', { email: form.email }, { silentGlobalError: true });
+      }
       setCodeSent(true);
       setStep(2);
-      setMessage(copy.codeSent);
+      setMessage(isPhoneChannel ? copy.codeSentPhone : copy.codeSentEmail);
     } catch (err) {
       setError(mapForgotErrorMessage(err, 'send', isFrench));
     } finally {
@@ -204,7 +230,12 @@ export default function ForgotPassword() {
     setMessage('');
     setSlowNetwork('');
 
-    if (!tokenMode && !form.email.trim()) {
+    const isPhoneChannel = channel === 'phone';
+    if (!tokenMode && isPhoneChannel && !form.phone.trim()) {
+      setError(copy.phoneRequired);
+      return;
+    }
+    if (!tokenMode && !isPhoneChannel && !form.email.trim()) {
       setError(copy.emailRequired);
       return;
     }
@@ -233,6 +264,12 @@ export default function ForgotPassword() {
       if (tokenMode) {
         await api.post('/auth/password/reset-token', {
           token: resetToken,
+          newPassword: form.newPassword
+        });
+      } else if (isPhoneChannel) {
+        await api.post('/auth/password/reset-phone', {
+          phone: form.phone,
+          verificationCode: form.verificationCode.trim(),
           newPassword: form.newPassword
         });
       } else {
@@ -285,6 +322,43 @@ export default function ForgotPassword() {
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{copy.subtitle}</p>
                 </header>
 
+                {!tokenMode ? <div className="mb-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChannel('phone');
+                      setCodeSent(false);
+                      setStep(1);
+                      setError('');
+                      setMessage('');
+                    }}
+                    className={`min-h-11 rounded-xl px-3 text-xs font-bold transition ${
+                      channel === 'phone'
+                        ? 'bg-[#e85d00] text-white'
+                        : 'glass-card text-slate-500 dark:text-slate-300'
+                    }`}
+                  >
+                    {copy.channelPhone}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChannel('email');
+                      setCodeSent(false);
+                      setStep(1);
+                      setError('');
+                      setMessage('');
+                    }}
+                    className={`min-h-11 rounded-xl px-3 text-xs font-bold transition ${
+                      channel === 'email'
+                        ? 'bg-[#e85d00] text-white'
+                        : 'glass-card text-slate-500 dark:text-slate-300'
+                    }`}
+                  >
+                    {copy.channelEmail}
+                  </button>
+                </div> : null}
+
                 {!tokenMode ? <div className="mb-5 grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -323,7 +397,30 @@ export default function ForgotPassword() {
                     </div>
                   ) : null}
 
-                  {!tokenMode ? <div className="space-y-1.5">
+                  {!tokenMode && channel === 'phone' ? <div className="space-y-1.5">
+                    <label htmlFor="forgot-phone" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {copy.phone}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="forgot-phone"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        className="ui-input min-h-[48px] w-full rounded-xl px-3 pl-11 text-sm"
+                        placeholder={copy.phonePlaceholder}
+                        value={form.phone}
+                        onChange={(e) => {
+                          setForm((prev) => ({ ...prev, phone: e.target.value }));
+                          setError('');
+                        }}
+                        required
+                      />
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    </div>
+                  </div> : null}
+
+                  {!tokenMode && channel === 'email' ? <div className="space-y-1.5">
                     <label htmlFor="forgot-email" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                       {copy.email}
                     </label>
@@ -349,7 +446,7 @@ export default function ForgotPassword() {
                   {!tokenMode ? <button
                     type="button"
                     onClick={sendCode}
-                    disabled={codeSending || !form.email.trim()}
+                    disabled={codeSending || (channel === 'phone' ? !form.phone.trim() : !form.email.trim())}
                     className="glass-card min-h-[48px] w-full rounded-xl px-4 text-sm font-semibold text-slate-700 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-100"
                   >
                     {codeSending ? (
@@ -387,7 +484,7 @@ export default function ForgotPassword() {
                             id="forgot-code"
                             autoComplete="one-time-code"
                             className="ui-input min-h-[48px] w-full rounded-xl px-3 pl-11 text-sm"
-                            placeholder={copy.codePlaceholder}
+                            placeholder={channel === 'phone' ? copy.codePlaceholderPhone : copy.codePlaceholderEmail}
                             value={form.verificationCode}
                             onChange={(e) => {
                               setForm((prev) => ({ ...prev, verificationCode: e.target.value }));
@@ -504,7 +601,8 @@ export default function ForgotPassword() {
                           type="submit"
                           disabled={
                             loading ||
-                            (!tokenMode && !form.email.trim()) ||
+                            (!tokenMode && channel === 'phone' && !form.phone.trim()) ||
+                            (!tokenMode && channel === 'email' && !form.email.trim()) ||
                             (!tokenMode && !form.verificationCode.trim()) ||
                             !form.newPassword ||
                             !form.confirmPassword

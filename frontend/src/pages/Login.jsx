@@ -97,7 +97,7 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
 export default function Login() {
   const { user, login } = useContext(AuthContext);
   const { language, runtime } = useAppSettings();
-  const { isMobile, logoSrc } = useAppBrandLogo();
+  const { isMobile, authLogoSrc: logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
   const from = typeof location.state === 'string'

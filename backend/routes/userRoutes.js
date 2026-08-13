@@ -13,6 +13,8 @@ import {
   updateProfile,
   updateShopLocation,
   updateProfileLocation,
+  addProfileEmail,
+  verifyProfileEmail,
   sendPasswordChangeCode,
   changePassword,
   getNotifications,
@@ -140,6 +142,8 @@ router.put(
 );
 router.post('/password/send-code', validate(schemas.passwordSendCode), sendPasswordChangeCode);
 router.post('/password/change', validate(schemas.passwordChange), changePassword);
+router.post('/profile/email', validate(schemas.profileEmailAdd), addProfileEmail);
+router.post('/profile/email/verify', validate(schemas.profileEmailVerify), verifyProfileEmail);
 router.get(
   '/notifications',
   cacheMiddleware({

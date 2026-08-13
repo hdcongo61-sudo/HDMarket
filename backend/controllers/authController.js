@@ -17,6 +17,12 @@ import {
   normalizePhone,
   sendVerificationCode
 } from '../utils/firebaseVerification.js';
+import {
+  checkPhoneVerificationCode,
+  hasRecentlyVerifiedPhone,
+  isPhoneOtpConfigured,
+  sendPhoneVerificationCode
+} from '../utils/phoneVerification.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { getFirebaseAdminAuth } from '../utils/firebaseAdmin.js';
 import { resolveReferrerForRegistration } from '../services/referralService.js';
@@ -275,35 +281,28 @@ export const register = asyncHandler(async (req, res) => {
     communeId,
     address,
     gender,
-    verificationCode,
     acceptedLegalTerms,
     legalVersion,
     referralCode
   } = req.body;
-  if (!name || !email || !password || !phone || !city || !gender || !address?.trim() || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
+  if (!name || !password || !phone || !city || !gender || !address?.trim() || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
     return res.status(400).json({ message: 'Missing fields' });
   }
-  // Skip email verification only when email is not configured (local dev without SMTP)
-  const skipEmailVerification = !isEmailConfigured();
-  if (!skipEmailVerification) {
-    if (!verificationCode) {
-      return res.status(400).json({ message: 'Code de vérification manquant.' });
+
+  // Email is optional — phone-first registration. When provided, it must
+  // still be well-formed and unique; when omitted, the account is created
+  // with email: null and can be added later from the profile.
+  const trimmedEmail = typeof email === 'string' ? email.trim() : '';
+  let normalizedEmail = null;
+  if (trimmedEmail) {
+    normalizedEmail = trimmedEmail.toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Adresse email invalide.' });
     }
+    const exists = await User.findOne({ email: normalizedEmail });
+    if (exists) return res.status(400).json({ message: 'Email already used' });
   }
-
-  // Validate email
-  if (!email || !email.trim()) {
-    return res.status(400).json({ message: 'Adresse email manquante.' });
-  }
-  const normalizedEmail = email.toLowerCase().trim();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(normalizedEmail)) {
-    return res.status(400).json({ message: 'Adresse email invalide.' });
-  }
-
-  // Check if email already exists
-  const exists = await User.findOne({ email: normalizedEmail });
-  if (exists) return res.status(400).json({ message: 'Email already used' });
 
   // Validate phone
   const trimmedPhone =
@@ -347,11 +346,17 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   const normalizedRole = role === 'admin' ? 'admin' : role === 'manager' ? 'manager' : 'user';
-  if (!skipEmailVerification) {
-    const verificationCheck = await checkVerificationCode(normalizedEmail, verificationCode, 'registration');
-    if (verificationCheck?.status !== 'approved') {
+
+  // Phone verification is mandatory (skipped only in local dev when Twilio
+  // isn't configured, mirroring the old email-verification dev bypass).
+  const skipPhoneVerification = !isPhoneOtpConfigured();
+  const phoneVerified = !skipPhoneVerification;
+  if (!skipPhoneVerification) {
+    const recentlyVerified = await hasRecentlyVerifiedPhone(normalizedPhone, 'registration');
+    if (!recentlyVerified) {
       return res.status(400).json({
-        message: verificationCheck?.message || 'Code de vérification invalide.'
+        message: 'Veuillez vérifier votre numéro de téléphone avec le code reçu par SMS.',
+        code: 'PHONE_NOT_VERIFIED'
       });
     }
   }
@@ -369,7 +374,7 @@ export const register = asyncHandler(async (req, res) => {
     email: normalizedEmail,
     password,
     phone: normalizedPhone,
-    phoneVerified: true,
+    phoneVerified,
     role: normalizedRole,
     accountType: 'person',
     country: 'République du Congo',
@@ -380,7 +385,7 @@ export const register = asyncHandler(async (req, res) => {
     commune: location.communeName,
     gender,
     referredBy: referrer?._id || null,
-    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: 'email' }
+    legalAcceptance: { accepted: true, termsVersion: legalVersion, privacyVersion: legalVersion, acceptedAt: new Date(), source: 'phone' }
   });
   if (referrer) {
     createNotification({
@@ -577,6 +582,65 @@ export const sendRegisterCode = asyncHandler(async (req, res) => {
   res.json({ message: 'Code de vérification envoyé par email.' });
 });
 
+export const sendRegisterPhoneCode = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone || !String(phone).trim()) {
+    return res.status(400).json({ message: 'Numéro de téléphone manquant.' });
+  }
+  if (!isPhoneOtpConfigured()) {
+    return res.status(503).json({
+      message: 'L’envoi de SMS n’est pas configuré. Définissez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_FROM_NUMBER.'
+    });
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
+  }
+  const registrationPhoneCgOnly = toBoolean(
+    await getRuntimeConfig('registration_phone_cg_only', { fallback: true }),
+    true
+  );
+  if (registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
+    return res.status(400).json({
+      message: 'Inscription refusée: seuls les numéros de la République du Congo (+242) sont autorisés.',
+      code: 'REGISTRATION_PHONE_COUNTRY_BLOCKED'
+    });
+  }
+  const phoneTaken = await User.findOne({ phone: { $in: buildPhoneCandidates(phone) } });
+  if (phoneTaken) {
+    return res.status(400).json({ message: 'Téléphone déjà utilisé' });
+  }
+  const blacklistedPhone = await PhoneBlacklist.exists({
+    isActive: true,
+    $or: [
+      { phoneNormalized: normalizedPhone },
+      { phoneVariants: { $in: buildPhoneCandidates(phone) } }
+    ]
+  });
+  if (blacklistedPhone) {
+    return res.status(403).json({
+      message: 'Ce numéro est blacklisté et ne peut plus créer de compte.',
+      code: 'PHONE_BLACKLISTED'
+    });
+  }
+
+  await sendPhoneVerificationCode(normalizedPhone, 'registration');
+  res.json({ message: 'Code de vérification envoyé par SMS.' });
+});
+
+export const verifyRegisterPhoneCode = asyncHandler(async (req, res) => {
+  const { phone, verificationCode } = req.body;
+  if (!phone || !String(phone).trim()) {
+    return res.status(400).json({ message: 'Numéro de téléphone manquant.' });
+  }
+  const result = await checkPhoneVerificationCode(phone, verificationCode, 'registration');
+  if (result?.status !== 'approved') {
+    return res.status(400).json({ message: result?.message || 'Code de vérification invalide.' });
+  }
+  res.json({ message: 'Numéro de téléphone vérifié.' });
+});
+
 export const sendPasswordResetCode = asyncHandler(async (req, res) => {
   const { email, phone } = req.body || {};
   let normalizedEmail = String(email || '').toLowerCase().trim();
@@ -644,6 +708,63 @@ export const resetPassword = asyncHandler(async (req, res) => {
   
   user.password = newPassword;
   user.phoneVerified = true; // Keep for backward compatibility
+  user.passwordResetToken = null;
+  user.passwordResetExpires = null;
+  user.sessionsInvalidatedAt = new Date();
+  await user.save();
+  res.json({ message: 'Mot de passe mis à jour.' });
+});
+
+// Phone-first password recovery: Forgot Password → Phone Number → OTP → New
+// Password. Email recovery (sendPasswordResetCode/resetPassword above)
+// remains available separately for accounts that have added an email.
+export const sendPasswordResetPhoneCode = asyncHandler(async (req, res) => {
+  const { phone } = req.body || {};
+  if (!phone || !String(phone).trim()) {
+    return res.status(400).json({ message: 'Numéro de téléphone manquant.' });
+  }
+  if (!isPhoneOtpConfigured()) {
+    return res.status(503).json({
+      message: 'L’envoi de SMS n’est pas configuré. Définissez TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN et TWILIO_FROM_NUMBER.'
+    });
+  }
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
+  }
+
+  // Avoid confirming/denying account existence in the response — same
+  // privacy posture as the email flow above.
+  const user = await User.findOne({ phone: { $in: buildPhoneCandidates(phone) } }).select('_id');
+  if (user) {
+    await sendPhoneVerificationCode(normalizedPhone, 'password_reset');
+  }
+  res.json({ message: 'Si un compte existe, un code a été envoyé par SMS.' });
+});
+
+export const resetPasswordWithPhoneCode = asyncHandler(async (req, res) => {
+  const { phone, verificationCode, newPassword } = req.body || {};
+  if (!phone || !String(phone).trim()) {
+    return res.status(400).json({ message: 'Numéro de téléphone manquant.' });
+  }
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
+  }
+
+  const user = await User.findOne({ phone: { $in: buildPhoneCandidates(phone) } });
+  if (!user) {
+    return res.status(404).json({ message: 'Compte introuvable.' });
+  }
+
+  const verificationCheck = await checkPhoneVerificationCode(normalizedPhone, verificationCode, 'password_reset');
+  if (verificationCheck?.status !== 'approved') {
+    return res.status(400).json({
+      message: verificationCheck?.message || 'Code de vérification invalide.'
+    });
+  }
+
+  user.password = newPassword;
   user.passwordResetToken = null;
   user.passwordResetExpires = null;
   user.sessionsInvalidatedAt = new Date();

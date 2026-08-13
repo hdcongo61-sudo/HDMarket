@@ -156,7 +156,7 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
   },
   auth_email_registration_enabled: {
     category: 'authentication',
-    description: 'Autorise la création de compte par email et mot de passe.',
+    description: 'Autorise la création de compte en libre-service (téléphone + mot de passe).',
     valueType: 'boolean',
     defaultValue: true,
     isPublic: true

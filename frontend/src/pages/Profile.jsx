@@ -17,6 +17,9 @@ import {
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import ProfileEmailSection from '../components/profile/ProfileEmailSection';
+import ProfileEmailCompletionCard from '../components/profile/ProfileEmailCompletionCard';
+import { storage } from '../utils/storage';
 import { 
   User, Mail, Phone, Store, MapPin, Camera, Upload, 
   Save, Eye, EyeOff, BarChart3, Heart, MessageCircle, 
@@ -468,6 +471,29 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const { cities, communes, runtime } = useAppSettings();
   const { showToast } = useToast();
+
+  // One-time nudge the first time a phone-only account opens their profile —
+  // never repeats once shown, regardless of whether an email gets added later.
+  useEffect(() => {
+    if (!user?._id && !user?.id) return;
+    if (user?.email) return;
+    const userId = user._id || user.id;
+    const key = `hdmarket:email-tip-shown:${userId}`;
+    let active = true;
+    storage.get(key).then((shown) => {
+      if (!active || shown) return;
+      showToast(
+        '💡 Astuce : ajoutez votre email pour sécuriser votre compte et faciliter sa récupération si vous perdez ou changez de téléphone.',
+        { variant: 'info' }
+      );
+      storage.set(key, '1');
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id, user?.id, user?.email]);
+
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -606,20 +632,21 @@ export default function Profile() {
     return base;
   }, [user?.accountType]);
 
+  // Email is intentionally excluded — it's optional (see the dedicated Email
+  // section + completion card) and shouldn't cap this generic score.
   const profileCompletionPercent = useMemo(() => {
     let filled = 0;
-    let total = 4;
+    let total = 3;
     if (form.name?.trim()) filled++;
-    if (form.email?.trim()) filled++;
     if (form.phone?.trim()) filled++;
     if (user?.accountType === 'shop') {
-      total = 5;
+      total = 4;
       if (form.shopName?.trim()) filled++;
     } else {
-      filled++; // non-shop counts as "complete" for 4th field
+      filled++; // non-shop counts as "complete" for 3rd field
     }
     return total > 0 ? Math.round((filled / total) * 100) : 0;
-  }, [form.name, form.email, form.phone, form.shopName, user?.accountType]);
+  }, [form.name, form.phone, form.shopName, user?.accountType]);
 
   const mobileHighlights = [
     { label: 'Annonces', value: stats.listings?.total || 0 },
@@ -1736,6 +1763,15 @@ export default function Profile() {
     }
   };
 
+  // Used by the top completion card and the header reminder badge: switch
+  // to the tab that hosts the Email section, then scroll it into view.
+  const scrollToEmailSection = () => {
+    setActiveTab('profile');
+    setTimeout(() => {
+      document.getElementById('profile-email-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
   if (!user) {
     return (
       <div className="hd-profile-flow hd-commerce-shell min-h-screen flex items-center justify-center">
@@ -1752,6 +1788,10 @@ export default function Profile() {
   return (
     <div className="hd-profile-flow hd-commerce-shell min-h-screen">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="mb-5 sm:mb-8">
+          <ProfileEmailCompletionCard user={user} onAddEmail={scrollToEmailSection} />
+        </div>
+
         {/* En-tête */}
         <section className="mb-5 overflow-hidden rounded-2xl border border-gray-200 bg-[#fff7ed] p-4 shadow-sm sm:mb-8 sm:p-6">
           <div className="flex items-start justify-between gap-3">
@@ -1787,6 +1827,19 @@ export default function Profile() {
                     <Shield className="h-3.5 w-3.5 text-[#e85d00]" />
                     Compte sécurisé
                   </button>
+                  {!user?.email ? (
+                    <>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={scrollToEmailSection}
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        Compléter mon profil
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -2084,25 +2137,6 @@ export default function Profile() {
                       required
                     />
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Mail className="w-4 h-4 text-neutral-700" />
-                    <span>Adresse email *</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      className="w-full px-4 py-3 pl-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
-                      name="email"
-                      value={form.email}
-                      onChange={onChange}
-                      disabled={loading}
-                      required
-                    />
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
@@ -2963,6 +2997,8 @@ export default function Profile() {
               </div>
             </form>
           </div>
+
+          <ProfileEmailSection user={user} onUserUpdated={updateUser} />
         </>
         )}
 

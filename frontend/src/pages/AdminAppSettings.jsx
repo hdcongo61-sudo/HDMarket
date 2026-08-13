@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Image, Images, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock, AppWindow, Monitor, Globe } from 'lucide-react';
+import { ArrowLeft, Image, Images, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock, AppWindow, Monitor, Globe, LogIn } from 'lucide-react';
 import api, { clearCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { appConfirm } from '../utils/appDialog';
@@ -255,6 +255,11 @@ export default function AdminAppSettings() {
   const [appFaviconSaving, setAppFaviconSaving] = useState(false);
   const [appFaviconError, setAppFaviconError] = useState('');
   const [appFaviconSuccess, setAppFaviconSuccess] = useState('');
+  const [authLogoFile, setAuthLogoFile] = useState(null);
+  const [authLogoPreview, setAuthLogoPreview] = useState('');
+  const [authLogoSaving, setAuthLogoSaving] = useState(false);
+  const [authLogoError, setAuthLogoError] = useState('');
+  const [authLogoSuccess, setAuthLogoSuccess] = useState('');
   const [darkThemeEnabled, setDarkThemeEnabled] = useState(true);
   const [darkThemeSaving, setDarkThemeSaving] = useState(false);
   const [authProviderSettings, setAuthProviderSettings] = useState(DEFAULT_AUTH_SETTINGS);
@@ -345,6 +350,7 @@ export default function AdminAppSettings() {
         setAppLogoMobilePreview(logoRes?.data?.appLogoMobile || '');
         setAppIconPreview(logoRes?.data?.appIcon || '');
         setAppFaviconPreview(logoRes?.data?.appFavicon || '');
+        setAuthLogoPreview(logoRes?.data?.authLogo || '');
         const nextHomePromoBackgroundPreviews = {
           freeDelivery: promoRes?.data?.homePromoFreeDeliveryBackground || '',
           payForOther: promoRes?.data?.homePromoPayForOtherBackground || '',
@@ -541,6 +547,7 @@ export default function AdminAppSettings() {
         appLogoMobilePreview,
         appIconPreview,
         appFaviconPreview,
+        authLogoPreview,
         promoBannerPreview,
         promoBannerMobilePreview,
         splashImagePreview
@@ -557,6 +564,7 @@ export default function AdminAppSettings() {
     appLogoMobilePreview,
     appIconPreview,
     appFaviconPreview,
+    authLogoPreview,
     promoBannerPreview,
     promoBannerMobilePreview,
     splashImagePreview
@@ -609,6 +617,17 @@ export default function AdminAppSettings() {
     if (file) {
       if (appFaviconPreview?.startsWith?.('blob:')) URL.revokeObjectURL(appFaviconPreview);
       setAppFaviconPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const onAuthLogoChange = (e) => {
+    const file = e.target.files?.[0] ?? null;
+    setAuthLogoFile(file);
+    setAuthLogoError('');
+    setAuthLogoSuccess('');
+    if (file) {
+      if (authLogoPreview?.startsWith?.('blob:')) URL.revokeObjectURL(authLogoPreview);
+      setAuthLogoPreview(URL.createObjectURL(file));
     }
   };
 
@@ -950,6 +969,37 @@ export default function AdminAppSettings() {
       setAppFaviconSaving(false);
     }
   }, [appFaviconFile, appFaviconPreview, emitAppLogoUpdated, showToast]);
+
+  const saveAuthLogo = useCallback(async () => {
+    if (!authLogoFile) {
+      setAuthLogoError('Veuillez sélectionner un logo.');
+      return;
+    }
+    setAuthLogoSaving(true);
+    setAuthLogoError('');
+    setAuthLogoSuccess('');
+    try {
+      const payload = new FormData();
+      payload.append('authLogo', authLogoFile);
+      const { data } = await api.put('/admin/app-logo/auth', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const nextAuthLogo = data?.authLogo ?? authLogoPreview;
+      setAuthLogoPreview(nextAuthLogo);
+      setAuthLogoFile(null);
+      clearCache('/settings/app-logo').catch(() => {});
+      emitAppLogoUpdated({ authLogo: nextAuthLogo });
+      emitSettingsRefresh();
+      setAuthLogoSuccess('Logo des pages Connexion/Inscription mis à jour avec succès.');
+      showToast('Logo Connexion/Inscription mis à jour.', { variant: 'success' });
+    } catch (err) {
+      const msg = err.response?.data?.message || "Impossible d'enregistrer ce logo.";
+      setAuthLogoError(msg);
+      showToast(msg, { variant: 'error' });
+    } finally {
+      setAuthLogoSaving(false);
+    }
+  }, [authLogoFile, authLogoPreview, emitAppLogoUpdated, showToast]);
 
   const addProhibitedWord = useCallback(
     async (event) => {
@@ -1412,6 +1462,20 @@ export default function AdminAppSettings() {
                 canSave={Boolean(appFaviconFile)}
                 onChange={onAppFaviconChange}
                 onSave={saveAppFavicon}
+              />
+              <LogoUploadTile
+                icon={<LogIn className="h-4 w-4 text-[#e85d00]" />}
+                label="Logo Connexion / Inscription"
+                hint="Affiché uniquement sur les pages de connexion et d’inscription. Vide = logo desktop/mobile par défaut."
+                fileHint="PNG, JPG, WEBP — horizontal ou carré"
+                preview={authLogoPreview}
+                previewClassName="h-12 w-auto max-w-full object-contain"
+                error={authLogoError}
+                success={authLogoSuccess}
+                saving={authLogoSaving}
+                canSave={Boolean(authLogoFile)}
+                onChange={onAuthLogoChange}
+                onSave={saveAuthLogo}
               />
             </div>
           </div>
