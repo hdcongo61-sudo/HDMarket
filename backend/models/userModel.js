@@ -81,6 +81,11 @@ const userSchema = new mongoose.Schema(
     isLocked: { type: Boolean, default: false, index: true },
     lockReason: { type: String, default: '', trim: true },
     lockedAt: { type: Date, default: null },
+    // Distinct from isLocked (a permanent, admin-only lock): a temporary,
+    // self-expiring brute-force cooldown set automatically by login() after
+    // too many wrong-password attempts. Never touched by an admin.
+    failedLoginAttempts: { type: Number, default: 0 },
+    loginLockedUntil: { type: Date, default: null },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     lastModifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

@@ -114,7 +114,8 @@ const ENTITY_TYPES = new Set([
   'shopping_order',
   'shopping_dispute',
   'shopConversionRequest',
-  'globalNotification'
+  'globalNotification',
+  'quotation'
 ]);
 const ORDER_CONTEXT_NOTIFICATION_TYPES = new Set([
   'review_reminder',

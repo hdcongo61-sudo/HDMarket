@@ -2,11 +2,10 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle, ChevronDown, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
-import useAppBrandLogo from '../hooks/useAppBrandLogo';
 import CommerceAuthPanel from '../components/auth/CommerceAuthPanel';
 import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 import AppleAuthButton from '../components/auth/AppleAuthButton';
@@ -73,7 +72,6 @@ export default function Register() {
   const { user, login } = useContext(AuthContext);
   const { showToast } = useToast();
   const { cities, communes, language, runtime } = useAppSettings();
-  const { isMobile, authLogoSrc: logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -114,7 +112,7 @@ export default function Register() {
     phoneNotVerifiedError: isFrench
       ? 'Veuillez vérifier votre numéro de téléphone avant de continuer.'
       : 'Please verify your phone number before continuing.',
-    continueStep2: isFrench ? "Continuer vers l'étape 2" : 'Continue to Step 2',
+    continueStep2: isFrench ? 'Continuer' : 'Continue',
     password: isFrench ? 'Mot de passe' : 'Password',
     passwordPlaceholder: isFrench ? 'Mot de passe' : 'Password',
     confirmPassword: isFrench ? 'Confirmer le mot de passe' : 'Confirm password',
@@ -124,8 +122,8 @@ export default function Register() {
     ruleUpper: isFrench ? 'Une lettre majuscule' : 'Uppercase letter',
     ruleNumber: isFrench ? 'Un chiffre' : 'Number',
     ruleSymbol: isFrench ? 'Un symbole (optionnel)' : 'Symbol (optional)',
-    address: isFrench ? 'Adresse complète' : 'Full address',
-    addressPlaceholder: isFrench ? 'Adresse complète' : 'Full address',
+    address: isFrench ? 'Adresse de livraison' : 'Delivery address',
+    addressPlaceholder: isFrench ? 'Quartier, avenue, repère proche…' : 'Neighbourhood, street, nearby landmark…',
     city: isFrench ? 'Ville' : 'City',
     chooseCity: isFrench ? 'Choisir la ville' : 'Choose city',
     commune: isFrench ? 'Commune' : 'Commune',
@@ -135,17 +133,17 @@ export default function Register() {
     male: isFrench ? 'Homme' : 'Male',
     female: isFrench ? 'Femme' : 'Female',
     termsLead: isFrench ? "J'accepte les" : 'I agree to the',
-    terms: isFrench ? 'Conditions' : 'Terms',
+    terms: isFrench ? "conditions d'utilisation" : 'terms of use',
     privacy: isFrench ? 'Politique de confidentialité' : 'Privacy Policy',
     back: isFrench ? 'Retour' : 'Back',
-    createAccount: isFrench ? 'Créer le compte' : 'Create account',
+    createAccount: isFrench ? 'Créer mon compte' : 'Create my account',
     creatingAccount: isFrench ? 'Création...' : 'Creating...',
     slowNetwork: isFrench ? 'Création du compte en cours, merci de patienter.' : 'Account creation in progress, please wait.',
     haveAccount: isFrench ? 'Vous avez déjà un compte ?' : 'Already have an account?',
     signIn: isFrench ? 'Se connecter' : 'Sign in',
-    google: isFrench ? 'Continuer avec Google' : 'Continue with Google',
-    apple: isFrench ? 'Continuer avec Apple' : 'Continue with Apple',
-    divider: isFrench ? 'ou avec vos informations' : 'or with your details',
+    google: 'Google',
+    apple: 'Apple',
+    divider: isFrench ? 'ou' : 'or',
     googleConnected: isFrench ? 'Compte Google vérifié' : 'Google account verified',
     appleConnected: isFrench ? 'Compte Apple vérifié' : 'Apple account verified',
     nextStepError: isFrench
@@ -200,6 +198,7 @@ export default function Register() {
   const [slowNetwork, setSlowNetwork] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
   const [codeSending, setCodeSending] = useState(false);
   const [codeVerifying, setCodeVerifying] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
@@ -223,6 +222,8 @@ export default function Register() {
   const confirmRef = useRef(null);
   const slowNetworkTimerRef = useRef(null);
   const successRedirectTimerRef = useRef(null);
+  const otpRefs = useRef([]);
+  const lastOtpAttemptRef = useRef('');
 
   useEffect(() => {
     return () => {
@@ -230,6 +231,14 @@ export default function Register() {
       if (successRedirectTimerRef.current) clearTimeout(successRedirectTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setResendIn((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendIn]);
 
   useEffect(() => {
     if (providerAuth && !authAvailability[providerAuth.provider]?.registration) {
@@ -342,6 +351,9 @@ export default function Register() {
       // error text as a global toast (e.g. leaking unconfigured env names).
       await api.post('/auth/register/phone/send-code', { phone: form.phone }, { silentGlobalError: true });
       setCodeSent(true);
+      setVerificationCode('');
+      setResendIn(30);
+      lastOtpAttemptRef.current = '';
       setPhoneVerified(false);
       setCodeMessage(copy.codeSentMessage);
     } catch (requestError) {
@@ -352,7 +364,9 @@ export default function Register() {
   };
 
   const verifyPhoneOtp = async () => {
-    if (!verificationCode.trim()) return;
+    if (verificationCode.length !== 6 || codeVerifying || phoneVerified) return;
+    if (lastOtpAttemptRef.current === verificationCode) return;
+    lastOtpAttemptRef.current = verificationCode;
     setCodeVerifying(true);
     setCodeError('');
     setCodeMessage('');
@@ -366,10 +380,46 @@ export default function Register() {
       setCodeMessage(copy.phoneVerifiedMessage);
     } catch (requestError) {
       setPhoneVerified(false);
+      lastOtpAttemptRef.current = '';
       setCodeError(mapRegisterErrorMessage(requestError, isFrench));
     } finally {
       setCodeVerifying(false);
     }
+  };
+
+  useEffect(() => {
+    if (!codeSent || phoneVerified || verificationCode.length !== 6) return;
+    verifyPhoneOtp();
+  }, [codeSent, phoneVerified, verificationCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateOtpDigit = (index, value) => {
+    const digit = String(value || '').replace(/\D/g, '').slice(-1);
+    const digits = verificationCode.padEnd(6, ' ').slice(0, 6).split('');
+    digits[index] = digit || ' ';
+    const nextCode = digits.join('').replace(/\s/g, '').slice(0, 6);
+    setVerificationCode(nextCode);
+    setCodeError('');
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (index, event) => {
+    if (event.key !== 'Backspace') return;
+    const digit = verificationCode[index] || '';
+    if (!digit && index > 0) {
+      event.preventDefault();
+      const next = verificationCode.split('');
+      next[index - 1] = '';
+      setVerificationCode(next.join('').slice(0, 6));
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (event) => {
+    const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    event.preventDefault();
+    setVerificationCode(pasted);
+    otpRefs.current[Math.min(5, pasted.length - 1)]?.focus();
   };
 
   const handleGoogleSignIn = async () => {
@@ -540,575 +590,235 @@ export default function Register() {
     return <Navigate to={from} replace />;
   }
 
+  const fieldClass = '!h-14 !min-h-14 !rounded-[14px] !border-0 !bg-white !px-4 !py-0 !text-base !font-medium !text-[#141210] !shadow-[inset_0_0_0_1px_#e7dfd5] outline-none placeholder:!text-[#a8a29e] focus:!bg-white focus:!shadow-[inset_0_0_0_2px_#e85d00] dark:!bg-neutral-900 dark:!text-white dark:!shadow-[inset_0_0_0_1px_#262626] dark:focus:!bg-neutral-900';
+  const labelClass = 'text-[13px] font-semibold text-[#57534e] dark:text-neutral-400';
+  const goToStep2 = () => {
+    if (!canGoToStep2) {
+      setFormError(copy.nextStepError);
+      return;
+    }
+    setFormError('');
+    setStep(2);
+    setTimeout(() => {
+      if (providerAuth) document.getElementById('register-city')?.focus();
+      else passwordRef.current?.focus();
+    }, 80);
+  };
+
   return (
-    <div className="min-h-screen overflow-hidden bg-neutral-100 px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
-      <div className="relative mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-6xl flex-col justify-center gap-4">
-        <nav className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl pr-2 text-sm font-black text-gray-900 dark:text-white">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-neutral-900">
-              <img src={logoSrc} alt={copy.appBadge} className="h-7 w-7 object-contain" />
-            </span>
-            {copy.appBadge}
-          </Link>
-          <Link
-            to="/login"
-            className="hd-soft-button inline-flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold active:scale-[0.98]"
-          >
-            <LogIn size={13} />
-            {copy.signIn}
-          </Link>
-        </nav>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,0.96fr)_minmax(0,1.04fr)] lg:items-stretch">
-          <section className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-7">
-            {!successPayload ? (
-              <>
-                <header className="relative mb-6">
-                  <div className="mb-4 flex justify-center lg:justify-start">
-                    <div className="inline-flex flex-col items-center lg:items-start">
-                      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-[#e85d00] dark:bg-white">
-                        <img
-                          src={logoSrc}
-                          alt={copy.appBadge}
-                          className={`${isMobile ? 'h-12 w-12' : 'h-14 w-14'} object-contain`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <h1 className="mt-4 text-2xl font-black tracking-normal text-gray-900 dark:text-white sm:text-3xl">
-                    {copy.title}
-                  </h1>
-                  <p className="mt-2 text-sm font-medium leading-6 text-gray-600 dark:text-slate-300">
-                    {copy.subtitle}
+    <div className="min-h-screen bg-[#f6f3ee] text-[#141210] dark:bg-neutral-950 dark:text-white lg:px-8 lg:py-6">
+      <div className="mx-auto grid min-h-[100dvh] w-full max-w-[1120px] overflow-hidden bg-[#f6f3ee] lg:min-h-[700px] lg:grid-cols-2 lg:rounded-[22px] lg:ring-1 lg:ring-[#e7dfd5] dark:bg-neutral-950 dark:ring-neutral-800">
+        <section className="hd-auth-form flex min-h-[100dvh] min-w-0 flex-col lg:min-h-[700px] lg:max-h-[calc(100dvh-3rem)]">
+          {!successPayload ? (
+            <>
+              <header className="flex items-center gap-3 px-6 pt-[22px] lg:px-12 lg:pt-8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormError('');
+                    if (step === 2) setStep(1);
+                    else nav('/login');
+                  }}
+                  className="flex h-11 w-7 shrink-0 items-center justify-center text-[#57534e] transition hover:text-[#e85d00] dark:text-neutral-300"
+                  aria-label={copy.back}
+                >
+                  <ArrowLeft size={22} />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px] font-bold text-[#78716c] dark:text-neutral-400">
+                    {step === 1
+                      ? (isFrench ? 'Étape 1 sur 2 · Profil' : 'Step 1 of 2 · Profile')
+                      : (isFrench ? 'Étape 2 sur 2 · Sécurité et livraison' : 'Step 2 of 2 · Security and delivery')}
                   </p>
-                </header>
-
-                {providerAuth ? (
-                  <div className="mb-5 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-100">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm dark:bg-neutral-900">
-                      {providerAuth.provider === 'apple' ? 'A' : 'G'}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block">
-                        {providerAuth.provider === 'apple' ? copy.appleConnected : copy.googleConnected}
-                      </span>
-                      <span className="block truncate text-xs font-medium opacity-80">{form.email}</span>
-                    </span>
+                  <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-[#e7dfd5] dark:bg-neutral-800">
+                    <div className="h-full rounded-full bg-[#e85d00] transition-all" style={{ width: step === 1 ? '50%' : '100%' }} />
                   </div>
-                ) : (
-                  <>
-                    {hasProviderRegistration ? <div className="grid gap-2 sm:grid-cols-2">
-                      {authAvailability.google.registration ? <GoogleAuthButton
-                        label={copy.google}
-                        loading={providerLoading === 'google'}
-                        disabled={loading || Boolean(providerLoading)}
-                        onClick={handleGoogleSignIn}
-                      /> : null}
-                      {authAvailability.apple.registration ? <AppleAuthButton
-                        label={copy.apple}
-                        loading={providerLoading === 'apple'}
-                        disabled={loading || Boolean(providerLoading)}
-                        onClick={handleAppleSignIn}
-                      /> : null}
-                    </div> : null}
-                    {hasProviderRegistration && authAvailability.email.registration ? <div className="my-5 flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
-                      {copy.divider}
-                      <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
-                    </div> : null}
-                  </>
-                )}
-
-                {providerAuth || authAvailability.email.registration ? <>
-                <div className="mb-5 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setFormError(''); setStep(1); }}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${
-                      step === 1
-                        ? 'hd-primary-button'
-                        : 'border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-300'
-                    }`}
-                  >
-                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${
-                      step === 1 ? 'bg-white/25 text-white' : 'bg-white text-gray-400 dark:bg-neutral-800 dark:text-slate-500'
-                    }`}>
-                      1
-                    </span>
-                    {copy.step1}
-                  </button>
-                  <div className={`h-px w-4 shrink-0 rounded-full transition ${step === 2 ? 'bg-[#e85d00]' : 'bg-gray-200 dark:bg-neutral-800'}`} />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (step === 1 && !canGoToStep2) {
-                        setFormError(copy.nextStepError);
-                        return;
-                      }
-                      setFormError('');
-                      setStep(2);
-                    }}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${
-                      step === 2
-                        ? 'hd-primary-button'
-                        : 'border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-300'
-                    }`}
-                  >
-                    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${
-                      step === 2 ? 'bg-white/25 text-white' : 'bg-white text-gray-400 dark:bg-neutral-800 dark:text-slate-500'
-                    }`}>
-                      2
-                    </span>
-                    {copy.step2}
-                  </button>
                 </div>
+              </header>
 
-                <form onSubmit={submit} className="space-y-4">
-                  {step === 1 ? (
-                    <>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <label htmlFor="register-first-name" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                            {copy.firstName}
-                          </label>
-                          <input
-                            id="register-first-name"
-                            ref={nameRef}
-                            type="text"
-                            autoComplete="given-name"
-                            className="ui-input min-h-[48px] rounded px-3 text-sm"
-                            placeholder={copy.firstNamePlaceholder}
-                            value={form.firstName}
-                            onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value }))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                lastNameRef.current?.focus();
-                              }
-                            }}
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label htmlFor="register-last-name" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                            {copy.lastName}
-                          </label>
-                          <input
-                            id="register-last-name"
-                            ref={lastNameRef}
-                            type="text"
-                            autoComplete="family-name"
-                            className="ui-input min-h-[48px] rounded px-3 text-sm"
-                            placeholder={copy.lastNamePlaceholder}
-                            value={form.lastName}
-                            onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value }))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                phoneRef.current?.focus();
-                              }
-                            }}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                          {copy.country}
-                        </label>
-                        <div className="ui-input flex min-h-[48px] items-center gap-2 rounded px-3 text-sm text-gray-700 dark:text-slate-200">
-                          <span aria-hidden="true">🇨🇬</span>
-                          <span className="font-semibold">Congo</span>
-                          <span className="text-gray-400 dark:text-slate-500">+242</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label htmlFor="register-phone" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                          {copy.phone}
-                        </label>
-                        <input
-                          id="register-phone"
-                          ref={phoneRef}
-                          type="tel"
-                          inputMode="tel"
-                          autoComplete="tel"
-                          className="ui-input min-h-[48px] rounded px-3 text-sm"
-                          placeholder={copy.phonePlaceholder}
-                          value={form.phone}
-                          onChange={(e) => {
-                            setForm((prev) => ({ ...prev, phone: e.target.value }));
-                            setPhoneVerified(false);
-                            setCodeSent(false);
-                            setCodeError('');
-                            setCodeMessage('');
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              if (canGoToStep2) setStep(2);
-                            }
-                          }}
-                          required
-                        />
-                      </div>
-
-                      {!providerAuth ? (
-                      <div className={`rounded border p-3 ${phoneVerified ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-400/20 dark:bg-emerald-500/10' : 'border-gray-100 bg-gray-50 dark:border-neutral-800 dark:bg-neutral-900'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-black text-slate-700 dark:text-slate-100">
-                            {copy.verificationTitle}
-                          </p>
-                          {phoneVerified ? (
-                            <span className="text-xs font-black text-emerald-700 dark:text-emerald-200">✅</span>
-                          ) : null}
-                        </div>
-                        {!codeSent ? (
-                          <button
-                            type="button"
-                            onClick={sendPhoneOtp}
-                            disabled={codeSending || !form.phone.trim()}
-                            className="mt-2 min-h-[48px] w-full rounded border border-gray-200 bg-white px-3 text-xs font-black text-[#e85d00] transition hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-orange-100"
-                          >
-                            {codeSending ? copy.sendingCode : copy.sendCode}
-                          </button>
-                        ) : phoneVerified ? null : (
-                          <div className="mt-2 flex gap-2">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              autoComplete="one-time-code"
-                              className="ui-input min-h-[48px] flex-1 rounded px-3 text-sm"
-                              placeholder={copy.verificationPlaceholder}
-                              value={verificationCode}
-                              onChange={(e) => setVerificationCode(e.target.value)}
-                            />
-                            <button
-                              type="button"
-                              onClick={verifyPhoneOtp}
-                              disabled={codeVerifying || !verificationCode.trim()}
-                              className="min-h-[48px] rounded bg-[#e85d00] px-3 text-xs font-black text-white transition hover:bg-[#e85f00] disabled:opacity-60"
-                            >
-                              {codeVerifying ? copy.verifyingCode : copy.verifyCode}
-                            </button>
-                          </div>
-                        )}
-                        {!phoneVerified && codeSent ? (
-                          <button
-                            type="button"
-                            onClick={sendPhoneOtp}
-                            disabled={codeSending}
-                            className="mt-2 text-xs font-bold text-[#e85d00] hover:underline disabled:opacity-60 dark:text-orange-100"
-                          >
-                            {codeSending ? copy.sendingCode : copy.resendCode}
-                          </button>
-                        ) : null}
-                        {codeError ? <p className="mt-2 text-xs text-red-600 dark:text-red-100">{codeError}</p> : null}
-                        {codeMessage ? <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-100">{codeMessage}</p> : null}
-                      </div>
-                      ) : null}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!canGoToStep2) {
-                            setFormError(copy.nextStepError);
-                            return;
-                          }
-                          setFormError('');
-                          setStep(2);
-                          setTimeout(() => {
-                            if (providerAuth) document.getElementById('register-address')?.focus();
-                            else passwordRef.current?.focus();
-                          }, 80);
-                        }}
-                        className="hd-primary-button inline-flex min-h-[48px] w-full items-center justify-center px-4 text-sm font-black active:scale-[0.98]"
-                      >
-                        {copy.continueStep2}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {!providerAuth ? (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5 sm:col-span-1">
-                          <label htmlFor="register-password" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                            {copy.password}
-                          </label>
-                          <div className="relative">
-                            <input
-                              id="register-password"
-                              ref={passwordRef}
-                              type={showPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              className="ui-input min-h-[48px] w-full rounded px-3 pr-12 text-sm"
-                              placeholder={copy.passwordPlaceholder}
-                              value={form.password}
-                              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-                              required
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword((prev) => !prev)}
-                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded bg-gray-100 text-gray-500 transition hover:bg-gray-200 dark:bg-neutral-800 dark:text-slate-200"
-                            >
-                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5 sm:col-span-1">
-                          <label htmlFor="register-confirm-password" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                            {copy.confirmPassword}
-                          </label>
-                          <div className="relative">
-                            <input
-                              id="register-confirm-password"
-                              ref={confirmRef}
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              className="ui-input min-h-[48px] w-full rounded px-3 pr-12 text-sm"
-                              placeholder={copy.confirmPasswordPlaceholder}
-                              value={form.confirmPassword}
-                              onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                              required
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirmPassword((prev) => !prev)}
-                              className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded bg-gray-100 text-gray-500 transition hover:bg-gray-200 dark:bg-neutral-800 dark:text-slate-200"
-                            >
-                              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      ) : null}
-
-                      {!providerAuth ? (
-                      <section className="rounded border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-100">
-                            {copy.passwordStrength}
-                          </p>
-                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-200">
-                            {passwordStrengthLabel}
-                          </span>
-                        </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-neutral-800">
-                          <div
-                            className={`h-full ${passwordStrength.color} transition-all`}
-                            style={{ width: `${Math.max(8, (passwordScore / 4) * 100)}%` }}
-                          />
-                        </div>
-                        <ul className="mt-3 space-y-1 text-xs">
-                          <li className={passwordChecks.minLength ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • {copy.ruleLength}
-                          </li>
-                          <li className={passwordChecks.hasUppercase ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • {copy.ruleUpper}
-                          </li>
-                          <li className={passwordChecks.hasNumber ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-600 dark:text-slate-300'}>
-                            • {copy.ruleNumber}
-                          </li>
-                          <li className={passwordChecks.hasSymbol ? 'text-emerald-700 dark:text-emerald-100' : 'text-slate-500 dark:text-slate-300'}>
-                            • {copy.ruleSymbol}
-                          </li>
-                        </ul>
-                      </section>
-                      ) : null}
-
-                      <div className="space-y-1.5">
-                        <label htmlFor="register-address" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                          {copy.address}
-                        </label>
-                        <textarea
-                          id="register-address"
-                          rows={2}
-                          className="ui-input min-h-[74px] w-full rounded px-3 py-2.5 text-sm"
-                          placeholder={copy.addressPlaceholder}
-                          value={form.address}
-                          onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
-                          required
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <label htmlFor="register-city" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                            {copy.city}
-                          </label>
-                          <select
-                            id="register-city"
-                            className="ui-input min-h-[48px] w-full rounded px-3 text-sm"
-                            value={form.city}
-                            onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value, commune: '' }))}
-                            required
-                          >
-                            <option value="">{copy.chooseCity}</option>
-                            {cityOptions.map((city) => (
-                              <option key={city} value={city}>
-                                {city}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label htmlFor="register-commune" className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-                            {copy.commune}
-                          </label>
-                          <select
-                            id="register-commune"
-                            className="ui-input min-h-[48px] w-full rounded px-3 text-sm"
-                            value={form.commune}
-                            onChange={(e) => setForm((prev) => ({ ...prev, commune: e.target.value }))}
-                            required={availableCommunes.length > 0}
-                            disabled={!form.city || availableCommunes.length === 0}
-                          >
-                            <option value="">
-                              {form.city ? copy.chooseCommune : copy.chooseCityFirst}
-                            </option>
-                            {availableCommunes.map((commune) => (
-                              <option key={commune._id} value={commune.name}>
-                                {commune.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">{copy.gender}</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {[
-                            { value: 'homme', label: copy.male },
-                            { value: 'femme', label: copy.female }
-                          ].map((option) => (
-                            <label
-                              key={option.value}
-                              className={`min-h-[48px] rounded px-3 py-3 text-center text-sm font-semibold transition ${
-                                form.gender === option.value
-                                  ? 'bg-[#e85d00] text-white'
-                                  : 'bg-gray-100 text-gray-700 dark:bg-neutral-900 dark:text-slate-100'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="gender"
-                                value={option.value}
-                                checked={form.gender === option.value}
-                                onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
-                                className="sr-only"
-                              />
-                              {option.label}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <label className="flex items-start gap-2 rounded border border-gray-100 bg-gray-50 px-3 py-2.5 text-xs text-gray-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-slate-200">
-                        <input
-                          type="checkbox"
-                          checked={acceptedTerms}
-                          onChange={(e) => setAcceptedTerms(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#e85d00]"
-                        />
-                        <span>
-                          {copy.termsLead}{' '}
-                          <Link to="/conditions-utilisation" target="_blank" className="font-semibold hover:underline">
-                            {copy.terms}
-                          </Link>{' '}
-                          {isFrench ? 'et' : 'and'}{' '}
-                          <Link to="/confidentialite" target="_blank" className="font-semibold hover:underline">
-                            {copy.privacy}
-                          </Link>
-                          .
-                        </span>
-                      </label>
-
-                      {formError ? (
-                        <div className="soft-card soft-card-red rounded-2xl px-3 py-2.5 text-sm text-red-700 dark:text-red-100">
-                          {formError}
-                        </div>
-                      ) : null}
-
-                      {slowNetwork && loading ? (
-                        <p className="text-xs text-amber-700 dark:text-amber-200">
-                          {copy.slowNetwork}
-                        </p>
-                      ) : null}
-
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => { setFormError(''); setStep(1); }}
-                          className="hd-soft-button min-h-[48px] px-4 text-sm font-black active:scale-[0.98]"
-                        >
-                          {copy.back}
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={!canSubmit}
-                          className="hd-primary-button inline-flex min-h-[48px] items-center justify-center gap-2 px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
-                        >
-                          {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                          {loading ? copy.creatingAccount : copy.createAccount}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </form>
-                </> : hasRegistration ? (
-                  <div role="status" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-100">
-                    {isFrench ? 'Choisissez Google ou Apple ci-dessus pour créer votre compte.' : 'Choose Google or Apple above to create your account.'}
-                  </div>
-                ) : (
-                  <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100">
-                    {isFrench ? 'La création de compte est temporairement désactivée.' : 'Account creation is temporarily disabled.'}
-                  </div>
-                )}
-
-                <footer className="mt-6 border-t border-gray-100 pt-4 text-sm text-gray-600 dark:border-neutral-800 dark:text-slate-300">
-                  <p>
-                    {copy.haveAccount}{' '}
-                    <Link to="/login" className="font-black text-[#e85d00] hover:underline dark:text-orange-100">
-                      {copy.signIn}
-                    </Link>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5 pt-6 lg:px-12">
+                <div className="mx-auto max-w-[430px]">
+                  <h1 className="text-[26px] font-black tracking-[-0.03em] text-[#141210] dark:text-white">
+                    {step === 1
+                      ? (isFrench ? 'Qui êtes-vous ?' : 'Who are you?')
+                      : (isFrench ? 'Sécurité et livraison' : 'Security and delivery')}
+                  </h1>
+                  <p className="mt-1.5 text-[14.5px] font-medium leading-[1.55] text-[#78716c] dark:text-neutral-400">
+                    {step === 1
+                      ? (isFrench ? 'Nous vérifions votre numéro pour sécuriser vos commandes.' : 'We verify your number to protect your orders.')
+                      : (isFrench ? 'Protégez votre compte et indiquez où livrer vos commandes.' : 'Protect your account and tell us where to deliver your orders.')}
                   </p>
+
+                  {step === 1 && !providerAuth && hasProviderRegistration ? (
+                    <div className="mt-5">
+                      <div className="grid gap-2.5 sm:grid-cols-2">
+                        {authAvailability.google.registration ? <GoogleAuthButton label={copy.google} loading={providerLoading === 'google'} disabled={loading || Boolean(providerLoading)} onClick={handleGoogleSignIn} /> : null}
+                        {authAvailability.apple.registration ? <AppleAuthButton label={copy.apple} loading={providerLoading === 'apple'} disabled={loading || Boolean(providerLoading)} onClick={handleAppleSignIn} /> : null}
+                      </div>
+                      {authAvailability.email.registration ? (
+                        <div className="my-4 flex items-center gap-3 text-[13px] font-medium text-[#a8a29e]">
+                          <span className="h-px flex-1 bg-[#e7dfd5]" />{copy.divider}<span className="h-px flex-1 bg-[#e7dfd5]" />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {providerAuth && step === 1 ? (
+                    <div className="mt-5 flex items-center gap-3 rounded-[14px] bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-100 dark:ring-emerald-400/20">
+                      <CheckCircle size={18} />
+                      <span className="min-w-0 truncate">{providerAuth.provider === 'apple' ? copy.appleConnected : copy.googleConnected} · {form.email}</span>
+                    </div>
+                  ) : null}
+
+                  {providerAuth || authAvailability.email.registration ? (
+                    <form id="register-form" onSubmit={submit} className="mt-[22px] space-y-3.5">
+                      {step === 1 ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <div className="space-y-[7px]">
+                              <label htmlFor="register-first-name" className={labelClass}>{copy.firstName}</label>
+                              <input id="register-first-name" ref={nameRef} type="text" autoComplete="given-name" className={fieldClass} placeholder={copy.firstNamePlaceholder} value={form.firstName} onChange={(event) => setForm((previous) => ({ ...previous, firstName: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); lastNameRef.current?.focus(); } }} required />
+                            </div>
+                            <div className="space-y-[7px]">
+                              <label htmlFor="register-last-name" className={labelClass}>{copy.lastName}</label>
+                              <input id="register-last-name" ref={lastNameRef} type="text" autoComplete="family-name" className={fieldClass} placeholder={copy.lastNamePlaceholder} value={form.lastName} onChange={(event) => setForm((previous) => ({ ...previous, lastName: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); phoneRef.current?.focus(); } }} required />
+                            </div>
+                          </div>
+
+                          <div className="space-y-[7px]">
+                            <label htmlFor="register-phone" className={labelClass}>{copy.phone}</label>
+                            <div className="flex h-14 items-center rounded-[14px] bg-white px-4 shadow-[inset_0_0_0_1px_#e7dfd5] focus-within:shadow-[inset_0_0_0_2px_#e85d00] dark:bg-neutral-900 dark:shadow-[inset_0_0_0_1px_#262626]">
+                              <span className="mr-2.5 flex shrink-0 items-center gap-1.5 whitespace-nowrap border-r border-[#ece5db] pr-2.5 text-[14px] font-semibold text-[#57534e] dark:border-neutral-700 dark:text-neutral-300">🇨🇬 +242</span>
+                              <input id="register-phone" ref={phoneRef} type="tel" inputMode="tel" autoComplete="tel" className="hd-auth-autofill !h-full !min-h-0 flex-1 !rounded-none !border-0 !bg-transparent !p-0 !text-base !font-medium !shadow-none outline-none placeholder:!text-[#a8a29e] focus:!bg-transparent focus:!shadow-none dark:!bg-transparent dark:!text-white" placeholder="06 00 00 000" value={form.phone} onChange={(event) => { setForm((previous) => ({ ...previous, phone: event.target.value })); setPhoneVerified(false); setCodeSent(false); setVerificationCode(''); setCodeError(''); setCodeMessage(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); if (canGoToStep2) goToStep2(); else if (!codeSent) sendPhoneOtp(); } }} required />
+                            </div>
+                          </div>
+
+                          {!providerAuth ? (
+                            <section className="rounded-2xl bg-white p-3.5 ring-1 ring-inset ring-[#e7dfd5] dark:bg-neutral-900 dark:ring-neutral-800">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-bold text-[#141210] dark:text-white">Code SMS</p>
+                                {codeSent && !phoneVerified ? (
+                                  <button type="button" onClick={sendPhoneOtp} disabled={codeSending || resendIn > 0} className="min-h-11 text-right text-[12.5px] font-semibold text-[#a8a29e] transition enabled:text-[#b3480a] enabled:hover:text-[#e85d00] disabled:cursor-not-allowed">
+                                    {codeSending ? copy.sendingCode : resendIn > 0 ? `${copy.resendCode} dans ${resendIn} s` : copy.resendCode}
+                                  </button>
+                                ) : null}
+                              </div>
+                              {!codeSent ? (
+                                <button type="button" onClick={sendPhoneOtp} disabled={codeSending || !form.phone.trim()} className="mt-2.5 flex min-h-[50px] w-full items-center justify-center rounded-[14px] bg-[#faf7f2] text-sm font-bold text-[#b3480a] ring-1 ring-inset ring-[#ece5db] transition hover:text-[#e85d00] disabled:cursor-not-allowed disabled:opacity-55 dark:bg-neutral-800 dark:ring-neutral-700">
+                                  {codeSending ? <><Loader2 size={16} className="mr-2 animate-spin" />{copy.sendingCode}</> : copy.sendCode}
+                                </button>
+                              ) : (
+                                <div className="mt-2.5 grid grid-cols-6 gap-2" onPaste={handleOtpPaste}>
+                                  {Array.from({ length: 6 }, (_, index) => (
+                                    <input key={index} ref={(node) => { otpRefs.current[index] = node; }} type="text" inputMode="numeric" autoComplete={index === 0 ? 'one-time-code' : 'off'} aria-label={`${isFrench ? 'Chiffre' : 'Digit'} ${index + 1}`} maxLength={1} value={verificationCode[index] || ''} onChange={(event) => updateOtpDigit(index, event.target.value)} onKeyDown={(event) => handleOtpKeyDown(index, event)} disabled={phoneVerified || codeVerifying} className="!h-[52px] !min-h-[52px] !w-full !rounded-xl !border-0 !bg-[#faf7f2] !p-0 !text-center !text-xl !font-extrabold !text-[#141210] !shadow-[inset_0_0_0_1px_#ece5db] outline-none focus:!shadow-[inset_0_0_0_2px_#e85d00] disabled:opacity-70 dark:!bg-neutral-800 dark:!text-white dark:!shadow-[inset_0_0_0_1px_#404040]" />
+                                  ))}
+                                </div>
+                              )}
+                              {codeVerifying ? <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-[#78716c]"><Loader2 size={14} className="animate-spin" />{copy.verifyingCode}</p> : null}
+                              {phoneVerified ? <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#15803d]"><CheckCircle size={14} />{isFrench ? 'Numéro vérifié' : 'Number verified'}</p> : null}
+                              {codeError ? <p className="mt-2.5 text-[12.5px] font-medium text-[#b91c1c]">{codeError}</p> : null}
+                              {codeMessage && !phoneVerified ? <p className="mt-2.5 text-[12.5px] font-medium text-[#78716c]">{codeMessage}</p> : null}
+                            </section>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          {!providerAuth ? (
+                            <>
+                              <div className="space-y-[7px]">
+                                <label htmlFor="register-password" className={labelClass}>{copy.password}</label>
+                                <div className="relative">
+                                  <input id="register-password" ref={passwordRef} type={showPassword ? 'text' : 'password'} autoComplete="new-password" className={`${fieldClass} !pr-12`} placeholder={copy.passwordPlaceholder} value={form.password} onChange={(event) => setForm((previous) => ({ ...previous, password: event.target.value }))} required />
+                                  <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210]" aria-label={showPassword ? 'Masquer' : 'Afficher'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                                </div>
+                                <div className="flex items-center gap-2 pt-0.5">
+                                  {[1, 2, 3, 4].map((segment) => <span key={segment} className={`h-[3px] flex-1 rounded-full ${passwordScore >= segment ? 'bg-[#e85d00]' : 'bg-[#e7dfd5] dark:bg-neutral-800'}`} />)}
+                                  <span className="text-[12.5px] font-bold text-[#57534e] dark:text-neutral-300">{passwordStrengthLabel}</span>
+                                </div>
+                                <p className="text-[12.5px] font-medium text-[#78716c] dark:text-neutral-400">8 caractères, une majuscule, un chiffre. <span className="text-[#a8a29e]">Ajoutez un symbole pour « Fort ».</span></p>
+                              </div>
+                              <div className="space-y-[7px]">
+                                <label htmlFor="register-confirm-password" className={labelClass}>{isFrench ? 'Confirmer' : 'Confirm'}</label>
+                                <div className="relative">
+                                  <input id="register-confirm-password" ref={confirmRef} type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" className={`${fieldClass} !pr-12`} placeholder={copy.confirmPasswordPlaceholder} value={form.confirmPassword} onChange={(event) => setForm((previous) => ({ ...previous, confirmPassword: event.target.value }))} required />
+                                  <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210]" aria-label={showConfirmPassword ? 'Masquer' : 'Afficher'}>{showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                                </div>
+                              </div>
+                            </>
+                          ) : null}
+
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <div className="space-y-[7px]">
+                              <label htmlFor="register-city" className={labelClass}>{copy.city}</label>
+                              <div className="relative">
+                                <select id="register-city" className={`${fieldClass} !appearance-none !pr-9`} value={form.city} onChange={(event) => setForm((previous) => ({ ...previous, city: event.target.value, commune: '' }))} required><option value="">{copy.chooseCity}</option>{cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}</select>
+                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
+                              </div>
+                            </div>
+                            <div className="space-y-[7px]">
+                              <label htmlFor="register-commune" className={labelClass}>{copy.commune}</label>
+                              <div className="relative">
+                                <select id="register-commune" className={`${fieldClass} !appearance-none !pr-9 disabled:!text-[#a8a29e]`} value={form.commune} onChange={(event) => setForm((previous) => ({ ...previous, commune: event.target.value }))} required={availableCommunes.length > 0} disabled={!form.city || availableCommunes.length === 0}><option value="">{form.city ? copy.chooseCommune : copy.chooseCityFirst}</option>{availableCommunes.map((commune) => <option key={commune._id} value={commune.name}>{commune.name}</option>)}</select>
+                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-[7px]">
+                            <label htmlFor="register-address" className={labelClass}>{copy.address}</label>
+                            <textarea id="register-address" rows={2} className={`${fieldClass} !h-auto !min-h-[76px] !py-3`} placeholder={copy.addressPlaceholder} value={form.address} onChange={(event) => setForm((previous) => ({ ...previous, address: event.target.value }))} required />
+                          </div>
+
+                          <div className="space-y-[7px]">
+                            <p className={labelClass}>{copy.gender}</p>
+                            <div className="grid grid-cols-2 gap-2.5">
+                              {[{ value: 'homme', label: copy.male }, { value: 'femme', label: copy.female }].map((option) => (
+                                <label key={option.value} className={`flex min-h-[50px] cursor-pointer items-center justify-center rounded-[14px] text-sm font-semibold transition ${form.gender === option.value ? 'bg-[#e85d00] text-white' : 'bg-white text-[#57534e] ring-1 ring-inset ring-[#e7dfd5] dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800'}`}><input type="radio" name="gender" value={option.value} checked={form.gender === option.value} onChange={(event) => setForm((previous) => ({ ...previous, gender: event.target.value }))} className="sr-only" />{option.label}</label>
+                              ))}
+                            </div>
+                          </div>
+
+                          {referralCode ? <p className="rounded-[14px] bg-white px-3.5 py-2.5 text-[12.5px] font-medium text-[#78716c] ring-1 ring-[#e7dfd5] dark:bg-neutral-900 dark:ring-neutral-800">Code de parrainage appliqué : <span className="font-bold text-[#141210] dark:text-white">{referralCode}</span></p> : null}
+
+                          <label className="flex cursor-pointer items-start gap-2.5 text-[13px] font-medium leading-[1.5] text-[#57534e] dark:text-neutral-300">
+                            <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="peer sr-only" />
+                            <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-transparent ring-1 ring-inset ring-[#d8d0c4] transition peer-checked:bg-[#e85d00] peer-checked:text-white peer-checked:ring-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-700"><Check size={14} strokeWidth={3} /></span>
+                            <span>{copy.termsLead}{' '}<Link to="/conditions-utilisation" target="_blank" className="font-bold text-[#141210] underline dark:text-white">{copy.terms}</Link>{' '}{isFrench ? 'et la' : 'and the'}{' '}<Link to="/confidentialite" target="_blank" className="font-bold text-[#141210] underline dark:text-white">{copy.privacy}</Link>.</span>
+                          </label>
+                        </>
+                      )}
+
+                      {formError ? <div className="rounded-[14px] bg-[#fef2f2] px-4 py-3 text-sm font-semibold text-[#b91c1c] ring-1 ring-[#fecaca] dark:bg-red-500/10 dark:text-red-100 dark:ring-red-400/20">{formError}</div> : null}
+                      {slowNetwork && loading ? <p className="text-[12.5px] font-medium text-amber-700 dark:text-amber-200">{copy.slowNetwork}</p> : null}
+                    </form>
+                  ) : hasRegistration ? (
+                    <div role="status" className="mt-5 rounded-[14px] bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 ring-1 ring-blue-200">{isFrench ? 'Choisissez Google ou Apple pour créer votre compte.' : 'Choose Google or Apple to create your account.'}</div>
+                  ) : (
+                    <div role="status" className="mt-5 rounded-[14px] bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">{isFrench ? 'La création de compte est temporairement désactivée.' : 'Account creation is temporarily disabled.'}</div>
+                  )}
+                </div>
+              </div>
+
+              {(providerAuth || authAvailability.email.registration) ? (
+                <footer className="sticky bottom-0 bg-[#f6f3ee] px-6 pb-6 pt-4 dark:bg-neutral-950 lg:px-12">
+                  <div className="mx-auto max-w-[430px]">
+                    {step === 1 ? (
+                      <button type="button" onClick={goToStep2} disabled={!canGoToStep2} className="flex h-14 w-full items-center justify-center rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55">{copy.continueStep2}</button>
+                    ) : (
+                      <button type="submit" form="register-form" disabled={!canSubmit} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <Loader2 size={18} className="animate-spin" /> : null}{loading ? copy.creatingAccount : copy.createAccount}</button>
+                    )}
+                    <p className="mt-3 text-center text-[13px] font-medium text-[#78716c]">{copy.haveAccount}{' '}<Link to="/login" className="font-bold text-[#b3480a] hover:text-[#e85d00]">{copy.signIn}</Link></p>
+                  </div>
                 </footer>
-              </>
-            ) : (
-              <AuthSuccessCard
-                variant="register"
-                loading={loading || finalizing}
-                title={copy.successTitle}
-                description={copy.successDescription}
-                statusText={copy.successStatus}
-                actions={[
-                  {
-                    key: 'go-dashboard',
-                    label: copy.goDashboard,
-                    primary: true,
-                    disabled: finalizing,
-                    onClick: () => completeRegistration(from)
-                  },
-                  {
-                    key: 'complete-profile',
-                    label: copy.completeProfile,
-                    primary: false,
-                    disabled: finalizing,
-                    onClick: () => completeRegistration('/profile')
-                  }
-                ]}
-              />
-            )}
-
-          </section>
-
-          <CommerceAuthPanel mode="register" logoSrc={logoSrc} />
-        </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="flex min-h-[100dvh] items-center justify-center p-6 lg:min-h-[700px]">
+              <AuthSuccessCard variant="register" loading={loading || finalizing} title={copy.successTitle} description={copy.successDescription} statusText={copy.successStatus} actions={[{ key: 'go-dashboard', label: copy.goDashboard, primary: true, disabled: finalizing, onClick: () => completeRegistration(from) }, { key: 'complete-profile', label: copy.completeProfile, primary: false, disabled: finalizing, onClick: () => completeRegistration('/profile') }]} />
+            </div>
+          )}
+        </section>
+        <CommerceAuthPanel mode="register" />
       </div>
     </div>
   );

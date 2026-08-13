@@ -40,6 +40,8 @@ import {
   sellerSendClientConfirmationReminder,
   clientConfirmDelivery,
   getOrderDeliveryLogs,
+  getOrderEscrow,
+  adminReleaseOrderEscrow,
   sellerUpdateOrderStatus,
   sellerCancelOrder,
   sellerDeliveryStatsOverview,
@@ -107,6 +109,7 @@ adminRouter.get('/products', adminSearchProducts);
 adminRouter.get('/', adminListOrders);
 adminRouter.post('/', requireRole(['admin']), idempotencyMiddleware(), validate(schemas.orderCreate), adminCreateOrder);
 adminRouter.patch('/:id', validate(schemas.idParam, 'params'), validate(schemas.orderUpdate), idempotencyMiddleware(), adminUpdateOrder);
+adminRouter.post('/:id/escrow/release', validate(schemas.idParam, 'params'), idempotencyMiddleware(), adminReleaseOrderEscrow);
 adminRouter.delete('/:id', validate(schemas.idParam, 'params'), idempotencyMiddleware(), adminDeleteOrder);
 adminRouter.post('/:id/reminder', validate(schemas.idParam, 'params'), idempotencyMiddleware(), adminSendOrderReminder);
 
@@ -232,6 +235,7 @@ router.post(
   clientConfirmDelivery
 );
 router.get('/:id/delivery-logs', validate(schemas.idParam, 'params'), getOrderDeliveryLogs);
+router.get('/:id/escrow', validate(schemas.idParam, 'params'), getOrderEscrow);
 router.get('/:id/tracking', protect, validate(schemas.idParam, 'params'), getOrderTracking);
 router.post(
   '/:id/request-delivery',

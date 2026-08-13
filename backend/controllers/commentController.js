@@ -9,7 +9,7 @@ import { ensureDocumentSlug } from '../utils/slugUtils.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
-import { markOrdersReviewedByProduct } from '../services/orderReviewReminderService.js';
+import { hasVerifiedPurchase, markOrdersReviewedByProduct } from '../services/orderReviewReminderService.js';
 
 const formatComment = (comment) => {
   const plain = comment.toObject ? comment.toObject() : comment;
@@ -119,6 +119,16 @@ export const addComment = asyncHandler(async (req, res) => {
     }
     if (parent.product.toString() !== product._id.toString()) {
       return res.status(400).json({ message: 'Le commentaire parent ne correspond pas au produit.' });
+    }
+  } else {
+    // Verified-purchase gate applies only to top-level reviews — a reply
+    // (parentId set) is a thread response (e.g. the seller answering a
+    // review) and must stay open regardless of purchase history.
+    if (!(await hasVerifiedPurchase(req.user.id, product._id))) {
+      return res.status(403).json({
+        message: 'Vous devez avoir reçu ce produit pour pouvoir laisser un avis.',
+        code: 'PURCHASE_NOT_VERIFIED'
+      });
     }
   }
 

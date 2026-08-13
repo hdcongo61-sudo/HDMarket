@@ -97,6 +97,7 @@ const createEmptyProductForm = () => ({
   installmentRequireGuarantor: false,
   wholesaleEnabled: false,
   wholesaleTiers: [],
+  quotationEnabled: true,
   warrantyEnabled: false,
   warrantyPeriodValue: '',
   warrantyPeriodUnit: 'months',
@@ -2063,6 +2064,7 @@ export default function ProductForm(props) {
             label: tier?.label || ''
           }))
         : [],
+      quotationEnabled: initialValues.quotationEnabled !== false,
       warrantyEnabled: Boolean(initialValues.warrantyEnabled),
       warrantyPeriodValue:
         initialValues.warrantyPeriodValue !== undefined && initialValues.warrantyPeriodValue !== null
@@ -3255,6 +3257,27 @@ export default function ProductForm(props) {
                 {wholesaleError}
               </p>
             )}
+          </div>
+
+          <div className={`min-w-0 overflow-hidden rounded-2xl border p-4 transition-colors ${form.quotationEnabled ? 'border-[#FF5000]/40 bg-[#FFEDE3]' : 'border-gray-200 bg-white'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${form.quotationEnabled ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'}`}>
+                  <FileText className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-gray-900">Autoriser les demandes de devis</p>
+                  <p className="mt-0.5 text-xs leading-snug text-gray-500">
+                    Les acheteurs peuvent négocier un prix privé sans modifier le prix public.
+                  </p>
+                </div>
+              </div>
+              {renderSwitchButton({
+                checked: Boolean(form.quotationEnabled),
+                label: 'Autoriser les demandes de devis',
+                onChange: (enabled) => setForm((previous) => ({ ...previous, quotationEnabled: enabled }))
+              })}
+            </div>
           </div>
                 </div>
           )}

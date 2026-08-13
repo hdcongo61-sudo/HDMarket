@@ -211,6 +211,7 @@ export const schemas = {
     installmentMaxMissedPayments: Joi.number().integer().min(1).max(12).optional(),
     installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false').optional(),
     wholesaleEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
+    quotationEnabled: Joi.boolean().truthy('true').falsy('false').optional(),
     wholesaleTiers: Joi.alternatives().try(
       Joi.string().allow('', null),
       Joi.array()
@@ -270,6 +271,7 @@ export const schemas = {
     installmentMaxMissedPayments: Joi.number().integer().min(1).max(12),
     installmentRequireGuarantor: Joi.boolean().truthy('true').falsy('false'),
     wholesaleEnabled: Joi.boolean().truthy('true').falsy('false'),
+    quotationEnabled: Joi.boolean().truthy('true').falsy('false'),
     wholesaleTiers: Joi.alternatives().try(
       Joi.string().allow('', null),
       Joi.array()
@@ -396,7 +398,9 @@ export const schemas = {
   }),
   disputeCreate: Joi.object({
     orderId: Joi.string().hex().length(24).required(),
-    reason: Joi.string().valid('wrong_item', 'damaged_item', 'not_received', 'other').required(),
+    reason: Joi.string()
+      .valid('wrong_item', 'damaged_item', 'not_received', 'missing_items', 'not_as_described', 'other')
+      .required(),
     description: Joi.string().min(10).max(2000).required()
   }),
   disputeSellerResponse: Joi.object({
@@ -655,6 +659,7 @@ export const schemas = {
     shopVerified: Joi.string().valid('true', 'false').allow(''),
     installmentOnly: Joi.boolean().truthy('true').falsy('false'),
     wholesaleOnly: Joi.boolean().truthy('true').falsy('false'),
+    quotationOnly: Joi.boolean().truthy('true').falsy('false'),
     pickupOnly: Joi.boolean().truthy('true').falsy('false'),
     freeDeliveryOnly: Joi.boolean().truthy('true').falsy('false'),
     page: Joi.number().integer().min(1).default(1),

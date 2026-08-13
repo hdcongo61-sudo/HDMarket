@@ -12,7 +12,6 @@ import { getManyRuntimeConfigs } from './configService.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateAdminCache, invalidateSellerCache, invalidateUserCache } from '../utils/cache.js';
 
-const PAYABLE_ORDER_STATUSES = ['completed', 'confirmed_by_client', 'picked_up_confirmed'];
 const ACTIVE_PAYOUT_STATUSES = ['CREATED', 'PROCESSING', 'ENQUEUED', 'NEEDS_ATTENTION'];
 const OPEN_DISPUTE_STATUSES = ['OPEN', 'SELLER_RESPONDED', 'UNDER_REVIEW'];
 const PROVIDER_SUCCESS = new Set(['COMPLETED', 'SUCCESSFUL']);
@@ -31,6 +30,10 @@ const DEFAULT_PAYOUT_LIMITS = { min: 10, max: 1_500_000 };
 
 export const payoutLimitsForProvider = (provider) =>
   PAWAPAY_PAYOUT_LIMITS[String(provider || '')] || DEFAULT_PAYOUT_LIMITS;
+
+export const isOrderEscrowReleasedForSettlement = (order) =>
+  String(order?.paymentSource || '').toLowerCase() === 'pawapay' &&
+  String(order?.escrowStatus || '') === 'RELEASED';
 
 // Greedily packs ready settlements (already sorted oldest-release-first) into
 // payout-sized batches so no single PawaPay payout exceeds maxAmount. A
@@ -59,11 +62,6 @@ export const chunkSettlementsForPayout = (settlements = [], maxAmount) => {
   if (current.length) batches.push(current);
   return { batches, oversized };
 };
-const settlementCutoverAt = (() => {
-  const parsed = new Date(process.env.SELLER_SETTLEMENT_CUTOVER_AT || '');
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-})();
-
 const clean = (value) => {
   if (value == null) return null;
   try {
@@ -184,11 +182,7 @@ export const ensureSellerSettlementForOrder = async (orderOrId) => {
     ? orderOrId
     : await Order.findById(orderOrId);
   if (!order) return null;
-  if (
-    String(order.paymentSource || '').toLowerCase() !== 'pawapay' ||
-    !PAYABLE_ORDER_STATUSES.includes(String(order.status || '')) ||
-    Number(order.remainingAmount || 0) > 0
-  ) {
+  if (!isOrderEscrowReleasedForSettlement(order)) {
     return null;
   }
 
@@ -537,13 +531,8 @@ export const processSellerSettlements = async ({ limit = 100 } = {}) => {
   const config = await settings();
   const candidates = await Order.find({
     paymentSource: 'pawapay',
-    status: { $in: PAYABLE_ORDER_STATUSES },
-    remainingAmount: { $lte: 0 },
-    settlementStatus: { $in: ['none', null] },
-    $or: [
-      { completedAt: { $gte: settlementCutoverAt } },
-      { clientDeliveryConfirmedAt: { $gte: settlementCutoverAt } }
-    ]
+    escrowStatus: 'RELEASED',
+    settlementStatus: { $in: ['none', null] }
   }).sort({ completedAt: 1 }).limit(limit);
   for (const order of candidates) {
     await ensureSellerSettlementForOrder(order);

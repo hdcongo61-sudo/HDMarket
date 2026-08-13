@@ -509,12 +509,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     const totalAmount = Number(entry.totalAmount || 0);
     const paidAmount = Number(entry.paidAmount || 0);
     const remainingAmount = Number(entry.remainingAmount || 0);
-    const isDelivered = entry._id === 'delivered';
     ordersByStatus[entry._id] = {
       count: Number(entry.count || 0),
       totalAmount,
-      paidAmount: isDelivered ? totalAmount : paidAmount,
-      remainingAmount: isDelivered ? 0 : remainingAmount
+      paidAmount,
+      remainingAmount
     };
   });
   const orderTotals = orderStatuses.reduce(

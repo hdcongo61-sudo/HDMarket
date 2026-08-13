@@ -491,15 +491,14 @@ const collectUserStats = async (userId) => {
 
   buyerAgg.forEach((entry) => {
     if (!entry || !purchaseByStatus[entry._id]) return;
-    const isDelivered = entry._id === 'delivered';
     const totalAmount = Number(entry.totalAmount || 0);
     const paidAmount = Number(entry.paidAmount || 0);
     const remainingAmount = Number(entry.remainingAmount || 0);
     purchaseByStatus[entry._id] = {
       count: Number(entry.count || 0),
       totalAmount,
-      paidAmount: isDelivered ? totalAmount : paidAmount,
-      remainingAmount: isDelivered ? 0 : remainingAmount,
+      paidAmount,
+      remainingAmount,
       items: Number(entry.items || 0)
     };
   });

@@ -50,7 +50,8 @@ function ProductCardGallery({
   lite = false,
   sizes = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw',
   reserveBottomSpace = false,
-  compact = false
+  compact = false,
+  photoFirst = false
 }) {
   const galleryRef = useRef(null);
   const pointerRef = useRef(null);
@@ -402,7 +403,7 @@ function ProductCardGallery({
     const failed = imageStatus[index] === 'error';
     const loaded = imageStatus[index] === 'loaded';
     return (
-      <div className="relative h-full w-full overflow-hidden bg-neutral-200 dark:bg-neutral-800">
+      <div className={`relative h-full w-full overflow-hidden ${photoFirst ? 'bg-[#f1ece4]' : 'bg-neutral-200 dark:bg-neutral-800'}`}>
         {canLoad ? (
           <img
             src={failed ? PLACEHOLDER_IMAGE : image.src}
@@ -469,13 +470,13 @@ function ProductCardGallery({
         </div>
       ) : renderImage(optimizedImages[currentIndex] || optimizedImages[0], currentIndex)}
 
-      {config?.enableCounter && carouselActive ? (
+      {config?.enableCounter && carouselActive && !photoFirst ? (
         <span className={`absolute z-20 inline-flex min-h-7 items-center rounded-full border border-white/15 bg-black/60 px-2.5 text-[10px] font-black tabular-nums text-white shadow-sm backdrop-blur-md ${indicatorPosition}`}>
           {currentIndex + 1} / {imageCount}
         </span>
       ) : null}
 
-      {!carouselActive ? (
+      {!carouselActive && !photoFirst ? (
         <span className={`absolute z-20 inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/20 bg-black/60 px-2.5 text-[10px] font-black text-white shadow-sm backdrop-blur-md ${indicatorPosition}`}>
           <Images className="h-3.5 w-3.5" aria-hidden="true" />
           {mode === 'stacked' ? `+${imageCount - 1}` : imageCount}
@@ -483,12 +484,12 @@ function ProductCardGallery({
       ) : null}
 
       {carouselActive && !showThumbnails ? (
-        <div className={`absolute left-1/2 z-20 flex max-w-[68%] -translate-x-1/2 items-center gap-1 rounded-full bg-black/45 px-2 py-1 backdrop-blur-sm ${dotsPosition}`}>
+        <div className={`absolute left-1/2 z-20 flex max-w-[68%] -translate-x-1/2 items-center ${photoFirst ? 'bottom-2 gap-1' : `gap-1 rounded-full bg-black/45 px-2 py-1 backdrop-blur-sm ${dotsPosition}`}`}>
           {safeImages.map((_, index) => (
             <button
               key={`gallery-dot-${index}`}
               type="button"
-              className={`h-1.5 rounded-full transition-all duration-200 ${currentIndex === index ? 'w-4 bg-white' : 'w-1.5 bg-white/55 hover:bg-white/80'}`}
+              className={`rounded-full transition-all duration-200 ${photoFirst ? `h-[5px] ${currentIndex === index ? 'w-3.5 bg-white' : 'w-[5px] bg-white/60 hover:bg-white/80'}` : `h-1.5 ${currentIndex === index ? 'w-4 bg-white' : 'w-1.5 bg-white/55 hover:bg-white/80'}`}`}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();

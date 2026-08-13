@@ -27,6 +27,8 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import quotationRoutes from './routes/quotationRoutes.js';
+import { expireDueQuotations } from './controllers/quotationController.js';
 import conversationRoutes from './routes/conversationRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -101,6 +103,7 @@ import {
   processSellerSettlements,
   reconcilePendingSellerPayouts
 } from './services/sellerSettlementService.js';
+import { processEscrowAutoReleases } from './services/escrowService.js';
 import { initNotificationQueue, closeNotificationQueue } from './queues/notificationQueue.js';
 import { initNotificationWorker, closeNotificationWorker } from './workers/notificationWorker.js';
 import {
@@ -395,6 +398,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/quotations', quotationRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/chat', chatRoutes);
@@ -646,6 +650,20 @@ httpServer.listen(port, () => {
   ensureDefaultSettingsBootstrap().catch((error) => {
     console.error('Settings bootstrap failed:', error);
   });
+  let quotationExpirationRunning = false;
+  const runQuotationExpiration = async () => {
+    if (quotationExpirationRunning) return;
+    quotationExpirationRunning = true;
+    try {
+      await expireDueQuotations();
+    } catch (error) {
+      console.error('[quotations] expiration sweep failed:', error?.message || error);
+    } finally {
+      quotationExpirationRunning = false;
+    }
+  };
+  setTimeout(runQuotationExpiration, 25_000);
+  setInterval(runQuotationExpiration, 60_000);
   const schedulerNotificationsEnabled = process.env.SCHEDULER_NOTIFICATIONS_ENABLED === 'true';
 
   const runRefundReconciliation = async () => {
@@ -672,6 +690,21 @@ httpServer.listen(port, () => {
   };
   setTimeout(runPawaPayCheckoutReconciliation, 40_000);
   setInterval(runPawaPayCheckoutReconciliation, 2 * 60 * 1000);
+
+  let escrowReleaseRunning = false;
+  const runEscrowReleasePass = async () => {
+    if (escrowReleaseRunning) return;
+    escrowReleaseRunning = true;
+    try {
+      await processEscrowAutoReleases();
+    } catch (error) {
+      console.error('[escrow] automatic release failed:', error?.message || error);
+    } finally {
+      escrowReleaseRunning = false;
+    }
+  };
+  setTimeout(runEscrowReleasePass, 20_000);
+  setInterval(runEscrowReleasePass, 60_000);
 
   let settlementPassRunning = false;
   const runSellerSettlementPass = async () => {

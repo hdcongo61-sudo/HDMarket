@@ -28,6 +28,7 @@ const categoryParam = (searchParams.get('category') || '').trim();
 const sortParam = searchParams.get('sort') || '';
 const shopVerifiedParam = searchParams.get('shopVerified') === 'true';
 const installmentOnlyParam = searchParams.get('installmentOnly') === 'true';
+const quotationOnlyParam = searchParams.get('quotationOnly') === 'true';
 const [items, setItems] = useState([]);
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,6 +40,7 @@ const [items, setItems] = useState([]);
   });
   const [shopVerified, setShopVerified] = useState(shopVerifiedParam);
   const [installmentOnly, setInstallmentOnly] = useState(installmentOnlyParam);
+  const [quotationOnly, setQuotationOnly] = useState(quotationOnlyParam);
 const pageParam = Number(searchParams.get('page'));
 const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
 const infiniteScrollLockRef = useRef(0);
@@ -69,9 +71,10 @@ const [showBackToTop, setShowBackToTop] = useState(false);
         sort || 'new',
         searchTerm || 'none',
         shopVerified ? 'verified' : 'all',
-        installmentOnly ? 'installment' : 'standard'
+        installmentOnly ? 'installment' : 'standard',
+        quotationOnly ? 'quotation' : 'all-quotes'
       ].join(':'),
-    [categoryFilter, installmentOnly, isMobileView, searchTerm, shopVerified, sort]
+    [categoryFilter, installmentOnly, isMobileView, quotationOnly, searchTerm, shopVerified, sort]
   );
   const [activeSnapshotKey, setActiveSnapshotKey] = useState(snapshotKey);
 
@@ -84,7 +87,8 @@ const [showBackToTop, setShowBackToTop] = useState(false);
     setSort(s === 'newest' ? 'new' : s);
     setShopVerified(shopVerifiedParam);
     setInstallmentOnly(installmentOnlyParam);
-  }, [sortParam, shopVerifiedParam, installmentOnlyParam]);
+    setQuotationOnly(quotationOnlyParam);
+  }, [sortParam, shopVerifiedParam, installmentOnlyParam, quotationOnlyParam]);
 
   // Initialize search from URL parameter
   const searchParam = searchParams.get('search') || '';
@@ -117,6 +121,7 @@ const fetchProducts = useCallback(async () => {
       if (categoryFilter) params.category = categoryFilter;
       if (shopVerified) params.shopVerified = 'true';
       if (installmentOnly) params.installmentOnly = 'true';
+      if (quotationOnly) params.quotationOnly = 'true';
       const { data } = await api.get('/products/public', { params });
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
@@ -173,6 +178,7 @@ const fetchProducts = useCallback(async () => {
     categoryFilter,
     shopVerified,
     installmentOnly,
+    quotationOnly,
     isMobileView,
     pageSize,
     shouldUseOfflineSnapshot,

@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
-export const DISPUTE_REASONS = ['wrong_item', 'damaged_item', 'not_received', 'other'];
+export const DISPUTE_REASONS = [
+  'wrong_item',
+  'damaged_item',
+  'not_received',
+  'missing_items',
+  'not_as_described',
+  'other'
+];
 export const DISPUTE_STATUSES = [
   'OPEN',
   'SELLER_RESPONDED',

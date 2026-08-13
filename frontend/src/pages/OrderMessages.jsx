@@ -5,35 +5,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   MessageCircle,
   Package,
-  Clock,
-  CheckCircle,
   Truck,
   X,
   Search,
-  Filter,
-  ArrowLeft,
-  Shield,
   Lock,
-  ChevronRight,
-  Inbox,
-  Bell,
-  Settings,
-  MoreHorizontal,
-  Star,
   Archive,
   ArchiveRestore,
-  Trash2,
-  Pin,
-  CheckCheck,
-  Check
+  CornerUpLeft,
+  XCircle
 } from 'lucide-react';
 import api from '../services/api';
 import storage from '../utils/storage';
 import AuthContext from '../context/AuthContext';
 import OrderChat from '../components/OrderChat';
 import BaseModal, { ModalBody } from '../components/modals/BaseModal';
-import { buildProductPath } from '../utils/links';
-import { resolveUserProfileImage } from '../utils/userAvatar';
 import {
   fetchOrderConversations,
   fetchOrderUnreadCount,
@@ -44,31 +29,10 @@ import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
-const STATUS_LABELS = {
-  pending: 'En attente',
-  confirmed: 'Confirmée',
-  delivering: 'En livraison',
-  delivered: 'Livrée',
-  cancelled: 'Annulée',
-  inquiry: 'Demande'
-};
-
-const STATUS_STYLES = {
-  pending: 'bg-gray-100 text-gray-700 ring-1 ring-gray-200',
-  confirmed: 'bg-amber-100 text-amber-800 ring-1 ring-amber-200',
-  delivering: 'bg-gray-100 text-[#e85d00] ring-1 ring-gray-200',
-  delivered: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200',
-  cancelled: 'bg-red-100 text-red-800 ring-1 ring-red-200',
-  inquiry: 'bg-gray-100 text-[#e85d00] ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800'
-};
-
-const STATUS_ICONS = {
-  pending: Clock,
-  confirmed: Package,
-  delivering: Truck,
-  delivered: CheckCircle,
-  cancelled: X,
-  inquiry: MessageCircle
+const ACTION_NOTES = {
+  delivering: { icon: Truck, label: 'En livraison' },
+  inquiry: { icon: CornerUpLeft, label: 'En attente de votre réponse' },
+  cancelled: { icon: XCircle, label: 'Commande annulée' }
 };
 
 const PAGE_SIZE = 12;
@@ -350,15 +314,12 @@ export default function OrderMessages() {
     const d = new Date(date);
     if (Number.isNaN(d.getTime())) return '';
     const now = new Date();
-    const diffMs = now - d;
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return "À l'instant";
-    if (diffMins < 60) return `${diffMins} min`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}j`;
+    if (d.toDateString() === now.toDateString()) {
+      return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return 'Hier';
     return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
@@ -584,45 +545,109 @@ export default function OrderMessages() {
     );
   }
 
-  return (
-    <div className="hd-order-flow min-h-screen bg-[#f6f3ee] text-slate-950 dark:bg-neutral-950 dark:text-white">
-      <header className="border-b border-[#e7dfd5] bg-white dark:border-neutral-800 dark:bg-neutral-950">
-        <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 text-[12px] font-black text-slate-500 [scrollbar-width:none] dark:text-gray-400 [&::-webkit-scrollbar]:hidden">
-            <Link to="/" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-800">Accueil</Link>
-            <Link to="/orders" className="shrink-0 rounded-full bg-white px-3 py-1.5 ring-1 ring-gray-200 transition hover:text-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-800">Commandes</Link>
-            <span className="shrink-0 rounded-full bg-[#e85d00] px-3 py-1.5 text-white">Messagerie</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e85d00] text-white shadow-sm">
-                <MessageCircle className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">Centre messages</p>
-                <h1 className="truncate text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">Messagerie</h1>
-                <p className="mt-0.5 text-sm font-semibold text-slate-500 dark:text-gray-400">
-                  {effectiveMeta.total} conversation{effectiveMeta.total !== 1 ? 's' : ''}
-                  {effectiveTotalUnread > 0 && (
-                    <span className="ml-2 inline-flex items-center gap-1 font-black text-[#e85d00]">
-                      · {effectiveTotalUnread} non lu{effectiveTotalUnread !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm ring-1 ring-gray-200 sm:flex dark:bg-neutral-900 dark:text-gray-200 dark:ring-neutral-800">
-              <Lock className="h-4 w-4 text-emerald-500" />
-              <span>Sécurisé</span>
-            </div>
-          </div>
-        </div>
-      </header>
+  const emptyState = searchQuery
+    ? {
+        title: 'Aucun résultat',
+        text: 'Aucune conversation ne correspond à votre recherche.'
+      }
+    : activeFilter === 'unread'
+      ? {
+          title: 'Tout est lu',
+          text: "Vous n'avez aucun message en attente pour le moment."
+        }
+      : activeFilter === 'archived'
+        ? {
+            title: 'Aucune conversation archivée',
+            text: 'Les conversations archivées apparaîtront ici.'
+          }
+        : {
+            title: 'Pas encore de conversation',
+            text: 'Écrivez à un vendeur depuis une fiche produit, ou reprenez une commande en cours.'
+          };
 
-      <div className="mx-auto max-w-6xl px-3 py-3 pb-28 sm:px-6 sm:py-5">
+  return (
+    <div className="hd-order-flow min-h-screen bg-[#f6f3ee] text-[#141210] dark:bg-neutral-950 dark:text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-3 pb-28 sm:px-6">
+        <header className="px-2 pb-3 pt-5 sm:px-0 sm:pt-8">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-[28px] font-black leading-none tracking-[-0.03em] text-[#141210] dark:text-white">
+              Messagerie
+            </h1>
+            <button
+              type="button"
+              onClick={() => {
+                setPage(1);
+                setActiveFilter(activeFilter === 'archived' ? 'all' : 'archived');
+              }}
+              className={`flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#57534e] ring-1 transition hover:text-[#e85d00] dark:bg-neutral-900 dark:text-neutral-300 ${
+                activeFilter === 'archived'
+                  ? 'ring-[#e85d00] text-[#e85d00]'
+                  : 'ring-[#e7dfd5] dark:ring-neutral-800'
+              }`}
+              aria-label={activeFilter === 'archived' ? 'Afficher toutes les conversations' : 'Afficher les conversations archivées'}
+              title="Conversations archivées"
+            >
+              <Archive className="h-[19px] w-[19px]" />
+            </button>
+          </div>
+          <p className="mt-1 text-sm font-medium text-[#78716c] dark:text-neutral-400">
+            {effectiveTotalUnread > 0
+              ? `${effectiveTotalUnread} message${effectiveTotalUnread > 1 ? 's' : ''} en attente de vous`
+              : `${effectiveMeta.total} conversation${effectiveMeta.total !== 1 ? 's' : ''}`}
+          </p>
+
+          <div className="relative mt-3.5">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#a8a29e]" />
+            <input
+              type="search"
+              placeholder="Rechercher un produit, une boutique…"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-11 w-full rounded-[14px] border-0 bg-white py-2 pl-[42px] pr-10 text-[15px] font-medium text-[#141210] placeholder:text-[#a8a29e] ring-1 ring-[#e7dfd5] transition focus:outline-none focus:ring-2 focus:ring-[#e85d00]/25 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#a8a29e] transition hover:bg-[#f6f3ee] hover:text-[#e85d00] dark:hover:bg-neutral-800"
+                aria-label="Effacer la recherche"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="mt-3 inline-flex max-w-full overflow-x-auto rounded-xl bg-[#ece5db] p-[3px] [scrollbar-width:none] dark:bg-neutral-800 [&::-webkit-scrollbar]:hidden">
+            {[
+              { value: 'all', label: 'Tous' },
+              {
+                value: 'unread',
+                label: `Non lus${effectiveTotalUnread > 0 ? ` · ${effectiveTotalUnread > 99 ? '99+' : effectiveTotalUnread}` : ''}`
+              },
+              { value: 'archived', label: 'Archivées' }
+            ].map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => {
+                  setPage(1);
+                  setActiveFilter(filter.value);
+                }}
+                className={`shrink-0 rounded-[9px] px-4 py-[7px] text-sm transition ${
+                  activeFilter === filter.value
+                    ? 'bg-white font-bold text-[#141210] shadow-sm dark:bg-neutral-700 dark:text-white'
+                    : 'font-semibold text-[#78716c] hover:text-[#141210] dark:text-neutral-400 dark:hover:text-white'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </header>
+
         {(offlineSnapshotActive || rapid3GActive) && (
           <section
-            className={`mb-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ring-1 ${
+            className={`mx-1 mb-3 rounded-2xl px-4 py-3 text-sm font-semibold ring-1 ${
               offlineSnapshotActive
                 ? 'bg-amber-50 text-amber-800 ring-amber-100'
                 : 'bg-sky-50 text-sky-800 ring-sky-100'
@@ -633,83 +658,9 @@ export default function OrderMessages() {
             </p>
           </section>
         )}
-        {/* Toolbar: search + filters */}
-        <div className="mb-3 rounded-[24px] bg-white p-3 shadow-sm ring-1 ring-[#e7dfd5] dark:bg-neutral-950 dark:ring-neutral-800">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#e85d00]" />
-            <input
-              type="text"
-              placeholder="Rechercher par produit, boutique ou message..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-12 w-full rounded-full border-0 bg-gray-50 py-2.5 pl-12 pr-10 text-sm font-semibold text-slate-950 placeholder-slate-400 ring-1 ring-gray-200 transition focus:outline-none focus:ring-2 focus:ring-[#e85d00]/30 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-gray-100 hover:text-[#e85d00] dark:hover:bg-neutral-800"
-                aria-label="Effacer la recherche"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <button
-              type="button"
-              onClick={() => { setPage(1); setActiveFilter('all'); }}
-              className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
-                activeFilter === 'all'
-                  ? 'bg-[#e85d00] text-white shadow-sm'
-                  : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Inbox className="w-4 h-4" />
-                Tous
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPage(1); setActiveFilter('unread'); }}
-              className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
-                activeFilter === 'unread'
-                  ? 'bg-[#e85d00] text-white shadow-sm'
-                  : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Bell className="w-4 h-4" />
-                Non lus
-                {effectiveTotalUnread > 0 && (
-                  <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white">
-                    {effectiveTotalUnread > 99 ? '99+' : effectiveTotalUnread}
-                  </span>
-                )}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPage(1); setActiveFilter('archived'); }}
-              className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-black transition-all ${
-                activeFilter === 'archived'
-                  ? 'bg-[#e85d00] text-white shadow-sm'
-                  : 'bg-white text-slate-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Archive className="w-4 h-4" />
-                Archivées
-              </span>
-            </button>
-          </div>
-        </div>
-        </div>
 
         {error && !offlineSnapshotActive && (
-          <div className="mb-4">
+          <div className="mx-1 mb-4">
             <NetworkFallbackCard
               title="Impossible de charger les conversations"
               message="Les conversations mettent plus de temps à charger. Réessayez dans un instant."
@@ -724,37 +675,59 @@ export default function OrderMessages() {
           </div>
         )}
 
-        {/* Main: two-column on desktop, single column on mobile */}
-        <div className="flex min-h-[calc(100vh-16rem)] flex-col gap-4 lg:flex-row lg:gap-6">
-          {/* Conversations list */}
-          <div className={`${selectedOrder ? 'hidden lg:block lg:w-[400px] xl:w-[420px] flex-shrink-0' : 'w-full'} flex flex-col`}>
+        <main className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-1 flex-col overflow-hidden rounded-[20px] bg-white shadow-sm ring-1 ring-[#ece5db] dark:bg-neutral-900 dark:ring-neutral-800">
             {filteredConversations.length === 0 ? (
-              <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-200/80 dark:bg-neutral-950 dark:ring-neutral-800 sm:p-12">
-                <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gray-50 ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
-                  <MessageCircle className="h-10 w-10 text-[#e85d00]" />
+              <div className="flex min-h-[460px] flex-1 flex-col items-center justify-center px-10 pb-20 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-white text-[#e85d00] ring-1 ring-[#ece5db] dark:bg-neutral-800 dark:ring-neutral-700">
+                  <MessageCircle className="h-[30px] w-[30px]" />
                 </div>
-                <h2 className="mb-2 text-lg font-black text-slate-950 dark:text-white">Aucune conversation</h2>
-                <p className="mx-auto mb-6 max-w-sm text-sm font-semibold text-slate-500 dark:text-gray-400">
-                  {searchQuery
-                    ? 'Aucune conversation ne correspond à votre recherche.'
-                    : activeFilter === 'unread'
-                      ? 'Vous avez lu tous vos messages.'
-                      : 'Démarrez une conversation depuis une fiche produit ou une commande.'}
+                <h2 className="mt-[18px] text-[19px] font-extrabold text-[#141210] dark:text-white">
+                  {emptyState.title}
+                </h2>
+                <p className="mt-2 max-w-sm text-[14.5px] font-medium leading-[1.55] text-[#78716c] dark:text-neutral-400">
+                  {emptyState.text}
                 </p>
-                <Link
-                  to="/orders"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#e85d00] px-5 text-sm font-black text-white transition hover:bg-[#f45f00]"
-                >
-                  <Package className="w-4 h-4" />
-                  Voir mes commandes
-                </Link>
+                {!searchQuery && activeFilter === 'all' ? (
+                  <div className="mt-[22px] flex w-full max-w-sm flex-col gap-2.5">
+                    <Link
+                      to="/orders"
+                      className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[15px] font-extrabold text-white transition hover:bg-[#f45f00]"
+                    >
+                      <Package className="h-[18px] w-[18px]" />
+                      Voir mes commandes
+                    </Link>
+                    <Link
+                      to="/shops/verified"
+                      className="flex min-h-12 items-center justify-center rounded-2xl bg-white px-5 text-[15px] font-bold text-[#141210] ring-1 ring-[#e7dfd5] transition hover:text-[#e85d00] dark:bg-neutral-800 dark:text-white dark:ring-neutral-700"
+                    >
+                      Explorer les boutiques
+                    </Link>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setActiveFilter('all');
+                      setPage(1);
+                    }}
+                    className="mt-[22px] min-h-11 rounded-2xl bg-white px-5 text-sm font-bold text-[#141210] ring-1 ring-[#e7dfd5] transition hover:text-[#e85d00] dark:bg-neutral-800 dark:text-white dark:ring-neutral-700"
+                  >
+                    Voir toutes les conversations
+                  </button>
+                )}
+                <p className="mt-[26px] flex items-center gap-1.5 text-xs font-medium text-[#a8a29e]">
+                  <Lock className="h-[13px] w-[13px]" />
+                  Messages chiffrés
+                </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div>
             {filteredConversations.map((conversation) => {
               const displayStatus = conversation.isInquiry ? 'inquiry' : conversation.status;
-              const StatusIcon = STATUS_ICONS[displayStatus] || Clock;
-              const statusStyle = STATUS_STYLES[displayStatus] || STATUS_STYLES.pending;
+              const actionNote = ACTION_NOTES[displayStatus] || null;
+              const ActionNoteIcon = actionNote?.icon;
               const hasUnread = conversation.unreadCount > 0;
 
               // Determine if user is customer or seller for display
@@ -764,31 +737,11 @@ export default function OrderMessages() {
 
               // Client/partner name: show customer name for seller/admin, shop name for customer
               let partnerName = conversation.productInfo?.shopName || 'Vendeur';
-              let buttonText = 'Contacter le vendeur';
               if (isAdmin || isSeller) {
                 partnerName = conversation.customerName || 'Client';
-                buttonText = "Contacter l'acheteur";
               } else if (isCustomer) {
                 partnerName = conversation.productInfo?.shopName || 'Vendeur';
-                buttonText = 'Contacter le vendeur';
               }
-              const latestSender = conversation.latestMessage?.sender || null;
-              const latestSenderIsSelf =
-                latestSender?._id && String(latestSender._id) === String(user?._id);
-              const partnerAvatar = (() => {
-                if (isAdmin || isSeller) {
-                  return resolveUserProfileImage({
-                    profileImage: conversation.customerProfileImage || ''
-                  });
-                }
-                if (isCustomer && latestSender && !latestSenderIsSelf) {
-                  return resolveUserProfileImage(latestSender);
-                }
-                return '';
-              })();
-              const productPath = conversation.productInfo?.slug
-                ? buildProductPath(conversation.productInfo)
-                : null;
 
               const isSelected =
                 selectedOrder && String(selectedOrder.conversationId) === String(conversation.conversationId);
@@ -800,109 +753,69 @@ export default function OrderMessages() {
                   tabIndex={0}
                   onClick={() => openConversation(conversation)}
                   onKeyDown={(e) => e.key === 'Enter' && openConversation(conversation)}
-                  className={`group cursor-pointer rounded-[24px] transition-all duration-200 ${
-                    isSelected
-                      ? 'bg-white ring-2 ring-[#e85d00]/35 shadow-sm dark:bg-neutral-950'
-                      : hasUnread
-                        ? 'bg-white shadow-sm ring-1 ring-gray-200/80 hover:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800'
-                        : 'bg-white shadow-sm ring-1 ring-gray-200 hover:ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800'
-                  }`}
+                  className={`group flex cursor-pointer items-start gap-3 border-b border-[#f4efe8] px-4 py-3.5 outline-none transition last:border-b-0 hover:bg-[#fffaf3] focus-visible:bg-[#fffaf3] dark:border-neutral-800 dark:hover:bg-neutral-800 ${isSelected ? 'bg-[#fffaf3] dark:bg-neutral-800' : ''}`}
                 >
-                  <div className="flex gap-3 p-3 sm:p-4">
-                    <div className="relative flex-shrink-0">
+                    <div className="shrink-0">
                       {conversation.productInfo?.image ? (
                         <img
                           src={conversation.productInfo.image}
                           alt=""
-                          className="h-16 w-16 rounded-xl object-cover"
+                          className="h-[46px] w-[46px] rounded-[14px] object-cover"
                         />
                       ) : (
-                        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-50 dark:bg-neutral-900">
-                          <Package className="h-7 w-7 text-[#e85d00]" />
+                        <div className="flex h-[46px] w-[46px] items-center justify-center rounded-[14px] bg-[#f6f3ee] dark:bg-neutral-800">
+                          <Package className="h-5 w-5 text-[#e85d00]" />
                         </div>
-                      )}
-                      {hasUnread && (
-                        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-white">
-                          {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
-                        </span>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          {productPath ? (
-                            <Link
-                              to={productPath}
-                              onClick={(e) => e.stopPropagation()}
-                              className={`block truncate text-sm font-black ${hasUnread ? 'text-slate-950 dark:text-white' : 'text-slate-800 dark:text-gray-100'} hover:text-[#e85d00]`}
-                            >
-                              {conversation.productInfo?.title || 'Produit'}
-                            </Link>
-                          ) : (
-                            <p className={`truncate text-sm font-black ${hasUnread ? 'text-slate-950 dark:text-white' : 'text-slate-800 dark:text-gray-100'}`}>
-                              {conversation.productInfo?.title || 'Produit'}
-                            </p>
-                          )}
-                          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-gray-400">
-                            <span className="inline-flex items-center gap-1.5">
-                              {partnerAvatar ? (
-                                <img
-                                  src={partnerAvatar}
-                                  alt={partnerName}
-                                  className="h-4 w-4 rounded-full object-cover"
-                                />
-                              ) : (
-                                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600 dark:bg-gray-700 dark:text-gray-300">
-                                  {String(partnerName || 'U').charAt(0).toUpperCase()}
-                                </span>
-                              )}
-                              <span>{partnerName}</span>
-                            </span>{' '}
-                            · #{conversation.orderCode || String(conversation.conversationId || '').slice(-6)}
-                          </p>
-                        </div>
-                        <div className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black ${statusStyle}`}>
-                          <StatusIcon className="w-3.5 h-3.5" />
-                          {STATUS_LABELS[displayStatus] || '—'}
-                        </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <p className={`min-w-0 flex-1 truncate text-[15px] text-[#141210] dark:text-white ${hasUnread ? 'font-extrabold' : 'font-semibold'}`}>
+                          {partnerName}
+                        </p>
+                        <time className={`shrink-0 text-xs font-medium ${hasUnread ? 'text-[#e85d00]' : 'text-[#a8a29e]'}`}>
+                          {formatTimestamp(conversation.latestMessage?.createdAt || conversation.createdAt)}
+                        </time>
                       </div>
+                      <p className="mt-0.5 truncate text-[13px] font-medium text-[#78716c] dark:text-neutral-400">
+                        {conversation.productInfo?.title || 'Produit'}
+                      </p>
                       {conversation.latestMessage ? (
-                        <p className={`mt-1.5 line-clamp-2 text-xs ${hasUnread ? 'font-black text-slate-700 dark:text-gray-200' : 'font-semibold text-slate-500 dark:text-gray-400'}`}>
+                        <p className={`mt-1 truncate text-sm ${hasUnread ? 'font-semibold text-[#3f3a34] dark:text-neutral-200' : 'font-medium text-[#8a8378] dark:text-neutral-400'}`}>
                           {conversation.latestMessage.text}
                         </p>
                       ) : (
-                        <p className="mt-1.5 text-xs italic text-slate-400 dark:text-gray-500">Aucun message</p>
+                        <p className="mt-1 truncate text-sm font-medium italic text-[#a8a29e]">Aucun message</p>
                       )}
-                      <p className="mt-1 text-[11px] font-semibold text-slate-400 dark:text-gray-500">
-                        {formatTimestamp(conversation.latestMessage?.createdAt)}
-                      </p>
+                      {actionNote && (
+                        <p className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-[#b3480a] dark:text-orange-300">
+                          <ActionNoteIcon className="h-[13px] w-[13px]" />
+                          {actionNote.label}
+                        </p>
+                      )}
                       {activeFilter === 'archived' && (
                         <button
                           type="button"
                           onClick={(e) => handleUnarchive(conversation.conversationId, e)}
-                          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1.5 text-xs font-black text-[#e85d00] ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
+                          className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#b3480a] transition hover:text-[#e85d00]"
                         >
-                          <ArchiveRestore className="w-3.5 h-3.5" />
+                          <ArchiveRestore className="h-[13px] w-[13px]" />
                           Désarchiver
                         </button>
                       )}
                     </div>
-                    <ChevronRight className="h-5 w-5 shrink-0 self-center text-slate-300 transition-colors group-hover:text-[#e85d00] dark:text-gray-600" />
-                  </div>
+                    {hasUnread && <span className="mt-2 h-[9px] w-[9px] shrink-0 rounded-full bg-[#e85d00]" aria-label="Non lu" />}
                 </div>
               );
             })}
               </div>
             )}
           </div>
+        </main>
 
-          {/* Right: chat modal opens on top; on desktop list stays visible */}
-        </div>
-
-        {/* Pagination */}
         {filteredConversations.length > 0 && effectiveMeta.totalPages > 1 && (
-          <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-2xl bg-white p-4 ring-1 ring-gray-200 dark:bg-neutral-950 dark:ring-neutral-800 sm:flex-row">
-            <p className="text-sm font-semibold text-slate-600 dark:text-gray-400">
+          <div className="mt-4 flex items-center justify-between gap-3 px-1">
+            <p className="text-sm font-medium text-[#78716c] dark:text-neutral-400">
               Page <span className="font-semibold text-slate-900 dark:text-white">{page}</span> sur{' '}
               <span className="font-semibold text-slate-900 dark:text-white">{effectiveMeta.totalPages}</span>
             </p>
@@ -911,7 +824,7 @@ export default function OrderMessages() {
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
-                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
+                className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-[#57534e] ring-1 ring-[#e7dfd5] transition hover:text-[#e85d00] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800"
               >
                 Précédent
               </button>
@@ -919,20 +832,13 @@ export default function OrderMessages() {
                 type="button"
                 onClick={() => setPage((prev) => Math.min(effectiveMeta.totalPages, prev + 1))}
                 disabled={page >= effectiveMeta.totalPages}
-                className="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-gray-200 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-950 dark:text-gray-300 dark:ring-neutral-800"
+                className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-[#57534e] ring-1 ring-[#e7dfd5] transition hover:text-[#e85d00] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800"
               >
                 Suivant
               </button>
             </div>
           </div>
         )}
-
-        <footer className="mt-8 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-gray-200 dark:bg-neutral-950 dark:text-gray-400 dark:ring-neutral-800">
-            <Lock className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Tous vos messages sont chiffrés et sécurisés</span>
-          </div>
-        </footer>
       </div>
 
       {/* Chat Modal - single instance, opens when a conversation is selected */}

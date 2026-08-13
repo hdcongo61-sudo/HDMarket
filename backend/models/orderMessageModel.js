@@ -34,6 +34,14 @@ const orderMessageSchema = new mongoose.Schema(
       createdAt: { type: Date, default: Date.now }
     }],
     readAt: { type: Date, default: null },
+    // Set when the message text matches the off-platform-payment heuristic
+    // (see utils/chatSafety.js) — the frontend renders a safety warning
+    // inline on flagged messages instead of blocking them outright.
+    safetyFlag: {
+      type: String,
+      enum: ['', 'off_platform_payment'],
+      default: ''
+    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {}

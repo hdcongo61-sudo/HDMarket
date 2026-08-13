@@ -532,6 +532,7 @@ const withCategoryCompatibility = (input) => {
     isLegacyCategory,
     wholesaleEnabled,
     wholesaleTiers,
+    quotationEnabled: base.quotationEnabled !== false,
     wholesaleMinQty: wholesaleEnabled ? getWholesaleMinTierQty({ wholesaleTiers }) : null,
     wholesaleFirstUnitPrice: wholesaleEnabled
       ? getWholesaleFirstTierUnitPrice({ wholesaleTiers })
@@ -833,6 +834,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     installmentRequireGuarantor,
     wholesaleEnabled,
     wholesaleTiers,
+    quotationEnabled,
     warrantyEnabled,
     warrantyPeriodValue,
     warrantyPeriodUnit,
@@ -1180,6 +1182,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       warrantyPeriodUnit: warrantyConfig.warrantyPeriodUnit,
       ...installmentConfig.normalized,
       ...wholesaleConfig.normalized,
+      quotationEnabled: normalizeBoolean(quotationEnabled, true),
       ...deliveryConfig.normalized
     });
   } catch (error) {
@@ -1253,6 +1256,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
     hasDiscount,
     installmentOnly,
     wholesaleOnly,
+    quotationOnly,
     pickupOnly,
     freeDeliveryOnly,
     minRating,
@@ -1383,6 +1387,10 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   if (wholesaleOnly === true || wholesaleOnly === 'true') {
     filter.wholesaleEnabled = true;
     filter['wholesaleTiers.0'] = { $exists: true };
+  }
+
+  if (quotationOnly === true || quotationOnly === 'true') {
+    filter.quotationEnabled = { $ne: false };
   }
 
   if (pickupOnly === true || pickupOnly === 'true') {
@@ -2752,6 +2760,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     installmentRequireGuarantor,
     wholesaleEnabled,
     wholesaleTiers,
+    quotationEnabled,
     warrantyEnabled,
     warrantyPeriodValue,
     warrantyPeriodUnit,
@@ -2933,6 +2942,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: wholesaleConfig.message });
     }
     Object.assign(product, wholesaleConfig.normalized);
+  }
+
+  if (quotationEnabled !== undefined) {
+    product.quotationEnabled = normalizeBoolean(quotationEnabled, true);
   }
 
   const hasWarrantyPayload = [warrantyEnabled, warrantyPeriodValue, warrantyPeriodUnit].some(

@@ -109,6 +109,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
     show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder'
   },
   { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
+  { to: '/admin/quotations', label: 'Gestion des devis', icon: FileText, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' },
   { to: '/admin/payment-verification', label: t('nav.payments', 'Paiements'), icon: DollarSign, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments === true || hasAnyPermission(u, ['verify_payments']) },
   { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
   { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },

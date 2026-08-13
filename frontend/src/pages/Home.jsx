@@ -2,13 +2,14 @@ import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, us
 import { Link, useSearchParams } from "react-router-dom";
 import api, { isApiCanceledError } from "../services/api";
 import ProductCard from "../components/ProductCard";
+import ProductCardSkeleton from "../components/ProductCardSkeleton";
 import FlashSaleCard from "../components/FlashSaleCard";
 import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package, Play, Clapperboard, Sun, Moon } from "lucide-react";
+import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package, Play, Clapperboard, Sun, Moon, Boxes } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -153,36 +154,6 @@ const getGreetingInfo = (user) => {
     firstName: String(user.name).trim().split(/\s+/)[0],
     dateLabel: new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
   };
-};
-
-// Mobile greeting stays focused on the welcome message. The delivery address
-// already appears beside the app name in the header above.
-const HomeGreeting = ({ user }) => {
-  const info = getGreetingInfo(user);
-  if (!info) return null;
-  const { isEvening, firstName, dateLabel } = info;
-  return (
-    <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF6A00] to-[#e85d00] shadow-sm">
-      <div className="relative px-4 pb-2.5 pt-3">
-        <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-10 right-10 h-20 w-20 rounded-full bg-white/10" />
-        <div className="relative flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm">
-            {isEvening ? <Moon size={18} /> : <Sun size={18} />}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-black leading-tight text-white">
-              {isEvening ? 'Bonsoir' : 'Bonjour'} {firstName} 👋
-            </p>
-            <p className="truncate text-[11px] font-medium capitalize text-white/80">
-              {dateLabel} · {isEvening ? 'offres du soir' : 'offres du jour'}
-            </p>
-          </div>
-          <Sparkles size={18} className="shrink-0 text-white/70" />
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const PourVousSection = ({ user, t, formatPrice, buildProductLink, externalLinkProps }) => {
@@ -1426,6 +1397,7 @@ const loadDiscountProducts = async () => {
 
   // === MOBILE COMPACT FEED LAYOUT (Proposal A) ===
   const renderMobileHome = () => {
+    const greeting = getGreetingInfo(user);
     const fallbackDeals = [
       ...highlights.topDeals.slice(0, 4),
       ...discountProducts.filter(p => !highlights.topDeals.some(d => d._id === p._id)).slice(0, 4)
@@ -1473,12 +1445,6 @@ const loadDiscountProducts = async () => {
 
     return (
       <div className="mx-auto flex max-w-7xl flex-col gap-5 bg-[#f7f8fa] px-5 pb-24 pt-0 text-[#1b1d22] max-[375px]:gap-4 max-[375px]:px-4">
-        {user ? (
-          <div className="order-[-30] pt-3">
-            <HomeGreeting user={user} />
-          </div>
-        ) : null}
-
         {/* Pour Vous — AI Recommendations (placed prominently at top) */}
         <div className="hidden">
           <PourVousSection
@@ -1616,35 +1582,47 @@ const loadDiscountProducts = async () => {
           <div className="relative px-5 pb-[22px] pt-[max(58px,env(safe-area-inset-top))] max-[375px]:px-4">
             <div className="home-anim-float pointer-events-none absolute left-32 -top-8 h-16 w-16 rounded-full bg-amber-200/20 blur-xl" />
             <div className="home-anim-float pointer-events-none absolute -right-6 top-10 h-20 w-20 rounded-full bg-white/10 blur-xl" style={{ animationDelay: '2.4s' }} />
-            <div className="home-anim-fade-up relative flex items-center justify-between gap-3">
-              <Link to="/" className="flex items-center gap-2" {...externalLinkProps}>
-                <span className="text-[26px] font-black leading-none tracking-[-0.5px]">HDMarket</span>
-              </Link>
-              <div className="inline-flex min-w-0 max-w-[210px] items-center rounded-full bg-white/20 px-2.5 py-2 backdrop-blur-sm max-[375px]:max-w-[184px]">
-                <Link
-                  to="/cities"
-                  {...externalLinkProps}
-                  className="inline-flex min-w-0 shrink-0 items-center gap-1 rounded-full px-0 py-0 text-[12.5px] font-extrabold"
-                  title={effectiveUserCity || 'Local'}
-                >
-                  <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="max-w-[64px] truncate max-[375px]:max-w-[50px]">{effectiveUserCity || 'Local'}</span>
+            <div className="home-anim-fade-up relative">
+              <div className="flex items-center justify-between gap-3">
+                <Link to="/" className="flex items-center gap-2" {...externalLinkProps}>
+                  <span className="text-[26px] font-black leading-none tracking-[-0.5px]">HDMarket</span>
                 </Link>
-                {user ? (
-                  <>
-                    <span className="mx-2 h-4 w-px shrink-0 bg-white/40" aria-hidden="true" />
-                    <Link
-                      to="/profile"
-                      className={`min-w-0 flex-1 truncate rounded-full px-0 py-0 text-[12px] font-bold ${
-                        hasDeliveryAddress ? 'text-white/90' : 'bg-amber-300/20 text-amber-50'
-                      }`}
-                      title={`${t('home.deliveryAddress', 'Adresse de livraison')} : ${connectedUserDeliveryAddressLabel}`}
-                    >
-                      {compactDeliveryAddressLabel}
-                    </Link>
-                  </>
-                ) : null}
+                <div className="inline-flex min-w-0 max-w-[210px] items-center rounded-full bg-white/20 px-2.5 py-2 backdrop-blur-sm max-[375px]:max-w-[184px]">
+                  <Link
+                    to="/cities"
+                    {...externalLinkProps}
+                    className="inline-flex min-w-0 shrink-0 items-center gap-1 rounded-full px-0 py-0 text-[12.5px] font-extrabold"
+                    title={effectiveUserCity || 'Local'}
+                  >
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="max-w-[64px] truncate max-[375px]:max-w-[50px]">{effectiveUserCity || 'Local'}</span>
+                  </Link>
+                  {user ? (
+                    <>
+                      <span className="mx-2 h-4 w-px shrink-0 bg-white/40" aria-hidden="true" />
+                      <Link
+                        to="/profile"
+                        className={`min-w-0 flex-1 truncate rounded-full px-0 py-0 text-[12px] font-bold ${
+                          hasDeliveryAddress ? 'text-white/90' : 'bg-amber-300/20 text-amber-50'
+                        }`}
+                        title={`${t('home.deliveryAddress', 'Adresse de livraison')} : ${connectedUserDeliveryAddressLabel}`}
+                      >
+                        {compactDeliveryAddressLabel}
+                      </Link>
+                    </>
+                  ) : null}
+                </div>
               </div>
+              {greeting ? (
+                <p className="mt-2.5 flex min-w-0 overflow-hidden whitespace-nowrap text-[14.5px] leading-tight max-[375px]:text-[13.5px]">
+                  <span className="shrink-0 font-bold text-white/95">
+                    {greeting.isEvening ? t('home.greetingEvening', 'Bonsoir') : t('home.greetingMorning', 'Bonjour')} {greeting.firstName}
+                  </span>
+                  <span className="min-w-0 truncate font-medium text-white/75">
+                    &nbsp;· {greeting.dateLabel}, {greeting.isEvening ? t('home.eveningOffers', 'offres du soir') : t('home.dayOffers', 'offres du jour')}
+                  </span>
+                </p>
+              ) : null}
             </div>
 
             <div className="home-anim-fade-up relative mt-[18px] flex gap-6 overflow-x-auto pb-2 hide-scrollbar" style={{ ...scrollStyle, '--home-anim-delay': '90ms' }}>
@@ -2388,64 +2366,65 @@ const loadDiscountProducts = async () => {
         )}
 
         {/* Wholesale section — always reserve space to prevent scroll jump */}
-        <motion.section {...scrollReveal(reduceMotionHome)} className="order-[1] isolate" style={{ minHeight: shouldLoadSecondarySections ? undefined : 220 }}>
+        <motion.section {...scrollReveal(reduceMotionHome)} className="order-[1] isolate" style={{ minHeight: shouldLoadSecondarySections ? undefined : 246 }}>
           <div>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="truncate text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
-                    <span className="shrink-0 rounded-full bg-[#e7f8ef] px-2 py-1 text-[10.5px] font-black uppercase tracking-wide text-[#00a860]">B2B</span>
-                  </div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-[19px] font-black tracking-[-0.02em] text-[#141210] dark:text-white">{t('home.wholesaleTitle', 'Vente en gros')}</h2>
+                  <span className="shrink-0 rounded-full bg-[#e7f8ef] px-2 py-0.5 text-[10.5px] font-extrabold tracking-[0.05em] text-[#00814a]">B2B</span>
                 </div>
+                <p className="mt-[3px] truncate text-[12.5px] font-medium text-[#8a8378] dark:text-neutral-400">
+                  {t('home.wholesaleSubtitle', 'Tarif dégressif à partir de plusieurs pièces.')}
+                </p>
               </div>
-              <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-emerald-700 active:scale-95">
+              <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-[3px] text-[13.5px] font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-95">
                 {t('home.viewAll', 'Voir tout')}
-                <ChevronRight className="h-3 w-3" />
+                <ChevronRight className="h-[15px] w-[15px]" />
               </Link>
             </div>
           {!shouldLoadSecondarySections ? (
-            <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
+            <div className="-mx-5 mt-3.5 flex gap-3 overflow-x-auto px-5 pb-1 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={`ws-reserve-${i}`} className="h-[220px] w-[160px] shrink-0 animate-pulse rounded-[20px] bg-[#f0f1f5]" />
+                <div key={`ws-reserve-${i}`} className="h-[246px] w-[164px] shrink-0 animate-pulse rounded-[18px] bg-[#f0f1f5]" />
               ))}
             </div>
           ) : wholesaleLoading && !wholesaleProducts.length ? (
-            <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
+            <div className="-mx-5 mt-3.5 flex gap-3 overflow-x-auto px-5 pb-1 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`wholesale-skeleton-${index}`} className="h-[220px] w-[160px] shrink-0 animate-pulse overflow-hidden rounded-[20px] bg-[#f0f1f5]" />
+                <div key={`wholesale-skeleton-${index}`} className="h-[246px] w-[164px] shrink-0 animate-pulse overflow-hidden rounded-[18px] bg-[#f0f1f5]" />
               ))}
             </div>
           ) : wholesaleProducts.length > 0 ? (
-            <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
+            <div className="-mx-5 mt-3.5 flex gap-3 overflow-x-auto px-5 pb-1 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
               {wholesaleProducts.slice(0, 8).map((product) => {
                 const minQty = Number(product?.wholesaleMinQty || product?.wholesaleTiers?.[0]?.minQty || 2);
-                const wholesalePrice = Number(product?.wholesalePrice || product?.wholesaleTiers?.[0]?.price || product?.price || 0);
+                const wholesalePrice = Number(product?.wholesalePrice || product?.wholesaleTiers?.[0]?.unitPrice || product?.wholesaleTiers?.[0]?.price || product?.price || 0);
                 return (
-                  <Link key={`wholesale-mobile-${product._id}`} to={buildHomeProductLink(product)} {...externalLinkProps} className="flex w-[160px] shrink-0 flex-col overflow-hidden rounded-[20px] border border-[#eeeff3] bg-white p-2 active:scale-[0.98]">
-                    <div className="relative h-[120px] overflow-hidden rounded-[14px] bg-[#f0f1f5]">
+                  <Link key={`wholesale-mobile-${product._id}`} to={buildHomeProductLink(product)} {...externalLinkProps} className="flex w-[164px] shrink-0 flex-col overflow-hidden rounded-[18px] bg-white shadow-[inset_0_0_0_1px_#ece5db] transition active:scale-[0.98] dark:bg-neutral-950 dark:shadow-[inset_0_0_0_1px_#262626]">
+                    <div className="relative h-[150px] overflow-hidden bg-[#f1ece4] dark:bg-neutral-900">
                       <PreviewableImage product={product} src={resolveProductPrimaryImage(product)} images={resolveProductImageSet(product)} alt={product.title} className="h-full w-full object-cover" loading="lazy" reportContext={buildImageReportContext(product, buildHomeProductLink(product))} showHint={false} />
-                      {isInstallmentOfferActive(product) && (
-                        <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
-                          <Clock className="h-2.5 w-2.5" />
-                          Tranche
-                        </span>
-                      )}
                     </div>
-                    <div className="px-1 pb-2 pt-2">
-                      <p className="truncate text-[13px] font-extrabold text-[#1b1d22]">{product.title}</p>
-                      <p className="mt-0.5 text-[15px] font-black text-[#f26522]">{formatPrice(wholesalePrice)}</p>
-                    </div>
-                    <div className="-mx-2 mt-auto flex items-center justify-between gap-1.5 bg-[#e7f8ef] px-3 py-2">
-                      <span className="truncate text-[11.5px] font-black text-[#00a860]">Prix de gros</span>
-                      <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-black text-[#00a860]">x{minQty}+</span>
+                    <div className="flex flex-col gap-1.5 p-2.5">
+                      <p className="hd-home-offer-title h-[34px] overflow-hidden text-[13px] font-bold leading-[1.3] text-[#141210] dark:text-white">{product.title}</p>
+                      <div className="flex items-baseline gap-1">
+                        <p className="whitespace-nowrap text-[16.5px] font-black tracking-[-0.02em] text-[#141210] dark:text-white">{formatPrice(wholesalePrice)}</p>
+                        <span className="whitespace-nowrap text-[11.5px] font-medium text-[#8a8378] dark:text-neutral-400">/ pièce</span>
+                      </div>
+                      <p className="flex items-center gap-[5px] whitespace-nowrap text-[11.5px] font-bold text-[#00814a] dark:text-emerald-400">
+                        <Boxes className="h-[13px] w-[13px] shrink-0" />
+                        {t('home.wholesaleFrom', 'Dès {count} pièces').replace('{count}', String(minQty))}
+                      </p>
+                      {isInstallmentOfferActive(product) ? (
+                        <p className="text-[11px] font-semibold text-[#0b6ea8] dark:text-sky-300">{t('home.installmentAvailable', 'Paiement en tranches')}</p>
+                      ) : null}
                     </div>
                   </Link>
                 );
               })}
             </div>
           ) : (
-            <p className="text-xs text-gray-500">
+            <p className="mt-3.5 text-[12.5px] font-medium text-[#8a8378] dark:text-neutral-400">
               {t('home.noWholesaleProducts', 'Aucun produit en vente en gros actuellement.')}
             </p>
           )}
@@ -2453,48 +2432,46 @@ const loadDiscountProducts = async () => {
         </motion.section>
 
         {/* Installment section — always reserve space to prevent scroll jump */}
-        <motion.section {...scrollReveal(reduceMotionHome)} ref={installmentSectionRef} className="order-[2] isolate" style={{ minHeight: shouldLoadSecondarySections ? undefined : 220 }}>
+        <motion.section {...scrollReveal(reduceMotionHome)} ref={installmentSectionRef} className="order-[2] isolate" style={{ minHeight: shouldLoadSecondarySections ? undefined : 246 }}>
           <div>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="text-[16px] font-black leading-snug tracking-[-0.02em] text-[#1b1d22] sm:text-[18px]">
-                {t('home.installmentProducts', 'Paiement par tranche')}
-              </h2>
-                    <span className="shrink-0 rounded-full bg-[#ebf4fd] px-2 py-1 text-[10.5px] font-black uppercase tracking-wide text-[#0b87d4]">Flex</span>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-[19px] font-black tracking-[-0.02em] text-[#141210] dark:text-white">
+                      {t('home.installmentProducts', 'Paiement en tranches')}
+                    </h2>
+                    <span className="shrink-0 rounded-full bg-[#ebf4fd] px-2 py-0.5 text-[10.5px] font-extrabold tracking-[0.05em] text-[#0b6ea8]">FLEX</span>
                   </div>
-                  <p className="mt-0.5 line-clamp-1 text-[12.5px] font-semibold text-[#8a8f99]">
-                {t('home.installmentSubtitle', 'Payez progressivement, plus de flexibilité.')}
-              </p>
-                </div>
+                  <p className="mt-[3px] truncate text-[12.5px] font-medium text-[#8a8378] dark:text-neutral-400">
+                    {t('home.installmentSubtitle', "Un acompte aujourd'hui, le reste échelonné.")}
+                  </p>
+              </div>
+              <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-[3px] text-[13.5px] font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-95">
+                {t('home.viewAll', 'Voir tout')}
+                <ChevronRight className="h-[15px] w-[15px]" />
+              </Link>
             </div>
-              <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-sky-700 active:scale-95">
-              {t('home.viewAll', 'Voir tout')}
-                <ChevronRight className="h-3 w-3" />
-            </Link>
-          </div>
           {!shouldLoadSecondarySections ? (
-            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+            <div className="-mx-5 mt-3.5 flex gap-3 overflow-x-auto px-5 pb-1 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={`is-reserve-${i}`} className="h-[224px] w-[168px] shrink-0 animate-pulse rounded-[20px] bg-[#f0f1f5]" />
+                <div key={`is-reserve-${i}`} className="h-[246px] w-[164px] shrink-0 animate-pulse rounded-[18px] bg-[#f0f1f5]" />
               ))}
             </div>
           ) : installmentLoading && !activeInstallmentProducts.length ? (
-            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+            <div className="-mx-5 mt-3.5 flex gap-3 overflow-x-auto px-5 pb-1 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`installment-skeleton-${index}`} className="h-[224px] w-[168px] shrink-0 animate-pulse rounded-[20px] bg-[#f0f1f5]" />
+                <div key={`installment-skeleton-${index}`} className="h-[246px] w-[164px] shrink-0 animate-pulse rounded-[18px] bg-[#f0f1f5]" />
               ))}
             </div>
           ) : activeInstallmentProducts.length > 0 ? (
-            <div className="flex gap-2.5 overflow-x-auto pb-2 hide-scrollbar" style={scrollStyle}>
+            <div className="-mx-5 mt-3.5 flex gap-3 overflow-x-auto px-5 pb-1 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
               {activeInstallmentProducts
                 .slice(0, 8)
                 .map((product) => {
                   const firstPayment = getInstallmentFirstPaymentAmount(product);
                   return (
-                    <Link key={`installment-mobile-${product._id}`} to={buildHomeProductLink(product)} {...externalLinkProps} className="flex w-[168px] shrink-0 flex-col overflow-hidden rounded-[20px] border border-[#eeeff3] bg-white p-2 active:scale-[0.98]">
-                      <div className="relative h-[120px] overflow-hidden rounded-[14px] bg-[#f0f1f5]">
+                    <Link key={`installment-mobile-${product._id}`} to={buildHomeProductLink(product)} {...externalLinkProps} className="flex w-[164px] shrink-0 flex-col overflow-hidden rounded-[18px] bg-white shadow-[inset_0_0_0_1px_#ece5db] transition active:scale-[0.98] dark:bg-neutral-950 dark:shadow-[inset_0_0_0_1px_#262626]">
+                      <div className="relative h-[150px] overflow-hidden bg-[#f1ece4] dark:bg-neutral-900">
                         <PreviewableImage
                           product={product}
                           src={resolveProductPrimaryImage(product)}
@@ -2505,58 +2482,61 @@ const loadDiscountProducts = async () => {
                           reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
                           showHint={false}
                         />
-                        <span className="absolute left-1.5 top-1.5 rounded-full bg-[#f26522] px-2 py-1 text-[10px] font-black text-white">Nouveau</span>
+                        <span className="absolute left-2 top-2 rounded-lg bg-[#e85d00] px-2 py-[3px] text-[10.5px] font-extrabold text-white">{t('home.newBadge', 'Nouveau')}</span>
                       </div>
-                      <div className="px-1 pb-2 pt-2">
-                        <p className="truncate text-[13px] font-extrabold text-[#1b1d22]">{product.title}</p>
-                        <p className="mt-0.5 text-[15px] font-black text-[#f26522]">{formatPrice(product?.price || 0)}</p>
-                      </div>
-                      <div className="-mx-2 border-t border-[#d8eafa] bg-[#ebf4fd] px-3 py-2">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className="inline-flex min-w-0 items-center gap-1 text-[10.5px] font-black uppercase tracking-wide text-[#0b87d4]">
-                            <CreditCard className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{t('home.firstInstallmentPayment', 'Premier paiement')}</span>
-                          </span>
-                          {product?.installmentDuration ? (
-                            <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-black text-[#0b87d4] shadow-none">{product.installmentDuration}j</span>
+                      <div className="flex flex-col gap-1.5 p-2.5">
+                        <p className="hd-home-offer-title h-[34px] overflow-hidden text-[13px] font-bold leading-[1.3] text-[#141210] dark:text-white">{product.title}</p>
+                        <p className="whitespace-nowrap text-[16.5px] font-black tracking-[-0.02em] text-[#141210] dark:text-white">{formatPrice(product?.price || 0)}</p>
+                        <div>
+                          <p className="whitespace-nowrap text-[11.5px] font-bold text-[#0b6ea8] dark:text-sky-300">
+                            {firstPayment > 0
+                              ? t('home.installmentDownPayment', 'Acompte {amount}').replace('{amount}', formatPrice(firstPayment))
+                              : t('home.installmentDetails', 'Voir les modalités')}
+                          </p>
+                          {firstPayment > 0 && product?.installmentDuration ? (
+                            <p className="mt-px whitespace-nowrap text-[11.5px] font-medium text-[#8a8378] dark:text-neutral-400">
+                              {t('home.installmentThenDays', 'puis {days} jours').replace('{days}', String(product.installmentDuration))}
+                            </p>
                           ) : null}
                         </div>
-                        <p className="mt-0.5 truncate text-[14px] font-black text-[#0b87d4]">
-                          {firstPayment > 0
-                            ? formatPrice(firstPayment)
-                            : t('home.installmentDetails', 'Voir les modalités')}
-                        </p>
                       </div>
                     </Link>
                   );
                 })}
             </div>
           ) : (
-            <p className="text-xs text-gray-500">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
+            <p className="mt-3.5 text-[12.5px] font-medium text-[#8a8378] dark:text-neutral-400">{t('home.noInstallmentProducts', 'Aucun produit en tranche disponible actuellement.')}</p>
           )}
           </div>
         </motion.section>
 
+        <Link
+          to="/products?quotationOnly=true"
+          className="order-[3] flex min-h-[76px] items-center gap-3 rounded-2xl bg-white px-4 py-4 text-left shadow-[inset_0_0_0_1px_#e7dfd5] transition active:scale-[0.99] dark:bg-neutral-950 dark:shadow-[inset_0_0_0_1px_#262626]"
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><Store className="h-6 w-6" /></span>
+          <span className="min-w-0 flex-1">
+            <strong className="block text-[16px] font-black text-[#141210] dark:text-white">Vous revendez ?</strong>
+            <span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378] dark:text-neutral-400">Demandez un devis groupé au vendeur.</span>
+          </span>
+          <ChevronRight className="h-6 w-6 shrink-0 text-[#a8a29e]" />
+        </Link>
+
         {/* All Products Grid */}
-        <section className="order-[3]">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-[#1b1d22]">
-                <ShoppingBag className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">{t('home.forYou', 'Pour vous')}</h2>
-                <p className="text-[12px] font-semibold text-[#8a8f99]">
+        <section className="order-[4]">
+          <div className="mb-3.5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#141210]">{t('home.forYou', 'Pour vous')}</h2>
+                <p className="mt-0.5 truncate text-[12.5px] font-medium text-[#8a8378]">
                   <span className="tabular-nums">{formatCount(totalProducts)}</span> {t('home.listings', 'annonces')}{hasUserCity ? ' · près de vous' : ''}
                 </p>
               </div>
-            </div>
             <Link
               to="/products"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-50 text-neutral-700 font-semibold text-sm hover:bg-neutral-100 active:scale-[0.98] transition-all"
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-[0.98]"
             >
               Voir tout
-              <ChevronRight className="w-4 h-4 flex-shrink-0" />
+              <ChevronRight className="h-4 w-4 flex-shrink-0" />
             </Link>
           </div>
 
@@ -2569,7 +2549,7 @@ const loadDiscountProducts = async () => {
               refreshLabel="Actualiser la page"
             />
           ) : loading && items.length === 0 ? (
-            <ShimmerSkeleton rows={3} />
+            <ProductCardSkeleton count={6} homeFeed className="grid grid-cols-2 gap-3" />
           ) : items.length > 0 ? (
             <>
               <div className="grid grid-cols-2 gap-3">
@@ -3478,6 +3458,18 @@ const loadDiscountProducts = async () => {
             )}
           </section>
           )}
+
+          <Link
+            to="/products?quotationOnly=true"
+            className="flex min-h-[88px] items-center gap-4 rounded-2xl border border-[#e7dfd5] bg-white px-5 py-4 text-left shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+          >
+            <span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><Store className="h-6 w-6" /></span>
+            <span className="min-w-0 flex-1">
+              <strong className="block text-lg font-black text-[#141210]">Vous revendez ?</strong>
+              <span className="mt-0.5 block text-sm font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span>
+            </span>
+            <ChevronRight className="h-6 w-6 shrink-0 text-[#a8a29e]" />
+          </Link>
         </div>
 
         {/* Découvrir plus: quick-links to dedicated pages */}

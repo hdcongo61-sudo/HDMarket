@@ -117,7 +117,13 @@ const notificationSchema = new mongoose.Schema(
       'parcel_request_assigned',
       'parcel_pickup_started',
       'parcel_request_delivered',
-      'parcel_request_cancelled'
+      'parcel_request_cancelled',
+      'quotation_request_received',
+      'quotation_countered',
+      'quotation_accepted',
+      'quotation_rejected',
+      'quotation_expired',
+      'quotation_order_created'
     ],
       required: true
     },
@@ -172,7 +178,7 @@ const notificationSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['', 'order', 'product', 'shop', 'boost', 'deliveryRequest', 'dispute', 'user', 'payment', 'refund', 'shopConversionRequest', 'globalNotification'],
+      enum: ['', 'order', 'product', 'shop', 'boost', 'deliveryRequest', 'dispute', 'user', 'payment', 'refund', 'shopConversionRequest', 'globalNotification', 'quotation'],
       default: '',
       index: true
     },

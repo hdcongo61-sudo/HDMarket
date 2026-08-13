@@ -1,5 +1,37 @@
 import mongoose from 'mongoose';
 
+const ensureQuotationItemSelectionIndex = async (connection) => {
+  const collectionName = 'quotationitems';
+  const exists = await connection.db.listCollections({ name: collectionName }, { nameOnly: true }).hasNext();
+  if (!exists) return;
+
+  const collection = connection.collection(collectionName);
+  const indexes = await collection.indexes();
+  const legacyIndex = indexes.find((index) => {
+    const keys = Object.keys(index?.key || {});
+    return index.unique === true
+      && keys.length === 2
+      && index.key.quotation === 1
+      && index.key.product === 1;
+  });
+
+  if (legacyIndex?.name) {
+    try {
+      await collection.dropIndex(legacyIndex.name);
+    } catch (error) {
+      // Another application instance may have completed the same idempotent
+      // migration between the index read and the drop operation.
+      if (error?.code !== 27 && error?.codeName !== 'IndexNotFound') throw error;
+    }
+    console.log('✅ Quotation item legacy index upgraded for product options');
+  }
+
+  await collection.createIndex(
+    { quotation: 1, product: 1, selectionKey: 1 },
+    { unique: true, name: 'quotation_1_product_1_selectionKey_1' }
+  );
+};
+
 const connectDB = async () => {
   const uri = process.env.MONGO_URI;
   if (!uri) {
@@ -26,6 +58,7 @@ const connectDB = async () => {
     const conn = await mongoose.connect(uri, options);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`   Database: ${conn.connection.name}`);
+    await ensureQuotationItemSelectionIndex(conn.connection);
     
     // Handle connection events
     mongoose.connection.on('error', (err) => {

@@ -142,6 +142,7 @@ const productSchema = new mongoose.Schema(
     installmentRequireGuarantor: { type: Boolean, default: false },
     installmentSuspendedAt: { type: Date, default: null },
     wholesaleEnabled: { type: Boolean, default: false, index: true },
+    quotationEnabled: { type: Boolean, default: true, index: true },
     wholesaleTiers: {
       type: [
         new mongoose.Schema(

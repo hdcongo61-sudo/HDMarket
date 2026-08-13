@@ -1,10 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import {
   chunkSettlementsForPayout,
+  isOrderEscrowReleasedForSettlement,
   normalizePayoutPhone,
   payoutLimitsForProvider,
   resolveSellerSettlementPolicy
 } from './sellerSettlementService.js';
+
+describe('escrow settlement eligibility', () => {
+  it('requires a released PawaPay escrow, including for partial payments', () => {
+    expect(isOrderEscrowReleasedForSettlement({
+      paymentSource: 'pawapay',
+      escrowStatus: 'RELEASED',
+      paidAmount: 5000,
+      remainingAmount: 5000
+    })).toBe(true);
+    expect(isOrderEscrowReleasedForSettlement({
+      paymentSource: 'pawapay',
+      escrowStatus: 'WAITING_BUYER_CONFIRMATION',
+      remainingAmount: 0
+    })).toBe(false);
+    expect(isOrderEscrowReleasedForSettlement({
+      paymentSource: 'mobile_money',
+      escrowStatus: 'RELEASED'
+    })).toBe(false);
+  });
+});
 
 describe('seller payout phone normalization', () => {
   it('normalizes Congo local and international Mobile Money numbers', () => {

@@ -423,13 +423,50 @@ export const login = asyncHandler(async (req, res) => {
   const user = isEmailIdentifier
     ? await User.findOne({ email: rawIdentifier.toLowerCase() })
     : await User.findOne({ phone: { $in: buildPhoneCandidates(rawIdentifier) } });
-  if (!user || !(await user.matchPassword(password))) {
+
+  // Temporary brute-force cooldown — checked before the password itself so a
+  // locked-out attacker learns nothing about whether their guess was right.
+  if (user?.loginLockedUntil && user.loginLockedUntil > new Date()) {
+    const minutesLeft = Math.max(1, Math.ceil((user.loginLockedUntil.getTime() - Date.now()) / 60000));
+    return res.status(429).json({
+      message: `Trop de tentatives échouées. Réessayez dans ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`,
+      code: 'ACCOUNT_TEMPORARILY_LOCKED',
+      retryAfterMinutes: minutesLeft
+    });
+  }
+
+  const passwordValid = user ? await user.matchPassword(password) : false;
+  if (!user || !passwordValid) {
+    if (user) {
+      const maxAttempts = Math.max(
+        3,
+        Number(await getRuntimeConfig('max_login_attempts', { fallback: 10 })) || 10
+      );
+      const lockoutMinutes = Math.max(
+        1,
+        Number(await getRuntimeConfig('login_lockout_minutes', { fallback: 15 })) || 15
+      );
+      user.failedLoginAttempts = Number(user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= maxAttempts) {
+        user.loginLockedUntil = new Date(Date.now() + lockoutMinutes * 60 * 1000);
+        user.failedLoginAttempts = 0;
+      }
+      await user.save();
+    }
     return res.status(401).json({
       message:
         "L’adresse email, le numéro de téléphone ou le mot de passe est incorrect, ou ce compte n’existe pas.",
       code: 'INVALID_CREDENTIALS'
     });
   }
+
+  // A correct password clears any accumulated failed-attempt count.
+  if (Number(user.failedLoginAttempts || 0) > 0 || user.loginLockedUntil) {
+    user.failedLoginAttempts = 0;
+    user.loginLockedUntil = null;
+    await user.save();
+  }
+
   if (user.isBlocked) {
     const reason = user.blockedReason ? ` Motif : ${user.blockedReason}` : '';
     return res.status(403).json({

@@ -3,14 +3,10 @@ import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
 import {
-  ArrowRight,
+  Check,
   Eye,
   EyeOff,
-  HelpCircle,
-  Loader2,
-  LockKeyhole,
-  User,
-  ShieldCheck
+  Loader2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -66,6 +62,12 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
       ? 'Votre compte est verrouillé. Contactez le support.'
       : 'Your account is locked. Contact support.';
   }
+  if (code === 'ACCOUNT_TEMPORARILY_LOCKED') {
+    const minutes = Number(error?.response?.data?.retryAfterMinutes) || 15;
+    return isFrench
+      ? `Trop de tentatives échouées sur ce compte. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}.`
+      : `Too many failed attempts on this account. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`;
+  }
   if (status === 429 || code === 'RATE_LIMIT_ERROR') {
     return isFrench
       ? 'Trop de tentatives de connexion. Réessayez dans 15 minutes.'
@@ -97,7 +99,7 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
 export default function Login() {
   const { user, login } = useContext(AuthContext);
   const { language, runtime } = useAppSettings();
-  const { isMobile, authLogoSrc: logoSrc } = useAppBrandLogo();
+  const { authLogoSrc: logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
   const from = typeof location.state === 'string'
@@ -130,7 +132,7 @@ export default function Login() {
     appBadge: 'HDMarket',
     title: isFrench ? 'Bon retour' : 'Welcome back',
     subtitle: isFrench
-      ? 'Connectez-vous pour accéder à vos commandes, messages et livraisons.'
+      ? 'Connectez-vous pour retrouver vos commandes, vos messages et vos livraisons.'
       : 'Sign in to access your orders, messages, and deliveries.',
     identifierLabel: isFrench ? 'Email ou téléphone' : 'Email or phone',
     identifierPlaceholder: isFrench ? 'nom@email.com ou 060000000' : 'name@email.com or 060000000',
@@ -138,14 +140,14 @@ export default function Login() {
     passwordPlaceholder: isFrench ? 'Votre mot de passe' : 'Your password',
     showPassword: isFrench ? 'Afficher le mot de passe' : 'Show password',
     hidePassword: isFrench ? 'Masquer le mot de passe' : 'Hide password',
-    rememberMe: isFrench ? 'Se souvenir de moi' : 'Remember me',
-    forgotPassword: isFrench ? 'Mot de passe oublié ?' : 'Forgot password?',
+    rememberMe: isFrench ? 'Rester connecté' : 'Stay signed in',
+    forgotPassword: isFrench ? 'Oublié ?' : 'Forgot?',
     submit: isFrench ? 'Se connecter' : 'Sign in',
     submitting: isFrench ? 'Connexion...' : 'Signing in...',
     divider: isFrench ? 'ou' : 'or',
-    google: isFrench ? 'Continuer avec Google' : 'Continue with Google',
-    apple: isFrench ? 'Continuer avec Apple' : 'Continue with Apple',
-    noAccount: isFrench ? "Vous n'avez pas de compte ?" : "Don't have an account?",
+    google: 'Google',
+    apple: 'Apple',
+    noAccount: isFrench ? 'Nouveau sur HDMarket ?' : 'New to HDMarket?',
     createAccount: isFrench ? 'Créer un compte' : 'Create account',
     supportLead: isFrench ? 'Besoin d’aide ?' : 'Need help?',
     support: isFrench ? 'Contacter le support' : 'Contact support',
@@ -316,76 +318,45 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-neutral-100 px-4 py-4 text-gray-900 dark:bg-neutral-950 dark:text-white sm:px-6 lg:px-8">
+    <div className="min-h-screen overflow-hidden bg-[#f6f3ee] text-[#141210] dark:bg-neutral-950 dark:text-white lg:px-8 lg:py-6">
       <motion.div
         variants={staggerContainer}
         initial="hidden"
         animate="show"
-        className="relative mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-6xl flex-col justify-center gap-4"
+        className="relative mx-auto flex min-h-[100dvh] w-full max-w-[1120px] flex-col justify-center lg:min-h-[calc(100dvh-3rem)]"
       >
-        <motion.nav
-          variants={fadeUp}
-          className="mx-auto flex w-full max-w-6xl items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
-        >
-          <Link to="/" className="inline-flex items-center gap-2 rounded-2xl pr-2 text-sm font-black text-gray-900 dark:text-white">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-neutral-900">
-              <img src={logoSrc} alt={copy.appBadge} className="h-7 w-7 object-contain" />
-            </span>
-            {copy.appBadge}
-          </Link>
-          <span className="inline-flex items-center gap-2 rounded bg-orange-50 px-3 py-2 text-[11px] font-bold text-[#e85d00] dark:bg-orange-400/10 dark:text-orange-100">
-            <ShieldCheck size={14} />
-            {copy.sessionLabel}
-          </span>
-        </motion.nav>
-
-        <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-stretch">
+        <div className="grid min-h-[100dvh] w-full overflow-hidden bg-[#f6f3ee] lg:min-h-[700px] lg:grid-cols-2 lg:rounded-[22px] lg:ring-1 lg:ring-[#e7dfd5] dark:bg-neutral-950 dark:ring-neutral-800">
           <motion.section
             variants={fadeUp}
-            className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-7"
+            className="hd-auth-form relative flex min-h-[100dvh] flex-col px-6 pb-6 pt-7 lg:min-h-[700px] lg:px-16 lg:py-14"
           >
+            <Link to="/" className="inline-flex w-fit items-center gap-2.5 text-[15px] font-extrabold text-[#141210] dark:text-white">
+              <img src={logoSrc} alt={copy.appBadge} className="h-8 w-8 rounded-[9px] object-contain lg:h-[30px] lg:w-[30px] lg:rounded-lg" />
+              {copy.appBadge}
+            </Link>
             <AnimatePresence mode="wait">
                 <motion.div
                   key="login-form"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.28 }}
+                  className="mt-9 flex flex-1 flex-col lg:my-auto lg:max-w-[400px] lg:flex-none"
                 >
                   <header className="mb-7">
-                    <h1 className="text-[28px] font-black leading-[1.15] tracking-normal text-gray-900 dark:text-white">
+                    <h1 className="text-[30px] font-black leading-[1.15] tracking-[-0.03em] text-[#141210] dark:text-white lg:text-[34px]">
                       {copy.title}
                     </h1>
-                    <p className="mt-3 max-w-sm text-[15px] leading-6 text-gray-600 dark:text-neutral-300">
+                    <p className="mt-2 max-w-sm text-[15px] font-medium leading-[1.55] text-[#78716c] dark:text-neutral-400 lg:mt-2.5 lg:text-[15.5px]">
                       {copy.subtitle}
                     </p>
                   </header>
-
-                  {hasProviderLogin ? <div className="grid gap-2 sm:grid-cols-2">
-                    {authAvailability.google.login ? <GoogleAuthButton
-                      label={copy.google}
-                      loading={providerLoading === 'google'}
-                      disabled={loading || Boolean(providerLoading)}
-                      onClick={handleGoogleSignIn}
-                    /> : null}
-                    {authAvailability.apple.login ? <AppleAuthButton
-                      label={copy.apple}
-                      loading={providerLoading === 'apple'}
-                      disabled={loading || Boolean(providerLoading)}
-                      onClick={handleAppleSignIn}
-                    /> : null}
-                  </div> : null}
-                  {hasProviderLogin && authAvailability.email.login ? <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                    <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
-                    {copy.divider}
-                    <span className="h-px flex-1 bg-gray-200 dark:bg-neutral-800" />
-                  </div> : null}
 
                   {authAvailability.email.login ? <form onSubmit={submit} className="space-y-4">
                     {error ? (
                       <motion.div
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-100"
+                        className="rounded-[14px] bg-[#fef2f2] px-4 py-3 text-sm font-semibold text-[#b91c1c] ring-1 ring-[#fecaca] dark:bg-red-500/10 dark:text-red-100 dark:ring-red-400/20"
                         role="alert"
                       >
                         {error}
@@ -441,21 +412,18 @@ export default function Login() {
                       </div>
                     ) : null}
 
-                    <div className="space-y-2">
-                      <label htmlFor="login-identifier" className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">
+                    <div className="space-y-[7px]">
+                      <label htmlFor="login-identifier" className="text-[13.5px] font-semibold text-[#57534e] dark:text-neutral-400">
                         {copy.identifierLabel}
                       </label>
-                      <div className="flex min-h-[52px] items-center overflow-hidden rounded-xl border border-[#e2dcd2] bg-white px-3 transition focus-within:border-[#e85d00] focus-within:ring-2 focus-within:ring-[#e85d00]/10 dark:border-neutral-800 dark:bg-neutral-900">
-                        <span className="flex items-center justify-center text-[#a49c8f]">
-                          <User size={18} />
-                        </span>
+                      <div className="flex h-14 items-center overflow-hidden rounded-[14px] bg-white px-4 shadow-[inset_0_0_0_1px_#e7dfd5] transition focus-within:shadow-[inset_0_0_0_2px_#e85d00] dark:bg-neutral-900 dark:shadow-[inset_0_0_0_1px_#262626]">
                         <input
                           id="login-identifier"
                           ref={identifierRef}
                           type="text"
                           autoComplete="username"
                           inputMode="email"
-                          className="ui-input min-h-[52px] flex-1 border-0 bg-transparent px-3 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
+                          className="hd-auth-autofill !h-full !min-h-0 w-full flex-1 !rounded-none !border-0 !bg-transparent !p-0 !text-base !font-medium !text-[#141210] !shadow-none outline-none placeholder:!text-[#a8a29e] focus:!bg-transparent focus:!shadow-none dark:!bg-transparent dark:!text-white dark:placeholder:!text-neutral-500"
                           placeholder={copy.identifierPlaceholder}
                           value={form.phone}
                           onChange={(e) => {
@@ -475,20 +443,22 @@ export default function Login() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label htmlFor="login-password" className="text-xs font-black uppercase tracking-wide text-gray-500 dark:text-neutral-400">
-                        {copy.passwordLabel}
-                      </label>
-                      <div className="flex min-h-[52px] items-center overflow-hidden rounded-xl border border-[#e2dcd2] bg-white px-3 transition focus-within:border-[#e85d00] focus-within:ring-2 focus-within:ring-[#e85d00]/10 dark:border-neutral-800 dark:bg-neutral-900">
-                        <span className="flex items-center justify-center text-[#a49c8f]">
-                          <LockKeyhole size={18} />
-                        </span>
+                    <div className="space-y-[7px]">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <label htmlFor="login-password" className="text-[13.5px] font-semibold text-[#57534e] dark:text-neutral-400">
+                          {copy.passwordLabel}
+                        </label>
+                        <Link to="/forgot-password" className="text-[13.5px] font-bold text-[#b3480a] transition hover:text-[#f45f00] dark:text-orange-200">
+                          {copy.forgotPassword}
+                        </Link>
+                      </div>
+                      <div className="flex h-14 items-center overflow-hidden rounded-[14px] bg-white pl-4 pr-1 shadow-[inset_0_0_0_1px_#e7dfd5] transition focus-within:shadow-[inset_0_0_0_2px_#e85d00] dark:bg-neutral-900 dark:shadow-[inset_0_0_0_1px_#262626]">
                         <input
                           id="login-password"
                           ref={passwordRef}
                           type={showPassword ? 'text' : 'password'}
                           autoComplete="current-password"
-                          className="ui-input min-h-[52px] flex-1 border-0 bg-transparent px-3 pr-2 text-[15px] placeholder:text-slate-400 dark:placeholder:text-neutral-500"
+                          className="hd-auth-autofill !h-full !min-h-0 flex-1 !rounded-none !border-0 !bg-transparent !p-0 !pr-2 !text-base !font-medium !text-[#141210] !shadow-none outline-none placeholder:!text-[#a8a29e] focus:!bg-transparent focus:!shadow-none dark:!bg-transparent dark:!text-white dark:placeholder:!text-neutral-500"
                           placeholder={copy.passwordPlaceholder}
                           value={form.password}
                           onChange={(e) => {
@@ -502,46 +472,65 @@ export default function Login() {
                         <button
                           type="button"
                           onClick={() => setShowPassword((prev) => !prev)}
-                          className="flex h-11 w-11 items-center justify-center text-gray-500 transition hover:text-gray-900 active:scale-95 dark:text-neutral-300 dark:hover:text-white"
+                          className="flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210] active:scale-95 dark:text-neutral-300 dark:hover:text-white"
                           aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                         >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                         </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 pt-1">
-                      <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-neutral-300">
+                    <div className="pt-0.5">
+                      <label className="inline-flex min-h-11 items-center gap-2.5 text-sm font-medium text-[#57534e] dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="h-4 w-4 rounded border-gray-300 accent-[#e85d00] dark:border-neutral-700"
+                          className="peer sr-only"
                         />
+                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white text-transparent ring-1 ring-inset ring-[#d8d0c4] transition peer-checked:bg-[#e85d00] peer-checked:text-white peer-checked:ring-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-700">
+                          <Check size={14} strokeWidth={3} />
+                        </span>
                         {copy.rememberMe}
                       </label>
-                      <Link to="/forgot-password" className="text-sm font-black text-[#e85d00] transition hover:text-[#e85f00] dark:text-orange-200 dark:hover:text-orange-100">
-                        {copy.forgotPassword}
-                      </Link>
                     </div>
 
                     <motion.button
                       type="submit"
                       disabled={loading}
                       whileTap={{ scale: 0.985 }}
-                      className="group inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-[15px] font-black text-white transition hover:bg-[#bf4d00] disabled:cursor-wait disabled:opacity-70"
+                      className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55"
                     >
                       {loading ? <Loader2 size={17} className="animate-spin" /> : null}
                       {loading ? copy.submitting : copy.submit}
-                      {!loading ? <ArrowRight size={17} className="transition group-hover:translate-x-0.5" /> : null}
                     </motion.button>
 
                     {slowNetwork && loading ? (
-                      <p className="rounded-full bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-100">
+                      <p className="rounded-[14px] bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 ring-1 ring-amber-200 dark:bg-amber-400/10 dark:text-amber-100 dark:ring-amber-400/20">
                         {copy.slowNetwork}
                       </p>
                     ) : null}
                   </form> : null}
+
+                  {hasProviderLogin && authAvailability.email.login ? <div className="my-6 flex items-center gap-3.5 text-[13px] font-medium text-[#a8a29e]">
+                    <span className="h-px flex-1 bg-[#e7dfd5] dark:bg-neutral-800" />
+                    {copy.divider}
+                    <span className="h-px flex-1 bg-[#e7dfd5] dark:bg-neutral-800" />
+                  </div> : null}
+                  {hasProviderLogin ? <div className="grid gap-2.5 lg:grid-cols-2">
+                    {authAvailability.google.login ? <GoogleAuthButton
+                      label={copy.google}
+                      loading={providerLoading === 'google'}
+                      disabled={loading || Boolean(providerLoading)}
+                      onClick={handleGoogleSignIn}
+                    /> : null}
+                    {authAvailability.apple.login ? <AppleAuthButton
+                      label={copy.apple}
+                      loading={providerLoading === 'apple'}
+                      disabled={loading || Boolean(providerLoading)}
+                      onClick={handleAppleSignIn}
+                    /> : null}
+                  </div> : null}
 
                   {!hasLogin ? (
                     <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-100">
@@ -549,17 +538,16 @@ export default function Login() {
                     </div>
                   ) : null}
 
-                  <footer className="mt-6 grid gap-2 border-t border-gray-100 pt-5 text-sm text-gray-600 dark:border-neutral-800 dark:text-neutral-300">
-                    {hasRegistration ? <p>
+                  <footer className="mt-auto grid gap-2.5 pt-8 text-center text-[#57534e] dark:text-neutral-300 lg:absolute lg:bottom-14 lg:left-16 lg:text-left">
+                    {hasRegistration ? <p className="text-[14.5px] font-medium">
                       {copy.noAccount}{' '}
-                      <Link to="/register" className="font-black text-[#e85d00] transition hover:text-[#e85f00] dark:text-orange-100">
+                      <Link to="/register" className="font-extrabold text-[#b3480a] transition hover:text-[#f45f00] dark:text-orange-100">
                         {copy.createAccount}
                       </Link>
                     </p> : null}
-                    <p className="inline-flex items-center gap-1.5">
-                      <HelpCircle size={15} />
+                    <p className="text-[12.5px] font-medium text-[#a8a29e] lg:hidden">
                       {copy.supportLead}{' '}
-                      <Link to="/help" className="font-black text-gray-900 transition hover:text-[#e85d00] dark:text-white dark:hover:text-orange-100">
+                      <Link to="/help" className="font-bold text-[#57534e] transition hover:text-[#e85d00] dark:text-white dark:hover:text-orange-100">
                         {copy.support}
                       </Link>
                     </p>
@@ -568,7 +556,7 @@ export default function Login() {
             </AnimatePresence>
           </motion.section>
 
-          <motion.div variants={fadeUp}>
+          <motion.div variants={fadeUp} className="hidden lg:block">
             <CommerceAuthPanel mode="login" logoSrc={logoSrc} />
           </motion.div>
         </div>

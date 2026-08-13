@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
   BadgeCheck,
+  ChevronDown,
+  ChevronUp,
   Headphones,
   Mail,
   MapPin,
@@ -35,6 +37,7 @@ const normalizeExternalUrl = (value = '') => {
 };
 
 export default function Footer() {
+  const [openGroup, setOpenGroup] = useState(null);
   const year = new Date().getFullYear();
   const { t, app, isFeatureEnabled } = useAppSettings();
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
@@ -109,10 +112,167 @@ export default function Footer() {
     { icon: Truck, label: t('footer.localDelivery', 'Livraison locale') }
   ];
 
+  const contactCount = 2
+    + (supportPhone && normalizePhoneHref(supportPhone) ? 1 : 0)
+    + (website ? 1 : 0)
+    + supportNetworks.length
+    + socialLinks.length;
+
+  const toggleGroup = (group) => setOpenGroup((current) => current === group ? null : group);
+
   return (
     <footer className="border-t-4 border-[#e85d00] bg-neutral-950 text-white">
-      <div className="mx-auto w-full max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] pt-10 sm:px-6 md:pb-10 md:pt-12 lg:px-8">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.35fr_0.7fr_0.8fr_1.25fr] lg:gap-8">
+      <div className="mx-auto w-full max-w-7xl px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] pt-6 md:px-6 md:pb-10 md:pt-12 lg:px-8">
+        <div className="md:hidden">
+          <section aria-labelledby="footer-mobile-brand-title">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00] focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-950"
+              aria-label={t('nav.home', 'Accueil')}
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-white p-1.5 shadow-sm">
+                <img src={logoSrc} alt="" className="h-full w-full object-contain" />
+              </span>
+              <span className="min-w-0">
+                <span id="footer-mobile-brand-title" className="block text-xl font-black tracking-[-0.04em]">
+                  {appName}
+                </span>
+                <span className="mt-px block truncate text-[12.5px] font-medium text-neutral-400">
+                  Opéré par {companyName}
+                </span>
+              </span>
+            </Link>
+
+            <div className="mt-4 flex flex-wrap gap-2" aria-label={t('footer.trust', 'Nos engagements')}>
+              {trustItems.map(({ icon: Icon, label }) => (
+                <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1.5 text-[11.5px] font-bold text-neutral-200">
+                  <Icon className="h-[13px] w-[13px] shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                  {label}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <Link
+            to="/help"
+            className="mt-[18px] inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-4 text-[15px] font-extrabold text-white transition hover:bg-[#ff6a00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
+          >
+            <Headphones className="h-[18px] w-[18px]" aria-hidden="true" />
+            {t('footer.contactSupport', 'Contacter le support')}
+          </Link>
+
+          <div className="mt-5">
+            <MobileFooterAccordion
+              group="nav"
+              title={t('footer.navigation', 'Navigation')}
+              count={navigationLinks.length}
+              openGroup={openGroup}
+              onToggle={toggleGroup}
+            >
+              <MobileFooterLinks links={navigationLinks} />
+            </MobileFooterAccordion>
+
+            <MobileFooterAccordion
+              group="services"
+              title={t('footer.services', 'Services')}
+              count={serviceLinks.length}
+              openGroup={openGroup}
+              onToggle={toggleGroup}
+            >
+              <MobileFooterLinks links={serviceLinks} />
+              <AppInstallBadges title={t('footer.installApp', 'Installer l’application')} />
+            </MobileFooterAccordion>
+
+            <MobileFooterAccordion
+              group="contact"
+              title={t('footer.contactAndAddress', 'Contact et adresse')}
+              count={contactCount}
+              openGroup={openGroup}
+              onToggle={toggleGroup}
+            >
+              <div className="grid gap-2 pb-3">
+                <a href={`mailto:${supportEmail}`} className={contactClassName}>
+                  <Mail className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{supportEmail}</span>
+                </a>
+
+                {supportPhone && normalizePhoneHref(supportPhone) ? (
+                  <a href={normalizePhoneHref(supportPhone)} className={contactClassName}>
+                    <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                    <span className="min-w-0 truncate">{supportPhone}</span>
+                  </a>
+                ) : null}
+
+                {website ? (
+                  <a href={website} target="_blank" rel="noreferrer" className={contactClassName}>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                    <span className="min-w-0 truncate">{website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                  </a>
+                ) : null}
+
+                {supportNetworks.map((network) => (
+                  <a key={network._id || `${network.name}-${network.phoneNumber}`} href={normalizePhoneHref(network.phoneNumber)} className={contactClassName}>
+                    <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                    <span className="min-w-0 truncate">{network.name ? `${network.name} · ` : ''}{network.phoneNumber}</span>
+                  </a>
+                ))}
+
+                <div className={contactClassName}>
+                  <MapPin className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                  <span>{location}</span>
+                </div>
+
+                {loading ? (
+                  <p className="py-1 text-xs font-medium text-neutral-500" aria-live="polite">
+                    {t('footer.loadingContacts', 'Chargement des contacts…')}
+                  </p>
+                ) : null}
+
+                {socialLinks.length ? (
+                  <div className="flex flex-wrap gap-2 pt-1" aria-label="Réseaux sociaux">
+                    {socialLinks.map((item) => (
+                      <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-bold text-neutral-300 transition hover:border-white/30 hover:text-white">
+                        {item.label}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </MobileFooterAccordion>
+
+            <MobileFooterAccordion
+              group="legal"
+              title={t('footer.legal', 'Légal')}
+              count={legalLinks.length}
+              openGroup={openGroup}
+              onToggle={toggleGroup}
+            >
+              <MobileFooterLinks links={legalLinks} />
+            </MobileFooterAccordion>
+          </div>
+
+          <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-[18px]" aria-label="Paiements Mobile Money sécurisés via l’API pawaPay">
+            <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-emerald-400/15">
+              <ShieldCheck className="h-[17px] w-[17px] text-emerald-400" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[12.5px] font-bold text-neutral-200">Paiement Mobile Money</span>
+              <span className="mt-px block text-xs font-medium text-neutral-400">Sécurisé via l’API <span className="font-bold text-emerald-400">pawaPay</span></span>
+            </span>
+          </div>
+
+          <nav className="mt-[18px] flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11.5px] font-medium text-neutral-400" aria-label={t('footer.legal', 'Légal')}>
+            <Link to="/conditions-utilisation" className="hover:text-white">Conditions</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/confidentialite" className="hover:text-white">Confidentialité</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/mentions-legales" className="hover:text-white">Mentions légales</Link>
+          </nav>
+          <p className="mt-2 text-[11.5px] font-medium text-neutral-500">© {year} {companyName} — Tous droits réservés.</p>
+        </div>
+
+        <div className="hidden md:block">
+          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.35fr_0.7fr_0.8fr_1.25fr] lg:gap-8">
           <section aria-labelledby="footer-brand-title" className="max-w-md">
             <Link
               to="/"
@@ -220,9 +380,9 @@ export default function Footer() {
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </section>
-        </div>
+          </div>
 
-        <div className="mt-10 border-t border-white/10 pt-5 md:mt-12">
+          <div className="mt-10 border-t border-white/10 pt-5 md:mt-12">
           <div className="mb-5 flex flex-wrap gap-x-5 gap-y-3">
             {legalLinks.map((item) => <Link key={item.to} to={item.to} className="text-xs font-bold text-neutral-400 hover:text-white">{item.label}</Link>)}
           </div>
@@ -256,9 +416,48 @@ export default function Footer() {
               {appName}, {tagline}
             </p>
           </div>
+          </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+function MobileFooterAccordion({ group, title, count, openGroup, onToggle, children }) {
+  const isOpen = openGroup === group;
+  const panelId = `footer-mobile-${group}-panel`;
+  return (
+    <section className="border-t border-white/10">
+      <button
+        type="button"
+        onClick={() => onToggle(group)}
+        className="flex min-h-[54px] w-full items-center justify-between gap-2 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]"
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+      >
+        <span className="text-[15px] font-bold text-white">{title}</span>
+        <span className="flex items-center gap-2.5">
+          <span className="text-[12.5px] font-medium text-neutral-500">{count}</span>
+          {isOpen ? <ChevronUp className="h-[18px] w-[18px] text-neutral-400" aria-hidden="true" /> : <ChevronDown className="h-[18px] w-[18px] text-neutral-400" aria-hidden="true" />}
+        </span>
+      </button>
+      {isOpen ? <div id={panelId} className="pb-3.5">{children}</div> : null}
+    </section>
+  );
+}
+
+function MobileFooterLinks({ links }) {
+  return (
+    <ul className="grid grid-cols-1 gap-0.5">
+      {links.map((item) => (
+        <li key={item.to}>
+          <Link to={item.to} className="group inline-flex min-h-10 w-full items-center gap-2.5 text-sm font-semibold text-neutral-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]">
+            <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-[#e85d00]" />
+            {item.label}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

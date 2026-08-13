@@ -58,6 +58,11 @@ const FEE_FIELDS = [
   },
   { key: 'analyticsRefundPenalty', label: 'Pénalité score litige', type: 'number', step: 0.1 },
   { key: 'disputeWindowHours', label: 'Fenêtre litige (heures)', type: 'number', step: 1 },
+  { key: 'escrowAutoReleaseDelayMinutes', label: 'Libération automatique (minutes)', type: 'number', step: 1 },
+  { key: 'escrowDisputeEnabled', label: 'Litiges escrow activés', type: 'boolean' },
+  { key: 'escrowMaximumDisputeTimeMinutes', label: 'Délai maximum de litige (minutes)', type: 'number', step: 1 },
+  { key: 'escrowMinimumDepositPercent', label: 'Acompte minimum escrow (%)', type: 'number', step: 1 },
+  { key: 'escrowHighValueOrderThreshold', label: 'Seuil commande grande valeur (FCFA)', type: 'number', step: 1000 },
   { key: 'deliveryOTPExpirationMinutes', label: 'Expiration OTP livraison (min)', type: 'number', step: 1 },
   { key: 'maxDisputesPerMonth', label: 'Max litiges / mois', type: 'number', step: 1 },
   { key: 'maxUploadImages', label: 'Max images upload', type: 'number', step: 1 }
@@ -71,6 +76,16 @@ const FEE_GROUPS = [
   {
     title: 'Paiement par tranches',
     keys: ['installmentMinPercent', 'installmentMaxDuration', 'deliveryOTPExpirationMinutes']
+  },
+  {
+    title: 'Séquestre vendeur (escrow)',
+    keys: [
+      'escrowAutoReleaseDelayMinutes',
+      'escrowDisputeEnabled',
+      'escrowMaximumDisputeTimeMinutes',
+      'escrowMinimumDepositPercent',
+      'escrowHighValueOrderThreshold'
+    ]
   },
   {
     title: 'Scores & litiges',
@@ -96,6 +111,11 @@ const FEE_RUNTIME_KEY_MAP = {
   analyticsRevenueWeight: 'analyticsRevenueWeight',
   analyticsRefundPenalty: 'analyticsRefundPenalty',
   disputeWindowHours: 'dispute_window_hours',
+  escrowAutoReleaseDelayMinutes: 'escrow_auto_release_delay_minutes',
+  escrowDisputeEnabled: 'escrow_dispute_enabled',
+  escrowMaximumDisputeTimeMinutes: 'escrow_max_dispute_time_minutes',
+  escrowMinimumDepositPercent: 'escrow_minimum_deposit_percent',
+  escrowHighValueOrderThreshold: 'escrow_high_value_order_threshold',
   deliveryOTPExpirationMinutes: 'otp_expiration_minutes',
   maxDisputesPerMonth: 'dispute_client_monthly_limit',
   maxUploadImages: 'max_image_upload'

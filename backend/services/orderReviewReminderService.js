@@ -89,6 +89,28 @@ export const isOrderEligibleForReviewReminder = (order = {}) => {
   return REVIEW_ELIGIBLE_STATUSES.has(String(order.status || ''));
 };
 
+// Verified-purchase gate for ratings/comments: true only if this user has an
+// order for this exact product that actually reached the buyer (delivered,
+// picked up, or confirmed) — the same eligibility bar as the review reminder
+// itself. Prevents anyone from rating/reviewing a product they never bought.
+export const hasVerifiedPurchase = async (userId, productId) => {
+  const normalizedUserId = String(userId || '').trim();
+  const normalizedProductId = String(productId || '').trim();
+  if (
+    !mongoose.Types.ObjectId.isValid(normalizedUserId) ||
+    !mongoose.Types.ObjectId.isValid(normalizedProductId)
+  ) {
+    return false;
+  }
+  const order = await Order.exists({
+    customer: normalizedUserId,
+    isDraft: false,
+    'items.product': normalizedProductId,
+    status: { $in: Array.from(REVIEW_ELIGIBLE_STATUSES) }
+  });
+  return Boolean(order);
+};
+
 const loadReviewEvidenceFlags = async (order) => {
   const customerId = String(order?.customer || '').trim();
   const productIds = toObjectIds(getOrderProductIds(order));

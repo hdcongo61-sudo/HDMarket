@@ -4,30 +4,23 @@ import { io } from 'socket.io-client';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   MessageCircle,
-  Send,
   X,
   Loader2,
   Shield,
-  CheckCheck,
   Check,
-  Clock,
-  Image as ImageIcon,
-  Smile,
   MoreVertical,
-  Info,
   ArrowLeft,
+  ArrowUp,
   ShieldCheck,
   Lock,
   AlertTriangle,
   User,
   Store,
-  Paperclip,
+  Plus,
   Mic,
   MicOff,
   File,
   Download,
-  Play,
-  Pause,
   Search,
   ExternalLink,
   Archive,
@@ -166,6 +159,15 @@ const QUICK_REPLIES = [
   'Pouvez-vous me rappeler ?'
 ];
 
+const CHAT_STATUS_LABELS = {
+  pending: 'En attente',
+  confirmed: 'Confirmée',
+  delivering: 'En livraison',
+  delivered: 'Livrée',
+  cancelled: 'Annulée',
+  inquiry: 'Demande'
+};
+
 const CHAT_PAGE_SIZE = 20;
 
 export default function OrderChat({ order, conversationId: conversationIdProp = null, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete }) {
@@ -186,7 +188,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
   const [uploadingLabel, setUploadingLabel] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [encryptionEnabled, setEncryptionEnabled] = useState(() => {
+  const [encryptionEnabled] = useState(() => {
     try {
       return localStorage.getItem('hdmarket_order_chat_encryption') === 'true';
     } catch {
@@ -1367,6 +1369,16 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
   const messageGroups = groupMessagesByDate(filteredMessages);
 
   const orderRef = order?.deliveryCode || order?._id?.slice(-6) || '';
+  const orderStatusLabel = CHAT_STATUS_LABELS[order?.status] || (order?.status ? String(order.status) : 'Discussion');
+  const recipientAvatar = (() => {
+    if (isCustomer) {
+      const otherMessage = [...messages]
+        .reverse()
+        .find((message) => String(message?.sender?._id || '') !== String(user?._id || ''));
+      return resolveUserProfileImage(otherMessage?.sender);
+    }
+    return resolveUserProfileImage(order?.customer);
+  })();
   const closeChat = () => {
     setIsOpen(false);
     onClose?.();
@@ -1377,91 +1389,72 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
       isOpen={isOpen}
       onClose={closeChat}
       size="md"
-      panelClassName="w-full h-full sm:h-[88vh] sm:max-h-[740px] sm:max-w-lg overflow-hidden border-0 bg-[#fff4e8] shadow-sm ring-1 ring-gray-200 animate-in slide-in-from-bottom-4 duration-300 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-2xl"
+      panelClassName="w-full h-full sm:h-[90vh] sm:max-h-[820px] sm:max-w-lg overflow-hidden border-0 bg-[#fff4e8] shadow-xl ring-1 ring-[#e7dfd5] animate-in slide-in-from-bottom-4 duration-300 dark:bg-neutral-950 dark:ring-neutral-800 sm:rounded-[26px]"
       rootClassName="z-[130] p-0 sm:p-4"
       ariaLabel="Conversation commande"
     >
       <div className="flex h-full w-full flex-col">
-        <header
-          className="flex-shrink-0 border-b border-gray-200/80 bg-gray-50/96 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/96"
-          style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
-        >
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
+        <header className="flex-shrink-0 border-b border-[#f0e6d8] bg-white dark:border-neutral-800 dark:bg-neutral-950">
+          <div
+            className="flex items-center gap-3 px-4 pb-3"
+            style={{ paddingTop: 'max(0.875rem, env(safe-area-inset-top, 0px))' }}
+          >
               <button
                 type="button"
                 onClick={closeChat}
-                className="-ml-1 flex-shrink-0 rounded-full bg-white p-2 text-slate-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+                className="-ml-1 flex h-9 w-7 shrink-0 items-center justify-center text-[#57534e] transition hover:text-[#e85d00] dark:text-neutral-300"
                 aria-label="Retour"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="h-[22px] w-[22px]" />
               </button>
 
-              <div className="relative flex-shrink-0">
-                {productImage ? (
+              <div className="shrink-0">
+                {recipientAvatar ? (
                   <img
-                    src={productImage}
-                    alt={productName}
-                    className="h-12 w-12 rounded-xl object-cover ring-2 ring-white dark:ring-neutral-800"
+                    src={recipientAvatar}
+                    alt={recipientName}
+                    className="h-[38px] w-[38px] rounded-full object-cover ring-1 ring-[#ece5db]"
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-50 text-[#e85d00] ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
-                    {isCustomer ? <Store className="w-6 h-6" /> : <User className="w-6 h-6" />}
+                  <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#f6f3ee] text-[#b3480a] ring-1 ring-[#ece5db] dark:bg-neutral-900 dark:ring-neutral-800">
+                    {isCustomer ? <Store className="h-[19px] w-[19px]" /> : <User className="h-[19px] w-[19px]" />}
                   </div>
                 )}
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-neutral-950" title="En ligne" />
               </div>
 
-              <div className="flex-1 min-w-0">
-                {showClientLabel && (
-                  <p className="truncate text-xs font-black uppercase tracking-wide text-[#e85d00]">
-                    Client
-                  </p>
-                )}
-                <h2 className="truncate font-black text-slate-950 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-base font-extrabold text-[#141210] dark:text-white">
                   {showClientLabel ? (clientName || '—') : recipientName}
                 </h2>
-                <div className="mt-0.5 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-gray-400">
-                  <span className="truncate">#{orderRef}</span>
-                  <span className="flex-shrink-0">·</span>
-                  <span className="flex items-center gap-1 flex-shrink-0">
-                    <Lock className="w-3 h-3" />
-                    Sécurisé
-                  </span>
-                </div>
+                <p className="mt-0.5 truncate text-[12.5px] font-medium text-[#78716c] dark:text-neutral-400">
+                  {socketConnected ? 'En ligne · répond généralement rapidement' : 'Hors ligne · vos messages seront remis'}
+                </p>
               </div>
-            </div>
 
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowSearch(!showSearch)}
-                className={`rounded-full p-2.5 transition-colors ${showSearch ? 'bg-[#e85d00] text-white' : 'bg-white text-slate-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
-                title="Rechercher dans les messages"
-              >
-                <Search className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowInfo(!showInfo)}
-                className={`rounded-full p-2.5 transition-colors ${showInfo ? 'bg-[#e85d00] text-white' : 'bg-white text-slate-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800'}`}
-                title="Informations commande"
-              >
-                <Info className="w-5 h-5" />
-              </button>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowChatMenu(!showChatMenu)}
-                  className="rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800"
+                  className="flex h-9 w-7 items-center justify-center text-[#57534e] transition hover:text-[#e85d00] dark:text-neutral-300"
                   title="Options"
                 >
-                  <MoreVertical className="w-5 h-5" />
+                  <MoreVertical className="h-5 w-5" />
                 </button>
                 {showChatMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} aria-hidden="true" />
                     <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSearch((value) => !value);
+                          setShowChatMenu(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#57534e] hover:bg-[#f6f3ee] dark:text-neutral-200 dark:hover:bg-neutral-800"
+                      >
+                        <Search className="h-4 w-4" />
+                        Rechercher dans les messages
+                      </button>
                       {hasProductLink && (
                         <Link
                           to={productPath}
@@ -1469,7 +1462,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                             setShowChatMenu(false);
                             closeChat();
                           }}
-                          className="flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800"
+                          className="flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#57534e] hover:bg-[#f6f3ee] dark:text-neutral-200 dark:hover:bg-neutral-800"
                         >
                           <ExternalLink className="w-4 h-4" />
                           Voir le produit
@@ -1492,7 +1485,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                               setArchiving(false);
                             }
                           }}
-                          className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-slate-700 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-neutral-800"
+                          className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#57534e] hover:bg-[#f6f3ee] disabled:opacity-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         >
                           {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
                           Archiver la conversation
@@ -1525,15 +1518,29 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   </>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={closeChat}
-                className="hidden rounded-full bg-white p-2.5 text-slate-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800 sm:flex"
-                aria-label="Fermer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          </div>
+
+          <div className="flex items-center gap-2.5 border-t border-[#f0e6d8] bg-[#faf7f2] px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
+            {productImage ? (
+              <img src={productImage} alt="" className="h-[34px] w-[34px] shrink-0 rounded-[10px] object-cover" />
+            ) : (
+              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[#f0e6d8] text-[#b3480a]">
+                <Store className="h-4 w-4" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold text-[#141210] dark:text-white">{productName}</p>
+              <p className="mt-px truncate text-xs font-medium text-[#78716c] dark:text-neutral-400">
+                #{orderRef} · {orderStatusLabel}
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowInfo((value) => !value)}
+              className="shrink-0 text-[13px] font-bold text-[#e85d00] transition hover:text-[#f45f00]"
+            >
+              Détails
+            </button>
           </div>
         </header>
 
@@ -1636,12 +1643,13 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           </div>
         )}
 
-        {/* Messages — neutral background, bubbles */}
+        {/* Messages */}
         <div
           ref={messagesContainerRef}
           onScroll={handleMessagesScroll}
-          className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fff4e8] p-4 dark:bg-neutral-950"
+          className="min-h-0 flex-1 overflow-y-auto bg-[#fff4e8] p-4 dark:bg-neutral-950"
         >
+          <div className="flex min-h-full flex-col justify-end gap-2">
           {loadingOlderMessages && (
             <div className="flex items-center justify-center py-1">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800">
@@ -1650,10 +1658,10 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
               </span>
             </div>
           )}
-          {/* Client name inside chat (when admin/seller) */}
+          {/* Keep the client identity visible in multi-party/admin conversations. */}
           {showClientLabel && clientName && (
-            <div className="flex justify-center mb-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
+            <div className="mb-2 flex justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#78716c] ring-1 ring-[#f0e6d8] dark:bg-neutral-900 dark:text-neutral-400 dark:ring-neutral-800">
                 <User className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
                 Client : {clientName}
               </span>
@@ -1699,54 +1707,35 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           ) : (
             Object.entries(messageGroups).map(([dateKey, msgs]) => (
               <div key={dateKey}>
-                <div className="flex items-center justify-center my-4">
-                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-gray-400 dark:ring-neutral-800">
+                <div className="my-3 flex items-center justify-center first:mt-0">
+                  <span className="text-xs font-semibold text-[#a8a29e]">
                     {formatDate(msgs[0].createdAt)}
                   </span>
                 </div>
 
-                {/* Messages — bubbles (app colors) */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {msgs.map((message, index) => {
                     const isOwnMessage = String(message.sender?._id) === String(user?._id);
-                    const showAvatar = !isOwnMessage && (index === 0 || String(msgs[index - 1]?.sender?._id) !== String(message.sender?._id));
+                    const showSenderLabel = showClientLabel && !isOwnMessage && (index === 0 || String(msgs[index - 1]?.sender?._id) !== String(message.sender?._id));
                     const isPending = message.pending === true;
+                    const nextMessage = msgs[index + 1];
+                    const endsOwnGroup = isOwnMessage && (!nextMessage || String(nextMessage.sender?._id) !== String(message.sender?._id));
 
                     return (
-                      <div
+                      <React.Fragment
                         key={`${String(message._id ?? message.id ?? message._fallbackKey ?? 'msg')}-${String(message.createdAt || '')}-${index}`}
-                        className={`flex items-end gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                       >
-                        {/* Avatar for received messages */}
-                        {!isOwnMessage && (
-                          <div className={`w-8 h-8 flex-shrink-0 ${showAvatar ? '' : 'invisible'}`}>
-                            {resolveUserProfileImage(message.sender) ? (
-                              <img
-                                src={resolveUserProfileImage(message.sender)}
-                                alt={message.sender?.shopName || message.sender?.name || 'Utilisateur'}
-                                className="h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-neutral-900"
-                              />
-                            ) : message.sender?.shopName ? (
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e85d00] text-xs font-black text-white">
-                                {message.sender.shopName.charAt(0).toUpperCase()}
-                              </div>
-                            ) : (
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
-                                <User className="h-4 w-4 text-[#e85d00]" />
-                              </div>
-                            )}
-                          </div>
-                        )}
-
+                      <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                         <div
-                          className={`max-w-[80%] sm:max-w-[75%] group ${
+                          title={formatTimestamp(message.createdAt)}
+                          className={`group relative max-w-[78%] px-3.5 py-[9px] ${
                             isOwnMessage
-                              ? 'rounded-2xl rounded-br-md bg-[#FFB000] text-white shadow-sm'
-                              : 'rounded-2xl rounded-bl-md bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
-                          } relative px-4 py-2.5 ${isPending ? 'opacity-80' : ''}`}
+                              ? 'rounded-[18px] rounded-br-md bg-[#FFB000] text-white'
+                              : 'rounded-[18px] rounded-bl-md bg-white text-[#141210] ring-1 ring-[#f0e6d8] dark:bg-neutral-900 dark:text-white dark:ring-neutral-800'
+                          } ${isPending ? 'opacity-80' : ''}`}
                         >
-                          {!isOwnMessage && showAvatar && (
-                            <p className="mb-1 text-xs font-black text-[#e85d00] dark:text-orange-300">
+                          {showSenderLabel && (
+                            <p className="mb-1 text-xs font-bold text-[#b3480a] dark:text-orange-300">
                               {message.sender?.shopName || message.sender?.name || 'Utilisateur'}
                             </p>
                           )}
@@ -1826,7 +1815,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                             </div>
                           )}
                           
-                          <p className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed">
+                          <p className="whitespace-pre-wrap break-words text-[15px] font-medium leading-[1.5]">
                             {searchQuery ? (
                               (() => {
                                 const text = message.isDecrypted ? message.text : message.text || '[Message chiffré]';
@@ -1847,6 +1836,15 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                               message.isDecrypted ? message.text : message.text || '[Message chiffré]'
                             )}
                           </p>
+
+                          {message.safetyFlag === 'off_platform_payment' && (
+                            <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] font-semibold leading-snug text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                              <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                              <span>
+                                Ne payez jamais en dehors de HDMarket. Utilisez toujours le paiement sécurisé de l’application — HDMarket ne peut pas vous protéger pour un paiement effectué ailleurs.
+                              </span>
+                            </div>
+                          )}
 
                           {message.failed && (
                             <div className={`mt-2 flex items-center gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
@@ -1895,27 +1893,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                               ))}
                             </div>
                           )}
-                          <div
-                            className={`flex items-center gap-1 mt-0.5 ${
-                              isOwnMessage ? 'justify-end' : 'justify-start'
-                            }`}
-                          >
-                            <span
-                              className={`text-[10px] ${
-                                isOwnMessage ? 'text-orange-50' : 'text-slate-400 dark:text-gray-500'
-                              }`}
-                            >
-                              {formatTimestamp(message.createdAt)}
-                            </span>
-                            {isOwnMessage && !isPending && (
-                              <span className="text-orange-50">
-                                {message.readAt ? (
-                                  <CheckCheck className="w-3.5 h-3.5" />
-                                ) : (
-                                  <Check className="w-3.5 h-3.5" />
-                                )}
-                              </span>
-                            )}
+                          <div className={`mt-0.5 flex items-center gap-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                             {isOwnMessage && message.queued && (
                               <span className="text-[10px] text-orange-50">En attente</span>
                             )}
@@ -1952,6 +1930,12 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                           )}
                         </div>
                       </div>
+                      {endsOwnGroup && !isPending && (
+                        <p className="mt-0.5 text-right text-[11.5px] font-medium text-[#a8a29e]">
+                          {message.readAt ? 'Lu' : 'Envoyé'} {formatTimestamp(message.createdAt)}
+                        </p>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                 </div>
@@ -1976,6 +1960,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           )}
 
           <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Image Lightbox Modal */}
@@ -2114,14 +2099,14 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           </div>
         )}
 
-        {/* Input area — matches app (iOS safe area bottom) */}
+        {/* Composer */}
         <form
           onSubmit={sendMessage}
-          className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3"
-          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+          className="flex-shrink-0 border-t border-[#f0e6d8] bg-white px-3 pt-2.5 dark:border-neutral-800 dark:bg-neutral-950"
+          style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="flex items-end gap-2">
-            <div className="flex items-center gap-1">
+            <div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -2134,45 +2119,24 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadProgress != null}
-                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Joindre un fichier"
+                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[#f6f3ee] text-[#57534e] transition hover:text-[#e85d00] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300"
+                title="Ajouter une photo ou un document"
+                aria-label="Ajouter une photo ou un document"
               >
-                <Paperclip className="h-5 w-5" />
+                <Plus className="h-5 w-5" />
               </button>
-              {!isRecording ? (
-                <button
-                  type="button"
-                  onMouseDown={startRecording}
-                  onMouseUp={stopRecording}
-                  onTouchStart={startRecording}
-                  onTouchEnd={stopRecording}
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                  title="Enregistrer un message vocal"
-                >
-                  <Mic className="h-5 w-5" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={stopRecording}
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-500 text-white transition-colors hover:bg-red-600"
-                  title="Arrêter l'enregistrement"
-                >
-                  <MicOff className="h-5 w-5" />
-                </button>
-              )}
             </div>
 
-            <div className="flex-1 relative">
+            <div className="relative min-w-0 flex-1">
               <textarea
                 ref={inputRef}
                 value={messageText}
                 onChange={(e) => handleDraftChange(e.target.value)}
-                placeholder={isRecording ? `Enregistrement... ${recordingTime}s` : "Tapez votre message..."}
+                placeholder={isRecording ? `Enregistrement... ${recordingTime}s` : 'Message'}
                 rows={1}
                 maxLength={1000}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 resize-none text-sm transition-all"
-                style={{ minHeight: '44px', maxHeight: '120px' }}
+                className="block min-h-10 w-full resize-none rounded-[20px] border-0 bg-[#f6f3ee] py-[9px] pl-3.5 pr-11 text-[15px] font-medium leading-[22px] text-[#141210] placeholder:text-[#a8a29e] focus:outline-none focus:ring-2 focus:ring-[#e85d00]/20 disabled:opacity-60 dark:bg-neutral-800 dark:text-white"
+                style={{ maxHeight: '120px' }}
                 disabled={isRecording}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey && !isRecording) {
@@ -2185,42 +2149,45 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                 }}
               />
+              {!isRecording ? (
+                <button
+                  type="button"
+                  onMouseDown={startRecording}
+                  onMouseUp={stopRecording}
+                  onTouchStart={startRecording}
+                  onTouchEnd={stopRecording}
+                  className="absolute bottom-0 right-1 flex h-10 w-9 items-center justify-center text-[#78716c] transition hover:text-[#e85d00] dark:text-neutral-400"
+                  title="Enregistrer un message vocal"
+                >
+                  <Mic className="h-[19px] w-[19px]" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
+                  title="Arrêter l'enregistrement"
+                >
+                  <MicOff className="h-4 w-4" />
+                </button>
+              )}
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                const emojis = ['👍', '❤️', '😊', '🎉', '🔥', '✅'];
-                const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-                const lastMessage = messages[messages.length - 1];
-                if (lastMessage && !lastMessage.pending) {
-                  handleAddReaction(lastMessage._id, randomEmoji);
-                }
-              }}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-              title="Ajouter une réaction"
-            >
-              <Smile className="h-5 w-5" />
-            </button>
 
             <button
               type="submit"
               disabled={(!messageText.trim() && attachments.length === 0) || sending || isRecording}
-              className="flex-shrink-0 p-2.5 rounded-xl bg-neutral-600 text-white hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Envoyer"
             >
-              {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
             </button>
           </div>
 
-          <div className="flex items-center justify-between mt-2 px-1 text-xs text-gray-400 dark:text-gray-500">
-            <span className="flex items-center gap-1 truncate min-w-0">
-              <Lock className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{encryptionEnabled ? 'Messages chiffrés' : 'Messages sécurisés'}</span>
-            </span>
-            <span className={`flex-shrink-0 ${messageText.length > 900 ? 'text-amber-500 dark:text-amber-400' : ''}`}>
+          {messageText.length > 900 && (
+            <div className="mt-1 px-1 text-right text-xs text-amber-600 dark:text-amber-400">
               {messageText.length}/1000
-            </span>
-          </div>
+            </div>
+          )}
         </form>
       </div>
     </BaseModal>

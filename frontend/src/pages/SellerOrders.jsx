@@ -44,6 +44,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { riseIn } from '../utils/orderProgress';
 import AnimatedOrderTimeline from '../components/orders/AnimatedOrderTimeline';
 import StatusBadge from '../components/orders/StatusBadge';
+import EscrowStatusCard from '../components/orders/EscrowStatusCard';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
 import { OrderCommandCenter, OrderFilterRail } from '../components/orders/OrderCommandCenter';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
@@ -566,6 +567,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
         </div>
         <StatusBadge status={statusBadgeKey} />
       </button>
+      <EscrowStatusCard order={order} role="seller" compact />
       <div className={`flex items-center gap-3 px-3.5 ${expanded ? 'border-t border-[#f5f2ee] py-3.5' : 'py-3.5'} sm:px-4`}>
         {firstItem?.snapshot?.image ? (
           <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100">
@@ -808,7 +810,7 @@ const SellerMobileOrderCard = ({
       </div>
 
       {/* Delivery Code - Prominent display */}
-      {order.deliveryCode && order.status !== 'cancelled' && (
+      {false && order.deliveryCode && order.status !== 'cancelled' && (
         <div className="mx-4 mt-3 p-4 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border-2 border-neutral-200 dark:border-neutral-700">
           <div className="flex items-center justify-between">
             <div>

@@ -10,6 +10,7 @@ import {
 } from './pawapayService.js';
 import { createNotification } from '../utils/notificationService.js';
 import { invalidateAdminCache, invalidateSellerCache, invalidateUserCache } from '../utils/cache.js';
+import { markEscrowRefunded, releaseEscrowForOrder } from './escrowService.js';
 
 const SUCCESS = new Set(['COMPLETED', 'SUCCESSFUL']);
 const FAILURE = new Set(['FAILED', 'REJECTED', 'CANCELLED']);
@@ -165,6 +166,26 @@ export const reconcileRefund = async (refundId, payload) => {
       order.refundedAt = null;
     }
     await order.save();
+    if (refund.status === 'COMPLETED' && String(order.paymentSource || '').toLowerCase() === 'pawapay') {
+      if (Number(refund.amount || 0) >= Number(order.paidAmount || 0)) {
+        await markEscrowRefunded({
+          order,
+          actor: refund.requestedBy || null,
+          disputeId: refund.dispute || null
+        });
+      } else if (order.escrowStatus === 'ON_HOLD') {
+        order.escrowStatus = 'WAITING_BUYER_CONFIRMATION';
+        order.disputeOpened = false;
+        order.autoReleaseAt = null;
+        await order.save();
+        await releaseEscrowForOrder({
+          order,
+          actor: refund.requestedBy || null,
+          actorRole: refund.requestedBy ? 'admin' : 'system',
+          reason: 'ADMIN_RELEASE'
+        });
+      }
+    }
     await Promise.allSettled([
       invalidateUserCache(order.customer, ['orders', 'notifications']),
       order.items?.[0]?.snapshot?.shopId

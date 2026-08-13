@@ -63,3 +63,21 @@ describe('notification actions after reading', () => {
     expect(selectVisibleNotificationActions(actions, true)).toEqual(actions);
   });
 });
+
+describe('quotation notification links', () => {
+  it('keeps the buyer quote deep link actionable after the notification is read', () => {
+    expect(resolveNotificationLink({
+      type: 'quotation_countered',
+      entityType: 'quotation',
+      entityId: ORDER_ID,
+      actionLink: `/my-quotations/${ORDER_ID}`
+    })).toBe(`/my-quotations/${ORDER_ID}`);
+  });
+
+  it('opens the seller quotation workspace from a new request', () => {
+    expect(resolveNotificationLink({
+      type: 'quotation_request_received',
+      deepLink: `/seller/quotations/${ORDER_ID}`
+    }, { role: 'seller', accountType: 'shop' })).toBe(`/seller/quotations/${ORDER_ID}`);
+  });
+});

@@ -61,6 +61,8 @@ const reasonLabel = (reason) => {
   if (reason === 'wrong_item') return 'Article incorrect';
   if (reason === 'damaged_item') return 'Article endommagé';
   if (reason === 'not_received') return 'Non reçu';
+  if (reason === 'missing_items') return 'Articles manquants';
+  if (reason === 'not_as_described') return 'Produit non conforme';
   return 'Autre';
 };
 

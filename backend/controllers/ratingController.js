@@ -6,7 +6,7 @@ import { createNotification } from '../utils/notificationService.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureDocumentSlug } from '../utils/slugUtils.js';
 import { invalidateProductCache } from '../utils/cache.js';
-import { markOrdersReviewedByProduct } from '../services/orderReviewReminderService.js';
+import { hasVerifiedPurchase, markOrdersReviewedByProduct } from '../services/orderReviewReminderService.js';
 
 const ensureProductVisible = async (identifier, fallbackId = null) => {
   const query = buildIdentifierQuery(identifier);
@@ -89,6 +89,16 @@ export const upsertRating = asyncHandler(async (req, res) => {
 
   if (String(product.user) === req.user.id) {
     return res.status(403).json({ message: 'Vous ne pouvez pas noter votre propre produit.' });
+  }
+
+  // Verified-purchase gate: a rating must come from someone who actually
+  // received this product, otherwise the star rating is just a trust signal
+  // anyone can fabricate (for or against a seller).
+  if (!(await hasVerifiedPurchase(req.user.id, product._id))) {
+    return res.status(403).json({
+      message: 'Vous devez avoir reçu ce produit pour pouvoir le noter.',
+      code: 'PURCHASE_NOT_VERIFIED'
+    });
   }
 
   const rating = await Rating.findOneAndUpdate(

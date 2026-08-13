@@ -42,6 +42,7 @@ import InstallmentOrderTracking from '../components/orders/InstallmentOrderTrack
 import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import OrderMiniRail from '../components/orders/OrderMiniRail';
+import EscrowStatusCard from '../components/orders/EscrowStatusCard';
 import CategoryProductMiniRail from '../components/orders/CategoryProductMiniRail';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { useToast } from '../context/ToastContext';
@@ -1230,6 +1231,8 @@ export default function SellerOrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
+        <EscrowStatusCard order={order} role="seller" />
+
         {/* Keep one responsive order surface for mobile and desktop, matching the
             customer order-detail page and preventing the two layouts from drifting. */}
         <section className="hidden" aria-hidden="true">
@@ -1329,7 +1332,7 @@ export default function SellerOrderDetail() {
                 ) : null}
               </section>
 
-              {order.deliveryCode ? (
+              {false && order.deliveryCode ? (
                 <div className="flex items-center justify-between rounded-xl border border-[#eee8e0] px-3 py-3">
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-wide text-[#8a8378]">Code de livraison</p>
@@ -1479,7 +1482,7 @@ export default function SellerOrderDetail() {
             );
           })()}
 
-          {order.deliveryCode && (
+          {false && order.deliveryCode && (
             <div className="relative border-t-2 border-dashed border-gray-200 bg-white px-5 pb-5 pt-4 dark:border-neutral-800 dark:bg-neutral-950 sm:px-7">
               <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
               <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
@@ -1510,6 +1513,12 @@ export default function SellerOrderDetail() {
 
           <div className="space-y-4 bg-gray-50 p-3 sm:p-5">
             <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              {order.quotationSnapshot?.applied ? (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-3">
+                  <div><span className="inline-flex rounded-full bg-[#e85d00] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">Devis vendeur</span><p className="mt-1 text-xs font-bold text-orange-900">Commande créée au prix que vous avez proposé</p></div>
+                  <p className="font-black text-emerald-700">Économie client {formatCurrency(order.quotationSnapshot.savings || 0)}</p>
+                </div>
+              ) : null}
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
@@ -1548,6 +1557,7 @@ export default function SellerOrderDetail() {
                       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
                         <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">Qté {item.quantity || 1}</span>
                         <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">{formatCurrency(item.snapshot?.price || 0)} / unité</span>
+                        {order.quotationSnapshot?.applied ? <span className="rounded-full bg-orange-100 px-2 py-1 font-black text-orange-700">Prix négocié</span> : null}
                       </div>
                       <SelectedAttributesList
                         selectedAttributes={item.selectedAttributes}

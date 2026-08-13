@@ -40,6 +40,7 @@ import { OrderDetailSkeleton } from '../components/orders/OrderSkeletons';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import PawaPayButton from '../components/PawaPayButton';
 import OrderMiniRail from '../components/orders/OrderMiniRail';
+import EscrowStatusCard from '../components/orders/EscrowStatusCard';
 import CategoryProductMiniRail from '../components/orders/CategoryProductMiniRail';
 import BaseModal from '../components/modals/BaseModal';
 import CartContext from '../context/CartContext';
@@ -1225,7 +1226,11 @@ export default function OrderDetail() {
     (Boolean(order.platformDeliveryRequestId) ||
       String(order.platformDeliveryMode || '').toUpperCase() === 'PLATFORM_DELIVERY') &&
     String(order.platformDeliveryStatus || '').toUpperCase() === 'DELIVERED';
-  const deliveryConfirmationDone = order.deliveryStatus === 'verified' || platformDeliveryAutoConfirmed;
+  const usesPawaPayEscrow =
+    String(order.paymentSource || '').toLowerCase() === 'pawapay' && Number(order.paidAmount || 0) > 0;
+  const deliveryConfirmationDone = usesPawaPayEscrow
+    ? ['RELEASED', 'REFUNDED'].includes(String(order.escrowStatus || ''))
+    : order.deliveryStatus === 'verified' || platformDeliveryAutoConfirmed;
   const buyerPrimaryAction = getBuyerPrimaryActionMeta(order);
   const visibleBuyerPrimaryAction =
     hideDeliveryDetails && !pickupOrder && buyerPrimaryAction?.mode === 'confirm_delivery' ? null : buyerPrimaryAction;
@@ -1349,6 +1354,13 @@ export default function OrderDetail() {
       )}
       <div className="mx-auto max-w-5xl px-3 py-4 pb-28 sm:px-5 sm:py-6">
 
+        <EscrowStatusCard
+          order={order}
+          role="buyer"
+          onConfirm={handleConfirmDelivery}
+          confirming={confirmDeliveryMutation.isReliablePending}
+        />
+
         {/* The compact legacy card is kept out of the rendered layout. The complete
             order surface below is responsive and is now the single source of truth
             for both mobile and desktop, preventing order information from diverging. */}
@@ -1418,7 +1430,7 @@ export default function OrderDetail() {
                 </div>
               ) : null}
 
-              {order.deliveryCode && !hideDeliveryDetails ? (
+              {false && order.deliveryCode && !hideDeliveryDetails ? (
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-[#f0c7aa] bg-[#fff8f2] px-3 py-3">
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-wide text-[#8a8378]">Code de livraison</p>
@@ -1644,7 +1656,7 @@ export default function OrderDetail() {
             );
           })()}
 
-          {order.deliveryCode && !hideDeliveryDetails && (
+          {false && order.deliveryCode && !hideDeliveryDetails && (
             <div className="relative border-t-2 border-dashed border-gray-200 bg-white px-5 pb-5 pt-4 dark:border-neutral-800 dark:bg-neutral-950 sm:px-7">
               <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
               <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#f6f3ee] dark:bg-neutral-950" aria-hidden="true" />
@@ -1712,6 +1724,12 @@ export default function OrderDetail() {
             )}
 
             <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              {order.quotationSnapshot?.applied ? (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-3">
+                  <div><span className="inline-flex rounded-full bg-[#e85d00] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">Devis vendeur</span><p className="mt-1 text-xs font-bold text-orange-900">Prix négocié réservé à cette commande</p></div>
+                  <div className="text-right"><p className="text-[10px] font-bold uppercase text-orange-700">Économie</p><p className="font-black text-emerald-700">{formatCurrency(order.quotationSnapshot.savings || 0)}</p></div>
+                </div>
+              ) : null}
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
@@ -1750,6 +1768,7 @@ export default function OrderDetail() {
                       <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
                         <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">Qté {item.quantity || 1}</span>
                         <span className="rounded-full bg-white px-2 py-1 ring-1 ring-gray-100">{formatCurrency(item.snapshot?.price || 0)} / unité</span>
+                        {order.quotationSnapshot?.applied ? <span className="rounded-full bg-orange-100 px-2 py-1 font-black text-orange-700">Prix négocié</span> : null}
                       </div>
                       <SelectedAttributesList
                         selectedAttributes={item.selectedAttributes}
@@ -2031,6 +2050,18 @@ export default function OrderDetail() {
                     {formatCurrency(isInstallmentOrder ? installmentTotal : totalAmount)}
                   </span>
                 </div>
+                {order.quotationSnapshot?.applied && remainingAmount > 0 && ['pending', 'pending_payment'].includes(order.status) ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                    <PawaPayButton
+                      amount={Math.max(10, Math.ceil(remainingAmount))}
+                      purpose="CHECKOUT_FUNDING"
+                      actionContext={{ kind: 'ORDER_PAYMENT', orderId: order._id, amount: remainingAmount }}
+                      returnPath={typeof window !== 'undefined' ? window.location.pathname : '/orders'}
+                      label="Payer la commande avec PawaPay"
+                    />
+                    <p className="mt-2 text-[11px] font-semibold text-emerald-800">Votre prix négocié est verrouillé et le paiement sera placé sous séquestre.</p>
+                  </div>
+                ) : null}
                 {showPayment && (
                   <>
                     <div className="flex justify-between pt-2 border-t border-gray-200">

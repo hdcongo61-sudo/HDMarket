@@ -23,6 +23,7 @@ import { invalidateVerifiedProductCache } from '../utils/publicProductVisibility
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { recordEscrowAudit } from '../services/escrowService.js';
 import { getHighestProductPrice } from '../utils/productAttributes.js';
 import {
   paySelfSponsorship,
@@ -74,6 +75,7 @@ const CHECKOUT_PURPOSES = new Set([
 ]);
 const ACTION_CONTEXT_KINDS = new Set([
   'ORDER_CHECKOUT',
+  'ORDER_PAYMENT',
   'INSTALLMENT_CHECKOUT',
   'INSTALLMENT_PAYMENT',
   'BOOST_REQUEST',
@@ -113,6 +115,7 @@ const normalizeActionContext = (value, purpose) => {
   const kind = String(parsed.kind || '').trim().toUpperCase();
   if (!ACTION_CONTEXT_KINDS.has(kind)) return null;
   if (kind === 'ORDER_CHECKOUT' && purpose !== 'CHECKOUT_FUNDING') return null;
+  if (kind === 'ORDER_PAYMENT' && purpose !== 'CHECKOUT_FUNDING') return null;
   if (kind.startsWith('INSTALLMENT_') && purpose !== 'INSTALLMENT_FUNDING') return null;
   if (kind === 'BOOST_REQUEST' && purpose !== 'BOOST_FUNDING') return null;
   if (kind === 'SHOP_CONVERSION_REQUEST' && purpose !== 'SHOP_CONVERSION_FUNDING') return null;
@@ -160,6 +163,22 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       'Les informations permettant de finaliser ce paiement sont invalides.'
     );
   }
+  if (actionContext?.kind === 'ORDER_CHECKOUT') {
+    const minimumDepositPercent = Math.max(
+      50,
+      Math.min(100, Number(await getRuntimeConfig('escrow_minimum_deposit_percent', { fallback: 50 })) || 50)
+    );
+    const paymentPercent = Number(actionContext.paymentPercent ?? 100);
+    if (![50, 70, 100].includes(paymentPercent) || paymentPercent < minimumDepositPercent) {
+      return sendPawaPayError(
+        res,
+        400,
+        'PAWAPAY_ESCROW_DEPOSIT_INVALID',
+        `Choisissez un paiement autorisé d’au moins ${minimumDepositPercent}%.`
+      );
+    }
+    actionContext.paymentPercent = paymentPercent;
+  }
 
   if (!Number.isInteger(amount) || amount < 10 || amount > 1_000_000) {
     return sendPawaPayError(
@@ -178,6 +197,23 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       'Motif de paiement PawaPay invalide.',
       { providerCode: 'INVALID_PARAMETER', retryable: false, action: 'CHECK_DETAILS' }
     );
+  }
+  if (actionContext?.kind === 'ORDER_PAYMENT') {
+    const order = await Order.findOne({ _id: actionContext.orderId, customer: req.user._id }).lean();
+    if (!order) {
+      return sendPawaPayError(res, 404, 'PAWAPAY_ORDER_NOT_FOUND', 'Commande introuvable.');
+    }
+    if (!order.quotationSnapshot?.applied) {
+      return sendPawaPayError(res, 400, 'PAWAPAY_ORDER_PAYMENT_INVALID', 'Cette commande ne provient pas d’un devis.');
+    }
+    if (String(order.paymentStatus || '').toUpperCase() === 'PAID_FULL') {
+      return sendPawaPayError(res, 409, 'PAWAPAY_ORDER_ALREADY_PAID', 'Cette commande est déjà payée.');
+    }
+    const amountDue = Math.round(Number(order.remainingAmount ?? order.totalAmount ?? 0));
+    if (!(amountDue > 0) || amountDue !== amount) {
+      return sendPawaPayError(res, 409, 'PAWAPAY_ORDER_AMOUNT_CHANGED', 'Le montant restant de la commande a changé.');
+    }
+    actionContext.amount = amountDue;
   }
   let product = null;
   if (purpose === 'LISTING_FEE_FUNDING') {
@@ -916,6 +952,60 @@ const autoCompleteCheckoutAction = async (checkout) => {
       deepLink = firstOrderId ? `/admin/orders?orderId=${encodeURIComponent(String(firstOrderId))}` : '/admin/orders';
       entityId = firstOrderId || claimed.checkoutId;
       successPath = firstOrderId ? `/order/detail/${encodeURIComponent(String(firstOrderId))}` : '/orders';
+    } else if (action.kind === 'ORDER_PAYMENT') {
+      const order = await Order.findOne({ _id: action.orderId, customer: claimed.user });
+      if (!order) throw new Error('Commande introuvable pour ce paiement.');
+      const orderTotal = Number(order.totalAmount || 0);
+      if (!(orderTotal > 0) || Math.abs(orderTotal - Number(claimed.amount || 0)) > 0.01) {
+        throw new Error('Le montant PawaPay ne correspond pas au total de la commande.');
+      }
+      if (String(order.paymentStatus || '').toUpperCase() !== 'PAID_FULL') {
+        const previousEscrowStatus = order.escrowStatus || 'WAITING_PAYMENT';
+        order.paymentSource = 'pawapay';
+        order.paymentCheckoutId = claimed.checkoutId;
+        order.paymentDepositId = claimed.depositId || '';
+        order.paidAmount = orderTotal;
+        order.remainingAmount = 0;
+        order.paymentStatus = 'PAID_FULL';
+        order.paymentCompletedAt = new Date();
+        order.status = 'paid';
+        order.escrowStatus = 'IN_ESCROW';
+        order.escrowAmount = orderTotal;
+        await order.save();
+        await recordEscrowAudit({
+          order,
+          actor: claimed.user,
+          actorRole: 'buyer',
+          action: 'ESCROW_FUNDED',
+          fromStatus: previousEscrowStatus,
+          toStatus: 'IN_ESCROW',
+          amount: orderTotal,
+          metadata: { checkoutId: claimed.checkoutId, quotationRequest: String(order.quotationRequest || '') }
+        }).catch(() => null);
+        const sellerId = String(order.items?.[0]?.snapshot?.shopId || '');
+        if (sellerId && sellerId !== String(claimed.user)) {
+          await createNotification({
+            userId: sellerId,
+            actorId: claimed.user,
+            type: 'payment_validated',
+            priority: 'HIGH',
+            deepLink: `/seller/orders/detail/${order._id}`,
+            actionLink: `/seller/orders/detail/${order._id}`,
+            entityType: 'order',
+            entityId: String(order._id),
+            title: 'Devis payé avec PawaPay',
+            message: 'La commande négociée est payée et les fonds sont en séquestre.',
+            actionLabel: 'Voir la commande',
+            metadata: { orderId: order._id, quotationRequest: order.quotationRequest, paymentSource: 'pawapay' }
+          }).catch(() => null);
+        }
+      }
+      result = { orderId: order._id };
+      title = 'Commande PawaPay payée';
+      message = `La commande a été réglée avec PawaPay pour ${Number(claimed.amount || 0).toLocaleString('fr-FR')} FCFA.`;
+      deepLink = `/admin/orders?orderId=${encodeURIComponent(String(order._id))}`;
+      entityId = order._id;
+      successPath = `/orders/detail/${encodeURIComponent(String(order._id))}`;
     } else if (action.kind === 'INSTALLMENT_CHECKOUT') {
       result = await invokeCompletionController({
         handler: checkoutInstallmentOrder,

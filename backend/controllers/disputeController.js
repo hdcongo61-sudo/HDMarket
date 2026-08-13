@@ -16,10 +16,16 @@ import {
 import { notifyBuyerOrderCancelled } from '../utils/orderCancellationNotification.js';
 import { getManyRuntimeConfigs } from '../services/configService.js';
 import { initiateOrderRefund, resolveOrderDepositId } from '../services/refundService.js';
+import {
+  getEscrowSettings,
+  recordEscrowAudit,
+  releaseEscrowForOrder,
+  requestAuditContext
+} from '../services/escrowService.js';
 
 const ORDER_DISPUTE_STATUS = 'dispute_opened';
 const DISPUTE_ORDER_SELECT =
-  'status deliveryAddress deliveryCity deliveryMode createdAt deliveredAt deliveryDate deliverySubmittedAt deliveryNote deliveryProofImages clientSignatureImage totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode paymentSource paymentCheckoutId paymentDepositId refundStatus refundAmount refundId refundFailureReason';
+  'status deliveryAddress deliveryCity deliveryMode fulfillmentMethod createdAt deliveredAt deliveryDate deliverySubmittedAt deliveryNote deliveryProofImages clientSignatureImage totalAmount paidAmount remainingAmount paymentType items paymentName paymentTransactionCode paymentSource paymentCheckoutId paymentDepositId refundStatus refundAmount refundId refundFailureReason escrowStatus escrowAmount autoReleaseAt escrowReleasedAt disputeOpened disputeOpenedAt';
 const DISPUTE_CONFIG_DEFAULTS = Object.freeze({
   disputeWindowHours: Math.max(24, Number(process.env.DISPUTE_WINDOW_HOURS || 72)),
   sellerResponseHours: Math.max(12, Number(process.env.DISPUTE_SELLER_RESPONSE_HOURS || 48)),
@@ -320,7 +326,10 @@ const serializeDispute = (disputeDoc) => {
 };
 
 export const createDispute = asyncHandler(async (req, res) => {
-  const thresholds = await getDisputeConfigThresholds();
+  const [thresholds, escrowSettings] = await Promise.all([
+    getDisputeConfigThresholds(),
+    getEscrowSettings()
+  ]);
   await processDisputeDeadlines(thresholds);
 
   const userId = req.user.id;
@@ -369,17 +378,29 @@ export const createDispute = asyncHandler(async (req, res) => {
   if (String(order.customer) !== String(userId)) {
     return res.status(403).json({ message: 'Cette commande ne vous appartient pas.' });
   }
+  const isPawaPayEscrow =
+    String(order.paymentSource || '').toLowerCase() === 'pawapay' && Number(order.paidAmount || 0) > 0;
+  if (isPawaPayEscrow && !escrowSettings.disputeEnabled) {
+    return res.status(403).json({ message: 'Les litiges escrow sont temporairement désactivés.' });
+  }
+  if (isPawaPayEscrow && ['RELEASED', 'REFUNDED'].includes(order.escrowStatus)) {
+    return res.status(409).json({ message: 'Les fonds ont déjà été libérés ou remboursés.' });
+  }
   if (!['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'].includes(order.status)) {
     return res.status(400).json({ message: 'Le litige est possible uniquement après livraison.' });
   }
 
   const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt) : new Date(order.updatedAt || order.createdAt);
-  const disputeWindowEndsAt = new Date(
-    deliveredAt.getTime() + Number(thresholds.disputeWindowHours || 0) * 60 * 60 * 1000
-  );
+  const configuredWindowMs = isPawaPayEscrow
+    ? Number(escrowSettings.maximumDisputeTimeMinutes || 0) * 60 * 1000
+    : Number(thresholds.disputeWindowHours || 0) * 60 * 60 * 1000;
+  const configuredWindowEnd = new Date(deliveredAt.getTime() + configuredWindowMs);
+  const autoReleaseAt = order.autoReleaseAt ? new Date(order.autoReleaseAt) : null;
+  const disputeWindowEndsAt =
+    autoReleaseAt && autoReleaseAt < configuredWindowEnd ? autoReleaseAt : configuredWindowEnd;
   if (now > disputeWindowEndsAt) {
     return res.status(400).json({
-      message: `Le délai de litige est dépassé (${Number(thresholds.disputeWindowHours || 0)}h après livraison).`,
+      message: 'Le délai pour bloquer les fonds et ouvrir un litige est dépassé.',
       deliveredAt,
       disputeWindowEndsAt
     });
@@ -418,9 +439,23 @@ export const createDispute = asyncHandler(async (req, res) => {
       const orderUpdate = await Order.updateOne(
         {
           _id: orderId,
-          status: { $in: ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed'] }
+          status: { $in: ['delivery_proof_submitted', 'delivered', 'confirmed_by_client', 'completed', 'picked_up_confirmed'] },
+          ...(isPawaPayEscrow ? { escrowStatus: { $nin: ['RELEASED', 'REFUNDED'] } } : {})
         },
-        { $set: { status: ORDER_DISPUTE_STATUS } },
+        {
+          $set: {
+            status: ORDER_DISPUTE_STATUS,
+            ...(isPawaPayEscrow
+              ? {
+                  escrowStatus: 'ON_HOLD',
+                  disputeOpened: true,
+                  disputeOpenedAt: now,
+                  autoReleaseAt: null,
+                  settlementStatus: 'blocked'
+                }
+              : {})
+          }
+        },
         { session }
       );
       if (!orderUpdate?.matchedCount) {
@@ -451,6 +486,18 @@ export const createDispute = asyncHandler(async (req, res) => {
   }
 
   const dispute = createdDispute?.[0];
+  if (isPawaPayEscrow) {
+    await recordEscrowAudit({
+      order,
+      actor: userId,
+      actorRole: 'buyer',
+      action: 'DISPUTE_OPENED',
+      fromStatus: order.escrowStatus || 'WAITING_BUYER_CONFIRMATION',
+      toStatus: 'ON_HOLD',
+      ...requestAuditContext(req),
+      metadata: { disputeId: String(dispute._id), reason: reasonValue }
+    }).catch((error) => console.error('[escrow] dispute-open audit failed:', error?.message || error));
+  }
   await logDisputeAction({
     disputeId: dispute._id,
     orderId,
@@ -775,9 +822,20 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
               status: 'cancelled',
               cancelledAt: now,
               cancelledBy: req.user.id,
-              cancellationReason: `Litige ${dispute._id}`
+              cancellationReason: `Litige ${dispute._id}`,
+              disputeOpened: false,
+              autoReleaseAt: null,
+              escrowStatus: 'ON_HOLD',
+              settlementStatus: 'blocked'
             }
-          : { status: 'completed' };
+          : {
+              status: 'completed',
+              disputeOpened: false,
+              autoReleaseAt: null,
+              ...(String(order.paymentSource || '').toLowerCase() === 'pawapay'
+                ? { escrowStatus: 'ON_HOLD', settlementStatus: 'blocked' }
+                : {})
+            };
       await Order.updateOne({ _id: dispute.orderId }, { $set: orderPatch }, { session });
 
       if (!dispute.reputationImpactApplied) {
@@ -823,6 +881,31 @@ export const resolveAdminDispute = asyncHandler(async (req, res) => {
     });
     dispute.refundId = refund._id;
     await dispute.save();
+  }
+
+  const isPawaPayEscrow =
+    String(order.paymentSource || '').toLowerCase() === 'pawapay' && Number(order.paidAmount || 0) > 0;
+  if (isPawaPayEscrow) {
+    await recordEscrowAudit({
+      order,
+      actor: req.user.id,
+      actorRole: 'admin',
+      action: 'DISPUTE_RESOLVED',
+      fromStatus: 'ON_HOLD',
+      toStatus: needsRefund ? 'ON_HOLD' : 'RELEASED',
+      ...requestAuditContext(req),
+      metadata: { disputeId: String(dispute._id), resolutionType, resolutionAmount, favor, nextStatus }
+    }).catch((error) => console.error('[escrow] dispute-resolution audit failed:', error?.message || error));
+  }
+  if (isPawaPayEscrow && !needsRefund) {
+    await releaseEscrowForOrder({
+      order: dispute.orderId,
+      actor: req.user.id,
+      actorRole: 'admin',
+      reason: 'DISPUTE_RESOLVED_SELLER',
+      now,
+      audit: requestAuditContext(req)
+    });
   }
 
   await logDisputeAction({

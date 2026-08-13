@@ -16,7 +16,7 @@ export default function GoogleAuthButton({ label, loading = false, disabled = fa
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 rounded-full border border-[#d8d2c8] bg-white px-4 text-[15px] font-black text-[#231f1b] transition hover:border-[#aaa196] hover:bg-[#faf8f5] disabled:cursor-wait disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:hover:bg-neutral-800"
+      className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl bg-white px-5 text-base font-bold text-[#141210] ring-1 ring-inset ring-[#e7dfd5] transition hover:bg-[#faf7f2] hover:ring-[#d8d0c4] disabled:cursor-wait disabled:opacity-60 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800 dark:hover:bg-neutral-800"
     >
       {loading ? <Loader2 size={19} className="animate-spin" /> : <GoogleMark />}
       {label}

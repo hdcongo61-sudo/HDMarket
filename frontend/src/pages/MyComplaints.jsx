@@ -16,8 +16,8 @@ import {
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import { useAppSettings } from '../context/AppSettingsContext';
 
-const DISPUTE_WINDOW_HOURS = Number(import.meta.env.VITE_DISPUTE_WINDOW_HOURS || 72);
 const MAX_DESCRIPTION = 2000;
 const MAX_FILES = 5;
 
@@ -25,6 +25,8 @@ const REASON_OPTIONS = [
   { value: 'wrong_item', label: 'Article incorrect' },
   { value: 'damaged_item', label: 'Article endommagé' },
   { value: 'not_received', label: 'Non reçu' },
+  { value: 'missing_items', label: 'Articles manquants' },
+  { value: 'not_as_described', label: 'Produit non conforme à la description' },
   { value: 'other', label: 'Autre' }
 ];
 
@@ -112,6 +114,11 @@ export default function MyComplaints() {
   const location = useLocation();
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
+  const { getRuntimeValue } = useAppSettings();
+  const escrowDisputeEnabled = !['false', '0', 'no', 'off'].includes(
+    String(getRuntimeValue('escrow_dispute_enabled', true)).toLowerCase()
+  );
+  const escrowDisputeMinutes = Number(getRuntimeValue('escrow_max_dispute_time_minutes', 180)) || 180;
   const [disputes, setDisputes] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -192,11 +199,17 @@ export default function MyComplaints() {
       [...proofSubmitted, ...delivered, ...completed].forEach((order) => {
         if (order?._id) map.set(order._id, order);
       });
-      setOrders(Array.from(map.values()));
+      setOrders(
+        Array.from(map.values()).filter((order) => {
+          if (String(order?.paymentSource || '').toLowerCase() !== 'pawapay') return true;
+          if (!escrowDisputeEnabled || ['RELEASED', 'REFUNDED'].includes(order?.escrowStatus)) return false;
+          return !order?.autoReleaseAt || new Date(order.autoReleaseAt).getTime() > Date.now();
+        })
+      );
     } catch (err) {
       setOrders([]);
     }
-  }, []);
+  }, [escrowDisputeEnabled]);
 
   useEffect(() => {
     if (!user) return;
@@ -300,7 +313,7 @@ export default function MyComplaints() {
             <div>
                 <h1 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">Réclamations</h1>
                 <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/86">
-                Vous pouvez ouvrir un litige pour une commande livrée dans un délai de {DISPUTE_WINDOW_HOURS}h.
+                Vous pouvez bloquer les fonds d’une commande livrée pendant {escrowDisputeMinutes} minutes.
               </p>
             </div>
           </div>
@@ -370,7 +383,7 @@ export default function MyComplaints() {
 
             <div className="space-y-2">
               <label className="text-sm font-black text-gray-800">
-                Preuves (images/PDF, max {MAX_FILES})
+                Preuves (photos, vidéos ou PDF, max {MAX_FILES})
               </label>
               <label className="flex min-h-[56px] cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-500 transition hover:bg-gray-100">
                 <span className="inline-flex items-center gap-2">
@@ -380,7 +393,7 @@ export default function MyComplaints() {
                 <span className="text-xs text-gray-500">{files.length}/{MAX_FILES}</span>
                 <input
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*,video/mp4,video/webm,video/quicktime,.pdf"
                   multiple
                   onChange={onFilesChange}
                   className="hidden"

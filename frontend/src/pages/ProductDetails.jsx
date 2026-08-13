@@ -31,7 +31,8 @@ import {
   Video,
   Zap,
   SlidersHorizontal,
-  ExternalLink
+  ExternalLink,
+  FileText
 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
@@ -79,6 +80,7 @@ import "swiper/css/pagination";
 import "swiper/css/zoom";
 import { appAlert, appConfirm } from "../utils/appDialog";
 import SelectedAttributesList from "../components/orders/SelectedAttributesList";
+import QuotationRequestModal from "../components/quotations/QuotationRequestModal";
 
 const PRODUCT_DETAILS_SNAPSHOT_MAX_AGE_MS = 1000 * 60 * 15;
 
@@ -155,6 +157,8 @@ export default function ProductDetails() {
   const [inquiryOrder, setInquiryOrder] = useState(null);
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [inquiryError, setInquiryError] = useState("");
+  const [quotationModalOpen, setQuotationModalOpen] = useState(false);
+  const [quotationMode, setQuotationMode] = useState('single');
 
   // Starts (or resolves) a pre-sale conversation with the seller — replaces
   // the old fake-draft-order "inquiry" hack now that a conversation doesn't
@@ -910,7 +914,7 @@ export default function ProductDetails() {
   );
 
   useEffect(() => {
-    if (!isMobileView || !product || !canOpenShopProfile) {
+    if (!product || !canOpenShopProfile) {
       setShopGalleryProducts([]);
       return;
     }
@@ -948,7 +952,6 @@ export default function ProductDetails() {
     };
   }, [
     canOpenShopProfile,
-    isMobileView,
     isProfessional,
     offlineSnapshotActive,
     product?._id,
@@ -2018,6 +2021,43 @@ export default function ProductDetails() {
     : addingToCart
       ? 'Traitement...'
       : 'Acheter maintenant';
+  const quotationAvailable = product?.quotationEnabled !== false && !isPurchaseOutOfStock && !isOwnProduct;
+  const quotationModalProducts = useMemo(
+    () => {
+      if (!product) return [];
+      const selections = selectedAttributeCombinations.length
+        ? selectedAttributeCombinations
+        : [normalizedSelectedAttributes];
+      const requestedLines = quotationMode === 'group' && selections.length > 1 ? selections : [selections[0] || []];
+      return requestedLines.map((attributes) => ({ ...product, quantity: selectedQuantity, selectedAttributes: attributes }));
+    },
+    [normalizedSelectedAttributes, product, quotationMode, selectedAttributeCombinations, selectedQuantity]
+  );
+  const quotationAvailableProducts = useMemo(() => {
+    const seen = new Set();
+    return [product, ...shopGalleryProducts].filter((entry) => {
+      const id = String(entry?._id || '');
+      if (!id || seen.has(id) || entry?.quotationEnabled === false) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [product, shopGalleryProducts]);
+  const openQuotationModal = (mode = 'single') => {
+    if (!user) {
+      navigate('/login', { state: { from: `/product/${slug}` } });
+      return;
+    }
+    setQuotationMode(typeof mode === 'string' ? mode : 'single');
+    setQuotationModalOpen(true);
+  };
+
+  const openGroupQuotationModal = () => {
+    if (hasProductOptions && !requireSelectedProductOptions()) {
+      document.getElementById('product-options')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    openQuotationModal('group');
+  };
 
   const publishedDate = product?.createdAt ? new Date(product.createdAt) : null;
   const daysSince = publishedDate ? Math.floor((Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
@@ -2568,6 +2608,13 @@ export default function ProductDetails() {
             </span>
           </div>
         )}
+        {quotationAvailable ? (
+          <button type="button" onClick={openGroupQuotationModal} className="mt-3 flex min-h-[76px] w-full items-center gap-3 rounded-2xl border border-[#e7ddd0] bg-white px-4 text-left shadow-sm active:scale-[0.99]">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><Store className="h-6 w-6" /></span>
+            <span className="min-w-0 flex-1"><strong className="block text-[16px] font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span></span>
+            <ChevronRight className="h-6 w-6 shrink-0 text-[#a8a29e]" />
+          </button>
+        ) : null}
         {wholesaleEnabled && <div className="mt-2">{renderWholesaleSection({ compact: true })}</div>}
       </section>
 
@@ -3218,6 +3265,13 @@ export default function ProductDetails() {
       {!isOwnProduct && (
         <div className="home-anim-fade-up fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)', '--home-anim-delay': '220ms' }}>
+          {quotationAvailable ? (
+            <div className="border-b border-gray-100 px-2 py-1.5">
+              <button type="button" onClick={openQuotationModal} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#e85d00] bg-white text-sm font-black text-[#b3480a] active:scale-[0.98]">
+                <FileText className="h-4 w-4" /> Demander un devis
+              </button>
+            </div>
+          ) : null}
           <div className="flex items-stretch h-[58px]">
             {/* Chat / WhatsApp icon */}
             {whatsappLink ? (
@@ -3810,6 +3864,13 @@ export default function ProductDetails() {
                   </p>
                 </div>
               )}
+              {quotationAvailable ? (
+                <button type="button" onClick={openGroupQuotationModal} className="flex min-h-[92px] w-full items-center gap-4 rounded-3xl border border-[#e7ddd0] bg-white px-5 text-left shadow-sm transition hover:border-emerald-200 hover:shadow-md active:scale-[0.99]">
+                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><Store className="h-7 w-7" /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-xl font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-1 block text-base font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span></span>
+                  <ChevronRight className="h-7 w-7 shrink-0 text-[#a8a29e]" />
+                </button>
+              ) : null}
               {wholesaleEnabled && renderWholesaleSection()}
 
               {product.confirmationNumber && (
@@ -3997,7 +4058,7 @@ export default function ProductDetails() {
               {!isOwnProduct && (
                 <div className="space-y-4">
                   {productOptionsPanel}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <button
                       onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleAddToCart}
                       disabled={addingToCart || inCart || isPurchaseOutOfStock}
@@ -4032,6 +4093,19 @@ export default function ProductDetails() {
                         {isOptionSelectionBlocked ? 'Choisir les options' : buyNowButtonLabel}
                       </span>
                     </button>
+
+                    {quotationAvailable ? (
+                      <button
+                        type="button"
+                        onClick={openQuotationModal}
+                        className="group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl border border-[#e85d00] bg-white px-5 py-3.5 text-sm font-bold text-[#b3480a] transition-all duration-200 active:scale-[0.98] hover:bg-[#fff5ec]"
+                      >
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#fff0e4] text-[#e85d00]">
+                          <FileText size={15} />
+                        </span>
+                        <span className="truncate leading-tight">Demander un devis</span>
+                      </button>
+                    ) : null}
 
                     {whatsappLink && (
                       <a
@@ -4777,7 +4851,7 @@ export default function ProductDetails() {
   // === MAIN RETURN: conditional mobile / desktop ===
   const productOptionsPanel = hasProductOptions ? (
     <div
-      id="product-purchase-options"
+      id="product-options"
       className={`rounded-2xl border bg-white p-4 shadow-sm space-y-4 transition-colors ${
         isOptionSelectionBlocked ? 'border-[#FF5000]/40 ring-1 ring-[#FF5000]/20' : 'border-slate-200/80'
       }`}
@@ -5027,6 +5101,21 @@ export default function ProductDetails() {
         </div>
       )}
       {isMobileView ? renderMobileProductDetails() : renderDesktopProductDetails()}
+
+      {quotationAvailable ? (
+        <QuotationRequestModal
+          isOpen={quotationModalOpen}
+          onClose={() => setQuotationModalOpen(false)}
+          products={quotationModalProducts}
+          availableProducts={quotationAvailableProducts}
+          grouped={quotationMode === 'group'}
+          defaultCity={user?.city || product?.city || 'Brazzaville'}
+          onCreated={() => {
+            showToast('Demande de devis envoyée au vendeur.', { variant: 'success' });
+            navigate('/my-quotations');
+          }}
+        />
+      ) : null}
 
       <BaseModal
         isOpen={isMobileView && shareMenuOpen}

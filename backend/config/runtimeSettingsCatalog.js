@@ -602,6 +602,49 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     min: 1,
     max: 10
   },
+  escrow_auto_release_delay_minutes: {
+    category: 'order_automation',
+    description: 'Délai avant libération automatique des fonds après livraison ou retrait (minutes).',
+    valueType: 'number',
+    defaultValue: 180,
+    isPublic: true,
+    min: 1,
+    max: 10080
+  },
+  escrow_dispute_enabled: {
+    category: 'order_automation',
+    description: 'Autorise l’acheteur à bloquer les fonds en ouvrant un litige.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
+  escrow_max_dispute_time_minutes: {
+    category: 'order_automation',
+    description: 'Durée maximale pour ouvrir un litige escrow après livraison (minutes).',
+    valueType: 'number',
+    defaultValue: 180,
+    isPublic: true,
+    min: 1,
+    max: 43200
+  },
+  escrow_minimum_deposit_percent: {
+    category: 'order_automation',
+    description: 'Pourcentage minimum à payer en ligne pour placer une commande sous séquestre.',
+    valueType: 'number',
+    defaultValue: 50,
+    isPublic: true,
+    min: 50,
+    max: 100
+  },
+  escrow_high_value_order_threshold: {
+    category: 'order_automation',
+    description: 'Seuil d’une commande de grande valeur nécessitant une attention renforcée (FCFA).',
+    valueType: 'number',
+    defaultValue: 500000,
+    isPublic: false,
+    min: 0,
+    max: 100000000
+  },
   dispute_window_hours: {
     category: 'order_automation',
     description: 'Fenêtre de temps pour ouvrir un litige après livraison (heures).',
@@ -841,6 +884,15 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     isPublic: false,
     min: 3,
     max: 50
+  },
+  login_lockout_minutes: {
+    category: 'security',
+    description: 'Durée de verrouillage temporaire (minutes) après trop de tentatives de connexion échouées.',
+    valueType: 'number',
+    defaultValue: 15,
+    isPublic: false,
+    min: 1,
+    max: 1440
   },
   password_strength_level: {
     category: 'security',

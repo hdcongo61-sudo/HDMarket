@@ -37,18 +37,21 @@ const ALLOWED_MIMES = new Set([
   'image/jpeg',
   'image/jpg',
   'image/png',
-  'image/webp'
+  'image/webp',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime'
 ]);
 
 const fileFilter = (req, file, cb) => {
   if (ALLOWED_MIMES.has(file.mimetype) || file.mimetype.startsWith('image/')) {
     return cb(null, true);
   }
-  cb(new Error('Formats autorisés: image (jpg/png/webp) ou PDF.'));
+  cb(new Error('Formats autorisés: image, vidéo (MP4/WebM/MOV) ou PDF.'));
 };
 
 export const disputeUpload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 25 * 1024 * 1024 }
 });

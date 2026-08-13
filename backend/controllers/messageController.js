@@ -7,6 +7,7 @@ import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUploader.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
+import { detectOffPlatformPaymentRisk } from '../utils/chatSafety.js';
 import {
   emitOrderConversationRead,
   emitOrderMessageCreated,
@@ -334,6 +335,12 @@ export const sendConversationMessage = asyncHandler(async (req, res) => {
 
   if (hasAttachments) messageData.attachments = attachments;
   if (hasVoice) messageData.voiceMessage = voiceMessage;
+
+  // Only plaintext, server-visible messages can be inspected — an encrypted
+  // message's real content is never seen by the backend by design.
+  if (hasText && !hasEncrypted && detectOffPlatformPaymentRisk(text)) {
+    messageData.safetyFlag = 'off_platform_payment';
+  }
 
   const message = await OrderMessage.create(messageData);
   const messagePreview = buildMessagePreview({

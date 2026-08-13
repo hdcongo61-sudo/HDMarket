@@ -309,6 +309,9 @@ export default function AdminOrders() {
   const [viewOrderData, setViewOrderData] = useState(null);
   const [viewOrderLoading, setViewOrderLoading] = useState(false);
   const [viewOrderError, setViewOrderError] = useState('');
+  const [escrowAudit, setEscrowAudit] = useState([]);
+  const [escrowAuditLoading, setEscrowAuditLoading] = useState(false);
+  const [escrowReleaseLoading, setEscrowReleaseLoading] = useState(false);
 
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -939,6 +942,12 @@ export default function AdminOrders() {
 
       setViewOrderOpen(true);
       setViewOrderError('');
+      setEscrowAudit([]);
+      setEscrowAuditLoading(true);
+      api.get(`/orders/${targetOrderId}/escrow`)
+        .then(({ data }) => setEscrowAudit(Array.isArray(data?.audit) ? data.audit : []))
+        .catch(() => setEscrowAudit([]))
+        .finally(() => setEscrowAuditLoading(false));
 
       const existing = orders.find((entry) => getOrderId(entry) === targetOrderId) || null;
       if (existing) {
@@ -1166,6 +1175,28 @@ export default function AdminOrders() {
     } catch (error) {
       appAlert(error.response?.data?.message || 'Impossible de mettre à jour la commande.');
       return null;
+    }
+  };
+
+  const releaseOrderEscrow = async () => {
+    if (!viewOrderData?._id || escrowReleaseLoading) return;
+    setEscrowReleaseLoading(true);
+    try {
+      const { data } = await api.post(`/orders/admin/${viewOrderData._id}/escrow/release`);
+      const updated = normalizeOrderForUi(data?.order);
+      if (updated) {
+        setViewOrderData(updated);
+        setOrders((previous) => previous.map((order) =>
+          getOrderId(order) === getOrderId(updated) ? { ...order, ...updated } : order
+        ));
+      }
+      showToast(data?.message || 'Fonds libérés au vendeur.', { variant: 'success' });
+      const auditResponse = await api.get(`/orders/${viewOrderData._id}/escrow`);
+      setEscrowAudit(Array.isArray(auditResponse.data?.audit) ? auditResponse.data.audit : []);
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Impossible de libérer les fonds.', { variant: 'error' });
+    } finally {
+      setEscrowReleaseLoading(false);
     }
   };
 
@@ -2125,7 +2156,7 @@ export default function AdminOrders() {
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Livraison</p>
                     <p className="mt-1 text-sm text-gray-800">{viewOrderData.deliveryAddress || 'Adresse non renseignée'}</p>
                     <p className="text-xs text-gray-600">{viewOrderData.deliveryCity || 'Ville non renseignée'}</p>
-                    {viewOrderData.deliveryCode ? (
+                    {false && viewOrderData.deliveryCode ? (
                       <p className="mt-1 text-xs font-semibold text-neutral-700">Code: {viewOrderData.deliveryCode}</p>
                     ) : null}
                   </div>
@@ -2175,6 +2206,45 @@ export default function AdminOrders() {
                       : 'Date inconnue'}
                   </p>
                 </div>
+
+                {String(viewOrderData.paymentSource || '').toLowerCase() === 'pawapay' && Number(viewOrderData.paidAmount || 0) > 0 ? (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">Escrow HDMarket</p>
+                        <p className="mt-1 text-sm font-black text-orange-950">
+                          {viewOrderData.escrowStatus || 'IN_ESCROW'} · {formatCurrency(viewOrderData.escrowAmount || viewOrderData.paidAmount)}
+                        </p>
+                      </div>
+                      {['DELIVERED', 'WAITING_BUYER_CONFIRMATION'].includes(viewOrderData.escrowStatus) ? (
+                        <button
+                          type="button"
+                          onClick={releaseOrderEscrow}
+                          disabled={escrowReleaseLoading}
+                          className="min-h-10 rounded-xl bg-orange-600 px-4 text-xs font-black text-white disabled:opacity-60"
+                        >
+                          {escrowReleaseLoading ? 'Libération…' : 'Libérer manuellement'}
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 border-t border-orange-200 pt-2">
+                      <p className="text-[11px] font-black uppercase tracking-wide text-orange-700">Journal sécurisé</p>
+                      {escrowAuditLoading ? (
+                        <p className="mt-1 text-xs text-orange-800">Chargement…</p>
+                      ) : escrowAudit.length ? (
+                        <ul className="mt-1 space-y-1">
+                          {escrowAudit.slice(-5).reverse().map((entry) => (
+                            <li key={entry._id} className="text-xs text-orange-900">
+                              {entry.action} · {new Date(entry.createdAt).toLocaleString('fr-FR')}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-xs text-orange-800">Aucun événement enregistré.</p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <button

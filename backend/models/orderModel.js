@@ -300,6 +300,42 @@ const orderSchema = new mongoose.Schema(
       enum: ['mobile_money', 'pawapay', 'cod', ''],
       default: ''
     },
+    // Escrow is the source of truth for releasing online funds to the seller.
+    // `deliveryMode` is kept for backwards compatibility while
+    // `fulfillmentMethod` exposes the explicit vocabulary used by escrow.
+    fulfillmentMethod: {
+      type: String,
+      enum: ['DELIVERY', 'STORE_PICKUP'],
+      default: 'DELIVERY',
+      index: true
+    },
+    escrowStatus: {
+      type: String,
+      enum: [
+        'WAITING_PAYMENT',
+        'IN_ESCROW',
+        'DELIVERED',
+        'WAITING_BUYER_CONFIRMATION',
+        'ON_HOLD',
+        'RELEASED',
+        'REFUNDED'
+      ],
+      default: 'WAITING_PAYMENT',
+      index: true
+    },
+    escrowAmount: { type: Number, default: 0, min: 0 },
+    deliveryCompletedAt: { type: Date, default: null },
+    sellerMarkedDeliveredAt: { type: Date, default: null },
+    buyerConfirmedAt: { type: Date, default: null },
+    autoReleaseAt: { type: Date, default: null, index: true },
+    escrowReleasedAt: { type: Date, default: null },
+    escrowReleaseReason: {
+      type: String,
+      enum: ['', 'BUYER_CONFIRMED', 'AUTO_RELEASE', 'ADMIN_RELEASE', 'DISPUTE_RESOLVED_SELLER'],
+      default: ''
+    },
+    disputeOpened: { type: Boolean, default: false, index: true },
+    disputeOpenedAt: { type: Date, default: null },
     confirmedAt: { type: Date },
     readyForPickupAt: { type: Date },
     outForDeliveryAt: { type: Date },
@@ -355,6 +391,20 @@ const orderSchema = new mongoose.Schema(
     deliveryCode: { type: String, unique: true, sparse: true, trim: true },
     isDraft: { type: Boolean, default: false },
     isInquiry: { type: Boolean, default: false },
+    quotationRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'QuotationRequest',
+      default: null
+    },
+    quotationSnapshot: {
+      applied: { type: Boolean, default: false },
+      currency: { type: String, trim: true, default: '' },
+      originalSubtotal: { type: Number, default: 0, min: 0 },
+      quotedSubtotal: { type: Number, default: 0, min: 0 },
+      savings: { type: Number, default: 0, min: 0 },
+      sellerMessage: { type: String, trim: true, default: '' },
+      acceptedAt: { type: Date, default: null }
+    },
     installmentPlan: { type: installmentPlanSchema, default: null },
     draftPayments: {
       type: [{
@@ -445,6 +495,10 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index(
+  { quotationRequest: 1 },
+  { unique: true, partialFilterExpression: { quotationRequest: { $type: 'objectId' } } }
+);
 orderSchema.index({ 'sponsoredPayment.payer': 1, 'sponsoredPayment.status': 1, createdAt: -1 });
 orderSchema.index({ 'sponsoredPayment.requester': 1, 'sponsoredPayment.status': 1, createdAt: -1 });
 orderSchema.index({ customer: 1, createdAt: -1 });
@@ -469,6 +523,7 @@ orderSchema.index({ adminPriority: 1, adminRiskScore: -1, updatedAt: -1 });
 orderSchema.index({ statusStuckSince: 1, status: 1 });
 orderSchema.index({ reviewGiven: 1, confirmationGiven: 1, deliveredAt: -1 });
 orderSchema.index({ reviewStatus: 1, reviewReminderDisabled: 1, deliveredAt: -1 });
+orderSchema.index({ escrowStatus: 1, autoReleaseAt: 1, disputeOpened: 1 });
 
 orderSchema.pre('save', function orderStatusTracking(next) {
   this.$locals.wasNewOrder = this.isNew;
@@ -477,6 +532,15 @@ orderSchema.pre('save', function orderStatusTracking(next) {
   }
   if (!this.expectedDeliveryDate && this.deliveryDate) {
     this.expectedDeliveryDate = this.deliveryDate;
+  }
+  this.fulfillmentMethod = this.deliveryMode === 'PICKUP' ? 'STORE_PICKUP' : 'DELIVERY';
+  if (
+    String(this.paymentSource || '').toLowerCase() === 'pawapay' &&
+    Number(this.paidAmount || 0) > 0 &&
+    this.escrowStatus === 'WAITING_PAYMENT'
+  ) {
+    this.escrowStatus = 'IN_ESCROW';
+    this.escrowAmount = Number(this.paidAmount || 0);
   }
   if (!this.confirmationGiven) {
     const status = String(this.status || '');
@@ -490,15 +554,14 @@ orderSchema.pre('save', function orderStatusTracking(next) {
   if (this.reviewStatus === 'DONE' && !this.reviewCompletedAt) {
     this.reviewCompletedAt = new Date();
   }
-  // Finalize payment when order reaches a terminal status
-  const finalStatuses = ['delivered', 'completed', 'confirmed_by_client', 'picked_up_confirmed'];
-  if (this.isModified('status') && finalStatuses.includes(this.status)) {
-    this.paidAmount = this.totalAmount || 0;
-    this.remainingAmount = 0;
-    this.paymentStatus = 'PAID_FULL';
-    if (!this.paymentCompletedAt) {
-      this.paymentCompletedAt = new Date();
-    }
+  // Fulfilment must never invent a payment. Partial online payments (50/70%)
+  // remain partial; only the amount already captured can enter escrow.
+  if (this.isModified('paidAmount') || this.isModified('totalAmount')) {
+    const paid = Math.max(0, Number(this.paidAmount || 0));
+    const total = Math.max(0, Number(this.totalAmount || 0));
+    this.remainingAmount = Math.max(0, total - paid);
+    this.paymentStatus = paid <= 0 ? 'PENDING' : paid >= total ? 'PAID_FULL' : 'PARTIAL';
+    if (paid >= total && total > 0 && !this.paymentCompletedAt) this.paymentCompletedAt = new Date();
   }
   next();
 });

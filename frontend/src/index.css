@@ -228,6 +228,38 @@ select optgroup {
   color: var(--ui-form-text);
 }
 
+/* Keep browser/password-manager autofill aligned with the auth redesign. */
+.hd-auth-form input:-webkit-autofill,
+.hd-auth-form input:-webkit-autofill:hover,
+.hd-auth-form input:-webkit-autofill:focus,
+.hd-auth-form input:-webkit-autofill:active {
+  -webkit-text-fill-color: #141210 !important;
+  caret-color: #141210;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.hd-auth-form input:autofill {
+  background-color: #ffffff !important;
+  color: #141210 !important;
+}
+
+.dark .hd-auth-form input:-webkit-autofill,
+.dark .hd-auth-form input:-webkit-autofill:hover,
+.dark .hd-auth-form input:-webkit-autofill:focus,
+.dark .hd-auth-form input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px #171717 inset !important;
+  box-shadow: 0 0 0 1000px #171717 inset !important;
+}
+
+.dark .hd-auth-form input:autofill {
+  background-color: #171717 !important;
+  color: #ffffff !important;
+}
+
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):disabled,
 textarea:disabled,
 select:disabled {
@@ -1285,6 +1317,28 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
   color: var(--hd-black);
 }
 
+.hd-home-product-card {
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: inset 0 0 0 1px #ece5db !important;
+}
+
+.dark .hd-home-product-card {
+  box-shadow: inset 0 0 0 1px #262626 !important;
+}
+
+.hd-home-product-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.hd-home-offer-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .hd-category-chip {
   border: 1px solid rgba(229, 231, 235, 0.92);
   background: rgba(255, 255, 255, 0.84);
@@ -1700,6 +1754,43 @@ body.menu-open .verified-shops-header {
   .ui-modal-backdrop {
     animation: uiModalBackdropIn 180ms ease both;
   }
+}
+
+/* Auth autofill must remain visually identical to a manually filled field.
+   Kept at the end so generic form rules and browser user-agent styles cannot win. */
+.hd-auth-form input.hd-auth-autofill,
+.hd-auth-form input.hd-auth-autofill:hover,
+.hd-auth-form input.hd-auth-autofill:focus,
+.hd-auth-form input.hd-auth-autofill:active,
+.hd-auth-form input.hd-auth-autofill:-webkit-autofill,
+.hd-auth-form input.hd-auth-autofill:-webkit-autofill:hover,
+.hd-auth-form input.hd-auth-autofill:-webkit-autofill:focus,
+.hd-auth-form input.hd-auth-autofill:-webkit-autofill:active {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  -webkit-text-fill-color: #141210 !important;
+  caret-color: #141210 !important;
+  border: 0 !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  transition: background-color 999999s ease-out 0s !important;
+}
+
+.dark .hd-auth-form input.hd-auth-autofill,
+.dark .hd-auth-form input.hd-auth-autofill:hover,
+.dark .hd-auth-form input.hd-auth-autofill:focus,
+.dark .hd-auth-form input.hd-auth-autofill:active,
+.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill,
+.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill:hover,
+.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill:focus,
+.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  box-shadow: 0 0 0 1000px #171717 inset !important;
+  -webkit-box-shadow: 0 0 0 1000px #171717 inset !important;
 }
 
 @keyframes uiModalIn {

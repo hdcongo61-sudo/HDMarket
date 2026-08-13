@@ -72,6 +72,13 @@ import {
 import { getPawaPayConfig } from '../services/pawapayService.js';
 import { initiateOrderRefund } from '../services/refundService.js';
 import { ensureSellerSettlementForOrder } from '../services/sellerSettlementService.js';
+import {
+  listEscrowAuditForOrder,
+  recordEscrowAudit,
+  releaseEscrowForOrder,
+  requestAuditContext,
+  startEscrowBuyerConfirmation
+} from '../services/escrowService.js';
 
 const ORDER_STATUS = [
   'pending_payment',
@@ -1127,7 +1134,7 @@ export const adminCreateOrder = asyncHandler(async (req, res) => {
 
 // ─── PawaPay checkout completion ─────────────────────────
 // This handler is called only after a signed PawaPay callback confirms payment.
-const CHECKOUT_PAYMENT_PERCENTS = [50, 75, 100];
+const CHECKOUT_PAYMENT_PERCENTS = [50, 70, 100];
 
 export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?._id;
@@ -1140,13 +1147,24 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     paymentPercent: rawPaymentPercent
   } = req.body;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
-  // 50/75/100% of the order total, paid now via PawaPay — the rest is
+  // 50/70/100% of the order total, paid now via PawaPay — the rest is
   // collected at delivery/pickup. Only 100% keeps the free-delivery
   // incentive; anything less charges the real delivery fee (see
   // resolveDeliveryPricing below).
-  const paymentPercent = CHECKOUT_PAYMENT_PERCENTS.includes(Number(rawPaymentPercent))
-    ? Number(rawPaymentPercent)
-    : 100;
+  const minimumDepositPercent = Math.max(
+    50,
+    Math.min(100, Number(await getRuntimeConfig('escrow_minimum_deposit_percent', { fallback: 50 })) || 50)
+  );
+  const escrowHighValueOrderThreshold = Math.max(
+    0,
+    Number(await getRuntimeConfig('escrow_high_value_order_threshold', { fallback: 500000 })) || 500000
+  );
+  const paymentPercent = Number(rawPaymentPercent ?? 100);
+  if (!CHECKOUT_PAYMENT_PERCENTS.includes(paymentPercent) || paymentPercent < minimumDepositPercent) {
+    return res.status(400).json({
+      message: `Choisissez un paiement autorisé d’au moins ${minimumDepositPercent}%.`
+    });
+  }
   const isFullPayment = paymentPercent >= 100;
 
   if (!req.pawaPayCheckout || req.pawaPayCheckout.status !== 'COMPLETED') {
@@ -1353,8 +1371,24 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       discountTotal: 0,
       totalAmount: sellerTotal,
       paidAmount: sellerPaidAmount,
-      remainingAmount: sellerRemainingAmount
+      remainingAmount: sellerRemainingAmount,
+      adminPriority: sellerTotal >= escrowHighValueOrderThreshold ? 'HIGH' : 'LOW'
     });
+    await recordEscrowAudit({
+      order,
+      actor: userId,
+      actorRole: 'buyer',
+      action: 'ESCROW_FUNDED',
+      fromStatus: 'WAITING_PAYMENT',
+      toStatus: 'IN_ESCROW',
+      amount: sellerPaidAmount,
+      metadata: {
+        checkoutId: req.pawaPayCheckout.checkoutId,
+        paymentPercent,
+        highValueOrder: sellerTotal >= escrowHighValueOrderThreshold,
+        fulfillmentMethod: deliveryMode === 'PICKUP' ? 'STORE_PICKUP' : 'DELIVERY'
+      }
+    }).catch((error) => console.error('[escrow] checkout funding audit failed:', error?.message || error));
     createdOrders.push(order);
   }
 
@@ -2892,6 +2926,14 @@ export const adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+  if (['delivered', 'picked_up_confirmed'].includes(String(status || ''))) {
+    await startEscrowBuyerConfirmation({
+      order,
+      actor: req.user.id,
+      actorRole: 'admin',
+      audit: requestAuditContext(req)
+    });
+  }
 
   await syncReviewReminderForOrderLifecycle(order);
   if (status && previousStatus !== order.status) {
@@ -4138,9 +4180,6 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
   order.status = isPlatformDeliveryOrderFlow
     ? 'delivered'
     : 'delivery_proof_submitted';
-  if (isPlatformDeliveryOrderFlow) {
-    order.clientDeliveryConfirmedAt = order.clientDeliveryConfirmedAt || now;
-  }
   if (isPickupOrder && !order.readyForPickupAt) {
     order.readyForPickupAt = now;
   }
@@ -4154,6 +4193,13 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     order.deliveredAt = now;
   }
   await order.save();
+  await startEscrowBuyerConfirmation({
+    order,
+    actor: actorId,
+    actorRole: 'seller',
+    now,
+    audit: requestAuditContext(req)
+  });
   await syncReviewReminderForOrderLifecycle(order);
 
   const baseLog = {
@@ -4228,7 +4274,7 @@ export const sellerSubmitDeliveryProof = asyncHandler(async (req, res) => {
     message: isPickupOrder
       ? 'Preuve de retrait enregistrée. En attente de confirmation du client.'
       : isPlatformDeliveryOrderFlow
-      ? 'Preuve de livraison enregistrée. Livraison validée automatiquement (plateforme).'
+      ? 'Preuve de livraison enregistrée. En attente de confirmation du client.'
       : 'Preuve de livraison soumise. En attente de confirmation client.',
     order: buildOrderResponse(populated)
   });
@@ -4241,7 +4287,7 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Commande inconnue.' });
   }
 
-  const order = await Order.findOne({ _id: id, customer: userId, isDraft: false });
+  let order = await Order.findOne({ _id: id, customer: userId, isDraft: false });
   if (!order) {
     return res.status(404).json({ message: 'Commande introuvable.' });
   }
@@ -4251,64 +4297,7 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   if (order.status === 'dispute_opened') {
     return res.status(400).json({ message: 'Commande en litige, confirmation impossible.' });
   }
-  const isPlatformDeliveryOrderFlow = isPlatformDeliveryOrder(order);
   const isPickupOrderConfirmation = isPickupOrderFlow(order);
-  if (isPlatformDeliveryOrderFlow) {
-    const now = new Date();
-    if (order.deliveryStatus !== 'verified') {
-      order.deliveryStatus = 'verified';
-    }
-    if (!order.clientDeliveryConfirmedAt) {
-      order.clientDeliveryConfirmedAt = now;
-    }
-    if (!order.deliveredAt) {
-      order.deliveredAt = order.deliveryDate || now;
-    }
-    if (order.status === 'delivery_proof_submitted') {
-      order.status = 'delivered';
-    }
-    await order.save();
-    emitOrderLifecycleUpdate({
-      order,
-      updatedBy: userId,
-      updatedAt: order.updatedAt || now
-    });
-    res.json({
-      message: 'Livraison plateforme validée automatiquement. Aucune confirmation client requise.',
-      order: buildOrderResponse(order)
-    });
-
-    void dispatchSideEffect(
-      'order-lifecycle',
-      {
-        orderId: order._id,
-        customerId: order.customer,
-        sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
-      },
-      async () => {
-      await safeAsync(() => syncReviewReminderForOrderLifecycle(order), {
-        label: 'platform_confirm_sync_review_reminder'
-      });
-      await safeAsync(
-        async () => {
-          const populated = await baseOrderQuery().findById(order._id);
-          await ensureOrderProductSlugs([populated]);
-        },
-        { label: 'platform_confirm_populate_and_slug_order' }
-      );
-      await safeAsync(
-        () =>
-          invalidateOrderCachesForMutation({
-            customerId: order.customer,
-            sellerIds: (order.items || []).map((item) => resolveItemShopId(item))
-          }),
-        { label: 'platform_confirm_invalidate_order_caches' }
-      );
-      },
-      { label: 'platform_confirm_side_effects' }
-    );
-    return;
-  }
   if (req.body?.confirm === false) {
     return res.status(400).json({
       message: 'Confirmation refusée. Veuillez ouvrir un litige depuis la page réclamations.'
@@ -4330,7 +4319,9 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
   }
 
   const previousStatus = order.status;
-  order.status = 'completed';
+  const usesPawaPayEscrow =
+    String(order.paymentSource || '').toLowerCase() === 'pawapay' && Number(order.paidAmount || 0) > 0;
+  order.status = usesPawaPayEscrow ? order.status : 'completed';
   if (order.paymentType === 'installment') {
     order.installmentSaleStatus = isPickupOrderConfirmation ? 'picked_up_confirmed' : 'delivered';
   }
@@ -4339,9 +4330,29 @@ export const clientConfirmDelivery = asyncHandler(async (req, res) => {
     order.completedAt = now;
   }
   await order.save();
-  await safeAsync(() => ensureSellerSettlementForOrder(order), {
-    label: 'client_confirm_create_seller_settlement'
-  });
+  if (usesPawaPayEscrow) {
+    if (!['DELIVERED', 'WAITING_BUYER_CONFIRMATION'].includes(order.escrowStatus)) {
+      await startEscrowBuyerConfirmation({
+        order,
+        actor: order.deliverySubmittedBy || null,
+        actorRole: 'seller',
+        now,
+        audit: requestAuditContext(req)
+      });
+    }
+    order = await releaseEscrowForOrder({
+      order,
+      actor: userId,
+      actorRole: 'buyer',
+      reason: 'BUYER_CONFIRMED',
+      now,
+      audit: requestAuditContext(req)
+    });
+  } else {
+    await safeAsync(() => ensureSellerSettlementForOrder(order), {
+      label: 'client_confirm_create_seller_settlement'
+    });
+  }
   emitOrderLifecycleUpdate({
     order,
     updatedBy: userId,
@@ -4536,6 +4547,67 @@ export const getOrderDeliveryLogs = asyncHandler(async (req, res) => {
     .limit(100)
     .lean();
   res.json({ items: logs });
+});
+
+export const getOrderEscrow = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id || req.user?._id;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+  const order = await Order.findById(id).select(
+    '_id customer items escrowStatus escrowAmount fulfillmentMethod deliveryCompletedAt sellerMarkedDeliveredAt buyerConfirmedAt autoReleaseAt escrowReleasedAt escrowReleaseReason disputeOpened disputeOpenedAt'
+  );
+  if (!order) return res.status(404).json({ message: 'Commande introuvable.' });
+
+  const role = String(req.user?.role || '').toLowerCase();
+  const isAdmin = ['admin', 'founder', 'manager'].includes(role);
+  const isBuyer = String(order.customer) === String(userId);
+  const isSeller = (order.items || []).some(
+    (item) => String(item?.snapshot?.shopId || '') === String(userId)
+  );
+  if (!isAdmin && !isBuyer && !isSeller) {
+    return res.status(403).json({ message: 'Accès refusé.' });
+  }
+  const audit = await listEscrowAuditForOrder(order._id);
+  res.json({ order, audit });
+});
+
+export const adminReleaseOrderEscrow = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!ensureObjectId(id)) {
+    return res.status(400).json({ message: 'Commande inconnue.' });
+  }
+  let order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Commande introuvable.' });
+  if (order.disputeOpened || order.escrowStatus === 'ON_HOLD') {
+    return res.status(409).json({ message: 'Le fonds est bloqué par un litige actif.' });
+  }
+  if (order.escrowStatus === 'RELEASED') {
+    return res.json({ message: 'Le fonds a déjà été libéré.', order: buildOrderResponse(order) });
+  }
+  if (!hasValidDeliveryEvidence(order)) {
+    return res.status(400).json({ message: 'Une preuve de livraison complète est requise avant la libération.' });
+  }
+  if (!['DELIVERED', 'WAITING_BUYER_CONFIRMATION'].includes(order.escrowStatus)) {
+    order = await startEscrowBuyerConfirmation({
+      order,
+      actor: req.user.id,
+      actorRole: 'admin',
+      audit: requestAuditContext(req)
+    });
+  }
+  order = await releaseEscrowForOrder({
+    order,
+    actor: req.user.id,
+    actorRole: 'admin',
+    reason: 'ADMIN_RELEASE',
+    audit: requestAuditContext(req)
+  });
+  if (order?.escrowStatus !== 'RELEASED') {
+    return res.status(409).json({ message: 'Le fonds ne peut pas être libéré dans son état actuel.' });
+  }
+  res.json({ message: 'Fonds libéré au vendeur.', order: buildOrderResponse(order) });
 });
 
 export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
@@ -4899,6 +4971,14 @@ export const sellerUpdateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+  if (['delivered', 'picked_up_confirmed'].includes(String(status || ''))) {
+    await startEscrowBuyerConfirmation({
+      order,
+      actor: actorId,
+      actorRole: 'seller',
+      audit: requestAuditContext(req)
+    });
+  }
   const sellerIds = Array.isArray(order.items)
     ? order.items
         .map((item) => item?.snapshot?.shopId)

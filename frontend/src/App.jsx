@@ -114,6 +114,10 @@ const SellerProductVideos = lazy(() => import('./pages/SellerProductVideos'));
 const AdminProductVideos = lazy(() => import('./pages/AdminProductVideos'));
 const SellerSettlements = lazy(() => import('./pages/SellerSettlements'));
 const OrderCheckout = lazy(() => import('./pages/OrderCheckout'));
+const MyQuotations = lazy(() => import('./pages/MyQuotations'));
+const QuotationCheckout = lazy(() => import('./pages/QuotationCheckout'));
+const SellerQuotations = lazy(() => import('./pages/SellerQuotations'));
+const AdminQuotations = lazy(() => import('./pages/AdminQuotations'));
 const PawaPayReturn = lazy(() => import('./pages/PawaPayReturn'));
 const DraftOrders = lazy(() => import('./pages/DraftOrders'));
 const AdminChatTemplates = lazy(() => import('./pages/AdminChatTemplates'));
@@ -1043,6 +1047,18 @@ function AppContent() {
             }
           />
           <Route
+            path="/my-quotations"
+            element={<ProtectedRoute><MyQuotations /></ProtectedRoute>}
+          />
+          <Route
+            path="/my-quotations/:quotationId"
+            element={<ProtectedRoute><MyQuotations /></ProtectedRoute>}
+          />
+          <Route
+            path="/quotations/:quotationId/checkout"
+            element={<ProtectedRoute><QuotationCheckout /></ProtectedRoute>}
+          />
+          <Route
             path="/orders/draft"
             element={
               <ProtectedRoute>
@@ -1143,6 +1159,8 @@ function AppContent() {
             <Route path="order/detail/:orderId" element={<SellerOrderDetail />} />
             <Route path="orders" element={<SellerOrdersEntryRedirect />} />
             <Route path="orders/:status" element={<SellerOrders />} />
+            <Route path="quotations" element={<SellerQuotations />} />
+            <Route path="quotations/:quotationId" element={<SellerQuotations />} />
             <Route path="order" element={<SellerOrdersEntryRedirect />} />
             <Route path="order/:status" element={<SellerOrders />} />
             <Route path="disputes" element={<SellerDisputes />} />
@@ -1227,6 +1245,7 @@ function AppContent() {
               }
             />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="quotations" element={<AdminQuotations />} />
             <Route
               path="delivery-guys"
               element={platformDeliveryEnabled ? <AdminDeliveryGuys /> : <Navigate to="/admin" replace />}

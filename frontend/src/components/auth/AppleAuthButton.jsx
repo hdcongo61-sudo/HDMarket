@@ -13,7 +13,7 @@ export default function AppleAuthButton({ label, loading = false, disabled = fal
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 rounded-full bg-black px-4 text-[15px] font-black text-white transition hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-60 dark:border dark:border-neutral-700 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+      className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl bg-white px-5 text-base font-bold text-[#141210] ring-1 ring-inset ring-[#e7dfd5] transition hover:bg-[#faf7f2] hover:ring-[#d8d0c4] disabled:cursor-wait disabled:opacity-60 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800 dark:hover:bg-neutral-800"
     >
       {loading ? <Loader2 size={19} className="animate-spin" /> : <AppleMark />}
       {label}

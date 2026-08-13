@@ -28,7 +28,13 @@ import {
   Check,
   Clapperboard,
   Hash,
-  ShoppingCart
+  ShoppingCart,
+  LockKeyhole,
+  ShieldAlert,
+  Gift,
+  Bike,
+  Sparkles,
+  Smartphone
 } from 'lucide-react';
 import { useAppSettings } from '../context/AppSettingsContext';
 
@@ -36,9 +42,11 @@ const SECTION_IDS = {
   shopping: 'achat-malin',
   videos: 'videos',
   payments: 'paiements',
+  protection: 'protection',
   refunds: 'remboursements',
   delivery: 'livraison',
   trust: 'confiance',
+  services: 'services',
   sellers: 'vendeurs'
 };
 
@@ -133,6 +141,12 @@ export default function Benefits() {
   const platformDeliveryEnabled = isFlagOn('enable_platform_delivery');
   const fullPaymentFreeDelivery = isFlagOn('enable_full_payment_free_delivery', true);
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
+  const referralProgramEnabled = isFlagOn('enable_referral_program');
+  const parcelDeliveryEnabled = isFlagOn('enable_parcel_delivery', true);
+  const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', { defaultValue: false });
+  // "Acheter pour moi" and the fast-registration card always render in this
+  // section, so it's never empty regardless of the other three flags.
+  const hasServicesSection = true;
 
   const navChips = useMemo(
     () =>
@@ -140,12 +154,14 @@ export default function Benefits() {
         { id: SECTION_IDS.shopping, label: 'Achat malin' },
         productVideosEnabled ? { id: SECTION_IDS.videos, label: 'Vidéos' } : null,
         { id: SECTION_IDS.payments, label: 'Paiements' },
+        { id: SECTION_IDS.protection, label: 'Protection' },
         { id: SECTION_IDS.refunds, label: 'Remboursements' },
         { id: SECTION_IDS.delivery, label: 'Livraison' },
         { id: SECTION_IDS.trust, label: 'Confiance' },
+        hasServicesSection ? { id: SECTION_IDS.services, label: 'Autres services' } : null,
         { id: SECTION_IDS.sellers, label: 'Vendeurs' }
       ].filter(Boolean),
-    [productVideosEnabled]
+    [productVideosEnabled, hasServicesSection]
   );
 
   return (
@@ -165,7 +181,7 @@ export default function Benefits() {
           pouvez faire, et comment le faire.
         </p>
         <div className="mx-auto mt-4 flex max-w-md flex-wrap items-center justify-center gap-2">
-          {['Mobile Money', 'Paiements vérifiés', 'Pensé pour le Congo'].map((chip) => (
+          {['Inscription en 1 minute', 'Mobile Money', 'Paiements protégés', 'Pensé pour le Congo'].map((chip) => (
             <span
               key={chip}
               className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700 dark:bg-neutral-950 dark:text-neutral-300"
@@ -353,6 +369,94 @@ export default function Benefits() {
           )}
         </div>
 
+        {/* ── PROTECTION (ESCROW) ── */}
+        <SectionHeader
+          id={SECTION_IDS.protection}
+          eyebrow="Être protégé"
+          title="Votre argent, protégé jusqu’à la réception"
+          subtitle="HDMarket conserve le paiement — le vendeur n’est réglé qu’après votre confirmation."
+        />
+        <section className="mt-4 overflow-hidden rounded-2xl border border-sky-100 bg-white dark:border-sky-950/60 dark:bg-neutral-900">
+          <div className="border-b border-sky-100 bg-sky-50 p-4 dark:border-sky-950/60 dark:bg-sky-950/20">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white">
+                <LockKeyhole size={21} strokeWidth={2.3} />
+              </span>
+              <div>
+                <h3 className="text-base font-black text-gray-900 dark:text-white">
+                  Protection HDMarket
+                </h3>
+                <p className="mt-1 text-sm text-gray-600 dark:text-neutral-300">
+                  Dès que vous payez (en une fois, à 70 % ou à 50 %), le montant reste conservé par
+                  HDMarket — livraison ou retrait en boutique, peu importe. Le vendeur n’est payé
+                  qu’une fois la commande arrivée jusqu’à vous.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-0 sm:grid-cols-2">
+            {[
+              {
+                icon: Truck,
+                title: 'Le vendeur livre ou prépare le retrait',
+                description:
+                  'Une fois la commande remise ou prête en boutique, le vendeur la marque comme « Livrée » ou « Récupérée ». Vous êtes averti aussitôt.'
+              },
+              {
+                icon: CircleCheckBig,
+                title: 'Vous confirmez, ou vous signalez',
+                description:
+                  'Touchez « Confirmer la réception » si tout va bien — les fonds sont libérés au vendeur immédiatement. Un problème ? Signalez-le avant la libération.'
+              },
+              {
+                icon: Clock3,
+                title: 'Libération automatique',
+                description:
+                  'Si vous ne réagissez pas, un compte à rebours (visible dans la commande) libère les fonds tout seul après un court délai — pas besoin d’agir si tout va bien.'
+              },
+              {
+                icon: ShieldAlert,
+                title: 'Litige = fonds bloqués',
+                description:
+                  'Un problème signalé bloque immédiatement le versement au vendeur. Rien ne bouge tant que le dossier n’est pas résolu.'
+              }
+            ].map(({ icon: Icon, title, description }, index) => (
+              <div
+                key={title}
+                className="relative border-b border-gray-100 p-4 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:[&:nth-last-child(-n+2)]:border-b-0 dark:border-neutral-800"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+                    <Icon size={17} strokeWidth={2.2} />
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[9px] font-black text-white">
+                      {index + 1}
+                    </span>
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-black text-gray-900 dark:text-white">{title}</h4>
+                    <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-neutral-300">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="m-4 rounded-xl bg-gray-50 p-3 dark:bg-neutral-950">
+            <div className="flex items-start gap-2">
+              <ShieldCheck size={17} className="mt-0.5 flex-shrink-0 text-sky-600" />
+              <p className="text-xs leading-relaxed text-gray-600 dark:text-neutral-300">
+                <strong className="text-gray-900 dark:text-white">Le délai est réglé par HDMarket</strong>, pas
+                par le vendeur — il ne peut ni le raccourcir ni forcer une libération anticipée. Si vous
+                payez en partie (70 % ou 50 %), seule la part payée en ligne est protégée de cette façon ;
+                le reste réglé en espèces à la livraison reste, comme d’habitude, entre vous et le vendeur.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* ── REMBOURSEMENTS ── */}
         <SectionHeader
           id={SECTION_IDS.refunds}
@@ -491,9 +595,14 @@ export default function Benefits() {
           />
           <FeatureCard
             icon={Star}
-            title="Avis d’acheteurs réels"
-            benefit="Notes et commentaires laissés après commande : vous savez à qui vous avez affaire."
+            title="Avis 100 % achats vérifiés"
+            benefit="Seuls les acheteurs ayant réellement reçu le produit peuvent le noter ou le commenter : impossible de gonfler — ou de saboter — la réputation d’une boutique avec de faux avis."
             steps={['Consultez les avis en bas de chaque fiche produit', 'Après réception, laissez le vôtre pour aider les autres']}
+          />
+          <FeatureCard
+            icon={ShieldAlert}
+            title="Alertes anti-arnaque dans le chat"
+            benefit="Si un message vous demande de payer en dehors de HDMarket, une alerte apparaît directement dans la conversation pour vous rappeler de rester sur le paiement protégé de l’application."
           />
           <FeatureCard
             icon={ShieldCheck}
@@ -514,6 +623,68 @@ export default function Benefits() {
             cta="Mes notifications"
           />
         </div>
+
+        {/* ── AUTRES SERVICES ── */}
+        {hasServicesSection && (
+          <>
+            <SectionHeader
+              id={SECTION_IDS.services}
+              eyebrow="Aller plus loin"
+              title="Bien plus qu’un marketplace"
+              subtitle="Des services pensés pour votre quotidien, au-delà de l’achat classique."
+            />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {referralProgramEnabled && (
+                <FeatureCard
+                  icon={Gift}
+                  title="Parrainage récompensé"
+                  benefit="Invitez un proche avec votre code personnel : vous recevez chacun une récompense dès sa première commande livrée."
+                  steps={[
+                    'Partagez votre code ou votre lien depuis « Parrainage »',
+                    'Votre filleul s’inscrit et commande',
+                    'Récompense créditée dès la livraison confirmée'
+                  ]}
+                  to="/referrals"
+                  cta="Mon programme de parrainage"
+                />
+              )}
+              {parcelDeliveryEnabled && (
+                <FeatureCard
+                  icon={Bike}
+                  title="Envoyer un colis"
+                  benefit="Besoin d’envoyer un document ou un paquet en ville ? Un livreur HDMarket récupère et livre, sans passer par un produit du catalogue."
+                  steps={['Indiquez l’adresse de départ et d’arrivée', 'Un livreur est assigné et vous suivez la course', 'Suivez vos courses dans « Mes colis »']}
+                  to="/parcels/new"
+                  cta="Envoyer un colis"
+                />
+              )}
+              <FeatureCard
+                icon={ShoppingBag}
+                title="Acheter pour moi"
+                benefit="Pas le temps d’aller en boutique ? Décrivez ce qu’il vous faut : un livreur fait les achats à votre place et vous les apporte."
+                steps={['Décrivez les articles et le magasin si vous en avez un', 'Un livreur achète et vous livre', 'Suivez la demande dans « Mes demandes »']}
+                to="/buy-for-me"
+                cta="Faire mes courses"
+              />
+              {aiRecommendationsEnabled && (
+                <FeatureCard
+                  icon={Sparkles}
+                  title="Suggestions personnalisées"
+                  benefit="Une sélection « Pour vous », construite à partir de ce que vous consultez et achetez — pour découvrir sans chercher."
+                  to="/suggestions"
+                  cta="Voir mes suggestions"
+                />
+              )}
+              <FeatureCard
+                icon={Smartphone}
+                title="Inscription en un instant"
+                benefit="Créez votre compte avec juste votre numéro de téléphone et un code reçu par SMS — aucune adresse email n’est nécessaire pour acheter, vendre ou payer."
+                to="/register"
+                cta="Créer mon compte"
+              />
+            </div>
+          </>
+        )}
 
         {/* ── VENDEURS ── */}
         <SectionHeader

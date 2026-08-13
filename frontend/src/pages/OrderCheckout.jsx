@@ -19,7 +19,8 @@ import {
   Store,
   MapPin,
   Users,
-  User
+  User,
+  FileText
 } from 'lucide-react';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -28,6 +29,7 @@ import RewardPointsRedeemBox from '../components/RewardPointsRedeemBox';
 import PawaPayButton from '../components/PawaPayButton';
 import AddressHistoryChips from '../components/AddressHistoryChips';
 import { readAddressHistory, saveAddressToHistory } from '../utils/addressHistory';
+import QuotationRequestModal from '../components/quotations/QuotationRequestModal';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
 
@@ -91,6 +93,13 @@ export default function OrderCheckout() {
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
   const { cities = [], communes = [], getRuntimeValue, t } = useAppSettings();
+  const minimumEscrowDepositPercent = Math.max(
+    50,
+    Math.min(100, Number(getRuntimeValue('escrow_minimum_deposit_percent', 50)) || 50)
+  );
+  const escrowPaymentChoices = [50, 70, 100].filter(
+    (percent) => percent >= minimumEscrowDepositPercent
+  );
   const navigate = useNavigate();
   const location = useLocation();
   const groupBuyId = location.state?.groupBuyId || '';
@@ -137,6 +146,7 @@ export default function OrderCheckout() {
     phone: user?.phone || ''
   });
   const [addressHistory, setAddressHistory] = useState(readAddressHistory);
+  const [quotationProducts, setQuotationProducts] = useState([]);
 
   // Fill the delivery address from a saved history entry (click only).
   const applyShippingFromHistory = (item) => {
@@ -1593,7 +1603,7 @@ export default function OrderCheckout() {
                   {t('checkout.paymentPercent', 'Combien payer maintenant ?')}
                 </p>
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  {[50, 75, 100].map((percent) => (
+                  {escrowPaymentChoices.map((percent) => (
                     <button
                       key={percent}
                       type="button"
@@ -1975,6 +1985,18 @@ export default function OrderCheckout() {
                       </p>
                     </div>
                   </div>
+                  {group.sellerId !== 'unknown' && group.items.some((item) => item?.product?.quotationEnabled !== false) ? (
+                    <button
+                      type="button"
+                      onClick={() => setQuotationProducts(group.items
+                        .filter((item) => item?.product?.quotationEnabled !== false)
+                        .map((item) => ({ ...item.product, quantity: item.quantity, selectedAttributes: item.selectedAttributes || [] })))}
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#e85d00] bg-[#fff8f1] px-4 text-sm font-black text-[#d95400]"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {group.items.length > 1 ? 'Demander un devis groupé' : 'Demander un devis'}
+                    </button>
+                  ) : null}
                   
                   <div className="space-y-4">
                     {/* Payer name + transaction code — not needed for PawaPay */}
@@ -2337,6 +2359,18 @@ export default function OrderCheckout() {
         </div>
       </div>
       </div>
+      <QuotationRequestModal
+        isOpen={quotationProducts.length > 0}
+        onClose={() => setQuotationProducts([])}
+        products={quotationProducts}
+        grouped={quotationProducts.length > 1}
+        defaultCity={selectedCity?.name || user?.city || 'Brazzaville'}
+        onCreated={() => {
+          setQuotationProducts([]);
+          showToast('Demande de devis envoyée.', { variant: 'success' });
+          navigate('/my-quotations');
+        }}
+      />
     </div>
   );
 }

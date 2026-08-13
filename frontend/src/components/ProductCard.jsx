@@ -1,7 +1,7 @@
 import React, { memo, useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes, Expand } from 'lucide-react';
+import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes, Expand, Check, Loader2 } from 'lucide-react';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
 import FavoriteContext from '../context/FavoriteContext';
@@ -668,13 +668,19 @@ function ProductCard({
         : p.certified
           ? { key: 'certified', label: 'Certifié' }
           : null;
-    const cardRadius = useHomeFeed ? 'rounded-[20px]' : useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-2xl';
+    const homeMetadata = [
+      productCity,
+      salesCount > 0 ? `${formatSalesCount(salesCount)} ${salesCount === 1 ? 'vendu' : 'vendus'}` : '',
+      installmentAvailable ? 'paiement en tranches' : '',
+      wholesaleEnabled ? 'vente en gros' : ''
+    ].filter(Boolean).join(' · ');
+    const cardRadius = useHomeFeed ? 'rounded-[18px]' : useCommerceMobileCard ? 'rounded-[14px]' : isShopProfileCompact ? 'rounded-2xl' : 'rounded-2xl';
     const imageAspect = isListCard
       ? 'h-auto min-h-[132px] w-[38%] shrink-0'
       : isShopProfileCompact
       ? 'aspect-[4/3]'
       : useHomeFeed
-        ? 'h-[135px]'
+        ? 'aspect-[4/5]'
       : useCommerceMobileCard
         ? 'aspect-[1/1]'
       : useCompactMobile && !categoryListing
@@ -682,6 +688,8 @@ function ProductCard({
         : 'aspect-[4/5]';
     const bodyPadding = isShopProfileCompact
       ? 'p-2'
+      : useHomeFeed
+        ? 'px-2.5 pb-3 pt-2.5'
       : useCommerceMobileCard
         ? 'px-2.5 pb-2.5 pt-2'
       : useCompactMobile
@@ -711,10 +719,10 @@ function ProductCard({
       <>
         <article
           ref={cardRef}
-          className={`hd-product-card group relative flex h-full min-w-0 overflow-hidden transition duration-200 hover:-translate-y-0.5 dark:border-neutral-800 dark:bg-neutral-950 ${cardRadius} ${
+          className={`hd-product-card group relative flex h-full min-w-0 overflow-hidden transition duration-200 hover:-translate-y-0.5 dark:border-neutral-800 dark:bg-neutral-950 ${useHomeFeed ? 'hd-home-product-card' : ''} ${cardRadius} ${
             useCommerceMobileCard
               ? useHomeFeed
-                ? 'border border-[#eeeff3] bg-white shadow-none hover:shadow-none'
+                ? 'border-0 bg-white shadow-none hover:shadow-none'
                 : 'border-0 bg-white shadow-sm hover:shadow-sm'
               : 'border hover:shadow-sm'
           } ${
@@ -747,7 +755,7 @@ function ProductCard({
               }
               handleProductClick?.(p);
             }}
-            className={`relative block overflow-hidden bg-neutral-100 dark:bg-neutral-900 ${imageAspect}`}
+            className={`relative block overflow-hidden ${useHomeFeed ? 'bg-[#f1ece4]' : 'bg-neutral-100 dark:bg-neutral-900'} ${imageAspect}`}
             {...(!showMultiImageGallery ? {
               onPointerDown: startLongPress(currentImageIndex),
               onPointerMove: handleLongPressMove,
@@ -771,8 +779,9 @@ function ProductCard({
                 imageWidth={isListCard ? 420 : categoryListing ? 520 : 640}
                 lite={useLiteImageMode}
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                reserveBottomSpace={Boolean((productCity && !useCommerceMobileCard) || installmentAvailable || wholesaleEnabled)}
+                reserveBottomSpace={useHomeFeed ? false : Boolean((productCity && !useCommerceMobileCard) || installmentAvailable || wholesaleEnabled)}
                 compact={Boolean(isShopProfileCompact || useHomeFeed)}
+                photoFirst={useHomeFeed}
               />
             ) : (
               <>
@@ -793,7 +802,7 @@ function ProductCard({
             )}
 
             {primaryBadge ? (
-              <span className="absolute left-2 top-2 inline-flex rounded-md bg-[#e85d00] px-2 py-1 text-[10px] font-black text-white shadow-sm">
+              <span className={`absolute left-2 top-2 inline-flex bg-[#e85d00] px-2 py-1 text-white shadow-sm ${useHomeFeed ? 'rounded-lg text-[10.5px] font-extrabold' : 'rounded-md text-[10px] font-black'}`}>
                 {primaryBadge.label}
               </span>
             ) : null}
@@ -802,19 +811,19 @@ function ProductCard({
               type="button"
               onClick={handleFavoriteToggle}
               disabled={favoritePending}
-              className={`absolute right-1.5 top-1.5 items-center justify-center rounded-full shadow-sm transition active:scale-95 disabled:cursor-wait sm:right-2 sm:top-2 ${
-                favoriteActive
-                  ? 'bg-[#e85d00] text-white shadow-sm'
-                  : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-950/90 dark:text-neutral-200'
-              } inline-flex ${
-                isShopProfileCompact ? 'h-8 w-8' : useHomeFeed ? 'h-[30px] w-[30px]' : 'h-11 w-11'
+              className={`absolute items-center justify-center rounded-full transition active:scale-95 disabled:cursor-wait ${
+                useHomeFeed
+                  ? '-m-[5px] right-[3px] top-[3px] inline-flex h-11 w-11 bg-transparent p-[5px] shadow-none'
+                  : `right-1.5 top-1.5 inline-flex shadow-sm sm:right-2 sm:top-2 ${favoriteActive ? 'bg-[#e85d00] text-white shadow-sm' : 'bg-white/94 text-neutral-700 hover:bg-gray-100 hover:text-[#e85d00] dark:bg-neutral-950/90 dark:text-neutral-200'} ${isShopProfileCompact ? 'h-8 w-8' : 'h-11 w-11'}`
               } ${favoritePending ? 'scale-95 opacity-80' : ''}`}
               aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             >
-              <Heart
-                className={`h-4 w-4 transition-transform duration-150 ${favoritePending ? 'scale-90' : favoriteActive ? 'scale-110' : ''}`}
-                fill={favoriteActive ? 'currentColor' : 'none'}
-              />
+              <span className={`${useHomeFeed ? `inline-flex h-[34px] w-[34px] items-center justify-center rounded-full ${favoriteActive ? 'bg-[#e85d00] text-white' : 'bg-white/94 text-[#57534e] dark:bg-neutral-950/90 dark:text-neutral-200'}` : 'contents'}`}>
+                <Heart
+                  className={`${useHomeFeed ? 'h-[17px] w-[17px]' : 'h-4 w-4'} transition-transform duration-150 ${favoritePending ? 'scale-90' : favoriteActive ? 'scale-110' : ''}`}
+                  fill={favoriteActive ? 'currentColor' : 'none'}
+                />
+              </span>
             </button>
 
             {productCity && !useCommerceMobileCard ? (
@@ -824,7 +833,7 @@ function ProductCard({
               </span>
             ) : null}
 
-            {installmentAvailable ? (
+            {installmentAvailable && !useHomeFeed ? (
               <span
                 className={`absolute z-20 inline-flex items-center gap-1 rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm ${
                   useCommerceMobileCard ? 'bottom-1.5 left-1.5 sm:bottom-2 sm:left-2' : 'bottom-1.5 right-1.5 sm:bottom-2 sm:right-2'
@@ -835,7 +844,7 @@ function ProductCard({
               </span>
             ) : null}
 
-            {wholesaleEnabled ? (
+            {wholesaleEnabled && !useHomeFeed ? (
               <span
                 className={`absolute z-20 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm ${
                   useCommerceMobileCard
@@ -853,7 +862,7 @@ function ProductCard({
             ) : null}
           </ProductDetailLink>
 
-          <div className={`flex flex-1 flex-col gap-2 ${bodyPadding}`}>
+          <div className={`flex flex-1 flex-col ${useHomeFeed ? 'gap-1.5' : 'gap-2'} ${bodyPadding}`}>
             {useCommerceMobileCard ? (
               <ProductDetailLink
                 disabled={disableProductNavigation}
@@ -864,7 +873,9 @@ function ProductCard({
                   trackCardInteraction('title_open');
                   handleProductClick?.(p);
                 }}
-                className="line-clamp-2 min-h-[2.15rem] text-[13px] font-black leading-[1.15] text-slate-950 transition hover:text-slate-800"
+                className={useHomeFeed
+                  ? 'hd-home-product-title h-9 overflow-hidden text-[13.5px] font-bold leading-[1.33] text-[#141210] transition hover:text-[#57534e] dark:text-white dark:hover:text-neutral-200'
+                  : 'line-clamp-2 min-h-[2.15rem] text-[13px] font-black leading-[1.15] text-slate-950 transition hover:text-slate-800'}
               >
                 <span>{p.title}</span>
               </ProductDetailLink>
@@ -884,14 +895,51 @@ function ProductCard({
               </ProductDetailLink>
             )}
 
-            <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard ? '-mt-0.5' : ''}`}>
-              <span className={`${useCommerceMobileCard ? 'text-[15px] leading-none' : priceClass} hd-product-price font-black tracking-tight ${useHomeFeed ? 'text-[#f26522]' : taobaoStyle ? 'text-[#FF3D00]' : 'text-neutral-950 dark:text-white'}`}>
+            <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard && !useHomeFeed ? '-mt-0.5' : ''}`}>
+              <span className={`${useHomeFeed ? 'whitespace-nowrap text-[17px] leading-none tracking-[-0.02em]' : useCommerceMobileCard ? 'text-[15px] leading-none' : priceClass} hd-product-price font-black ${useHomeFeed ? 'text-[#141210] dark:text-white' : taobaoStyle ? 'text-[#FF3D00]' : 'tracking-tight text-neutral-950 dark:text-white'}`}>
                 {discountedPrice}
               </span>
-              {originalPrice && !isShopProfileCompact && !useCommerceMobileCard ? (
-                <span className="text-xs font-medium text-neutral-400 line-through">{originalPrice}</span>
+              {originalPrice && !isShopProfileCompact && (!useCommerceMobileCard || useHomeFeed) ? (
+                <span className={`${useHomeFeed ? 'text-[11.5px]' : 'text-xs'} font-medium text-[#a8a29e] line-through`}>{originalPrice}</span>
               ) : null}
             </div>
+
+            {useHomeFeed ? (
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <p className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-[#8a8378] dark:text-neutral-400">
+                  {homeMetadata || conditionLabel}
+                </p>
+                {!isOwner ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleAddToCart();
+                    }}
+                    disabled={adding || inCart}
+                    className="-m-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent p-1 transition active:scale-95 disabled:cursor-default"
+                    aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
+                  >
+                    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${inCart ? 'bg-[#fff5ec] text-[#b3480a]' : 'bg-[#e85d00] text-white'}`}>
+                      {adding ? <Loader2 className="h-[17px] w-[17px] animate-spin" /> : inCart ? <Check className="h-[17px] w-[17px]" /> : <ShoppingCart className="h-[17px] w-[17px]" />}
+                    </span>
+                  </button>
+                ) : (
+                  <ProductDetailLink
+                    disabled={disableProductNavigation}
+                    to={resolvedProductLink}
+                    {...externalLinkProps}
+                    className="-m-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent p-1 text-white"
+                    aria-label="Voir le produit"
+                  >
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#e85d00]">
+                      <ChevronRight className="h-[17px] w-[17px]" />
+                    </span>
+                  </ProductDetailLink>
+                )}
+              </div>
+            ) : null}
 
             {taobaoStyle && (freeDeliveryAvailable || installmentAvailable || wholesaleEnabled) ? (
               <div className="flex flex-wrap items-center gap-1">
@@ -913,7 +961,7 @@ function ProductCard({
               </div>
             ) : null}
 
-            {useCommerceMobileCard ? (
+            {useCommerceMobileCard && !useHomeFeed ? (
               <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-[#8a8378]">
                 {ratingAverage > 0 ? <span className="inline-flex items-center gap-1"><Star className={`h-3 w-3 fill-current ${useHomeFeed ? 'text-[#ffb300]' : 'text-[#e85d00]'}`} />{ratingAverage}</span> : null}
                 {salesCount > 0 ? <span>{formatSalesCount(salesCount)} vendus</span> : null}
@@ -961,7 +1009,7 @@ function ProductCard({
               </div>
             ) : null}
 
-            <div className="mt-auto grid grid-cols-1 items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+            {!useHomeFeed ? <div className="mt-auto grid grid-cols-1 items-center gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
               {!isOwner ? (
                 <button
                   type="button"
@@ -991,7 +1039,7 @@ function ProductCard({
                   Voir le produit
                 </ProductDetailLink>
               )}
-            </div>
+            </div> : null}
 
             {addError ? <p className="text-[10px] font-semibold text-red-600">{addError}</p> : null}
             {feedback ? <p className="text-[10px] font-semibold text-emerald-700">{feedback}</p> : null}

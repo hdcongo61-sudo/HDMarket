@@ -3392,6 +3392,13 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           )}
                         </Link>
                         <Link
+                          to="/my-quotations"
+                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/60"
+                        >
+                          <FileText size={18} className="shrink-0 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm font-medium">Mes devis</span>
+                        </Link>
+                        <Link
                           to="/seller/orders"
                           className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
@@ -4300,6 +4307,14 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         {activeOrdersBadge}
                       </span>
                     )}
+                  </NavLink>
+                  <NavLink
+                    to="/my-quotations"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <FileText size={20} />
+                    Mes devis
                   </NavLink>
                   {chatEnabled && (
                     <NavLink

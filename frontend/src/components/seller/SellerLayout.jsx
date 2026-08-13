@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   BarChart3,
   Clapperboard,
+  FileText,
   Megaphone,
   Package,
   Rocket,
@@ -21,6 +22,7 @@ const groups = [
     items: [
       { to: '/seller/products', label: 'Mes annonces', short: 'Annonces', icon: Package },
       { to: '/seller/orders', label: 'Commandes', short: 'Commandes', icon: ShoppingBag },
+      { to: '/seller/quotations', label: 'Demandes de devis', short: 'Devis', icon: FileText },
       { to: '/seller/analytics', label: 'Statistiques', short: 'Stats', icon: BarChart3 }
     ]
   },

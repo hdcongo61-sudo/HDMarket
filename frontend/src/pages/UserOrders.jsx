@@ -44,6 +44,7 @@ import OrderChat from '../components/OrderChat';
 import GlassHeader from '../components/orders/GlassHeader';
 import StatusBadge from '../components/orders/StatusBadge';
 import OrderMiniRail from '../components/orders/OrderMiniRail';
+import EscrowStatusCard from '../components/orders/EscrowStatusCard';
 import { motion, useReducedMotion } from 'framer-motion';
 import { riseIn } from '../utils/orderProgress';
 import { OrderListSkeleton } from '../components/orders/OrderSkeletons';
@@ -597,7 +598,7 @@ const MobileOrderTrackingCard = ({ order, onDownloadPdf, onEditAddress, onCancel
       </div>
 
       {/* Delivery Code - Prominent display */}
-      {order.deliveryCode && effectiveStatus !== 'cancelled' && (
+      {false && order.deliveryCode && effectiveStatus !== 'cancelled' && (
         <div className="mx-4 mt-3 p-4 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border-2 border-neutral-200 dark:border-neutral-700">
           <div className="flex items-center justify-between">
             <div>
@@ -880,6 +881,7 @@ const OrderSummaryCard = ({ order, assistantShop, index = 0 }) => {
         </div>
         <StatusBadge status={statusBadgeKey} />
       </div>
+      <EscrowStatusCard order={order} role="buyer" compact />
       {/* Product summary */}
       <div className="flex gap-3 px-3.5 py-3.5 sm:px-4">
         {firstItem?.snapshot?.image ? (
