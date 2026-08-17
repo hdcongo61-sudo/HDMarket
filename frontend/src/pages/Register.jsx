@@ -624,7 +624,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f3ee] text-[#141210] dark:bg-neutral-950 dark:text-white lg:px-8 lg:py-6">
+    <div className="min-h-[100dvh] overflow-hidden bg-[#f6f3ee] text-[#141210] dark:bg-neutral-950 dark:text-white lg:px-8 lg:py-6">
       <div className="mx-auto grid min-h-[100dvh] w-full max-w-[1120px] overflow-hidden bg-[#f6f3ee] lg:min-h-[700px] lg:grid-cols-2 lg:rounded-[22px] lg:ring-1 lg:ring-[#e7dfd5] dark:bg-neutral-950 dark:ring-neutral-800">
         <section className="hd-auth-form flex min-h-[100dvh] min-w-0 flex-col lg:min-h-[700px] lg:max-h-[calc(100dvh-3rem)]">
           {!successPayload ? (

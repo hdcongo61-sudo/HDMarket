@@ -320,7 +320,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#f6f3ee] text-[#141210] dark:bg-neutral-950 dark:text-white lg:px-8 lg:py-6">
+    <div className="min-h-[100dvh] overflow-hidden bg-[#f6f3ee] text-[#141210] dark:bg-neutral-950 dark:text-white lg:px-8 lg:py-6">
       <motion.div
         variants={staggerContainer}
         initial="hidden"

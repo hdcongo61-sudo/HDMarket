@@ -752,7 +752,10 @@ function AppContent() {
       <NetworkStatusBanner />
       <main
         className={!routeHierarchy.showGlobalNav
-          ? 'app-main-shell min-h-[100dvh] p-0 main-content no-ios-callout'
+          // .main-content reserves bottom padding for the mobile tab bar —
+          // the auth shell (login/register/forgot/reset) never shows one, so
+          // that padding just left dead scrollable space under a short form.
+          ? `app-main-shell min-h-[100dvh] p-0 no-ios-callout${routeHierarchy.shell === 'auth' ? '' : ' main-content'}`
           : 'app-main-shell min-h-[100dvh] pt-[calc(env(safe-area-inset-top,0px)+4rem)] lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] no-ios-callout'}
       >
         <AnimatePresence mode="wait" initial={false}>
