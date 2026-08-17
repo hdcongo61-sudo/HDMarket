@@ -27,7 +27,7 @@ import {
   resolvePublicSettings
 } from '../utils/settingsResolver.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
-import { buildCountryDataFilter, resolveCountryContext, serializeCountryPublic } from '../services/countryService.js';
+import { buildCountryDataFilter, resolveCountryContext, serializePublicCountry } from '../services/countryService.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
 
@@ -228,7 +228,7 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
     };
     res.json({
       ...payload,
-      country: serializeCountryPublic(countryContext.country),
+      country: serializePublicCountry(countryContext.country),
       defaultLanguage: countryContext.country.defaultLanguage,
       languages: countryContext.country.supportedLanguages,
       defaultCurrency: countryCurrency,
