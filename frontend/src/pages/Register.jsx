@@ -72,7 +72,7 @@ const strengthLabelOf = (score) => {
 export default function Register() {
   const { user, login } = useContext(AuthContext);
   const { showToast } = useToast();
-  const { cities, communes, language, runtime } = useAppSettings();
+  const { cities, communes, language, runtime, getRuntimeValue } = useAppSettings();
   const { country: selectedCountry } = useCountry();
   const nav = useNavigate();
   const location = useLocation();
@@ -82,6 +82,11 @@ export default function Register() {
     .toLowerCase()
     .startsWith('fr');
   const authAvailability = useMemo(() => resolveAuthProviderAvailability(runtime), [runtime]);
+  // Admin-configurable in /admin/system-settings: lets HDMarket create
+  // accounts without SMS OTP proof when the provider is down or too costly.
+  const smsVerificationRequired = ['true', '1', 'yes', 'on'].includes(
+    String(getRuntimeValue('registration_sms_verification_required', true)).trim().toLowerCase()
+  );
   const hasProviderRegistration = authAvailability.google.registration || authAvailability.apple.registration;
   const hasRegistration = authAvailability.email.registration || hasProviderRegistration;
 
@@ -304,15 +309,16 @@ export default function Register() {
   }[passwordStrength.label] || passwordStrength.label;
 
   // Provider (Google/Apple) sign-up already proves identity via the OAuth
-  // token, so phone OTP is only mandatory on the password path.
+  // token, so phone OTP is only mandatory on the password path — and only
+  // when the admin hasn't turned SMS verification off in system settings.
   const canGoToStep2 = Boolean(
-    form.firstName.trim() && form.lastName.trim() && form.phone.trim() && (providerAuth || phoneVerified)
+    form.firstName.trim() && form.lastName.trim() && form.phone.trim() && (providerAuth || !smsVerificationRequired || phoneVerified)
   );
   const canSubmit = Boolean(
     form.firstName.trim() &&
       form.lastName.trim() &&
       form.phone.trim() &&
-      (providerAuth || phoneVerified) &&
+      (providerAuth || !smsVerificationRequired || phoneVerified) &&
       (providerAuth ||
         (form.password &&
           form.confirmPassword &&
@@ -562,7 +568,7 @@ export default function Register() {
         return;
       }
 
-      if (!phoneVerified) {
+      if (smsVerificationRequired && !phoneVerified) {
         setFormError(copy.phoneNotVerifiedError);
         return;
       }
@@ -657,7 +663,9 @@ export default function Register() {
                   </h1>
                   <p className="mt-1.5 text-[14.5px] font-medium leading-[1.55] text-[#78716c] dark:text-neutral-400">
                     {step === 1
-                      ? (isFrench ? 'Nous vérifions votre numéro pour sécuriser vos commandes.' : 'We verify your number to protect your orders.')
+                      ? (smsVerificationRequired
+                          ? (isFrench ? 'Nous vérifions votre numéro pour sécuriser vos commandes.' : 'We verify your number to protect your orders.')
+                          : (isFrench ? 'Indiquez vos informations pour créer votre compte.' : 'Tell us about yourself to create your account.'))
                       : (isFrench ? 'Protégez votre compte et indiquez où livrer vos commandes.' : 'Protect your account and tell us where to deliver your orders.')}
                   </p>
 
@@ -705,7 +713,7 @@ export default function Register() {
                             </div>
                           </div>
 
-                          {!providerAuth ? (
+                          {!providerAuth && smsVerificationRequired ? (
                             <section className="rounded-2xl bg-white p-3.5 ring-1 ring-inset ring-[#e7dfd5] dark:bg-neutral-900 dark:ring-neutral-800">
                               <div className="flex items-center justify-between gap-3">
                                 <p className="text-sm font-bold text-[#141210] dark:text-white">Code SMS</p>

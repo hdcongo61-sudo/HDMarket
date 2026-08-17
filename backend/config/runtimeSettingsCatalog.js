@@ -1000,6 +1000,14 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: false
   },
+  registration_sms_verification_required: {
+    category: 'security',
+    description:
+      'Exiger la vérification du numéro par code SMS à l’inscription. Désactivez temporairement si le fournisseur SMS est indisponible ou coûteux — le compte est alors créé avec un téléphone non vérifié.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
   enable_selling: {
     category: 'role_limits',
     description: 'Active ou désactive la fonction Vendre / publication de nouvelles annonces.',

@@ -367,9 +367,15 @@ export const register = asyncHandler(async (req, res) => {
 
   const normalizedRole = role === 'admin' ? 'admin' : role === 'manager' ? 'manager' : 'user';
 
-  // Phone verification is mandatory (skipped only in local dev when Twilio
-  // isn't configured, mirroring the old email-verification dev bypass).
-  const skipPhoneVerification = !isPhoneOtpConfigured();
+  // Phone verification is mandatory by default, but admins can turn it off
+  // temporarily (e.g. SMS provider down or too costly) via runtime config —
+  // same bypass semantics as the local-dev case: account is created with an
+  // unverified phone rather than blocking registration outright.
+  const smsVerificationRequired = toBoolean(
+    await getRuntimeConfig('registration_sms_verification_required', { fallback: true }),
+    true
+  );
+  const skipPhoneVerification = !smsVerificationRequired || !isPhoneOtpConfigured();
   const phoneVerified = !skipPhoneVerification;
   if (!skipPhoneVerification) {
     const recentlyVerified = await hasRecentlyVerifiedPhone(normalizedPhone, 'registration');

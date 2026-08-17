@@ -365,7 +365,20 @@ export default function ShopConversionRequest() {
         )}
 
         {/* Form */}
-        {!shopConversionEnabled ? (
+        {!user?.phoneVerified ? (
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm">
+            <p className="text-sm font-bold text-amber-800">
+              Vérifiez d’abord votre numéro de téléphone depuis votre profil avant de faire une demande Devenir Boutique.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#d45400]"
+            >
+              Vérifier mon numéro
+            </button>
+          </div>
+        ) : !shopConversionEnabled ? (
           <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 text-sm font-bold text-amber-800 shadow-sm">
             Les demandes Devenir Boutique sont temporairement désactivées par l’administration.
           </div>

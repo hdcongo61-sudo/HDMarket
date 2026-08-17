@@ -1856,6 +1856,54 @@ export const verifyProfileEmail = asyncHandler(async (req, res) => {
   res.json({ message: 'Votre email a été vérifié avec succès.', user: sanitizeUser(user) });
 });
 
+// Profile "Verify my phone number" card — for accounts created while SMS
+// verification was turned off in system settings (or that skipped it in
+// dev). Reuses the phone number already on file; no phone-change here.
+export const sendMyPhoneVerificationCode = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id).select('phone phoneVerified');
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (!user.phone) {
+    return res.status(400).json({ message: 'Aucun numéro de téléphone associé à ce compte.' });
+  }
+  if (user.phoneVerified) {
+    return res.json({ message: 'Ce numéro est déjà vérifié.', alreadyVerified: true });
+  }
+  if (!isPhoneOtpConfigured()) {
+    return res.status(503).json({
+      message: 'L’envoi de SMS n’est pas configuré pour le moment. Réessayez plus tard.'
+    });
+  }
+  try {
+    await sendPhoneVerificationCode(user.phone, 'profile_phone_verify');
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      message: error.message || 'Impossible d’envoyer le code de vérification.'
+    });
+  }
+  res.json({ message: 'Code envoyé par SMS.' });
+});
+
+export const verifyMyPhoneCode = asyncHandler(async (req, res) => {
+  const verificationCode = String(req.body?.verificationCode || '').trim();
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (user.phoneVerified) {
+    return res.json({ message: 'Ce numéro est déjà vérifié.', user: sanitizeUser(user) });
+  }
+
+  const verificationCheck = await checkPhoneVerificationCode(user.phone, verificationCode, 'profile_phone_verify');
+  if (verificationCheck?.status !== 'approved') {
+    return res.status(400).json({
+      message: verificationCheck?.message || 'Code de vérification invalide.'
+    });
+  }
+
+  user.phoneVerified = true;
+  await user.save();
+  await invalidateUserCache(user._id, ['users']);
+  res.json({ message: 'Votre numéro de téléphone a été vérifié avec succès.', user: sanitizeUser(user) });
+});
+
 const NOTIFICATION_TITLES = Object.freeze({
   order_placed: 'Commande passée',
   order_created: 'Commande créée',

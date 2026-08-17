@@ -11,7 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import usePreventNewTabOnMobile from './hooks/usePreventNewTabOnMobile';
 import ScrollToTop from './components/ScrollToTop';
 import AnalyticsTracker from './components/AnalyticsTracker';
-import CookieConsent from './components/CookieConsent';
+import PrivacyPreferencesBanner from './components/PrivacyPreferencesBanner';
 import PendingActionHandler from './components/PendingActionHandler';
 import AppButtonFeedback from './components/AppButtonFeedback';
 import OfflineOverlay from './components/OfflineOverlay';
@@ -744,7 +744,7 @@ function AppContent() {
         <PushNotificationsManager />
       </Suspense>
       <AnalyticsTracker />
-      <CookieConsent />
+      <PrivacyPreferencesBanner />
       <ScrollToTop />
       {routeHierarchy.showGlobalNav ? (
         <Navbar hideMobileTabBar={!routeHierarchy.showGlobalMobileNav} />

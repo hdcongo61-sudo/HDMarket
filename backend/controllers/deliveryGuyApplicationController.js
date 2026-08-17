@@ -94,6 +94,16 @@ export const createDeliveryGuyApplication = asyncHandler(async (req, res) => {
     return res.status(409).json({ message: 'Votre compte possède déjà un accès livreur.' });
   }
 
+  // Becoming a delivery agent is a trust-elevating action — require a
+  // verified phone first (accounts can be unverified when SMS verification
+  // was optional at registration, see registration_sms_verification_required).
+  if (!user.phoneVerified) {
+    return res.status(403).json({
+      message: 'Vérifiez d’abord votre numéro de téléphone depuis votre profil avant de postuler comme livreur.',
+      code: 'PHONE_NOT_VERIFIED'
+    });
+  }
+
   const pending = await DeliveryGuyApplication.findOne({ user: user._id, status: 'pending' }).lean();
   if (pending) {
     return res.status(409).json({ message: 'Vous avez déjà une candidature en cours de vérification.' });

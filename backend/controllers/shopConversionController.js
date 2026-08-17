@@ -147,6 +147,16 @@ export const createShopConversionRequest = asyncHandler(async (req, res) => {
     });
   }
 
+  // Becoming a shop is a trust-elevating action — require a verified phone
+  // first (accounts can be unverified when SMS verification was optional at
+  // registration, see registration_sms_verification_required).
+  if (!user.phoneVerified) {
+    return res.status(403).json({
+      message: 'Vérifiez d’abord votre numéro de téléphone depuis votre profil avant de faire une demande Devenir Boutique.',
+      code: 'PHONE_NOT_VERIFIED'
+    });
+  }
+
   // Check if user already has a pending request
   const existingPending = await ShopConversionRequest.findOne({
     user: user._id,

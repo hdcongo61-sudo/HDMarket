@@ -514,12 +514,12 @@ export default function Login() {
                     ) : null}
                   </form> : null}
 
-                  {hasProviderLogin && authAvailability.email.login ? <div className="my-6 flex items-center gap-3.5 text-[13px] font-medium text-[#a8a29e]">
+                  {hasProviderLogin && authAvailability.email.login ? <div className="my-7 flex items-center gap-4 text-[13px] font-medium text-[#a8a29e]">
                     <span className="h-px flex-1 bg-[#e7dfd5] dark:bg-neutral-800" />
                     {copy.divider}
                     <span className="h-px flex-1 bg-[#e7dfd5] dark:bg-neutral-800" />
                   </div> : null}
-                  {hasProviderLogin ? <div className="grid gap-2.5 lg:grid-cols-2">
+                  {hasProviderLogin ? <div className="grid gap-3 lg:grid-cols-2">
                     {authAvailability.google.login ? <GoogleAuthButton
                       label={copy.google}
                       loading={providerLoading === 'google'}
@@ -540,7 +540,7 @@ export default function Login() {
                     </div>
                   ) : null}
 
-                  <footer className="mt-auto grid gap-2.5 pt-8 text-center text-[#57534e] dark:text-neutral-300 lg:absolute lg:bottom-14 lg:left-16 lg:text-left">
+                  <footer className="mt-auto grid gap-3 pt-9 text-center text-[#57534e] dark:text-neutral-300 lg:mt-10 lg:border-t lg:border-[#e7dfd5] lg:pt-7 lg:text-left dark:lg:border-neutral-800">
                     {hasRegistration ? <p className="text-[14.5px] font-medium">
                       {copy.noAccount}{' '}
                       <Link to="/register" className="font-extrabold text-[#b3480a] transition hover:text-[#f45f00] dark:text-orange-100">

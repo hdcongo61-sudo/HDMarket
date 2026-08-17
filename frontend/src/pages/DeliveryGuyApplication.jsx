@@ -148,7 +148,7 @@ export default function DeliveryGuyApplication() {
   }, []);
 
   const applicationStatus = application?.status;
-  const canSubmit = !['pending', 'approved'].includes(applicationStatus);
+  const canSubmit = Boolean(user?.phoneVerified) && !['pending', 'approved'].includes(applicationStatus);
   const separateDriverLicenseRequired =
     requirements.driverLicenseRequired && form.identityType !== 'driver_license';
   const fileDefinitions = useMemo(() => [
@@ -247,6 +247,17 @@ export default function DeliveryGuyApplication() {
 
         {success ? <p className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">{success}</p> : null}
         {error ? <p className="mt-4 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">{error}</p> : null}
+
+        {!user?.phoneVerified && !['pending', 'approved'].includes(applicationStatus) ? (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <p className="text-sm font-bold text-amber-900">
+              Vérifiez d’abord votre numéro de téléphone depuis votre profil avant de postuler comme livreur.
+            </p>
+            <Link to="/profile" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#d45400]">
+              Vérifier mon numéro
+            </Link>
+          </div>
+        ) : null}
 
         {canSubmit ? (
           <form onSubmit={submit} className="mt-5 space-y-4" lang="fr" spellCheck="true">

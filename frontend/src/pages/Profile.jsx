@@ -19,6 +19,8 @@ import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import ProfileEmailSection from '../components/profile/ProfileEmailSection';
 import ProfileEmailCompletionCard from '../components/profile/ProfileEmailCompletionCard';
+import ProfilePhoneSection from '../components/profile/ProfilePhoneSection';
+import ProfilePhoneCompletionCard from '../components/profile/ProfilePhoneCompletionCard';
 import { storage } from '../utils/storage';
 import { 
   User, Mail, Phone, Store, MapPin, Camera, Upload, 
@@ -1772,6 +1774,13 @@ export default function Profile() {
     }, 80);
   };
 
+  const scrollToPhoneSection = () => {
+    setActiveTab('profile');
+    setTimeout(() => {
+      document.getElementById('profile-phone-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
   if (!user) {
     return (
       <div className="hd-profile-flow hd-commerce-shell min-h-screen flex items-center justify-center">
@@ -1788,7 +1797,8 @@ export default function Profile() {
   return (
     <div className="hd-profile-flow hd-commerce-shell min-h-screen">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        <div className="mb-5 sm:mb-8">
+        <div className="mb-5 space-y-3 sm:mb-8">
+          <ProfilePhoneCompletionCard user={user} onVerifyPhone={scrollToPhoneSection} />
           <ProfileEmailCompletionCard user={user} onAddEmail={scrollToEmailSection} />
         </div>
 
@@ -2998,7 +3008,10 @@ export default function Profile() {
             </form>
           </div>
 
-          <ProfileEmailSection user={user} onUserUpdated={updateUser} />
+          <div className="space-y-3">
+            <ProfilePhoneSection user={user} onUserUpdated={updateUser} />
+            <ProfileEmailSection user={user} onUserUpdated={updateUser} />
+          </div>
         </>
         )}
 

@@ -373,6 +373,9 @@ export const schemas = {
   profileEmailVerify: Joi.object({
     verificationCode: Joi.string().min(3).max(10).required()
   }),
+  profilePhoneVerify: Joi.object({
+    verificationCode: Joi.string().min(3).max(10).required()
+  }),
   shopLocationUpdate: Joi.object({
     latitude: Joi.number().min(-90).max(90).required(),
     longitude: Joi.number().min(-180).max(180).required(),

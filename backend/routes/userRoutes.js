@@ -15,6 +15,8 @@ import {
   updateProfileLocation,
   addProfileEmail,
   verifyProfileEmail,
+  sendMyPhoneVerificationCode,
+  verifyMyPhoneCode,
   sendPasswordChangeCode,
   changePassword,
   getNotifications,
@@ -89,6 +91,16 @@ const accountDeactivationRateLimiter = rateLimit({
     message: 'Trop de tentatives. Réessayez plus tard.'
   }
 });
+const phoneVerificationRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    code: 'PHONE_VERIFICATION_RATE_LIMIT',
+    message: 'Trop de demandes de code. Réessayez dans quelques minutes.'
+  }
+});
 
 router.use(protect);
 
@@ -144,6 +156,8 @@ router.post('/password/send-code', validate(schemas.passwordSendCode), sendPassw
 router.post('/password/change', validate(schemas.passwordChange), changePassword);
 router.post('/profile/email', validate(schemas.profileEmailAdd), addProfileEmail);
 router.post('/profile/email/verify', validate(schemas.profileEmailVerify), verifyProfileEmail);
+router.post('/profile/phone/send-code', phoneVerificationRateLimiter, sendMyPhoneVerificationCode);
+router.post('/profile/phone/verify', validate(schemas.profilePhoneVerify), verifyMyPhoneCode);
 router.get(
   '/notifications',
   cacheMiddleware({
