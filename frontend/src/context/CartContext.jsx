@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from './AuthContext';
+import { useCountry } from './CountryContext';
 import {
   buildCartItemMutationKey,
   patchCartItemQuantity,
@@ -11,6 +12,8 @@ import {
 const initialCart = {
   items: [],
   totals: { quantity: 0, subtotal: 0 },
+  countryId: '',
+  currency: '',
   updatedAt: null
 };
 
@@ -27,6 +30,7 @@ const CartContext = createContext({
 
 export const CartProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
+  const { country } = useCountry();
   const [cart, setCart] = useState(initialCart);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +45,8 @@ export const CartProvider = ({ children }) => {
       setCart(recalculateCart({
         items: data.items || [],
         totals: data.totals || { quantity: 0, subtotal: 0 },
+        countryId: data.countryId || '',
+        currency: data.currency || '',
         updatedAt: data.updatedAt || null
       }));
     }
@@ -66,7 +72,7 @@ export const CartProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [handleResponse, user]);
+  }, [country?.id, country?._id, handleResponse, user]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

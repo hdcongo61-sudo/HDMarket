@@ -2,7 +2,9 @@ import mongoose from 'mongoose';
 
 const citySchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true, unique: true },
+    name: { type: String, required: true, trim: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    regionName: { type: String, trim: true, default: '' },
     isActive: { type: Boolean, default: true, index: true },
     isDefault: { type: Boolean, default: false, index: true },
     order: { type: Number, default: 0, min: 0 },
@@ -17,6 +19,7 @@ const citySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-citySchema.index({ isActive: 1, isDefault: -1, order: 1, name: 1 });
+citySchema.index({ countryId: 1, name: 1 }, { unique: true });
+citySchema.index({ countryId: 1, isActive: 1, isDefault: -1, order: 1, name: 1 });
 
 export default mongoose.model('City', citySchema);

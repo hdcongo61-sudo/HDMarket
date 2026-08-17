@@ -110,6 +110,15 @@ const paymentSchema = new mongoose.Schema(
       default: 'XAF',
       set: normalizeCurrency
     },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    pricingSnapshot: {
+      amount: { type: Number, min: 0, default: 0 },
+      currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
+      countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null },
+      total: { type: Number, min: 0, default: 0 },
+      configVersion: { type: Number, min: 1, default: 1 },
+      capturedAt: { type: Date, default: null }
+    },
     operator: {
       type: String,
       enum: ['MTN_MONEY', 'AIRTEL_MONEY', 'ORANGE_MONEY', 'CASH', 'CARD', 'OTHER'],
@@ -228,6 +237,7 @@ paymentSchema.index({ order: 1 });
 paymentSchema.index({ createdAt: -1 });
 paymentSchema.index({ operator: 1 });
 paymentSchema.index({ paymentType: 1 });
+paymentSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 
 // Legacy indexes retained for existing admin/listing-fee screens.
 paymentSchema.index({ promoCode: 1, createdAt: -1 });
@@ -236,6 +246,35 @@ paymentSchema.index({ status: 1, submittedAt: -1 });
 paymentSchema.index({ product: 1, status: 1, createdAt: -1 });
 paymentSchema.index({ validatedBy: 1, status: 1, validatedAt: -1 });
 paymentSchema.index({ transactionNumber: 1 });
+
+paymentSchema.pre('validate', async function ensurePaymentCountrySnapshot() {
+  let source = null;
+  if (this.order) {
+    const { default: Order } = await import('./orderModel.js');
+    source = await Order.findById(this.order).select('countryId currency totalAmount').lean();
+  } else if (this.product) {
+    const { default: Product } = await import('./productModel.js');
+    source = await Product.findById(this.product).select('countryId currency price').lean();
+  }
+  if (!source?.countryId && !this.countryId) {
+    const { ensureDefaultCountry } = await import('../services/countryService.js');
+    const fallback = await ensureDefaultCountry();
+    source = { ...source, countryId: fallback._id, currency: source?.currency || fallback.currency.code };
+  }
+  this.countryId = this.countryId || source?.countryId || null;
+  this.currency = String(this.currency || source?.currency || 'XAF').toUpperCase();
+  if (!this.pricingSnapshot?.capturedAt) {
+    const amount = Number(this.amountPaid ?? this.expectedAmount ?? this.amount ?? source?.totalAmount ?? source?.price ?? 0);
+    this.pricingSnapshot = {
+      amount,
+      total: amount,
+      countryId: this.countryId,
+      currency: this.currency,
+      configVersion: 1,
+      capturedAt: new Date()
+    };
+  }
+});
 
 paymentSchema.methods.isVerified = function isVerified() {
   return VERIFIED_STATUSES.has(String(this.status || ''));

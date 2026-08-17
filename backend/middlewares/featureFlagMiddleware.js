@@ -15,6 +15,7 @@ const getFeatureContext = (req) => ({
   accountType: req.user?.accountType,
   userId: req.user?.id || req.user?._id,
   country: req.user?.country || decodeHeader(req.headers?.['x-user-country']),
+  countryId: req.countryContext?.countryId || req.user?.selectedCountryId || req.user?.countryId || decodeHeader(req.headers?.['x-country-id']),
   city: req.user?.city || decodeHeader(req.headers?.['x-user-city']),
   commune: req.user?.commune,
   isBetaTester: Boolean(req.user?.betaTester),

@@ -10,6 +10,7 @@ import { FavoriteProvider } from './context/FavoriteContext';
 import { ToastProvider } from './context/ToastContext';
 import { AlertDialogProvider } from './context/AlertDialogContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
+import { CountryProvider } from './context/CountryContext';
 import { queryClient } from './lib/queryClient';
 import { registerServiceWorker, unregisterServiceWorker } from './utils/serviceWorker';
 import { initErrorTracking } from './utils/errorTracking';
@@ -23,8 +24,9 @@ root.render(
     <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <AppSettingsProvider>
-            <CartProvider>
+          <CountryProvider>
+            <AppSettingsProvider>
+              <CartProvider>
               <FavoriteProvider>
                 <ToastProvider>
                   <AlertDialogProvider>
@@ -32,8 +34,9 @@ root.render(
                   </AlertDialogProvider>
                 </ToastProvider>
               </FavoriteProvider>
-            </CartProvider>
-          </AppSettingsProvider>
+              </CartProvider>
+            </AppSettingsProvider>
+          </CountryProvider>
         </AuthProvider>
       </QueryClientProvider>
     </GlobalErrorBoundary>

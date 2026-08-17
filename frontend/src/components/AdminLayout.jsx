@@ -29,7 +29,8 @@ import {
   ShoppingBasket,
   Flag,
   Tags,
-  Clapperboard
+  Clapperboard,
+  Globe2
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
@@ -100,6 +101,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
       u?.role === 'founder' ||
       hasAnyPermission(u, ['view_admin_dashboard'])
   },
+  { to: '/admin/countries', label: 'Pays & marchés', icon: Globe2, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
   {
     to: '/admin/task-center',
     label: t('nav.taskCenter', 'Centre de tâches'),

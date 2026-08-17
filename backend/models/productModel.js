@@ -108,6 +108,8 @@ const productSchema = new mongoose.Schema(
       index: true
     },
     country: { type: String, default: 'République du Congo' },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    currency: { type: String, default: 'XAF', trim: true, uppercase: true, index: true },
     city: { type: String, default: 'Brazzaville', trim: true },
     validationDate: { type: Date, default: null, index: true },
     whatsappClicks: { type: Number, default: 0, min: 0 },
@@ -149,6 +151,7 @@ const productSchema = new mongoose.Schema(
           {
             minQty: { type: Number, min: 1, required: true },
             unitPrice: { type: Number, min: 0, required: true },
+            currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
             label: { type: String, default: '' }
           },
           { _id: false }
@@ -183,6 +186,9 @@ productSchema.index({ status: 1, viewsCount: -1, createdAt: -1 });
 productSchema.index({ installmentEnabled: 1, installmentStartDate: 1, installmentEndDate: 1, status: 1 });
 productSchema.index({ status: 1, wholesaleEnabled: 1, createdAt: -1 });
 productSchema.index({ status: 1, city: 1, boosted: -1, validationDate: -1, createdAt: -1 });
+productSchema.index({ countryId: 1, status: 1, createdAt: -1 });
+productSchema.index({ countryId: 1, status: 1, city: 1, boosted: -1, createdAt: -1 });
+productSchema.index({ countryId: 1, status: 1, categoryId: 1, price: 1, createdAt: -1 });
 productSchema.index({ status: 1, deliveryAvailable: 1, pickupAvailable: 1, createdAt: -1 });
 productSchema.index({ user: 1, createdAt: -1 });
 productSchema.index({ user: 1, _id: 1 });

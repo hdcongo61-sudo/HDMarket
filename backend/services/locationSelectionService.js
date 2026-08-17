@@ -22,6 +22,8 @@ export const resolveCanonicalLocation = async ({
   communeId = '',
   cityName = '',
   communeName = '',
+  countryId = null,
+  allowLegacyCountryFallback = false,
   requireCommuneWhenConfigured = true
 } = {}) => {
   const normalizedCityId = clean(cityId);
@@ -29,11 +31,16 @@ export const resolveCanonicalLocation = async ({
   const normalizedCityName = clean(cityName);
   const normalizedCommuneName = clean(communeName);
 
+  const countryFilter = countryId
+    ? allowLegacyCountryFallback
+      ? { $or: [{ countryId }, { countryId: null }, { countryId: { $exists: false } }] }
+      : { countryId }
+    : {};
   const city =
     normalizedCityId && mongoose.isValidObjectId(normalizedCityId)
-      ? await City.findOne({ _id: normalizedCityId, isActive: true }).lean()
+      ? await City.findOne({ _id: normalizedCityId, isActive: true, ...countryFilter }).lean()
       : normalizedCityName
-        ? await City.findOne({ name: exactName(normalizedCityName), isActive: true }).lean()
+        ? await City.findOne({ name: exactName(normalizedCityName), isActive: true, ...countryFilter }).lean()
         : null;
 
   if (!city) {

@@ -104,6 +104,9 @@ const userSchema = new mongoose.Schema(
     accountTypeChangedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     accountTypeChangedAt: { type: Date, default: null },
     country: { type: String, default: 'République du Congo' },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    selectedCountryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    adminCountryIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Country' }], default: [] },
     cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City', default: null, index: true },
     communeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Commune', default: null, index: true },
     city: { type: String, default: 'Brazzaville', trim: true },
@@ -393,6 +396,8 @@ userSchema.add({
   referralRewardGranted: { type: Boolean, default: false }
 });
 userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
+userSchema.index({ countryId: 1, role: 1, isActive: 1 });
+userSchema.index({ selectedCountryId: 1, isActive: 1 });
 userSchema.index({ accountType: 1, shopVerified: 1, createdAt: -1 });
 userSchema.index({ canVerifyPayments: 1, isActive: 1 });
 userSchema.index({ canManageDelivery: 1, isActive: 1 });

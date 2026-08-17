@@ -24,6 +24,7 @@ import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promo
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { recordEscrowAudit } from '../services/escrowService.js';
+import { resolvePaymentProvider } from '../services/paymentService.js';
 import { getHighestProductPrice } from '../utils/productAttributes.js';
 import {
   paySelfSponsorship,
@@ -149,6 +150,8 @@ const checkoutVerificationUrl = (checkout) => {
 };
 
 export const createPawaPayCheckout = asyncHandler(async (req, res) => {
+  let resourceCountryId = null;
+  let resourceCurrency = null;
   const amount = Number(req.body?.amount);
   const purpose = String(req.body?.purpose || 'CHECKOUT_FUNDING').trim().toUpperCase();
   const returnPath = normalizeReturnPath(req.body?.returnPath);
@@ -203,6 +206,8 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     if (!order) {
       return sendPawaPayError(res, 404, 'PAWAPAY_ORDER_NOT_FOUND', 'Commande introuvable.');
     }
+    resourceCountryId = order.countryId || null;
+    resourceCurrency = order.currency || order.quotationSnapshot?.currency || null;
     if (!order.quotationSnapshot?.applied) {
       return sendPawaPayError(res, 400, 'PAWAPAY_ORDER_PAYMENT_INVALID', 'Cette commande ne provient pas d’un devis.');
     }
@@ -226,11 +231,13 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       );
     }
     product = await Product.findById(productId)
-      .select('_id user status requiresAdditionalPayment')
+      .select('_id user status requiresAdditionalPayment countryId currency')
       .lean();
     if (!product) {
       return sendPawaPayError(res, 404, 'PAWAPAY_PRODUCT_NOT_FOUND', 'Annonce introuvable.');
     }
+    resourceCountryId = product.countryId || resourceCountryId;
+    resourceCurrency = product.currency || resourceCurrency;
     if (
       String(product.user) !== String(req.user._id) &&
       !['admin', 'founder'].includes(String(req.user.role || '').toLowerCase())
@@ -312,11 +319,31 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     }
   }
 
+  let paymentProvider;
+  try {
+    paymentProvider = await resolvePaymentProvider({
+      provider: 'PAWAPAY',
+      countryId: resourceCountryId || req.body?.countryId || req.user?.selectedCountryId || req.user?.countryId,
+      currency: resourceCurrency || req.body?.currency || undefined,
+      user: req.user
+    });
+  } catch (error) {
+    return sendPawaPayError(
+      res,
+      error.status || 409,
+      error.code || 'COUNTRY_PAYMENT_UNAVAILABLE',
+      error.message
+    );
+  }
+
   const checkoutId = crypto.randomUUID();
   const checkout = await PawaPayCheckout.create({
     checkoutId,
     user: req.user._id,
     amount,
+    currency: paymentProvider.currency,
+    country: paymentProvider.countryContext.iso3,
+    countryId: paymentProvider.countryContext.countryId,
     purpose,
     returnPath,
     product: product?._id || null,
@@ -331,8 +358,8 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       returnUrl: checkoutReturnUrl(),
       returnMethod: 'INSTANT',
       defaultLanguage: 'fr',
-      countries: ['COG'],
-      amounts: [{ country: 'COG', currency: 'XAF', amount: String(amount) }],
+      countries: [paymentProvider.countryContext.iso3],
+      amounts: [{ country: paymentProvider.countryContext.iso3, currency: paymentProvider.currency, amount: String(amount) }],
       payer: {
         type: 'MMO',
         accountDetails: {
@@ -1401,7 +1428,8 @@ const autoValidateListingCheckout = async (checkout) => {
       amount: dueAmount,
       expectedAmount: dueAmount,
       amountPaid: dueAmount,
-      currency: 'XAF',
+      currency: claimed.currency || product.currency || 'XAF',
+      countryId: claimed.countryId || product.countryId || null,
       commissionReferencePrice: referencePrice,
       commissionBaseAmount: Number(commission.baseAmount || 0),
       commissionDiscountAmount: Number(commission.discountAmount || 0),

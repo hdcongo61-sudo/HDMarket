@@ -19,12 +19,14 @@ const cartItemSchema = new mongoose.Schema(
 
 const cartSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
     items: { type: [cartItemSchema], default: [] }
   },
   { timestamps: true }
 );
 
-cartSchema.index({ user: 1 });
+cartSchema.index({ user: 1, countryId: 1 }, { unique: true });
 
 export default mongoose.model('Cart', cartSchema);

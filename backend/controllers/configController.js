@@ -241,6 +241,7 @@ export const getRuntimePublicConfig = asyncHandler(async (req, res) => {
     role: req.user?.role,
     userId: req.user?.id,
     accountType: req.user?.accountType,
+    countryId: req.countryContext?.countryId || req.user?.selectedCountryId || req.user?.countryId,
     country: req.user?.country || decodeTargetingHeader(req.headers?.['x-user-country']),
     city: req.user?.city || decodeTargetingHeader(req.headers?.['x-user-city']),
     commune: req.user?.commune,

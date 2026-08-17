@@ -5,6 +5,7 @@ const targetingSchema = new mongoose.Schema(
     userIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
     roles: { type: [String], default: [] },
     countries: { type: [String], default: [] },
+    countryIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Country' }], default: [] },
     cities: { type: [String], default: [] },
     communes: { type: [String], default: [] },
     platforms: {
@@ -52,6 +53,13 @@ const featureFlagSchema = new mongoose.Schema(
       default: 'development',
       index: true
     },
+    scope: {
+      type: String,
+      enum: ['GLOBAL', 'COUNTRY', 'CITY', 'USER', 'TESTER'],
+      default: 'GLOBAL',
+      index: true
+    },
+    rollout: { type: String, enum: ['TEST', 'APPROVED'], default: 'APPROVED' },
     rolesAllowed: { type: [String], default: [] },
     rolloutPercentage: { type: Number, default: 100, min: 0, max: 100 },
     description: { type: String, trim: true, default: '' },
@@ -72,6 +80,7 @@ const featureFlagSchema = new mongoose.Schema(
 
 featureFlagSchema.index({ featureName: 1, environment: 1 }, { unique: true });
 featureFlagSchema.index({ releaseStage: 1, enabled: 1, environment: 1 });
+featureFlagSchema.index({ scope: 1, 'targeting.countryIds': 1, enabled: 1 });
 featureFlagSchema.index({ 'schedule.releaseAt': 1, 'schedule.expiresAt': 1 });
 
 export default mongoose.model('FeatureFlag', featureFlagSchema);

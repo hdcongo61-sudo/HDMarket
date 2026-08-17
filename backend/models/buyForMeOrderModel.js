@@ -63,6 +63,7 @@ const timelineSchema = new mongoose.Schema(
 const buyForMeOrderSchema = new mongoose.Schema(
   {
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryGuy', default: null, index: true },
     storeType: {
       type: String,
@@ -154,6 +155,7 @@ const buyForMeOrderSchema = new mongoose.Schema(
 );
 
 buyForMeOrderSchema.index({ status: 1, createdAt: -1 });
+buyForMeOrderSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 buyForMeOrderSchema.index({ customerId: 1, updatedAt: -1 });
 buyForMeOrderSchema.index({ driverId: 1, status: 1, updatedAt: -1 });
 buyForMeOrderSchema.index({ 'pickup.cityId': 1, status: 1, createdAt: -1 });

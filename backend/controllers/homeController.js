@@ -5,11 +5,12 @@ import User from '../models/userModel.js';
 import FlashSale from '../models/flashSaleModel.js';
 import MarketplacePromoCode from '../models/marketplacePromoCodeModel.js';
 import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
+import { buildCountryDataFilter } from '../services/countryService.js';
 
 const SHOP_SELECT_FIELDS =
-  'name shopName shopAddress shopLogo city country shopVerified isBlocked slug followersCount createdAt freeDeliveryEnabled';
+  'name shopName shopAddress shopLogo city country countryId shopVerified isBlocked slug followersCount createdAt freeDeliveryEnabled';
 const PRODUCT_SELECT_FIELDS =
-  'title price priceBeforeDiscount discount images attributes user slug category condition city createdAt salesCount favoritesCount viewsCount ratingAverage ratingCount commentCount installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers wholesaleMinQty promoSavedAmount boosted boostScore';
+  'title price priceBeforeDiscount discount currency countryId images attributes user slug category condition city createdAt salesCount favoritesCount viewsCount ratingAverage ratingCount commentCount installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate wholesaleEnabled wholesaleTiers wholesaleMinQty promoSavedAmount boosted boostScore';
 
 const clampLimit = (value, fallback = 8, max = 20) =>
   Math.max(1, Math.min(Number(value) || fallback, max));
@@ -21,8 +22,8 @@ const serializeProduct = (product) => ({
   ratingCount: Number(product.ratingCount || 0)
 });
 
-const listProducts = async ({ filter = {}, sort = { createdAt: -1 }, limit = 8 }) => {
-  const items = await Product.find({ status: 'approved', ...filter })
+const listProducts = async ({ filter = {}, countryFilter = {}, sort = { createdAt: -1 }, limit = 8 }) => {
+  const items = await Product.find({ status: 'approved', ...countryFilter, ...filter })
     .select(PRODUCT_SELECT_FIELDS)
     .sort(sort)
     .limit(limit)
@@ -31,11 +32,12 @@ const listProducts = async ({ filter = {}, sort = { createdAt: -1 }, limit = 8 }
   return items.map(serializeProduct);
 };
 
-const listVerifiedShops = async (limit = 8) => {
+const listVerifiedShops = async (limit = 8, countryFilter = {}) => {
   const shops = await User.find({
     accountType: 'shop',
     shopVerified: true,
-    isBlocked: { $ne: true }
+    isBlocked: { $ne: true },
+    ...countryFilter
   })
     .select('name shopName shopLogo shopAddress shopVerified slug followersCount createdAt')
     .sort({ followersCount: -1, createdAt: -1 })
@@ -49,6 +51,7 @@ const listVerifiedShops = async (limit = 8) => {
     {
       $match: await withVerifiedPublicProductFilter({
         user: { $in: shopIds },
+        ...countryFilter,
         status: 'approved'
       })
     },
@@ -67,7 +70,7 @@ const listVerifiedShops = async (limit = 8) => {
   }));
 };
 
-const getPromoHomeData = async ({ shopLimit = 8, flashLimit = 8 }) => {
+const getPromoHomeData = async ({ shopLimit = 8, flashLimit = 8, countryFilter = {} }) => {
   const now = new Date();
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - now.getDay());
@@ -129,18 +132,19 @@ const getPromoHomeData = async ({ shopLimit = 8, flashLimit = 8 }) => {
           _id: { $in: shopObjectIds },
           $or: [{ accountType: 'shop' }, { role: 'boutique_owner' }],
           isBlocked: { $ne: true }
+          ,...countryFilter
         })
           .select('name shopName shopLogo shopAddress shopVerified slug role accountType')
           .lean()
       : [],
     shopObjectIds.length
       ? Product.aggregate([
-          { $match: { user: { $in: shopObjectIds }, status: 'approved' } },
+          { $match: { user: { $in: shopObjectIds }, status: 'approved', ...countryFilter } },
           { $group: { _id: '$user', count: { $sum: 1 } } }
         ])
       : [],
     productIds.length
-      ? Product.find({ _id: { $in: productIds }, status: 'approved' })
+      ? Product.find({ _id: { $in: productIds }, status: 'approved', ...countryFilter })
           .select(PRODUCT_SELECT_FIELDS)
           .populate('user', SHOP_SELECT_FIELDS)
           .lean()
@@ -189,6 +193,8 @@ const getPromoHomeData = async ({ shopLimit = 8, flashLimit = 8 }) => {
 };
 
 export const getHomeFeed = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
+  const countryFilter = buildCountryDataFilter(req.countryContext);
   const secondaryLimit = clampLimit(req.query.secondaryLimit, 8, 16);
   const cityLimit = clampLimit(req.query.cityLimit, 6, 12);
   const city = String(req.query.city || '').trim();
@@ -212,35 +218,37 @@ export const getHomeFeed = asyncHandler(async (req, res) => {
     wholesaleProducts,
     topSalesCityToday
   ] = await Promise.all([
-    listProducts({ sort: { favoritesCount: -1, createdAt: -1 }, limit: secondaryLimit }),
-    listProducts({ sort: { ratingAverage: -1, ratingCount: -1, createdAt: -1 }, limit: secondaryLimit }),
-    listProducts({ sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
-    listProducts({ filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
-    listProducts({ filter: { condition: 'new' }, sort: { createdAt: -1 }, limit: secondaryLimit }),
-    listProducts({ filter: { condition: 'used' }, sort: { createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, sort: { favoritesCount: -1, createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, sort: { ratingAverage: -1, ratingCount: -1, createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, filter: { condition: 'new' }, sort: { createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, filter: { condition: 'used' }, sort: { createdAt: -1 }, limit: secondaryLimit }),
     listProducts({
       filter: {
         installmentEnabled: true,
         installmentStartDate: { $lte: now },
         installmentEndDate: { $gt: now }
       },
+      countryFilter,
       sort: { createdAt: -1 },
       limit: secondaryLimit
     }),
-    listProducts({ filter: { salesCount: { $gt: 0 } }, sort: { salesCount: -1, createdAt: -1 }, limit: secondaryLimit }),
-    listProducts({ filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
-    listVerifiedShops(secondaryLimit),
-    getPromoHomeData({ shopLimit: secondaryLimit, flashLimit: secondaryLimit }),
+    listProducts({ countryFilter, filter: { salesCount: { $gt: 0 } }, sort: { salesCount: -1, createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
+    listVerifiedShops(secondaryLimit, countryFilter),
+    getPromoHomeData({ shopLimit: secondaryLimit, flashLimit: secondaryLimit, countryFilter }),
     FlashSale.find({ status: 'active', isVisible: { $ne: false }, endDate: { $gte: now } })
       .sort({ endDate: 1 })
       .limit(secondaryLimit)
       .populate('product', PRODUCT_SELECT_FIELDS)
       .populate('seller', 'shopName name slug shopLogo')
       .lean(),
-    listProducts({ filter: { wholesaleEnabled: true }, sort: { createdAt: -1 }, limit: secondaryLimit }),
+    listProducts({ countryFilter, filter: { wholesaleEnabled: true }, sort: { createdAt: -1 }, limit: secondaryLimit }),
     city
       ? listProducts({
           filter: { city, salesCount: { $gt: 0 }, updatedAt: { $gte: todayStart } },
+          countryFilter,
           sort: { salesCount: -1, updatedAt: -1 },
           limit: cityLimit
         })

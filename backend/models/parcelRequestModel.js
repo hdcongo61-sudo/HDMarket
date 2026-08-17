@@ -94,6 +94,7 @@ const proofArtifactSchema = new mongoose.Schema(
 const parcelRequestSchema = new mongoose.Schema(
   {
     requesterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     pickup: { type: parcelLocationSchema, default: () => ({}) },
     dropoff: { type: parcelLocationSchema, default: () => ({}) },
     parcelDescription: { type: String, trim: true, maxlength: 300, default: '' },
@@ -174,6 +175,7 @@ const parcelRequestSchema = new mongoose.Schema(
 );
 
 parcelRequestSchema.index({ status: 1, createdAt: -1 });
+parcelRequestSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 parcelRequestSchema.index({ requesterId: 1, status: 1, createdAt: -1 });
 parcelRequestSchema.index({ assignedDeliveryGuyId: 1, assignmentStatus: 1, updatedAt: -1 });
 parcelRequestSchema.index({ currentLocation: '2dsphere' });

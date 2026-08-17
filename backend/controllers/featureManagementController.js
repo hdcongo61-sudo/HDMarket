@@ -28,6 +28,7 @@ const getFeatureContext = (req) => ({
   accountType: req.user?.accountType,
   userId: req.user?.id || req.user?._id,
   country: req.user?.country,
+  countryId: req.countryContext?.countryId || req.user?.selectedCountryId || req.user?.countryId,
   city: req.user?.city,
   commune: req.user?.commune,
   isBetaTester: Boolean(req.user?.betaTester),

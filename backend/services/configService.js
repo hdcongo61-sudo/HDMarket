@@ -367,6 +367,7 @@ const normalizeTargeting = (targeting = {}, legacyRoles = []) => ({
     new Set((Array.isArray(targeting?.userIds) ? targeting.userIds : []).map((item) => String(item || '')).filter(Boolean))
   ),
   roles: cleanStringArray(targeting?.roles?.length ? targeting.roles : legacyRoles),
+  countryIds: Array.from(new Set((targeting?.countryIds || []).map((item) => String(item || '')).filter(Boolean))),
   countries: cleanStringArray(targeting?.countries),
   cities: cleanStringArray(targeting?.cities),
   communes: cleanStringArray(targeting?.communes),
@@ -607,6 +608,7 @@ export const isFeatureEnabled = async (featureName, options = {}) => {
   }
 
   const locationRules = [
+    ['countryIds', options.countryId, 'country_not_allowed'],
     ['countries', options.country, 'country_not_allowed'],
     ['cities', options.city, 'city_not_allowed'],
     ['communes', options.commune, 'commune_not_allowed']
@@ -764,6 +766,10 @@ export const upsertFeatureFlag = async (featureName, payload = {}, options = {})
           ? Boolean(payload.emergencyDisabled)
           : Boolean(existing?.emergencyDisabled),
         releaseStage,
+        scope: ['GLOBAL', 'COUNTRY', 'CITY', 'USER', 'TESTER'].includes(String(payload.scope || existing?.scope || '').toUpperCase())
+          ? String(payload.scope || existing?.scope).toUpperCase()
+          : 'GLOBAL',
+        rollout: String(payload.rollout || existing?.rollout || 'APPROVED').toUpperCase() === 'TEST' ? 'TEST' : 'APPROVED',
         rolesAllowed,
         rolloutPercentage: clampRollout(payload.rolloutPercentage ?? existing?.rolloutPercentage, 100),
         description: String(payload.description ?? existing?.description ?? catalog.description ?? ''),
@@ -891,6 +897,7 @@ export const getPublicRuntimeConfig = async (options = {}) => {
         sessionId: options.sessionId,
         deviceId: options.deviceId,
         accountType: options.accountType,
+        countryId: options.countryId,
         country: options.country,
         city: options.city,
         commune: options.commune,

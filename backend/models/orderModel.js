@@ -28,6 +28,8 @@ const orderItemSchema = new mongoose.Schema(
       shopPhone: { type: String, default: '' },
       shopCity: { type: String, default: '' },
       shopCommune: { type: String, default: '' },
+      countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null },
+      currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
       wholesaleEnabled: { type: Boolean, default: false },
       wholesaleApplied: { type: Boolean, default: false },
       wholesaleTierMinQty: { type: Number, default: 0, min: 0 },
@@ -169,6 +171,8 @@ const orderSchema = new mongoose.Schema(
     },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    currency: { type: String, trim: true, uppercase: true, default: 'XAF', index: true },
     deliveryGuy: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryGuy' },
     status: {
       type: String,
@@ -280,6 +284,19 @@ const orderSchema = new mongoose.Schema(
     },
     trackingNote: { type: String, default: '' },
     totalAmount: { type: Number, default: 0 },
+    pricingSnapshot: {
+      amount: { type: Number, default: 0, min: 0 },
+      currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
+      countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null },
+      productPrice: { type: Number, default: 0, min: 0 },
+      discount: { type: Number, default: 0, min: 0 },
+      deliveryFee: { type: Number, default: 0, min: 0 },
+      platformFee: { type: Number, default: 0, min: 0 },
+      taxes: { type: Number, default: 0, min: 0 },
+      total: { type: Number, default: 0, min: 0 },
+      configVersion: { type: Number, default: 1, min: 1 },
+      capturedAt: { type: Date, default: null }
+    },
     paidAmount: { type: Number, default: 0 },
     remainingAmount: { type: Number, default: 0 },
     appliedPromoCode: {
@@ -495,6 +512,8 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ countryId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ countryId: 1, customer: 1, createdAt: -1 });
 orderSchema.index(
   { quotationRequest: 1 },
   { unique: true, partialFilterExpression: { quotationRequest: { $type: 'objectId' } } }
@@ -524,6 +543,57 @@ orderSchema.index({ statusStuckSince: 1, status: 1 });
 orderSchema.index({ reviewGiven: 1, confirmationGiven: 1, deliveredAt: -1 });
 orderSchema.index({ reviewStatus: 1, reviewReminderDisabled: 1, deliveredAt: -1 });
 orderSchema.index({ escrowStatus: 1, autoReleaseAt: 1, disputeOpened: 1 });
+
+orderSchema.pre('validate', async function ensureCountryAndPricingSnapshot() {
+  const productIds = (this.items || []).map((item) => item?.product).filter(Boolean);
+  const products = productIds.length
+    ? await Product.find({ _id: { $in: productIds } }).select('_id countryId currency price').lean()
+    : [];
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
+  const { ensureDefaultCountry } = await import('../services/countryService.js');
+  const defaultCountry = await ensureDefaultCountry();
+  const countryIds = new Set();
+  const currencies = new Set();
+  for (const item of this.items || []) {
+    const product = productMap.get(String(item?.product || ''));
+    const countryId = product?.countryId || item?.snapshot?.countryId || this.countryId || defaultCountry._id;
+    const currency = String(product?.currency || item?.snapshot?.currency || this.currency || defaultCountry.currency.code).toUpperCase();
+    countryIds.add(String(countryId));
+    currencies.add(currency);
+    if (item?.snapshot) {
+      item.snapshot.countryId = countryId;
+      item.snapshot.currency = currency;
+    }
+  }
+  if (countryIds.size > 1) {
+    const error = new Error('Une commande ne peut pas contenir des produits de plusieurs pays.');
+    error.code = 'CROSS_BORDER_NOT_SUPPORTED';
+    throw error;
+  }
+  if (currencies.size > 1) {
+    const error = new Error('Une commande ne peut pas mélanger plusieurs devises.');
+    error.code = 'CURRENCY_NOT_SUPPORTED';
+    throw error;
+  }
+  this.countryId = this.countryId || [...countryIds][0] || defaultCountry._id;
+  this.currency = this.currency || [...currencies][0] || defaultCountry.currency.code;
+  if (!this.pricingSnapshot?.capturedAt) {
+    const productPrice = (this.items || []).reduce((sum, item) => sum + Number(item?.lineTotal || 0), 0);
+    this.pricingSnapshot = {
+      amount: Number(this.totalAmount || 0),
+      currency: this.currency,
+      countryId: this.countryId,
+      productPrice,
+      discount: Number(this.discountTotal || 0),
+      deliveryFee: Number(this.deliveryFeeTotal || 0),
+      platformFee: 0,
+      taxes: 0,
+      total: Number(this.totalAmount || 0),
+      configVersion: 1,
+      capturedAt: new Date()
+    };
+  }
+});
 
 orderSchema.pre('save', function orderStatusTracking(next) {
   this.$locals.wasNewOrder = this.isNew;

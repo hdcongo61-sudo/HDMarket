@@ -27,6 +27,7 @@ import {
   resolvePublicSettings
 } from '../utils/settingsResolver.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
+import { buildCountryDataFilter, resolveCountryContext, serializeCountryPublic } from '../services/countryService.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
 
@@ -190,12 +191,18 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
         return normalized;
       }
     };
-    const [payload, runtimePayload] = await Promise.all([
+    const countryContext = req.countryContext || await resolveCountryContext({
+      requestedCountry: req.headers?.['x-country-id'] || req.headers?.['x-country-code'],
+      user: req.user
+    });
+    const countryFilter = buildCountryDataFilter(countryContext.country);
+    const [payload, runtimePayload, countryCities, countryCommunes] = await Promise.all([
       resolvePublicSettings(),
       getPublicRuntimeConfig({
         role: req.user?.role,
         userId: req.user?.id,
         accountType: req.user?.accountType,
+        countryId: countryContext.countryId,
         country: req.user?.country || decodeTargetingHeader(req.headers?.['x-user-country']),
         city: req.user?.city || decodeTargetingHeader(req.headers?.['x-user-city']),
         commune: req.user?.commune,
@@ -204,10 +211,31 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
         deviceId: req.headers?.['x-device-id'],
         platform: req.headers?.['x-app-platform'] || req.headers?.['x-platform'],
         appVersion: req.headers?.['x-app-version']
-      })
+      }),
+      City.find({ ...countryFilter, isActive: true }).sort({ order: 1, name: 1 }).lean(),
+      Commune.find({ ...countryFilter, isActive: true }).sort({ order: 1, name: 1 }).lean()
     ]);
+    const countryCurrency = {
+      ...countryContext.country.currency,
+      isDefault: true,
+      isActive: true,
+      exchangeRateToDefault: 1,
+      formatting: countryContext.country.currency?.formatting || {
+        symbolPosition: 'suffix',
+        thousandSeparator: ' ',
+        decimalSeparator: ','
+      }
+    };
     res.json({
       ...payload,
+      country: serializeCountryPublic(countryContext.country),
+      defaultLanguage: countryContext.country.defaultLanguage,
+      languages: countryContext.country.supportedLanguages,
+      defaultCurrency: countryCurrency,
+      currencies: [countryCurrency],
+      defaultCity: countryCities.find((item) => item.isDefault) || countryCities[0] || null,
+      cities: countryCities,
+      communes: countryCommunes,
       runtime: runtimePayload?.values || {},
       featureFlags: runtimePayload?.featureFlags || {},
       ui:
@@ -315,7 +343,13 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
 
 export const getPublicCities = asyncHandler(async (req, res) => {
   try {
-    const cities = await getActiveCities();
+    const countryContext = req.countryContext || await resolveCountryContext({
+      requestedCountry: req.headers?.['x-country-id'] || req.headers?.['x-country-code'],
+      user: req.user
+    });
+    const cities = await City.find({ ...buildCountryDataFilter(countryContext.country), isActive: true })
+      .sort({ order: 1, name: 1 })
+      .lean();
     res.json(cities);
   } catch (error) {
     console.error('getPublicCities fallback used:', error?.message || error);
@@ -334,9 +368,15 @@ export const getPublicCities = asyncHandler(async (req, res) => {
 export const getPublicCommunes = asyncHandler(async (req, res) => {
   try {
     const cityId = normalizeText(req.query?.cityId || '');
-    const communes = await getActiveCommunes({
-      cityId: cityId || null
+    const countryContext = req.countryContext || await resolveCountryContext({
+      requestedCountry: req.headers?.['x-country-id'] || req.headers?.['x-country-code'],
+      user: req.user
     });
+    const communes = await Commune.find({
+      ...buildCountryDataFilter(countryContext.country),
+      isActive: true,
+      ...(cityId ? { cityId } : {})
+    }).sort({ order: 1, name: 1 }).lean();
     res.json(communes);
   } catch (error) {
     console.error('getPublicCommunes fallback used:', error?.message || error);
@@ -346,8 +386,19 @@ export const getPublicCommunes = asyncHandler(async (req, res) => {
 
 export const getPublicCurrencies = asyncHandler(async (req, res) => {
   try {
-    const currencies = await getActiveCurrencies();
-    res.json(currencies);
+    const countryContext = req.countryContext || await resolveCountryContext({
+      requestedCountry: req.headers?.['x-country-id'] || req.headers?.['x-country-code'],
+      user: req.user
+    });
+    const supported = new Set(countryContext.country.supportedCurrencies || [countryContext.country.currency.code]);
+    const configured = await Currency.find({ code: { $in: [...supported] }, isActive: true }).lean();
+    const byCode = new Map(configured.map((item) => [item.code, item]));
+    res.json([...supported].map((code) => byCode.get(code) || {
+      ...(code === countryContext.country.currency.code ? countryContext.country.currency : { code, symbol: code, name: code, decimals: 0 }),
+      isDefault: code === countryContext.country.currency.code,
+      isActive: true,
+      exchangeRateToDefault: 1
+    }));
   } catch (error) {
     console.error('getPublicCurrencies fallback used:', error?.message || error);
     res.json([

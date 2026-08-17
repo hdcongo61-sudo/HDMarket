@@ -142,6 +142,8 @@ export const recalculateCart = (cart = {}) => {
   return {
     items,
     totals,
+    countryId: String(cart?.countryId || ''),
+    currency: String(cart?.currency || ''),
     updatedAt: cart?.updatedAt || new Date().toISOString()
   };
 };

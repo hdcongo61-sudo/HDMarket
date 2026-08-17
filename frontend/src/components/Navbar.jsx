@@ -78,6 +78,7 @@ import {
   Clapperboard
 } from "lucide-react";
 import VerifiedBadge from "./VerifiedBadge";
+import CountrySelector from './settings/CountrySelector';
 
 /**
  * 🎨 NAVBAR PREMIUM HDMarket - Version Mobile First
@@ -3100,6 +3101,10 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 </>
               )}
             </Link>
+
+            <div className="shrink-0">
+              <CountrySelector compact={isMobileLayout} />
+            </div>
 
             <button
               type="button"

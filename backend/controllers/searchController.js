@@ -8,8 +8,11 @@ import Tag from '../models/tagModel.js';
 import TagAssignment from '../models/tagAssignmentModel.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
+import { buildCountryDataFilter } from '../services/countryService.js';
 
 export const globalSearch = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
+  const countryFilter = buildCountryDataFilter(req.countryContext);
   const { 
     q,
     category: categoryFilter,
@@ -60,7 +63,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
     .map((assignment) => assignment.entityId);
 
   // Build base product filter
-  const baseProductFilter = { status: 'approved' };
+  const baseProductFilter = { status: 'approved', ...countryFilter };
 
   // Apply category filter
   if (categoryFilter && categoryFilter.trim()) {
@@ -100,6 +103,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
   // Find shops matching the search query
   let shopFilter = {
     accountType: 'shop',
+    ...countryFilter,
     $or: [{ shopName: regex }, ...(taggedShopIds.length ? [{ _id: { $in: taggedShopIds } }] : [])]
   };
 

@@ -20,7 +20,7 @@ import {
 } from '../utils/productAttributes.js';
 
 const productSelectFields =
-  'title price discount priceBeforeDiscount images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers warrantyEnabled warrantyPeriodValue warrantyPeriodUnit deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled attributes physical';
+  'title price discount priceBeforeDiscount currency countryId images status category user city country whatsappClicks slug installmentEnabled installmentMinAmount installmentDuration installmentStartDate installmentEndDate installmentRequireGuarantor wholesaleEnabled wholesaleTiers warrantyEnabled warrantyPeriodValue warrantyPeriodUnit deliveryAvailable pickupAvailable deliveryFee deliveryFeeEnabled attributes physical';
 
 const getItemProductId = (item) => {
   if (!item) return null;
@@ -63,8 +63,13 @@ const sanitizeCart = async (cart) => {
   return cart;
 };
 
-const populateCart = async (userId) => {
-  const cart = await Cart.findOne({ user: userId }).populate({
+const cartCountryFilter = (userId, countryContext) =>
+  countryContext?.code === 'CG'
+    ? { user: userId, $or: [{ countryId: countryContext.countryId }, { countryId: null }, { countryId: { $exists: false } }] }
+    : { user: userId, countryId: countryContext?.countryId };
+
+const populateCart = async (userId, countryContext) => {
+  const cart = await Cart.findOne(cartCountryFilter(userId, countryContext)).populate({
     path: 'items.product',
     select: productSelectFields,
     populate: {
@@ -73,25 +78,37 @@ const populateCart = async (userId) => {
     }
   });
   if (!cart) return null;
+  if (!cart.countryId) {
+    cart.countryId = countryContext.countryId;
+    cart.currency = countryContext.currency.code;
+    await cart.save();
+  }
   await sanitizeCart(cart);
   const productRefs = cart.items.map((item) => item.product).filter(Boolean);
   await ensureModelSlugsForItems({ Model: Product, items: productRefs, sourceValueKey: 'title' });
   return cart;
 };
 
-const ensureCart = async (userId) => {
-  let cart = await populateCart(userId);
+const ensureCart = async (userId, countryContext) => {
+  const countryId = countryContext.countryId;
+  let cart = await populateCart(userId, countryContext);
   if (!cart) {
-    cart = await Cart.create({ user: userId, items: [] });
-    cart = await populateCart(userId);
+    cart = await Cart.create({ user: userId, countryId, currency: countryContext.currency.code, items: [] });
+    cart = await populateCart(userId, countryContext);
   }
   return cart;
 };
 
-const ensureWritableCart = async (userId) => {
-  let cart = await Cart.findOne({ user: userId });
+const ensureWritableCart = async (userId, countryContext) => {
+  const countryId = countryContext.countryId;
+  let cart = await Cart.findOne(cartCountryFilter(userId, countryContext));
+  if (cart && !cart.countryId) {
+    cart.countryId = countryId;
+    cart.currency = countryContext.currency.code;
+    await cart.save();
+  }
   if (!cart) {
-    cart = await Cart.create({ user: userId, items: [] });
+    cart = await Cart.create({ user: userId, countryId, currency: countryContext.currency.code, items: [] });
   }
   return cart;
 };
@@ -158,6 +175,8 @@ const formatCart = async (cart) => {
           status: product.status,
           city: product.city,
           country: product.country,
+          countryId: product.countryId ? String(product.countryId) : '',
+          currency: product.currency || cart.currency || 'XAF',
           whatsappClicks: product.whatsappClicks ?? 0,
           installmentEnabled: Boolean(product.installmentEnabled),
           installmentMinAmount: Number(product.installmentMinAmount || 0),
@@ -245,12 +264,14 @@ const formatCart = async (cart) => {
   return {
     items,
     totals,
+    countryId: cart.countryId ? String(cart.countryId) : '',
+    currency: cart.currency || 'XAF',
     updatedAt: cart.updatedAt
   };
 };
 
 export const getCart = asyncHandler(async (req, res) => {
-  const cart = await ensureCart(req.user.id);
+  const cart = await ensureCart(req.user.id, req.countryContext);
   res.json(await formatCart(cart));
 });
 
@@ -264,10 +285,20 @@ export const addItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Quantity must be greater than zero' });
   }
 
-  const product = await Product.findById(productId).select('status payment listingFeeSettled attributes');
+  const product = await Product.findById(productId).select('status payment listingFeeSettled attributes countryId currency');
   const listingFeeSettled = await isListingFeeSettledForProduct(product);
   if (!product || product.status !== 'approved' || !listingFeeSettled) {
     return res.status(404).json({ message: 'Product unavailable' });
+  }
+  const productCountryId = String(product.countryId || req.countryContext.countryId);
+  if (productCountryId !== String(req.countryContext.countryId)) {
+    return res.status(409).json({
+      message: 'Ce produit appartient à un autre pays. Changez de pays pour l’ajouter au panier.',
+      code: 'CROSS_BORDER_NOT_SUPPORTED'
+    });
+  }
+  if (String(product.currency || req.countryContext.currency.code).toUpperCase() !== req.countryContext.currency.code) {
+    return res.status(409).json({ message: 'Le panier ne peut pas mélanger plusieurs devises.', code: 'CURRENCY_NOT_SUPPORTED' });
   }
 
   const selectedAttributesValidation = validateSelectedAttributesForProduct({
@@ -278,7 +309,7 @@ export const addItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: selectedAttributesValidation.message });
   }
 
-  const cart = await ensureWritableCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id, req.countryContext);
   const selectionKey = selectedAttributesValidation.selectionKey;
   const existing = cart.items.find(
     (item) =>
@@ -297,7 +328,7 @@ export const addItem = asyncHandler(async (req, res) => {
   }
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
-  const populated = await populateCart(req.user.id);
+  const populated = await populateCart(req.user.id, req.countryContext);
   res.status(201).json(await formatCart(populated));
 });
 
@@ -312,7 +343,7 @@ export const updateItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Quantity must be zero or higher' });
   }
 
-  const cart = await ensureWritableCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id, req.countryContext);
   const requestedSelectionKey = resolveRequestedSelectionKey({ selectionKey, selectedAttributes });
   const existing = cart.items.find(
     (item) =>
@@ -337,7 +368,7 @@ export const updateItem = asyncHandler(async (req, res) => {
 
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
-  const populated = await populateCart(req.user.id);
+  const populated = await populateCart(req.user.id, req.countryContext);
   res.json(await formatCart(populated));
 });
 
@@ -351,7 +382,7 @@ export const removeItem = asyncHandler(async (req, res) => {
     selectionKey: req.query?.selectionKey || req.body?.selectionKey,
     selectedAttributes: req.body?.selectedAttributes
   });
-  const cart = await ensureWritableCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id, req.countryContext);
   const beforeLength = cart.items.length;
   cart.items = cart.items.filter(
     (item) =>
@@ -365,18 +396,18 @@ export const removeItem = asyncHandler(async (req, res) => {
     // DELETE is idempotent: a repeated request must report the already-current
     // cart instead of turning a successful first removal into a visible error.
     await invalidateUserCache(req.user.id, ['cart']);
-    const populated = await populateCart(req.user.id);
+    const populated = await populateCart(req.user.id, req.countryContext);
     return res.json(await formatCart(populated));
   }
 
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);
-  const populated = await populateCart(req.user.id);
+  const populated = await populateCart(req.user.id, req.countryContext);
   res.json(await formatCart(populated));
 });
 
 export const clearCart = asyncHandler(async (req, res) => {
-  const cart = await ensureWritableCart(req.user.id);
+  const cart = await ensureWritableCart(req.user.id, req.countryContext);
   cart.items = [];
   await cart.save();
   await invalidateUserCache(req.user.id, ['cart']);

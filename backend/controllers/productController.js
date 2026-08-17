@@ -54,6 +54,7 @@ import {
   roundMoney
 } from '../utils/listingFeeUtils.js';
 import imageStudioService from '../services/imageStudioService.js';
+import { buildCountryDataFilter, ensureDefaultCountry, resolveCountryContext } from '../services/countryService.js';
 import {
   getEntityTags,
   removeAllEntityTags,
@@ -919,12 +920,17 @@ export const createProduct = asyncHandler(async (req, res) => {
   const resolvedCondition = (condition || 'used').toString().toLowerCase();
   const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
   const seller =
-    (await User.findById(req.user.id).select('city country shopVerified accountType restrictions')) || null;
+    (await User.findById(req.user.id).select('city country countryId shopVerified accountType restrictions')) || null;
   if (!seller) {
     return res.status(404).json({ message: 'Utilisateur introuvable' });
   }
   const ownerCity = seller.city || 'Brazzaville';
   const ownerCountry = seller.country || 'République du Congo';
+  const ownerCountryRecord = seller.countryId
+    ? await resolveCountryContext({ resourceCountryId: seller.countryId, user: req.user })
+    : { country: await ensureDefaultCountry() };
+  const ownerCountryId = ownerCountryRecord.countryId || ownerCountryRecord.country?._id;
+  const ownerCurrency = ownerCountryRecord.currency?.code || ownerCountryRecord.country?.currency?.code || 'XAF';
   const isShop = seller.accountType === 'shop';
   const isVerifiedShop = isShop && Boolean(seller.shopVerified);
 
@@ -1175,6 +1181,8 @@ export const createProduct = asyncHandler(async (req, res) => {
         initialListingFee.requiredFee > 0 ? 'PAYMENT_REQUIRED' : 'NOT_REQUIRED',
       city: ownerCity,
       country: ownerCountry,
+      countryId: ownerCountryId,
+      currency: ownerCurrency,
       attributes: normalizedAttributes,
       physical: normalizedPhysical,
       warrantyEnabled: warrantyConfig.warrantyEnabled,
@@ -1241,6 +1249,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 });
 
 export const getPublicProducts = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
   const {
     q,
     category,
@@ -1272,7 +1281,7 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
   // Normalize sort: accept 'newest' as alias for 'new'
   const sort = sortParam === 'newest' ? 'new' : sortParam;
 
-  const filter = { status: 'approved' };
+  const filter = { status: 'approved', ...buildCountryDataFilter(req.countryContext) };
   const normalizedUserCity = typeof userCityParam === 'string' ? userCityParam.trim() : '';
   const userCity = normalizedUserCity || null;
   const nearMeEnabled = isTruthyQueryValue(nearMe);
@@ -1757,11 +1766,12 @@ export const getPublicProducts = asyncHandler(async (req, res) => {
 });
 
 export const getTopSales = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
   const skip = (page - 1) * limit;
 
-  const baseFilter = { status: 'approved', salesCount: { $gt: 0 } };
+  const baseFilter = { status: 'approved', salesCount: { $gt: 0 }, ...buildCountryDataFilter(req.countryContext) };
   const filter = await withVerifiedPublicProductFilter(baseFilter);
 
   const [itemsRaw, total] = await Promise.all([
@@ -1826,6 +1836,7 @@ export const getTopSales = asyncHandler(async (req, res) => {
 });
 
 export const getTopSalesTodayByCity = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
   const skip = (page - 1) * limit;
@@ -1844,6 +1855,7 @@ export const getTopSalesTodayByCity = asyncHandler(async (req, res) => {
   const [salesAgg] = await Order.aggregate([
     {
       $match: {
+        ...buildCountryDataFilter(req.countryContext),
         isDraft: { $ne: true },
         isInquiry: { $ne: true },
         status: { $ne: 'cancelled' },
@@ -1966,11 +1978,12 @@ export const getTopSalesTodayByCity = asyncHandler(async (req, res) => {
 });
 
 export const getPublicHighlights = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
   const limitParam = Number(req.query?.limit);
   const limit = Math.max(1, Math.min(Number.isFinite(limitParam) ? limitParam : 6, 60));
   const now = new Date();
 
-  const baseFilter = { status: 'approved' };
+  const baseFilter = { status: 'approved', ...buildCountryDataFilter(req.countryContext) };
   const blockedSellerIds = await getBlockedSellerIdsSet();
   const baseActiveFilter = applyBlockedUsersToFilter(baseFilter, blockedSellerIds);
   const activeBaseFilter = await withVerifiedPublicProductFilter(baseActiveFilter);
@@ -2127,6 +2140,7 @@ export const getPublicHighlights = asyncHandler(async (req, res) => {
 });
 
 export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
   const page = Math.max(1, Number(req.query?.page) || 1);
   const limit = Math.max(1, Math.min(24, Number(req.query?.limit) || 8));
   const skip = (page - 1) * limit;
@@ -2136,6 +2150,7 @@ export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
   const baseFilter = applyBlockedUsersToFilter(
     {
       status: 'approved',
+      ...buildCountryDataFilter(req.countryContext),
       installmentEnabled: true,
       installmentStartDate: { $lte: now },
       installmentEndDate: { $gte: now }
@@ -2178,6 +2193,7 @@ export const getPublicInstallmentProducts = asyncHandler(async (req, res) => {
 });
 
 export const getPublicWholesaleProducts = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
   const page = Math.max(1, Number(req.query?.page) || 1);
   const limit = Math.max(1, Math.min(24, Number(req.query?.limit) || 8));
   const skip = (page - 1) * limit;
@@ -2190,6 +2206,7 @@ export const getPublicWholesaleProducts = asyncHandler(async (req, res) => {
   const blockedSellerIds = await getBlockedSellerIdsSet();
   const filter = {
     status: 'approved',
+    ...buildCountryDataFilter(req.countryContext),
     wholesaleEnabled: true,
     'wholesaleTiers.0': { $exists: true }
   };
@@ -2246,6 +2263,7 @@ export const getPublicWholesaleProducts = asyncHandler(async (req, res) => {
 });
 
 export const getPublicPickupOnlyProducts = asyncHandler(async (req, res) => {
+  if (req.countryContextError) throw req.countryContextError;
   const page = Math.max(1, Number(req.query?.page) || 1);
   const limit = Math.max(1, Math.min(24, Number(req.query?.limit) || 8));
   const skip = (page - 1) * limit;
@@ -2254,6 +2272,7 @@ export const getPublicPickupOnlyProducts = asyncHandler(async (req, res) => {
   const baseFilter = applyBlockedUsersToFilter(
     {
       status: 'approved',
+      ...buildCountryDataFilter(req.countryContext),
       deliveryAvailable: false,
       pickupAvailable: true
     },
@@ -2326,6 +2345,11 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
   if (!productDoc || productDoc.status !== 'approved' || !listingFeeSettled) {
     return res.status(404).json({ message: 'Produit introuvable ou non publié.' });
   }
+  const resourceCountry = await resolveCountryContext({
+    resourceCountryId: productDoc.countryId || null,
+    user: req.user || null
+  });
+  productDoc.$locals.countryContext = resourceCountry;
 
   if (productDoc.user?.isBlocked) {
     return res.status(403).json({ message: 'Ce vendeur a été suspendu. Cette annonce n’est plus accessible.' });

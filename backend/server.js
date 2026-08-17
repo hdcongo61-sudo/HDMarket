@@ -62,6 +62,8 @@ import buyForMeRoutes from './routes/buyForMeRoutes.js';
 import featureRoutes from './routes/featureRoutes.js';
 import tagRoutes from './routes/tagRoutes.js';
 import productVideoRoutes from './routes/productVideoRoutes.js';
+import countryRoutes from './routes/countryRoutes.js';
+import adminCountryRoutes from './routes/adminCountryRoutes.js';
 
 import User from './models/userModel.js';
 import Conversation from './models/conversationModel.js';
@@ -126,6 +128,7 @@ import { closeEngagementWorker, initEngagementWorker } from './workers/engagemen
 import { closeSideEffectQueue, initSideEffectQueue } from './queues/sideEffectQueue.js';
 import { closeSideEffectWorker, initSideEffectWorker } from './workers/sideEffectWorker.js';
 import { isTokenBlacklisted, wasSessionInvalidated } from './services/sessionSecurityService.js';
+import { ensureDefaultCountry } from './services/countryService.js';
 
 connectDB();
 initRedis().catch(() => {
@@ -133,6 +136,9 @@ initRedis().catch(() => {
 });
 preloadRuntimeConfigCache().catch(() => {
   // Runtime config service keeps lazy fallback if preload fails.
+});
+ensureDefaultCountry().catch((error) => {
+  console.error('Country bootstrap failed:', error?.message || error);
 });
 startCacheSnapshotScheduler();
 initNotificationQueue().catch(() => {
@@ -256,6 +262,8 @@ const corsOptions = {
     'x-app-version',
     'x-user-city',
     'x-user-country',
+    'x-country-id',
+    'x-country-code',
     'x-config-environment',
     'Idempotency-Key',
     'idempotency-key',
@@ -406,6 +414,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/cities', cityRoutes);
 app.use('/api/communes', communeRoutes);
 app.use('/api/currencies', currencyRoutes);
+app.use('/api/countries', countryRoutes);
 app.use('/api/user', userPreferenceRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
@@ -429,6 +438,7 @@ app.use('/api/delivery-pricing', deliveryPricingRoutes);
 app.use('/api/features', featureRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/product-videos', productVideoRoutes);
+app.use('/api/admin/countries', adminCountryRoutes);
 app.use('/api/*', notFoundApiHandler);
 
 app.use(globalErrorHandler);

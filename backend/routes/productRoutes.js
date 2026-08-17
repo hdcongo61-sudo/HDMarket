@@ -1,4 +1,6 @@
 import express from 'express';
+import { optionalProtect } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import rateLimit from 'express-rate-limit';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireRole } from '../middlewares/roleMiddleware.js';
@@ -43,6 +45,7 @@ import {
 import { getUserRecommendations } from '../controllers/recommendationController.js';
 
 const router = express.Router();
+router.use(optionalProtect, attachCountryContext);
 const productMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
 const productViewRateLimiter = rateLimit({
   windowMs: Math.max(30_000, Number(process.env.PRODUCT_VIEW_RATE_WINDOW_MS || 60_000)),

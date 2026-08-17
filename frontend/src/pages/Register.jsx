@@ -13,6 +13,7 @@ import { signInWithApple, signInWithGoogle } from '../services/providerAuth';
 import { resolveAuthProviderAvailability } from '../utils/authProviderAvailability';
 import { storage } from '../utils/storage';
 import { REFERRAL_CODE_STORAGE_KEY } from './ReferralLanding';
+import { useCountry } from '../context/CountryContext';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -72,6 +73,7 @@ export default function Register() {
   const { user, login } = useContext(AuthContext);
   const { showToast } = useToast();
   const { cities, communes, language, runtime } = useAppSettings();
+  const { country: selectedCountry } = useCountry();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -184,7 +186,7 @@ export default function Register() {
     phone: '',
     accountType: 'person',
     address: '',
-    country: 'République du Congo',
+    country: selectedCountry?.name || 'République du Congo',
     city: '',
     commune: '',
     gender: ''
@@ -206,6 +208,14 @@ export default function Register() {
   const [codeError, setCodeError] = useState('');
   const [formError, setFormError] = useState('');
   const [referralCode, setReferralCode] = useState('');
+
+  useEffect(() => {
+    if (!selectedCountry?.name) return;
+    setForm((previous) => ({ ...previous, country: selectedCountry.name, city: '', commune: '' }));
+    setPhoneVerified(false);
+    setCodeSent(false);
+    setVerificationCode('');
+  }, [selectedCountry?.id, selectedCountry?._id, selectedCountry?.name]);
 
   useEffect(() => {
     storage.get(REFERRAL_CODE_STORAGE_KEY).then((value) => {
@@ -349,7 +359,7 @@ export default function Register() {
       // silentGlobalError: this step already shows its own inline message
       // below — without it, a backend failure also raises the raw internal
       // error text as a global toast (e.g. leaking unconfigured env names).
-      await api.post('/auth/register/phone/send-code', { phone: form.phone }, { silentGlobalError: true });
+      await api.post('/auth/register/phone/send-code', { phone: form.phone, countryId: selectedCountry?.id || selectedCountry?._id }, { silentGlobalError: true });
       setCodeSent(true);
       setVerificationCode('');
       setResendIn(30);
@@ -373,7 +383,7 @@ export default function Register() {
     try {
       await api.post(
         '/auth/register/phone/verify-code',
-        { phone: form.phone, verificationCode },
+        { phone: form.phone, verificationCode, countryId: selectedCountry?.id || selectedCountry?._id },
         { silentGlobalError: true }
       );
       setPhoneVerified(true);
@@ -543,7 +553,8 @@ export default function Register() {
           address: form.address.trim(),
           acceptedLegalTerms: true,
           legalVersion: '2026-07-18',
-          referralCode
+          referralCode,
+          countryId: selectedCountry?.id || selectedCountry?._id
         });
         setSuccessPayload(data || null);
         showToast(copy.welcomeToast, { variant: 'success' });
@@ -562,6 +573,7 @@ export default function Register() {
       payload.append('phone', form.phone);
       payload.append('accountType', form.accountType || 'person');
       payload.append('country', form.country || 'République du Congo');
+      payload.append('countryId', selectedCountry?.id || selectedCountry?._id || '');
       payload.append('city', form.city);
       payload.append('commune', form.commune || '');
       payload.append('cityId', selectedCityId);
@@ -688,7 +700,7 @@ export default function Register() {
                           <div className="space-y-[7px]">
                             <label htmlFor="register-phone" className={labelClass}>{copy.phone}</label>
                             <div className="flex h-14 items-center rounded-[14px] bg-white px-4 shadow-[inset_0_0_0_1px_#e7dfd5] focus-within:shadow-[inset_0_0_0_2px_#e85d00] dark:bg-neutral-900 dark:shadow-[inset_0_0_0_1px_#262626]">
-                              <span className="mr-2.5 flex shrink-0 items-center gap-1.5 whitespace-nowrap border-r border-[#ece5db] pr-2.5 text-[14px] font-semibold text-[#57534e] dark:border-neutral-700 dark:text-neutral-300">🇨🇬 +242</span>
+                              <span className="mr-2.5 flex shrink-0 items-center gap-1.5 whitespace-nowrap border-r border-[#ece5db] pr-2.5 text-[14px] font-semibold text-[#57534e] dark:border-neutral-700 dark:text-neutral-300">{selectedCountry?.flagEmoji || '🇨🇬'} {selectedCountry?.phoneCode || '+242'}</span>
                               <input id="register-phone" ref={phoneRef} type="tel" inputMode="tel" autoComplete="tel" className="hd-auth-autofill !h-full !min-h-0 flex-1 !rounded-none !border-0 !bg-transparent !p-0 !text-base !font-medium !shadow-none outline-none placeholder:!text-[#a8a29e] focus:!bg-transparent focus:!shadow-none dark:!bg-transparent dark:!text-white" placeholder="06 00 00 000" value={form.phone} onChange={(event) => { setForm((previous) => ({ ...previous, phone: event.target.value })); setPhoneVerified(false); setCodeSent(false); setVerificationCode(''); setCodeError(''); setCodeMessage(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); if (canGoToStep2) goToStep2(); else if (!codeSent) sendPhoneOtp(); } }} required />
                             </div>
                           </div>

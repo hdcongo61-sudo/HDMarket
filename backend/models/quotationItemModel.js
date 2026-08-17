@@ -14,6 +14,7 @@ const quotationItemSchema = new mongoose.Schema(
     selectionKey: { type: String, trim: true, default: '' },
     quantity: { type: Number, min: 1, max: 9999, required: true },
     originalPrice: { type: Number, min: 0, required: true },
+    currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
     requestedPrice: { type: Number, min: 0, default: null },
     quotedPrice: { type: Number, min: 0, default: null },
     snapshot: {

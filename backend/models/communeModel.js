@@ -4,6 +4,8 @@ const communeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     cityId: { type: mongoose.Schema.Types.ObjectId, ref: 'City', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    levelType: { type: String, trim: true, default: 'DISTRICT' },
     isActive: { type: Boolean, default: true, index: true },
     deliveryPolicy: {
       type: String,
@@ -27,6 +29,7 @@ const communeSchema = new mongoose.Schema(
 );
 
 communeSchema.index({ cityId: 1, name: 1 }, { unique: true });
+communeSchema.index({ countryId: 1, cityId: 1, isActive: 1, order: 1 });
 communeSchema.index({ cityId: 1, isActive: 1, order: 1, name: 1 });
 communeSchema.index({ deliveryPolicy: 1, isActive: 1 });
 communeSchema.index({ zoneId: 1 });

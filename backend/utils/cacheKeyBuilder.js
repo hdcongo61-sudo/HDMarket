@@ -150,6 +150,13 @@ export const buildRequestCacheKey = (req, options = {}) => {
 
   const paramsPayload = {
     _params: req?.params || {},
+    _country:
+      req?.countryContext?.code ||
+      req?.headers?.['x-country-code'] ||
+      req?.headers?.['x-country-id'] ||
+      req?.user?.selectedCountryId ||
+      req?.user?.countryId ||
+      'default',
     ...(options.includeQuery === false ? {} : req?.query || {}),
     _route: getRouteSignature(req)
   };

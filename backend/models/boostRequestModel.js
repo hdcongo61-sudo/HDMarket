@@ -24,9 +24,11 @@ const boostPaymentProofSchema = new mongoose.Schema(
 const boostRequestSchema = new mongoose.Schema(
   {
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
     boostType: { type: String, enum: BOOST_TYPES, required: true, index: true },
     productIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-    city: { type: String, enum: [...SUPPORTED_CITIES, null], default: null, index: true },
+    city: { type: String, trim: true, default: null, index: true },
     duration: { type: Number, min: 1, default: 1 },
     unitPrice: { type: Number, min: 0, required: true },
     basePrice: { type: Number, min: 0, required: true },
@@ -69,6 +71,7 @@ const boostRequestSchema = new mongoose.Schema(
 boostRequestSchema.index({ status: 1, startDate: 1, endDate: 1 });
 boostRequestSchema.index({ sellerId: 1, createdAt: -1 });
 boostRequestSchema.index({ boostType: 1, city: 1, status: 1 });
+boostRequestSchema.index({ countryId: 1, boostType: 1, city: 1, status: 1 });
 boostRequestSchema.index({ productIds: 1, status: 1, endDate: 1 });
 boostRequestSchema.index({ paymentTransactionId: 1 });
 

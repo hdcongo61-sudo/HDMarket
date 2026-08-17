@@ -16,6 +16,7 @@ import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 import AppleAuthButton from '../components/auth/AppleAuthButton';
 import { signInWithApple, signInWithGoogle } from '../services/providerAuth';
 import { resolveAuthProviderAvailability } from '../utils/authProviderAvailability';
+import { useCountry } from '../context/CountryContext';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -99,6 +100,7 @@ const mapLoginErrorMessage = (error, isFrench = true) => {
 export default function Login() {
   const { user, login } = useContext(AuthContext);
   const { language, runtime } = useAppSettings();
+  const { country: selectedCountry } = useCountry();
   const { authLogoSrc: logoSrc } = useAppBrandLogo();
   const nav = useNavigate();
   const location = useLocation();
@@ -264,7 +266,7 @@ export default function Login() {
       const identifier = form.phone.trim();
       const credentials = identifier.includes('@')
         ? { email: identifier.toLowerCase(), password: form.password }
-        : { phone: identifier, password: form.password };
+        : { phone: identifier, password: form.password, countryId: selectedCountry?.id || selectedCountry?._id };
       const { data } = await api.post('/auth/login', credentials);
       // Redirect directly — no success interstitial
       await login(data, { rememberMe });

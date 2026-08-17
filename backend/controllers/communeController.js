@@ -43,6 +43,7 @@ export const createCommuneAdmin = asyncHandler(async (req, res) => {
   const commune = await Commune.create({
     name: trimmedName,
     cityId,
+    countryId: city.countryId || null,
     deliveryPolicy: deliveryPolicy || 'DEFAULT_RULE',
     fixedFee: Math.max(0, Number(fixedFee || 0)),
     isActive: isActive !== false,
@@ -79,6 +80,7 @@ export const updateCommuneAdmin = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Ville introuvable.' });
     }
     commune.cityId = cityId;
+    commune.countryId = city.countryId || commune.countryId || null;
   }
   if (deliveryPolicy !== undefined) {
     commune.deliveryPolicy = deliveryPolicy;

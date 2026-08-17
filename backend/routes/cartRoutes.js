@@ -3,10 +3,11 @@ import { protect } from '../middlewares/authMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { cacheMiddleware } from '../utils/cache.js';
 import { addItem, clearCart, getCart, removeItem, updateItem } from '../controllers/cartController.js';
+import { requireCountryContext } from '../middlewares/countryMiddleware.js';
 
 const router = express.Router();
 
-router.use(protect);
+router.use(protect, requireCountryContext);
 
 router.get('/', cacheMiddleware({ domain: 'cart', scope: 'user', ttl: 60 * 1000 }), getCart);
 router.post('/items', validate(schemas.cartAdd), addItem);

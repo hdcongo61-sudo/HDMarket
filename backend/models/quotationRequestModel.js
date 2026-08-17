@@ -13,6 +13,7 @@ const quotationRequestSchema = new mongoose.Schema(
   {
     buyer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     status: { type: String, enum: QUOTATION_STATUSES, default: 'PENDING', index: true },
     message: { type: String, trim: true, maxlength: 2000, default: '' },
     sellerMessage: { type: String, trim: true, maxlength: 2000, default: '' },
@@ -43,5 +44,6 @@ const quotationRequestSchema = new mongoose.Schema(
 quotationRequestSchema.index({ buyer: 1, createdAt: -1 });
 quotationRequestSchema.index({ seller: 1, status: 1, createdAt: -1 });
 quotationRequestSchema.index({ status: 1, expirationDate: 1 });
+quotationRequestSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 
 export default mongoose.model('QuotationRequest', quotationRequestSchema);

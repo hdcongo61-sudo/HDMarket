@@ -11,6 +11,7 @@ import {
 } from '../controllers/settingsController.js';
 import { getRuntimePublicConfig } from '../controllers/configController.js';
 import { optionalProtect } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 
 const router = express.Router();
 const skipCacheByHeader = (req) =>
@@ -22,11 +23,11 @@ const skipCacheByHeader = (req) =>
   Boolean(req.headers['x-app-platform']) ||
   Boolean(req.headers['x-app-version']);
 
-router.get('/public', optionalProtect, cacheMiddleware({ ttl: 120000, skipCache: skipCacheByHeader }), getPublicSettings);
-router.get('/runtime', optionalProtect, cacheMiddleware({ ttl: 30000, skipCache: skipCacheByHeader }), getRuntimePublicConfig);
-router.get('/cities', cacheMiddleware({ ttl: 1800000, skipCache: skipCacheByHeader }), getPublicCities);
-router.get('/communes', cacheMiddleware({ ttl: 1800000, skipCache: skipCacheByHeader }), getPublicCommunes);
-router.get('/currencies', cacheMiddleware({ ttl: 1800000, skipCache: skipCacheByHeader }), getPublicCurrencies);
+router.get('/public', optionalProtect, attachCountryContext, cacheMiddleware({ ttl: 120000, skipCache: skipCacheByHeader }), getPublicSettings);
+router.get('/runtime', optionalProtect, attachCountryContext, cacheMiddleware({ ttl: 30000, skipCache: skipCacheByHeader }), getRuntimePublicConfig);
+router.get('/cities', optionalProtect, attachCountryContext, cacheMiddleware({ ttl: 1800000, skipCache: skipCacheByHeader }), getPublicCities);
+router.get('/communes', optionalProtect, attachCountryContext, cacheMiddleware({ ttl: 1800000, skipCache: skipCacheByHeader }), getPublicCommunes);
+router.get('/currencies', optionalProtect, attachCountryContext, cacheMiddleware({ ttl: 1800000, skipCache: skipCacheByHeader }), getPublicCurrencies);
 router.get('/hero-banner', getHeroBanner);
 router.get('/app-logo', getAppLogo);
 router.get('/promo-banner', getPromoBanner);

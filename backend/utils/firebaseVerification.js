@@ -231,7 +231,7 @@ export const checkVerificationCode = async (email, code, type = 'registration') 
 };
 
 // Keep phone normalization utilities for backward compatibility
-export const normalizePhone = (phone) => {
+export const normalizePhone = (phone, phoneCode = '+242') => {
   const raw = typeof phone === 'string' ? phone.trim() : phone ? String(phone).trim() : '';
   if (!raw) return '';
   const digits = raw.replace(/\D/g, '');
@@ -242,17 +242,18 @@ export const normalizePhone = (phone) => {
   if (digits.startsWith('00')) {
     return `+${digits.slice(2)}`;
   }
-  if (digits.startsWith('242')) {
+  const countryDigits = String(phoneCode || '+242').replace(/\D/g, '') || '242';
+  if (digits.startsWith(countryDigits)) {
     return `+${digits}`;
   }
-  return `+242${digits}`;
+  return `+${countryDigits}${digits.replace(/^0+/, '')}`;
 };
 
-export const buildPhoneCandidates = (phone) => {
+export const buildPhoneCandidates = (phone, phoneCode = '+242') => {
   const raw = typeof phone === 'string' ? phone.trim() : phone ? String(phone).trim() : '';
   if (!raw) return [];
   const compact = raw.replace(/\s+/g, '');
-  const normalized = normalizePhone(raw);
+  const normalized = normalizePhone(raw, phoneCode);
   const candidates = [raw, compact, normalized].filter(Boolean);
   return Array.from(new Set(candidates));
 };

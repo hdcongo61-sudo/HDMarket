@@ -117,6 +117,9 @@ export function normalizeUser(raw = {}) {
 
     // Geo / prefs
     country: safeString(raw.country, 'République du Congo'),
+    countryId: safeString(raw.countryId),
+    selectedCountryId: safeString(raw.selectedCountryId),
+    adminCountryIds: safeArray(raw.adminCountryIds).map(String),
     city: safeString(raw.city, 'Brazzaville'),
     commune: safeString(raw.commune),
     cityId: safeString(raw.cityId),

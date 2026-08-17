@@ -31,6 +31,7 @@ import {
   createValidationTaskNotification
 } from '../utils/notificationService.js';
 import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
+import { resolveCountryContext } from '../services/countryService.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -164,7 +165,11 @@ const providerRegister = async (req, res, providerName) => {
     return res.status(409).json({ message: 'Un compte existe déjà avec cet email.', code: 'ACCOUNT_EXISTS' });
   }
 
-  const normalizedPhone = normalizePhone(phone);
+  const countryContext = await resolveCountryContext({
+    requestedCountry: req.body?.countryId || req.body?.countryCode || null,
+    user: null
+  });
+  const normalizedPhone = normalizePhone(phone, countryContext.country.phoneCode);
   if (!normalizedPhone) {
     return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
   }
@@ -172,18 +177,21 @@ const providerRegister = async (req, res, providerName) => {
     await getRuntimeConfig('registration_phone_cg_only', { fallback: true }),
     true
   );
-  if (registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
+  if (countryContext.country.code === 'CG' && registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
     return res.status(400).json({
       message: 'Inscription refusée: seuls les numéros de la République du Congo (+242) sont autorisés.',
       code: 'REGISTRATION_PHONE_COUNTRY_BLOCKED'
     });
   }
-  if (await User.exists({ phone: { $in: buildPhoneCandidates(phone) } })) {
+  if (!normalizedPhone.startsWith(countryContext.country.phoneCode)) {
+    return res.status(400).json({ message: `Le numéro doit correspondre à l'indicatif ${countryContext.country.phoneCode}.`, code: 'PHONE_COUNTRY_MISMATCH' });
+  }
+  if (await User.exists({ phone: { $in: buildPhoneCandidates(phone, countryContext.country.phoneCode) } })) {
     return res.status(409).json({ message: 'Téléphone déjà utilisé', code: 'PHONE_ALREADY_USED' });
   }
   if (await PhoneBlacklist.exists({
     isActive: true,
-    $or: [{ phoneNormalized: normalizedPhone }, { phoneVariants: { $in: buildPhoneCandidates(phone) } }]
+    $or: [{ phoneNormalized: normalizedPhone }, { phoneVariants: { $in: buildPhoneCandidates(phone, countryContext.country.phoneCode) } }]
   })) {
     return res.status(403).json({ message: 'Ce numéro est blacklisté.', code: 'PHONE_BLACKLISTED' });
   }
@@ -193,7 +201,9 @@ const providerRegister = async (req, res, providerName) => {
     cityId,
     communeId,
     cityName: city,
-    communeName: commune
+    communeName: commune,
+    countryId: countryContext.countryId,
+    allowLegacyCountryFallback: countryContext.country.code === 'CG'
   });
 
   const user = await User.create({
@@ -204,7 +214,10 @@ const providerRegister = async (req, res, providerName) => {
     phoneVerified: false,
     role: 'user',
     accountType: 'person',
-    country: 'République du Congo',
+    country: countryContext.country.officialName,
+    countryId: countryContext.countryId,
+    selectedCountryId: countryContext.countryId,
+    preferredCurrency: countryContext.country.currency.code,
     address: address.trim(),
     cityId: location.cityId,
     communeId: location.communeId,
@@ -314,7 +327,11 @@ export const register = asyncHandler(async (req, res) => {
   if (!trimmedPhone) {
     return res.status(400).json({ message: 'Numéro de téléphone manquant.' });
   }
-  const normalizedPhone = normalizePhone(trimmedPhone);
+  const countryContext = await resolveCountryContext({
+    requestedCountry: req.body?.countryId || req.body?.countryCode || null,
+    user: null
+  });
+  const normalizedPhone = normalizePhone(trimmedPhone, countryContext.country.phoneCode);
   if (!normalizedPhone) {
     return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
   }
@@ -322,14 +339,17 @@ export const register = asyncHandler(async (req, res) => {
     fallback: true
   });
   const registrationPhoneCgOnly = toBoolean(registrationPhoneCgOnlyRaw, true);
-  if (registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
+  if (countryContext.country.code === 'CG' && registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
     return res.status(400).json({
       message:
         "Inscription refusée: seuls les numéros de la République du Congo (+242) sont autorisés.",
       code: 'REGISTRATION_PHONE_COUNTRY_BLOCKED'
     });
   }
-  const phoneCandidates = buildPhoneCandidates(trimmedPhone);
+  if (!normalizedPhone.startsWith(countryContext.country.phoneCode)) {
+    return res.status(400).json({ message: `Le numéro doit correspondre à l'indicatif ${countryContext.country.phoneCode}.`, code: 'PHONE_COUNTRY_MISMATCH' });
+  }
+  const phoneCandidates = buildPhoneCandidates(trimmedPhone, countryContext.country.phoneCode);
   const phoneTaken = await User.findOne({ phone: { $in: phoneCandidates } });
   if (phoneTaken) return res.status(400).json({ message: 'Téléphone déjà utilisé' });
   const blacklistedPhone = await PhoneBlacklist.findOne({
@@ -366,7 +386,9 @@ export const register = asyncHandler(async (req, res) => {
     cityId,
     communeId,
     cityName: city,
-    communeName: commune
+    communeName: commune,
+    countryId: countryContext.countryId,
+    allowLegacyCountryFallback: countryContext.country.code === 'CG'
   });
 
   const user = await User.create({
@@ -377,7 +399,10 @@ export const register = asyncHandler(async (req, res) => {
     phoneVerified,
     role: normalizedRole,
     accountType: 'person',
-    country: 'République du Congo',
+    country: countryContext.country.officialName,
+    countryId: countryContext.countryId,
+    selectedCountryId: countryContext.countryId,
+    preferredCurrency: countryContext.country.currency.code,
     address: address.trim(),
     cityId: location.cityId,
     communeId: location.communeId,
@@ -420,9 +445,12 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
   const isEmailIdentifier = rawIdentifier.includes('@');
+  const loginCountry = !isEmailIdentifier
+    ? await resolveCountryContext({ requestedCountry: req.body?.countryId || req.body?.countryCode || null, user: null })
+    : null;
   const user = isEmailIdentifier
     ? await User.findOne({ email: rawIdentifier.toLowerCase() })
-    : await User.findOne({ phone: { $in: buildPhoneCandidates(rawIdentifier) } });
+    : await User.findOne({ phone: { $in: buildPhoneCandidates(rawIdentifier, loginCountry.country.phoneCode) } });
 
   // Temporary brute-force cooldown — checked before the password itself so a
   // locked-out attacker learns nothing about whether their guess was right.
@@ -630,7 +658,11 @@ export const sendRegisterPhoneCode = asyncHandler(async (req, res) => {
     });
   }
 
-  const normalizedPhone = normalizePhone(phone);
+  const countryContext = await resolveCountryContext({
+    requestedCountry: req.body?.countryId || req.body?.countryCode || null,
+    user: null
+  });
+  const normalizedPhone = normalizePhone(phone, countryContext.country.phoneCode);
   if (!normalizedPhone) {
     return res.status(400).json({ message: 'Numéro de téléphone invalide.' });
   }
@@ -638,13 +670,17 @@ export const sendRegisterPhoneCode = asyncHandler(async (req, res) => {
     await getRuntimeConfig('registration_phone_cg_only', { fallback: true }),
     true
   );
-  if (registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
+  if (countryContext.country.code === 'CG' && registrationPhoneCgOnly && !isCongoBrazzavillePhone(normalizedPhone)) {
     return res.status(400).json({
       message: 'Inscription refusée: seuls les numéros de la République du Congo (+242) sont autorisés.',
       code: 'REGISTRATION_PHONE_COUNTRY_BLOCKED'
     });
   }
-  const phoneTaken = await User.findOne({ phone: { $in: buildPhoneCandidates(phone) } });
+  if (!normalizedPhone.startsWith(countryContext.country.phoneCode)) {
+    return res.status(400).json({ message: `Le numéro doit correspondre à l'indicatif ${countryContext.country.phoneCode}.`, code: 'PHONE_COUNTRY_MISMATCH' });
+  }
+  const phoneCandidates = buildPhoneCandidates(phone, countryContext.country.phoneCode);
+  const phoneTaken = await User.findOne({ phone: { $in: phoneCandidates } });
   if (phoneTaken) {
     return res.status(400).json({ message: 'Téléphone déjà utilisé' });
   }
@@ -652,7 +688,7 @@ export const sendRegisterPhoneCode = asyncHandler(async (req, res) => {
     isActive: true,
     $or: [
       { phoneNormalized: normalizedPhone },
-      { phoneVariants: { $in: buildPhoneCandidates(phone) } }
+      { phoneVariants: { $in: phoneCandidates } }
     ]
   });
   if (blacklistedPhone) {
@@ -671,7 +707,12 @@ export const verifyRegisterPhoneCode = asyncHandler(async (req, res) => {
   if (!phone || !String(phone).trim()) {
     return res.status(400).json({ message: 'Numéro de téléphone manquant.' });
   }
-  const result = await checkPhoneVerificationCode(phone, verificationCode, 'registration');
+  const countryContext = await resolveCountryContext({
+    requestedCountry: req.body?.countryId || req.body?.countryCode || null,
+    user: null
+  });
+  const normalizedPhone = normalizePhone(phone, countryContext.country.phoneCode);
+  const result = await checkPhoneVerificationCode(normalizedPhone, verificationCode, 'registration');
   if (result?.status !== 'approved') {
     return res.status(400).json({ message: result?.message || 'Code de vérification invalide.' });
   }

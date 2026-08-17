@@ -18,6 +18,7 @@
     "backfill:product-stats": "node ./scripts/backfillProductStats.js",
     "migrate:universal-tags": "node ./scripts/migrateUniversalTags.js",
     "migrate:product-videos": "node ./scripts/migrateProductVideos.js"
+    ,"migrate:multi-country": "node ./scripts/migrateMultiCountry.js"
   },
   "dependencies": {
     "@sentry/node": "^8.55.2",

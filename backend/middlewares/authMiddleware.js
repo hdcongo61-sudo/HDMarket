@@ -25,7 +25,7 @@ const USER_SESSION_FIELDS =
   'shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags ' +
   'shopHours ' +
   'sellerLevel sellerLevelUpdatedAt totalCompletedOrders avgRating totalReviews disputeRate ' +
-  'country city commune address preferredLanguage preferredCurrency preferredCity theme ' +
+  'country countryId selectedCountryId adminCountryIds city commune address preferredLanguage preferredCurrency preferredCity theme ' +
   'restrictions';
 
 export const protect = async (req, res, next) => {

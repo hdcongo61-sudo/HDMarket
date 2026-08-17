@@ -7,6 +7,7 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     amount: { type: Number, required: true, min: 1 },
     currency: { type: String, default: 'XAF', uppercase: true, trim: true },
     country: { type: String, default: 'COG', uppercase: true, trim: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     purpose: {
       type: String,
       enum: [
@@ -71,5 +72,6 @@ const pawapayCheckoutSchema = new mongoose.Schema(
 );
 
 pawapayCheckoutSchema.index({ user: 1, createdAt: -1 });
+pawapayCheckoutSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 
 export default mongoose.models.PawaPayCheckout || mongoose.model('PawaPayCheckout', pawapayCheckoutSchema);

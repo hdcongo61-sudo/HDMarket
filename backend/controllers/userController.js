@@ -43,6 +43,7 @@ import {
 import { resolvePermissionsForUser } from '../services/rbacService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { recordRealtimeMonitoringEvent } from '../services/realtimeMonitoringService.js';
+import { ensureDefaultCountry, findCountry } from '../services/countryService.js';
 import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
@@ -1252,11 +1253,20 @@ export const updateProfile = asyncHandler(async (req, res) => {
     typeof cityId !== 'undefined' ||
     typeof communeId !== 'undefined'
   ) {
+    const accountCountry = user.countryId ? await findCountry(user.countryId) : await ensureDefaultCountry();
+    if (!user.countryId) {
+      user.countryId = accountCountry._id;
+      user.selectedCountryId = user.selectedCountryId || accountCountry._id;
+      user.country = accountCountry.officialName;
+      user.preferredCurrency = accountCountry.currency.code;
+    }
     const location = await resolveCanonicalLocation({
       cityId,
       communeId,
       cityName: city || user.city,
-      communeName: typeof commune === 'undefined' ? user.commune : commune
+      communeName: typeof commune === 'undefined' ? user.commune : commune,
+      countryId: accountCountry._id,
+      allowLegacyCountryFallback: accountCountry.code === 'CG'
     });
     user.cityId = location.cityId;
     user.communeId = location.communeId;
@@ -1267,8 +1277,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (gender && ['homme', 'femme'].includes(gender)) {
     user.gender = gender;
   }
-
-  user.country = 'République du Congo';
 
   if (typeof shopAddress !== 'undefined') {
     user.shopAddress = shopAddress;
@@ -1412,7 +1420,11 @@ export const updateProfile = asyncHandler(async (req, res) => {
   await user.save();
 
   if (typeof city !== 'undefined' && String(city).trim()) {
-    await Product.updateMany({ user: user._id }, { city: String(city).trim(), country: user.country });
+    const accountCountry = user.countryId ? await findCountry(user.countryId) : await ensureDefaultCountry();
+    await Product.updateMany(
+      { user: user._id },
+      { city: String(city).trim(), country: accountCountry.officialName, countryId: accountCountry._id, currency: accountCountry.currency.code }
+    );
   }
 
   await invalidateUserCache(user._id, ['users', 'dashboard', 'analytics']);

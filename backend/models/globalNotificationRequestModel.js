@@ -16,6 +16,9 @@ const globalNotificationImageSchema = new mongoose.Schema(
 const globalNotificationRequestSchema = new mongoose.Schema(
   {
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    audienceScope: { type: String, enum: ['GLOBAL', 'COUNTRY', 'CITY'], default: 'COUNTRY' },
+    currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
     title: { type: String, trim: true, required: true, maxlength: 120 },
     message: { type: String, trim: true, required: true, maxlength: 500 },
@@ -43,6 +46,7 @@ const globalNotificationRequestSchema = new mongoose.Schema(
 );
 
 globalNotificationRequestSchema.index({ status: 1, createdAt: -1 });
+globalNotificationRequestSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 globalNotificationRequestSchema.index({ sellerId: 1, createdAt: -1 });
 globalNotificationRequestSchema.index({ paymentTransactionId: 1 });
 

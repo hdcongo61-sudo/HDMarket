@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 const deliveryGuySchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    managerScope: { type: String, enum: ['COUNTRY_MANAGER', 'CITY_MANAGER', 'AGENT'], default: 'AGENT' },
+    cityIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'City' }], default: [] },
     fullName: { type: String, trim: true, default: '' },
     // Legacy compatibility for existing records/UI
     name: { type: String, trim: true, default: '' },
@@ -46,6 +49,7 @@ const deliveryGuySchema = new mongoose.Schema(
 
 deliveryGuySchema.index({ fullName: 1, name: 1 });
 deliveryGuySchema.index({ cityId: 1, isActive: 1, updatedAt: -1 });
+deliveryGuySchema.index({ countryId: 1, isActive: 1, updatedAt: -1 });
 deliveryGuySchema.index({ communes: 1, isActive: 1, updatedAt: -1 });
 
 deliveryGuySchema.pre('validate', function syncDeliveryGuyLegacyFields(next) {

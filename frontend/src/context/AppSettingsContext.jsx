@@ -5,6 +5,7 @@ import AuthContext from './AuthContext';
 import { formatPriceWithCurrency } from '../utils/priceFormatter';
 import { I18N_NAMESPACES, getNestedTranslation, loadLanguageResources } from '../i18n';
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
+import { useCountry } from './CountryContext';
 
 const STORAGE_KEYS = {
   language: 'hd_pref_language',
@@ -86,6 +87,7 @@ const applyThemeClass = (themeValue) => {
 
 export const AppSettingsProvider = ({ children }) => {
   const { user, updateUser } = useContext(AuthContext);
+  const { country: selectedCountry } = useCountry();
   const [loading, setLoading] = useState(true);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [publicSettings, setPublicSettings] = useState({
@@ -381,13 +383,33 @@ export const AppSettingsProvider = ({ children }) => {
     [publicSettings.languages]
   );
   const activeCurrencies = useMemo(
-    () => (publicSettings.currencies || []).filter((item) => item?.isActive !== false),
-    [publicSettings.currencies]
+    () => {
+      const source = [
+        selectedCountry?.currency,
+        ...(selectedCountry?.supportedCurrencies || []),
+        ...(publicSettings.currencies || [])
+      ].filter(Boolean);
+      const seen = new Set();
+      return source.filter((item) => {
+        const code = String(item?.code || '').toUpperCase();
+        if (!code || seen.has(code) || item?.isActive === false) return false;
+        seen.add(code);
+        return true;
+      });
+    },
+    [publicSettings.currencies, selectedCountry]
   );
   const activeCities = useMemo(
-    () => (publicSettings.cities || []).filter((item) => item?.isActive !== false),
-    [publicSettings.cities]
+    () => ((selectedCountry?.cities?.length ? selectedCountry.cities : publicSettings.cities) || []).filter((item) => item?.isActive !== false),
+    [publicSettings.cities, selectedCountry?.cities]
   );
+
+  useEffect(() => {
+    if (!selectedCountry?.currency?.code) return;
+    setCurrencyCodeState(String(selectedCountry.currency.code).toUpperCase());
+    const defaultCountryCity = (selectedCountry.cities || []).find((item) => item.isDefault) || selectedCountry.cities?.[0];
+    if (defaultCountryCity?.name) setCityState(defaultCountryCity.name);
+  }, [selectedCountry?.currency?.code, selectedCountry?.id, selectedCountry?._id, selectedCountry?.cities]);
   const activeCommunes = useMemo(
     () => (publicSettings.communes || []).filter((item) => item?.isActive !== false),
     [publicSettings.communes]

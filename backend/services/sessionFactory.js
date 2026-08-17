@@ -146,6 +146,9 @@ export function buildSession(user, decoded = {}, token = '') {
 
     // ── Geo / location preferences ──
     country: safeString(user.country, 'République du Congo'),
+    countryId: user.countryId ? String(user.countryId) : '',
+    selectedCountryId: user.selectedCountryId ? String(user.selectedCountryId) : '',
+    adminCountryIds: safeArray(user.adminCountryIds).map(String),
     city: safeString(user.city, 'Brazzaville'),
     commune: safeString(user.commune),
     cityId: user.cityId ? String(user.cityId) : '',

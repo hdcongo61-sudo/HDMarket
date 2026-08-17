@@ -544,7 +544,8 @@ const buildCacheKey = (config) => {
   const params = toStableParams(config.params);
   const query = params ? (normalized.includes('?') ? `&${params}` : `?${params}`) : '';
   const userScope = getUserScopeSuffix(config, normalized);
-  return `${CACHE_PREFIX}${normalized}${query}${userScope}`;
+  const countryScope = String(config?.headers?.['x-country-code'] || config?.headers?.['x-country-id'] || 'default');
+  return `${CACHE_PREFIX}${normalized}${query}${userScope}::country:${countryScope}`;
 };
 
 // Get TTL for a specific endpoint
@@ -783,6 +784,12 @@ const bindRequestAbortSignal = (config, controller) => {
 
 api.interceptors.request.use(async (config) => {
   config.headers = config.headers || {};
+  const [storedCountryId, storedCountryCode] = await Promise.all([
+    storage.get('hd_selected_country_id'),
+    storage.get('hd_selected_country_code')
+  ]);
+  if (storedCountryId) config.headers['x-country-id'] = String(storedCountryId);
+  if (storedCountryCode) config.headers['x-country-code'] = String(storedCountryCode);
   if (requiresFeatureRolloutContext(config)) {
     const [featureDeviceId, preferredCity] = await Promise.all([
       getFeatureDeviceId(),

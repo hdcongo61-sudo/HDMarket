@@ -132,6 +132,8 @@ const AdminReports = lazy(() => import('./pages/AdminReports'));
 const AdminAppSettings = lazy(() => import('./pages/AdminAppSettings'));
 const AdminSystemSettings = lazy(() => import('./pages/AdminSystemSettings'));
 const AdminFeatureManagement = lazy(() => import('./pages/AdminFeatureManagement'));
+const AdminCountries = lazy(() => import('./pages/AdminCountries'));
+const AdminCountryDetail = lazy(() => import('./pages/AdminCountryDetail'));
 const AdminComplaints = lazy(() => import('./pages/AdminComplaints'));
 const AdminPromoCodes = lazy(() => import('./pages/AdminPromoCodes'));
 const AdminTags = lazy(() => import('./pages/AdminTags'));
@@ -1381,6 +1383,22 @@ function AppContent() {
               element={
                 <ProtectedRoute roles={['admin', 'founder']}>
                   <AdminFeatureManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="countries"
+              element={
+                <ProtectedRoute roles={['admin', 'founder']}>
+                  <AdminCountries />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="countries/:id"
+              element={
+                <ProtectedRoute roles={['admin', 'founder']}>
+                  <AdminCountryDetail />
                 </ProtectedRoute>
               }
             />

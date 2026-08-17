@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 // delivery — see communeModel.js's deliveryPolicy for that.
 const deliveryZoneSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     name: { type: String, required: true, trim: true, unique: true },
     color: { type: String, trim: true, default: '#e85d00' },
     order: { type: Number, default: 0, min: 0 },
@@ -15,6 +16,7 @@ const deliveryZoneSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-deliveryZoneSchema.index({ isActive: 1, order: 1, name: 1 });
+deliveryZoneSchema.index({ countryId: 1, name: 1 }, { unique: true });
+deliveryZoneSchema.index({ countryId: 1, isActive: 1, order: 1, name: 1 });
 
 export default mongoose.model('DeliveryZone', deliveryZoneSchema);

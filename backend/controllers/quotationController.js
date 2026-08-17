@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import { ensureDefaultCountry } from '../services/countryService.js';
 import mongoose from 'mongoose';
 import Product from '../models/productModel.js';
 import User from '../models/userModel.js';
@@ -138,7 +139,7 @@ export const createQuotation = asyncHandler(async (req, res) => {
   }
 
   const products = await Product.find({ _id: { $in: requestedItems.map((entry) => entry.productId) } })
-    .select('title slug images price user quotationEnabled status attributes')
+    .select('title slug images price currency countryId user quotationEnabled status attributes')
     .lean();
   const uniqueRequestedProductIds = new Set(requestedItems.map((entry) => entry.productId));
   if (products.length !== uniqueRequestedProductIds.size) return res.status(404).json({ message: 'Un produit du devis est introuvable.' });
@@ -152,6 +153,13 @@ export const createQuotation = asyncHandler(async (req, res) => {
   if (sellerIds.size !== 1) return res.status(400).json({ message: 'Un devis groupé doit concerner une seule boutique.' });
   const sellerId = Array.from(sellerIds)[0];
   if (sellerId === objectId(req.user.id)) return res.status(400).json({ message: 'Vous ne pouvez pas demander un devis à votre propre boutique.' });
+  const fallbackCountry = await ensureDefaultCountry();
+  const countryIds = new Set(products.map((product) => objectId(product.countryId || fallbackCountry._id)));
+  const currencies = new Set(products.map((product) => cleanText(product.currency || fallbackCountry.currency.code, 8).toUpperCase()));
+  if (countryIds.size !== 1) return res.status(409).json({ message: 'Un devis ne peut pas mélanger plusieurs pays.', code: 'CROSS_BORDER_NOT_SUPPORTED' });
+  if (currencies.size !== 1) return res.status(409).json({ message: 'Un devis ne peut pas mélanger plusieurs devises.', code: 'CURRENCY_NOT_SUPPORTED' });
+  const quotationCountryId = Array.from(countryIds)[0];
+  const quotationCurrency = Array.from(currencies)[0];
 
   const byId = new Map(products.map((product) => [objectId(product._id), product]));
   const items = requestedItems.map((entry) => {
@@ -179,6 +187,7 @@ export const createQuotation = asyncHandler(async (req, res) => {
       selectionKey: selection.selectionKey,
       quantity: entry.quantity,
       originalPrice: money(resolvedPrice.unitPrice),
+      currency: quotationCurrency,
       requestedPrice: entry.requestedPrice,
       quotedPrice: null,
       snapshot: { title: product.title, image: resolvedImage.image || product.images?.[0] || '', slug: product.slug || '' }
@@ -189,12 +198,13 @@ export const createQuotation = asyncHandler(async (req, res) => {
   const quotation = await QuotationRequest.create({
     buyer: req.user.id,
     seller: sellerId,
+    countryId: quotationCountryId,
     status: 'PENDING',
     message: cleanText(req.body?.message),
     deliveryCity,
     expectedDeliveryDate,
     requestedPrice,
-    currency: cleanText(req.body?.currency || req.user?.preferredCurrency || 'XAF', 8).toUpperCase(),
+    currency: quotationCurrency,
     itemCount: items.length,
     originalSubtotal,
     quotedSubtotal: 0
@@ -453,6 +463,8 @@ export const createQuotationOrder = asyncHandler(async (req, res) => {
       deliveryFeeLocked: true,
       deliveryFeeSource: 'PRODUCT_FEE',
       totalAmount: total,
+      countryId: quotation.countryId,
+      currency: quotation.currency,
       paidAmount: 0,
       remainingAmount: total,
       quotationRequest: quotation._id,

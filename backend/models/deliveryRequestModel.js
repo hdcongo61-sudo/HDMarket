@@ -90,6 +90,7 @@ const deliveryRequestSchema = new mongoose.Schema(
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     pickup: { type: deliveryLocationSchema, default: () => ({}) },
     dropoff: { type: deliveryLocationSchema, default: () => ({}) },
     deliveryPrice: { type: Number, min: 0, default: 0 },
@@ -156,6 +157,7 @@ const deliveryRequestSchema = new mongoose.Schema(
 );
 
 deliveryRequestSchema.index({ status: 1, createdAt: -1 });
+deliveryRequestSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ assignedDeliveryGuyId: 1, assignmentStatus: 1, updatedAt: -1 });
 deliveryRequestSchema.index({ sellerId: 1, status: 1, createdAt: -1 });
 deliveryRequestSchema.index({ buyerId: 1, status: 1, createdAt: -1 });

@@ -6,6 +6,8 @@ import mongoose from 'mongoose';
 // pickup and dropoff resolve to a known commune/zone.
 const deliveryZonePriceSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
+    currency: { type: String, trim: true, uppercase: true, default: 'XAF' },
     fromZoneId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryZone', required: true, index: true },
     toZoneId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryZone', required: true, index: true },
     price: { type: Number, required: true, min: 0 },
@@ -15,6 +17,6 @@ const deliveryZonePriceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-deliveryZonePriceSchema.index({ fromZoneId: 1, toZoneId: 1 }, { unique: true });
+deliveryZonePriceSchema.index({ countryId: 1, fromZoneId: 1, toZoneId: 1 }, { unique: true });
 
 export default mongoose.model('DeliveryZonePrice', deliveryZonePriceSchema);
