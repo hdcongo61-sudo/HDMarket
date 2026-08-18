@@ -158,7 +158,7 @@ const PushNotificationsManager = lazy(() => import('./components/PushNotificatio
 function RouteLoadingFallback() {
   return (
     <section
-      className="mx-auto min-h-[calc(100dvh-4rem-env(safe-area-inset-top,0px))] w-full max-w-7xl px-4 py-6 sm:px-6 lg:min-h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:px-8"
+      className="mx-auto min-h-[calc(100dvh-124px-env(safe-area-inset-top,0px))] w-full max-w-7xl px-4 py-6 sm:px-6 lg:min-h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:px-8"
       role="status"
       aria-live="polite"
       aria-busy="true"

@@ -1057,14 +1057,14 @@ export default function ProductVideos() {
 
   if (loading && !items.length) {
     return (
-      <div className="grid h-[calc(100dvh-4rem)] place-items-center bg-neutral-950 text-white lg:h-[calc(100dvh-7rem)]">
+      <div className="grid h-[calc(100dvh-124px)] place-items-center bg-neutral-950 text-white lg:h-[calc(100dvh-7rem)]">
         <div className="text-center"><Loader2 className="mx-auto mb-3 animate-spin" /><p className="text-sm text-white/70">Préparation de votre flux…</p></div>
       </div>
     );
   }
 
   return (
-    <div className="relative mx-auto h-[calc(100dvh-4rem-env(safe-area-inset-top,0px))] w-full overflow-hidden bg-neutral-950 lg:h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:max-w-[520px] lg:rounded-t-3xl lg:shadow-2xl">
+    <div className="relative mx-auto h-[calc(100dvh-124px-env(safe-area-inset-top,0px))] w-full overflow-hidden bg-neutral-950 lg:h-[calc(100dvh-7rem-env(safe-area-inset-top,0px))] lg:max-w-[520px] lg:rounded-t-3xl lg:shadow-2xl">
       {/* z-30 keeps the header under the navbar's mobile menu overlay (z-40). */}
       <header className="pointer-events-none absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-black/60 via-black/25 to-transparent pb-8 pt-3">
         <form
