@@ -343,7 +343,10 @@ export const schemas = {
   }),
   profileUpdate: Joi.object({
     name: Joi.string().min(2).max(60),
-    email: Joi.string().email(),
+    // Phone-first accounts can have no email on file — the generic profile
+    // save posts '' in that case, which the controller already treats as
+    // "no change" (see updateProfile's normalizedEmail falsy check).
+    email: Joi.string().email().allow('', null),
     phone: Joi.string().min(5).max(30),
     profileImage: Joi.string().trim().max(1000).allow('', null),
     accountType: Joi.string().valid('person', 'shop'),

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Mail, Plus, ShieldCheck } from 'lucide-react';
 import api, { getApiErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 // Dedicated "Email" section for the profile: shows the current state (none /
 // unverified / verified) and owns the "+ Add Email Address" popover, kept
@@ -19,9 +20,55 @@ export default function ProfileEmailSection({ user, onUserUpdated, sectionId = '
   const [verificationCode, setVerificationCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  const resendTimerRef = useRef(null);
 
   const hasEmail = Boolean(user?.email);
   const isVerified = Boolean(user?.emailVerified);
+
+  useEffect(() => () => clearInterval(resendTimerRef.current), []);
+
+  const startResendCooldown = () => {
+    setResendIn(RESEND_COOLDOWN_SECONDS);
+    clearInterval(resendTimerRef.current);
+    resendTimerRef.current = setInterval(() => {
+      setResendIn((previous) => {
+        if (previous <= 1) {
+          clearInterval(resendTimerRef.current);
+          return 0;
+        }
+        return previous - 1;
+      });
+    }, 1000);
+  };
+
+  // The "Non vérifié · Vérifier" badge and the in-form "Renvoyer" link both
+  // land here: re-adding the same email is how the backend resends a fresh
+  // code (addProfileEmail is idempotent for the owning user). Without this,
+  // clicking "Vérifier" only reopened the code box without ever requesting a
+  // new code — a dead end once the original 10-minute code expired.
+  const resendCode = async () => {
+    if (!user?.email || resending || resendIn > 0) return;
+    setResending(true);
+    setVerifyError('');
+    try {
+      const { data } = await api.post('/users/profile/email', { email: user.email });
+      onUserUpdated?.(data.user);
+      setShowForm(true);
+      setAwaitingVerification(true);
+      startResendCooldown();
+      if (data.verificationSent) {
+        showToast(data.message || 'Code envoyé par email.', { variant: 'success' });
+      } else {
+        showToast(data.message || 'Adresse email déjà enregistrée.', { variant: 'info' });
+      }
+    } catch (error) {
+      showToast(getApiErrorMessage(error, 'Impossible d’envoyer le code de vérification.'), { variant: 'error' });
+    } finally {
+      setResending(false);
+    }
+  };
 
   const submitEmail = async (event) => {
     event.preventDefault();
@@ -38,6 +85,7 @@ export default function ProfileEmailSection({ user, onUserUpdated, sectionId = '
       setEmailDraft('');
       if (data.verificationSent) {
         setAwaitingVerification(true);
+        startResendCooldown();
         showToast(data.message || 'Adresse email ajoutée. Un code de vérification a été envoyé.', { variant: 'success' });
       } else {
         setShowForm(false);
@@ -93,10 +141,11 @@ export default function ProfileEmailSection({ user, onUserUpdated, sectionId = '
           ) : (
             <button
               type="button"
-              onClick={() => { setShowForm(true); setAwaitingVerification(true); }}
-              className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 transition hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300"
+              onClick={resendCode}
+              disabled={resending}
+              className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60 dark:bg-amber-500/10 dark:text-amber-300"
             >
-              Non vérifié · Vérifier
+              {resending ? 'Envoi...' : 'Non vérifié · Vérifier'}
             </button>
           )}
         </div>
@@ -152,8 +201,18 @@ export default function ProfileEmailSection({ user, onUserUpdated, sectionId = '
 
       {awaitingVerification ? (
         <form onSubmit={submitVerification} className="mt-3 space-y-2.5 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-          <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-100">
-            <ShieldCheck size={14} /> Code de vérification envoyé à {user?.email}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-100">
+              <ShieldCheck size={14} /> Code envoyé à {user?.email}
+            </div>
+            <button
+              type="button"
+              onClick={resendCode}
+              disabled={resending || resendIn > 0}
+              className="shrink-0 text-[12px] font-semibold text-[#b3480a] transition enabled:hover:text-[#e85d00] disabled:cursor-not-allowed disabled:text-gray-400"
+            >
+              {resending ? 'Envoi...' : resendIn > 0 ? `Renvoyer dans ${resendIn}s` : 'Renvoyer'}
+            </button>
           </div>
           <input
             type="text"

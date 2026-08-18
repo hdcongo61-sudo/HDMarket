@@ -18,6 +18,7 @@ import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import { invalidateUserCache } from '../utils/cache.js';
 import { findShopNameConflict, normalizeShopName } from '../utils/shopNameUtils.js';
+import { capitalizeName } from '../utils/nameFormatting.js';
 import {
   getUnreadCount,
   decrementUnreadCount,
@@ -1172,7 +1173,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
 
-  if (name) user.name = name;
+  if (name) user.name = capitalizeName(name);
   if (typeof profileImage !== 'undefined') {
     user.profileImage = String(profileImage || '').trim();
   }
@@ -1736,11 +1737,6 @@ export const sendPasswordChangeCode = asyncHandler(async (req, res) => {
     return res.json({ message: 'Code de vérification envoyé par SMS.' });
   }
 
-  // In production: skip sending verification email to facilitate testing
-  const isProduction = process.env.NODE_ENV === 'production';
-  if (isProduction) {
-    return res.json({ message: 'En production, changement de mot de passe possible sans code pour les tests.' });
-  }
   if (!isEmailConfigured()) {
     return res.status(503).json({
       message:
@@ -1765,26 +1761,26 @@ export const changePassword = asyncHandler(async (req, res) => {
         message: verificationCheck?.message || 'Code de vérification invalide.'
       });
     }
+    // Only the phone-code path actually proves the phone is reachable —
+    // don't let an email-verified password change mark phoneVerified too,
+    // that would silently bypass the phone check gating Devenir
+    // Boutique / Devenir livreur for anyone with an unrelated phone on file.
+    user.phoneVerified = true;
   } else {
-    // In production: skip email verification check to facilitate testing
-    const isProduction = process.env.NODE_ENV === 'production';
-    if (!isProduction && !isEmailConfigured()) {
+    if (!isEmailConfigured()) {
       return res.status(503).json({
         message:
           "Email n'est pas configuré. Définissez EMAIL_USER et EMAIL_PASSWORD."
       });
     }
-    if (!isProduction) {
-      const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'password_change');
-      if (verificationCheck?.status !== 'approved') {
-        return res.status(400).json({
-          message: verificationCheck?.message || 'Code de vérification invalide.'
-        });
-      }
+    const verificationCheck = await checkVerificationCode(user.email, verificationCode, 'password_change');
+    if (verificationCheck?.status !== 'approved') {
+      return res.status(400).json({
+        message: verificationCheck?.message || 'Code de vérification invalide.'
+      });
     }
   }
   user.password = newPassword;
-  user.phoneVerified = true;
   await user.save();
   res.json({ message: 'Mot de passe mis à jour.' });
 });

@@ -56,6 +56,7 @@ import { buildShopPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { resolveUserProfileImage } from '../utils/userAvatar';
+import { capitalizeName } from '../utils/nameFormatting';
 
 const STATS_PERIOD_OPTIONS = [
   { value: '7', label: '7j' },
@@ -1566,15 +1567,24 @@ export default function Profile() {
     setMapPickerOpen(false);
   }, [mapPickerSelection]);
 
+  // Password-change confirmation is email-based only when the account has
+  // an email on file — phone-only accounts (SMS registration without an
+  // email added) confirm via SMS instead (see backend sendPasswordChangeCode
+  // / changePassword). The backend response message already reflects which
+  // channel was actually used, so it — not a hardcoded string — drives the
+  // UI text.
+  const hasEmailForPasswordCode = Boolean(user?.email);
+
   const sendPasswordChangeCode = async () => {
     setPasswordCodeSending(true);
     setPasswordCodeError('');
     setPasswordCodeMessage('');
     try {
-      await api.post('/users/password/send-code');
+      const { data } = await api.post('/users/password/send-code');
       setPasswordCodeSent(true);
-      setPasswordCodeMessage('Code envoyé par email.');
-      showToast('Code envoyé par email.', { variant: 'success' });
+      const message = data?.message || (hasEmailForPasswordCode ? 'Code envoyé par email.' : 'Code envoyé par SMS.');
+      setPasswordCodeMessage(message);
+      showToast(message, { variant: 'success' });
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Impossible d’envoyer le code.';
       setPasswordCodeError(message);
@@ -1587,7 +1597,9 @@ export default function Profile() {
   const applyPasswordChange = async () => {
     if (!form.password) return true;
     if (!passwordCode.trim()) {
-      const message = 'Veuillez saisir le code reçu par email avant de modifier le mot de passe.';
+      const message = hasEmailForPasswordCode
+        ? 'Veuillez saisir le code reçu par email avant de modifier le mot de passe.'
+        : 'Veuillez saisir le code reçu par SMS avant de modifier le mot de passe.';
       setPasswordCodeError(message);
       showToast(message, { variant: 'error' });
       return false;
@@ -1662,7 +1674,7 @@ export default function Profile() {
         open: entry.closed ? '' : entry.open || '',
         close: entry.closed ? '' : entry.close || ''
       }));
-      payload.append('name', form.name);
+      payload.append('name', capitalizeName(form.name));
       payload.append('email', form.email);
       payload.append(
         'profileImage',
@@ -2143,6 +2155,7 @@ export default function Profile() {
                       name="name"
                       value={form.name}
                       onChange={onChange}
+                      onBlur={() => setForm((previous) => ({ ...previous, name: capitalizeName(previous.name) }))}
                       disabled={loading}
                       required
                     />
@@ -2919,7 +2932,9 @@ export default function Profile() {
                 <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-700">Code de vérification email</p>
+                      <p className="text-sm font-semibold text-gray-700">
+                        {hasEmailForPasswordCode ? 'Code de vérification email' : 'Code de vérification SMS'}
+                      </p>
                       <p className="text-xs text-gray-500">
                         Un code est requis pour confirmer la modification du mot de passe.
                       </p>
@@ -2940,7 +2955,7 @@ export default function Profile() {
                   <div className="relative">
                     <input
                       className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
-                      placeholder="Code reçu par email"
+                      placeholder={hasEmailForPasswordCode ? 'Code reçu par email' : 'Code reçu par SMS'}
                       value={passwordCode}
                       onChange={(e) => setPasswordCode(e.target.value)}
                       disabled={loading}
@@ -4108,7 +4123,9 @@ export default function Profile() {
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-gray-700">Code de vérification email</p>
+                    <p className="text-sm font-semibold text-gray-700">
+                      {hasEmailForPasswordCode ? 'Code de vérification email' : 'Code de vérification SMS'}
+                    </p>
                     <p className="text-xs text-gray-500">Un code est requis pour confirmer la modification du mot de passe.</p>
                   </div>
                   <button
@@ -4123,7 +4140,7 @@ export default function Profile() {
                 <div className="relative">
                   <input
                     className="w-full px-4 py-3 pl-11 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-neutral-500 focus:border-transparent transition-all"
-                    placeholder="Code reçu par email"
+                    placeholder={hasEmailForPasswordCode ? 'Code reçu par email' : 'Code reçu par SMS'}
                     value={passwordCode}
                     onChange={(e) => setPasswordCode(e.target.value)}
                     disabled={loading}

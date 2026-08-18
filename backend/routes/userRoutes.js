@@ -91,13 +91,16 @@ const accountDeactivationRateLimiter = rateLimit({
     message: 'Trop de tentatives. Réessayez plus tard.'
   }
 });
-const phoneVerificationRateLimiter = rateLimit({
+// Shared by both send-code endpoints (email add/resend + phone verify):
+// each click of "Renvoyer" hits these, so without a limiter a buggy client
+// or abuse attempt could spam a target's inbox/SMS.
+const verificationCodeRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    code: 'PHONE_VERIFICATION_RATE_LIMIT',
+    code: 'VERIFICATION_CODE_RATE_LIMIT',
     message: 'Trop de demandes de code. Réessayez dans quelques minutes.'
   }
 });
@@ -154,9 +157,9 @@ router.put(
 );
 router.post('/password/send-code', validate(schemas.passwordSendCode), sendPasswordChangeCode);
 router.post('/password/change', validate(schemas.passwordChange), changePassword);
-router.post('/profile/email', validate(schemas.profileEmailAdd), addProfileEmail);
+router.post('/profile/email', verificationCodeRateLimiter, validate(schemas.profileEmailAdd), addProfileEmail);
 router.post('/profile/email/verify', validate(schemas.profileEmailVerify), verifyProfileEmail);
-router.post('/profile/phone/send-code', phoneVerificationRateLimiter, sendMyPhoneVerificationCode);
+router.post('/profile/phone/send-code', verificationCodeRateLimiter, sendMyPhoneVerificationCode);
 router.post('/profile/phone/verify', validate(schemas.profilePhoneVerify), verifyMyPhoneCode);
 router.get(
   '/notifications',

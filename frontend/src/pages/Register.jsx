@@ -14,6 +14,7 @@ import { resolveAuthProviderAvailability } from '../utils/authProviderAvailabili
 import { storage } from '../utils/storage';
 import { REFERRAL_CODE_STORAGE_KEY } from './ReferralLanding';
 import { useCountry } from '../context/CountryContext';
+import { capitalizeName } from '../utils/nameFormatting';
 
 const SLOW_NETWORK_MS = 8000;
 
@@ -73,7 +74,7 @@ export default function Register() {
   const { user, login } = useContext(AuthContext);
   const { showToast } = useToast();
   const { cities, communes, language, runtime, getRuntimeValue } = useAppSettings();
-  const { country: selectedCountry } = useCountry();
+  const { country: selectedCountry, countries: availableCountries, changeCountry } = useCountry();
   const nav = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
@@ -213,6 +214,7 @@ export default function Register() {
   const [codeError, setCodeError] = useState('');
   const [formError, setFormError] = useState('');
   const [referralCode, setReferralCode] = useState('');
+  const [countrySwitching, setCountrySwitching] = useState(false);
 
   useEffect(() => {
     if (!selectedCountry?.name) return;
@@ -543,7 +545,7 @@ export default function Register() {
     if (slowNetworkTimerRef.current) clearTimeout(slowNetworkTimerRef.current);
     slowNetworkTimerRef.current = setTimeout(() => setSlowNetwork(true), SLOW_NETWORK_MS);
 
-    const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+    const fullName = capitalizeName(`${form.firstName.trim()} ${form.lastName.trim()}`);
 
     try {
       if (providerAuth) {
@@ -610,6 +612,16 @@ export default function Register() {
 
   const fieldClass = '!h-14 !min-h-14 !rounded-[14px] !border-0 !bg-white !px-4 !py-0 !text-base !font-medium !text-[#141210] !shadow-[inset_0_0_0_1px_#e7dfd5] outline-none placeholder:!text-[#a8a29e] focus:!bg-white focus:!shadow-[inset_0_0_0_2px_#e85d00] dark:!bg-neutral-900 dark:!text-white dark:!shadow-[inset_0_0_0_1px_#262626] dark:focus:!bg-neutral-900';
   const labelClass = 'text-[13px] font-semibold text-[#57534e] dark:text-neutral-400';
+  const pickCountry = async (item) => {
+    const isSame = String(item.id || item._id) === String(selectedCountry?.id || selectedCountry?._id);
+    if (isSame || countrySwitching) return;
+    setCountrySwitching(true);
+    try {
+      await changeCountry(item);
+    } finally {
+      setCountrySwitching(false);
+    }
+  };
   const goToStep2 = () => {
     if (!canGoToStep2) {
       setFormError(copy.nextStepError);
@@ -694,14 +706,47 @@ export default function Register() {
                     <form id="register-form" onSubmit={submit} className="mt-[22px] space-y-3.5">
                       {step === 1 ? (
                         <>
+                          <div className="space-y-[7px]">
+                            <label htmlFor="register-country" className={labelClass}>{isFrench ? 'Pays' : 'Country'}</label>
+                            <div className="relative">
+                              <select
+                                id="register-country"
+                                className={`${fieldClass} !appearance-none !pr-9`}
+                                value={String(selectedCountry?.id || selectedCountry?._id || '')}
+                                onChange={(event) => {
+                                  const next = availableCountries.find(
+                                    (item) => String(item.id || item._id) === event.target.value
+                                  );
+                                  if (next) pickCountry(next);
+                                }}
+                                disabled={countrySwitching || availableCountries.length < 2}
+                              >
+                                {!availableCountries.length ? (
+                                  <option value="">{selectedCountry?.name || 'République du Congo'}</option>
+                                ) : (
+                                  availableCountries.map((item) => (
+                                    <option key={item.id || item._id} value={item.id || item._id}>
+                                      {item.flagEmoji || '🌍'} {item.name} ({item.phoneCode})
+                                    </option>
+                                  ))
+                                )}
+                              </select>
+                              {countrySwitching ? (
+                                <Loader2 size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[#78716c]" />
+                              ) : (
+                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
+                              )}
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2.5">
                             <div className="space-y-[7px]">
                               <label htmlFor="register-first-name" className={labelClass}>{copy.firstName}</label>
-                              <input id="register-first-name" ref={nameRef} type="text" autoComplete="given-name" className={fieldClass} placeholder={copy.firstNamePlaceholder} value={form.firstName} onChange={(event) => setForm((previous) => ({ ...previous, firstName: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); lastNameRef.current?.focus(); } }} required />
+                              <input id="register-first-name" ref={nameRef} type="text" autoComplete="given-name" className={fieldClass} placeholder={copy.firstNamePlaceholder} value={form.firstName} onChange={(event) => setForm((previous) => ({ ...previous, firstName: event.target.value }))} onBlur={() => setForm((previous) => ({ ...previous, firstName: capitalizeName(previous.firstName) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); lastNameRef.current?.focus(); } }} required />
                             </div>
                             <div className="space-y-[7px]">
                               <label htmlFor="register-last-name" className={labelClass}>{copy.lastName}</label>
-                              <input id="register-last-name" ref={lastNameRef} type="text" autoComplete="family-name" className={fieldClass} placeholder={copy.lastNamePlaceholder} value={form.lastName} onChange={(event) => setForm((previous) => ({ ...previous, lastName: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); phoneRef.current?.focus(); } }} required />
+                              <input id="register-last-name" ref={lastNameRef} type="text" autoComplete="family-name" className={fieldClass} placeholder={copy.lastNamePlaceholder} value={form.lastName} onChange={(event) => setForm((previous) => ({ ...previous, lastName: event.target.value }))} onBlur={() => setForm((previous) => ({ ...previous, lastName: capitalizeName(previous.lastName) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); phoneRef.current?.focus(); } }} required />
                             </div>
                           </div>
 

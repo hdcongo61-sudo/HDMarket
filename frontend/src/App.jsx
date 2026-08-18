@@ -756,7 +756,11 @@ function AppContent() {
           // the auth shell (login/register/forgot/reset) never shows one, so
           // that padding just left dead scrollable space under a short form.
           ? `app-main-shell min-h-[100dvh] p-0 no-ios-callout${routeHierarchy.shell === 'auth' ? '' : ' main-content'}`
-          : 'app-main-shell min-h-[100dvh] pt-[calc(env(safe-area-inset-top,0px)+4rem)] lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] no-ios-callout'}
+          // Mobile top bar is now two rows (logo/actions + full-width search,
+          // see Navbar.jsx) — measured height ~121px vs the old single-row
+          // 4rem (64px), so content must clear the taller fixed nav or its
+          // top gets hidden underneath it. Desktop nav is unchanged (7rem).
+          : 'app-main-shell min-h-[100dvh] pt-[calc(env(safe-area-inset-top,0px)+124px)] lg:pt-[calc(env(safe-area-inset-top,0px)+7rem)] no-ios-callout'}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

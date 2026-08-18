@@ -32,6 +32,7 @@ import {
 } from '../utils/notificationService.js';
 import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
 import { resolveCountryContext } from '../services/countryService.js';
+import { capitalizeName } from '../utils/nameFormatting.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -153,7 +154,7 @@ const providerRegister = async (req, res, providerName) => {
   const { idToken, phone, city, commune, cityId, communeId, address, gender, acceptedLegalTerms, legalVersion, referralCode } = req.body || {};
   const decoded = await verifyProviderCredential(idToken, providerName);
   const normalizedEmail = String(decoded.email).toLowerCase().trim();
-  const name = String(req.body?.name || decoded.name || '').trim();
+  const name = capitalizeName(req.body?.name || decoded.name || '');
 
   if (!name || !phone || !city || !address?.trim() || !gender || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
     return res.status(400).json({ message: 'Missing fields', code: 'PROFILE_FIELDS_REQUIRED' });
@@ -301,6 +302,7 @@ export const register = asyncHandler(async (req, res) => {
   if (!name || !password || !phone || !city || !gender || !address?.trim() || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
     return res.status(400).json({ message: 'Missing fields' });
   }
+  const normalizedName = capitalizeName(name);
 
   // Email is optional — phone-first registration. When provided, it must
   // still be well-formed and unique; when omitted, the account is created
@@ -398,7 +400,7 @@ export const register = asyncHandler(async (req, res) => {
   });
 
   const user = await User.create({
-    name,
+    name: normalizedName,
     email: normalizedEmail,
     password,
     phone: normalizedPhone,

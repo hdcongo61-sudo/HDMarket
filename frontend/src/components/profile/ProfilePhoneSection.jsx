@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Phone, ShieldCheck } from 'lucide-react';
 import api, { getApiErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+
+const RESEND_COOLDOWN_SECONDS = 30;
 
 // Dedicated "Phone" section for the profile: some accounts are created with
 // an unverified phone (SMS verification can be turned off at registration
@@ -17,10 +19,29 @@ export default function ProfilePhoneSection({ user, onUserUpdated, sectionId = '
   const [verificationCode, setVerificationCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+  const resendTimerRef = useRef(null);
 
   const isVerified = Boolean(user?.phoneVerified);
 
+  useEffect(() => () => clearInterval(resendTimerRef.current), []);
+
+  const startResendCooldown = () => {
+    setResendIn(RESEND_COOLDOWN_SECONDS);
+    clearInterval(resendTimerRef.current);
+    resendTimerRef.current = setInterval(() => {
+      setResendIn((previous) => {
+        if (previous <= 1) {
+          clearInterval(resendTimerRef.current);
+          return 0;
+        }
+        return previous - 1;
+      });
+    }, 1000);
+  };
+
   const sendCode = async () => {
+    if (sending || resendIn > 0) return;
     setSending(true);
     setSendError('');
     try {
@@ -31,6 +52,7 @@ export default function ProfilePhoneSection({ user, onUserUpdated, sectionId = '
         return;
       }
       setAwaitingVerification(true);
+      startResendCooldown();
       showToast(data?.message || 'Code envoyé par SMS.', { variant: 'success' });
     } catch (error) {
       setSendError(getApiErrorMessage(error, 'Impossible d’envoyer le code de vérification.'));
@@ -91,14 +113,24 @@ export default function ProfilePhoneSection({ user, onUserUpdated, sectionId = '
         </div>
       ) : null}
 
-      {sendError && !awaitingVerification ? (
+      {sendError ? (
         <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-300">{sendError}</p>
       ) : null}
 
       {awaitingVerification ? (
         <form onSubmit={submitVerification} className="mt-3 space-y-2.5 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-          <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-100">
-            <ShieldCheck size={14} /> Code de vérification envoyé à {user?.phone}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-100">
+              <ShieldCheck size={14} /> Code envoyé à {user?.phone}
+            </div>
+            <button
+              type="button"
+              onClick={sendCode}
+              disabled={sending || resendIn > 0}
+              className="shrink-0 text-[12px] font-semibold text-[#b3480a] transition enabled:hover:text-[#e85d00] disabled:cursor-not-allowed disabled:text-gray-400"
+            >
+              {sending ? 'Envoi...' : resendIn > 0 ? `Renvoyer dans ${resendIn}s` : 'Renvoyer'}
+            </button>
           </div>
           <input
             type="text"

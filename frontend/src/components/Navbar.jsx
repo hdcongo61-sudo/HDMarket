@@ -3102,42 +3102,9 @@ export default function Navbar({ hideMobileTabBar = false }) {
               )}
             </Link>
 
-            <div className="shrink-0">
+            <div className="hidden shrink-0 lg:block">
               <CountrySelector compact={isMobileLayout} />
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsSearchFullScreen(true);
-                setShowResults(true);
-                setTimeout(() => searchInputRef.current?.focus?.(), 60);
-                triggerHaptic('light');
-              }}
-              className="hd-mobile-search-pill flex flex-1 items-center gap-2 rounded-full px-3 py-2.5 text-left text-sm font-medium text-gray-500 lg:hidden"
-              aria-label={t('nav.search', 'Rechercher')}
-            >
-              <Search className="h-4 w-4 text-[#e85d00]" />
-              <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', `Rechercher sur ${mobileBrandText}`)}</span>
-            </button>
-
-            {/* === ACTIONS MOBILE SIMPLIFIÉES === */}
-            {user && (
-              <div className="md:hidden flex items-center gap-2">
-                <Link
-                  to="/notifications"
-                  className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200 active:scale-95"
-                  aria-label={t('nav.notifications', 'Notifications')}
-                >
-                  <Bell size={18} />
-                  {commentAlerts > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-[#e85d00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
-                      {commentAlerts > 99 ? '99+' : commentAlerts}
-                    </span>
-                  )}
-                </Link>
-              </div>
-            )}
 
             {/* === SEARCH BAR (Centered in Top Bar) === */}
             <div className="hd-search-flow hidden lg:flex flex-1 max-w-xl mx-4">
@@ -3623,8 +3590,23 @@ export default function Navbar({ hideMobileTabBar = false }) {
               )}
             </div>
 
-            {/* === BOUTON MENU MOBILE === */}
-            <div className="flex items-center gap-2 md:hidden">
+            {/* === CLUSTER MOBILE: Pays, Notifications, Menu === */}
+            <div className="flex items-center gap-1.5 lg:hidden">
+              <CountrySelector compact />
+              {user && (
+                <Link
+                  to="/notifications"
+                  className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200 active:scale-95"
+                  aria-label={t('nav.notifications', 'Notifications')}
+                >
+                  <Bell size={18} />
+                  {commentAlerts > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 bg-[#e85d00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
+                      {commentAlerts > 99 ? '99+' : commentAlerts}
+                    </span>
+                  )}
+                </Link>
+              )}
               <button
                 onClick={() => {
                   setIsMenuOpen((open) => !open);
@@ -3641,6 +3623,24 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 {isMenuOpen ? <X size={20} strokeWidth={2.5} /> : <Menu size={20} strokeWidth={2} />}
               </button>
             </div>
+          </div>
+
+          {/* === SEARCH BAR MOBILE (Row 2) === */}
+          <div className="pb-3 lg:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSearchFullScreen(true);
+                setShowResults(true);
+                setTimeout(() => searchInputRef.current?.focus?.(), 60);
+                triggerHaptic('light');
+              }}
+              className="hd-mobile-search-pill flex w-full items-center gap-2 rounded-full px-3.5 py-2.5 text-left text-sm font-medium text-gray-500"
+              aria-label={t('nav.search', 'Rechercher')}
+            >
+              <Search className="h-4 w-4 shrink-0 text-[#e85d00]" />
+              <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', `Rechercher sur ${mobileBrandText}`)}</span>
+            </button>
           </div>
         </div>
 
@@ -3997,7 +3997,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
       {isMenuOpen && (
         <div
           className="md:hidden fixed inset-0 z-[45] bg-stone-950/30"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)' }}
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 129px)' }}
         >
           <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-2xl border border-[#e2dcd2] bg-stone-100 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="hd-mobile-menu-list h-full space-y-1 overflow-y-auto px-3 py-3 pb-32">
