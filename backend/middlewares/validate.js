@@ -1,5 +1,65 @@
 import Joi from 'joi';
 
+// French labels for the field names end users can actually recognize.
+// Anything missing here falls back to the raw key name rather than crashing —
+// good enough since the message still reads as a sentence either way.
+const FIELD_LABELS = {
+  name: 'nom', firstName: 'prénom', lastName: 'nom de famille', email: 'email',
+  password: 'mot de passe', phone: 'téléphone', address: 'adresse', city: 'ville',
+  commune: 'commune', country: 'pays', cityId: 'ville', communeId: 'commune',
+  countryId: 'pays', gender: 'genre', accountType: 'type de compte', role: 'rôle',
+  acceptedLegalTerms: "conditions d'utilisation", legalVersion: 'version des conditions',
+  referralCode: 'code de parrainage', verificationCode: 'code de vérification',
+  idToken: "jeton d'authentification", identifier: 'identifiant'
+};
+
+const humanizeFieldLabel = (path) => {
+  const key = Array.isArray(path) ? path[path.length - 1] : path;
+  return FIELD_LABELS[key] || String(key || 'champ');
+};
+
+// Joi's built-in templates always render as `"{{#label}}" must be ...` —
+// a custom, French `.messages()` override defined on a schema never starts
+// that way, so this is a safe signal that a message is still raw/untranslated
+// Joi grammar rather than text someone already wrote for end users.
+const isRawJoiMessage = (message) => /^"[^"]+"\s/.test(String(message || ''));
+
+const humanizeJoiDetail = (detail) => {
+  if (!isRawJoiMessage(detail.message)) return detail.message;
+  const label = humanizeFieldLabel(detail.path);
+  const limit = detail.context?.limit;
+  switch (detail.type) {
+    case 'any.required':
+    case 'string.empty':
+      return `Le champ « ${label} » est requis.`;
+    case 'string.email':
+      return "L'adresse email saisie n'est pas valide.";
+    case 'string.min':
+      return `Le champ « ${label} » doit contenir au moins ${limit} caractères.`;
+    case 'string.max':
+      return `Le champ « ${label} » ne doit pas dépasser ${limit} caractères.`;
+    case 'number.min':
+      return `La valeur de « ${label} » doit être au moins ${limit}.`;
+    case 'number.max':
+      return `La valeur de « ${label} » ne doit pas dépasser ${limit}.`;
+    case 'any.only':
+      return `La valeur choisie pour « ${label} » n'est pas valide.`;
+    case 'string.pattern.base':
+    case 'string.hex':
+    case 'string.length':
+      return `Le format du champ « ${label} » est invalide.`;
+    case 'date.base':
+    case 'date.format':
+      return `La date fournie pour « ${label} » est invalide.`;
+    case 'array.min':
+      return `Veuillez fournir au moins ${limit} élément(s) pour « ${label} ».`;
+    case 'boolean.base':
+      return `Le champ « ${label} » doit valoir vrai ou faux.`;
+    default:
+      return `Le champ « ${label} » est invalide.`;
+  }
+};
+
 export const validate =
   (schema, property = 'body') =>
   (req, res, next) => {
@@ -8,10 +68,10 @@ export const validate =
       stripUnknown: true,
     });
     if (error) {
-      const firstMessage = error.details[0]?.message;
+      const details = error.details.map((d) => humanizeJoiDetail(d));
       return res.status(400).json({
-        message: firstMessage || 'Validation error',
-        details: error.details.map((d) => d.message),
+        message: details[0] || 'Une erreur de validation est survenue.',
+        details,
       });
     }
     req[property] = value;
@@ -98,7 +158,12 @@ export const schemas = {
     cityId: Joi.string().hex().length(24).allow('', null),
     communeId: Joi.string().hex().length(24).allow('', null),
     gender: Joi.string().valid('homme', 'femme').required(),
-    country: Joi.string().valid('République du Congo').optional(),
+    // Informational only — the controller derives the real country from
+    // countryId/countryCode via resolveCountryContext(), never from this
+    // field. A strict .valid('République du Congo') here used to reject
+    // every real registration, since the frontend actually sends the
+    // country's short `name` (e.g. "Congo"), not its `officialName`.
+    country: Joi.string().trim().max(120).allow('', null).optional(),
     acceptedLegalTerms: Joi.boolean().valid(true).required(),
     legalVersion: Joi.string().valid('2026-07-18').required(),
     referralCode: Joi.string().trim().max(20).allow('', null)

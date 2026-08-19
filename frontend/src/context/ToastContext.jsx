@@ -86,7 +86,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      <div className="fixed top-24 right-4 z-[1050] flex flex-col gap-3">
+      <div className="fixed top-24 left-4 right-4 z-[1050] flex flex-col gap-3 sm:left-auto sm:w-96">
         {toasts.map((toast) => {
           const style = VARIANT_STYLES[toast.variant] || VARIANT_STYLES.success;
           const iconStyle = VARIANT_ICON_BG[toast.variant] || VARIANT_ICON_BG.success;

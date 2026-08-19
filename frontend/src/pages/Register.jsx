@@ -34,6 +34,13 @@ const mapRegisterErrorMessage = (error, isFrench = true) => {
   if (status === 403 && code === 'AUTH_PROVIDER_DISABLED' && error?.response?.data?.message) {
     return error.response.data.message;
   }
+  // 400s are validation errors — the backend now returns a clean, human
+  // (French) message (see backend/middlewares/validate.js), so it's safe
+  // and more useful to show it directly instead of a generic "retry" line
+  // that hides an actually-fixable problem (e.g. a field that's too short).
+  if (status === 400 && error?.response?.data?.message) {
+    return error.response.data.message;
+  }
   if (status >= 500) {
     return isFrench
       ? 'Service temporairement indisponible. Veuillez réessayer.'
@@ -549,21 +556,27 @@ export default function Register() {
 
     try {
       if (providerAuth) {
-        const { data } = await api.post(`/auth/provider/${providerAuth.provider}/register`, {
-          idToken: providerAuth.idToken,
-          name: fullName,
-          phone: form.phone,
-          city: form.city,
-          commune: form.commune || '',
-          cityId: selectedCityId,
-          communeId: selectedCommuneId,
-          gender: form.gender,
-          address: form.address.trim(),
-          acceptedLegalTerms: true,
-          legalVersion: '2026-07-18',
-          referralCode,
-          countryId: selectedCountry?.id || selectedCountry?._id
-        });
+        const { data } = await api.post(
+          `/auth/provider/${providerAuth.provider}/register`,
+          {
+            idToken: providerAuth.idToken,
+            name: fullName,
+            phone: form.phone,
+            city: form.city,
+            commune: form.commune || '',
+            cityId: selectedCityId,
+            communeId: selectedCommuneId,
+            gender: form.gender,
+            address: form.address.trim(),
+            acceptedLegalTerms: true,
+            legalVersion: '2026-07-18',
+            referralCode,
+            countryId: selectedCountry?.id || selectedCountry?._id
+          },
+          // This step shows its own inline error banner below — don't also
+          // surface the raw backend message as a floating global toast.
+          { silentGlobalError: true }
+        );
         setSuccessPayload(data || null);
         showToast(copy.welcomeToast, { variant: 'success' });
         if (referralCode) storage.remove(REFERRAL_CODE_STORAGE_KEY);
@@ -593,7 +606,10 @@ export default function Register() {
       if (referralCode) payload.append('referralCode', referralCode);
 
       const { data } = await api.post('/auth/register', payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        // This step shows its own inline error banner below — don't also
+        // surface the raw backend message as a floating global toast.
+        silentGlobalError: true
       });
       setSuccessPayload(data || null);
       showToast(copy.welcomeToast, { variant: 'success' });
