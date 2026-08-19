@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Clock3,
   Eye,
+  Info,
   Loader2,
   Megaphone,
   MousePointerClick,
@@ -154,6 +155,17 @@ export default function AdminGlobalNotifications() {
             Actualiser
           </button>
         </header>
+
+        <p className="flex items-start gap-2 rounded-2xl border border-blue-100 bg-blue-50 p-3.5 text-sm text-blue-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Cette page ne concerne que les diffusions payées par les vendeurs. Pour une annonce HDMarket (nouvelle fonctionnalité, maintenance, promotion interne…), utilisez{' '}
+            <Link to="/admin/notification-campaigns" className="font-bold underline hover:text-blue-900">
+              Campagnes de notifications
+            </Link>
+            .
+          </span>
+        </p>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4">
           <p className="mb-3 text-xs font-bold uppercase text-gray-400">Tarification (déterminée par l’admin)</p>

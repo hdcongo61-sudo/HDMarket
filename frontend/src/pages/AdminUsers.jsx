@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, UserX, AlertCircle, MapPin, Truck, Clock, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, UserX, AlertCircle, MapPin, Truck, Clock, Phone, Mail, MoreVertical, Lock, Unlock, KeyRound, LogOut, Crown, ShieldOff } from 'lucide-react';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -253,6 +253,7 @@ export default function AdminUsers() {
   // Restriction modal state
   const [restrictionModal, setRestrictionModal] = useState({ open: false, user: null });
   const [restrictionMenuOpen, setRestrictionMenuOpen] = useState(null);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(null);
   const [restrictionLoading, setRestrictionLoading] = useState(false);
   const [restrictionForm, setRestrictionForm] = useState({
     type: '',
@@ -1369,81 +1370,194 @@ export default function AdminUsers() {
     return RESTRICTION_TYPES.filter((rt) => user.restrictions[rt.key]?.isActive).length;
   };
 
-  const renderSecurityActions = useCallback((user, compact = false) => {
+  // Consolidated "more actions" menu shared by the mobile card and desktop
+  // table row — folds every secondary action (conversion, delivery-agent
+  // linking, shop verification, GPS review, audit log, security actions,
+  // stats) into one dropdown so the primary row only shows Suspendre +
+  // Restrictions, instead of the 10-button wrap seen on both layouts.
+  const renderUserMenuItems = useCallback((user, closeMenu) => {
     const targetRole = String(user?.role || '').toLowerCase();
     const canTarget = canActOnTargetUser(user);
     const isTargetLocked = Boolean(user?.isLocked);
-    const classes = compact
-      ? 'inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold disabled:opacity-50'
-      : 'inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50';
+    const isShopAccount = user.accountType === 'shop';
+    const hasShopLocation = Boolean(getLocationCoordinates(user.shopLocation));
+    const conversionRequest = getUserConversionRequest(user.id);
+    const itemClass = 'flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-left text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed';
+    const run = (fn) => () => { closeMenu(); fn(); };
 
     return (
       <>
+        {user.accountType !== 'shop' && conversionRequest && (
+          <button type="button" onClick={run(() => openConversionModal(user))} className={itemClass}>
+            <Store size={14} className="text-neutral-400" /> Demande boutique
+          </button>
+        )}
+        {user.accountType !== 'shop' && !conversionRequest && (
+          <button
+            type="button"
+            onClick={run(() => handleConvertToShop(user))}
+            disabled={!canManageSellers || convertingUserId === user.id}
+            className={itemClass}
+          >
+            <Store size={14} className="text-teal-500" /> Convertir en boutique
+          </button>
+        )}
+        {user.accountType === 'shop' && (
+          <button
+            type="button"
+            onClick={run(() => handleConvertToParticulier(user))}
+            disabled={!canManageSellers || convertingUserId === user.id}
+            className={itemClass}
+          >
+            <User size={14} className="text-orange-500" /> Reconvertir en particulier
+          </button>
+        )}
+        {!['admin', 'founder'].includes(targetRole) && (
+          <button
+            type="button"
+            onClick={run(() => handlePromoteToDeliveryGuy(user))}
+            disabled={
+              !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
+              securityActionKey === `promote-delivery:${user.id}`
+            }
+            className={itemClass}
+          >
+            <Truck size={14} className="text-cyan-500" />
+            {targetRole === 'delivery_agent' ? 'Lier profil livreur' : 'Promouvoir livreur'}
+          </button>
+        )}
+        {targetRole === 'delivery_agent' && (
+          <button
+            type="button"
+            onClick={run(() => handleUnlinkDeliveryGuy(user))}
+            disabled={
+              !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
+              securityActionKey === `unlink-delivery:${user.id}`
+            }
+            className={itemClass}
+          >
+            <Truck size={14} className="text-amber-500" /> Délier profil livreur
+          </button>
+        )}
+        {isShopAccount && (
+          <button
+            type="button"
+            onClick={run(() => toggleShopVerification(user.id, !user.shopVerified))}
+            disabled={!canManageSellers || verifyingShopId === user.id}
+            className={itemClass}
+          >
+            <CheckCircle size={14} className={user.shopVerified ? 'text-amber-500' : 'text-emerald-500'} />
+            {user.shopVerified ? 'Retirer le badge certifié' : 'Vérifier la boutique'}
+          </button>
+        )}
+        {isShopAccount && (
+          <button type="button" onClick={run(() => openOrdersModal(user))} disabled={!canManageOrders} className={itemClass}>
+            <Package size={14} className="text-neutral-400" /> Commandes reçues
+          </button>
+        )}
+        {isShopAccount && user.shopLocationNeedsReview && (
+          <>
+            <button
+              type="button"
+              onClick={run(() => openLocationReviewModal(user, 'approve'))}
+              disabled={!canManageSellers || locationReviewLoading}
+              className={itemClass}
+            >
+              <CheckCircle size={14} className="text-emerald-500" /> Approuver position GPS
+            </button>
+            <button
+              type="button"
+              onClick={run(() => openLocationReviewModal(user, 'reject'))}
+              disabled={!canManageSellers || locationReviewLoading}
+              className={itemClass}
+            >
+              <XCircle size={14} className="text-red-500" /> Rejeter position GPS
+            </button>
+          </>
+        )}
+        {isShopAccount && (hasShopLocation || user.shopLocationNeedsReview) && (
+          <button
+            type="button"
+            onClick={run(() => openLocationTimelineModal(user))}
+            disabled={!canManageSellers || locationTimelineLoading}
+            className={itemClass}
+          >
+            <MapPin size={14} className="text-sky-500" /> Timeline GPS
+          </button>
+        )}
+        {canViewLogs && (
+          <button type="button" onClick={run(() => openAuditModal(user))} className={itemClass}>
+            <History size={14} className="text-neutral-400" /> Historique des actions
+          </button>
+        )}
         {isFounder && targetRole !== 'founder' && targetRole !== 'admin' && (canAssignRoles || canManagePermissions) && (
           <button
             type="button"
-            onClick={() => handlePromoteAdmin(user)}
+            onClick={run(() => handlePromoteAdmin(user))}
             disabled={!canTarget || securityActionKey === `promote:${user.id}`}
-            className={`${classes} border-indigo-300 text-indigo-700 hover:bg-indigo-50`}
+            className={itemClass}
           >
-            Promote admin
+            <Crown size={14} className="text-indigo-500" /> Promouvoir admin
           </button>
         )}
         {isFounder && targetRole === 'admin' && (canRevokeRoles || canManagePermissions) && (
           <button
             type="button"
-            onClick={() => handleRevokeAdmin(user)}
+            onClick={run(() => handleRevokeAdmin(user))}
             disabled={!canTarget || securityActionKey === `revoke:${user.id}`}
-            className={`${classes} border-purple-300 text-purple-700 hover:bg-purple-50`}
+            className={itemClass}
           >
-            Revoke admin
+            <ShieldOff size={14} className="text-purple-500" /> Révoquer admin
           </button>
         )}
         {canLockAccounts && (
           isTargetLocked ? (
             <button
               type="button"
-              onClick={() => handleUnlockAccount(user)}
+              onClick={run(() => handleUnlockAccount(user))}
               disabled={!canTarget || securityActionKey === `unlock:${user.id}`}
-              className={`${classes} border-green-300 text-green-700 hover:bg-green-50`}
+              className={itemClass}
             >
-              Déverrouiller
+              <Unlock size={14} className="text-green-500" /> Déverrouiller le compte
             </button>
           ) : (
             <button
               type="button"
-              onClick={() => handleLockAccount(user)}
+              onClick={run(() => handleLockAccount(user))}
               disabled={!canTarget || securityActionKey === `lock:${user.id}`}
-              className={`${classes} border-red-300 text-red-700 hover:bg-red-50`}
+              className={itemClass}
             >
-              Verrouiller
+              <Lock size={14} className="text-red-500" /> Verrouiller le compte
             </button>
           )
         )}
         {canResetPasswords && (
           <button
             type="button"
-            onClick={() => handleForcePasswordReset(user)}
+            onClick={run(() => handleForcePasswordReset(user))}
             disabled={
               !canTarget ||
               securityActionKey === `reset:${user.id}` ||
               securityActionKey === `set-password:${user.id}`
             }
-            className={`${classes} border-amber-300 text-amber-700 hover:bg-amber-50`}
+            className={itemClass}
           >
-            Modifier mdp
+            <KeyRound size={14} className="text-amber-500" /> Modifier le mot de passe
           </button>
         )}
         {canForceLogout && (
           <button
             type="button"
-            onClick={() => handleForceLogout(user)}
+            onClick={run(() => handleForceLogout(user))}
             disabled={!canTarget || securityActionKey === `logout:${user.id}`}
-            className={`${classes} border-neutral-300 text-neutral-700 hover:bg-neutral-100`}
+            className={itemClass}
           >
-            Force logout
+            <LogOut size={14} className="text-neutral-500" /> Forcer la déconnexion
           </button>
         )}
+        <Link to={`/admin/users/${user.id}/stats`} onClick={closeMenu} className={itemClass}>
+          <BarChart3 size={14} className="text-[#e85d00]" /> Voir les statistiques
+        </Link>
       </>
     );
   }, [
@@ -1451,18 +1565,37 @@ export default function AdminUsers() {
     canAssignRoles,
     canForceLogout,
     canLockAccounts,
+    canManageOrders,
     canManagePermissions,
     canManageDeliveryProfiles,
+    canManageSellers,
     canResetPasswords,
     canRevokeRoles,
+    canViewLogs,
+    convertingUserId,
+    getLocationCoordinates,
+    getUserConversionRequest,
+    handleConvertToParticulier,
+    handleConvertToShop,
     handleForceLogout,
     handleForcePasswordReset,
     handleLockAccount,
     handlePromoteAdmin,
+    handlePromoteToDeliveryGuy,
     handleRevokeAdmin,
+    handleUnlinkDeliveryGuy,
     handleUnlockAccount,
     isFounder,
-    securityActionKey
+    locationReviewLoading,
+    locationTimelineLoading,
+    openAuditModal,
+    openConversionModal,
+    openLocationReviewModal,
+    openLocationTimelineModal,
+    openOrdersModal,
+    securityActionKey,
+    toggleShopVerification,
+    verifyingShopId
   ]);
 
   return (
@@ -1657,7 +1790,7 @@ export default function AdminUsers() {
               <input
                 type="search"
                 placeholder="Rechercher nom, email ou téléphone…"
-                className="w-full rounded-lg border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 transition"
+                className="min-h-0 w-full rounded-lg border border-neutral-200 bg-neutral-50 py-2 pl-9 pr-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 transition"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
@@ -1665,11 +1798,11 @@ export default function AdminUsers() {
 
             {/* Desktop filters */}
             {!isMobileView ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={accountTypeFilter}
                   onChange={(e) => setAccountTypeFilter(e.target.value)}
-                  className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                  className="w-auto min-h-0 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 text-xs font-medium text-neutral-700 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400"
                 >
                   {accountFilterOptions.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -1678,7 +1811,7 @@ export default function AdminUsers() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                  className={`w-auto min-h-0 rounded-lg border px-2.5 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
                     statusFilter !== 'all'
                       ? 'border-neutral-400 bg-neutral-100 text-neutral-800'
                       : 'border-neutral-200 bg-white text-neutral-700'
@@ -1691,7 +1824,7 @@ export default function AdminUsers() {
                 <select
                   value={restrictionFilter}
                   onChange={(e) => setRestrictionFilter(e.target.value)}
-                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                  className={`w-auto min-h-0 rounded-lg border px-2.5 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
                     restrictionFilter !== 'all'
                       ? 'border-amber-400 bg-amber-50 text-amber-700'
                       : 'border-neutral-200 bg-white text-neutral-700'
@@ -1704,7 +1837,7 @@ export default function AdminUsers() {
                 <select
                   value={conversionFilter}
                   onChange={(e) => setConversionFilter(e.target.value)}
-                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
+                  className={`w-auto min-h-0 rounded-lg border px-2.5 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-neutral-400 ${
                     conversionFilter !== 'all'
                       ? 'border-teal-500 bg-teal-50 text-teal-700'
                       : 'border-neutral-200 bg-white text-neutral-700'
@@ -1960,13 +2093,13 @@ export default function AdminUsers() {
                         })}
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mt-3 flex items-center gap-2">
                       {isBlocked ? (
                         <button
                           type="button"
                           onClick={() => handleUnblock(user)}
                           disabled={!canLockAccounts || !canActOnTargetUser(user) || pendingUserId === user.id}
-                          className="flex-1 min-w-[100px] rounded-lg border border-green-500 px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
+                          className="flex-1 rounded-lg border border-green-500 px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-50 disabled:opacity-50"
                         >
                           Réactiver
                         </button>
@@ -1975,7 +2108,7 @@ export default function AdminUsers() {
                           type="button"
                           onClick={() => handleBlock(user)}
                           disabled={!canLockAccounts || !canActOnTargetUser(user) || pendingUserId === user.id}
-                          className="flex-1 min-w-[100px] rounded-lg border border-red-500 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          className="flex-1 rounded-lg border border-red-500 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
                           Suspendre
                         </button>
@@ -1986,11 +2119,14 @@ export default function AdminUsers() {
                           type="button"
                           onClick={() => setRestrictionMenuOpen(restrictionMenuOpen === user.id ? null : user.id)}
                           disabled={!canManageUsers}
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-600 hover:bg-amber-50"
+                          className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold ${
+                            getActiveRestrictionsCount(user) > 0
+                              ? 'border-amber-500 bg-amber-50 text-amber-600'
+                              : 'border-neutral-300 text-neutral-600 hover:bg-amber-50'
+                          }`}
                         >
                           <ShieldAlert size={14} />
-                          Restrictions
-                          <ChevronDown size={12} />
+                          {getActiveRestrictionsCount(user) > 0 && <span>{getActiveRestrictionsCount(user)}</span>}
                         </button>
                         {restrictionMenuOpen === user.id && (
                           <div className="absolute right-0 mt-1 w-48 rounded-lg border bg-white shadow-sm z-20">
@@ -2013,150 +2149,22 @@ export default function AdminUsers() {
                           </div>
                         )}
                       </div>
-                      {/* Conversion request button */}
-                      {user.accountType !== 'shop' && getUserConversionRequest(user.id) && (
+                      {/* More actions dropdown — everything else (conversion, delivery, shop, GPS, security, stats) */}
+                      <div className="relative">
                         <button
                           type="button"
-                          onClick={() => openConversionModal(user)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-neutral-500 px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 bg-neutral-50"
+                          onClick={() => setMoreMenuOpen(moreMenuOpen === user.id ? null : user.id)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
                         >
-                          <Store size={14} />
-                          Demande boutique
+                          <MoreVertical size={14} />
+                          Plus
                         </button>
-                      )}
-                      {/* Convert to shop button for particulier */}
-                      {user.accountType !== 'shop' && !getUserConversionRequest(user.id) && (
-                        <button
-                          type="button"
-                          onClick={() => handleConvertToShop(user)}
-                          disabled={!canManageSellers || convertingUserId === user.id}
-                          className="inline-flex items-center gap-1 rounded-lg border border-teal-500 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
-                        >
-                          <Store size={14} />
-                          Convertir en boutique
-                        </button>
-                      )}
-                      {!['admin', 'founder'].includes(String(user.role || '').toLowerCase()) ? (
-                        <>
-                          <button
-                            type="button"
-                                onClick={() => handlePromoteToDeliveryGuy(user)}
-                                  disabled={
-                                    !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
-                                    securityActionKey === `promote-delivery:${user.id}`
-                                  }
-                                  className="inline-flex items-center gap-1 rounded-lg border border-cyan-500 px-3 py-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 disabled:opacity-50"
-                                >
-                                  {String(user.role || '').toLowerCase() === 'delivery_agent'
-                                    ? 'Lier profil livreur'
-                                    : 'Promouvoir livreur'}
-                                </button>
-                                {String(user.role || '').toLowerCase() === 'delivery_agent' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUnlinkDeliveryGuy(user)}
-                                    disabled={
-                                      !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
-                                      securityActionKey === `unlink-delivery:${user.id}`
-                                    }
-                                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
-                                  >
-                                    Délier profil livreur
-                                  </button>
-                                )}
-                          {String(user.role || '').toLowerCase() === 'delivery_agent' && (
-                            <button
-                              type="button"
-                              onClick={() => handleUnlinkDeliveryGuy(user)}
-                              disabled={
-                                !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
-                                securityActionKey === `unlink-delivery:${user.id}`
-                              }
-                              className="inline-flex items-center gap-1 rounded-lg border border-amber-500 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
-                            >
-                              Délier profil livreur
-                            </button>
-                          )}
-                        </>
-                      ) : null}
-                      {/* Shop certified button for shops */}
-                      {user.accountType === 'shop' && (
-                        <button
-                          type="button"
-                          onClick={() => toggleShopVerification(user.id, !user.shopVerified)}
-                          disabled={!canManageSellers || verifyingShopId === user.id}
-                          className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 ${
-                            user.shopVerified ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'
-                          }`}
-                        >
-                          <CheckCircle size={14} />
-                          {user.shopVerified ? 'Retirer le badge' : 'Vérifier la boutique'}
-                        </button>
-                      )}
-                      {/* Received orders button for shops */}
-                      {user.accountType === 'shop' && (
-                        <button
-                          type="button"
-                          onClick={() => openOrdersModal(user)}
-                          disabled={!canManageOrders}
-                          className="inline-flex items-center gap-1 rounded-lg border border-neutral-500 px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
-                        >
-                          <Package size={14} />
-                          Commandes
-                        </button>
-                      )}
-                      {isShopAccount && user.shopLocationNeedsReview && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => openLocationReviewModal(user, 'approve')}
-                            disabled={!canManageSellers || locationReviewLoading}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-500 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                          >
-                            <CheckCircle size={14} />
-                            Approuver position
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openLocationReviewModal(user, 'reject')}
-                            disabled={!canManageSellers || locationReviewLoading}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-500 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                          >
-                            <XCircle size={14} />
-                            Rejeter position
-                          </button>
-                        </>
-                      )}
-                      {isShopAccount && (hasShopLocation || user.shopLocationNeedsReview) && (
-                        <button
-                          type="button"
-                          onClick={() => openLocationTimelineModal(user)}
-                          disabled={!canManageSellers || locationTimelineLoading}
-                          className="inline-flex items-center gap-1 rounded-lg border border-sky-500 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-50"
-                        >
-                          <MapPin size={14} />
-                          Timeline GPS
-                        </button>
-                      )}
-                      {/* Audit log button */}
-                      {renderSecurityActions(user)}
-                      {canViewLogs && (
-                        <button
-                          type="button"
-                          onClick={() => openAuditModal(user)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                        >
-                          <History size={14} />
-                          Historique
-                        </button>
-                      )}
-                      <Link
-                        to={`/admin/users/${user.id}/stats`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-[#FFF0E4] px-3 py-2 text-xs font-semibold text-[#e85d00] hover:bg-orange-100"
-                      >
-                        <BarChart3 size={14} />
-                        Stats
-                      </Link>
+                        {moreMenuOpen === user.id && (
+                          <div className="absolute right-0 z-20 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border bg-white py-1 shadow-lg">
+                            {renderUserMenuItems(user, () => setMoreMenuOpen(null))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </article>
                 );
@@ -2404,85 +2412,6 @@ export default function AdminUsers() {
                                 Suspendre
                               </button>
                             )}
-                            {/* Conversion request button */}
-                            {user.accountType !== 'shop' && getUserConversionRequest(user.id) && (
-                              <button
-                                type="button"
-                                onClick={() => openConversionModal(user)}
-                                className="rounded-lg border border-neutral-500 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 bg-neutral-50"
-                              >
-                                <Store size={14} className="inline mr-1" />
-                                Demande boutique
-                              </button>
-                            )}
-                            {/* Convert to shop button for particulier */}
-                            {user.accountType !== 'shop' && !getUserConversionRequest(user.id) && (
-                              <button
-                                type="button"
-                                onClick={() => handleConvertToShop(user)}
-                                disabled={!canManageSellers || convertingUserId === user.id}
-                                className="rounded-lg border border-teal-500 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-50"
-                              >
-                                <Store size={14} className="inline mr-1" />
-                                Convertir
-                              </button>
-                            )}
-                            {!['admin', 'founder'].includes(String(user.role || '').toLowerCase()) ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handlePromoteToDeliveryGuy(user)}
-                                  disabled={
-                                    !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
-                                    securityActionKey === `promote-delivery:${user.id}`
-                                  }
-                                  className="rounded-lg border border-cyan-500 px-3 py-1.5 text-xs font-semibold text-cyan-700 hover:bg-cyan-50 disabled:opacity-50"
-                                >
-                                  {String(user.role || '').toLowerCase() === 'delivery_agent'
-                                    ? 'Lier profil livreur'
-                                    : 'Promouvoir livreur'}
-                                </button>
-                                {String(user.role || '').toLowerCase() === 'delivery_agent' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUnlinkDeliveryGuy(user)}
-                                    disabled={
-                                      !(canManagePermissions || canAssignRoles || canManageDeliveryProfiles) ||
-                                      securityActionKey === `unlink-delivery:${user.id}`
-                                    }
-                                    className="rounded-lg border border-amber-500 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
-                                  >
-                                    Délier livreur
-                                  </button>
-                                )}
-                              </>
-                            ) : null}
-                            {/* Reconvert to particulier button for shops */}
-                            {user.accountType === 'shop' && (
-                              <button
-                                type="button"
-                                onClick={() => handleConvertToParticulier(user)}
-                                disabled={!canManageSellers || convertingUserId === user.id}
-                                className="rounded-lg border border-orange-500 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-gray-100 disabled:opacity-50"
-                              >
-                                <User size={14} className="inline mr-1" />
-                                Reconvertir
-                              </button>
-                            )}
-                            {/* Shop certified button for shops */}
-                            {user.accountType === 'shop' && (
-                              <button
-                                type="button"
-                                onClick={() => toggleShopVerification(user.id, !user.shopVerified)}
-                                disabled={!canManageSellers || verifyingShopId === user.id}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 ${
-                                  user.shopVerified ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'
-                                }`}
-                                title={user.shopVerified ? 'Retirer le badge certifié' : 'Vérifier la boutique'}
-                              >
-                                {user.shopVerified ? 'Retirer le badge' : 'Vérifier la boutique'}
-                              </button>
-                            )}
                             {/* Restrictions dropdown */}
                             <div className="relative">
                               <button
@@ -2492,10 +2421,10 @@ export default function AdminUsers() {
                                 className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-semibold hover:bg-amber-50 ${
                                   getActiveRestrictionsCount(user) > 0 ? 'border-amber-500 text-amber-600 bg-amber-50' : 'border-gray-300 text-gray-600'
                                 }`}
+                                title="Restrictions"
                               >
                                 <ShieldAlert size={12} />
                                 {getActiveRestrictionsCount(user) > 0 && <span>{getActiveRestrictionsCount(user)}</span>}
-                                <ChevronDown size={10} />
                               </button>
                               {restrictionMenuOpen === user.id && (
                                 <div className="absolute right-0 mt-1 w-52 rounded-lg border bg-white shadow-sm z-20">
@@ -2519,72 +2448,22 @@ export default function AdminUsers() {
                                 </div>
                               )}
                             </div>
-                            {/* Received orders button for shops */}
-                            {user.accountType === 'shop' && (
+                            {/* More actions dropdown — everything else (conversion, delivery, shop, GPS, security, stats) */}
+                            <div className="relative">
                               <button
                                 type="button"
-                                onClick={() => openOrdersModal(user)}
-                                disabled={!canManageOrders}
-                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-400 px-2 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
-                                title="Commandes reçues"
+                                onClick={() => setMoreMenuOpen(moreMenuOpen === user.id ? null : user.id)}
+                                className="inline-flex items-center justify-center rounded-lg border border-gray-300 p-1.5 text-gray-600 hover:bg-gray-50"
+                                title="Plus d'actions"
                               >
-                                <Package size={12} />
+                                <MoreVertical size={14} />
                               </button>
-                            )}
-                            {isShopAccount && user.shopLocationNeedsReview && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => openLocationReviewModal(user, 'approve')}
-                                  disabled={!canManageSellers || locationReviewLoading}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-400 px-2 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                                  title="Approuver la localisation boutique"
-                                >
-                                  <CheckCircle size={12} />
-                                  GPS OK
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => openLocationReviewModal(user, 'reject')}
-                                  disabled={!canManageSellers || locationReviewLoading}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-red-400 px-2 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                  title="Rejeter la localisation boutique"
-                                >
-                                  <XCircle size={12} />
-                                  GPS KO
-                                </button>
-                              </>
-                            )}
-                            {isShopAccount && (hasShopLocation || user.shopLocationNeedsReview) && (
-                              <button
-                                type="button"
-                                onClick={() => openLocationTimelineModal(user)}
-                                disabled={!canManageSellers || locationTimelineLoading}
-                                className="inline-flex items-center gap-1 rounded-lg border border-sky-300 px-2 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-50"
-                                title="Timeline localisation GPS"
-                              >
-                                <MapPin size={12} />
-                                GPS
-                              </button>
-                            )}
-                            {canViewLogs && (
-                              <button
-                                type="button"
-                                onClick={() => openAuditModal(user)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                                title="Historique des actions"
-                              >
-                                <History size={12} />
-                              </button>
-                            )}
-                            {renderSecurityActions(user, true)}
-                            <Link
-                              to={`/admin/users/${user.id}/stats`}
-                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                              title="Statistiques"
-                            >
-                              Stats
-                            </Link>
+                              {moreMenuOpen === user.id && (
+                                <div className="absolute right-0 z-20 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border bg-white py-1 shadow-lg">
+                                  {renderUserMenuItems(user, () => setMoreMenuOpen(null))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -3462,6 +3341,10 @@ export default function AdminUsers() {
       {/* Click outside to close restriction menu */}
       {restrictionMenuOpen && (
         <div className="fixed inset-0 z-10" onClick={() => setRestrictionMenuOpen(null)} />
+      )}
+      {/* Click outside to close the "more actions" menu */}
+      {moreMenuOpen && (
+        <div className="fixed inset-0 z-10" onClick={() => setMoreMenuOpen(null)} />
       )}
     </div>
   );
