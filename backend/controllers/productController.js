@@ -24,6 +24,7 @@ import {
   isCloudinaryConfigured
 } from '../utils/cloudinaryUploader.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
+import { generateProductSpecSheetPdfBuffer } from '../utils/productSpecSheetPdf.js';
 import { ensureDocumentSlug, ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { getRestrictionMessage, isRestricted } from '../utils/restrictionCheck.js';
 import {
@@ -629,17 +630,17 @@ const uploadProductMedia = async (file, { stripAudio = false } = {}) => {
   return uploaded.secure_url || uploaded.url;
 };
 
-const uploadProductPdfPreview = async (file) => {
+// Stores the actual PDF (resource_type 'raw', the correct Cloudinary type
+// for non-image files) so buyers get a real, downloadable, multi-page
+// document — this used to upload as an 'image' resource with page:1, which
+// silently flattened every PDF to a single-page JPG screenshot.
+const uploadProductPdfFile = async (file) => {
   const folder = getProductMediaFolder('pdf');
   const uploaded = await uploadToCloudinary({
     buffer: file.buffer,
-    resourceType: 'image',
+    resourceType: 'raw',
     folder,
-    options: {
-      format: 'jpg',
-      page: 1,
-      quality: 'auto:eco'
-    }
+    options: { format: 'pdf' }
   });
   return uploaded.secure_url || uploaded.url;
 };
@@ -811,6 +812,82 @@ const normalizeSocialVideoUrl = async (value) => {
   }
   return parsed.toString();
 };
+
+const TRUSTED_IMAGE_HOSTS = /(^|\.)cloudinary\.com$/i;
+
+// Best-effort fetch of an already-uploaded product image so the generated
+// spec sheet can embed it. Only ever called with Cloudinary URLs this same
+// server produced (never a client-supplied arbitrary URL) — the host check
+// is defense in depth against that assumption being wrong someday.
+const fetchTrustedImageBuffer = async (url) => {
+  try {
+    const parsed = new URL(String(url || ''));
+    if (!TRUSTED_IMAGE_HOSTS.test(parsed.hostname)) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(parsed.toString(), { signal: controller.signal });
+    clearTimeout(timer);
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch {
+    return null;
+  }
+};
+
+// Builds the "fiche produit" PDF directly from the form fields the seller
+// already filled in — no external tool, no upload step. Intentionally
+// stateless: doesn't touch Product or Cloudinary, just hands the generated
+// buffer back so the client can treat it exactly like a manually-picked
+// file (it gets uploaded for real only when the product itself is saved).
+export const generateProductSpecSheet = asyncHandler(async (req, res) => {
+  if (req.user?.accountType !== 'shop') {
+    return res.status(403).json({ message: 'La génération de fiche produit est réservée aux boutiques.' });
+  }
+
+  const title = String(req.body?.title || '').trim();
+  const price = Number(req.body?.price || 0);
+  if (!title || !Number.isFinite(price) || price <= 0) {
+    return res.status(400).json({ message: 'Ajoutez au moins un titre et un prix avant de générer la fiche.' });
+  }
+
+  let attributes = [];
+  try {
+    const parsed = JSON.parse(String(req.body?.attributes || '[]'));
+    if (Array.isArray(parsed)) attributes = parsed;
+  } catch {
+    attributes = [];
+  }
+
+  const imageFile = getUploadedFiles(req.files, 'image')[0];
+  let imageBuffer = imageFile?.buffer || null;
+  if (!imageBuffer && req.body?.existingImageUrl) {
+    imageBuffer = await fetchTrustedImageBuffer(req.body.existingImageUrl);
+  }
+
+  const seller = await User.findById(req.user.id).select('name shopName city phone').lean();
+
+  const buffer = await generateProductSpecSheetPdfBuffer({
+    title,
+    description: req.body?.description,
+    price,
+    discount: req.body?.discount,
+    category: req.body?.category,
+    brand: req.body?.brand,
+    condition: req.body?.condition,
+    attributes,
+    imageBuffer,
+    sellerName: seller?.shopName || seller?.name,
+    sellerCity: seller?.city,
+    sellerPhone: seller?.phone
+  });
+
+  const filenamePart = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'produit';
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="fiche-${filenamePart}.pdf"`);
+  res.setHeader('Content-Length', buffer.length);
+  res.send(buffer);
+});
 
 export const createProduct = asyncHandler(async (req, res) => {
   const {
@@ -1125,7 +1202,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Le fichier doit être un PDF valide.' });
     }
     try {
-      pdfUrl = await uploadProductPdfPreview(pdfFile);
+      pdfUrl = await uploadProductPdfFile(pdfFile);
     } catch (error) {
       console.error('Erreur upload PDF produit', error);
       return res.status(500).json({ message: 'Erreur lors de l’upload du PDF.' });
@@ -3324,7 +3401,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Le fichier doit être un PDF valide.' });
     }
     try {
-      product.pdf = await uploadProductPdfPreview(pdfFile);
+      product.pdf = await uploadProductPdfFile(pdfFile);
     } catch (error) {
       console.error('Erreur upload PDF produit', error);
       return res.status(500).json({ message: 'Erreur lors de l’upload du PDF.' });

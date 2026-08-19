@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCal
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, Edit, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, ArrowRight } from 'lucide-react';
+import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, Edit, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -198,6 +198,7 @@ export default function ProductForm(props) {
   const [videoError, setVideoError] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfError, setPdfError] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [installmentError, setInstallmentError] = useState('');
   const [wholesaleError, setWholesaleError] = useState('');
   const [warrantyError, setWarrantyError] = useState('');
@@ -1296,6 +1297,62 @@ export default function ProductForm(props) {
   const removePdfFile = () => {
     setPdfFile(null);
     setPdfError('');
+  };
+
+  // Builds the fiche produit PDF straight from what's already in the form —
+  // no need to leave HDMarket, design a document, and come back to upload
+  // it. The generated file lands in the exact same `pdfFile` state a manual
+  // upload would, so everything downstream (preview, remove, submit) just works.
+  const handleGeneratePdf = async () => {
+    if (generatingPdf) return;
+    const title = form.title?.trim();
+    const price = Number(form.price);
+    if (!title || !Number.isFinite(price) || price <= 0) {
+      setPdfError('Ajoutez au moins un titre et un prix avant de générer la fiche.');
+      return;
+    }
+    setGeneratingPdf(true);
+    setPdfError('');
+    try {
+      const data = new FormData();
+      data.append('title', title);
+      data.append('description', form.description || '');
+      data.append('price', String(price));
+      if (form.discount) data.append('discount', String(form.discount));
+      if (form.category) data.append('category', form.category);
+      if (form.brand) data.append('brand', form.brand);
+      if (form.condition) data.append('condition', form.condition);
+      data.append('attributes', JSON.stringify(Array.isArray(form.attributes) ? form.attributes : []));
+      const firstNewImage = files.find((item) => (item?.file || item) instanceof File);
+      if (firstNewImage) {
+        data.append('image', firstNewImage.file || firstNewImage);
+      } else if (existingImages[0]) {
+        data.append('existingImageUrl', existingImages[0]);
+      }
+      const response = await api.post('/products/generate-spec-sheet', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        responseType: 'blob',
+        silentGlobalError: true
+      });
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/pdf' });
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'produit';
+      setPdfFile(new File([blob], `fiche-${slug}.pdf`, { type: 'application/pdf' }));
+      setRemovePdf(false);
+    } catch (requestError) {
+      let message = 'Impossible de générer la fiche PDF. Réessayez.';
+      const blobData = requestError?.response?.data;
+      if (blobData instanceof Blob && String(blobData.type || '').includes('json')) {
+        try {
+          const parsed = JSON.parse(await blobData.text());
+          if (parsed?.message) message = parsed.message;
+        } catch {
+          // Keep the default message.
+        }
+      }
+      setPdfError(message);
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   const addWholesaleTier = () => {
@@ -4010,8 +4067,27 @@ export default function ProductForm(props) {
               icon: FileText,
               collapsible: false,
               title: 'Fiche produit (PDF)',
-              subtitle: `Ajoutez un document PDF si le produit a une fiche technique. Taille maximale ${MAX_PDF_SIZE_MB} Mo.`
+              subtitle: `Générez-la automatiquement à partir de ce formulaire, ou uploadez la vôtre. Taille maximale ${MAX_PDF_SIZE_MB} Mo.`
             })}
+            <button
+              type="button"
+              onClick={handleGeneratePdf}
+              disabled={generatingPdf}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#e85d00]/30 bg-[#FFF0E4] px-4 py-3 text-sm font-semibold text-[#e85d00] transition hover:bg-[#ffe4cc] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {generatingPdf ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Génération en cours…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Générer la fiche automatiquement
+                </>
+              )}
+            </button>
+            <p className="text-center text-xs text-gray-400">— ou uploadez votre propre PDF —</p>
             {existingPdf && !pdfFile && !removePdf && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                 <div>

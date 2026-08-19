@@ -3191,7 +3191,21 @@ export default function ProductDetails() {
           <div className="h-2 bg-[#F6F6F6]" />
           <section className="bg-white px-4 py-4">
             <h3 className="text-[17px] font-black text-gray-900 mb-3">Document joint</h3>
-            <img src={product.pdf} alt={`Document ${product.title || ''}`} className="w-full h-auto rounded border border-gray-100" loading="lazy" />
+            <a
+              href={product.pdf}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 active:bg-gray-100"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500">
+                <FileText size={20} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-gray-900">Fiche produit (PDF)</span>
+                <span className="block text-xs text-gray-500">Ouvrir le document</span>
+              </span>
+              <ChevronRight size={18} className="shrink-0 text-gray-300" />
+            </a>
           </section>
         </>
       )}
@@ -4611,14 +4625,21 @@ export default function ProductDetails() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-base font-semibold text-gray-900">Document joint</h3>
             </div>
-            <div className="mt-4 relative overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
-              <img
-                src={product.pdf}
-                alt={`Document ${product.title || ''}`}
-                className="w-full h-auto object-contain bg-white"
-                loading="lazy"
-              />
-            </div>
+            <a
+              href={product.pdf}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 transition hover:bg-gray-100"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500">
+                <FileText size={20} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-gray-900">Fiche produit (PDF)</span>
+                <span className="block text-xs text-gray-500">Ouvrir le document dans un nouvel onglet</span>
+              </span>
+              <ExternalLink size={16} className="shrink-0 text-gray-400" />
+            </a>
           </section>
         )}
 

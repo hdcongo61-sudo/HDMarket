@@ -11,6 +11,7 @@ import { cacheMiddleware } from '../utils/cache.js';
 import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import {
   createProduct,
+  generateProductSpecSheet,
   getPublicProducts,
   getPublicInstallmentProducts,
   getPublicWholesaleProducts,
@@ -123,6 +124,14 @@ router.post(
   productMutationIdempotency,
   validate(schemas.productCreate),
   createProduct
+);
+// Builds the fiche produit PDF from the form fields directly — no DB/Cloudinary
+// writes, just hands the buffer back (see productController.generateProductSpecSheet).
+router.post(
+  '/generate-spec-sheet',
+  protect,
+  upload.fields([{ name: 'image', maxCount: 1 }]),
+  generateProductSpecSheet
 );
 router.get('/', protect, getMyProducts);
 router.put(
