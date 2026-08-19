@@ -123,7 +123,9 @@ const notificationSchema = new mongoose.Schema(
       'quotation_accepted',
       'quotation_rejected',
       'quotation_expired',
-      'quotation_order_created'
+      'quotation_order_created',
+      'admin_campaign',
+      'onboarding'
     ],
       required: true
     },
@@ -178,7 +180,7 @@ const notificationSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['', 'order', 'product', 'shop', 'boost', 'deliveryRequest', 'dispute', 'user', 'payment', 'refund', 'shopConversionRequest', 'globalNotification', 'quotation'],
+      enum: ['', 'order', 'product', 'shop', 'boost', 'deliveryRequest', 'dispute', 'user', 'payment', 'refund', 'shopConversionRequest', 'globalNotification', 'quotation', 'notificationCampaign', 'onboardingEnrollment'],
       default: '',
       index: true
     },

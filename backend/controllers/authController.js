@@ -33,6 +33,7 @@ import {
 import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
 import { resolveCountryContext } from '../services/countryService.js';
 import { capitalizeName } from '../utils/nameFormatting.js';
+import { enrollUserIfEligible } from '../services/onboardingService.js';
 
 const genToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -248,6 +249,12 @@ const providerRegister = async (req, res, providerName) => {
       actionLink: '/referrals'
     }).catch(() => {});
   }
+  // Fire-and-forget — the onboarding system must never block or fail
+  // registration (see services/onboardingService.js). Existing users are
+  // never touched here; this only ever runs at account creation.
+  enrollUserIfEligible(user).catch((error) => {
+    console.error('Onboarding enrollment failed', error);
+  });
   const token = genToken(user);
   return res.status(201).json(buildAuthResponse(user, token));
 };
@@ -438,6 +445,12 @@ export const register = asyncHandler(async (req, res) => {
       actionLink: '/referrals'
     }).catch(() => {});
   }
+  // Fire-and-forget — the onboarding system must never block or fail
+  // registration (see services/onboardingService.js). Existing users are
+  // never touched here; this only ever runs at account creation.
+  enrollUserIfEligible(user).catch((error) => {
+    console.error('Onboarding enrollment failed', error);
+  });
   const token = genToken(user);
   res.status(201).json(buildAuthResponse(user, token));
 });

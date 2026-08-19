@@ -42,6 +42,8 @@ import marketplacePromoCodeRoutes from './routes/marketplacePromoCodeRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 import boostRoutes from './routes/boostRoutes.js';
 import globalNotificationRoutes from './routes/globalNotificationRoutes.js';
+import notificationCampaignRoutes from './routes/notificationCampaignRoutes.js';
+import onboardingSequenceRoutes from './routes/onboardingSequenceRoutes.js';
 import founderRoutes from './routes/founderRoutes.js';
 import courierRoutes from './routes/courierRoutes.js';
 import deliveryRoutes from './routes/deliveryRoutes.js';
@@ -115,6 +117,17 @@ import {
 } from './queues/orderAutomationQueue.js';
 import { closeOrderAutomationWorker, initOrderAutomationWorker } from './workers/orderAutomationWorker.js';
 import {
+  closeNotificationCampaignQueue,
+  ensureNotificationCampaignSchedules,
+  initNotificationCampaignQueue,
+  isNotificationCampaignQueueRedisEnabled
+} from './queues/notificationCampaignQueue.js';
+import {
+  closeNotificationCampaignWorker,
+  initNotificationCampaignWorker,
+  runNotificationCampaignFallbackSweep
+} from './workers/notificationCampaignWorker.js';
+import {
   closeRealtimeAnalyticsQueue,
   ensureRealtimeAnalyticsSchedules,
   initRealtimeAnalyticsQueue
@@ -155,12 +168,21 @@ initSideEffectWorker().catch(() => {
 });
 const orderAutomationEnabled = String(process.env.ORDER_AUTOMATION_ENABLED || 'true') !== 'false';
 const realtimeAnalyticsEnabled = String(process.env.REALTIME_ANALYTICS_ENABLED || 'true') !== 'false';
+const notificationCampaignEnabled = String(process.env.NOTIFICATION_CAMPAIGN_ENABLED || 'true') !== 'false';
 if (orderAutomationEnabled) {
   initOrderAutomationQueue().catch(() => {
     // Optional automation queue; system continues with manual fallback.
   });
   initOrderAutomationWorker().catch(() => {
     // Optional automation worker.
+  });
+}
+if (notificationCampaignEnabled) {
+  initNotificationCampaignQueue().catch(() => {
+    // Optional campaign/onboarding queue; falls back to the setInterval sweep below.
+  });
+  initNotificationCampaignWorker().catch(() => {
+    // Optional campaign/onboarding worker.
   });
 }
 if (realtimeAnalyticsEnabled) {
@@ -421,6 +443,8 @@ app.use('/api/marketplace-promo-codes', marketplacePromoCodeRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/boosts', boostRoutes);
 app.use('/api/global-notifications', globalNotificationRoutes);
+app.use('/api/admin/notification-campaigns', notificationCampaignRoutes);
+app.use('/api/admin/onboarding-sequences', onboardingSequenceRoutes);
 app.use('/api/founder', founderRoutes);
 app.use('/api/courier', courierRoutes);
 app.use('/api/delivery', deliveryRoutes);
@@ -779,6 +803,32 @@ httpServer.listen(port, () => {
         console.error('[realtime-analytics] failed to register schedules:', error?.message || error);
       });
   }
+  if (notificationCampaignEnabled) {
+    if (isNotificationCampaignQueueRedisEnabled()) {
+      ensureNotificationCampaignSchedules()
+        .then(() => {
+          console.log('[notification-campaign] recurring schedules registered');
+        })
+        .catch((error) => {
+          console.error('[notification-campaign] failed to register schedules:', error?.message || error);
+        });
+    } else {
+      // No Redis configured — same graceful-degradation pattern as the
+      // review-reminder fallback below: poll on a plain setInterval instead
+      // of relying on BullMQ's repeatable jobs.
+      const NOTIFICATION_CAMPAIGN_SWEEP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+      const runNotificationCampaignSweep = async () => {
+        try {
+          await runNotificationCampaignFallbackSweep();
+        } catch (error) {
+          console.error('[notification-campaign] fallback sweep failed:', error?.message || error);
+        }
+      };
+      setTimeout(runNotificationCampaignSweep, 30 * 1000);
+      setInterval(runNotificationCampaignSweep, NOTIFICATION_CAMPAIGN_SWEEP_INTERVAL);
+      console.log('[notification-campaign] Redis not configured — using setInterval fallback sweep (every 5 min)');
+    }
+  }
 
   // Schedule review reminder checks every hour (legacy scheduler fallback)
   // Check for delivered orders that are 1+ hour old and send review reminders
@@ -887,6 +937,8 @@ const gracefulShutdown = async () => {
     await closeRealtimeAnalyticsQueue();
     await closeOrderAutomationWorker();
     await closeOrderAutomationQueue();
+    await closeNotificationCampaignWorker();
+    await closeNotificationCampaignQueue();
     await closeEngagementWorker();
     await closeEngagementQueue();
     await closeSideEffectWorker();

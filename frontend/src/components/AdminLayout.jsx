@@ -30,7 +30,9 @@ import {
   Flag,
   Tags,
   Clapperboard,
-  Globe2
+  Globe2,
+  Send,
+  Workflow
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
@@ -205,6 +207,20 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
     icon: Megaphone,
     group: 'commerce',
     show: (u) => u?.role === 'admin' || u?.role === 'founder'
+  },
+  {
+    to: '/admin/notification-campaigns',
+    label: t('nav.notificationCampaigns', 'Campagnes de notifications'),
+    icon: Send,
+    group: 'commerce',
+    show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_notification_campaigns'])
+  },
+  {
+    to: '/admin/onboarding-sequences',
+    label: t('nav.onboardingSequences', 'Onboarding'),
+    icon: Workflow,
+    group: 'commerce',
+    show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_onboarding'])
   },
   { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
   { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, group: 'founder', show: (u) => u?.role === 'founder' },

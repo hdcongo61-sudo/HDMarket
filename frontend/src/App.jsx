@@ -123,6 +123,8 @@ const DraftOrders = lazy(() => import('./pages/DraftOrders'));
 const AdminChatTemplates = lazy(() => import('./pages/AdminChatTemplates'));
 const AdminProductBoosts = lazy(() => import('./pages/AdminProductBoosts'));
 const AdminGlobalNotifications = lazy(() => import('./pages/AdminGlobalNotifications'));
+const AdminNotificationCampaigns = lazy(() => import('./pages/AdminNotificationCampaigns'));
+const AdminOnboardingSequences = lazy(() => import('./pages/AdminOnboardingSequences'));
 const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 const AdminFeedback = lazy(() => import('./pages/AdminFeedback'));
 const AdminUserStats = lazy(() => import('./pages/AdminUserStats'));
@@ -569,6 +571,7 @@ function AppContent() {
   const buyForMeFeatureEnabled = isFeatureEnabled('enable_buy_for_me', { defaultValue: true });
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
   const globalNotificationsEnabled = isFeatureEnabled('enable_global_notifications', { defaultValue: true });
+  const notificationCampaignsEnabled = isFeatureEnabled('enable_notification_campaigns', { defaultValue: true });
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
@@ -1318,6 +1321,22 @@ function AppContent() {
               element={
                 <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder'}>
                   {globalNotificationsEnabled ? <AdminGlobalNotifications /> : <Navigate to="/admin" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="notification-campaigns"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || hasAnyPermission(user, ['manage_notification_campaigns'])}>
+                  {notificationCampaignsEnabled ? <AdminNotificationCampaigns /> : <Navigate to="/admin" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="onboarding-sequences"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || hasAnyPermission(user, ['manage_onboarding'])}>
+                  {notificationCampaignsEnabled ? <AdminOnboardingSequences /> : <Navigate to="/admin" replace />}
                 </ProtectedRoute>
               }
             />

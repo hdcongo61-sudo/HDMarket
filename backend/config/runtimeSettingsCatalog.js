@@ -829,6 +829,16 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  // Distinct from enable_global_notifications above: this gates the
+  // admin-authored campaign/onboarding system (NotificationCampaign /
+  // OnboardingSequence), not the seller-paid sponsored-broadcast feature.
+  enable_notification_campaigns: {
+    category: 'feature_flags',
+    description: 'Activer les campagnes de notifications admin et les séquences d’onboarding.',
+    valueType: 'boolean',
+    defaultValue: true,
+    isPublic: true
+  },
   global_notification_daily_send_cap: {
     category: 'feature_flags',
     description: 'Nombre maximum de notifications globales sponsorisées diffusées par 24h (toutes boutiques confondues).',
