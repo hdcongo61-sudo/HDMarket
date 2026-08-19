@@ -101,7 +101,7 @@ export default function TopDiscounts() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {loading && page === 1 ? (
-        <ProductCardSkeleton count={10} viewMode="masonry" />
+        <ProductCardSkeleton count={10} viewMode="masonry" homeFeed />
       ) : items.length ? (
         <>
           <ProductMasonryGrid products={items} />

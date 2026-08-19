@@ -30,7 +30,7 @@ export default function ShopProductsSection({
   onGoReviews
 }) {
   const productGridClass = useCompactCards
-    ? 'grid w-full grid-cols-2 gap-2'
+    ? 'grid w-full grid-cols-2 gap-3'
     : 'grid grid-cols-2 gap-3 sm:grid-cols-3';
 
   const promoCount = useMemo(
@@ -218,13 +218,12 @@ export default function ShopProductsSection({
         <div className={`mt-3 ${productGridClass}`}>
           {displayProducts.map((product) => (
             <div key={`${product._id}-${useCompactCards ? 'compact' : 'regular'}`} className="min-w-0">
-              <ProductCard
-                p={product}
-                hideMobileDiscountBadge
-                compactMobile={useCompactCards}
-                shopProfileCompact={useCompactCards}
-                taobaoStyle
-              />
+              {/* Same card style as the home page's product grid (ProductCard
+                  homeFeed) — the old shopProfileCompact variant hid badges
+                  and the favorite button just to save space in a way that
+                  made the shop's own catalog look different from the rest
+                  of the app. */}
+              <ProductCard p={product} homeFeed={useCompactCards} taobaoStyle />
             </div>
           ))}
         </div>

@@ -889,7 +889,7 @@ export default function AdvancedSearch() {
 
             {/* Loading */}
             {loading && items.length === 0 ? (
-              <ProductCardSkeleton count={10} viewMode="masonry" />
+              <ProductCardSkeleton count={10} viewMode="masonry" homeFeed />
             ) : items.length > 0 ? (
               <>
                 {/* Products Grid */}

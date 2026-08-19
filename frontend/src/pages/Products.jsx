@@ -539,7 +539,7 @@ const fetchProducts = useCallback(async () => {
         )}
 
         {loading && items.length === 0 ? (
-          <ProductCardSkeleton count={10} viewMode="masonry" />
+          <ProductCardSkeleton count={10} viewMode="masonry" homeFeed />
         ) : items.length ? (
           <>
             <ProductMasonryGrid products={items} onProductClick={recordProductView} />

@@ -149,7 +149,7 @@ export default function TopRanking() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <ProductCardSkeleton count={10} viewMode="masonry" />
+        <ProductCardSkeleton count={10} viewMode="masonry" homeFeed />
       ) : items.length ? (
         <>
           <ProductMasonryGrid products={paginatedItems} />

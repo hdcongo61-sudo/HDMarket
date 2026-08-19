@@ -331,7 +331,7 @@ export default function CategoryProducts() {
             <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">Chargement de la catégorie…</h1>
             <p className="mt-1 text-sm text-white/82">Nous préparons les produits disponibles.</p>
           </div>
-          <ProductCardSkeleton count={10} viewMode="masonry" />
+          <ProductCardSkeleton count={10} viewMode="masonry" homeFeed />
         </div>
       </div>
     );
@@ -514,7 +514,7 @@ export default function CategoryProducts() {
       )}
 
       {loading && page === 1 ? (
-        <ProductCardSkeleton count={10} viewMode={viewMode === 'list' ? 'list' : 'masonry'} />
+        <ProductCardSkeleton count={10} viewMode={viewMode === 'list' ? 'list' : 'masonry'} homeFeed={viewMode !== 'list'} />
       ) : items.length ? (
         <>
           {viewMode === 'list' ? (

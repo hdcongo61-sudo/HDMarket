@@ -81,7 +81,10 @@ function ProductRail({ products = [], loading = false, emptyLabel = 'Aucun produ
   return (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
       {products.slice(0, 10).map((product) => (
-        <ProductCard key={product._id || product.slug} p={product} productLink={buildProductPath(product)} compactMobile commerceFeed />
+        // homeFeed matches the card style used on the home page's own product
+        // grid (badges, favorite button, image aspect ratio) instead of the
+        // denser commerceFeed-only look this rail used to have.
+        <ProductCard key={product._id || product.slug} p={product} productLink={buildProductPath(product)} commerceFeed homeFeed />
       ))}
     </div>
   );

@@ -63,9 +63,14 @@ export default function ProductMasonryGrid({
               className="home-anim-fade-up mb-2 sm:mb-3"
               style={{ '--home-anim-delay': `${Math.min(productIndex, 8) * 60}ms` }}
             >
+              {/* homeFeed matches the card style used on the home page's own
+                  product grid (badges, favorite button, image aspect ratio) —
+                  this grid used to render a denser "commerceFeed"-only style
+                  that looked like a different app section. */}
               <ProductCard
                 p={product}
                 commerceFeed
+                homeFeed
                 onProductClick={onProductClick}
                 {...cardProps}
               />

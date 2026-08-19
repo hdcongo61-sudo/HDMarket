@@ -138,7 +138,7 @@ export default function TopSales() {
         </header>
 
         {loading && page === 1 ? (
-          <ProductCardSkeleton count={10} viewMode="masonry" />
+          <ProductCardSkeleton count={10} viewMode="masonry" homeFeed />
         ) : error ? (
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 sm:p-6 text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
