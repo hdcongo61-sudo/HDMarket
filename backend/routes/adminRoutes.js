@@ -28,6 +28,7 @@ import {
   getConversionMetrics,
   getCohortAnalysis,
   getOrdersByHour,
+  getFeatureEngagement,
   broadcastNotification,
   exportPhones,
   getUserRestrictions,
@@ -363,6 +364,7 @@ router.get('/analytics/order-heatmap', cacheMiddleware({ ttl: 300000 }), getOrde
 router.get('/analytics/conversion', cacheMiddleware({ ttl: 300000 }), getConversionMetrics);
 router.get('/analytics/cohorts', cacheMiddleware({ ttl: 300000 }), getCohortAnalysis);
 router.get('/analytics/orders-by-hour', getOrdersByHour);
+router.get('/analytics/feature-engagement', cacheMiddleware({ ttl: 300000 }), getFeatureEngagement);
 router.get('/users', listUsers);
 router.get('/users/export-phones', protect, requireRole(['admin']), exportPhones);
 router.get('/users/:id/stats', validate(schemas.idParam, 'params'), getAdminUserStats);

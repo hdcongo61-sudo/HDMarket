@@ -10,6 +10,13 @@ import DeliveryGuy from '../models/deliveryGuyModel.js';
 import ImprovementFeedback from '../models/improvementFeedbackModel.js';
 import AccountTypeChange from '../models/accountTypeChangeModel.js';
 import AdminAuditLog from '../models/adminAuditLogModel.js';
+import GroupBuy from '../models/groupBuyModel.js';
+import RewardPoints from '../models/rewardPointsModel.js';
+import ProductQuestion from '../models/productQuestionModel.js';
+import NotificationCampaign from '../models/notificationCampaignModel.js';
+import OnboardingSequence from '../models/onboardingSequenceModel.js';
+import UserOnboardingEnrollment from '../models/userOnboardingEnrollmentModel.js';
+import Notification from '../models/notificationModel.js';
 import {
   createNotification,
   resolveValidationTaskNotifications
@@ -1063,6 +1070,129 @@ export const getOrdersByHour = asyncHandler(async (req, res) => {
     hour: hourNum,
     count: orders.length,
     orders
+  });
+});
+
+// Lightweight engagement snapshot for the newer, non-order-centric features
+// (group buying, HDPoints, referrals, product Q&A, notification campaigns,
+// onboarding) that getSalesTrends/getConversionMetrics/getCohortAnalysis
+// don't cover. Deliberately cheap counts/sums, not full breakdowns — each
+// feature with its own admin page (campaigns, onboarding) links out to it
+// for the deep dive.
+export const getFeatureEngagement = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [
+    groupBuyStatusCounts,
+    groupBuyParticipantsAgg,
+    rewardPointsAgg,
+    activeCheckinStreaks,
+    totalReferred,
+    referralRewardsGranted,
+    referredLast30d,
+    totalQuestions,
+    answeredQuestions,
+    questionsLast30d,
+    campaignStatusCounts,
+    campaignStatsAgg,
+    campaignNotificationAgg,
+    activeSequences,
+    enrollmentStatusCounts
+  ] = await Promise.all([
+    GroupBuy.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    GroupBuy.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      { $project: { memberCount: { $size: '$members' } } },
+      { $group: { _id: null, total: { $sum: '$memberCount' } } }
+    ]),
+    RewardPoints.aggregate([
+      {
+        $group: {
+          _id: null,
+          usersWithBalance: { $sum: { $cond: [{ $gt: ['$balance', 0] }, 1, 0] } },
+          totalBalance: { $sum: '$balance' },
+          lifetimeEarned: { $sum: '$lifetimeEarned' }
+        }
+      }
+    ]),
+    RewardPoints.countDocuments({ checkinStreak: { $gt: 0 } }),
+    User.countDocuments({ referredBy: { $ne: null } }),
+    User.countDocuments({ referredBy: { $ne: null }, referralRewardGranted: true }),
+    User.countDocuments({ referredBy: { $ne: null }, createdAt: { $gte: thirtyDaysAgo } }),
+    ProductQuestion.countDocuments({ status: 'visible' }),
+    ProductQuestion.countDocuments({ status: 'visible', 'answers.0': { $exists: true } }),
+    ProductQuestion.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+    NotificationCampaign.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    NotificationCampaign.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      { $group: { _id: null, sent: { $sum: '$stats.sent' }, targeted: { $sum: '$stats.targeted' } } }
+    ]),
+    Notification.aggregate([
+      { $match: { entityType: 'notificationCampaign', createdAt: { $gte: thirtyDaysAgo } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          opened: { $sum: { $cond: [{ $ne: ['$readAt', null] }, 1, 0] } },
+          clicked: { $sum: { $cond: [{ $gt: ['$clickCount', 0] }, 1, 0] } }
+        }
+      }
+    ]),
+    OnboardingSequence.countDocuments({ isActive: true }),
+    UserOnboardingEnrollment.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
+  ]);
+
+  const toCountMap = (rows) => rows.reduce((acc, row) => { acc[row._id] = row.count; return acc; }, {});
+  const groupBuyByStatus = toCountMap(groupBuyStatusCounts);
+  const groupBuyClosed = (groupBuyByStatus.filled || 0) + (groupBuyByStatus.expired || 0) + (groupBuyByStatus.cancelled || 0);
+  const campaignByStatus = toCountMap(campaignStatusCounts);
+  const enrollmentByStatus = toCountMap(enrollmentStatusCounts);
+  const totalEnrollments = Object.values(enrollmentByStatus).reduce((sum, n) => sum + n, 0);
+  const rewardPoints = rewardPointsAgg[0] || { usersWithBalance: 0, totalBalance: 0, lifetimeEarned: 0 };
+  const campaignNotifications = campaignNotificationAgg[0] || { total: 0, opened: 0, clicked: 0 };
+
+  res.json({
+    period: 30,
+    groupBuy: {
+      activeCampaigns: groupBuyByStatus.open || 0,
+      filledCampaigns: groupBuyByStatus.filled || 0,
+      participantsLast30d: groupBuyParticipantsAgg[0]?.total || 0,
+      successRate: groupBuyClosed > 0 ? Number((((groupBuyByStatus.filled || 0) / groupBuyClosed) * 100).toFixed(1)) : 0
+    },
+    rewardPoints: {
+      usersWithBalance: rewardPoints.usersWithBalance,
+      totalBalanceOutstanding: rewardPoints.totalBalance,
+      lifetimeEarned: rewardPoints.lifetimeEarned,
+      activeCheckinStreaks
+    },
+    referrals: {
+      totalReferred,
+      rewardsGranted: referralRewardsGranted,
+      last30d: referredLast30d,
+      conversionRate: totalReferred > 0 ? Number(((referralRewardsGranted / totalReferred) * 100).toFixed(1)) : 0
+    },
+    productQuestions: {
+      total: totalQuestions,
+      answered: answeredQuestions,
+      pending: totalQuestions - answeredQuestions,
+      last30d: questionsLast30d,
+      answerRate: totalQuestions > 0 ? Number(((answeredQuestions / totalQuestions) * 100).toFixed(1)) : 0
+    },
+    notificationCampaigns: {
+      active: (campaignByStatus.scheduled || 0) + (campaignByStatus.active || 0),
+      sentLast30d: campaignStatsAgg[0]?.sent || 0,
+      openRate: campaignNotifications.total > 0 ? Number(((campaignNotifications.opened / campaignNotifications.total) * 100).toFixed(1)) : 0,
+      clickRate: campaignNotifications.total > 0 ? Number(((campaignNotifications.clicked / campaignNotifications.total) * 100).toFixed(1)) : 0
+    },
+    onboarding: {
+      activeSequences,
+      activeEnrollments: enrollmentByStatus.active || 0,
+      completedEnrollments: enrollmentByStatus.completed || 0,
+      completionRate: totalEnrollments > 0 ? Number((((enrollmentByStatus.completed || 0) / totalEnrollments) * 100).toFixed(1)) : 0
+    }
   });
 });
 

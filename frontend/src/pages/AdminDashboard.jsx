@@ -53,7 +53,13 @@ import {
   Sparkles,
   ClipboardList,
   Truck,
-  Wrench
+  Wrench,
+  Gift,
+  Star,
+  HelpCircle,
+  Send,
+  Workflow,
+  ShoppingBag
 } from 'lucide-react';
 import useAdminCounts from '../hooks/useAdminCounts';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -118,6 +124,48 @@ function SectionStatCard({ label, value, helper, icon: Icon, variant: _variant =
           </span>
         )}
       </div>
+    </article>
+  );
+}
+
+const FEATURE_CARD_ACCENTS = {
+  orange: 'bg-[#FFF0E4] text-[#e85d00]',
+  purple: 'bg-purple-50 text-purple-600',
+  emerald: 'bg-emerald-50 text-emerald-600',
+  sky: 'bg-sky-50 text-sky-600',
+  amber: 'bg-amber-50 text-amber-600',
+  pink: 'bg-pink-50 text-pink-600'
+};
+
+function FeatureEngagementCard({ icon: Icon, title, accent = 'orange', metrics, link, loading }) {
+  return (
+    <article className="flex flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex items-center gap-2.5">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${FEATURE_CARD_ACCENTS[accent] || FEATURE_CARD_ACCENTS.orange}`}>
+          <Icon size={17} strokeWidth={2.2} />
+        </span>
+        <h4 className="text-sm font-bold text-gray-900 dark:text-neutral-100">{title}</h4>
+        {link && (
+          <Link to={link} className="ml-auto text-gray-300 transition hover:text-gray-500" title="Voir le détail">
+            <ChevronRight size={16} />
+          </Link>
+        )}
+      </div>
+      {loading ? (
+        <div className="mt-3 space-y-2">
+          <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+          <div className="h-4 w-32 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+        </div>
+      ) : (
+        <dl className="mt-3 space-y-1.5">
+          {metrics.map((metric) => (
+            <div key={metric.label} className="flex items-baseline justify-between gap-2">
+              <dt className="text-xs text-gray-500 dark:text-neutral-400">{metric.label}</dt>
+              <dd className="text-sm font-bold text-gray-900 dark:text-neutral-100">{metric.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </article>
   );
 }
@@ -316,6 +364,8 @@ export default function AdminDashboard() {
   const [conversionLoading, setConversionLoading] = useState(false);
   const [cohortAnalysis, setCohortAnalysis] = useState(null);
   const [cohortLoading, setCohortLoading] = useState(false);
+  const [featureEngagement, setFeatureEngagement] = useState(null);
+  const [featureEngagementLoading, setFeatureEngagementLoading] = useState(false);
   const [selectedHour, setSelectedHour] = useState(null);
   const [hourOrders, setHourOrders] = useState([]);
   const [hourOrdersLoading, setHourOrdersLoading] = useState(false);
@@ -613,6 +663,18 @@ export default function AdminDashboard() {
       console.error('Error loading cohort analysis:', e);
     } finally {
       setCohortLoading(false);
+    }
+  }, []);
+
+  const loadFeatureEngagement = useCallback(async () => {
+    setFeatureEngagementLoading(true);
+    try {
+      const { data } = await api.get('/admin/analytics/feature-engagement');
+      setFeatureEngagement(data);
+    } catch (e) {
+      console.error('Error loading feature engagement:', e);
+    } finally {
+      setFeatureEngagementLoading(false);
     }
   }, []);
 
@@ -929,6 +991,7 @@ export default function AdminDashboard() {
     loadOrderHeatmap();
     loadConversionMetrics();
     loadCohortAnalysis();
+    loadFeatureEngagement();
   }, [
     loadStats,
     loadOnlineStats,
@@ -938,6 +1001,7 @@ export default function AdminDashboard() {
     loadOrderHeatmap,
     loadConversionMetrics,
     loadCohortAnalysis,
+    loadFeatureEngagement,
     canViewStats
   ]);
 
@@ -1250,7 +1314,8 @@ export default function AdminDashboard() {
           loadSalesTrends(),
           loadOrderHeatmap(),
           loadConversionMetrics(),
-          loadCohortAnalysis()
+          loadCohortAnalysis(),
+          loadFeatureEngagement()
         );
       }
       if (canManagePayments) tasks.push(loadPayments());
@@ -1274,6 +1339,7 @@ export default function AdminDashboard() {
     loadOrderHeatmap,
     loadConversionMetrics,
     loadCohortAnalysis,
+    loadFeatureEngagement,
     loadPayments,
     loadUsers,
     loadComplaints,
@@ -2534,6 +2600,92 @@ export default function AdminDashboard() {
             </div>
           </section>
 
+          {/* Feature Engagement — the newer, non-order-centric features (group
+              buying, HDPoints, referrals, Q&A, notification campaigns,
+              onboarding) that the charts above don't cover at all. */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
+                <Sparkles size={20} className="text-neutral-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Engagement des fonctionnalités</h3>
+                <p className="text-xs text-gray-600 dark:text-neutral-300 mt-0.5">
+                  Achats groupés, points de fidélité, parrainage, Q&amp;R produits, campagnes et onboarding — 30 derniers jours
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <FeatureEngagementCard
+                icon={ShoppingBag}
+                title="Achats groupés"
+                accent="purple"
+                loading={featureEngagementLoading}
+                metrics={[
+                  { label: 'Campagnes actives', value: formatNumber(featureEngagement?.groupBuy?.activeCampaigns) },
+                  { label: 'Participants (30j)', value: formatNumber(featureEngagement?.groupBuy?.participantsLast30d) },
+                  { label: 'Taux de réussite', value: `${featureEngagement?.groupBuy?.successRate ?? 0}%` }
+                ]}
+              />
+              <FeatureEngagementCard
+                icon={Star}
+                title="Points HD"
+                accent="amber"
+                loading={featureEngagementLoading}
+                metrics={[
+                  { label: 'Utilisateurs avec solde', value: formatNumber(featureEngagement?.rewardPoints?.usersWithBalance) },
+                  { label: 'Solde en circulation', value: formatNumber(featureEngagement?.rewardPoints?.totalBalanceOutstanding) },
+                  { label: 'Séries de connexion actives', value: formatNumber(featureEngagement?.rewardPoints?.activeCheckinStreaks) }
+                ]}
+              />
+              <FeatureEngagementCard
+                icon={Gift}
+                title="Parrainage"
+                accent="pink"
+                loading={featureEngagementLoading}
+                metrics={[
+                  { label: 'Filleuls (total)', value: formatNumber(featureEngagement?.referrals?.totalReferred) },
+                  { label: 'Filleuls (30j)', value: formatNumber(featureEngagement?.referrals?.last30d) },
+                  { label: 'Taux de récompense', value: `${featureEngagement?.referrals?.conversionRate ?? 0}%` }
+                ]}
+              />
+              <FeatureEngagementCard
+                icon={HelpCircle}
+                title="Questions produits"
+                accent="sky"
+                loading={featureEngagementLoading}
+                metrics={[
+                  { label: 'Questions (total)', value: formatNumber(featureEngagement?.productQuestions?.total) },
+                  { label: 'En attente de réponse', value: formatNumber(featureEngagement?.productQuestions?.pending) },
+                  { label: 'Taux de réponse', value: `${featureEngagement?.productQuestions?.answerRate ?? 0}%` }
+                ]}
+              />
+              <FeatureEngagementCard
+                icon={Send}
+                title="Campagnes de notifications"
+                accent="orange"
+                link="/admin/notification-campaigns"
+                loading={featureEngagementLoading}
+                metrics={[
+                  { label: 'Campagnes actives', value: formatNumber(featureEngagement?.notificationCampaigns?.active) },
+                  { label: 'Envoyées (30j)', value: formatNumber(featureEngagement?.notificationCampaigns?.sentLast30d) },
+                  { label: "Taux d'ouverture", value: `${featureEngagement?.notificationCampaigns?.openRate ?? 0}%` }
+                ]}
+              />
+              <FeatureEngagementCard
+                icon={Workflow}
+                title="Onboarding nouveaux inscrits"
+                accent="emerald"
+                link="/admin/onboarding-sequences"
+                loading={featureEngagementLoading}
+                metrics={[
+                  { label: 'Séquences actives', value: formatNumber(featureEngagement?.onboarding?.activeSequences) },
+                  { label: 'Inscriptions en cours', value: formatNumber(featureEngagement?.onboarding?.activeEnrollments) },
+                  { label: 'Taux de complétion', value: `${featureEngagement?.onboarding?.completionRate ?? 0}%` }
+                ]}
+              />
+            </div>
+          </section>
 
           {(cityStats.length > 0 || genderStats.length > 0 || productCityStats.length > 0 || productGenderStats.length > 0) && (
             <section className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
