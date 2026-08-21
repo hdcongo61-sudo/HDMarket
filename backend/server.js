@@ -66,6 +66,10 @@ import tagRoutes from './routes/tagRoutes.js';
 import productVideoRoutes from './routes/productVideoRoutes.js';
 import countryRoutes from './routes/countryRoutes.js';
 import adminCountryRoutes from './routes/adminCountryRoutes.js';
+import socialWebhookRoutes from './routes/socialWebhookRoutes.js';
+import socialSellerRoutes from './routes/socialSellerRoutes.js';
+import socialAdminRoutes from './routes/socialAdminRoutes.js';
+import devSocialRoutes from './routes/devSocialRoutes.js';
 
 import User from './models/userModel.js';
 import Conversation from './models/conversationModel.js';
@@ -347,7 +351,10 @@ app.use(
   express.json({
     limit: '2mb',
     verify: (req, _res, buffer) => {
-      if (req.originalUrl?.startsWith('/api/payments/pawapay/callbacks/')) {
+      if (
+        req.originalUrl?.startsWith('/api/payments/pawapay/callbacks/') ||
+        req.originalUrl?.startsWith('/api/webhooks/social/')
+      ) {
         req.rawBody = Buffer.from(buffer);
       }
     }
@@ -463,6 +470,13 @@ app.use('/api/features', featureRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/product-videos', productVideoRoutes);
 app.use('/api/admin/countries', adminCountryRoutes);
+app.use('/api/webhooks/social', socialWebhookRoutes);
+app.use('/api/social-commerce', socialSellerRoutes);
+app.use('/api/admin/social-commerce', socialAdminRoutes);
+if (process.env.NODE_ENV !== 'production') {
+  // Dev-only inbound-message simulator (spec §55) — never mounted in prod.
+  app.use('/api/dev/social', devSocialRoutes);
+}
 app.use('/api/*', notFoundApiHandler);
 
 app.use(globalErrorHandler);

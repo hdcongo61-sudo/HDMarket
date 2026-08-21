@@ -32,7 +32,8 @@ import {
   Clapperboard,
   Globe2,
   Send,
-  Workflow
+  Workflow,
+  Share2
 } from 'lucide-react';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
@@ -90,7 +91,7 @@ const readAdminUiState = (storageKey) => {
   }
 };
 
-const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosEnabled = false) => [
+const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosEnabled = false, socialCommerceEnabled = false) => [
   {
     to: '/admin/dashboard',
     end: true,
@@ -222,6 +223,15 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
     group: 'commerce',
     show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_onboarding'])
   },
+  {
+    to: '/admin/social-commerce',
+    label: t('nav.socialCommerce', 'Social Commerce'),
+    icon: Share2,
+    group: 'commerce',
+    show: (u) =>
+      socialCommerceEnabled &&
+      (u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_social_commerce', 'manage_social_channels', 'view_social_analytics']))
+  },
   { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
   { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, group: 'founder', show: (u) => u?.role === 'founder' },
   { to: '/admin/founder-notifications-intelligence', label: t('nav.founderNotificationsIntelligence', 'Notif Intelligence'), icon: Crown, group: 'founder', badge: Number(counters?.pendingTasks || 0), show: (u) => u?.role === 'founder' },
@@ -257,7 +267,8 @@ export default function AdminLayout() {
     );
 
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
-  const navItems = buildNavItems(t, platformDeliveryEnabled, adminCounts, productVideosEnabled);
+  const socialCommerceEnabled = isFeatureEnabled('social_commerce', { defaultValue: false });
+  const navItems = buildNavItems(t, platformDeliveryEnabled, adminCounts, productVideosEnabled, socialCommerceEnabled);
   const mergedNavItems = navItems
     .filter((item) => item.to !== '/delivery/dashboard')
     .map((item) => {

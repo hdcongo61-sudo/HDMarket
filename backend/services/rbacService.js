@@ -29,7 +29,12 @@ const PERMISSIONS = Object.freeze({
   MANAGE_NOTIFICATION_CAMPAIGNS: 'manage_notification_campaigns',
   SEND_NOTIFICATION_CAMPAIGNS: 'send_notification_campaigns',
   MANAGE_ONBOARDING: 'manage_onboarding',
-  VIEW_NOTIFICATION_ANALYTICS: 'view_notification_analytics'
+  VIEW_NOTIFICATION_ANALYTICS: 'view_notification_analytics',
+  MANAGE_SOCIAL_COMMERCE: 'manage_social_commerce',
+  VIEW_SOCIAL_ANALYTICS: 'view_social_analytics',
+  // Provider credentials / connect-disconnect platform channels — founder
+  // only (never granted to admin below), per spec §46.
+  MANAGE_SOCIAL_CHANNELS: 'manage_social_channels'
 });
 
 const ALL_PERMISSIONS = Object.freeze(Object.values(PERMISSIONS));
@@ -71,7 +76,9 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.MANAGE_NOTIFICATION_CAMPAIGNS,
     PERMISSIONS.SEND_NOTIFICATION_CAMPAIGNS,
     PERMISSIONS.MANAGE_ONBOARDING,
-    PERMISSIONS.VIEW_NOTIFICATION_ANALYTICS
+    PERMISSIONS.VIEW_NOTIFICATION_ANALYTICS,
+    PERMISSIONS.MANAGE_SOCIAL_COMMERCE,
+    PERMISSIONS.VIEW_SOCIAL_ANALYTICS
   ],
   manager: [
     PERMISSIONS.VIEW_ADMIN_DASHBOARD,
@@ -84,7 +91,8 @@ const ROLE_PERMISSION_MAP = Object.freeze({
     PERMISSIONS.MANAGE_BOOSTS,
     PERMISSIONS.MANAGE_CHAT_TEMPLATES,
     PERMISSIONS.MANAGE_HELP_CENTER,
-    PERMISSIONS.VIEW_NOTIFICATION_ANALYTICS
+    PERMISSIONS.VIEW_NOTIFICATION_ANALYTICS,
+    PERMISSIONS.VIEW_SOCIAL_ANALYTICS
   ],
   delivery_agent: [
     PERMISSIONS.COURIER_VIEW_ASSIGNMENTS,

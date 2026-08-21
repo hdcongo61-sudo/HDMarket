@@ -35,6 +35,7 @@ const FlashSales = lazy(() => import('./pages/FlashSales'));
 const Sponsorships = lazy(() => import('./pages/Sponsorships'));
 const SellerAnalyticsV2 = lazy(() => import('./pages/SellerAnalyticsV2'));
 const SellerPromoCodes = lazy(() => import('./pages/SellerPromoCodes'));
+const SellerSocialCommerce = lazy(() => import('./pages/SellerSocialCommerce'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const ReferralLanding = lazy(() => import('./pages/ReferralLanding'));
@@ -85,6 +86,7 @@ const ProductDetailsWrapper = () => {
   return <ProductDetails key={slug} />;
 };
 const ProductPreview = lazy(() => import('./pages/ProductPreview'));
+const SocialRedirect = lazy(() => import('./pages/SocialRedirect'));
 const EditProduct = lazy(() => import('./pages/EditProduct'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -124,6 +126,7 @@ const AdminChatTemplates = lazy(() => import('./pages/AdminChatTemplates'));
 const AdminProductBoosts = lazy(() => import('./pages/AdminProductBoosts'));
 const AdminGlobalNotifications = lazy(() => import('./pages/AdminGlobalNotifications'));
 const AdminNotificationCampaigns = lazy(() => import('./pages/AdminNotificationCampaigns'));
+const AdminSocialCommerce = lazy(() => import('./pages/AdminSocialCommerce'));
 const AdminOnboardingSequences = lazy(() => import('./pages/AdminOnboardingSequences'));
 const AdminProducts = lazy(() => import('./pages/AdminProducts'));
 const AdminFeedback = lazy(() => import('./pages/AdminFeedback'));
@@ -572,6 +575,7 @@ function AppContent() {
   const boostEnabled = isFeatureEnabled('enable_boost', { defaultValue: true });
   const globalNotificationsEnabled = isFeatureEnabled('enable_global_notifications', { defaultValue: true });
   const notificationCampaignsEnabled = isFeatureEnabled('enable_notification_campaigns', { defaultValue: true });
+  const socialCommerceEnabled = isFeatureEnabled('social_commerce', { defaultValue: false });
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
@@ -830,6 +834,7 @@ function AppContent() {
           <Route path="/shop" element={<Navigate to="/shops/verified" replace />} />
           <Route path="/product/:slug" element={<ProductDetailsWrapper />} />
           <Route path="/product-preview/:slug" element={<ProductPreview />} />
+          <Route path="/s/:socialCode" element={<SocialRedirect />} />
           <Route path="/shop/:slug" element={<ShopProfile />} />
           <Route path="/shops/verified" element={<VerifiedShops />} />
           <Route path="/shops/free-delivery" element={<FreeDeliveryShops />} />
@@ -1165,6 +1170,10 @@ function AppContent() {
             <Route path="products/:listingId" element={<MyListingDetail />} />
             <Route path="analytics" element={<SellerAnalyticsV2 />} />
             <Route path="promo-codes" element={<SellerPromoCodes />} />
+            <Route
+              path="social-commerce"
+              element={socialCommerceEnabled ? <SellerSocialCommerce /> : <Navigate to="/seller/products" replace />}
+            />
             <Route path="assistant" element={<ShopAssistant />} />
             <Route path="assistant/workspace" element={<ShopAssistant />} />
             <Route path="orders/detail/:orderId" element={<SellerOrderDetail />} />
@@ -1337,6 +1346,14 @@ function AppContent() {
               element={
                 <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || hasAnyPermission(user, ['manage_onboarding'])}>
                   {notificationCampaignsEnabled ? <AdminOnboardingSequences /> : <Navigate to="/admin" replace />}
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="social-commerce"
+              element={
+                <ProtectedRoute allowAccess={(user) => user?.role === 'admin' || user?.role === 'founder' || hasAnyPermission(user, ['manage_social_commerce', 'manage_social_channels', 'view_social_analytics'])}>
+                  {socialCommerceEnabled ? <AdminSocialCommerce /> : <Navigate to="/admin" replace />}
                 </ProtectedRoute>
               }
             />

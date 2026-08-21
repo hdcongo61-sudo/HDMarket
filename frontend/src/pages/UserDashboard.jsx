@@ -40,6 +40,7 @@ import {
   AlertTriangle,
   CalendarClock,
   ShieldCheck,
+  Share2,
 } from 'lucide-react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -47,6 +48,7 @@ import AuthContext from '../context/AuthContext';
 import PaymentForm from '../components/PaymentForm';
 import ProductForm from '../components/ProductForm';
 import ProductAnalytics from '../components/ProductAnalytics';
+import ShareProductModal from '../components/social/ShareProductModal';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import useIsMobile from '../hooks/useIsMobile';
 import { buildProductPath } from '../utils/links';
@@ -127,11 +129,15 @@ export default function UserDashboard() {
   const { categoryGroups } = useCategories();
   const { user } = useContext(AuthContext);
   const { showToast } = useToast();
-  const { getRuntimeValue } = useAppSettings();
+  const { getRuntimeValue, isFeatureEnabled } = useAppSettings();
   const externalLinkProps = useDesktopExternalLink();
   const isMobile = useIsMobile(768);
   const isShopUser = user?.accountType === 'shop';
   const sellingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_selling', true), true);
+  // Defaults to hidden when unresolved — the Social Commerce Hub is a brand
+  // new, off-by-default subsystem (see backend/scripts/seedSocialCommerceFeatureFlags.js).
+  const socialCommerceEnabled = isFeatureEnabled('social_commerce', { defaultValue: false });
+  const [shareProduct, setShareProduct] = useState(null);
   const [items, setItems] = useState([]);
   const mobileLoadMoreRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -1562,6 +1568,13 @@ export default function UserDashboard() {
                           className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] active:bg-[#f5f2ee] transition-colors" aria-label="Statistiques">
                           <BarChart3 className="w-3.5 h-3.5" />
                         </button>
+                        {socialCommerceEnabled && product.status === 'approved' && (
+                          <button type="button"
+                            onClick={() => setShareProduct({ id: productId, title: product.title })}
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] active:bg-[#f5f2ee] transition-colors" aria-label="Partager">
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {product.status !== 'disabled' ? (
                           <button type="button"
                             onClick={() => updateStatus(product.slug || product._id, 'disable')}
@@ -1989,6 +2002,14 @@ export default function UserDashboard() {
           productId={analyticsProduct.id}
           productTitle={analyticsProduct.title}
           onClose={() => setAnalyticsProduct(null)}
+        />
+      )}
+
+      {shareProduct && (
+        <ShareProductModal
+          productId={shareProduct.id}
+          productTitle={shareProduct.title}
+          onClose={() => setShareProduct(null)}
         />
       )}
     </div>

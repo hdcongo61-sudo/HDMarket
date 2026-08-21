@@ -237,6 +237,12 @@ export const processSideEffectJob = async ({ name, data }) => {
       return processCheckout(data);
     case 'order-lifecycle':
       return processOrderLifecycle(data);
+    case 'social-outbound-retry': {
+      // Lazy import: keeps the Social Commerce Hub decoupled from this
+      // already-large core e-commerce side-effect file at module-load time.
+      const { retryOutboundSocialMessage } = await import('./socialCommerce/socialCommerceService.js');
+      return retryOutboundSocialMessage(data);
+    }
     default:
       return { skipped: true, reason: `Unknown side effect job: ${name}` };
   }

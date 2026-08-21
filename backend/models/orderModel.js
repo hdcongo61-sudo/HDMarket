@@ -506,6 +506,31 @@ const orderSchema = new mongoose.Schema(
       respondedAt: { type: Date, default: null },
       expiresAt: { type: Date, default: null },
       paidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
+    },
+
+    // Social Commerce Hub — which social channel/campaign/click drove this
+    // order, if any. Additive and defaults to DIRECT so every existing order
+    // creation path (web/app checkout with no social context) is unaffected.
+    // Populated server-side only, by attributionService validating a
+    // client-supplied socialClickId/socialInteractionId against real records
+    // — never trusted from the client as a bare channel string.
+    acquisition: {
+      channel: {
+        type: String,
+        enum: [
+          'DIRECT',
+          'TIKTOK_WHATSAPP',
+          'WHATSAPP',
+          'INSTAGRAM_DM',
+          'FACEBOOK_MESSENGER',
+          'TIKTOK_MESSAGING'
+        ],
+        default: 'DIRECT'
+      },
+      socialInteractionId: { type: mongoose.Schema.Types.ObjectId, ref: 'SocialInteraction', default: null },
+      socialCampaignId: { type: mongoose.Schema.Types.ObjectId, ref: 'SocialCampaign', default: null },
+      socialClickId: { type: mongoose.Schema.Types.ObjectId, ref: 'SocialClick', default: null },
+      sourceProductCode: { type: String, trim: true, default: '' }
     }
   },
   { timestamps: true }

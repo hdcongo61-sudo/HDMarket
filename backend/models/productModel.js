@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { generateUniqueSlug } from '../utils/slugUtils.js';
+import { generateSocialCode } from '../services/socialCommerce/socialCodeService.js';
 
 const productAttributeSchema = new mongoose.Schema(
   {
@@ -201,7 +202,12 @@ productSchema.index(
 );
 
 productSchema.add({
-  slug: { type: String, unique: true, index: true, lowercase: true, trim: true }
+  slug: { type: String, unique: true, index: true, lowercase: true, trim: true },
+  // Social Commerce Hub: short human-shareable code (e.g. "HD-8F42K") used to
+  // resolve a product from a WhatsApp/Instagram/Messenger message or a /s/
+  // smart link. Generated once, immutable after creation — see the
+  // pre('validate') hook below and services/socialCommerce/socialCodeService.js.
+  socialCode: { type: String, unique: true, index: true, uppercase: true, trim: true, sparse: true }
 });
 
 const buildConfirmationCandidate = () => {
@@ -225,6 +231,27 @@ const assignConfirmationNumber = async (doc) => {
   throw new Error('Impossible de générer un numéro de confirmation unique pour ce produit.');
 };
 
+// Same "don't regenerate on a projection that excluded the field" guard as
+// the slug above, plus: never regenerate once a code exists (immutable —
+// only backend/scripts/backfillProductSocialCodes.js or an explicit admin
+// regenerate endpoint may change it after creation).
+const assignSocialCode = async (doc) => {
+  if (!doc) return;
+  const codeKnown = doc.isNew || typeof doc.isSelected !== 'function' || doc.isSelected('socialCode');
+  if (!codeKnown || doc.socialCode) return;
+  const Model = doc.constructor;
+  const maxAttempts = 10;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidate = generateSocialCode();
+    const existing = await Model.findOne({ socialCode: candidate }).select('_id').lean();
+    if (!existing) {
+      doc.socialCode = candidate;
+      return;
+    }
+  }
+  throw new Error('Impossible de générer un code social unique pour ce produit.');
+};
+
 productSchema.pre('validate', async function (next) {
   // Never regenerate the slug on documents loaded with a projection that
   // excludes it — "unselected" is not "missing", and regenerating here would
@@ -244,6 +271,11 @@ productSchema.pre('validate', async function (next) {
     } catch (error) {
       return next(error);
     }
+  }
+  try {
+    await assignSocialCode(this);
+  } catch (error) {
+    return next(error);
   }
   next();
 });

@@ -70,6 +70,7 @@ import {
   notifyBuyerDeliveryDistanceWarning
 } from '../utils/deliveryDistanceWarning.js';
 import { getPawaPayConfig } from '../services/pawapayService.js';
+import { resolveAttributionForOrder } from '../services/socialCommerce/attributionService.js';
 import { initiateOrderRefund } from '../services/refundService.js';
 import { ensureSellerSettlementForOrder } from '../services/sellerSettlementService.js';
 import {
@@ -1144,9 +1145,11 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
     shippingAddress,
     promoEntries,
     groupBuyId,
-    paymentPercent: rawPaymentPercent
+    paymentPercent: rawPaymentPercent,
+    acquisition: rawAcquisition
   } = req.body;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
+  const acquisition = await resolveAttributionForOrder(rawAcquisition || {});
   // 50/70/100% of the order total, paid now via PawaPay — the rest is
   // collected at delivery/pickup. Only 100% keeps the free-delivery
   // incentive; anything less charges the real delivery fee (see
@@ -1372,7 +1375,8 @@ export const pawaPayCheckoutOrder = asyncHandler(async (req, res) => {
       totalAmount: sellerTotal,
       paidAmount: sellerPaidAmount,
       remainingAmount: sellerRemainingAmount,
-      adminPriority: sellerTotal >= escrowHighValueOrderThreshold ? 'HIGH' : 'LOW'
+      adminPriority: sellerTotal >= escrowHighValueOrderThreshold ? 'HIGH' : 'LOW',
+      acquisition
     });
     await recordEscrowAudit({
       order,
@@ -1471,11 +1475,15 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
     deliveryMode: rawDeliveryMode,
     shippingAddress,
     sponsorship,
-    groupBuyId
+    groupBuyId,
+    acquisition: rawAcquisition
   } = req.body;
   const userId = req.user?.id || req.user?._id;
   const deliveryMode = normalizeDeliveryMode(rawDeliveryMode);
   const requestedPaymentMode = normalizeCheckoutPaymentMode(rawPaymentMode);
+  // Never trusts the client-sent channel string directly — validates against
+  // real SocialClick/SocialInteraction records, defaults to DIRECT.
+  const acquisition = await resolveAttributionForOrder(rawAcquisition || {});
 
   const customer = await User.findById(userId).select(
     'name email phone address city commune restrictions'
@@ -1810,6 +1818,7 @@ export const userCheckoutOrder = asyncHandler(async (req, res) => {
           paymentTransactionCode: isSponsored ? '' : paymentInfo.transactionCode,
           deliveryCode,
           appliedPromoCode,
+          acquisition,
           sponsoredPayment: isSponsored
             ? {
                 isSponsored: true,

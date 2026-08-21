@@ -29,6 +29,7 @@ import RewardPointsRedeemBox from '../components/RewardPointsRedeemBox';
 import PawaPayButton from '../components/PawaPayButton';
 import AddressHistoryChips from '../components/AddressHistoryChips';
 import { readAddressHistory, saveAddressToHistory } from '../utils/addressHistory';
+import { getCheckoutAcquisitionPayload } from '../utils/socialAttribution';
 import QuotationRequestModal from '../components/quotations/QuotationRequestModal';
 
 const formatCurrency = (value) => formatPriceWithStoredSettings(value);
@@ -985,7 +986,8 @@ export default function OrderCheckout() {
             paymentMode: 'STANDARD',
             deliveryMode,
             shippingAddress,
-            sponsorship: { payerPhone: phone, message: sponsorMessage.trim() }
+            sponsorship: { payerPhone: phone, message: sponsorMessage.trim() },
+            acquisition: getCheckoutAcquisitionPayload()
           },
           { silentGlobalError: true }
         );
@@ -1224,6 +1226,7 @@ export default function OrderCheckout() {
           shippingAddress,
           pointsToRedeem,
           groupBuyId,
+          acquisition: getCheckoutAcquisitionPayload(),
           payments: sellerGroups.map((group) => {
             const entry = payments[group.sellerId] || {};
             const normalizedPromoCode = String(entry.promoCode || '').trim().toUpperCase();

@@ -8,6 +8,7 @@ import {
   Megaphone,
   Package,
   Rocket,
+  Share2,
   ShoppingBag,
   Store,
   Tag,
@@ -31,7 +32,8 @@ const groups = [
     items: [
       { to: '/seller/boosts', label: 'Boosts', short: 'Boosts', icon: Rocket },
       { to: '/seller/promo-codes', label: 'Codes promo', short: 'Promos', icon: Tag },
-      { to: '/seller/global-notifications', label: 'Campagnes', short: 'Campagnes', icon: Megaphone }
+      { to: '/seller/global-notifications', label: 'Campagnes', short: 'Campagnes', icon: Megaphone },
+      { to: '/seller/social-commerce', label: 'Social Commerce', short: 'Social', icon: Share2, feature: 'social_commerce' }
     ]
   },
   {

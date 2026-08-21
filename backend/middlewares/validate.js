@@ -132,6 +132,15 @@ const checkoutBaseKeys = {
     communeId: Joi.string().hex().length(24).allow('', null),
     addressLine: Joi.string().max(250).allow('', null),
     phone: Joi.string().trim().min(5).max(30).allow('', null)
+  }).allow(null),
+  // Social Commerce Hub — client-asserted ids only; the server re-validates
+  // each one against real SocialClick/SocialInteraction/SocialCampaign
+  // records before ever persisting it (see attributionService.js). Never
+  // trust these values on their own.
+  acquisition: Joi.object({
+    socialClickId: Joi.string().hex().length(24).allow('', null),
+    socialInteractionId: Joi.string().hex().length(24).allow('', null),
+    socialCampaignId: Joi.string().hex().length(24).allow('', null)
   }).allow(null)
 };
 
@@ -1549,5 +1558,20 @@ export const schemas = {
   }),
   bulkProductAction: Joi.object({
     productIds: Joi.array().items(Joi.string().hex().length(24)).min(1).max(100).required()
+  }),
+  socialCampaignCreate: Joi.object({
+    name: Joi.string().trim().min(2).max(120).required(),
+    productId: Joi.string().hex().length(24).required(),
+    channel: Joi.string().valid('TIKTOK', 'WHATSAPP', 'INSTAGRAM', 'FACEBOOK', 'OTHER').required(),
+    startsAt: Joi.date().iso().allow(null, ''),
+    endsAt: Joi.date().iso().allow(null, '')
+  }),
+  socialCampaignToggle: Joi.object({
+    isActive: Joi.boolean().required()
+  }),
+  socialConnectionUpsert: Joi.object({
+    status: Joi.string().valid('CONNECTED', 'DISABLED').default('CONNECTED'),
+    credentials: Joi.object().unknown(true).default({}),
+    metadata: Joi.object().unknown(true).default({})
   })
 };
