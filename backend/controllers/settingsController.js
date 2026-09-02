@@ -31,6 +31,16 @@ import { buildCountryDataFilter, resolveCountryContext, serializePublicCountry }
 
 const normalizeText = (value = '') => String(value || '').trim();
 
+// Mongoose subdocuments (e.g. Country.currency) expose their schema fields as
+// non-enumerable prototype accessors. Spreading one copies its internals
+// ($__parent, $__, $isNew, _doc) instead of the data, which leaks into JSON
+// responses and makes the frontend price formatter render "[object Object]".
+const toPlainObject = (value) => {
+  if (!value) return {};
+  if (typeof value.toObject === 'function') return value.toObject();
+  return typeof value === 'object' ? value : {};
+};
+
 const toValueType = (value) => {
   if (Array.isArray(value)) return 'array';
   if (value !== null && typeof value === 'object') return 'json';
@@ -215,12 +225,13 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
       City.find({ ...countryFilter, isActive: true }).sort({ order: 1, name: 1 }).lean(),
       Commune.find({ ...countryFilter, isActive: true }).sort({ order: 1, name: 1 }).lean()
     ]);
+    const countryCurrencyData = toPlainObject(countryContext.country.currency);
     const countryCurrency = {
-      ...countryContext.country.currency,
+      ...countryCurrencyData,
       isDefault: true,
       isActive: true,
       exchangeRateToDefault: 1,
-      formatting: countryContext.country.currency?.formatting || {
+      formatting: countryCurrencyData.formatting || {
         symbolPosition: 'suffix',
         thousandSeparator: ' ',
         decimalSeparator: ','
@@ -390,15 +401,32 @@ export const getPublicCurrencies = asyncHandler(async (req, res) => {
       requestedCountry: req.headers?.['x-country-id'] || req.headers?.['x-country-code'],
       user: req.user
     });
-    const supported = new Set(countryContext.country.supportedCurrencies || [countryContext.country.currency.code]);
-    const configured = await Currency.find({ code: { $in: [...supported] }, isActive: true }).lean();
-    const byCode = new Map(configured.map((item) => [item.code, item]));
-    res.json([...supported].map((code) => byCode.get(code) || {
-      ...(code === countryContext.country.currency.code ? countryContext.country.currency : { code, symbol: code, name: code, decimals: 0 }),
-      isDefault: code === countryContext.country.currency.code,
-      isActive: true,
-      exchangeRateToDefault: 1
-    }));
+    const countryCurrencyData = toPlainObject(countryContext.country.currency);
+    const countryCurrencyCode = String(countryCurrencyData.code || '').trim().toUpperCase();
+    const supportedCodes = new Set([
+      countryCurrencyCode,
+      ...(countryContext.country.supportedCurrencies || []).map((item) =>
+        String(item?.code || '').trim().toUpperCase()
+      )
+    ]);
+    const configured = await Currency.find(
+      { code: { $in: [...supportedCodes].filter(Boolean) }, isActive: true }
+    ).lean();
+    const byCode = new Map(configured.map((item) => [String(item.code).toUpperCase(), item]));
+    res.json(
+      [...supportedCodes]
+        .filter(Boolean)
+        .map((code) =>
+          byCode.get(code) || {
+            ...(code === countryCurrencyCode
+              ? countryCurrencyData
+              : { code, symbol: code, name: code, decimals: 0 }),
+            isDefault: code === countryCurrencyCode,
+            isActive: true,
+            exchangeRateToDefault: 1
+          }
+        )
+    );
   } catch (error) {
     console.error('getPublicCurrencies fallback used:', error?.message || error);
     res.json([

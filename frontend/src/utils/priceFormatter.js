@@ -11,16 +11,37 @@ export const formatPriceWithCurrency = (
 ) => {
   const amount = Number(value || 0);
   const safeAmount = Number.isFinite(amount) ? amount : 0;
-  const activeCurrency = currency || fallbackCurrency;
+  const rawCurrency = currency || fallbackCurrency;
+  // Older backend responses could leak a hydrated Mongoose subdocument (fields
+  // under _doc) or a raw subdocument object in place of a currency. Normalize
+  // defensively so the formatter can never print "[object Object]".
+  const activeCurrency =
+    rawCurrency && typeof rawCurrency === 'object'
+      ? {
+          ...(rawCurrency._doc && typeof rawCurrency._doc === 'object' ? rawCurrency._doc : {}),
+          ...rawCurrency
+        }
+      : rawCurrency;
   const decimals = Math.max(0, Number(activeCurrency?.decimals ?? 0));
   const rate = Number(activeCurrency?.exchangeRateToDefault ?? 1) || 1;
   const converted = safeAmount * rate;
 
-  const formatting = activeCurrency?.formatting || {};
-  const thousandSeparator = formatting.thousandSeparator || ' ';
-  const decimalSeparator = formatting.decimalSeparator || ',';
+  const formatting =
+    activeCurrency?.formatting && typeof activeCurrency.formatting === 'object'
+      ? activeCurrency.formatting
+      : {};
+  const thousandSeparator =
+    typeof formatting.thousandSeparator === 'string' && formatting.thousandSeparator
+      ? formatting.thousandSeparator
+      : ' ';
+  const decimalSeparator =
+    typeof formatting.decimalSeparator === 'string' && formatting.decimalSeparator
+      ? formatting.decimalSeparator
+      : ',';
   const symbolPosition = formatting.symbolPosition === 'prefix' ? 'prefix' : 'suffix';
-  const symbol = activeCurrency?.symbol || activeCurrency?.code || 'FCFA';
+  const symbolCandidate = activeCurrency?.symbol || activeCurrency?.code || 'FCFA';
+  const symbol =
+    typeof symbolCandidate === 'string' && symbolCandidate.trim() ? symbolCandidate : 'FCFA';
 
   const fixed = converted.toFixed(decimals);
   const [integerPart, decimalPart] = fixed.split('.');

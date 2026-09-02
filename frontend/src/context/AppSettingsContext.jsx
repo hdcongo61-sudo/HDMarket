@@ -48,6 +48,22 @@ const FALLBACK_COMMUNE = {
   fixedFee: 0
 };
 
+// Older backend responses could leak Mongoose subdocument internals
+// ($__parent/_doc) or raw subdocuments in place of currency objects, which
+// surfaced as "[object Object]" in formatted prices. Normalize every currency
+// entry to a plain object with string code/symbol fields.
+const sanitizeCurrency = (item) => {
+  if (!item || typeof item !== 'object') return null;
+  const raw = item._doc && typeof item._doc === 'object' ? { ...item._doc, ...item } : item;
+  const code = typeof raw.code === 'string' && raw.code.trim() ? raw.code.trim().toUpperCase() : '';
+  const symbol = typeof raw.symbol === 'string' && raw.symbol.trim() ? raw.symbol.trim() : '';
+  return {
+    ...raw,
+    code: code || 'XAF',
+    symbol: symbol || code || 'FCFA'
+  };
+};
+
 const AppSettingsContext = createContext(null);
 
 const FEATURE_RUNTIME_KEYS = Object.freeze({
@@ -100,7 +116,9 @@ export const AppSettingsProvider = ({ children }) => {
   const [resources, setResources] = useState({});
 
   const normalizePublicPayload = useCallback((payload = {}) => {
-    const normalizedCurrencies = Array.isArray(payload.currencies) ? payload.currencies : [];
+    const normalizedCurrencies = (Array.isArray(payload.currencies) ? payload.currencies : [])
+      .map(sanitizeCurrency)
+      .filter(Boolean);
     const normalizedCities = Array.isArray(payload.cities) ? payload.cities : [];
     const normalizedCommunes = Array.isArray(payload.communes) ? payload.communes : [];
     const normalizedLanguages = Array.isArray(payload.languages) ? payload.languages : [];
@@ -109,7 +127,7 @@ export const AppSettingsProvider = ({ children }) => {
       normalizedCurrencies.length > 0 ? normalizedCurrencies : [FALLBACK_CURRENCY];
     const cities = normalizedCities.length > 0 ? normalizedCities : [FALLBACK_CITY];
     const defaultCurrency =
-      payload.defaultCurrency ||
+      sanitizeCurrency(payload.defaultCurrency) ||
       currencies.find((item) => item?.isDefault) ||
       currencies[0] ||
       FALLBACK_CURRENCY;
