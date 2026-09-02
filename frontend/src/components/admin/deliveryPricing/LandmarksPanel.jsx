@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Crosshair, Landmark as LandmarkIcon, Loader2, MapPin, Plus, Trash2 } from 'lucide-react';
+import { ArrowPathIcon, BuildingLibraryIcon, MapPinIcon, PlusIcon, TrashIcon, ViewfinderCircleIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 
@@ -101,7 +101,7 @@ export default function LandmarksPanel() {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4">
       <div className="mb-4 flex items-center gap-2">
-        <LandmarkIcon className="h-5 w-5 text-[#e85d00]" />
+        <BuildingLibraryIcon className="h-5 w-5 text-[#e85d00]" />
         <h2 className="text-base font-black text-slate-950">Points de repère</h2>
       </div>
       <p className="mb-4 text-xs text-gray-500">
@@ -110,7 +110,7 @@ export default function LandmarksPanel() {
 
       <form onSubmit={handleCreate} className="mb-4 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
         <div className="mb-3 flex items-center gap-2">
-          <Plus className="h-4 w-4 text-[#e85d00]" />
+          <PlusIcon className="h-4 w-4 text-[#e85d00]" />
           <h3 className="text-sm font-black text-slate-950">Nouveau point de repère</h3>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -188,7 +188,7 @@ export default function LandmarksPanel() {
             disabled={locating}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-3 text-xs font-black text-[#e85d00] disabled:opacity-50 sm:col-span-2"
           >
-            {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+            {locating ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ViewfinderCircleIcon className="h-4 w-4" />}
             {locating ? 'Localisation…' : 'Utiliser ma position actuelle'}
           </button>
           <label className="text-xs font-bold text-gray-700 sm:col-span-2">
@@ -215,7 +215,7 @@ export default function LandmarksPanel() {
             disabled={creating || !form.name.trim() || !form.cityId || form.latitude === '' || form.longitude === ''}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#231f1b] px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2"
           >
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+            {creating ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <MapPinIcon className="h-4 w-4" />}
             {creating ? 'Ajout en cours…' : 'Ajouter le point de repère'}
           </button>
         </div>
@@ -243,7 +243,7 @@ export default function LandmarksPanel() {
                 className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg border border-red-100 text-red-600 disabled:opacity-50"
                 aria-label="Supprimer"
               >
-                <Trash2 className="h-4 w-4" />
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           ))}

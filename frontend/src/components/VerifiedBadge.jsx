@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Shield } from 'lucide-react';
+import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 export default function VerifiedBadge({
   verified,
@@ -8,7 +8,7 @@ export default function VerifiedBadge({
   verifiedLabel = 'Boutique vérifiée',
   unverifiedLabel = 'Boutique non vérifiée'
 }) {
-  const Icon = verified ? ShieldCheck : Shield;
+  const Icon = verified ? ShieldCheckIcon : ShieldCheckIcon;
   const label = verified ? verifiedLabel : unverifiedLabel;
   const style = verified
     ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm'
@@ -21,7 +21,7 @@ export default function VerifiedBadge({
       aria-label={label}
       title={!showLabel ? label : undefined}
     >
-      <Icon size={12} />
+      <Icon className="h-3 w-3" />
       {showLabel ? <span>{label}</span> : null}
     </span>
   );

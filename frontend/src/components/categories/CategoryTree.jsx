@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, GripVertical, MoveDown, MoveUp, Plus } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, Bars3Icon, ChevronDownIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline';
 import StatusChip from './StatusChip';
 
 function NodeRow({
@@ -43,7 +43,7 @@ function NodeRow({
             onClick={() => setExpanded((prev) => !prev)}
             className="rounded p-0.5 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700"
           >
-            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {expanded ? <ChevronDownIcon className="h-3.5 w-3.5" /> : <ChevronRightIcon className="h-3.5 w-3.5" />}
           </button>
         ) : (
           <span className="w-4" />
@@ -53,7 +53,7 @@ function NodeRow({
           onClick={() => onSelect(node)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <GripVertical size={14} className="text-neutral-400" />
+          <Bars3Icon className="text-neutral-400 h-3.5 w-3.5" />
           <span className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100">{node.name}</span>
         </button>
         <span className="text-xs text-neutral-500">#{node.order}</span>
@@ -68,7 +68,7 @@ function NodeRow({
             className="rounded-md p-1 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700"
             title="Monter"
           >
-            <MoveUp size={14} />
+            <ArrowUpIcon className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -76,7 +76,7 @@ function NodeRow({
             className="rounded-md p-1 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700"
             title="Descendre"
           >
-            <MoveDown size={14} />
+            <ArrowDownIcon className="h-3.5 w-3.5" />
           </button>
           {node.level === 0 ? (
             <button
@@ -85,7 +85,7 @@ function NodeRow({
               className="rounded-md p-1 text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700"
               title="Créer une sous-catégorie"
             >
-              <Plus size={14} />
+              <PlusIcon className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </div>

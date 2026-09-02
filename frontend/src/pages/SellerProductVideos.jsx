@@ -1,24 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  BarChart3,
-  CheckCircle2,
-  Clock3,
-  Eye,
-  Heart,
-  Loader2,
-  MousePointerClick,
-  Play,
-  Plus,
-  RefreshCw,
-  Save,
-  ShoppingCart,
-  Store,
-  Trash2,
-  Upload,
-  WifiOff,
-  XCircle
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowUpTrayIcon, BuildingStorefrontIcon, ChartBarIcon, CheckCircleIcon, CheckIcon, ClockIcon, CursorArrowRaysIcon, EyeIcon, HeartIcon, PlayIcon, PlusIcon, ShoppingCartIcon, TrashIcon, WifiIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api, { isApiCanceledError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -67,7 +49,7 @@ const readDuration = (file) =>
 function Metric({ icon: Icon, label, value, accent = 'text-neutral-900 dark:text-white' }) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-neutral-900">
-      <div className="flex items-center gap-2 text-xs font-semibold text-neutral-500"><Icon size={15} /> {label}</div>
+      <div className="flex items-center gap-2 text-xs font-semibold text-neutral-500"><Icon className="h-[15px] w-[15px]" /> {label}</div>
       <p className={`mt-2 text-2xl font-black ${accent}`}>{value}</p>
     </div>
   );
@@ -77,26 +59,26 @@ function FeedbackAlert({ feedback }) {
   if (!feedback?.message) return null;
   const presentation = {
     success: {
-      icon: CheckCircle2,
+      icon: CheckCircleIcon,
       className: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-200'
     },
     error: {
-      icon: XCircle,
+      icon: XCircleIcon,
       className: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-200'
     },
     info: {
-      icon: Clock3,
+      icon: ClockIcon,
       className: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-200'
     }
   }[feedback.type] || {};
-  const Icon = presentation.icon || Clock3;
+  const Icon = presentation.icon || ClockIcon;
   return (
     <div
       role={feedback.type === 'error' ? 'alert' : 'status'}
       aria-live="polite"
       className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-xs font-bold leading-5 ${presentation.className || ''}`}
     >
-      <Icon size={17} className="mt-0.5 shrink-0" />
+      <Icon className="mt-0.5 shrink-0 h-[17px] w-[17px]" />
       <span>{feedback.message}</span>
     </div>
   );
@@ -120,7 +102,7 @@ function SellerVideoPlayer({ video }) {
         {poster ? <img src={poster} alt="" className="h-full w-full object-cover opacity-70" loading="lazy" /> : null}
         <div className="absolute inset-0 grid place-items-center bg-black/45 px-5 text-center text-white">
           <div>
-            <XCircle className="mx-auto" size={28} />
+            <XCircleIcon className="mx-auto h-7 w-7" />
             <p className="mt-2 text-xs font-bold">
               {source ? 'Cette vidéo ne peut pas être lue pour le moment.' : 'Source vidéo indisponible.'}
             </p>
@@ -526,21 +508,21 @@ export default function SellerProductVideos() {
   if (user && user.accountType !== 'shop') {
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center sm:px-6">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><Store size={26} /></span>
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><BuildingStorefrontIcon className="h-[26px] w-[26px]" /></span>
         <h1 className="mt-4 text-2xl font-black text-neutral-950 dark:text-white">Réservé aux boutiques</h1>
         <p className="mt-2 text-sm text-neutral-500">
           Seuls les comptes Boutique peuvent publier des vidéos produit. Transformez votre compte pour présenter vos
           articles en vidéo et suivre leurs performances.
         </p>
         <Link to="/shop-conversion-request" className="mt-6 inline-flex h-12 items-center gap-2 rounded-xl bg-emerald-500 px-6 font-black text-white transition active:scale-95">
-          <Store size={18} /> Devenir Boutique
+          <BuildingStorefrontIcon className="h-[18px] w-[18px]" /> Devenir Boutique
         </Link>
       </div>
     );
   }
 
   if (loading) {
-    return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="animate-spin text-emerald-500" /></div>;
+    return <div className="grid min-h-[60vh] place-items-center"><ArrowPathIcon className="animate-spin text-emerald-500" /></div>;
   }
 
   return (
@@ -551,21 +533,21 @@ export default function SellerProductVideos() {
           <h1 className="mt-1 text-3xl font-black text-neutral-950 dark:text-white">Mes HDMarket Videos</h1>
           <p className="mt-2 max-w-2xl text-sm text-neutral-500">Montrez le produit en situation, publiez plusieurs angles et suivez ce qui transforme les vues en ventes.</p>
         </div>
-        <button type="button" onClick={load} className="flex h-10 items-center gap-2 rounded-xl border border-neutral-200 px-4 text-sm font-bold dark:border-white/10"><RefreshCw size={16} /> Actualiser</button>
+        <button type="button" onClick={load} className="flex h-10 items-center gap-2 rounded-xl border border-neutral-200 px-4 text-sm font-bold dark:border-white/10"><ArrowPathIcon className="h-4 w-4" /> Actualiser</button>
       </div>
 
       <section className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <Metric icon={Play} label="Vidéos" value={analytics?.videos || 0} />
-        <Metric icon={Eye} label="Vues" value={analytics?.views || 0} />
-        <Metric icon={Clock3} label="Visionnage moyen" value={`${analytics?.averageWatchSeconds || 0}s`} />
-        <Metric icon={CheckCircle2} label="Complétion" value={`${analytics?.completionRate || 0}%`} />
-        <Metric icon={MousePointerClick} label="CTR produit" value={`${analytics?.clickThroughRate || 0}%`} />
-        <Metric icon={ShoppingCart} label="Ajouts panier" value={analytics?.addToCarts || 0} accent="text-emerald-600" />
+        <Metric icon={PlayIcon} label="Vidéos" value={analytics?.videos || 0} />
+        <Metric icon={EyeIcon} label="Vues" value={analytics?.views || 0} />
+        <Metric icon={ClockIcon} label="Visionnage moyen" value={`${analytics?.averageWatchSeconds || 0}s`} />
+        <Metric icon={CheckCircleIcon} label="Complétion" value={`${analytics?.completionRate || 0}%`} />
+        <Metric icon={CursorArrowRaysIcon} label="CTR produit" value={`${analytics?.clickThroughRate || 0}%`} />
+        <Metric icon={ShoppingCartIcon} label="Ajouts panier" value={analytics?.addToCarts || 0} accent="text-emerald-600" />
       </section>
 
       <div className="mt-8 grid gap-7 lg:grid-cols-[380px_1fr]">
         <form onSubmit={upload} className="h-fit rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-neutral-900">
-          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><Plus /></span><div><h2 className="font-black">Nouvelle vidéo</h2><p className="text-xs text-neutral-500">MP4, MOV ou WEBM · {maxDuration}s max.</p></div></div>
+          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><PlusIcon /></span><div><h2 className="font-black">Nouvelle vidéo</h2><p className="text-xs text-neutral-500">MP4, MOV ou WEBM · {maxDuration}s max.</p></div></div>
           <label className="mt-5 block text-xs font-bold uppercase tracking-wide text-neutral-500">Produit</label>
           <select
             required
@@ -595,12 +577,12 @@ export default function SellerProductVideos() {
           <textarea disabled={uploading} value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} placeholder="Montrez le détail qui fait la différence… #nouveauté" className="mt-2 min-h-24 w-full rounded-xl border border-neutral-200 bg-transparent p-3 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10" />
           {!isOnline ? (
             <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200" role="alert">
-              <WifiOff size={17} className="mt-0.5 shrink-0" />
+              <WifiIcon className="mt-0.5 shrink-0 h-[17px] w-[17px]" />
               <span>Connexion indisponible. Les fichiers restent sur cet appareil jusqu’à votre reconnexion.</span>
             </div>
           ) : null}
           <label className={`mt-4 flex min-h-28 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50 p-4 text-center transition dark:border-white/10 dark:bg-white/[0.03] ${uploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-emerald-400'}`}>
-            <Upload className="text-emerald-600" />
+            <ArrowUpTrayIcon className="text-emerald-600" />
             <span className="mt-2 text-sm font-bold">{maxUploads > 1 ? `Choisir jusqu’à ${maxUploads} vidéos` : 'Choisir une vidéo'}</span>
             <span className="text-xs text-neutral-500">La compression adaptative est appliquée après l’envoi.</span>
             <input ref={fileInputRef} disabled={uploading} type="file" multiple={maxUploads > 1} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={chooseFiles} className="sr-only" />
@@ -641,7 +623,7 @@ export default function SellerProductVideos() {
                         aria-label={`Retirer ${file.name} de l’envoi`}
                         title="Retirer cette vidéo"
                       >
-                        <Trash2 size={14} />
+                        <TrashIcon className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     <div
@@ -678,12 +660,12 @@ export default function SellerProductVideos() {
           ) : null}
           <div className="mt-5 flex gap-2">
             <button type="submit" disabled={uploading || !isOnline || !productId || !files.length} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
-              {uploading ? <Loader2 size={18} className="animate-spin" /> : uploadAttemptStatus === 'error' || uploadAttemptStatus === 'cancelled' ? <RefreshCw size={18} /> : <Upload size={18} />}
+              {uploading ? <ArrowPathIcon className="animate-spin h-[18px] w-[18px]" /> : uploadAttemptStatus === 'error' || uploadAttemptStatus === 'cancelled' ? <ArrowPathIcon className="h-[18px] w-[18px]" /> : <ArrowUpTrayIcon className="h-[18px] w-[18px]" />}
               {uploading ? `Envoi… ${uploadProgress}%` : uploadAttemptStatus === 'error' || uploadAttemptStatus === 'cancelled' ? 'Réessayer' : 'Envoyer'}
             </button>
             {uploading ? (
               <button type="button" onClick={cancelUpload} className="flex h-12 items-center justify-center gap-1.5 rounded-xl border border-rose-200 px-3 text-sm font-black text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10">
-                <XCircle size={17} /> Annuler
+                <XCircleIcon className="h-[17px] w-[17px]" /> Annuler
               </button>
             ) : files.length ? (
               <button type="button" onClick={clearSelectedFiles} className="flex h-12 items-center justify-center rounded-xl border border-neutral-200 px-3 text-sm font-bold text-neutral-600 hover:bg-neutral-50 dark:border-white/10 dark:text-neutral-300 dark:hover:bg-white/5">
@@ -695,24 +677,24 @@ export default function SellerProductVideos() {
 
         <section>
           <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-black">Bibliothèque</h2><span className="text-sm text-neutral-500">{videos.filter((video) => video.status !== 'deleted').length} vidéo(s)</span></div>
-          {!videos.length ? <div className="rounded-3xl border border-dashed border-neutral-300 p-12 text-center dark:border-white/15"><BarChart3 className="mx-auto text-neutral-400" /><p className="mt-3 font-bold">Votre première vidéo peut être publiée maintenant.</p></div> : null}
+          {!videos.length ? <div className="rounded-3xl border border-dashed border-neutral-300 p-12 text-center dark:border-white/15"><ChartBarIcon className="mx-auto text-neutral-400" /><p className="mt-3 font-bold">Votre première vidéo peut être publiée maintenant.</p></div> : null}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {videos.filter((video) => video.status !== 'deleted').map((video) => (
               <article key={video._id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-white/10 dark:bg-neutral-900">
                 <div className="relative aspect-[4/5] bg-neutral-950">
                   <SellerVideoPlayer video={video} />
                   <span className={`pointer-events-none absolute left-3 top-3 z-10 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-sm ${statusStyles[video.status] || statusStyles.hidden}`}>{statusLabels[video.status] || video.status}</span>
-                  <span className="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-bold text-white shadow-sm"><Eye size={12} /> {video.counters?.views || 0}</span>
+                  <span className="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-bold text-white shadow-sm"><EyeIcon className="h-3 w-3" /> {video.counters?.views || 0}</span>
                 </div>
                 <div className="p-4">
                   <p className="line-clamp-1 font-bold">{video.product?.title || 'Produit'}</p>
                   <p className="mt-1 line-clamp-2 min-h-9 text-xs text-neutral-500">{video.caption || 'Sans légende'}</p>
                   {video.moderationReason ? <p className="mt-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30">{video.moderationReason}</p> : null}
                   {videoFeedback[video._id] ? <div className="mt-2"><FeedbackAlert feedback={videoFeedback[video._id]} /></div> : null}
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><span><Eye size={13} className="mx-auto" />{video.counters?.views || 0}</span><span><Heart size={13} className="mx-auto" />{video.counters?.likes || 0}</span><span><Save size={13} className="mx-auto" />{video.counters?.saves || 0}</span></div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><span><EyeIcon className="mx-auto h-[13px] w-[13px]" />{video.counters?.views || 0}</span><span><HeartIcon className="mx-auto h-[13px] w-[13px]" />{video.counters?.likes || 0}</span><span><CheckIcon className="mx-auto h-[13px] w-[13px]" />{video.counters?.saves || 0}</span></div>
                   <div className="mt-4 flex gap-2">
                     <label className={`flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-neutral-200 text-xs font-bold dark:border-white/10 ${replacingVideoId === video._id ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}>
-                      {replacingVideoId === video._id ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                      {replacingVideoId === video._id ? <ArrowPathIcon className="animate-spin h-[13px] w-[13px]" /> : <ArrowPathIcon className="h-[13px] w-[13px]" />}
                       {replacingVideoId === video._id ? 'Envoi…' : 'Remplacer'}
                       <input
                         type="file"
@@ -722,7 +704,7 @@ export default function SellerProductVideos() {
                         onChange={(event) => replaceVideo(video, event.target.files?.[0], event.target)}
                       />
                     </label>
-                    <button type="button" aria-label="Supprimer" onClick={async () => { if (!window.confirm('Supprimer définitivement cette vidéo ? Cette action est irréversible.')) return; try { await api.delete(`/product-videos/seller/${video._id}`); setVideos((items) => items.filter((item) => item._id !== video._id)); showToast('Vidéo supprimée.', { variant: 'success' }); } catch (error) { showToast(error.response?.data?.message || 'Suppression impossible.', { variant: 'error' }); } }} className="grid h-9 w-9 place-items-center rounded-lg border border-rose-200 text-rose-600"><Trash2 size={15} /></button>
+                    <button type="button" aria-label="Supprimer" onClick={async () => { if (!window.confirm('Supprimer définitivement cette vidéo ? Cette action est irréversible.')) return; try { await api.delete(`/product-videos/seller/${video._id}`); setVideos((items) => items.filter((item) => item._id !== video._id)); showToast('Vidéo supprimée.', { variant: 'success' }); } catch (error) { showToast(error.response?.data?.message || 'Suppression impossible.', { variant: 'error' }); } }} className="grid h-9 w-9 place-items-center rounded-lg border border-rose-200 text-rose-600"><TrashIcon className="h-[15px] w-[15px]" /></button>
                   </div>
                 </div>
               </article>
@@ -730,7 +712,7 @@ export default function SellerProductVideos() {
           </div>
         </section>
       </div>
-      <div className="mt-8 flex flex-wrap gap-4 rounded-2xl bg-neutral-100 p-4 text-sm dark:bg-white/5"><span className="flex items-center gap-2"><CheckCircle2 className="text-emerald-500" size={18} /> Formats contrôlés</span><span className="flex items-center gap-2"><Clock3 className="text-amber-500" size={18} /> Modération configurable</span><span className="flex items-center gap-2"><XCircle className="text-rose-500" size={18} /> Contenu trompeur refusé</span></div>
+      <div className="mt-8 flex flex-wrap gap-4 rounded-2xl bg-neutral-100 p-4 text-sm dark:bg-white/5"><span className="flex items-center gap-2"><CheckCircleIcon className="text-emerald-500 h-[18px] w-[18px]" /> Formats contrôlés</span><span className="flex items-center gap-2"><ClockIcon className="text-amber-500 h-[18px] w-[18px]" /> Modération configurable</span><span className="flex items-center gap-2"><XCircleIcon className="text-rose-500 h-[18px] w-[18px]" /> Contenu trompeur refusé</span></div>
     </div>
   );
 }

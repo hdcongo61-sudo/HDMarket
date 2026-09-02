@@ -1,18 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 import legacyCategoryGroups from '../data/categories';
-import {
-  Smartphone, Shirt, Dumbbell, Home, Factory, HeartPulse, Car, Truck,
-  Package, ShoppingBag, Sparkles, Globe
-} from 'lucide-react';
+import { BuildingOffice2Icon, CubeIcon, DevicePhoneMobileIcon, FireIcon, GlobeAltIcon, HeartIcon, HomeIcon, ShoppingBagIcon, SparklesIcon, TruckIcon } from '@heroicons/react/24/outline';
 
 // Maps iconKey strings from the admin category model to Lucide React components
 const ICON_MAP = {
-  Smartphone, Shirt, Dumbbell, Home, Factory, HeartPulse, Car, Truck,
-  Package, ShoppingBag, Sparkles, Globe
+  DevicePhoneMobileIcon, ShoppingBagIcon, FireIcon, HomeIcon, BuildingOffice2Icon, HeartIcon, TruckIcon, TruckIcon,
+  CubeIcon, ShoppingBagIcon, SparklesIcon, GlobeAltIcon
 };
 
-const DEFAULT_ICON = Package;
+const DEFAULT_ICON = CubeIcon;
 
 export const resolveIcon = (iconKey) => {
   if (!iconKey) return DEFAULT_ICON;

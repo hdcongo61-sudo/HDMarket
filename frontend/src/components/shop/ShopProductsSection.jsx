@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X, Sparkles, Tag, Clock, Flame, Grid3x3, Star } from 'lucide-react';
+import { ClockIcon, FireIcon, SparklesIcon, Squares2X2Icon, StarIcon, TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import ShimmerSkeleton from '../ui/ShimmerSkeleton';
 import ProductCard from '../ProductCard';
@@ -57,14 +57,14 @@ export default function ShopProductsSection({
     {
       id: 'products',
       label: t('shop_profile.tab_products', 'Produits'),
-      icon: Grid3x3,
+      icon: Squares2X2Icon,
       count: products.length,
       onSelect: goAll
     },
     {
       id: 'latest',
       label: t('shop_profile.tab_new', 'Nouveautés'),
-      icon: Clock,
+      icon: ClockIcon,
       count: latestProducts.length,
       onSelect: () => {
         setPromoOnly(false);
@@ -74,7 +74,7 @@ export default function ShopProductsSection({
     {
       id: 'promos',
       label: t('shop_profile.tab_promos', 'Promos'),
-      icon: Sparkles,
+      icon: SparklesIcon,
       count: promoCount,
       disabled: !hasPromoProducts,
       onSelect: () => {
@@ -83,7 +83,7 @@ export default function ShopProductsSection({
         setPromoOnly(true);
       }
     },
-    { id: 'reviews', label: t('shop_profile.tab_reviews', 'Avis'), icon: Star, onSelect: onGoReviews }
+    { id: 'reviews', label: t('shop_profile.tab_reviews', 'Avis'), icon: StarIcon, onSelect: onGoReviews }
   ];
 
   const activeChip =
@@ -115,7 +115,7 @@ export default function ShopProductsSection({
                       : 'font-semibold text-gray-500 active:scale-95 dark:text-neutral-400'
                   } ${tab.disabled ? 'cursor-not-allowed opacity-40' : ''}`}
                 >
-                  <Icon size={13} />
+                  <Icon className="h-[13px] w-[13px]" />
                   <span>{tab.label}</span>
                   {typeof tab.count === 'number' && tab.count > 0 && (
                     <span className={`text-[10px] font-bold ${isActive ? 'text-[#FF5000]' : 'text-gray-400'}`}>
@@ -140,7 +140,7 @@ export default function ShopProductsSection({
             onClick={() => { setActiveCategory('all'); setPromoOnly(false); setProductFeed('all'); }}
             className={activeCategory === 'all' && !promoOnly && productFeed === 'all' ? activeChip : inactiveChip}
           >
-            <Grid3x3 size={11} />
+            <Squares2X2Icon className="h-[11px] w-[11px]" />
             <span>{t('shop_profile.tab_all', 'Tous')}</span>
           </button>
 
@@ -176,7 +176,7 @@ export default function ShopProductsSection({
               onClick={() => { setActiveCategory('all'); setPromoOnly(false); setProductFeed('featured'); }}
               className={productFeed === 'featured' ? activeChip : inactiveChip}
             >
-              <Flame size={11} />
+              <FireIcon className="h-[11px] w-[11px]" />
               <span>{t('shop_profile.tab_featured', 'Recommandés')}</span>
             </button>
           )}
@@ -186,7 +186,7 @@ export default function ShopProductsSection({
               onClick={() => { setActiveCategory('all'); setPromoOnly(false); setProductFeed('popular'); }}
               className={productFeed === 'popular' ? activeChip : inactiveChip}
             >
-              <Tag size={11} />
+              <TagIcon className="h-[11px] w-[11px]" />
               <span>{t('shop_profile.tab_popular', 'Populaires')}</span>
             </button>
           )}
@@ -206,7 +206,7 @@ export default function ShopProductsSection({
             onClick={onClearProductSearch}
             className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] font-bold text-gray-500 ring-1 ring-gray-200 transition active:scale-95 dark:bg-neutral-900 dark:ring-neutral-700 dark:text-neutral-300"
           >
-            <X size={11} />
+            <XMarkIcon className="h-[11px] w-[11px]" />
             {t('shop_profile.search_clear', 'Effacer')}
           </button>
         </div>

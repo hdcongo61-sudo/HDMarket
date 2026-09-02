@@ -426,9 +426,6 @@ export const updateUserPreferences = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Utilisateur introuvable.' });
   }
 
-  const nextTheme = normalizeText(req.body.theme || user.theme || 'system').toLowerCase();
-  const allowedTheme = ['light', 'dark', 'system'].includes(nextTheme) ? nextTheme : 'system';
-
   const nextLanguageRaw = normalizeText(req.body.preferredLanguage || user.preferredLanguage || 'fr').toLowerCase();
   const { languages, defaultLanguage } = await getLanguagesConfig();
   const activeLanguageSet = new Set(
@@ -453,7 +450,6 @@ export const updateUserPreferences = asyncHandler(async (req, res) => {
   user.preferredLanguage = preferredLanguage;
   user.preferredCurrency = preferredCurrency;
   user.preferredCity = preferredCity;
-  user.theme = allowedTheme;
 
   await user.save();
 
@@ -462,8 +458,7 @@ export const updateUserPreferences = asyncHandler(async (req, res) => {
     preferences: {
       preferredLanguage: user.preferredLanguage,
       preferredCurrency: user.preferredCurrency,
-      preferredCity: user.preferredCity,
-      theme: user.theme
+      preferredCity: user.preferredCity
     }
   });
 });

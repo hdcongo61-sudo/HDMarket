@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useMotionValue, animate } from 'framer-motion';
-import { Check, Trash2 } from 'lucide-react';
+import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const ACTION_OFFSET = 88;
 
@@ -73,7 +73,7 @@ export default function SwipeActions({
               : 'bg-orange-100 text-orange-300 dark:bg-neutral-700 dark:text-neutral-400'
           }`}
         >
-          <Check className="h-3.5 w-3.5" />
+          <CheckIcon className="h-3.5 w-3.5" />
           Lu
         </button>
       </div>
@@ -84,7 +84,7 @@ export default function SwipeActions({
           onClick={handleDelete}
           className="pointer-events-auto inline-flex h-9 items-center gap-1 rounded-full bg-red-600 px-3 text-xs font-black text-white shadow-sm transition duration-200 hover:bg-red-700 active:scale-95"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <TrashIcon className="h-3.5 w-3.5" />
           Suppr.
         </button>
       </div>

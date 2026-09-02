@@ -5,17 +5,7 @@ import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { buildShopPath, buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import {
-  Shield,
-  Store,
-  MapPin,
-  User,
-  ChevronRight,
-  Search,
-  CheckCircle,
-  Clock,
-  Grid3x3
-} from 'lucide-react';
+import { BuildingStorefrontIcon, CheckCircleIcon, ChevronRightIcon, ClockIcon, MagnifyingGlassIcon, MapPinIcon, ShieldCheckIcon, Squares2X2Icon, UserIcon } from '@heroicons/react/24/outline';
 import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
@@ -389,7 +379,7 @@ export default function VerifiedShops() {
         <div className="mx-auto max-w-5xl px-3 py-3 sm:px-5">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
-              <Shield className="h-5 w-5" />
+              <ShieldCheckIcon className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">
@@ -399,7 +389,7 @@ export default function VerifiedShops() {
               <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">{t('market.verifiedSubtitle', 'Vendeurs contrôlés par HDMarket')}</p>
             </div>
             <button type="button" onClick={() => setAllShopsModalOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] bg-white text-[#231f1b]" aria-label={t('market.searchVerifiedShop', 'Rechercher une boutique vérifiée')}>
-              <Grid3x3 className="h-4 w-4" />
+              <Squares2X2Icon className="h-4 w-4" />
             </button>
           </div>
 
@@ -409,11 +399,11 @@ export default function VerifiedShops() {
               onClick={() => setAllShopsModalOpen(true)}
               className="flex min-h-12 flex-1 items-center gap-3 rounded-full bg-[#f5f2ee] pl-4 pr-1.5 text-left ring-1 ring-[#eee8e0] active:scale-[0.99]"
             >
-              <Search className="h-4 w-4 shrink-0 text-[#8a8378]" />
+              <MagnifyingGlassIcon className="h-4 w-4 shrink-0 text-[#8a8378]" />
               <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#8a8378]">
                 {t('market.searchVerifiedShop', 'Rechercher une boutique vérifiée')}
               </span>
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black text-white"><Search className="h-4 w-4" /></span>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black text-white"><MagnifyingGlassIcon className="h-4 w-4" /></span>
             </button>
           </div>
 
@@ -480,7 +470,7 @@ export default function VerifiedShops() {
         ) : error && !shops.length ? (
           <section className="rounded-2xl border border-red-100 bg-white p-6 text-center shadow-sm">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
-              <Shield className="h-7 w-7" />
+              <ShieldCheckIcon className="h-7 w-7" />
             </div>
             <h2 className="text-lg font-black text-gray-900">Chargement impossible</h2>
             <p className="mt-2 text-sm font-semibold leading-6 text-red-700">{error}</p>
@@ -488,7 +478,7 @@ export default function VerifiedShops() {
         ) : !filteredShops.length ? (
           <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
-              <Store className="h-8 w-8" />
+              <BuildingStorefrontIcon className="h-8 w-8" />
             </div>
             <h2 className="text-lg font-black text-gray-900">{t('market.noVerifiedShop', 'Aucune boutique vérifiée')}</h2>
             <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-gray-500">
@@ -557,7 +547,7 @@ export default function VerifiedShops() {
                             <span>{lastProductDate}</span>
                             <span className="h-1 w-1 rounded-full bg-stone-300" />
                             <span className="inline-flex min-w-0 items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 shrink-0" />
+                              <MapPinIcon className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate">{shop.shopAddress || shop.city || t('market.addressMissing', 'Adresse non renseignée')}</span>
                             </span>
                           </div>
@@ -618,7 +608,7 @@ export default function VerifiedShops() {
                   {isAdmin && meta?.shopVerifiedBy ? (
                     <div className="border-t border-gray-200 bg-gray-100/50 px-4 py-3 text-xs font-bold text-gray-500 sm:px-5">
                       <span className="inline-flex items-center gap-2">
-                        <User className="h-3.5 w-3.5" />
+                        <UserIcon className="h-3.5 w-3.5" />
                         {t('market.verifiedBy', 'Vérifiée par')} {meta.shopVerifiedBy.name}
                         {meta.shopVerifiedAt ? ` · ${new Date(meta.shopVerifiedAt).toLocaleDateString(String(language || 'fr').startsWith('en') ? 'en-US' : 'fr-FR')}` : ''}
                       </span>
@@ -661,11 +651,11 @@ export default function VerifiedShops() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-gray-900">{shop.shopName || shop.name}</p>
                       <p className="mt-0.5 flex items-center gap-1 truncate text-xs font-semibold text-gray-500">
-                        <MapPin className="h-3 w-3" />
+                        <MapPinIcon className="h-3 w-3" />
                         {shop.shopAddress || t('market.addressPending', 'Adresse en cours')}
                       </p>
                     </div>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-amber-600" />
+                    <ChevronRightIcon className="h-4 w-4 shrink-0 text-amber-600" />
                   </div>
                 </Link>
               ))}
@@ -695,9 +685,9 @@ export default function VerifiedShops() {
         panelClassName="sm:max-w-5xl"
       >
         <ModalHeader
-          title={t('market.allShops', 'Toutes les boutiques')}
+title={t('market.allShops', 'Toutes les boutiques')}
           subtitle={`${allShopsForModal.length} ${t('market.shopsTotal', 'boutiques au total')}`}
-          icon={<Store size={18} className="text-[#e85d00]" />}
+          icon={<BuildingStorefrontIcon  className="text-[#e85d00] h-[18px] w-[18px]" />}
           onClose={() => {
             setAllShopsModalOpen(false);
             setAllShopsSearch('');
@@ -705,7 +695,7 @@ export default function VerifiedShops() {
         />
         <ModalBody className="space-y-5">
           <div className="hd-products-search flex items-center gap-3 rounded-xl bg-white px-4 py-3">
-            <Search className="h-5 w-5 shrink-0 text-gray-400" />
+            <MagnifyingGlassIcon className="h-5 w-5 shrink-0 text-gray-400" />
             <input
               type="text"
               value={allShopsSearch}
@@ -724,7 +714,7 @@ export default function VerifiedShops() {
                     {certifiedShopsInModal.length} {t(certifiedShopsInModal.length > 1 ? 'market.shopsFound' : 'market.shopFound', certifiedShopsInModal.length > 1 ? 'boutiques' : 'boutique')}
                   </p>
                 </div>
-                <CheckCircle className="h-5 w-5 text-[#e85d00]" />
+                <CheckCircleIcon className="h-5 w-5 text-[#e85d00]" />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {certifiedShopsInModal.map((shop) => (
@@ -751,7 +741,7 @@ export default function VerifiedShops() {
                           <VerifiedBadge verified showLabel={false} />
                         </div>
                         <p className="mt-1 flex items-center gap-1 truncate text-xs font-semibold text-gray-500">
-                          <MapPin className="h-3 w-3 shrink-0" />
+                          <MapPinIcon className="h-3 w-3 shrink-0" />
                           {shop.shopAddress || t('market.addressMissing', 'Adresse non renseignée')}
                         </p>
                       </div>
@@ -759,7 +749,7 @@ export default function VerifiedShops() {
                     <div className="mt-4 flex items-center justify-between text-xs font-bold text-gray-500">
                       <span>{formatCount(shop.productCount || 0)} {t('market.listings', 'annonces')}</span>
                       <span className="inline-flex items-center gap-1 text-[#e85d00]">
-                        {t('market.view', 'Voir')} <ChevronRight className="h-3.5 w-3.5" />
+                        {t('market.view', 'Voir')} <ChevronRightIcon className="h-3.5 w-3.5" />
                       </span>
                     </div>
                   </Link>
@@ -777,7 +767,7 @@ export default function VerifiedShops() {
                     {nonCertifiedShopsInModal.length} {t(nonCertifiedShopsInModal.length > 1 ? 'market.shopsFound' : 'market.shopFound', nonCertifiedShopsInModal.length > 1 ? 'boutiques' : 'boutique')} {t('market.toReview', 'à contrôler')}
                   </p>
                 </div>
-                <Clock className="h-5 w-5 text-amber-600" />
+                <ClockIcon className="h-5 w-5 text-amber-600" />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {nonCertifiedShopsInModal.map((shop) => (
@@ -806,7 +796,7 @@ export default function VerifiedShops() {
                           </span>
                         </div>
                         <p className="mt-1 flex items-center gap-1 truncate text-xs font-semibold text-gray-500">
-                          <MapPin className="h-3 w-3 shrink-0" />
+                          <MapPinIcon className="h-3 w-3 shrink-0" />
                           {shop.shopAddress || t('market.addressMissing', 'Adresse non renseignée')}
                         </p>
                       </div>
@@ -820,7 +810,7 @@ export default function VerifiedShops() {
           {allShopsForModal.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-12 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
-                <Search size={30} />
+                <MagnifyingGlassIcon className="h-[30px] w-[30px]" />
               </div>
               <p className="text-sm font-black text-gray-900">{t('market.noShopFound', 'Aucune boutique trouvée')}</p>
               <p className="mt-1 text-xs font-semibold text-gray-500">{t('market.changeSearch', 'Essayez de modifier votre recherche.')}</p>

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, ExternalLink, Loader2, Pin, Trash2 } from 'lucide-react';
+import { ArrowPathIcon, ArrowTopRightOnSquareIcon, CheckCircleIcon, ChevronDownIcon, ClockIcon, ExclamationTriangleIcon, MapPinIcon, TrashIcon } from '@heroicons/react/24/outline';
 import SwipeActions from './SwipeActions';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { resolveUserProfileImage } from '../../utils/userAvatar';
@@ -185,7 +185,7 @@ export default function NotificationItem({
                   onClick={(event) => { event.stopPropagation(); onToggleSelected?.(); }}
                   className={`absolute right-3 top-3 z-10 h-5 w-5 rounded-md border-2 ${isSelected ? 'border-[#e85d00] bg-[#e85d00]' : 'border-gray-300 bg-white'}`}
                 >
-                  {isSelected && <CheckCircle2 className="h-4 w-4 text-white" />}
+                  {isSelected && <CheckCircleIcon className="h-4 w-4 text-white" />}
                 </button>
               )}
               <div className="relative flex-shrink-0">
@@ -241,8 +241,8 @@ export default function NotificationItem({
                 {(alert?.product?.image || alert?.pinnedAt || deadlineValid) && (
                   <div className="mt-3 flex items-center gap-2">
                     {alert?.product?.image && <img src={alert.product.image} alt="" className="h-10 w-10 rounded-xl object-cover ring-1 ring-gray-200" />}
-                    {alert?.pinnedAt && <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black text-[#e85d00]"><Pin className="h-3 w-3" /> Épinglée</span>}
-                    {deadlineValid && <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${deadlineOverdue ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{deadlineOverdue ? <AlertTriangle className="h-3 w-3" /> : <Clock3 className="h-3 w-3" />}{deadlineOverdue ? 'Échéance dépassée' : deadline.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+                    {alert?.pinnedAt && <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black text-[#e85d00]"><MapPinIcon className="h-3 w-3" /> Épinglée</span>}
+                    {deadlineValid && <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${deadlineOverdue ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{deadlineOverdue ? <ExclamationTriangleIcon className="h-3 w-3" /> : <ClockIcon className="h-3 w-3" />}{deadlineOverdue ? 'Échéance dépassée' : deadline.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
                   </div>
                 )}
 
@@ -281,9 +281,9 @@ export default function NotificationItem({
                                   }`}
                                 >
                                   {isNavigating ? (
-                                    <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />
+                                    <ArrowPathIcon className="h-4 w-4 flex-shrink-0 animate-spin" />
                                   ) : (
-                                    <ExternalLink className="h-4 w-4 flex-shrink-0" />
+                                    <ArrowTopRightOnSquareIcon className="h-4 w-4 flex-shrink-0" />
                                   )}
                                   <span className="truncate">{item.label || t('notifications.view', 'Voir')}</span>
                                   {isUnread && isPrimary ? (
@@ -309,7 +309,7 @@ export default function NotificationItem({
                               }}
                               className="inline-flex min-h-[40px] items-center justify-center gap-2 px-2 text-xs font-bold text-[#8a8378] transition disabled:opacity-60"
                             >
-                              {markReadPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                              {markReadPending ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
                               {markReadPending ? t('common.loading', 'Chargement...') : t('notifications.markAsRead', 'Marquer comme lu')}
                             </motion.button>
                           ) : null}
@@ -324,7 +324,7 @@ export default function NotificationItem({
                             }}
                             className="hidden"
                           >
-                            {deletePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            {deletePending ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <TrashIcon className="h-4 w-4" />}
                             {deletePending ? t('common.loading', 'Chargement...') : t('notifications.delete', 'Supprimer')}
                           </motion.button>
                         </div>
@@ -340,9 +340,9 @@ export default function NotificationItem({
                 }`}
               >
                 {primaryAction?.to ? (
-                  navigatingTo ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />
+                  navigatingTo ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                 ) : (
-                  <ChevronDown
+                  <ChevronDownIcon
                     className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                   />
                 )}
@@ -386,14 +386,14 @@ export default function NotificationItem({
                 onClick={() => { onPin?.(!alert?.pinnedAt); setMenuOpen(false); }}
                 className="inline-flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-gray-700 hover:bg-orange-50"
               >
-                <Pin className="h-4 w-4" /> {alert?.pinnedAt ? 'Désépingler' : 'Épingler'}
+                <MapPinIcon className="h-4 w-4" /> {alert?.pinnedAt ? 'Désépingler' : 'Épingler'}
               </button>
               <button
                 type="button"
                 onClick={() => { onSnooze?.(); setMenuOpen(false); }}
                 className="inline-flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-gray-700 hover:bg-amber-50"
               >
-                <Clock3 className="h-4 w-4" /> Rappeler dans 1 heure
+                <ClockIcon className="h-4 w-4" /> Rappeler dans 1 heure
               </button>
               <button
                 type="button"
@@ -404,7 +404,7 @@ export default function NotificationItem({
                 disabled={deletePending}
                 className="inline-flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-neutral-950/40"
               >
-                {deletePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {deletePending ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <TrashIcon className="h-4 w-4" />}
                 {t('notifications.delete', 'Supprimer')}
               </button>
               <button

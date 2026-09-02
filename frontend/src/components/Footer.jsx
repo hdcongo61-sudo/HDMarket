@@ -1,27 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowUpRight,
-  BadgeCheck,
-  ChevronDown,
-  ChevronUp,
-  Headphones,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldCheck,
-  ShoppingBag,
-  Truck
-} from 'lucide-react';
+import { ArrowUpRightIcon, EnvelopeIcon, MapPinIcon, PhoneIcon, ShieldCheckIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
 import { useNetworks } from '../hooks/useNetworks';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
 import { useAppSettings } from '../context/AppSettingsContext';
 
 const linkClassName =
-  'group inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-neutral-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00] focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950';
+  'group inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-neutral-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950';
 
 const contactClassName =
-  'group flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-neutral-200 transition hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]';
+  'group flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-neutral-200 transition hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)]';
 
 const normalizePhoneHref = (value) => {
   const digits = String(value ?? '').replace(/[^+\d]/g, '');
@@ -37,7 +25,6 @@ const normalizeExternalUrl = (value = '') => {
 };
 
 export default function Footer() {
-  const [openGroup, setOpenGroup] = useState(null);
   const year = new Date().getFullYear();
   const { t, app, isFeatureEnabled } = useAppSettings();
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
@@ -47,10 +34,6 @@ export default function Footer() {
   const supportEmail = String(appInformation.supportEmail || 'support@hdmarket.cg');
   const supportPhone = String(appInformation.supportPhone || '').trim();
   const location = [appInformation.city, appInformation.country].filter(Boolean).join(', ') || 'Brazzaville, Congo';
-  const brandDescription = String(
-    appInformation.description || `Marketplace opérée par ${companyName}. Achetez et vendez en toute confiance, envoyez des colis et faites livrer vos courses, partout au Congo.`
-  );
-  const tagline = String(appInformation.tagline || 'Marketplace sécurisée pour les vendeurs et acheteurs congolais.');
   const website = normalizeExternalUrl(appInformation.website);
   const socialLinks = [
     ['Facebook', appInformation.facebook],
@@ -70,389 +53,234 @@ export default function Footer() {
     [networks]
   );
 
-  const navigationLinks = [
+  const exploreLinks = [
     { to: '/', label: t('nav.home', 'Accueil') },
     { to: '/products', label: t('nav.products', 'Produits') },
     { to: '/discover', label: t('nav.discover', 'Découvrir') },
     ...(productVideosEnabled ? [{ to: '/videos', label: t('nav.videos', 'Vidéos') }] : []),
     { to: '/shops/verified', label: t('nav.verifiedShops', 'Boutiques vérifiées') },
-    { to: '/a-propos', label: t('nav.about', 'À propos') }
-  ];
-
-  const serviceLinks = [
-    { to: '/avantages', label: t('nav.benefits', 'Pourquoi HDMarket') },
-    { to: '/plans', label: t('nav.plans', 'Plans & tarifs') },
-    ...(productVideosEnabled
-      ? [
-          { to: '/profile/saved-videos', label: t('footer.savedVideos', 'Vidéos enregistrées') },
-          { to: '/seller/videos', label: t('footer.sellerVideos', 'Mes vidéos produit') }
-        ]
-      : []),
     { to: '/buy-for-me', label: t('footer.buyForMe', 'Acheter pour moi') },
-    { to: '/buy-for-me/orders', label: t('footer.myBuyForMe', 'Mes achats délégués') },
     { to: '/parcels/new', label: t('footer.sendParcel', 'Envoyer un colis') },
-    { to: '/parcels', label: t('footer.myParcels', 'Mes colis') },
     { to: '/delivery/apply', label: t('footer.courierApplication', 'Devenir livreur') },
-    { to: '/shops/free-delivery', label: t('footer.freeDelivery', 'Livraison offerte') },
-    { to: '/top-deals', label: t('footer.deals', 'Bons plans') }
+    { to: '/a-propos', label: t('nav.about', 'À propos') }
   ];
 
   const legalLinks = [
     { to: '/conditions-utilisation', label: 'Conditions d’utilisation' },
-    { to: '/conditions-vente', label: 'Conditions de vente' },
     { to: '/confidentialite', label: 'Confidentialité' },
     { to: '/retours-remboursements', label: 'Retours et remboursements' },
-    { to: '/mentions-legales', label: 'Mentions légales' },
-    { to: '/cookies', label: 'Cookies' }
+    { to: '/mentions-legales', label: 'Mentions légales' }
   ];
-
-  const trustItems = [
-    { icon: ShieldCheck, label: t('footer.paymentsTracked', 'Paiements suivis') },
-    { icon: BadgeCheck, label: t('footer.verifiedShops', 'Boutiques vérifiées') },
-    { icon: Truck, label: t('footer.localDelivery', 'Livraison locale') }
-  ];
-
-  const contactCount = 2
-    + (supportPhone && normalizePhoneHref(supportPhone) ? 1 : 0)
-    + (website ? 1 : 0)
-    + supportNetworks.length
-    + socialLinks.length;
-
-  const toggleGroup = (group) => setOpenGroup((current) => current === group ? null : group);
 
   return (
-    <footer className="border-t-4 border-[#e85d00] bg-neutral-950 text-white">
-      <div className="mx-auto w-full max-w-7xl px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] pt-6 md:px-6 md:pb-10 md:pt-12 lg:px-8">
+    <footer className="border-t-4 border-[var(--hd-accent)] bg-neutral-950 text-white">
+      <div className="mx-auto w-full max-w-5xl px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] pt-6 md:px-6 md:pb-10 md:pt-10 lg:px-8">
         <div className="md:hidden">
-          <section aria-labelledby="footer-mobile-brand-title">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00] focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-950"
-              aria-label={t('nav.home', 'Accueil')}
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-white p-1.5 shadow-sm">
-                <img src={logoSrc} alt="" className="h-full w-full object-contain" />
+          <Link
+            to="/"
+            className="inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)] focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-950"
+            aria-label={t('nav.home', 'Accueil')}
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-white p-1.5 shadow-sm">
+              <img src={logoSrc} alt="" className="h-full w-full object-contain" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xl font-black tracking-[-0.04em]">{appName}</span>
+              <span className="mt-px block truncate text-[12.5px] font-medium text-neutral-400">
+                Opéré par {companyName}
               </span>
-              <span className="min-w-0">
-                <span id="footer-mobile-brand-title" className="block text-xl font-black tracking-[-0.04em]">
-                  {appName}
-                </span>
-                <span className="mt-px block truncate text-[12.5px] font-medium text-neutral-400">
-                  Opéré par {companyName}
-                </span>
-              </span>
-            </Link>
-
-            <div className="mt-4 flex flex-wrap gap-2" aria-label={t('footer.trust', 'Nos engagements')}>
-              {trustItems.map(({ icon: Icon, label }) => (
-                <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1.5 text-[11.5px] font-bold text-neutral-200">
-                  <Icon className="h-[13px] w-[13px] shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                  {label}
-                </span>
-              ))}
-            </div>
-          </section>
+            </span>
+          </Link>
 
           <Link
             to="/help"
-            className="mt-[18px] inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-4 text-[15px] font-extrabold text-white transition hover:bg-[#ff6a00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
+            className="mt-4 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[var(--hd-accent)] px-4 text-[15px] font-extrabold text-white transition hover:bg-[var(--hd-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
           >
-            <Headphones className="h-[18px] w-[18px]" aria-hidden="true" />
+            <SpeakerWaveIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             {t('footer.contactSupport', 'Contacter le support')}
           </Link>
 
-          <div className="mt-5">
-            <MobileFooterAccordion
-              group="nav"
-              title={t('footer.navigation', 'Navigation')}
-              count={navigationLinks.length}
-              openGroup={openGroup}
-              onToggle={toggleGroup}
-            >
-              <MobileFooterLinks links={navigationLinks} />
-            </MobileFooterAccordion>
-
-            <MobileFooterAccordion
-              group="services"
-              title={t('footer.services', 'Services')}
-              count={serviceLinks.length}
-              openGroup={openGroup}
-              onToggle={toggleGroup}
-            >
-              <MobileFooterLinks links={serviceLinks} />
-              <AppInstallBadges title={t('footer.installApp', 'Installer l’application')} />
-            </MobileFooterAccordion>
-
-            <MobileFooterAccordion
-              group="contact"
-              title={t('footer.contactAndAddress', 'Contact et adresse')}
-              count={contactCount}
-              openGroup={openGroup}
-              onToggle={toggleGroup}
-            >
-              <div className="grid gap-2 pb-3">
-                <a href={`mailto:${supportEmail}`} className={contactClassName}>
-                  <Mail className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                  <span className="min-w-0 truncate">{supportEmail}</span>
-                </a>
-
-                {supportPhone && normalizePhoneHref(supportPhone) ? (
-                  <a href={normalizePhoneHref(supportPhone)} className={contactClassName}>
-                    <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                    <span className="min-w-0 truncate">{supportPhone}</span>
-                  </a>
-                ) : null}
-
-                {website ? (
-                  <a href={website} target="_blank" rel="noreferrer" className={contactClassName}>
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                    <span className="min-w-0 truncate">{website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
-                  </a>
-                ) : null}
-
-                {supportNetworks.map((network) => (
-                  <a key={network._id || `${network.name}-${network.phoneNumber}`} href={normalizePhoneHref(network.phoneNumber)} className={contactClassName}>
-                    <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                    <span className="min-w-0 truncate">{network.name ? `${network.name} · ` : ''}{network.phoneNumber}</span>
-                  </a>
-                ))}
-
-                <div className={contactClassName}>
-                  <MapPin className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                  <span>{location}</span>
-                </div>
-
-                {loading ? (
-                  <p className="py-1 text-xs font-medium text-neutral-500" aria-live="polite">
-                    {t('footer.loadingContacts', 'Chargement des contacts…')}
-                  </p>
-                ) : null}
-
-                {socialLinks.length ? (
-                  <div className="flex flex-wrap gap-2 pt-1" aria-label="Réseaux sociaux">
-                    {socialLinks.map((item) => (
-                      <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-bold text-neutral-300 transition hover:border-white/30 hover:text-white">
-                        {item.label}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </MobileFooterAccordion>
-
-            <MobileFooterAccordion
-              group="legal"
-              title={t('footer.legal', 'Légal')}
-              count={legalLinks.length}
-              openGroup={openGroup}
-              onToggle={toggleGroup}
-            >
-              <MobileFooterLinks links={legalLinks} />
-            </MobileFooterAccordion>
+          <div className="mt-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white">{t('footer.explore', 'Explorer')}</p>
+            <MobileFooterLinks links={exploreLinks} />
           </div>
 
-          <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-[18px]" aria-label="Paiements Mobile Money sécurisés via l’API pawaPay">
-            <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-emerald-400/15">
-              <ShieldCheck className="h-[17px] w-[17px] text-emerald-400" aria-hidden="true" />
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block text-[12.5px] font-bold text-neutral-200">Paiement Mobile Money</span>
-              <span className="mt-px block text-xs font-medium text-neutral-400">Sécurisé via l’API <span className="font-bold text-emerald-400">pawaPay</span></span>
-            </span>
-          </div>
-
-          <nav className="mt-[18px] flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11.5px] font-medium text-neutral-400" aria-label={t('footer.legal', 'Légal')}>
-            <Link to="/conditions-utilisation" className="hover:text-white">Conditions</Link>
-            <span aria-hidden="true">·</span>
-            <Link to="/confidentialite" className="hover:text-white">Confidentialité</Link>
-            <span aria-hidden="true">·</span>
-            <Link to="/mentions-legales" className="hover:text-white">Mentions légales</Link>
-          </nav>
-          <p className="mt-2 text-[11.5px] font-medium text-neutral-500">© {year} {companyName} — Tous droits réservés.</p>
-        </div>
-
-        <div className="hidden md:block">
-          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.35fr_0.7fr_0.8fr_1.25fr] lg:gap-8">
-          <section aria-labelledby="footer-brand-title" className="max-w-md">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00] focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-950"
-              aria-label={t('nav.home', 'Accueil')}
-            >
-              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5 shadow-sm">
-                <img src={logoSrc} alt="" className="h-full w-full object-contain" />
-              </span>
-              <span id="footer-brand-title" className="text-2xl font-black tracking-[-0.04em]">
-                {appName}
-              </span>
-            </Link>
-
-            <p className="mt-5 max-w-sm text-sm font-medium leading-6 text-neutral-400">
-              {brandDescription}
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3" aria-label={t('footer.trust', 'Nos engagements')}>
-              {trustItems.map(({ icon: Icon, label }) => (
-                <span key={label} className="inline-flex items-center gap-2 text-xs font-bold text-neutral-200">
-                  <Icon className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                  {label}
-                </span>
-              ))}
-            </div>
-            {socialLinks.length ? (
-              <div className="mt-5 flex flex-wrap gap-2" aria-label="Réseaux sociaux">
-                {socialLinks.map((item) => (
-                  <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-bold text-neutral-300 transition hover:border-white/30 hover:text-white">
-                    {item.label}
-                  </a>
-                ))}
-              </div>
-            ) : null}
-          </section>
-
-          <FooterLinkGroup
-            title={t('footer.navigation', 'Navigation')}
-            links={navigationLinks}
-          />
-
-          <FooterLinkGroup
-            title={t('footer.services', 'Services')}
-            links={serviceLinks}
-          >
-            <AppInstallBadges title={t('footer.installApp', 'Installer l’application')} />
-          </FooterLinkGroup>
-
-          <section aria-labelledby="footer-support-title">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white" id="footer-support-title">
-              {t('footer.support', 'Support')}
-            </p>
-            <div className="mt-4 grid gap-2">
+          <div className="mt-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white">{t('footer.contactAndAddress', 'Contact et adresse')}</p>
+            <div className="mt-3 grid gap-2">
               <a href={`mailto:${supportEmail}`} className={contactClassName}>
-                <Mail className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                <EnvelopeIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
                 <span className="min-w-0 truncate">{supportEmail}</span>
               </a>
 
               {supportPhone && normalizePhoneHref(supportPhone) ? (
                 <a href={normalizePhoneHref(supportPhone)} className={contactClassName}>
-                  <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                  <PhoneIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
                   <span className="min-w-0 truncate">{supportPhone}</span>
                 </a>
               ) : null}
 
-              {website ? (
-                <a href={website} target="_blank" rel="noreferrer" className={contactClassName}>
-                  <ArrowUpRight className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                  <span className="min-w-0 truncate">{website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
-                </a>
-              ) : null}
-
               {supportNetworks.map((network) => (
-                <a
-                  key={network._id || `${network.name}-${network.phoneNumber}`}
-                  href={normalizePhoneHref(network.phoneNumber)}
-                  className={contactClassName}
-                >
-                  <Phone className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-                  <span className="min-w-0 truncate">
-                    {network.name ? `${network.name} · ` : ''}{network.phoneNumber}
-                  </span>
+                <a key={network._id || `${network.name}-${network.phoneNumber}`} href={normalizePhoneHref(network.phoneNumber)} className={contactClassName}>
+                  <PhoneIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{network.name ? `${network.name} · ` : ''}{network.phoneNumber}</span>
                 </a>
               ))}
 
               <div className={contactClassName}>
-                <MapPin className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
+                <MapPinIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
                 <span>{location}</span>
               </div>
-            </div>
 
-            {loading ? (
-              <p className="mt-2 text-xs font-medium text-neutral-500" aria-live="polite">
-                {t('footer.loadingContacts', 'Chargement des contacts…')}
+              {loading ? (
+                <p className="py-1 text-xs font-medium text-neutral-500" aria-live="polite">
+                  {t('footer.loadingContacts', 'Chargement des contacts…')}
+                </p>
+              ) : null}
+
+              {socialLinks.length ? (
+                <div className="flex flex-wrap gap-2 pt-1" aria-label="Réseaux sociaux">
+                  {socialLinks.map((item) => (
+                    <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-bold text-neutral-300 transition hover:border-white/30 hover:text-white">
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <AppInstallBadges title={t('footer.installApp', 'Installer l’application')} />
+
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/10 pt-[18px]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1.5 text-[11.5px] font-bold text-neutral-200" aria-label="Paiements Mobile Money sécurisés via l’API pawaPay">
+              <ShieldCheckIcon className="h-[13px] w-[13px] shrink-0 text-emerald-400" aria-hidden="true" />
+              Mobile Money sécurisé
+            </span>
+          </div>
+
+          <nav className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11.5px] font-medium text-neutral-400" aria-label={t('footer.legal', 'Légal')}>
+            {legalLinks.map((item, index) => (
+              <React.Fragment key={item.to}>
+                {index > 0 ? <span aria-hidden="true">·</span> : null}
+                <Link to={item.to} className="hover:text-white">{item.label}</Link>
+              </React.Fragment>
+            ))}
+          </nav>
+          <p className="mt-2 text-[11.5px] font-medium text-neutral-500">© {year} {companyName}</p>
+        </div>
+
+        <div className="hidden md:block">
+          <div className="grid gap-10 md:grid-cols-3">
+            <section aria-labelledby="footer-brand-title">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)] focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-950"
+                aria-label={t('nav.home', 'Accueil')}
+              >
+                <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5 shadow-sm">
+                  <img src={logoSrc} alt="" className="h-full w-full object-contain" />
+                </span>
+                <span id="footer-brand-title" className="text-2xl font-black tracking-[-0.04em]">
+                  {appName}
+                </span>
+              </Link>
+
+              <p className="mt-4 max-w-xs text-sm font-medium leading-6 text-neutral-400">
+                Opéré par {companyName}. {location}.
               </p>
-            ) : null}
 
-            <Link
-              to="/help"
-              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#ff6a00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 sm:w-auto lg:w-full"
-            >
-              <Headphones className="h-4 w-4" aria-hidden="true" />
-              {t('footer.contactSupport', 'Contacter le support')}
-              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </section>
+              {socialLinks.length ? (
+                <div className="mt-5 flex flex-wrap gap-2" aria-label="Réseaux sociaux">
+                  {socialLinks.map((item) => (
+                    <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-bold text-neutral-300 transition hover:border-white/30 hover:text-white">
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
+            <FooterLinkGroup title={t('footer.explore', 'Explorer')} links={exploreLinks}>
+              <AppInstallBadges title={t('footer.installApp', 'Installer l’application')} />
+            </FooterLinkGroup>
+
+            <section aria-labelledby="footer-support-title">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-white" id="footer-support-title">
+                {t('footer.support', 'Support')}
+              </p>
+              <div className="mt-4 grid gap-2">
+                <a href={`mailto:${supportEmail}`} className={contactClassName}>
+                  <EnvelopeIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{supportEmail}</span>
+                </a>
+
+                {supportPhone && normalizePhoneHref(supportPhone) ? (
+                  <a href={normalizePhoneHref(supportPhone)} className={contactClassName}>
+                    <PhoneIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
+                    <span className="min-w-0 truncate">{supportPhone}</span>
+                  </a>
+                ) : null}
+
+                {supportNetworks.map((network) => (
+                  <a
+                    key={network._id || `${network.name}-${network.phoneNumber}`}
+                    href={normalizePhoneHref(network.phoneNumber)}
+                    className={contactClassName}
+                  >
+                    <PhoneIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
+                    <span className="min-w-0 truncate">
+                      {network.name ? `${network.name} · ` : ''}{network.phoneNumber}
+                    </span>
+                  </a>
+                ))}
+
+                <div className={contactClassName}>
+                  <MapPinIcon className="h-4 w-4 shrink-0 text-[var(--hd-accent)]" aria-hidden="true" />
+                  <span>{location}</span>
+                </div>
+              </div>
+
+              {loading ? (
+                <p className="mt-2 text-xs font-medium text-neutral-500" aria-live="polite">
+                  {t('footer.loadingContacts', 'Chargement des contacts…')}
+                </p>
+              ) : null}
+
+              <Link
+                to="/help"
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--hd-accent)] px-4 text-sm font-black text-white transition hover:bg-[var(--hd-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
+              >
+                <SpeakerWaveIcon className="h-4 w-4" aria-hidden="true" />
+                {t('footer.contactSupport', 'Contacter le support')}
+                <ArrowUpRightIcon className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </section>
           </div>
 
-          <div className="mt-10 border-t border-white/10 pt-5 md:mt-12">
-          <div className="mb-5 flex flex-wrap gap-x-5 gap-y-3">
-            {legalLinks.map((item) => <Link key={item.to} to={item.to} className="text-xs font-bold text-neutral-400 hover:text-white">{item.label}</Link>)}
-          </div>
-          <div className="mb-5 flex">
-            <div
-              className="inline-flex min-h-12 w-full items-center gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.07] px-3.5 py-2.5 sm:w-auto"
-              aria-label="Paiements Mobile Money sécurisés via l’API pawaPay"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/15">
-                <ShieldCheck className="h-4.5 w-4.5 text-emerald-400" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 leading-tight">
-                <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">
-                  Paiement Mobile Money
-                </span>
-                <span className="mt-0.5 block text-xs font-bold text-neutral-200">
-                  Sécurisé via l’API <span className="text-emerald-400">pawaPay</span>
-                </span>
-              </span>
-              <span className="ml-auto rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-neutral-400 sm:ml-2">
-                API
-              </span>
+          <div className="mt-10 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {legalLinks.map((item) => <Link key={item.to} to={item.to} className="text-xs font-bold text-neutral-400 hover:text-white">{item.label}</Link>)}
             </div>
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-400" aria-label="Paiements Mobile Money sécurisés via l’API pawaPay">
+              <ShieldCheckIcon className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+              Mobile Money sécurisé via pawaPay
+            </span>
           </div>
-          <div className="flex flex-col gap-3 text-xs font-semibold text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              © {year} {companyName} — Tous droits réservés.
-            </p>
-            <p className="inline-flex items-center gap-2 text-neutral-400">
-              <ShoppingBag className="h-4 w-4 shrink-0 text-[#ff6a00]" aria-hidden="true" />
-              {appName}, {tagline}
-            </p>
-          </div>
-          </div>
+          <p className="mt-4 text-xs font-semibold text-neutral-500">© {year} {companyName} — Tous droits réservés.</p>
         </div>
       </div>
     </footer>
   );
 }
 
-function MobileFooterAccordion({ group, title, count, openGroup, onToggle, children }) {
-  const isOpen = openGroup === group;
-  const panelId = `footer-mobile-${group}-panel`;
-  return (
-    <section className="border-t border-white/10">
-      <button
-        type="button"
-        onClick={() => onToggle(group)}
-        className="flex min-h-[54px] w-full items-center justify-between gap-2 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]"
-        aria-expanded={isOpen}
-        aria-controls={panelId}
-      >
-        <span className="text-[15px] font-bold text-white">{title}</span>
-        <span className="flex items-center gap-2.5">
-          <span className="text-[12.5px] font-medium text-neutral-500">{count}</span>
-          {isOpen ? <ChevronUp className="h-[18px] w-[18px] text-neutral-400" aria-hidden="true" /> : <ChevronDown className="h-[18px] w-[18px] text-neutral-400" aria-hidden="true" />}
-        </span>
-      </button>
-      {isOpen ? <div id={panelId} className="pb-3.5">{children}</div> : null}
-    </section>
-  );
-}
-
 function MobileFooterLinks({ links }) {
   return (
-    <ul className="grid grid-cols-1 gap-0.5">
+    <ul className="mt-3 grid grid-cols-1 gap-0.5">
       {links.map((item) => (
         <li key={item.to}>
-          <Link to={item.to} className="group inline-flex min-h-10 w-full items-center gap-2.5 text-sm font-semibold text-neutral-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]">
-            <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-[#e85d00]" />
+          <Link to={item.to} className="group inline-flex min-h-10 w-full items-center gap-2.5 text-sm font-semibold text-neutral-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)]">
+            <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-[var(--hd-accent)]" />
             {item.label}
           </Link>
         </li>
@@ -469,7 +297,7 @@ function FooterLinkGroup({ title, links, children = null }) {
         {links.map((item) => (
           <li key={item.to}>
             <Link to={item.to} className={linkClassName}>
-              <span className="h-1.5 w-1.5 rounded-full bg-[#e85d00] opacity-70 transition group-hover:opacity-100" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--hd-accent)] opacity-70 transition group-hover:opacity-100" />
               {item.label}
             </Link>
           </li>
@@ -489,7 +317,7 @@ function AppInstallBadges({ title }) {
       <div className="mt-3 grid grid-cols-2 gap-2" aria-label={title}>
         <Link
           to="/installer-application?platform=ios#ios-guide"
-          className="group relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-white/80 bg-white px-2 py-3 text-center text-neutral-950 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]"
+          className="group relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-white/80 bg-white px-2 py-3 text-center text-neutral-950 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)]"
           aria-label="Installer HDMarket sur iPhone ou iPad"
         >
           <AppleStoreLogo className="h-7 w-7 shrink-0" />
@@ -499,12 +327,12 @@ function AppInstallBadges({ title }) {
             </span>
             <span className="mt-1 block text-xs font-black tracking-tight">iPhone / iPad</span>
           </span>
-          <ArrowUpRight className="absolute right-2 top-2 h-3.5 w-3.5 text-neutral-400 transition group-hover:text-[#e85d00]" aria-hidden="true" />
+          <ArrowUpRightIcon className="absolute right-2 top-2 h-3.5 w-3.5 text-neutral-400 transition group-hover:text-[var(--hd-accent)]" aria-hidden="true" />
         </Link>
 
         <Link
           to="/installer-application?platform=android#android-guide"
-          className="group relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-white/20 bg-neutral-900 px-2 py-3 text-center text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/40 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d00]"
+          className="group relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-white/20 bg-neutral-900 px-2 py-3 text-center text-white shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/40 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)]"
           aria-label="Installer HDMarket sur Android"
         >
           <GooglePlayLogo className="h-7 w-7 shrink-0" />
@@ -514,7 +342,7 @@ function AppInstallBadges({ title }) {
             </span>
             <span className="mt-1 block text-xs font-black tracking-tight">Android</span>
           </span>
-          <ArrowUpRight className="absolute right-2 top-2 h-3.5 w-3.5 text-neutral-500 transition group-hover:text-[#ff6a00]" aria-hidden="true" />
+          <ArrowUpRightIcon className="absolute right-2 top-2 h-3.5 w-3.5 text-neutral-500 transition group-hover:text-[var(--hd-accent)]" aria-hidden="true" />
         </Link>
       </div>
     </div>

@@ -1,14 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  X,
-  Shield,
-  RotateCcw,
-  ArrowLeft,
-  ChevronDown,
-  Sparkles,
-  ExternalLink
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, ChevronDownIcon, ShieldCheckIcon, SparklesIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 
@@ -368,7 +360,7 @@ const ChatBox = () => {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/18 text-white shadow-inner ring-1 ring-white/25">
-                  <Sparkles className="h-5 w-5" />
+                  <SparklesIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold tracking-tight">Assistant HDMarket</h3>
@@ -383,13 +375,13 @@ const ChatBox = () => {
                   aria-label="Fermer le chat"
                   title="Fermer le chat"
                 >
-                  <X className="h-4 w-4" />
+                  <XMarkIcon className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
             <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white/16 px-3 py-2 text-xs font-semibold text-white/90 ring-1 ring-white/20">
-              <Shield className="h-3.5 w-3.5" />
+              <ShieldCheckIcon className="h-3.5 w-3.5" />
               <span>Réponses officielles · Parcours guidé</span>
             </div>
           </div>
@@ -427,7 +419,7 @@ const ChatBox = () => {
                         onClick={() => openLink(item.link)}
                         className="mt-2 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-bold text-[#e85d00] transition hover:bg-orange-100 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-200"
                       >
-                        <ExternalLink className="h-3 w-3" />
+                        <ArrowTopRightOnSquareIcon className="h-3 w-3" />
                         Ouvrir
                       </button>
                     )}
@@ -452,7 +444,7 @@ const ChatBox = () => {
                 onClick={scrollToBottom}
                 className="sticky bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white p-2 shadow ring-1 ring-gray-200 transition hover:bg-gray-100 dark:bg-neutral-900 dark:ring-neutral-700 dark:hover:bg-neutral-800"
               >
-                <ChevronDown className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
+                <ChevronDownIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
               </button>
             )}
           </div>
@@ -471,7 +463,7 @@ const ChatBox = () => {
                 disabled={!stepStack.length || loading || loadingSession}
                 className="inline-flex min-h-9 items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-3 text-xs font-bold text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-950/60 dark:bg-orange-950/30 dark:text-orange-200"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeftIcon className="h-3.5 w-3.5" />
                 Retour
               </button>
               <button
@@ -480,7 +472,7 @@ const ChatBox = () => {
                 disabled={loading || loadingSession}
                 className="inline-flex min-h-9 items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition hover:border-gray-200 hover:text-[#e85d00] disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <ArrowUturnLeftIcon className="h-3.5 w-3.5" />
                 Recommencer
               </button>
               {hasActionLink && (
@@ -489,7 +481,7 @@ const ChatBox = () => {
                   onClick={() => openLink(hasActionLink)}
                   className="ml-auto inline-flex min-h-9 items-center gap-1 rounded-full bg-[#e85d00] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#f05f00]"
                 >
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
                   Ouvrir
                 </button>
               )}

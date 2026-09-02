@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Clock3, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowPathIcon, CheckCircleIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { getPawaPayFailure, getPawaPayRequestError } from '../utils/pawapayErrors';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -210,13 +210,13 @@ export default function PawaPayReturn() {
     <div className="min-h-[70vh] bg-[#f7f5f2] px-4 py-10">
       <section className="mx-auto max-w-md rounded-2xl border border-[#e5e0d8] bg-white p-6 text-center shadow-sm sm:p-8">
         {loading ? (
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-[#0b6b4f]" />
+          <ArrowPathIcon className="mx-auto h-12 w-12 animate-spin text-[#0b6b4f]" />
         ) : completed ? (
-          <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" />
+          <CheckCircleIcon className="mx-auto h-14 w-14 text-emerald-600" />
         ) : failed || error ? (
-          <XCircle className="mx-auto h-14 w-14 text-red-500" />
+          <XCircleIcon className="mx-auto h-14 w-14 text-red-500" />
         ) : (
-          <Clock3 className="mx-auto h-14 w-14 text-amber-500" />
+          <ClockIcon className="mx-auto h-14 w-14 text-amber-500" />
         )}
 
         <h1 className="mt-5 text-xl font-black text-slate-950">
@@ -280,7 +280,7 @@ export default function PawaPayReturn() {
               }}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-black text-white"
             >
-              <RefreshCw size={16} /> Actualiser
+              <ArrowPathIcon className="h-4 w-4" /> Actualiser
             </button>
           )}
         </div>

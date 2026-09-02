@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Clock3, CreditCard, Smartphone, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowLeftIcon, ArrowTrendingUpIcon, ClockIcon, CreditCardIcon, DevicePhoneMobileIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import BoostRequestForm from '../components/BoostRequestForm';
 import { useToast } from '../context/ToastContext';
@@ -79,12 +79,12 @@ export default function SellerBoosts() {
               to="/seller/products"
               className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
               Retour
             </Link>
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#FFB000] text-white shadow-sm">
-                <Sparkles className="h-5 w-5" />
+                <SparklesIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 space-y-0.5">
                 <h1 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">Boost interne</h1>
@@ -119,7 +119,7 @@ export default function SellerBoosts() {
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className="border-l-[3px] border-[#e85d00] pl-2.5 text-base font-black text-gray-900 sm:text-lg">Historique des demandes</h2>
             <span className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-600">
-              <TrendingUp className="h-3.5 w-3.5" />
+              <ArrowTrendingUpIcon className="h-3.5 w-3.5" />
               {requests.length}
             </span>
           </div>
@@ -139,11 +139,11 @@ export default function SellerBoosts() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="inline-flex items-center gap-2 text-sm font-black text-gray-900">
-                        <Sparkles className="h-4 w-4 shrink-0 text-[#e85d00]" />
+                        <SparklesIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
                         <span className="truncate">{item.boostType}</span>
                       </p>
                       <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                        <Clock3 className="h-3.5 w-3.5" />
+                        <ClockIcon className="h-3.5 w-3.5" />
                         {item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : '-'}
                       </p>
                     </div>
@@ -182,7 +182,7 @@ export default function SellerBoosts() {
                       <div className={`mt-3 rounded-lg border p-2.5 ${isPawaPay ? 'border-orange-100 bg-orange-50' : 'border-indigo-100 bg-indigo-50'}`}>
                         <div className="flex items-center justify-between gap-2">
                           <span className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-black text-white ${isPawaPay ? 'bg-[#e85d00]' : 'bg-indigo-600'}`}>
-                            {isPawaPay ? <CreditCard className="h-3.5 w-3.5" /> : <Smartphone className="h-3.5 w-3.5" />}
+                            {isPawaPay ? <CreditCardIcon className="h-3.5 w-3.5" /> : <DevicePhoneMobileIcon className="h-3.5 w-3.5" />}
                             {isPawaPay ? 'PawaPay' : 'Mobile Money'}
                           </span>
                           <span className={`inline-flex shrink-0 items-center rounded border px-2 py-0.5 text-[11px] font-bold ${payStatusStyle}`}>

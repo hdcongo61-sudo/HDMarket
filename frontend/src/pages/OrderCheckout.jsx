@@ -5,23 +5,7 @@ import CartContext from '../context/CartContext';
 import AuthContext from '../context/AuthContext';
 import api, { isApiPossiblyCommittedError, isApiTimeoutError, verifyTransactionCodeAvailability } from '../services/api';
 import { useToast } from '../context/ToastContext';
-import {
-  CreditCard,
-  ShieldCheck,
-  CheckCircle,
-  ClipboardList,
-  ArrowLeft,
-  ShoppingBag,
-  Lock,
-  AlertCircle,
-  Tag,
-  Truck,
-  Store,
-  MapPin,
-  Users,
-  User,
-  FileText
-} from 'lucide-react';
+import { ArrowLeftIcon, BuildingStorefrontIcon, CheckCircleIcon, ClipboardDocumentListIcon, CreditCardIcon, DocumentTextIcon, ExclamationCircleIcon, LockClosedIcon, MapPinIcon, ShieldCheckIcon, ShoppingBagIcon, TagIcon, TruckIcon, UserIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { useAppSettings } from '../context/AppSettingsContext';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
@@ -511,7 +495,7 @@ export default function OrderCheckout() {
         title: 'PawaPay',
         subtitle: 'Paiement sécurisé par MTN MoMo ou Airtel Money.',
         eyebrow: 'Sécurisé',
-        icon: ShieldCheck,
+        icon: ShieldCheckIcon,
         amount: checkoutTotalWithDelivery,
         amountDisplay: formatCurrency(checkoutTotalWithDelivery),
         bullets: ['Aucun ID de transaction', 'Confirmation automatique', 'Protection HDMarket']
@@ -522,7 +506,7 @@ export default function OrderCheckout() {
           title: t('checkout.installment', 'Paiement par tranche'),
           subtitle: 'Premier versement avec PawaPay, puis échéancier automatisé.',
           eyebrow: `${installmentDuration || 0} jours`,
-          icon: ClipboardList,
+          icon: ClipboardDocumentListIcon,
           amount: installmentFirstPaymentAmount,
           amountDisplay: formatCurrency(installmentFirstPaymentAmount),
           bullets: ['PawaPay sécurisé', 'Aucun ID manuel', 'Suivi des tranches']
@@ -536,7 +520,7 @@ export default function OrderCheckout() {
         title: t('checkout.classic', 'Paiement classique'),
         subtitle: t('checkout.classicSubtitle', 'Acompte pour réserver, solde à régler plus tard.'),
         eyebrow: 'Flexible',
-        icon: CreditCard,
+        icon: CreditCardIcon,
         amountLabel: 'À payer maintenant',
         amount: depositAmount,
         remainingLabel: 'Solde après validation',
@@ -551,7 +535,7 @@ export default function OrderCheckout() {
         title: t('checkout.full', 'Paiement intégral'),
         subtitle: t('checkout.fullSubtitle', 'Tout payer maintenant pour confirmer la commande.'),
         eyebrow: fullPaymentLabelText,
-        icon: ShieldCheck,
+        icon: ShieldCheckIcon,
         amountLabel: 'Total à payer',
         amount: checkoutTotalWithDelivery,
         remainingLabel: 'Reste à payer',
@@ -572,7 +556,7 @@ export default function OrderCheckout() {
         title: t('checkout.installment', 'Paiement par tranche'),
         subtitle: t('checkout.installmentSubtitle', 'Premier versement, puis échéancier suivi.'),
         eyebrow: `${installmentDuration || 0} jours`,
-        icon: ClipboardList,
+        icon: ClipboardDocumentListIcon,
         amountLabel: 'Premier paiement',
         amount: installmentFirstPaymentAmount,
         remainingLabel: 'Reste échelonné',
@@ -591,7 +575,7 @@ export default function OrderCheckout() {
         title: 'PawaPay',
         subtitle: 'Paiement sécurisé par MTN MoMo ou Airtel Money.',
         eyebrow: 'Auto',
-        icon: ShieldCheck,
+        icon: ShieldCheckIcon,
         amountLabel: 'À payer',
         amount: checkoutTotalWithDelivery,
         amountDisplay: formatCurrency(checkoutTotalWithDelivery),
@@ -609,7 +593,7 @@ export default function OrderCheckout() {
         title: t('checkout.sponsor', 'Un proche paie'),
         subtitle: t('checkout.sponsorSubtitle', 'Demandez à un proche de régler votre commande.'),
         eyebrow: 'Proche',
-        icon: Users,
+        icon: UsersIcon,
         amountLabel: 'À payer maintenant',
         amount: 0,
         amountDisplay: t('checkout.none', 'Aucun'),
@@ -1487,7 +1471,7 @@ export default function OrderCheckout() {
       <div className="hd-order-flow hd-commerce-shell min-h-screen dark:bg-black flex items-center justify-center px-4 py-10">
         <div className="max-w-md w-full text-center">
           <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6 shadow-sm border border-neutral-200">
-            <ClipboardList size={32} className="text-neutral-900" />
+            <ClipboardDocumentListIcon className="text-neutral-900 h-8 w-8" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">{t('checkout.emptyTitle', 'Votre panier est vide')}</h1>
           <p className="text-gray-600 font-medium mb-8">
@@ -1497,7 +1481,7 @@ export default function OrderCheckout() {
             to="/products"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-900 transition-all duration-200 active:scale-95 shadow-sm"
           >
-            <ShoppingBag size={18} />
+            <ShoppingBagIcon className="h-[18px] w-[18px]" />
             {t('checkout.explore', 'Explorer le marché')}
           </Link>
         </div>
@@ -1514,14 +1498,14 @@ export default function OrderCheckout() {
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#231f1b] transition hover:bg-[#f5f2ee]"
             aria-label="Retour au panier"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeftIcon className="h-5 w-5" />
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="text-[17px] font-black text-[#231f1b]">{t('checkout.title', 'Paiement')}</h1>
             <p className="truncate text-xs font-semibold text-[#8a8378]">{paymentModeDescription}</p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-emerald-700">
-            <ShieldCheck size={16} /> {t('checkout.secure', 'Sécurisé')}
+            <ShieldCheckIcon className="h-4 w-4" /> {t('checkout.secure', 'Sécurisé')}
           </span>
       </header>
 
@@ -1537,7 +1521,7 @@ export default function OrderCheckout() {
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4 sm:p-5">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm">
-                <ShoppingBag size={19} />
+                <ShoppingBagIcon className="h-[19px] w-[19px]" />
               </div>
               <div>
                 <h2 className="text-lg font-black text-slate-950">{t('checkout.summary', 'Résumé')}</h2>
@@ -1691,7 +1675,7 @@ export default function OrderCheckout() {
                       : 'text-[#8a8378] hover:text-[#44403a]'
                   } ${hasPickupOnlyProducts ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
-                  <Truck size={15} />
+                  <TruckIcon className="h-[15px] w-[15px]" />
                   {t('checkout.deliveryOption', 'Livraison')}
                 </button>
                 <button
@@ -1704,7 +1688,7 @@ export default function OrderCheckout() {
                       : 'text-[#8a8378] hover:text-[#44403a]'
                   }`}
                 >
-                  <Store size={15} />
+                  <BuildingStorefrontIcon className="h-[15px] w-[15px]" />
                   {t('checkout.pickup', 'Retrait')}
                 </button>
               </div>
@@ -1721,7 +1705,7 @@ export default function OrderCheckout() {
                       onClick={autofillShippingFromProfile}
                       className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF5000]"
                     >
-                      <User size={12} />
+                      <UserIcon className="h-3 w-3" />
                       {t('checkout.my_info', 'Mes infos')}
                     </button>
                   </div>
@@ -1803,7 +1787,7 @@ export default function OrderCheckout() {
                     />
                   </div>
                   <div className="flex items-center gap-2 md:col-span-2 text-xs font-semibold text-[#6b6459]">
-                    <MapPin size={15} className="shrink-0 text-[#e85d00]" />
+                    <MapPinIcon className="shrink-0 text-[#e85d00] h-[15px] w-[15px]" />
                     {selectedCity?.name ? `${selectedCity.name} · ` : ''}
                     {t('checkout.addressDeliveryHelp', 'Adresse utilisée pour calculer la livraison')}
                   </div>
@@ -1894,7 +1878,7 @@ export default function OrderCheckout() {
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
-                    <CreditCard size={18} />
+                    <CreditCardIcon className="h-[18px] w-[18px]" />
                     <p className="mt-2 text-sm font-black">Mobile Money</p>
                     <p className="mt-0.5 text-[11px] font-semibold opacity-70">{t('checkout.transactionRequired', 'Code transaction requis')}</p>
                   </button>}
@@ -1907,7 +1891,7 @@ export default function OrderCheckout() {
                         : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
-                    <CreditCard size={18} />
+                    <CreditCardIcon className="h-[18px] w-[18px]" />
                     <p className="mt-2 text-sm font-black">
                       PawaPay
                     </p>
@@ -1917,7 +1901,7 @@ export default function OrderCheckout() {
                   </>
                 ) : (
                   <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <ShieldCheck size={20} className="mt-0.5 shrink-0 text-emerald-700" />
+                    <ShieldCheckIcon className="mt-0.5 shrink-0 text-emerald-700 h-5 w-5" />
                     <div>
                       <p className="text-sm font-black text-emerald-900">Premier versement avec PawaPay</p>
                       <p className="mt-1 text-xs font-semibold leading-5 text-emerald-800">
@@ -1996,7 +1980,7 @@ export default function OrderCheckout() {
                         .map((item) => ({ ...item.product, quantity: item.quantity, selectedAttributes: item.selectedAttributes || [] })))}
                       className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#e85d00] bg-[#fff8f1] px-4 text-sm font-black text-[#d95400]"
                     >
-                      <FileText className="h-4 w-4" />
+                      <DocumentTextIcon className="h-4 w-4" />
                       {group.items.length > 1 ? 'Demander un devis groupé' : 'Demander un devis'}
                     </button>
                   ) : null}
@@ -2037,7 +2021,7 @@ export default function OrderCheckout() {
                             {t('checkout.transactionCode', 'Code transaction')}
                           </label>
                           <div className="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition-all focus-within:border-[#e85d00] focus-within:ring-2 focus-within:ring-gray-200">
-                            <CreditCard size={18} className="flex-shrink-0 text-slate-400" />
+                            <CreditCardIcon className="flex-shrink-0 text-slate-400 h-[18px] w-[18px]" />
                             <input
                               type="text"
                               inputMode="numeric"
@@ -2071,7 +2055,7 @@ export default function OrderCheckout() {
                     {isSponsorPayment && group.sellerId === sellerGroups[0]?.sellerId && (
                       <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                         <div className="flex items-center gap-2">
-                          <Users size={18} className="text-amber-700" />
+                          <UsersIcon className="text-amber-700 h-[18px] w-[18px]" />
                           <p className="text-sm font-black text-amber-900">{t('checkout.sponsorPayment', 'Un proche règle votre commande')}</p>
                         </div>
                         <div>
@@ -2126,7 +2110,7 @@ export default function OrderCheckout() {
                         </label>
                         <div className="flex items-center gap-2">
                           <div className="flex min-h-[46px] flex-1 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3">
-                            <Tag size={16} className="flex-shrink-0 text-slate-400" />
+                            <TagIcon className="flex-shrink-0 text-slate-400 h-4 w-4" />
                             <input
                               type="text"
                               value={payment.promoCode || ''}
@@ -2269,12 +2253,12 @@ export default function OrderCheckout() {
               );
             })}
             <div className="flex items-start gap-3 rounded-2xl border border-[#e2dcd2] bg-[#f5f2ee] px-4 py-3 text-xs font-semibold text-[#6b6459] sm:text-sm">
-              <CheckCircle size={18} className="mt-0.5 flex-shrink-0 text-[#6b6459]" />
+              <CheckCircleIcon className="mt-0.5 flex-shrink-0 text-[#6b6459] h-[18px] w-[18px]" />
               {paymentCommitmentMessage}
             </div>
             {error && (
               <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                <ExclamationCircleIcon className="text-red-600 flex-shrink-0 mt-0.5 h-[18px] w-[18px]" />
                 <p className="text-sm text-red-700 font-semibold">{error}</p>
               </div>
             )}
@@ -2308,7 +2292,7 @@ export default function OrderCheckout() {
                     </>
                   ) : (
                     <>
-                      <Lock size={22} />
+                      <LockClosedIcon className="h-[22px] w-[22px]" />
                       {t('checkout.confirm', 'Confirmer la commande')}
                     </>
                   )}
@@ -2354,7 +2338,7 @@ export default function OrderCheckout() {
               {loading ? (
                 <div className="h-6 w-6 rounded-full border-[3px] border-white border-t-transparent animate-spin" />
               ) : (
-                <Lock size={20} />
+                <LockClosedIcon className="h-5 w-5" />
               )}
               {loading ? t('checkout.validating', 'Validation...') : t('checkout.confirm', 'Confirmer la commande')}
             </button>

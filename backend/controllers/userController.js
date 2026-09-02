@@ -218,7 +218,6 @@ const sanitizeUser = (user) => ({
   preferredLanguage: user.preferredLanguage || 'fr',
   preferredCurrency: user.preferredCurrency || 'XAF',
   preferredCity: user.preferredCity || user.city || '',
-  theme: user.theme || 'system',
   gender: user.gender,
   profileImage: user.profileImage || '',
   shopName: user.shopName,

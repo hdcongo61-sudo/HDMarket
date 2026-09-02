@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  BadgeCheck,
-  CreditCard,
-  Truck
-} from 'lucide-react';
+import { CheckBadgeIcon, CreditCardIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../../context/AppSettingsContext';
 
 export default function CommerceAuthPanel({ mode = 'login' }) {
@@ -28,9 +24,9 @@ export default function CommerceAuthPanel({ mode = 'login' }) {
   };
 
   const chips = [
-    { label: copy.verified, note: copy.verifiedNote, icon: BadgeCheck },
-    { label: copy.payment, note: copy.paymentNote, icon: CreditCard },
-    { label: copy.delivery, note: copy.deliveryNote, icon: Truck }
+    { label: copy.verified, note: copy.verifiedNote, icon: CheckBadgeIcon },
+    { label: copy.payment, note: copy.paymentNote, icon: CreditCardIcon },
+    { label: copy.delivery, note: copy.deliveryNote, icon: TruckIcon }
   ];
 
   return (
@@ -44,7 +40,7 @@ export default function CommerceAuthPanel({ mode = 'login' }) {
             const Icon = chip.icon;
             return (
               <div key={chip.label} className="flex items-center gap-3.5 border-t border-white/20 py-4">
-                <Icon size={20} className="shrink-0" />
+                <Icon className="shrink-0 h-5 w-5" />
                 <div>
                   <p className="text-[15px] font-extrabold">{chip.label}</p>
                   <p className="mt-0.5 text-[13.5px] font-medium text-white/80">{chip.note}</p>

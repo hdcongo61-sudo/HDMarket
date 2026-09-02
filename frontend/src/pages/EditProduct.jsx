@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { ArrowLeft, Edit3, Loader2, PackageSearch } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, CubeIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { useNavigate, useParams } from 'react-router-dom';
 import ProductForm from '../components/ProductForm';
 import AuthContext from '../context/AuthContext';
@@ -57,7 +57,7 @@ export default function EditProduct() {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
         <div className="rounded-2xl border border-[#e2dcd2] bg-white px-8 py-10 text-center shadow-sm">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#e85d00]" />
+          <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-[#e85d00]" />
           <p className="mt-3 text-sm font-bold text-stone-600">Chargement de toutes les options…</p>
         </div>
       </div>
@@ -69,7 +69,7 @@ export default function EditProduct() {
       <div className="flex min-h-[70vh] items-center justify-center bg-[#f5f2ee] px-4">
         <div className="w-full max-w-md rounded-2xl border border-[#e2dcd2] bg-white p-7 text-center shadow-sm">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0e4]">
-            <PackageSearch className="h-7 w-7 text-[#b94700]" />
+            <CubeIcon className="h-7 w-7 text-[#b94700]" />
           </span>
           <h1 className="mt-4 text-xl font-black text-[#231f1b]">Modification indisponible</h1>
           <p className="mt-2 text-sm text-stone-600">{error || 'Annonce introuvable.'}</p>
@@ -95,10 +95,10 @@ export default function EditProduct() {
             className="flex h-11 w-11 items-center justify-center rounded-full text-[#231f1b] hover:bg-[#f5f2ee]"
             aria-label="Retour"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff0e4]">
-            <Edit3 className="h-5 w-5 text-[#b94700]" />
+            <PencilSquareIcon className="h-5 w-5 text-[#b94700]" />
           </span>
           <div className="min-w-0">
             <h1 className="truncate text-base font-black text-[#231f1b]">Modifier le produit</h1>

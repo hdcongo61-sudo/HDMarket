@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 export default function GlassHeader({
   title,
@@ -27,7 +27,7 @@ export default function GlassHeader({
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 bg-white/80 text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 aria-label={backLabel}
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeftIcon className="h-4 w-4" />
               </Link>
             )}
             <div className="min-w-0">

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Loader2, Plus, Sparkles, Tag, TrendingUp, X } from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, CheckIcon, PlusIcon, SparklesIcon, TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 
 const normalizeItems = (payload) => (Array.isArray(payload) ? payload : payload?.items || []);
@@ -130,11 +130,11 @@ export default function TagSelector({
       return true;
     }
     if ((value || []).length >= max) {
-      setMessage(`Tag « ${tag.name} » disponible, mais maximum ${max} tags manuels atteint.`);
+      setMessage(`TagIcon « ${tag.name} » disponible, mais maximum ${max} tags manuels atteint.`);
       return true;
     }
     onChange([...(value || []), id]);
-    setMessage(`Tag « ${tag.name} » créé et ajouté à votre annonce.`);
+    setMessage(`TagIcon « ${tag.name} » créé et ajouté à votre annonce.`);
     return true;
   };
 
@@ -144,9 +144,9 @@ export default function TagSelector({
     setRequesting(true);
     setMessage('');
     try {
-      const { data } = await api.post('/tags/requests', { name, description: `Tag proposé depuis une annonce: ${productContext.title || ''}` });
+      const { data } = await api.post('/tags/requests', { name, description: `TagIcon proposé depuis une annonce: ${productContext.title || ''}` });
       setQuery('');
-      if (!adoptTag(data?.tag)) setMessage(data?.message || 'Tag créé.');
+      if (!adoptTag(data?.tag)) setMessage(data?.message || 'TagIcon créé.');
     } catch (error) {
       // A duplicate is just as usable: select the existing tag directly.
       if (error.response?.status === 409 && adoptTag(error.response?.data?.tag)) {
@@ -165,7 +165,7 @@ export default function TagSelector({
     <div className="space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50/70 p-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-sm font-bold text-neutral-900"><Tag size={16} /> Tags de découverte</p>
+          <p className="flex items-center gap-2 text-sm font-bold text-neutral-900"><TagIcon className="h-4 w-4" /> Tags de découverte</p>
           <p className="mt-0.5 text-xs text-neutral-500">Jusqu’à {max} tags manuels, plus les tags IA et système.</p>
         </div>
         <button
@@ -174,7 +174,7 @@ export default function TagSelector({
           disabled={suggesting}
           className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-violet-100 px-3 text-xs font-bold text-violet-700 disabled:opacity-60"
         >
-          {suggesting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          {suggesting ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <SparklesIcon className="h-3.5 w-3.5" />}
           Suggestions IA
         </button>
       </div>
@@ -189,7 +189,7 @@ export default function TagSelector({
               className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold"
               style={{ borderColor: tag.color || '#CBD5E1', color: tag.color || '#334155', backgroundColor: `${tag.color || '#64748B'}12` }}
             >
-              #{tag.name} {lockedIds.has(String(tag._id)) ? <span className="text-[10px] opacity-60">Auto</span> : <X size={13} />}
+              #{tag.name} {lockedIds.has(String(tag._id)) ? <span className="text-[10px] opacity-60">Auto</span> : <XMarkIcon className="h-[13px] w-[13px]" />}
             </button>
           ))}
         </div>
@@ -203,7 +203,7 @@ export default function TagSelector({
           className="min-h-11 w-full rounded-xl border border-neutral-200 bg-white px-3 pr-10 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
           spellCheck="true"
         />
-        {loading && <Loader2 size={16} className="absolute right-3 top-3.5 animate-spin text-neutral-400" />}
+        {loading && <ArrowPathIcon className="absolute right-3 top-3.5 animate-spin text-neutral-400 h-4 w-4" />}
       </div>
 
       <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
@@ -216,9 +216,9 @@ export default function TagSelector({
               onClick={() => toggle(tag)}
               className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${selected ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400'}`}
             >
-              {tag.popularityScore > 0 && <TrendingUp size={12} />}
+              {tag.popularityScore > 0 && <ArrowTrendingUpIcon className="h-3 w-3" />}
               {tag.name}
-              {selected && <Check size={13} />}
+              {selected && <CheckIcon className="h-[13px] w-[13px]" />}
               {tag.confidence ? <span className="text-[10px] opacity-60">{Math.round(tag.confidence * 100)}%</span> : null}
             </button>
           );
@@ -230,7 +230,7 @@ export default function TagSelector({
             disabled={requesting}
             className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-dashed border-blue-300 bg-blue-50 px-3 text-xs font-bold text-blue-700 disabled:opacity-60"
           >
-            {requesting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+            {requesting ? <ArrowPathIcon className="animate-spin h-[13px] w-[13px]" /> : <PlusIcon className="h-[13px] w-[13px]" />}
             Proposer “{query.trim()}”
           </button>
         )}

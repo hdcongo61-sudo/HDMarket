@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users } from 'lucide-react';
+import { UsersIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 import { getProductCardImageUrl } from '../utils/productImageUrl';
@@ -60,7 +60,7 @@ export default function GroupBuyHomeSection({ enabled }) {
                   <div className="h-full rounded-full bg-[#f26522]" style={{ width: `${progressPct}%` }} />
                 </div>
                 <p className="mt-1.5 flex items-center gap-1 text-[12px] font-extrabold text-[#5b616c]">
-                  <Users size={12} />
+                  <UsersIcon className="h-3 w-3" />
                   {remaining > 0 ? `Il manque ${remaining}` : 'Complet'}
                 </p>
               </div>

@@ -1,14 +1,7 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import {
-  AlertTriangle,
-  Bell,
-  CheckCircle2,
-  Clock4,
-  RefreshCw,
-  TrendingUp
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, BellIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import {
   Bar,
   BarChart,
@@ -40,7 +33,7 @@ function MiniCard({ label, value, helper, icon: Icon }) {
         </div>
         {Icon ? (
           <div className="rounded-xl bg-gray-100 p-2 text-gray-700">
-            <Icon size={18} />
+            <Icon className="h-[18px] w-[18px]" />
           </div>
         ) : null}
       </div>
@@ -88,7 +81,7 @@ export default function FounderNotificationsIntelligence() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                <Bell size={14} />
+                <BellIcon className="h-3.5 w-3.5" />
                 Founder Notifications Intelligence
               </p>
               <h1 className="mt-2 text-2xl font-bold text-gray-900">Ops & Delivery de notifications</h1>
@@ -103,7 +96,7 @@ export default function FounderNotificationsIntelligence() {
                 disabled={isFetching}
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
               >
-                <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
+                <ArrowPathIcon className={isFetching ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
                 Rafraîchir
               </button>
               <Link
@@ -135,25 +128,25 @@ export default function FounderNotificationsIntelligence() {
                 label="Taux de delivery push"
                 value={formatPercent(data?.metrics?.deliverySuccessRate)}
                 helper={`Open rate ${formatPercent(data?.metrics?.openRate)}`}
-                icon={TrendingUp}
+                icon={ArrowTrendingUpIcon}
               />
               <MiniCard
                 label="CTR deep link"
                 value={formatPercent(data?.metrics?.clickThroughRate)}
                 helper={`Invalid token ${formatPercent(data?.metrics?.invalidTokenRate)}`}
-                icon={CheckCircle2}
+                icon={CheckCircleIcon}
               />
               <MiniCard
                 label="Queue latency"
                 value={`${formatNumber(data?.metrics?.queueLatencySeconds)} s`}
                 helper={`TTR ${formatNumber(data?.metrics?.averageTimeToReadMinutes)} min`}
-                icon={Clock4}
+                icon={ClockIcon}
               />
               <MiniCard
                 label="Pending validations"
                 value={formatNumber(data?.ops?.pendingValidationsNow)}
                 helper={`Approve avg ${formatNumber(data?.ops?.averageTimeToApproveMinutes)} min`}
-                icon={AlertTriangle}
+                icon={ExclamationTriangleIcon}
               />
             </section>
 
@@ -162,25 +155,25 @@ export default function FounderNotificationsIntelligence() {
                 label="Review reminders"
                 value={formatNumber(data?.reviewEngagement?.reminderSentCount)}
                 helper={`${formatNumber(data?.reviewEngagement?.eligibleOrders)} commandes éligibles`}
-                icon={Bell}
+                icon={BellIcon}
               />
               <MiniCard
                 label="Review conversion"
                 value={formatPercent(data?.reviewEngagement?.reviewConversionRate)}
                 helper={`${formatNumber(data?.reviewEngagement?.completedReviews)} avis complétés`}
-                icon={CheckCircle2}
+                icon={CheckCircleIcon}
               />
               <MiniCard
                 label="Avg time to review"
                 value={`${formatNumber(data?.reviewEngagement?.averageTimeToReviewHours)} h`}
                 helper={`${formatNumber(data?.reviewEngagement?.ignoredReminders)} rappels ignorés`}
-                icon={Clock4}
+                icon={ClockIcon}
               />
               <MiniCard
                 label="Skipped / disabled"
                 value={`${formatNumber(data?.reviewEngagement?.skippedReminders)} / ${formatNumber(data?.reviewEngagement?.disabledOrders)}`}
                 helper="Ignorés / opt-out"
-                icon={AlertTriangle}
+                icon={ExclamationTriangleIcon}
               />
             </section>
 

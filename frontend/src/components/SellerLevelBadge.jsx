@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, BadgeCheck } from 'lucide-react';
+import { CheckBadgeIcon, TrophyIcon } from '@heroicons/react/24/outline';
 
 /**
  * SellerLevelBadge — Compact badge showing the seller level.
@@ -64,10 +64,10 @@ export default function SellerLevelBadge({
       className={`inline-flex items-center rounded-full border font-medium ${meta.bgClass} ${meta.textClass} ${meta.borderClass} ${sizeClasses} ${className}`}
       title={`Niveau ${meta.label}${verified ? ' · Vérifié' : ''}`}
     >
-      <Award className="h-3.5 w-3.5" aria-hidden="true" />
+      <TrophyIcon className="h-3.5 w-3.5" aria-hidden="true" />
       {showLabel && <span>{meta.label}</span>}
       {verified && (
-        <BadgeCheck className="ml-0.5 h-3.5 w-3.5" aria-label="Boutique vérifiée" />
+        <CheckBadgeIcon className="ml-0.5 h-3.5 w-3.5" aria-label="Boutique vérifiée" />
       )}
     </span>
   );

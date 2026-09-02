@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, UploadCloud } from 'lucide-react';
+import { CheckCircleIcon, CloudArrowUpIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../modals/BaseModal';
 
 export default function ImportWizard({
@@ -61,7 +61,7 @@ export default function ImportWizard({
       <ModalBody>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
-            <UploadCloud size={14} /> Charger un fichier
+            <CloudArrowUpIcon className="h-3.5 w-3.5" /> Charger un fichier
             <input type="file" accept="application/json" className="hidden" onChange={handleFile} />
           </label>
           <button
@@ -123,7 +123,7 @@ export default function ImportWizard({
 
         {summary ? (
           <div className="ui-card-soft-separator mt-3 flex items-start gap-2 rounded-xl border border-neutral-200 p-2 text-xs text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
-            {summary.conflicts > 0 ? <AlertTriangle size={14} className="mt-0.5 text-neutral-500" /> : <CheckCircle2 size={14} className="mt-0.5 text-emerald-500" />}
+            {summary.conflicts > 0 ? <ExclamationTriangleIcon className="mt-0.5 text-neutral-500 h-3.5 w-3.5" /> : <CheckCircleIcon className="mt-0.5 text-emerald-500 h-3.5 w-3.5" />}
             <p>
               {summary.conflicts > 0
                 ? 'Des conflits existent. Vérifiez le diff avant application.'

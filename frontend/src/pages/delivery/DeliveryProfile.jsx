@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, History, Loader2, LogOut, MapPin } from 'lucide-react';
+import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, ArrowPathIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import AuthContext from '../../context/AuthContext';
 import DeliveryHeader from '../../components/delivery/DeliveryHeader';
@@ -175,16 +175,16 @@ export default function DeliveryProfile() {
         subtitle="Coordonnees, securite et performance"
         online={!isOffline}
         actions={[
-          { key: 'back', label: 'Missions', to: `${routePrefix}/dashboard`, icon: ArrowLeft },
-          { key: 'history', label: 'Historique', to: `${routePrefix}/history`, icon: History },
-          { key: 'logout', label: 'Déconnexion', onClick: handleLogout, icon: LogOut, tone: 'danger' }
+          { key: 'back', label: 'Missions', to: `${routePrefix}/dashboard`, icon: ArrowLeftIcon },
+          { key: 'history', label: 'Historique', to: `${routePrefix}/history`, icon: ClockIcon },
+          { key: 'logout', label: 'Déconnexion', onClick: handleLogout, icon: ArrowLeftOnRectangleIcon, tone: 'danger' }
         ]}
       />
 
       {meQuery.isLoading ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <p className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Loader2 size={14} className="animate-spin" /> Chargement du profil...
+            <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> Chargement du profil...
           </p>
         </div>
       ) : meQuery.isError ? (
@@ -237,7 +237,7 @@ export default function DeliveryProfile() {
                 disabled={capturing || isOffline}
                 className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white disabled:opacity-60"
               >
-                {capturing ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
+                {capturing ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <MapPinIcon className="h-3.5 w-3.5" />}
                 {capturing ? 'Capture...' : 'Capture agent coordinates'}
               </button>
             </div>
@@ -262,7 +262,7 @@ export default function DeliveryProfile() {
               disabled={savingManual || isOffline}
               className="mt-2 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-black text-gray-700 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-200"
             >
-              {savingManual ? <Loader2 size={14} className="animate-spin" /> : null}
+              {savingManual ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : null}
               Enregistrer position manuelle
             </button>
 

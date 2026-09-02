@@ -2,31 +2,7 @@ import React, { useEffect, useState, useCallback, useContext, useRef } from 'rea
 import { Link, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  Package,
-  Truck,
-  CheckCircle,
-  MapPin,
-  Clock,
-  User,
-  X,
-  AlertCircle,
-  ArrowLeft,
-  Phone,
-  Mail,
-  Calendar,
-  Store,
-  Info,
-  CreditCard,
-  Receipt,
-  ShieldCheck,
-  ClipboardList,
-  Loader2,
-  Send,
-  Copy,
-  Check,
-  MessageCircle
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, BuildingStorefrontIcon, CalendarIcon, ChatBubbleLeftIcon, CheckCircleIcon, CheckIcon, ClipboardDocumentListIcon, ClockIcon, CreditCardIcon, CubeIcon, DocumentDuplicateIcon, EnvelopeIcon, ExclamationCircleIcon, InformationCircleIcon, MapPinIcon, PaperAirplaneIcon, PhoneIcon, ReceiptPercentIcon, ShieldCheckIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, useReducedMotion } from 'framer-motion';
 import { buildProgressSteps, resolveProgressStepIndex, riseIn } from '../utils/orderProgress';
 import { sanitizePhoneNumber } from '../utils/whatsapp';
@@ -135,23 +111,23 @@ const SETTLEMENT_STATUS_META = {
 };
 
 const STATUS_ICONS = {
-  pending_payment: Clock,
-  paid: CreditCard,
-  ready_for_pickup: Package,
-  picked_up_confirmed: CheckCircle,
-  ready_for_delivery: Package,
-  out_for_delivery: Truck,
-  delivery_proof_submitted: ClipboardList,
-  confirmed_by_client: CheckCircle,
-  pending: Clock,
-  pending_installment: Clock,
-  installment_active: CreditCard,
-  overdue_installment: AlertCircle,
-  confirmed: Package,
-  delivering: Truck,
-  delivered: CheckCircle,
-  completed: CheckCircle,
-  cancelled: X
+  pending_payment: ClockIcon,
+  paid: CreditCardIcon,
+  ready_for_pickup: CubeIcon,
+  picked_up_confirmed: CheckCircleIcon,
+  ready_for_delivery: CubeIcon,
+  out_for_delivery: TruckIcon,
+  delivery_proof_submitted: ClipboardDocumentListIcon,
+  confirmed_by_client: CheckCircleIcon,
+  pending: ClockIcon,
+  pending_installment: ClockIcon,
+  installment_active: CreditCardIcon,
+  overdue_installment: ExclamationCircleIcon,
+  confirmed: CubeIcon,
+  delivering: TruckIcon,
+  delivered: CheckCircleIcon,
+  completed: CheckCircleIcon,
+  cancelled: XMarkIcon
 };
 
 const INSTALLMENT_SALE_STATUS_LABELS = {
@@ -923,7 +899,7 @@ export default function SellerOrderDetail() {
     return (
       <div className="hd-order-flow hd-commerce-shell min-h-screen p-4">
         <Link to="/seller/orders" className="inline-flex items-center gap-2 text-neutral-600 font-medium mb-4">
-          <ArrowLeft className="w-4 h-4" /> Retour aux commandes
+          <ArrowLeftIcon className="w-4 h-4" /> Retour aux commandes
         </Link>
         <p className="text-red-600">{queryErrorMessage || 'Commande introuvable.'}</p>
       </div>
@@ -1016,7 +992,7 @@ export default function SellerOrderDetail() {
         : installmentSaleStatus || 'confirmed'
       : installmentWorkflowStatus
     : pickupStatusLabel || order.status;
-  const StatusIcon = STATUS_ICONS[displayStatusLabel] || STATUS_ICONS[order.status] || Clock;
+  const StatusIcon = STATUS_ICONS[displayStatusLabel] || STATUS_ICONS[order.status] || ClockIcon;
   const statusStyle =
     STATUS_STYLES[displayStatusLabel] || STATUS_STYLES[order.status] || STATUS_STYLES.pending;
   const canManageInstallmentSaleStatus =
@@ -1141,36 +1117,36 @@ export default function SellerOrderDetail() {
     }
   };
   const statusTimelineEntries = [
-    { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
-    { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
+    { key: 'created', label: 'Créée', icon: CalendarIcon, time: order.createdAt },
+    { key: 'confirmed', label: 'Confirmée', icon: CubeIcon, time: order.confirmedAt },
     isPickupOrder
       ? {
           key: 'ready_for_pickup',
           label: 'Prête au retrait',
-          icon: Store,
+          icon: BuildingStorefrontIcon,
           time: order.readyForPickupAt
         }
       : {
           key: 'out_for_delivery',
           label: 'En livraison',
-          icon: Truck,
+          icon: TruckIcon,
           time: order.outForDeliveryAt || order.shippedAt
         },
-    { key: 'proof_submitted', label: 'Preuve soumise', icon: Receipt, time: order.deliverySubmittedAt },
+    { key: 'proof_submitted', label: 'Preuve soumise', icon: ReceiptPercentIcon, time: order.deliverySubmittedAt },
     {
       key: 'delivered',
       label: isPickupOrder ? 'Retrait confirmé' : 'Livrée',
-      icon: CheckCircle,
+      icon: CheckCircleIcon,
       time: order.deliveredAt
     },
     {
       key: 'confirmed_by_client',
       label: 'Confirmée client',
-      icon: ShieldCheck,
+      icon: ShieldCheckIcon,
       time: order.clientDeliveryConfirmedAt
     },
-    { key: 'completed', label: 'Terminée', icon: CheckCircle, time: order.completedAt },
-    { key: 'cancelled', label: 'Annulée', icon: X, time: order.cancelledAt }
+    { key: 'completed', label: 'Terminée', icon: CheckCircleIcon, time: order.completedAt },
+    { key: 'cancelled', label: 'Annulée', icon: XMarkIcon, time: order.cancelledAt }
   ].filter((entry) => Boolean(entry.time));
   const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
   const compactProgressSteps = buildProgressSteps({
@@ -1242,7 +1218,7 @@ export default function SellerOrderDetail() {
                 <div>
                   <button type="button" onClick={() => copyToClipboard(order._id.slice(-6).toUpperCase(), 'orderId')} className="inline-flex min-h-11 items-center gap-2 text-left">
                     <span className="text-base font-black text-[#231f1b]">Commande #{order._id.slice(-6)}</span>
-                    {copiedKey === 'orderId' ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-[#8a8378]" />}
+                    {copiedKey === 'orderId' ? <CheckIcon className="h-4 w-4 text-emerald-600" /> : <DocumentDuplicateIcon className="h-4 w-4 text-[#8a8378]" />}
                   </button>
                   <p className="text-xs font-semibold text-[#8a8378]">{formatOrderTimestamp(order.createdAt) || 'Date non disponible'}</p>
                 </div>
@@ -1256,7 +1232,7 @@ export default function SellerOrderDetail() {
                 const image = item.snapshot?.image || item.product?.images?.[0];
                 return (
                   <div key={`${order._id}-seller-compact-${index}`} className="flex gap-3">
-                    {image ? <img src={image} alt={item.snapshot?.title || 'Produit'} className="h-16 w-16 shrink-0 rounded-xl border border-[#eee8e0] object-cover" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-[#f5f2ee]"><Package className="h-5 w-5 text-[#8a8378]" /></div>}
+                    {image ? <img src={image} alt={item.snapshot?.title || 'Produit'} className="h-16 w-16 shrink-0 rounded-xl border border-[#eee8e0] object-cover" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-[#f5f2ee]"><CubeIcon className="h-5 w-5 text-[#8a8378]" /></div>}
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-2 text-sm font-black leading-5 text-[#231f1b]">{item.snapshot?.title || 'Produit'} × {item.quantity || 1}</p>
                       <p className="mt-1 text-xs font-semibold text-[#6b6459]">{isInstallmentOrder ? `Acompte ${formatCurrency(installmentPaid)} · reste ${formatCurrency(installmentRemaining)}` : paymentModeLabel}</p>
@@ -1286,12 +1262,12 @@ export default function SellerOrderDetail() {
                   <div className="flex shrink-0 gap-1.5">
                     {orderContactPhone ? (
                       <a href={`tel:${orderContactPhone}`} className="grid h-11 w-11 place-items-center rounded-full border border-[#e2dcd2] text-[#231f1b]" aria-label="Appeler l’acheteur">
-                        <Phone className="h-4 w-4" />
+                        <PhoneIcon className="h-4 w-4" />
                       </a>
                     ) : null}
                     {buyerEmail ? (
                       <a href={`mailto:${buyerEmail}`} className="grid h-11 w-11 place-items-center rounded-full border border-[#e2dcd2] text-[#231f1b]" aria-label="Envoyer un e-mail à l’acheteur">
-                        <Mail className="h-4 w-4" />
+                        <EnvelopeIcon className="h-4 w-4" />
                       </a>
                     ) : null}
                   </div>
@@ -1338,7 +1314,7 @@ export default function SellerOrderDetail() {
                     <p className="text-[11px] font-black uppercase tracking-wide text-[#8a8378]">Code de livraison</p>
                     <p className="mt-1 font-mono text-xl font-black tracking-[0.22em] text-[#231f1b]">••••</p>
                   </div>
-                  <button type="button" onClick={() => copyToClipboard(order.deliveryCode, 'deliveryCode')} className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs font-black text-[#c2410c]">{copiedKey === 'deliveryCode' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copiedKey === 'deliveryCode' ? 'Copié' : 'Copier'}</button>
+                  <button type="button" onClick={() => copyToClipboard(order.deliveryCode, 'deliveryCode')} className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs font-black text-[#c2410c]">{copiedKey === 'deliveryCode' ? <CheckIcon className="h-4 w-4" /> : <DocumentDuplicateIcon className="h-4 w-4" />} {copiedKey === 'deliveryCode' ? 'Copié' : 'Copier'}</button>
                 </div>
               ) : null}
 
@@ -1346,7 +1322,7 @@ export default function SellerOrderDetail() {
 
               {sellerPrimaryAction ? (
                 <button type="button" onClick={handlePrimarySellerAction} disabled={sellerPrimaryAction.disabled || Boolean(statusUpdatingId) || statusMutation.isReliablePending || saleConfirmationLoading || paymentValidationLoadingIndex >= 0 || order.cancellationWindow?.isActive} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#0d0d0d] px-4 text-sm font-black text-white disabled:opacity-60">
-                  {statusMutation.isReliablePending || Boolean(statusUpdatingId) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+                  {statusMutation.isReliablePending || Boolean(statusUpdatingId) ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <TruckIcon className="h-4 w-4" />}
                   {sellerPrimaryAction.label}
                 </button>
               ) : null}
@@ -1383,9 +1359,9 @@ export default function SellerOrderDetail() {
                   >
                     <h3 className="text-2xl font-black tracking-tight">#{order._id.slice(-6)}</h3>
                     {copiedKey === 'orderId' ? (
-                      <Check className="h-4 w-4 text-white" />
+                      <CheckIcon className="h-4 w-4 text-white" />
                     ) : (
-                      <Copy className="h-4 w-4 text-white/60 transition group-hover:text-white" />
+                      <DocumentDuplicateIcon className="h-4 w-4 text-white/60 transition group-hover:text-white" />
                     )}
                   </button>
                   <p className="mt-1 text-xs font-semibold text-white/78">
@@ -1407,7 +1383,7 @@ export default function SellerOrderDetail() {
                     className="inline-flex min-h-[38px] items-center gap-2 rounded-full bg-black/18 px-3 text-xs font-black text-white ring-1 ring-white/20 transition hover:bg-black/25 active:scale-95"
                     title="Écrire au client sur WhatsApp"
                   >
-                    <MessageCircle className="w-4 h-4" />
+                    <ChatBubbleLeftIcon className="w-4 h-4" />
                     WhatsApp
                   </a>
                 ) : null}
@@ -1489,7 +1465,7 @@ export default function SellerOrderDetail() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#e85d00]" /> Code de livraison
+                    <ShieldCheckIcon className="h-3.5 w-3.5 text-[#e85d00]" /> Code de livraison
                   </p>
                   <p className="mt-1 break-all font-mono text-3xl font-black tracking-[0.2em] text-neutral-950 sm:text-4xl">
                     {order.deliveryCode}
@@ -1505,7 +1481,7 @@ export default function SellerOrderDetail() {
                   title="Copier le code"
                   aria-label="Copier le code de livraison"
                 >
-                  {copiedKey === 'deliveryCode' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedKey === 'deliveryCode' ? <CheckIcon className="h-4 w-4" /> : <DocumentDuplicateIcon className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -1522,7 +1498,7 @@ export default function SellerOrderDetail() {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
-                    <Package className="w-4 h-4" />
+                    <CubeIcon className="w-4 h-4" />
                   </span>
                   <div>
                     <h4 className="text-sm font-black text-gray-900">Articles commandés</h4>
@@ -1540,7 +1516,7 @@ export default function SellerOrderDetail() {
                       <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="h-20 w-20 flex-shrink-0 rounded-xl border border-gray-200 object-cover sm:h-24 sm:w-24" />
                     ) : (
                       <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 sm:h-24 sm:w-24">
-                        <Package className="w-6 h-6 text-neutral-600" />
+                        <CubeIcon className="w-6 h-6 text-neutral-600" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
@@ -1577,7 +1553,7 @@ export default function SellerOrderDetail() {
 
             <motion.div {...riseIn(reduceMotion, 0.16)} className="grid grid-cols-1 gap-4">
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><User className="w-4 h-4 text-[#e85d00]" /> Informations de l’acheteur</h4>
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><UserIcon className="w-4 h-4 text-[#e85d00]" /> Informations de l’acheteur</h4>
                 <div className="space-y-2 rounded-2xl border border-gray-100 bg-gray-50 p-4">
                   <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
                     <div className="min-w-0">
@@ -1585,8 +1561,8 @@ export default function SellerOrderDetail() {
                       <p className="mt-0.5 text-xs font-semibold text-gray-500">Compte {buyerAccountLabel.toLowerCase()}</p>
                     </div>
                     <div className="flex shrink-0 gap-2">
-                      {orderContactPhone ? <a href={`tel:${orderContactPhone}`} className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 text-gray-700" aria-label="Appeler l’acheteur"><Phone className="h-4 w-4" /></a> : null}
-                      {buyerEmail ? <a href={`mailto:${buyerEmail}`} className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 text-gray-700" aria-label="Envoyer un e-mail à l’acheteur"><Mail className="h-4 w-4" /></a> : null}
+                      {orderContactPhone ? <a href={`tel:${orderContactPhone}`} className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 text-gray-700" aria-label="Appeler l’acheteur"><PhoneIcon className="h-4 w-4" /></a> : null}
+                      {buyerEmail ? <a href={`mailto:${buyerEmail}`} className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 text-gray-700" aria-label="Envoyer un e-mail à l’acheteur"><EnvelopeIcon className="h-4 w-4" /></a> : null}
                     </div>
                   </div>
                   <dl className="divide-y divide-gray-100 text-xs">
@@ -1609,7 +1585,7 @@ export default function SellerOrderDetail() {
 
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900">
-                <MapPin className="w-4 h-4 text-[#e85d00]" /> {isPickupOrder ? 'Point de retrait' : 'Adresse de livraison'}
+                <MapPinIcon className="w-4 h-4 text-[#e85d00]" /> {isPickupOrder ? 'Point de retrait' : 'Adresse de livraison'}
               </h4>
               <div className="space-y-2 rounded-2xl border border-gray-100 bg-gray-50 p-4">
                 {isPickupOrder ? (
@@ -1644,7 +1620,7 @@ export default function SellerOrderDetail() {
                       )}
                     </div>
                     <div>
-                      <Truck className="mr-1 inline h-3 w-3 text-neutral-600" />
+                      <TruckIcon className="mr-1 inline h-3 w-3 text-neutral-600" />
                       <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
                       {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
                     </div>
@@ -1655,13 +1631,13 @@ export default function SellerOrderDetail() {
 
             {order.trackingNote && (
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><Info className="w-4 h-4 text-[#e85d00]" /> Note de suivi</h4>
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><InformationCircleIcon className="w-4 h-4 text-[#e85d00]" /> Note de suivi</h4>
                 <p className="text-sm font-semibold leading-6 text-gray-700">{order.trackingNote}</p>
               </div>
             )}
 
             <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCard className="w-4 h-4 text-[#e85d00]" /> Paiement</h4>
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCardIcon className="w-4 h-4 text-[#e85d00]" /> Paiement</h4>
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1868,7 +1844,7 @@ export default function SellerOrderDetail() {
             {isInstallmentOrder && (
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50/40 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
-                  <Receipt className="w-4 h-4 text-neutral-600" /> Preuve de vente
+                  <ReceiptPercentIcon className="w-4 h-4 text-neutral-600" /> Preuve de vente
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
@@ -1894,7 +1870,7 @@ export default function SellerOrderDetail() {
                         disabled={saleConfirmationLoading}
                         className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                       >
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircleIcon className="w-4 h-4" />
                         {saleConfirmationLoading ? 'Traitement...' : 'Confirmer la vente'}
                       </button>
                     ) : null}
@@ -1904,7 +1880,7 @@ export default function SellerOrderDetail() {
                       disabled={saleConfirmationLoading}
                       className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                     >
-                      <X className="w-4 h-4" />
+                      <XMarkIcon className="w-4 h-4" />
                       Refuser la vente
                     </button>
                   </div>
@@ -1958,7 +1934,7 @@ export default function SellerOrderDetail() {
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-emerald-50">
-                    <ClipboardList className="w-4 h-4 text-emerald-600" />
+                    <ClipboardDocumentListIcon className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-gray-900">Preuve de livraison</h4>
@@ -2033,7 +2009,7 @@ export default function SellerOrderDetail() {
             {isInstallmentOrder && (
               <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
                 <h4 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-gray-500" /> Échéancier, preuves et validations
+                  <CreditCardIcon className="w-4 h-4 text-gray-500" /> Échéancier, preuves et validations
                 </h4>
                 {!installmentSchedule.length ? (
                   <p className="text-sm text-gray-500">Aucune tranche définie.</p>
@@ -2092,7 +2068,7 @@ export default function SellerOrderDetail() {
                               disabled={paymentValidationLoadingIndex === index}
                               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              <CheckCircleIcon className="w-4 h-4" />
                               {paymentValidationLoadingIndex === index ? 'Validation...' : 'Valider'}
                             </button>
                             <button
@@ -2101,7 +2077,7 @@ export default function SellerOrderDetail() {
                               disabled={paymentValidationLoadingIndex === index}
                               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                             >
-                              <X className="w-4 h-4" />
+                              <XMarkIcon className="w-4 h-4" />
                               Rejeter
                             </button>
                           </div>
@@ -2121,7 +2097,7 @@ export default function SellerOrderDetail() {
                   isActive={order.cancellationWindow.isActive}
                 />
                 <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-100 border border-amber-200">
-                  <AlertCircle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <ExclamationCircleIcon className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
                     <span className="font-semibold">Délai d'annulation actif :</span> Vous ne pouvez pas modifier le statut pendant les 30 premières minutes.
                   </p>
@@ -2136,7 +2112,7 @@ export default function SellerOrderDetail() {
             {sellerPrimaryAction ? (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
+                  <ShieldCheckIcon className="w-4 h-4 text-[#e85d00]" />
                   <h4 className="text-sm font-black text-gray-900">
                     Action suivante
                   </h4>
@@ -2157,7 +2133,7 @@ export default function SellerOrderDetail() {
                   )}`}
                 >
                   {statusMutation.isReliablePending || Boolean(statusUpdatingId) ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
                   ) : null}
                   {sellerPrimaryAction.label}
                 </button>
@@ -2183,7 +2159,7 @@ export default function SellerOrderDetail() {
               <div className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/70 p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#e85d00] ring-1 ring-amber-100">
-                    <ShieldCheck className="h-4 w-4" />
+                    <ShieldCheckIcon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-black text-amber-950">Fonds portefeuille en attente</h4>
@@ -2199,9 +2175,9 @@ export default function SellerOrderDetail() {
                   className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#e85f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {confirmationReminderLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send className="h-4 w-4" />
+                    <PaperAirplaneIcon className="h-4 w-4" />
                   )}
                   Relancer le client
                 </button>
@@ -2211,7 +2187,7 @@ export default function SellerOrderDetail() {
             {canManageInstallmentSaleStatus && !sellerPrimaryAction && (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
+                  <ShieldCheckIcon className="w-4 h-4 text-[#e85d00]" />
                   <h4 className="text-sm font-black text-gray-900">
                     Mettre à jour le statut de vente
                   </h4>
@@ -2226,7 +2202,7 @@ export default function SellerOrderDetail() {
                     }
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                   >
-                    <Package size={12} /> Confirmée
+                    <CubeIcon className="h-3 w-3" /> Confirmée
                   </button>
                   <button
                     type="button"
@@ -2237,7 +2213,7 @@ export default function SellerOrderDetail() {
                     }
                     className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
                   >
-                    {isPickupOrder ? <Store size={12} /> : <Truck size={12} />}
+                    {isPickupOrder ? <BuildingStorefrontIcon className="h-3 w-3" /> : <TruckIcon className="h-3 w-3" />}
                     {isPickupOrder ? 'Prêt à récupérer' : 'En livraison'}
                   </button>
                   <button
@@ -2257,11 +2233,11 @@ export default function SellerOrderDetail() {
                   >
                     {order.deliveryStatus === 'submitted' ? (
                       <>
-                        <CheckCircle size={12} /> {isPickupOrder ? 'Récupéré' : 'Livrée'}
+                        <CheckCircleIcon className="h-3 w-3" /> {isPickupOrder ? 'Récupéré' : 'Livrée'}
                       </>
                     ) : (
                       <>
-                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : isPickupOrder ? 'Preuve de retrait' : 'Livrer'}
+                        <ClipboardDocumentListIcon className="h-3 w-3" /> {showDeliveryProofForm ? 'Masquer preuve' : isPickupOrder ? 'Preuve de retrait' : 'Livrer'}
                       </>
                     )}
                   </button>
@@ -2274,7 +2250,7 @@ export default function SellerOrderDetail() {
                     }
                     className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
                   >
-                    <X size={12} /> Annuler
+                    <XMarkIcon className="h-3 w-3" /> Annuler
                   </button>
                 </div>
                 {installmentSaleStatus === 'delivering' && order.deliveryStatus !== 'submitted' && (
@@ -2299,7 +2275,7 @@ export default function SellerOrderDetail() {
               ) && (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#e85d00]" />
+                  <ShieldCheckIcon className="w-4 h-4 text-[#e85d00]" />
                   <h4 className="text-sm font-black text-gray-900">
                     Mettre à jour le statut {isPickupOrder ? '(retrait boutique)' : ''}
                   </h4>
@@ -2315,7 +2291,7 @@ export default function SellerOrderDetail() {
                     }
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                   >
-                    <Package size={12} /> Confirmer
+                    <CubeIcon className="h-3 w-3" /> Confirmer
                   </button>
                   {isPickupOrder ? (
                     <>
@@ -2329,7 +2305,7 @@ export default function SellerOrderDetail() {
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
                       >
-                        <Package size={12} /> Prête au retrait
+                        <CubeIcon className="h-3 w-3" /> Prête au retrait
                       </button>
                       <button
                         type="button"
@@ -2341,7 +2317,7 @@ export default function SellerOrderDetail() {
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                       >
-                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Retrait confirmé'}
+                        <ClipboardDocumentListIcon className="h-3 w-3" /> {showDeliveryProofForm ? 'Masquer preuve' : 'Retrait confirmé'}
                       </button>
                     </>
                   ) : (
@@ -2356,7 +2332,7 @@ export default function SellerOrderDetail() {
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
                       >
-                        <Truck size={12} /> En livraison
+                        <TruckIcon className="h-3 w-3" /> En livraison
                       </button>
                       <button
                         type="button"
@@ -2369,7 +2345,7 @@ export default function SellerOrderDetail() {
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
                       >
-                        <ClipboardList size={12} /> {showDeliveryProofForm ? 'Masquer preuve' : 'Livrer'}
+                        <ClipboardDocumentListIcon className="h-3 w-3" /> {showDeliveryProofForm ? 'Masquer preuve' : 'Livrer'}
                       </button>
                     </>
                   )}
@@ -2383,7 +2359,7 @@ export default function SellerOrderDetail() {
                     }
                     className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
                   >
-                    <X size={12} /> Annuler
+                    <XMarkIcon className="h-3 w-3" /> Annuler
                   </button>
                 </div>
                 {isPickupOrder ? (
@@ -2409,7 +2385,7 @@ export default function SellerOrderDetail() {
               <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-blue-700" />
+                    <TruckIcon className="w-4 h-4 text-blue-700" />
                     <h4 className="text-sm font-bold text-blue-900 uppercase tracking-wide">
                       Livraison plateforme
                     </h4>
@@ -2441,7 +2417,7 @@ export default function SellerOrderDetail() {
                         }}
                         className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                       >
-                        <Truck size={12} />
+                        <TruckIcon className="h-3 w-3" />
                         Request platform delivery
                       </button>
                     ) : (
@@ -2478,9 +2454,9 @@ export default function SellerOrderDetail() {
                             className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
                           >
                             {requestPlatformDeliveryLoading ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                             ) : (
-                              <CheckCircle className="w-3.5 h-3.5" />
+                              <CheckCircleIcon className="w-3.5 h-3.5" />
                             )}
                             Envoyer la demande
                           </button>
@@ -2553,7 +2529,7 @@ export default function SellerOrderDetail() {
                             disabled={deliveryPinLoading}
                             className="inline-flex items-center gap-2 rounded-xl bg-amber-700 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-60"
                           >
-                            {deliveryPinLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                            {deliveryPinLoading ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : null}
                             Générer auto
                           </button>
                           <button
@@ -2588,7 +2564,7 @@ export default function SellerOrderDetail() {
               <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-5 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-red-600">
-                    <AlertCircle className="w-5 h-5 text-white" />
+                    <ExclamationCircleIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-red-800">Commande annulée</p>
@@ -2699,7 +2675,7 @@ export default function SellerOrderDetail() {
         ariaLabel="Annuler la commande"
       >
         <ModalHeader
-          icon={<AlertCircle className="h-5 w-5" />}
+          icon={<ExclamationCircleIcon className="h-5 w-5" />}
           title="Annuler la commande"
           subtitle={`Commande #${order?._id?.slice(-6) || '—'}`}
           onClose={closeCancelModal}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Package2, Plus, Trash2 } from 'lucide-react';
+import { ArrowPathIcon, CubeIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../../../utils/priceFormatter';
@@ -62,7 +62,7 @@ export default function PackageTypesPanel() {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4">
       <div className="mb-4 flex items-center gap-2">
-        <Package2 className="h-5 w-5 text-[#e85d00]" />
+        <CubeIcon className="h-5 w-5 text-[#e85d00]" />
         <h2 className="text-base font-black text-slate-950">Types de colis</h2>
       </div>
       <p className="mb-4 text-xs text-gray-500">Documents, Nourriture, Médicaments... chacun avec un supplément de prix.</p>
@@ -87,7 +87,7 @@ export default function PackageTypesPanel() {
           disabled={creating}
           className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] text-xs font-black text-white disabled:opacity-50"
         >
-          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          {creating ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlusIcon className="h-4 w-4" />}
           Ajouter
         </button>
         <input
@@ -119,7 +119,7 @@ export default function PackageTypesPanel() {
                 className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-red-100 text-red-600 disabled:opacity-50"
                 aria-label="Supprimer"
               >
-                <Trash2 className="h-4 w-4" />
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           ))}

@@ -16,67 +16,7 @@ import { resolveUserProfileImage } from "../utils/userAvatar";
 import { useAppSettings } from "../context/AppSettingsContext";
 import useCategories from '../hooks/useCategories';
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
-import {
-  ShoppingCart,
-  Bell,
-  MessageSquare,
-  Menu,
-  X,
-  Search,
-  LogOut,
-  User,
-  Sun,
-  Moon,
-  Heart,
-  Store,
-  ChevronDown,
-  ChevronRight,
-  Users,
-  Users2,
-  Package,
-  Settings,
-  Home,
-  UserCircle,
-  AlertCircle,
-  BarChart3,
-  ClipboardList,
-  Sparkles,
-  Trash2,
-  ShieldCheck,
-  Truck,
-  CheckCircle,
-  FileText,
-  SlidersHorizontal,
-  Star,
-  Tag,
-  Filter,
-  MapPin,
-  Clock,
-  TrendingUp,
-  Download,
-  Pin,
-  PinOff,
-  Calendar,
-  Flame,
-  Zap,
-  Bookmark,
-  BookmarkCheck,
-  Save,
-  ArrowDown,
-  ChevronUp,
-  MoreVertical,
-  Edit,
-  Grid3x3,
-  Plus,
-  Compass,
-  BadgePercent,
-  Gift,
-  Bike,
-  Flag,
-  MessageCircle,
-  ShoppingBag,
-  Clapperboard
-} from "lucide-react";
+import { AdjustmentsHorizontalIcon, ArrowDownIcon, ArrowDownTrayIcon, ArrowLeftOnRectangleIcon, ArrowTrendingUpIcon, Bars3Icon, BellIcon, BoltIcon, BookmarkIcon, BookmarkSquareIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, ChatBubbleLeftIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ClipboardDocumentListIcon, ClockIcon, Cog6ToothIcon, CubeIcon, DocumentTextIcon, EllipsisVerticalIcon, ExclamationCircleIcon, FilmIcon, FireIcon, FlagIcon, FunnelIcon, GiftIcon, HeartIcon, HomeIcon, MagnifyingGlassIcon, MapIcon, MapPinIcon, PencilIcon, PlusIcon, ReceiptPercentIcon, ShieldCheckIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Squares2X2Icon, StarIcon, TagIcon, TrashIcon, TruckIcon, UserCircleIcon, UserGroupIcon, UserIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import VerifiedBadge from "./VerifiedBadge";
 import CountrySelector from './settings/CountrySelector';
 
@@ -155,7 +95,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
   const isProductVideosRoute = location.pathname.startsWith('/videos');
   const { user, logout } = useContext(AuthContext);
   const { categoryGroups } = useCategories();
-  const { theme, setTheme, darkThemeEnabled, t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
+  const { t, cities, isFeatureEnabled, getRuntimeValue, app, ui } = useAppSettings();
   const aiRecommendationsEnabled = isFeatureEnabled('enable_ai_recommendations', {
     defaultValue: true
   });
@@ -251,12 +191,6 @@ export default function Navbar({ hideMobileTabBar = false }) {
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('hdmarket:mobile-menu', { detail: { open: isMenuOpen } }));
   }, [isMenuOpen]);
-  const [systemDarkMode, setSystemDarkMode] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ products: [], shops: [], categories: [], totals: { products: 0, shops: 0, categories: 0, total: 0 } });
   const [displayedResults, setDisplayedResults] = useState({ products: [], shops: [], categories: [], totals: { products: 0, shops: 0, categories: 0, total: 0 } });
@@ -305,9 +239,9 @@ export default function Navbar({ hideMobileTabBar = false }) {
   const [savedSearches, setSavedSearches] = useState([]);
   const buildDefaultSearchTemplates = useCallback(
     () => [
-      { id: 'new_products', label: t('nav.newProducts', 'Nouveaux produits'), path: '/products?sort=new', icon: Sparkles },
-      { id: 'top_deals', label: t('nav.bestDeals', 'Meilleures offres'), path: '/products?sort=price_asc', icon: Flame },
-      { id: 'trending', label: t('nav.trending', 'Tendances'), path: '/products?sort=popular', icon: TrendingUp }
+      { id: 'new_products', label: t('nav.newProducts', 'Nouveaux produits'), path: '/products?sort=new', icon: SparklesIcon },
+      { id: 'top_deals', label: t('nav.bestDeals', 'Meilleures offres'), path: '/products?sort=price_asc', icon: FireIcon },
+      { id: 'trending', label: t('nav.trending', 'Tendances'), path: '/products?sort=popular', icon: ArrowTrendingUpIcon }
     ],
     [t]
   );
@@ -351,25 +285,6 @@ export default function Navbar({ hideMobileTabBar = false }) {
       }
     }, 150);
   };
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (event) => setSystemDarkMode(Boolean(event.matches));
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', handler);
-    } else if (typeof mediaQuery.addListener === 'function') {
-      mediaQuery.addListener(handler);
-    }
-    return () => {
-      if (typeof mediaQuery.removeEventListener === 'function') {
-        mediaQuery.removeEventListener('change', handler);
-      } else if (typeof mediaQuery.removeListener === 'function') {
-        mediaQuery.removeListener(handler);
-      }
-    };
-  }, []);
-  const darkMode = theme === 'dark' || (theme === 'system' && systemDarkMode);
 
   useEffect(() => {
     if (!user) {
@@ -733,7 +648,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
   }, [user]);
 
   // Load quick filters from backend (Nouveaux produits, Meilleures offres, etc.)
-  const QUICK_FILTER_ICONS = { sparkles: Sparkles, flame: Flame, 'shield-check': ShieldCheck, 'trending-up': TrendingUp };
+  const QUICK_FILTER_ICONS = { sparkles: SparklesIcon, flame: FireIcon, 'shield-check': ShieldCheckIcon, 'trending-up': ArrowTrendingUpIcon };
   useEffect(() => {
     let cancelled = false;
     api.get('/search/quick-filters')
@@ -744,7 +659,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
           .map((t) => ({
             ...t,
             fromServer: true,
-            icon: QUICK_FILTER_ICONS[t.icon] || Sparkles
+            icon: QUICK_FILTER_ICONS[t.icon] || SparklesIcon
           }));
         setSearchTemplates(withIcons);
       })
@@ -762,7 +677,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
 
   // Buy For Me's on/off switch lives in its own BuyForMeConfig document, not
   // the runtimeSettingsCatalog flags getRuntimeValue reads — same capability
-  // check Home.jsx uses for its promo banner, so the nav entry never
+  // check HomeIcon.jsx uses for its promo banner, so the nav entry never
   // advertises the feature while it's disabled.
   useEffect(() => {
     let active = true;
@@ -793,29 +708,29 @@ export default function Navbar({ hideMobileTabBar = false }) {
 
   // Default navigation items
   const defaultNavItems = [
-    { id: 'home', label: t('nav.home', 'Accueil'), path: '/', icon: Home, badge: null, visible: true, order: 0 },
-    { id: 'discover', label: t('nav.discover', 'Découvrir'), path: '/discover', icon: Compass, badge: null, visible: true, order: productVideosEnabled ? 5 : 1 },
-    { id: 'videos', label: 'Vidéos', path: '/videos', icon: Clapperboard, badge: null, visible: productVideosEnabled, order: 1 },
-    { id: 'favorites', label: t('nav.favorites', 'Favoris'), path: '/favorites', icon: Heart, badge: favoritesCount, visible: true, order: 2 },
-    { id: 'cart', label: t('nav.cart', 'Panier'), path: '/cart', icon: ShoppingCart, badge: cartCount, visible: true, order: 3 },
-    { id: 'menu', label: t('nav.menu', 'Menu'), path: null, icon: Menu, badge: adminPendingTotal, visible: true, order: 4, isButton: true },
+    { id: 'home', label: t('nav.home', 'Accueil'), path: '/', icon: HomeIcon, badge: null, visible: true, order: 0 },
+    { id: 'discover', label: t('nav.discover', 'Découvrir'), path: '/discover', icon: MapIcon, badge: null, visible: true, order: productVideosEnabled ? 5 : 1 },
+    { id: 'videos', label: 'Vidéos', path: '/videos', icon: FilmIcon, badge: null, visible: productVideosEnabled, order: 1 },
+    { id: 'favorites', label: t('nav.favorites', 'Favoris'), path: '/favorites', icon: HeartIcon, badge: favoritesCount, visible: true, order: 2 },
+    { id: 'cart', label: t('nav.cart', 'Panier'), path: '/cart', icon: ShoppingCartIcon, badge: cartCount, visible: true, order: 3 },
+    { id: 'menu', label: t('nav.menu', 'Bars3Icon'), path: null, icon: Bars3Icon, badge: adminPendingTotal, visible: true, order: 4, isButton: true },
     // Additional items for expanded view
-    { id: 'shops', label: t('nav.shops', 'Boutiques'), path: '/shops/verified', icon: Store, badge: null, visible: true, order: 5 },
-    { id: 'profile', label: t('nav.profile', 'Profil'), path: '/profile', icon: User, badge: null, visible: user ? true : false, order: 6 },
-    { id: 'notifications', label: t('nav.notifications', 'Notifications'), path: '/notifications', icon: Bell, badge: commentAlerts, visible: user ? true : false, order: 7 },
-    { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardList, badge: activeOrders, visible: user ? true : false, order: 8 },
-    { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: MessageSquare, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
-    { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/seller/products', icon: Package, badge: null, visible: user ? true : false, order: 10 },
-    { id: 'saved-videos', label: 'Vidéos enregistrées', path: '/profile/saved-videos', icon: Bookmark, badge: null, visible: Boolean(user) && productVideosEnabled, order: 10.2 },
-    { id: 'seller-videos', label: 'Mes vidéos produit', path: '/seller/videos', icon: Clapperboard, badge: null, visible: Boolean(user) && user?.accountType === 'shop' && productVideosEnabled, order: 10.3 },
-    { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: Users2, badge: null, visible: user ? true : false, order: 12 },
-    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: Store, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
-    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: Sparkles, badge: null, visible: aiRecommendationsEnabled, order: 14 },
-    { id: 'referrals', label: t('nav.referrals', 'Parrainage'), path: '/referrals', icon: Gift, badge: null, visible: user ? referralProgramEnabled : false, order: 14.5 },
-    { id: 'buy-for-me', label: t('nav.buyForMe', 'Acheter pour moi'), path: '/buy-for-me', icon: ShoppingBag, badge: null, visible: user ? buyForMeEnabled : false, order: 14.6 },
-    { id: 'parcels', label: t('nav.parcels', 'Envoyer un colis'), path: '/parcels/new', icon: Bike, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.7 },
-    { id: 'my-parcels', label: t('nav.myParcels', 'Mes colis'), path: '/parcels', icon: Truck, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.8 },
-    { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: BadgePercent, badge: null, visible: true, order: 15 }
+    { id: 'shops', label: t('nav.shops', 'Boutiques'), path: '/shops/verified', icon: BuildingStorefrontIcon, badge: null, visible: true, order: 5 },
+    { id: 'profile', label: t('nav.profile', 'Profil'), path: '/profile', icon: UserIcon, badge: null, visible: user ? true : false, order: 6 },
+    { id: 'notifications', label: t('nav.notifications', 'Notifications'), path: '/notifications', icon: BellIcon, badge: commentAlerts, visible: user ? true : false, order: 7 },
+    { id: 'orders', label: t('nav.orders', 'Commandes'), path: '/orders', icon: ClipboardDocumentListIcon, badge: activeOrders, visible: user ? true : false, order: 8 },
+    { id: 'messages', label: t('nav.messages', 'Messages'), path: '/orders/messages', icon: ChatBubbleLeftRightIcon, badge: unreadOrderMessages, visible: user ? chatEnabled : false, order: 9 },
+    { id: 'my', label: t('nav.myListings', 'Mes annonces'), path: '/seller/products', icon: CubeIcon, badge: null, visible: user ? true : false, order: 10 },
+    { id: 'saved-videos', label: 'Vidéos enregistrées', path: '/profile/saved-videos', icon: BookmarkIcon, badge: null, visible: Boolean(user) && productVideosEnabled, order: 10.2 },
+    { id: 'seller-videos', label: 'Mes vidéos produit', path: '/seller/videos', icon: FilmIcon, badge: null, visible: Boolean(user) && user?.accountType === 'shop' && productVideosEnabled, order: 10.3 },
+    { id: 'shop-assistant', label: t('nav.shopAssistant', 'Assistant'), path: '/seller/assistant', icon: UserGroupIcon, badge: null, visible: user ? true : false, order: 12 },
+    { id: 'shop-conversion', label: t('nav.becomeShop', 'Devenir Boutique'), path: '/shop-conversion-request', icon: BuildingStorefrontIcon, badge: null, visible: user && user.accountType !== 'shop' && shopConversionEnabled ? true : false, order: 13 },
+    { id: 'suggestions', label: t('nav.suggestions', 'Suggestions'), path: '/suggestions', icon: SparklesIcon, badge: null, visible: aiRecommendationsEnabled, order: 14 },
+    { id: 'referrals', label: t('nav.referrals', 'Parrainage'), path: '/referrals', icon: GiftIcon, badge: null, visible: user ? referralProgramEnabled : false, order: 14.5 },
+    { id: 'buy-for-me', label: t('nav.buyForMe', 'Acheter pour moi'), path: '/buy-for-me', icon: ShoppingBagIcon, badge: null, visible: user ? buyForMeEnabled : false, order: 14.6 },
+    { id: 'parcels', label: t('nav.parcels', 'Envoyer un colis'), path: '/parcels/new', icon: BoltIcon, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.7 },
+    { id: 'my-parcels', label: t('nav.myParcels', 'Mes colis'), path: '/parcels', icon: TruckIcon, badge: null, visible: user ? parcelDeliveryEnabled : false, order: 14.8 },
+    { id: 'plans', label: t('nav.plans', 'Plans & tarifs'), path: '/plans', icon: ReceiptPercentIcon, badge: null, visible: true, order: 15 }
   ];
 
   const customItems = Array.isArray(customNavItems) ? customNavItems : [];
@@ -832,7 +747,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
   });
   const additionalCustomItems = customItems
     .filter((item) => item?.id && !defaultNavItems.some((defaultItem) => defaultItem.id === item.id))
-    .map((item) => ({ ...item, icon: item.icon || Compass }));
+    .map((item) => ({ ...item, icon: item.icon || MapIcon }));
 
   const navItems = [...mergedDefaultItems, ...additionalCustomItems].map((item) => {
     if (item?.id === 'suggestions') {
@@ -916,7 +831,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
     }
   }, [enableBottomBarQuickActions, showQuickActions]);
 
-  // Save custom navigation items
+  // CheckIcon custom navigation items
   const saveCustomNavItems = (items) => {
     try {
       localStorage.setItem('hdmarket_custom_nav_items', JSON.stringify(items));
@@ -1042,7 +957,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
     }
   };
 
-  // Save search
+  // CheckIcon search
   const handleSaveSearch = (query, filters = {}) => {
     if (!query.trim()) return;
     const newSaved = {
@@ -1228,7 +1143,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
         }
       } catch (error) {
         if (error.name !== "CanceledError" && error.name !== "AbortError") {
-          console.error("Search error:", error);
+          console.error("MagnifyingGlassIcon error:", error);
           // Try to use cached result on error
           const cachedResult = await getCachedSearch(searchQuery.trim(), filters);
           if (cachedResult) {
@@ -1571,7 +1486,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-600 dark:text-gray-400" />
+              <FunnelIcon className="text-gray-600 dark:text-gray-400 h-4 w-4" />
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('nav.filters', 'Filtres')}</span>
               {hasActiveFilters && (
                 <span className="bg-[#0A0A0A] text-white text-xs font-bold px-2 py-0.5 rounded-full">
@@ -1586,16 +1501,14 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 </span>
               )}
             </div>
-            <ChevronDown
-              size={16}
-              className={`text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`}
-            />
+            <ChevronDownIcon
+className={`text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`} className="h-4 w-4" />
           </button>
         )}
 
         {(showFilters || isBottomSheet) && (
         <div className="px-4 py-3 space-y-4 border-t border-gray-200 dark:border-gray-700">
-          {/* Category Filter */}
+          {/* Category FunnelIcon */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
               {t('nav.category', 'Catégorie')}
@@ -1618,7 +1531,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             </select>
           </div>
 
-          {/* Price Range Filter */}
+          {/* Price Range FunnelIcon */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
               {t('nav.price', 'Prix')}
@@ -1644,10 +1557,10 @@ export default function Navbar({ hideMobileTabBar = false }) {
             </div>
           </div>
 
-          {/* City Filter */}
+          {/* City FunnelIcon */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              <MapPin size={12} className="inline mr-1" />
+              <MapPinIcon className="inline mr-1 h-3 w-3" />
               {t('settings.city', 'Ville')}
             </label>
             <select
@@ -1664,7 +1577,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             </select>
           </div>
 
-          {/* Condition Filter */}
+          {/* Condition FunnelIcon */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
               {t('nav.condition', 'État')}
@@ -1680,7 +1593,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             </select>
           </div>
 
-          {/* Shop Verification Filter */}
+          {/* Shop Verification FunnelIcon */}
           <div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -1739,7 +1652,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-900/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Clock size={14} className="text-[#0A0A0A]" />
+                  <ClockIcon className="text-[#0A0A0A] h-3.5 w-3.5" />
                   <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wide">
                     {t('nav.recentSearches', 'Recherches récentes')}
                   </span>
@@ -1761,7 +1674,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   onClick={() => handleSuggestionClick(entry.query)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/40 hover:text-neutral-800 dark:hover:text-neutral-300 transition-colors"
                 >
-                  <Clock size={12} className="text-gray-400" />
+                  <ClockIcon className="text-gray-400 h-3 w-3" />
                   <span className="truncate max-w-[120px]">{entry.query}</span>
                 </button>
               ))}
@@ -1774,7 +1687,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
           <div className="border-b border-gray-100 dark:border-gray-700">
             <div className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-900/20">
               <div className="flex items-center gap-2">
-                <Tag size={14} className="text-[#0A0A0A]" />
+                <TagIcon className="text-[#0A0A0A] h-3.5 w-3.5" />
                 <span className="text-xs font-bold text-neutral-800 dark:text-neutral-300 uppercase tracking-wide">
                   {t('nav.categories', 'Catégories')}
                 </span>
@@ -1792,7 +1705,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-[#0A0A0A]/40 hover:bg-[rgba(10,10,10,0.06)] transition-all text-left group"
                 >
                   <div className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-900/40 group-hover:bg-neutral-200 dark:group-hover:bg-neutral-800/40 transition-colors">
-                    <Tag size={14} className="text-[#0A0A0A]" />
+                    <TagIcon className="text-[#0A0A0A] h-3.5 w-3.5" />
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                     {category.title}
@@ -1852,7 +1765,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
         {/* Error State */}
         {!searching && searchError && (
           <div className="px-4 py-3 flex items-center space-x-3 text-neutral-700 text-sm">
-            <AlertCircle size={16} />
+            <ExclamationCircleIcon className="h-4 w-4" />
             {searchError}
           </div>
         )}
@@ -1915,7 +1828,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         )}
                         {product.rating > 0 && (
                           <span className="flex items-center gap-1">
-                            <Star size={12} className="fill-neutral-400 text-neutral-300" />
+                            <StarIcon className="fill-neutral-400 text-neutral-300 h-3 w-3" />
                             <span>{product.rating.toFixed(1)}</span>
                             {product.ratingCount > 0 && (
                               <span className="text-gray-400">({product.ratingCount})</span>
@@ -1985,7 +1898,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       </div>
                       <div className="text-gray-500 text-xs flex items-center gap-2 mt-1 flex-wrap">
                         <span className="flex items-center gap-1">
-                          <Package size={12} />
+                          <CubeIcon className="h-3 w-3" />
                           <span>{shop.productCount || 0} {t('nav.product', 'produit')}{shop.productCount !== 1 ? 's' : ''}</span>
                         </span>
                         {shop.shopAddress && (
@@ -2024,7 +1937,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
                   >
                     <div className="h-12 w-12 rounded-lg bg-neutral-100 dark:bg-neutral-900/40 flex items-center justify-center flex-shrink-0">
-                      <Tag size={20} className="text-neutral-900 dark:text-neutral-400" />
+                      <TagIcon className="text-neutral-900 dark:text-neutral-400 h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-900 dark:text-white text-sm">
@@ -2053,7 +1966,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
               <div className="border-t border-gray-100 dark:border-gray-700 bg-neutral-100 dark:bg-gray-800/50">
                 <div className="px-4 py-2.5">
                   <div className="flex items-center gap-2 mb-2">
-                    <Users size={14} className="text-gray-500 dark:text-gray-400" />
+                    <UsersIcon className="text-gray-500 dark:text-gray-400 h-3.5 w-3.5" />
                     <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       {t('nav.peopleAlsoSearch', 'Les gens recherchent aussi')}
                     </span>
@@ -2066,7 +1979,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         onClick={() => handleSuggestionClick(term)}
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#0A0A0A]/40 hover:text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] transition-all"
                       >
-                        <Search size={10} className="text-gray-400" />
+                        <MagnifyingGlassIcon className="text-gray-400 h-2.5 w-2.5" />
                         {term}
                       </button>
                     ))}
@@ -2088,7 +2001,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }}
                 >
                   {t('nav.viewAllResults', 'Voir tous les résultats')} ({totalCount})
-                  <ChevronDown size={16} className="rotate-[-90deg]" />
+                  <ChevronDownIcon className="rotate-[-90deg] h-4 w-4" />
                 </Link>
               </div>
             )}
@@ -2116,7 +2029,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
 
     return (
       <>
-        {/* Filter Panel */}
+        {/* FunnelIcon Panel */}
         {searchQuery.trim() && !isMobileLayout && renderFilterPanel()}
         {searchQuery.trim() && isMobileLayout && (
           <button
@@ -2128,7 +2041,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-200 dark:border-gray-700"
           >
             <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-600 dark:text-gray-400" />
+              <FunnelIcon className="text-gray-600 dark:text-gray-400 h-4 w-4" />
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('nav.filters', 'Filtres')}</span>
               {hasActiveFilters && (
                 <span className="px-2 py-0.5 bg-[#0A0A0A] text-white text-xs font-bold rounded-full">
@@ -2136,7 +2049,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 </span>
               )}
             </div>
-            <ChevronDown size={16} className="text-gray-500 dark:text-gray-400" />
+            <ChevronDownIcon className="text-gray-500 dark:text-gray-400 h-4 w-4" />
           </button>
         )}
 
@@ -2152,7 +2065,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
         {/* Error State */}
         {!searching && searchError && (
           <div className="px-4 py-3 flex items-center space-x-3 text-neutral-700 text-sm">
-            <AlertCircle size={16} />
+            <ExclamationCircleIcon className="h-4 w-4" />
             {searchError}
           </div>
         )}
@@ -2215,7 +2128,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           )}
                           {product.rating > 0 && (
                             <span className="flex items-center gap-1">
-                              <Star size={12} className="fill-neutral-400 text-neutral-300" />
+                              <StarIcon className="fill-neutral-400 text-neutral-300 h-3 w-3" />
                               <span>{product.rating.toFixed(1)}</span>
                               {product.ratingCount > 0 && (
                                 <span className="text-gray-400">({product.ratingCount})</span>
@@ -2276,7 +2189,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         </p>
                         <div className="text-xs text-gray-500 flex items-center gap-2 mt-1 flex-wrap">
                           <span className="flex items-center gap-1">
-                            <Package size={12} />
+                            <CubeIcon className="h-3 w-3" />
                             <span>{shop.productCount || 0} {t('nav.product', 'produit')}{shop.productCount !== 1 ? 's' : ''}</span>
                           </span>
                           {shop.shopAddress && (
@@ -2316,7 +2229,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                   >
                     <div className="w-14 h-14 rounded-xl bg-neutral-100 dark:bg-neutral-900/40 flex items-center justify-center flex-shrink-0">
-                      <Tag size={20} className="text-neutral-900 dark:text-neutral-400" />
+                      <TagIcon className="text-neutral-900 dark:text-neutral-400 h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 dark:text-white text-sm">
@@ -2345,7 +2258,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
               <div className="border-t border-gray-100 dark:border-gray-700 bg-neutral-100 dark:bg-gray-800/50">
                 <div className="px-4 py-2.5">
                   <div className="flex items-center gap-2 mb-2">
-                    <Users size={14} className="text-gray-500 dark:text-gray-400" />
+                    <UsersIcon className="text-gray-500 dark:text-gray-400 h-3.5 w-3.5" />
                     <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                       {t('nav.peopleAlsoSearch', 'Les gens recherchent aussi')}
                     </span>
@@ -2358,7 +2271,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         onClick={() => handleSuggestionClick(term)}
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 hover:border-[#0A0A0A]/40 hover:text-[#0A0A0A] hover:bg-[rgba(10,10,10,0.06)] transition-all"
                       >
-                        <Search size={10} className="text-gray-400" />
+                        <MagnifyingGlassIcon className="text-gray-400 h-2.5 w-2.5" />
                         {term}
                       </button>
                     ))}
@@ -2380,7 +2293,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }}
                 >
                   {t('nav.viewAllResults', 'Voir tous les résultats')} ({totalCount})
-                  <ChevronDown size={16} className="rotate-[-90deg]" />
+                  <ChevronDownIcon className="rotate-[-90deg] h-4 w-4" />
                 </Link>
               </div>
             )}
@@ -2398,11 +2311,11 @@ export default function Navbar({ hideMobileTabBar = false }) {
         ? t('nav.category', 'Catégorie')
         : t('nav.productCapitalized', 'Produit');
     const typeIcon = entry.metadata?.type === 'shop' ? (
-      <Store size={14} className="text-neutral-500" />
+      <BuildingStorefrontIcon className="text-neutral-500 h-3.5 w-3.5" />
     ) : entry.metadata?.type === 'category' ? (
-      <Tag size={14} className="text-neutral-500" />
+      <TagIcon className="text-neutral-500 h-3.5 w-3.5" />
     ) : (
-      <Package size={14} className="text-neutral-500" />
+      <CubeIcon className="text-neutral-500 h-3.5 w-3.5" />
     );
     const typeBgColor = entry.metadata?.type === 'shop'
       ? 'bg-neutral-100 dark:bg-neutral-900/40'
@@ -2428,10 +2341,10 @@ export default function Navbar({ hideMobileTabBar = false }) {
             : 'border-gray-100 dark:border-gray-700 hover:border-neutral-300 dark:hover:border-neutral-600'
         } hover:shadow-md hover:shadow-neutral-100 dark:hover:shadow-neutral-900/20`}
       >
-        {/* Pin indicator */}
+        {/* MapPinIcon indicator */}
         {entry.isPinned && (
           <div className="flex-shrink-0">
-            <Pin size={14} className="text-neutral-700 fill-neutral-700" />
+            <MapPinIcon className="text-neutral-700 fill-neutral-700 h-3.5 w-3.5" />
           </div>
         )}
 
@@ -2476,7 +2389,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             }`}
             title={entry.isPinned ? t('nav.unpin', 'Désépingler') : t('nav.pin', 'Épingler')}
           >
-            {entry.isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+            {entry.isPinned ? <MapPinIcon className="h-3.5 w-3.5" /> : <MapPinIcon className="h-3.5 w-3.5" />}
           </button>
           <button
             type="button"
@@ -2487,7 +2400,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             className="p-1.5 text-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-900/40 rounded-lg transition-colors"
             title={t('nav.search', 'Rechercher')}
           >
-            <Search size={14} />
+            <MagnifyingGlassIcon className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -2498,12 +2411,12 @@ export default function Navbar({ hideMobileTabBar = false }) {
             className="p-1.5 text-gray-400 hover:text-neutral-700 hover:bg-neutral-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             title={t('nav.delete', 'Supprimer')}
           >
-            <Trash2 size={14} />
+            <TrashIcon className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {/* Arrow indicator */}
-        <ChevronRight size={14} className="text-gray-300 dark:text-gray-600 group-hover:text-neutral-300 transition-colors flex-shrink-0" />
+        <ChevronRightIcon className="text-gray-300 dark:text-gray-600 group-hover:text-neutral-300 transition-colors flex-shrink-0 h-3.5 w-3.5" />
       </div>
     );
   };
@@ -2525,7 +2438,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-white/20 rounded-lg">
-                <Clock size={16} className="text-white" />
+                <ClockIcon className="text-white h-4 w-4" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-white">{t('nav.history', 'Historique')}</h3>
@@ -2543,7 +2456,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                     title={t('nav.exportJson', 'Exporter (JSON)')}
                   >
-                    <Download size={14} />
+                    <ArrowDownTrayIcon className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
@@ -2551,7 +2464,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                     title={showHistoryGrouped ? t('nav.simpleView', 'Vue simple') : t('nav.groupedView', 'Vue groupée')}
                   >
-                    <Calendar size={14} />
+                    <CalendarIcon className="h-3.5 w-3.5" />
                   </button>
                 </>
               )}
@@ -2561,15 +2474,15 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 onClick={handleCloseHistoryPanel}
                 className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X size={16} />
+                <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* Search within history */}
+          {/* MagnifyingGlassIcon within history */}
           {hasHistory && (
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60" size={14} />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 h-3.5 w-3.5" />
               <input
                 type="text"
                 value={historySearchQuery}
@@ -2590,7 +2503,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
                 >
-                  <X size={14} />
+                  <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
@@ -2620,7 +2533,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     <div>
                       <div className="flex items-center justify-between mb-2 px-1">
                         <div className="flex items-center gap-2">
-                          <Pin size={12} className="text-neutral-700 fill-neutral-700" />
+                          <MapPinIcon className="text-neutral-700 fill-neutral-700 h-3 w-3" />
                           <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                             Épinglées ({groupedHistory.pinned.length})
                           </span>
@@ -2707,7 +2620,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     <div>
                       <div className="flex items-center justify-between mb-2 px-1">
                         <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                          Plus ancien ({groupedHistory.older.length})
+                          PlusIcon ancien ({groupedHistory.older.length})
                         </span>
                         <button
                           type="button"
@@ -2733,7 +2646,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
           ) : (
             <div className="text-center py-8">
               <div className="inline-flex p-3 rounded-full bg-gray-100 dark:bg-gray-800 mb-3">
-                <Clock size={24} className="text-gray-400" />
+                <ClockIcon className="text-gray-400 h-6 w-6" />
               </div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                 {historySearchQuery ? t('nav.noResults', 'Aucun résultat') : t('nav.noHistory', 'Aucun historique')}
@@ -2755,7 +2668,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   onClick={() => handleExportHistory('csv')}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-neutral-900 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/20 rounded-lg transition-colors"
                 >
-                  <Download size={12} />
+                  <ArrowDownTrayIcon className="h-3 w-3" />
                   {t('nav.exportCsv', 'Exporter CSV')}
                 </button>
                 <button
@@ -2763,7 +2676,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   onClick={() => handleExportHistory('json')}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-neutral-900 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900/20 rounded-lg transition-colors"
                 >
-                  <Download size={12} />
+                  <ArrowDownTrayIcon className="h-3 w-3" />
                   Exporter JSON
                 </button>
               </div>
@@ -2878,7 +2791,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
   const renderQuickActions = () => (
     <div className="grid grid-cols-2 gap-2 mb-4">
       {searchTemplates.map((template) => {
-        const Icon = template.icon || Zap;
+        const Icon = template.icon || BoltIcon;
         return (
           <button
             key={template.id}
@@ -2886,7 +2799,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             onClick={() => handleQuickFilterClick(template)}
             className="flex items-center gap-2 px-4 py-3 bg-neutral-100 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900/30 transition-all group"
           >
-            <Icon size={18} className="text-neutral-900 dark:text-neutral-300 group-hover:scale-110 transition-transform" />
+            <Icon className="text-neutral-900 dark:text-neutral-300 group-hover:scale-110 transition-transform h-[18px] w-[18px]" />
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{template.label}</span>
           </button>
         );
@@ -2901,7 +2814,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-2">
-            <BookmarkCheck size={14} className="text-neutral-900 dark:text-neutral-300" />
+            <BookmarkSquareIcon className="text-neutral-900 dark:text-neutral-300 h-3.5 w-3.5" />
             <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
               Recherches sauvegardées
             </span>
@@ -2929,7 +2842,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 onClick={() => handleDeleteSavedSearch(saved.id)}
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-700 hover:text-red-700"
               >
-                <X size={12} />
+                <XMarkIcon className="h-3 w-3" />
               </button>
             </div>
           ))}
@@ -2964,10 +2877,10 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 }}
                 className="hd-soft-button -ml-2 p-2 text-gray-500"
               >
-                <ArrowDown size={20} />
+                <ArrowDownIcon className="h-5 w-5" />
               </button>
               <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e85d00]" size={18} />
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e85d00] h-[18px] w-[18px]" />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -2987,7 +2900,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:text-gray-700"
                   >
-                    <X size={18} />
+                    <XMarkIcon className="h-[18px] w-[18px]" />
                   </button>
                 )}
               </div>
@@ -3000,7 +2913,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       className="grid h-11 w-11 place-items-center rounded-xl border border-neutral-200 bg-white text-[#e85d00] shadow-sm active:scale-95"
                       title={t('nav.saveSearch', 'Sauvegarder la recherche')}
                     >
-                      <Save size={18} />
+                      <CheckIcon className="h-[18px] w-[18px]" />
                     </button>
                   ) : null}
                   <button
@@ -3009,13 +2922,13 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="grid h-11 w-11 place-items-center rounded-xl bg-black text-white shadow-sm active:scale-95"
                     title={t('nav.viewAllResults', 'Voir tous les résultats')}
                   >
-                    <Search size={18} />
+                    <MagnifyingGlassIcon className="h-[18px] w-[18px]" />
                   </button>
                 </div>
               ) : null}
             </div>
 
-            {/* Quick Actions & Saved Searches & Search Suggestions */}
+            {/* Quick Actions & Saved Searches & MagnifyingGlassIcon Suggestions */}
             <div className="flex-1 overflow-y-auto">
               {!searchQuery.trim() && (
                 <>
@@ -3046,7 +2959,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     }}
                     className="hd-soft-button p-2 text-gray-500"
                   >
-                    <X size={20} />
+                    <XMarkIcon className="h-5 w-5" />
                   </button>
                 </div>
                 <div className="p-4">
@@ -3066,7 +2979,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
         }`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        {/* Top Bar: Logo, Search, Actions */}
+        {/* Top Bar: Logo, MagnifyingGlassIcon, Actions */}
         <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px] 2xl:max-w-[1600px]">
           <div className="flex items-center justify-between h-16 gap-4 lg:gap-6">
 
@@ -3109,7 +3022,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             {/* === SEARCH BAR (Centered in Top Bar) === */}
             <div className="hd-search-flow hidden lg:flex flex-1 max-w-xl mx-4">
               <div className="relative w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e85d00]" size={20} />
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e85d00] h-5 w-5" />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -3134,7 +3047,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       className="grid h-8 w-8 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-950"
                       aria-label={t('search.clearQuery', 'Effacer la recherche')}
                     >
-                      <X size={16} />
+                      <XMarkIcon className="h-4 w-4" />
                     </button>
                   ) : null}
                   <button
@@ -3145,7 +3058,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     aria-label={t('nav.history', 'Historique')}
                     title={t('nav.history', 'Historique')}
                   >
-                    <Clock size={16} />
+                    <ClockIcon className="h-4 w-4" />
                   </button>
                 </div>
                 {showResults && (
@@ -3166,7 +3079,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.notifications', 'Notifications')}
                   >
-                    <Bell size={18} />
+                    <BellIcon className="h-[18px] w-[18px]" />
                     {commentAlerts > 0 && (
                       <span className="absolute -top-1 -right-1 bg-[#e85d00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {commentAlerts > 99 ? '99+' : commentAlerts}
@@ -3179,7 +3092,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                       aria-label={t('nav.messages', 'Messages')}
                     >
-                      <MessageSquare size={18} />
+                      <ChatBubbleLeftRightIcon className="h-[18px] w-[18px]" />
                       {hasUnreadOrderMessages && (
                           <span className="absolute -top-1 -right-1 bg-[#e85d00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-pulse">
                           {unreadOrderMessagesBadge}
@@ -3192,7 +3105,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.favorites', 'Favoris')}
                   >
-                    <Heart size={18} />
+                    <HeartIcon className="h-[18px] w-[18px]" />
                     {favoritesCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-neutral-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {favoritesCount > 99 ? '99+' : favoritesCount}
@@ -3204,7 +3117,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200"
                     aria-label={t('nav.cart', 'Panier')}
                   >
-                    <ShoppingCart size={18} />
+                    <ShoppingCartIcon className="h-[18px] w-[18px]" />
                     {cartCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-[#e85d00] text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {cartCount > 99 ? '99+' : cartCount}
@@ -3249,12 +3162,12 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     <span className="font-medium text-gray-700 dark:text-gray-200 max-w-24 truncate hidden lg:block">
                       {user.name || t('nav.myAccount', 'Mon compte')}
                     </span>
-                    <ChevronDown size={16} className="text-gray-500 hidden lg:block transition-transform group-hover:rotate-180 duration-200" />
+                    <ChevronDownIcon className="text-gray-500 hidden lg:block transition-transform group-hover:rotate-180 duration-200 h-4 w-4" />
                   </button>
 
                   {/* Dropdown panel: professional layout with sections */}
                   <div className="hd-menu-panel absolute right-0 mt-2 flex max-h-[min(28rem,calc(100vh-5rem))] w-72 flex-col overflow-hidden rounded-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                    {/* User header (fixed at top) */}
+                    {/* UserIcon header (fixed at top) */}
                     <div className="flex-shrink-0 border-b border-gray-200 bg-gray-50 p-4">
                       <div className="flex items-center gap-3">
                         {resolveUserProfileImage(user) ? (
@@ -3300,7 +3213,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                             }`}
                           >
-                            <User size={16} />
+                            <UserIcon className="h-4 w-4" />
                             {t('nav.normalAccount', 'Normal')}
                           </button>
                           <button
@@ -3317,7 +3230,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                             }`}
                           >
-                            <Truck size={16} />
+                            <TruckIcon className="h-4 w-4" />
                             {t('nav.courierMode', 'Mode livreur')}
                           </button>
                         </div>
@@ -3334,28 +3247,28 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           to="/profile"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <User size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <UserIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.myProfile', 'Mon profil')}</span>
                         </Link>
                         <Link
                           to="/settings/preferences"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Settings size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <Cog6ToothIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.preferences', 'Préférences')}</span>
                         </Link>
                         <Link
                           to="/seller/products"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Package size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <CubeIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.myListings', 'Mes annonces')}</span>
                         </Link>
                         <Link
                           to="/orders"
                           className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <ClipboardList size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <ClipboardDocumentListIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.myOrders', 'Mes commandes')}</span>
                           {hasActiveOrders && (
                             <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
@@ -3367,14 +3280,14 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           to="/my-quotations"
                           className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/60"
                         >
-                          <FileText size={18} className="shrink-0 text-gray-500 dark:text-gray-400" />
+                          <DocumentTextIcon className="shrink-0 text-gray-500 dark:text-gray-400 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">Mes devis</span>
                         </Link>
                         <Link
                           to="/seller/orders"
                           className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Package size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <CubeIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.customerOrders', 'Commandes clients')}</span>
                           {hasSellerOrders && (
                             <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
@@ -3389,7 +3302,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     {(canAccessBackOffice || canManageProducts || canManageDelivery || canManageChatTemplates || isAdminLike || canReadFeedback || canVerifyPayments || canManageComplaints || canManageBoosts) && (
                       <div className="py-2 border-t border-gray-100 dark:border-gray-700/80">
                         <p className="px-4 py-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <ShieldCheck size={12} />
+                          <ShieldCheckIcon className="h-3 w-3" />
                           Administration
                         </p>
                         <div className="px-2 space-y-0.5 bg-amber-50/30 dark:bg-amber-900/10 rounded-xl mx-2 py-1">
@@ -3398,7 +3311,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors font-medium"
                             >
-                              <BarChart3 size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <ChartBarIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm">Tableau de bord</span>
                             </Link>
                           )}
@@ -3407,7 +3320,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/products"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <Package size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <CubeIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.products', 'Produits')}</span>
                             </Link>
                           )}
@@ -3417,14 +3330,14 @@ export default function Navbar({ hideMobileTabBar = false }) {
                                 to="/admin/delivery-guys"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                               >
-                                <Truck size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                <TruckIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                                 <span className="text-sm font-medium">{t('nav.deliveryGuys', 'Livreurs')}</span>
                               </Link>
                               <Link
                                 to="/admin/delivery-requests"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                               >
-                                <ClipboardList size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                <ClipboardDocumentListIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                                 <span className="text-sm font-medium">{t('nav.deliveryRequests', 'Demandes livraison')}</span>
                               </Link>
                             </>
@@ -3434,7 +3347,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/delivery/dashboard"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <Truck size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <TruckIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.courierMode', 'Mode livreur')}</span>
                             </Link>
                           )}
@@ -3443,7 +3356,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/chat-templates"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <MessageSquare size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <ChatBubbleLeftRightIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.chatTemplates', 'Chat templates')}</span>
                             </Link>
                           )}
@@ -3452,8 +3365,8 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/settings"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <SlidersHorizontal size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                              <span className="text-sm font-medium">{t('nav.appSettings', 'App Settings')}</span>
+                              <AdjustmentsHorizontalIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
+                              <span className="text-sm font-medium">{t('nav.appSettings', 'App Cog6ToothIcon')}</span>
                             </Link>
                           )}
                           {(isAdminLike || canReadFeedback) && (
@@ -3461,7 +3374,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/feedback"
                               className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <MessageSquare size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <ChatBubbleLeftRightIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.feedback', 'Avis amélioration')}</span>
                               {unreadFeedback > 0 && (
                                 <span className="ml-auto bg-amber-600 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
@@ -3475,7 +3388,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/payment-verification"
                               className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <CheckCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <CheckCircleIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.verifyPayments', 'Vérifier paiements')}</span>
                               {waitingPayments > 0 && (
                                 <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-amber-600 text-white text-xs font-bold rounded-full animate-pulse">
@@ -3489,7 +3402,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/complaints"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <ExclamationCircleIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.handleComplaints', 'Traiter les réclamations')}</span>
                             </Link>
                           )}
@@ -3498,7 +3411,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/product-boosts"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <Sparkles size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <SparklesIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.productBoosts', 'Boost produits')}</span>
                             </Link>
                           )}
@@ -3507,7 +3420,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/payment-verification?panel=verifiers"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <Users size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <UsersIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.paymentVerifiers', 'Vérificateurs paiements')}</span>
                             </Link>
                           )}
@@ -3516,7 +3429,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/product-boosts"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <Sparkles size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <SparklesIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.productBoosts', 'Boost produits')}</span>
                             </Link>
                           )}
@@ -3525,7 +3438,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               to="/admin/reports"
                               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 transition-colors"
                             >
-                              <FileText size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <DocumentTextIcon className="text-amber-600 dark:text-amber-400 shrink-0 h-[18px] w-[18px]" />
                               <span className="text-sm font-medium">{t('nav.reports', 'Rapports')}</span>
                             </Link>
                           )}
@@ -3543,14 +3456,14 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           to="/stats"
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <BarChart3 size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <ChartBarIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.statistics', 'Statistiques')}</span>
                         </Link>
                         <Link
                           to="/favorites"
                           className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <Heart size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <HeartIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.favorites', 'Favoris')}</span>
                           {favoritesCount > 0 && (
                             <span className="ml-auto bg-neutral-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
@@ -3562,7 +3475,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           to="/cart"
                           className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
                         >
-                          <ShoppingCart size={18} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <ShoppingCartIcon className="text-gray-500 dark:text-gray-400 shrink-0 h-[18px] w-[18px]" />
                           <span className="text-sm font-medium">{t('nav.cart', 'Panier')}</span>
                           {cartCount > 0 && (
                             <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center">
@@ -3581,7 +3494,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         onClick={logout}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left transition-colors font-medium text-sm"
                       >
-                        <LogOut size={18} className="shrink-0" />
+                        <ArrowLeftOnRectangleIcon className="shrink-0 h-[18px] w-[18px]" />
                         <span>{t('nav.logout', 'Déconnexion')}</span>
                       </button>
                     </div>
@@ -3590,7 +3503,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
               )}
             </div>
 
-            {/* === CLUSTER MOBILE: Pays, Notifications, Menu === */}
+            {/* === CLUSTER MOBILE: Pays, Notifications, Bars3Icon === */}
             <div className="flex items-center gap-1.5 lg:hidden">
               <CountrySelector compact />
               {user && (
@@ -3599,7 +3512,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-100 transition-all duration-200 active:scale-95"
                   aria-label={t('nav.notifications', 'Notifications')}
                 >
-                  <Bell size={18} />
+                  <BellIcon className="h-[18px] w-[18px]" />
                   {commentAlerts > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 bg-[#e85d00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
                       {commentAlerts > 99 ? '99+' : commentAlerts}
@@ -3620,7 +3533,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 }`}
                 aria-label={isMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
               >
-                {isMenuOpen ? <X size={20} strokeWidth={2.5} /> : <Menu size={20} strokeWidth={2} />}
+                {isMenuOpen ? <XMarkIcon strokeWidth={2.5} className="h-5 w-5" /> : <Bars3Icon strokeWidth={2} className="h-5 w-5" />}
               </button>
             </div>
           </div>
@@ -3638,7 +3551,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
               className="hd-mobile-search-pill flex w-full items-center gap-2 rounded-full px-3.5 py-2.5 text-left text-sm font-medium text-gray-500"
               aria-label={t('nav.search', 'Rechercher')}
             >
-              <Search className="h-4 w-4 shrink-0 text-[#e85d00]" />
+              <MagnifyingGlassIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
               <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', `Rechercher sur ${mobileBrandText}`)}</span>
             </button>
           </div>
@@ -3660,7 +3573,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 {t('nav.home', 'Accueil')}
               </NavLink>
 
-              {/* Catégories with Mega Menu */}
+              {/* Catégories with Mega Bars3Icon */}
               <div className="relative">
                 <button
                   onMouseEnter={handleCategoryMenuOpen}
@@ -3668,10 +3581,8 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   className="flex items-center gap-1 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 hover:bg-white/10"
                 >
                   {t('nav.categories', 'Catégories')}
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 ${isCategoryMenuOpen ? "rotate-180" : ""}`}
-                  />
+                  <ChevronDownIcon
+className={`transition-transform duration-200 ${isCategoryMenuOpen ? "rotate-180" : ""}`} className="h-4 w-4" />
                 </button>
 
                 {/* MEGA MENU CATÉGORIES — rail of univers + live subcategory panel */}
@@ -3721,10 +3632,8 @@ export default function Navbar({ hideMobileTabBar = false }) {
                                         {Icon && <Icon className="w-4 h-4" />}
                                       </span>
                                       <span className="flex-1 truncate">{group.label}</span>
-                                      <ChevronRight
-                                        size={14}
-                                        className={isActive ? 'text-[#e85d00]' : 'text-gray-300 dark:text-gray-600'}
-                                      />
+                                      <ChevronRightIcon
+className={isActive ? 'text-[#e85d00]' : 'text-gray-300 dark:text-gray-600'} className="h-3.5 w-3.5" />
                                     </Link>
                                   </li>
                                 );
@@ -3796,10 +3705,8 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   className="flex items-center gap-1 rounded-full px-4 py-2 text-white font-semibold text-sm transition-all duration-200 hover:bg-white/10"
                 >
                   {t('nav.shops', 'Boutiques')}
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 ${isShopMenuOpen ? "rotate-180" : ""}`}
-                  />
+                  <ChevronDownIcon
+className={`transition-transform duration-200 ${isShopMenuOpen ? "rotate-180" : ""}`} className="h-4 w-4" />
                 </button>
 
                 {/* ENHANCED BOUTIQUES MENU */}
@@ -3830,7 +3737,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         </div>
                       ) : shopsError ? (
                         <div className="p-4 text-center text-neutral-700 text-sm flex items-center justify-center gap-2">
-                          <AlertCircle size={16} />
+                          <ExclamationCircleIcon className="h-4 w-4" />
                           {shopsError}
                         </div>
                       ) : shops.length === 0 ? (
@@ -3912,11 +3819,9 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }`}
                   aria-expanded={isMoreMenuOpen}
                 >
-                  {t('nav.more', 'Plus')}
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180' : ''}`}
-                  />
+                  {t('nav.more', 'PlusIcon')}
+                  <ChevronDownIcon
+className={`transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180' : ''}`} className="h-4 w-4" />
                 </button>
                 {isMoreMenuOpen && (
                   <div
@@ -3947,7 +3852,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-orange-50 hover:text-[#e85d00] dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                           {item.label}
-                          <ChevronRight size={14} className="text-gray-300 dark:text-gray-600" />
+                          <ChevronRightIcon className="text-gray-300 dark:text-gray-600 h-3.5 w-3.5" />
                         </Link>
                       ))}
                     </div>
@@ -3965,7 +3870,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     }`
                   }
                 >
-                  <Settings size={16} />
+                  <Cog6ToothIcon className="h-4 w-4" />
                   {isManager ? t('nav.management', 'Gestion') : t('nav.admin', 'Admin')}
                   {adminPendingTotal > 0 && (
                     <span className="ml-1 min-w-[18px] rounded-full bg-white px-1.5 py-0.5 text-center text-[10px] font-bold text-[#e85d00]">
@@ -3981,7 +3886,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   to="/seller/products"
                   className="hd-soft-button ml-auto flex items-center gap-2 px-4 py-2 text-sm font-bold"
                 >
-                  <Plus size={16} />
+                  <PlusIcon className="h-4 w-4" />
                   {t('nav.sell', 'Vendre')}
                 </Link>
               )}
@@ -4002,7 +3907,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
           <div className="hd-mobile-menu-sheet mx-3 h-[calc(100%-0.75rem)] overflow-hidden rounded-2xl border border-[#e2dcd2] bg-stone-100 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="hd-mobile-menu-list h-full space-y-1 overflow-y-auto px-3 py-3 pb-32">
 
-              {/* User avatar / profile card */}
+              {/* UserIcon avatar / profile card */}
               {user ? (
                 <Link
                   to="/profile"
@@ -4034,7 +3939,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   className="mobile-profile-card mb-2 flex items-center gap-3 rounded-2xl border border-[#e2dcd2] bg-white px-4 py-3.5 shadow-sm transition active:scale-[0.99] dark:border-neutral-800 dark:bg-neutral-900"
                 >
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-[#e85d00]">
-                    <User size={24} />
+                    <UserIcon className="h-6 w-6" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-gray-900 dark:text-white">{t('nav.login', 'Connexion')}</p>
@@ -4055,7 +3960,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }`
                 }
               >
-                <Home size={20} />
+                <HomeIcon className="h-5 w-5" />
                 {t('nav.home', 'Accueil')}
               </NavLink>
 
@@ -4072,7 +3977,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     }`
                   }
                 >
-                  <Clapperboard size={20} />
+                  <FilmIcon className="h-5 w-5" />
                   {t('nav.videos', 'Vidéos')}
                 </NavLink>
               )}
@@ -4087,7 +3992,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }}
                   className="flex w-full items-center gap-3 rounded-xl bg-gray-100 px-4 py-3 text-left font-medium text-gray-700 transition-all duration-200 dark:bg-gray-800 dark:text-gray-200"
                 >
-                  <MessageCircle size={20} />
+                  <ChatBubbleLeftIcon className="h-5 w-5" />
                   {t('nav.assistantChat', 'Assistant HDMarket')}
                 </button>
               )}
@@ -4104,7 +4009,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }`
                 }
               >
-                <Store size={20} />
+                <BuildingStorefrontIcon className="h-5 w-5" />
                 {t('nav.shops', 'Boutiques')}
               </NavLink>
 
@@ -4119,7 +4024,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }`
                 }
               >
-                <BadgePercent size={20} />
+                <ReceiptPercentIcon className="h-5 w-5" />
                 {t('nav.plans', 'Plans & tarifs')}
               </NavLink>
 
@@ -4134,7 +4039,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }`
                 }
               >
-                <Sparkles size={20} />
+                <SparklesIcon className="h-5 w-5" />
                 {t('nav.benefits', 'Pourquoi HDMarket')}
               </NavLink>
 
@@ -4149,7 +4054,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   }`
                 }
               >
-                <Store size={20} />
+                <BuildingStorefrontIcon className="h-5 w-5" />
                 {t('nav.about', 'À propos')}
               </NavLink>
 
@@ -4165,7 +4070,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     }`
                   }
                 >
-                  <Sparkles size={20} />
+                  <SparklesIcon className="h-5 w-5" />
                   {t('nav.suggestions', 'Suggestions')}
                 </NavLink>
               )}
@@ -4176,7 +4081,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 onClick={() => setIsMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                <AlertCircle size={20} />
+                <ExclamationCircleIcon className="h-5 w-5" />
                 {t('nav.complaints', 'Réclamations')}
               </Link>
               <Link
@@ -4184,7 +4089,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 onClick={() => setIsMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                <MessageSquare size={20} />
+                <ChatBubbleLeftRightIcon className="h-5 w-5" />
                 {t('nav.feedback', 'Avis amélioration')}
               </Link>
 
@@ -4205,7 +4110,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       }`
                     }
                   >
-                    <Package size={20} />
+                    <CubeIcon className="h-5 w-5" />
                     {t('nav.myListings', 'Mes annonces')}
                   </NavLink>
 
@@ -4220,7 +4125,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       }`
                     }
                   >
-                    <User size={20} />
+                    <UserIcon className="h-5 w-5" />
                     {t('nav.myProfile', 'Mon profil')}
                   </NavLink>
 
@@ -4235,7 +4140,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       }`
                     }
                   >
-                    <Settings size={20} />
+                    <Cog6ToothIcon className="h-5 w-5" />
                     {t('nav.preferences', 'Préférences')}
                   </NavLink>
 
@@ -4250,7 +4155,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       }`
                     }
                   >
-                    <BarChart3 size={20} />
+                    <ChartBarIcon className="h-5 w-5" />
                     {t('nav.statistics', 'Statistiques')}
                   </NavLink>
 
@@ -4266,7 +4171,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         }`
                       }
                     >
-                      <Store size={20} />
+                      <BuildingStorefrontIcon className="h-5 w-5" />
                       {t('nav.becomeShop', 'Devenir Boutique')}
                     </NavLink>
                   )}
@@ -4283,7 +4188,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       }`
                     }
                   >
-                    <Users2 size={20} />
+                    <UserGroupIcon className="h-5 w-5" />
                     {t('nav.shopAssistant', 'Assistant boutique')}
                   </NavLink>
 
@@ -4292,7 +4197,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     onClick={() => setIsMenuOpen(false)}
                     className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <Bell size={20} />
+                    <BellIcon className="h-5 w-5" />
                     {t('nav.notifications', 'Notifications')}
                     {commentAlerts > 0 && (
                       <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -4305,7 +4210,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     onClick={() => setIsMenuOpen(false)}
                     className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <ClipboardList size={20} />
+                    <ClipboardDocumentListIcon className="h-5 w-5" />
                     {t('nav.myOrders', 'Mes commandes')}
                     {hasActiveOrders && (
                       <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -4318,7 +4223,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     onClick={() => setIsMenuOpen(false)}
                     className="flex items-center gap-3 rounded-xl bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                   >
-                    <FileText size={20} />
+                    <DocumentTextIcon className="h-5 w-5" />
                     Mes devis
                   </NavLink>
                   {chatEnabled && (
@@ -4327,7 +4232,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <MessageSquare size={20} />
+                      <ChatBubbleLeftRightIcon className="h-5 w-5" />
                       {t('nav.messages', 'Messages')}
                       {hasUnreadOrderMessages && (
                         <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
@@ -4341,7 +4246,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     onClick={() => setIsMenuOpen(false)}
                     className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <Package size={20} />
+                    <CubeIcon className="h-5 w-5" />
                     {t('nav.customerOrders', 'Commandes clients')}
                     {hasSellerOrders && (
                       <span className="ml-auto bg-neutral-900 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -4352,7 +4257,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   {(canAccessBackOffice || canManageProducts || isAdminLike || canReadFeedback || canVerifyPayments || canManageComplaints || canManageChatTemplates || canManageBoosts) && (
                     <>
                       <p className="px-4 pt-4 pb-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <ShieldCheck size={12} />
+                        <ShieldCheckIcon className="h-3 w-3" />
                         Administration
                       </p>
                       {isAdminLike && (
@@ -4361,7 +4266,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           onClick={() => setIsMenuOpen(false)}
                           className="flex items-center gap-3 px-4 py-3 rounded-xl font-medium bg-amber-50 dark:bg-amber-900/20 text-gray-800 dark:text-gray-100 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
                         >
-                          <BarChart3 size={20} />
+                          <ChartBarIcon className="h-5 w-5" />
                           Tableau de bord
                         </NavLink>
                       )}
@@ -4373,7 +4278,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <ClipboardList size={20} />
+                      <ClipboardDocumentListIcon className="h-5 w-5" />
                       {t('nav.adminOrders', 'Commandes admin')}
                     </NavLink>
                   )}
@@ -4383,7 +4288,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <MessageSquare size={20} />
+                      <ChatBubbleLeftRightIcon className="h-5 w-5" />
                       {t('nav.feedback', 'Avis amélioration')}
                       {unreadFeedback > 0 && (
                         <span className="ml-auto bg-neutral-800 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -4398,7 +4303,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <CheckCircle size={20} />
+                      <CheckCircleIcon className="h-5 w-5" />
                       <span>{t('nav.verifyPayments', 'Vérifier paiements')}</span>
                       {waitingPayments > 0 && (
                         <span className="ml-auto flex items-center justify-center min-w-[22px] h-6 px-2 bg-neutral-900 text-white text-xs font-bold rounded-full shadow-sm border-2 border-white dark:border-gray-800 animate-pulse">
@@ -4413,7 +4318,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <AlertCircle size={20} />
+                      <ExclamationCircleIcon className="h-5 w-5" />
                       {t('nav.handleComplaints', 'Traiter les réclamations')}
                     </NavLink>
                   )}
@@ -4423,7 +4328,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <MessageSquare size={20} />
+                      <ChatBubbleLeftRightIcon className="h-5 w-5" />
                       {t('nav.chatTemplates', 'Chat templates')}
                     </NavLink>
                   )}
@@ -4433,7 +4338,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <Sparkles size={20} />
+                      <SparklesIcon className="h-5 w-5" />
                       {t('nav.productBoosts', 'Boost produits')}
                     </NavLink>
                   )}
@@ -4443,7 +4348,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <Users size={20} />
+                      <UsersIcon className="h-5 w-5" />
                       {t('nav.paymentVerifiers', 'Vérificateurs paiements')}
                     </NavLink>
                   )}
@@ -4453,7 +4358,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <Sparkles size={20} />
+                      <SparklesIcon className="h-5 w-5" />
                       {t('nav.productBoosts', 'Boost produits')}
                     </NavLink>
                   )}
@@ -4463,7 +4368,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <FileText size={20} />
+                      <DocumentTextIcon className="h-5 w-5" />
                       {t('nav.reports', 'Rapports')}
                     </NavLink>
                   )}
@@ -4473,7 +4378,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <Package size={20} />
+                      <CubeIcon className="h-5 w-5" />
                       {t('nav.products', 'Produits')}
                     </NavLink>
                   )}
@@ -4483,7 +4388,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <Truck size={20} />
+                      <TruckIcon className="h-5 w-5" />
                       {t('nav.deliveryGuys', 'Livreurs')}
                     </NavLink>
                   )}
@@ -4493,7 +4398,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                       onClick={() => setIsMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <ClipboardList size={20} />
+                      <ClipboardDocumentListIcon className="h-5 w-5" />
                       {t('nav.deliveryRequests', 'Demandes livraison')}
                     </NavLink>
                   )}
@@ -4518,7 +4423,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               : 'text-gray-600 dark:text-gray-400'
                           }`}
                         >
-                          <User size={18} />
+                          <UserIcon className="h-[18px] w-[18px]" />
                           {t('nav.normalAccount', 'Normal')}
                         </button>
                         <button
@@ -4536,7 +4441,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                               : 'text-gray-600 dark:text-gray-400'
                           }`}
                         >
-                          <Truck size={18} />
+                          <TruckIcon className="h-[18px] w-[18px]" />
                           {t('nav.courierMode', 'Mode livreur')}
                         </button>
                       </div>
@@ -4553,7 +4458,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     onClick={() => setIsMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl bg-neutral-100 dark:bg-neutral-900/20 text-neutral-700 dark:text-neutral-300 font-medium hover:bg-neutral-200 dark:hover:bg-neutral-900/40 transition-colors"
                   >
-                    <Settings size={20} />
+                    <Cog6ToothIcon className="h-5 w-5" />
                     {isManager ? t('nav.managerArea', 'Espace gestionnaire') : t('nav.administration', 'Administration')}
                     {waitingPayments > 0 && (
                       <span className="ml-auto bg-neutral-400 text-black text-xs font-bold px-2 py-1 rounded-full">
@@ -4568,7 +4473,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
                           >
-                            <Tag size={20} />
+                            <TagIcon className="h-5 w-5" />
                             {t('nav.promoCodes', 'Codes promo')}
                           </NavLink>
                           <NavLink
@@ -4576,15 +4481,15 @@ export default function Navbar({ hideMobileTabBar = false }) {
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
                           >
-                            <SlidersHorizontal size={20} />
-                            {t('nav.appSettings', 'App Settings')}
+                            <AdjustmentsHorizontalIcon className="h-5 w-5" />
+                            {t('nav.appSettings', 'App Cog6ToothIcon')}
                           </NavLink>
                           <NavLink
                             to="/admin/system-settings"
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
                           >
-                            <SlidersHorizontal size={20} />
+                            <AdjustmentsHorizontalIcon className="h-5 w-5" />
                             {t('nav.systemSettings', 'Paramètres système')}
                           </NavLink>
                           <NavLink
@@ -4592,7 +4497,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
                           >
-                            <Flag size={20} />
+                            <FlagIcon className="h-5 w-5" />
                             Gestion des fonctionnalités
                           </NavLink>
                         </>
@@ -4606,7 +4511,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 onClick={() => setIsMenuOpen(false)}
                 className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                <Heart size={20} />
+                <HeartIcon className="h-5 w-5" />
                 {t('nav.favorites', 'Favoris')}
                 {favoritesCount > 0 && (
                   <span className="ml-auto bg-neutral-500 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -4620,7 +4525,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                 onClick={() => setIsMenuOpen(false)}
                 className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                <ShoppingCart size={20} />
+                <ShoppingCartIcon className="h-5 w-5" />
                 {t('nav.cart', 'Panier')}
                 {cartCount > 0 && (
                   <span className="ml-auto bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -4628,17 +4533,6 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   </span>
                 )}
               </NavLink>
-
-              {/* Mode sombre mobile */}
-              {darkThemeEnabled ? (
-                <button
-                  onClick={() => setTheme(darkMode ? 'light' : 'dark')}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                >
-                  {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-                  {darkMode ? t('nav.lightMode', 'Mode clair') : t('nav.darkMode', 'Mode sombre')}
-                </button>
-              ) : null}
 
               {/* Authentification mobile */}
               {!user ? (
@@ -4667,7 +4561,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
-                    <LogOut size={20} />
+                    <ArrowLeftOnRectangleIcon className="h-5 w-5" />
                     {t('nav.logout', 'Déconnexion')}
                   </button>
                 </div>
@@ -4700,7 +4594,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             }}
           >
             <div className="bg-[#e85d00] text-white p-1.5 rounded-full shadow-sm">
-              <ChevronUp size={12} className="animate-bounce" />
+              <ChevronUpIcon className="animate-bounce h-3 w-3" />
             </div>
           </div>
         )}
@@ -4733,9 +4627,9 @@ export default function Navbar({ hideMobileTabBar = false }) {
                   >
                     <div className={`relative flex h-8 min-w-10 items-center justify-center rounded-full px-2 transition ${isMenuOpen ? 'bg-[#fff2e6]' : ''}`}>
                       {isMenuOpen ? (
-                        <X size={22} className="text-[#e85d00]" strokeWidth={2.5} />
+                        <XMarkIcon className="text-[#e85d00] h-[22px] w-[22px]" strokeWidth={2.5} />
                       ) : (
-                        <Icon size={22} strokeWidth={2} />
+                        <Icon strokeWidth={2} className="h-[22px] w-[22px]" />
                       )}
                     </div>
                     <span className={`text-[11px] leading-4 ${isMenuOpen ? 'font-extrabold text-[#e85d00]' : 'font-semibold'}`}>
@@ -4746,7 +4640,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                         {badge > 99 ? '99+' : badge}
                       </span>
                     )}
-                    {/* Quick Actions Menu */}
+                    {/* Quick Actions Bars3Icon */}
                     {enableBottomBarQuickActions && showQuickActions === item.id && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                         {getQuickActions(item.id).map((action, idx) => (
@@ -4799,11 +4693,9 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     <>
                       <div className={`relative flex h-8 min-w-10 items-center justify-center rounded-full px-2 transition ${navIsActive ? 'bg-[#fff2e6]' : ''}`}>
                         <Icon
-                          size={22}
-                          className={navIsActive ? 'text-[#e85d00]' : ''}
+className={navIsActive ? 'text-[#e85d00]' : ''}
                           strokeWidth={navIsActive ? 2.5 : 2}
-                          fill={item.id === 'favorites' && navIsActive ? 'currentColor' : 'none'}
-                        />
+                          fill={item.id === 'favorites' && navIsActive ? 'currentColor' : 'none'} className="h-[22px] w-[22px]" />
                       </div>
                       <span className={`text-[11px] leading-4 transition ${navIsActive ? 'font-extrabold text-[#e85d00]' : 'font-semibold'}`}>
                         {item.label}
@@ -4813,7 +4705,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           {badge > 99 ? '99+' : badge}
                         </span>
                       )}
-                      {/* Quick Actions Menu */}
+                      {/* Quick Actions Bars3Icon */}
                       {enableBottomBarQuickActions && showQuickActions === item.id && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                           {getQuickActions(item.id).map((action, idx) => (
@@ -4856,7 +4748,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
             <>
               <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-2 px-2">
-                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('nav.moreOptions', "Plus d'options")}</span>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('nav.moreOptions', "PlusIcon d'options")}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -4865,7 +4757,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                     }}
                     className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
-                    <ChevronUp size={16} className="rotate-180" />
+                    <ChevronUpIcon className="rotate-180 h-4 w-4" />
                   </button>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
@@ -4897,10 +4789,8 @@ export default function Navbar({ hideMobileTabBar = false }) {
                           <>
                             <div className="relative">
                               <Icon
-                                size={18}
-                                className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
-                                strokeWidth={navIsActive ? 2.5 : 2}
-                              />
+className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
+                                strokeWidth={navIsActive ? 2.5 : 2} className="h-[18px] w-[18px]" />
                               {badge > 0 && (
                                 <span className={`absolute -top-1 -right-1 text-white text-[9px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center shadow-sm ${
                                   navIsActive ? 'bg-black' : 'bg-neutral-900'
@@ -4915,7 +4805,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
                             {navIsActive && (
                               <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0.5 h-0.5 bg-black dark:bg-neutral-400 rounded-full" />
                             )}
-                            {/* Quick Actions Menu */}
+                            {/* Quick Actions Bars3Icon */}
                             {enableBottomBarQuickActions && showQuickActions === item.id && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 min-w-[150px] z-50">
                                 {getQuickActions(item.id).map((action, idx) => (

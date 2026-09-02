@@ -1,5 +1,5 @@
 import React from 'react';
-import { BadgeCheck, Truck } from 'lucide-react';
+import { CheckBadgeIcon, TruckIcon } from '@heroicons/react/24/outline';
 
 /**
  * Taobao-style trust services strip ("Paiements suivis · Livraison locale · Retrait disponible").
@@ -27,13 +27,13 @@ export default function ShopQuickInfo({ openingSummary, trustQuickInfo, hasFreeD
 
           {hasFreeDelivery && (
             <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold text-[#FF5000]">
-              <Truck size={13} />
+              <TruckIcon className="h-[13px] w-[13px]" />
               {t('shop_profile.free_delivery', 'Livraison gratuite')}
             </span>
           )}
 
           <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-gray-600 dark:text-neutral-300">
-            <BadgeCheck size={13} className="text-[#FF5000]" />
+            <CheckBadgeIcon className="text-[#FF5000] h-[13px] w-[13px]" />
             {t('shop_profile.tracked_payments', 'Paiements suivis')}
           </span>
 

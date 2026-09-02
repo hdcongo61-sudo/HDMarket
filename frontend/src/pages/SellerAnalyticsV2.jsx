@@ -1,14 +1,14 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Package, Users, Eye, ShoppingCart, DollarSign, BarChart3 } from 'lucide-react';
+import { ArrowLeftIcon, ArrowTrendingUpIcon, ChartBarIcon, CubeIcon, CurrencyDollarIcon, EyeIcon, ShoppingCartIcon, UsersIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import api from '../services/api';
 
 const TABS = [
-  { key: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
-  { key: 'products', label: 'Produits', icon: Package },
-  { key: 'customers', label: 'Clients', icon: Users }
+  { key: 'overview', label: 'Vue d\'ensemble', icon: ChartBarIcon },
+  { key: 'products', label: 'Produits', icon: CubeIcon },
+  { key: 'customers', label: 'Clients', icon: UsersIcon }
 ];
 
 const formatChange = (value) => {
@@ -26,7 +26,7 @@ const StatCard = ({ label, value, change, icon: Icon, color = 'orange' }) => (
     <div className="flex items-center justify-between">
       <span className="text-xs font-semibold text-gray-500">{label}</span>
       <div className={`rounded-lg p-1.5 bg-${color}-50`}>
-        <Icon size={14} className={`text-${color}-500`} />
+        <Icon className={`text-${color}-500`} className="h-3.5 w-3.5" />
       </div>
     </div>
     <p className="mt-2 text-xl font-black text-gray-900">{value}</p>
@@ -130,7 +130,7 @@ export default function SellerAnalyticsV2() {
       <header className="ui-glass-header">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link to="/profile" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
-            <ArrowLeft size={18} />
+            <ArrowLeftIcon className="h-[18px] w-[18px]" />
           </Link>
           <div>
             <h1 className="text-base font-bold">📊 {t('analytics.title', 'Tableau de bord')}</h1>
@@ -178,10 +178,10 @@ export default function SellerAnalyticsV2() {
         {tab === 'overview' && overview && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Revenu (30j)" value={formatPrice(overview.revenue.current)} change={overview.revenue.change} icon={DollarSign} color="green" />
-              <StatCard label="Commandes (30j)" value={overview.orders.current} change={overview.orders.change} icon={ShoppingCart} color="orange" />
-              <StatCard label="Vues (30j)" value={overview.views.current} change={overview.views.change} icon={Eye} color="blue" />
-              <StatCard label="Taux de conversion" value={`${overview.conversion.current}%`} icon={TrendingUp} color="purple" />
+              <StatCard label="Revenu (30j)" value={formatPrice(overview.revenue.current)} change={overview.revenue.change} icon={CurrencyDollarIcon} color="green" />
+              <StatCard label="Commandes (30j)" value={overview.orders.current} change={overview.orders.change} icon={ShoppingCartIcon} color="orange" />
+              <StatCard label="Vues (30j)" value={overview.views.current} change={overview.views.change} icon={EyeIcon} color="blue" />
+              <StatCard label="Taux de conversion" value={`${overview.conversion.current}%`} icon={ArrowTrendingUpIcon} color="purple" />
             </div>
 
             {/* Sales Chart */}
@@ -249,10 +249,10 @@ export default function SellerAnalyticsV2() {
         {tab === 'customers' && customers && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <StatCard label="Clients uniques" value={customers.totalCustomers} icon={Users} color="blue" />
-              <StatCard label="Clients fidèles" value={`${customers.repeatCustomers} (${customers.repeatRate}%)`} icon={TrendingUp} color="green" />
-              <StatCard label="Panier moyen" value={formatPrice(customers.aov)} icon={ShoppingCart} color="orange" />
-              <StatCard label="Total commandes" value={customers.totalOrders} icon={Package} color="purple" />
+              <StatCard label="Clients uniques" value={customers.totalCustomers} icon={UsersIcon} color="blue" />
+              <StatCard label="Clients fidèles" value={`${customers.repeatCustomers} (${customers.repeatRate}%)`} icon={ArrowTrendingUpIcon} color="green" />
+              <StatCard label="Panier moyen" value={formatPrice(customers.aov)} icon={ShoppingCartIcon} color="orange" />
+              <StatCard label="Total commandes" value={customers.totalOrders} icon={CubeIcon} color="purple" />
             </div>
 
             {/* Top Cities */}

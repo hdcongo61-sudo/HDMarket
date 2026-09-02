@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPinIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../../context/AppSettingsContext';
 
 export default function CitySelector({ className = '' }) {
@@ -12,7 +12,7 @@ export default function CitySelector({ className = '' }) {
   return (
     <label className={`flex items-center gap-3 ${className}`}>
       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 dark:border-neutral-700 dark:text-neutral-300">
-        <MapPin size={16} />
+        <MapPinIcon className="h-4 w-4" />
       </span>
       <select
         value={safeValue}

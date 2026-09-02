@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, PackageCheck } from 'lucide-react';
+import { BellIcon, CubeIcon } from '@heroicons/react/24/outline';
 import { LiquidGlassCard } from './liquid-notification';
 
 export default function DemoOne() {
@@ -26,7 +26,7 @@ export default function DemoOne() {
       >
         <div className="relative z-10 flex h-full items-center p-4 text-white">
           <div className="mr-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/25">
-            <Bell className="h-6 w-6" />
+            <BellIcon className="h-6 w-6" />
           </div>
 
           <div className="min-w-0 flex-grow pr-4">
@@ -59,7 +59,7 @@ export default function DemoOne() {
       >
         <div className="relative z-10 flex items-center p-4 text-white">
           <div className="mr-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/25">
-            <PackageCheck className="h-6 w-6" />
+            <CubeIcon className="h-6 w-6" />
           </div>
 
           <div className="min-w-0 flex-grow pr-4">

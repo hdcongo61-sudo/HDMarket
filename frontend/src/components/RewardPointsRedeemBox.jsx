@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Gift } from 'lucide-react';
+import { GiftIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 
@@ -39,7 +39,7 @@ export default function RewardPointsRedeemBox({ orderSubtotal, singleSeller, onC
         className="h-5 w-5 shrink-0 accent-[#e85d00]"
       />
       <span className="flex min-w-0 flex-1 items-center gap-2">
-        <Gift size={16} className="shrink-0 text-[#e85d00]" />
+        <GiftIcon className="shrink-0 text-[#e85d00] h-4 w-4" />
         <span className="min-w-0 flex-1 text-sm font-bold text-gray-800">
           Utiliser mes points ({maxPoints.toLocaleString('fr-FR')} pts)
         </span>

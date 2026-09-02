@@ -1,41 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ShoppingBag,
-  Layers,
-  Percent,
-  Heart,
-  Zap,
-  CalendarClock,
-  Users,
-  Ticket,
-  BadgeCheck,
-  Truck,
-  Store,
-  MapPin,
-  MessageCircle,
-  Star,
-  ShieldCheck,
-  WifiOff,
-  Bell,
-  Rocket,
-  BarChart3,
-  RotateCcw,
-  FileText,
-  Clock3,
-  CircleCheckBig,
-  ChevronRight,
-  Check,
-  Clapperboard,
-  Hash,
-  ShoppingCart,
-  LockKeyhole,
-  ShieldAlert,
-  Gift,
-  Bike,
-  Sparkles,
-  Smartphone
-} from 'lucide-react';
+import { ArrowUturnLeftIcon, BellIcon, BoltIcon, BuildingStorefrontIcon, CalendarDaysIcon, ChartBarIcon, ChatBubbleLeftIcon, CheckBadgeIcon, CheckCircleIcon, CheckIcon, ChevronRightIcon, ClockIcon, DevicePhoneMobileIcon, DocumentTextIcon, FilmIcon, GiftIcon, HashtagIcon, HeartIcon, LockClosedIcon, MapPinIcon, ReceiptPercentIcon, RocketLaunchIcon, ShieldCheckIcon, ShieldExclamationIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Square3Stack3DIcon, StarIcon, TicketIcon, TruckIcon, UsersIcon, WifiIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../context/AppSettingsContext';
 
 const SECTION_IDS = {
@@ -52,25 +17,25 @@ const SECTION_IDS = {
 
 const REFUND_STEPS = [
   {
-    icon: FileText,
+    icon: DocumentTextIcon,
     title: 'Signalez le problème',
     description:
       'Ouvrez la commande concernée, demandez son annulation quand le bouton est disponible ou créez une réclamation avec vos justificatifs.'
   },
   {
-    icon: ShieldCheck,
+    icon: ShieldCheckIcon,
     title: 'Le dossier est examiné',
     description:
       'Le vendeur et, si nécessaire, l’équipe HDMarket vérifient la commande, les échanges, les photos et la preuve de remise.'
   },
   {
-    icon: RotateCcw,
+    icon: ArrowUturnLeftIcon,
     title: 'PawaPay renvoie les fonds',
     description:
       'Après validation, le remboursement total ou partiel est envoyé vers le compte Mobile Money utilisé pour le paiement initial.'
   },
   {
-    icon: CircleCheckBig,
+    icon: CheckCircleIcon,
     title: 'Vous suivez la confirmation',
     description:
       'Le montant, la référence et le statut restent visibles dans le détail de la commande. Une notification vous informe du résultat.'
@@ -82,7 +47,7 @@ function FeatureCard({ icon: Icon, title, benefit, steps, to, cta }) {
     <article className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
-          <Icon size={19} strokeWidth={2.2} />
+          <Icon strokeWidth={2.2} className="h-[19px] w-[19px]" />
         </span>
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-black text-gray-900 dark:text-white">{title}</h3>
@@ -112,7 +77,7 @@ function FeatureCard({ icon: Icon, title, benefit, steps, to, cta }) {
           className="mt-3 inline-flex items-center gap-1 text-xs font-black text-[#e85d00] transition hover:gap-1.5"
         >
           {cta || 'Essayer maintenant'}
-          <ChevronRight size={14} />
+          <ChevronRightIcon className="h-3.5 w-3.5" />
         </Link>
       )}
     </article>
@@ -169,7 +134,7 @@ export default function Benefits() {
       {/* ── HERO ── */}
       <section className="bg-white px-4 pb-6 pt-8 text-center dark:bg-neutral-900">
         <p className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0E4] px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">
-          <ShoppingBag size={12} />
+          <ShoppingBagIcon className="h-3 w-3" />
           Guide des avantages
         </p>
         <h1 className="mx-auto mt-3 max-w-md text-2xl font-black leading-tight tracking-tight text-gray-900 dark:text-white sm:text-3xl">
@@ -186,7 +151,7 @@ export default function Benefits() {
               key={chip}
               className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700 dark:bg-neutral-950 dark:text-neutral-300"
             >
-              <Check size={12} className="text-emerald-600" />
+              <CheckIcon className="text-emerald-600 h-3 w-3" />
               {chip}
             </span>
           ))}
@@ -218,7 +183,7 @@ export default function Benefits() {
         />
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={Layers}
+            icon={Square3Stack3DIcon}
             title="Variantes en photo"
             benefit="Chaque couleur ou taille a sa propre photo et son propre prix : vous voyez exactement ce que vous commandez."
             steps={[
@@ -231,7 +196,7 @@ export default function Benefits() {
           />
           {wholesaleEnabled && (
             <FeatureCard
-              icon={Percent}
+              icon={ReceiptPercentIcon}
               title="Prix de gros dégressifs"
               benefit="Plus vous commandez, moins l’unité coûte. Le tarif de gros s’applique tout seul."
               steps={[
@@ -242,7 +207,7 @@ export default function Benefits() {
           )}
           {groupBuyingEnabled && (
             <FeatureCard
-              icon={Users}
+              icon={UsersIcon}
               title="Achat groupé"
               benefit="Formez une équipe avec d’autres acheteurs pour débloquer un prix réduit pour tout le monde. Rejoindre est gratuit : rien n’est payé tant que l’équipe n’est pas complète."
               steps={[
@@ -256,7 +221,7 @@ export default function Benefits() {
             />
           )}
           <FeatureCard
-            icon={Zap}
+            icon={BoltIcon}
             title="Ventes flash & bons plans"
             benefit="Des promotions limitées dans le temps et un classement des meilleures remises, mis à jour en continu."
             steps={['Consultez « Ventes flash » depuis l’accueil', 'Ajoutez au panier avant la fin du compte à rebours']}
@@ -264,7 +229,7 @@ export default function Benefits() {
             cta="Voir les ventes flash"
           />
           <FeatureCard
-            icon={Heart}
+            icon={HeartIcon}
             title="Favoris & historique"
             benefit="Gardez un œil sur les articles qui vous plaisent et retrouvez ce que vous avez consulté."
             steps={['Touchez le cœur sur un produit', 'Retrouvez tout dans l’onglet Favoris']}
@@ -284,7 +249,7 @@ export default function Benefits() {
             />
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <FeatureCard
-                icon={Clapperboard}
+                icon={FilmIcon}
                 title="Un fil de vidéos produits"
                 benefit="Faites défiler des vidéos courtes publiées par les boutiques : le produit en vrai, ses détails et son prix, sans quitter le fil."
                 steps={['Ouvrez « Vidéos » depuis le menu ou le pied de page', 'Faites défiler : la lecture est automatique et adaptée à votre connexion']}
@@ -292,13 +257,13 @@ export default function Benefits() {
                 cta="Regarder les vidéos"
               />
               <FeatureCard
-                icon={ShoppingCart}
+                icon={ShoppingCartIcon}
                 title="Achetez sans quitter la vidéo"
                 benefit="Un produit vous plaît ? Ajoutez-le au panier directement depuis la vidéo : si des options sont à choisir, elles s’ouvrent sur place et vous continuez à défiler."
                 steps={['Touchez le panier sur la vidéo', 'Choisissez la taille ou la couleur si demandé', 'Le produit est ajouté, la lecture continue']}
               />
               <FeatureCard
-                icon={Hash}
+                icon={HashtagIcon}
                 title="Hashtags, likes et commentaires"
                 benefit="Touchez un hashtag pour voir toutes les vidéos du même thème. Likez, commentez et enregistrez celles que vous voulez retrouver."
                 steps={['Touchez un #hashtag sous une vidéo', 'Retrouvez vos vidéos enregistrées dans votre profil — elles se relisent à tout moment']}
@@ -306,7 +271,7 @@ export default function Benefits() {
                 cta="Mes vidéos enregistrées"
               />
               <FeatureCard
-                icon={Bell}
+                icon={BellIcon}
                 title="Restez informé"
                 benefit="Quand vous commandez ou enregistrez depuis une vidéo, une notification confirme l’action et vous tient au courant de la suite."
               />
@@ -323,7 +288,7 @@ export default function Benefits() {
         />
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={ShieldCheck}
+            icon={ShieldCheckIcon}
             title="Mobile Money vérifié"
             benefit="Payez avec MTN MoMo ou Airtel Money via PawaPay : la confirmation est automatique, sans preuve ni code transaction à recopier."
             steps={[
@@ -333,7 +298,7 @@ export default function Benefits() {
             ]}
           />
           <FeatureCard
-            icon={CalendarClock}
+            icon={CalendarDaysIcon}
             title="Paiement par tranches"
             benefit="Étalez vos achats importants en plusieurs versements, avec un suivi clair de chaque échéance."
             steps={[
@@ -344,7 +309,7 @@ export default function Benefits() {
           />
           {payForOtherEnabled && (
             <FeatureCard
-              icon={Users}
+              icon={UsersIcon}
               title="Faire payer par un proche"
               benefit="Vous choisissez, un proche paie — même s’il est à l’autre bout du pays. Unique au Congo."
               steps={[
@@ -355,14 +320,14 @@ export default function Benefits() {
             />
           )}
           <FeatureCard
-            icon={Ticket}
+            icon={TicketIcon}
             title="Codes promo"
             benefit="Les vendeurs et HDMarket publient des codes de réduction à saisir au moment de payer."
             steps={['Copiez le code promo', 'Collez-le dans le champ dédié au paiement']}
           />
           {fullPaymentFreeDelivery && (
             <FeatureCard
-              icon={BadgeCheck}
+              icon={CheckBadgeIcon}
               title="Comptant récompensé"
               benefit="Payez la totalité d’un coup et profitez d’avantages comme la livraison offerte sur les commandes éligibles."
             />
@@ -380,7 +345,7 @@ export default function Benefits() {
           <div className="border-b border-sky-100 bg-sky-50 p-4 dark:border-sky-950/60 dark:bg-sky-950/20">
             <div className="flex items-start gap-3">
               <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white">
-                <LockKeyhole size={21} strokeWidth={2.3} />
+                <LockClosedIcon strokeWidth={2.3} className="h-[21px] w-[21px]" />
               </span>
               <div>
                 <h3 className="text-base font-black text-gray-900 dark:text-white">
@@ -398,25 +363,25 @@ export default function Benefits() {
           <div className="grid gap-0 sm:grid-cols-2">
             {[
               {
-                icon: Truck,
+                icon: TruckIcon,
                 title: 'Le vendeur livre ou prépare le retrait',
                 description:
                   'Une fois la commande remise ou prête en boutique, le vendeur la marque comme « Livrée » ou « Récupérée ». Vous êtes averti aussitôt.'
               },
               {
-                icon: CircleCheckBig,
+                icon: CheckCircleIcon,
                 title: 'Vous confirmez, ou vous signalez',
                 description:
                   'Touchez « Confirmer la réception » si tout va bien — les fonds sont libérés au vendeur immédiatement. Un problème ? Signalez-le avant la libération.'
               },
               {
-                icon: Clock3,
+                icon: ClockIcon,
                 title: 'Libération automatique',
                 description:
                   'Si vous ne réagissez pas, un compte à rebours (visible dans la commande) libère les fonds tout seul après un court délai — pas besoin d’agir si tout va bien.'
               },
               {
-                icon: ShieldAlert,
+                icon: ShieldExclamationIcon,
                 title: 'Litige = fonds bloqués',
                 description:
                   'Un problème signalé bloque immédiatement le versement au vendeur. Rien ne bouge tant que le dossier n’est pas résolu.'
@@ -428,7 +393,7 @@ export default function Benefits() {
               >
                 <div className="flex items-start gap-3">
                   <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
-                    <Icon size={17} strokeWidth={2.2} />
+                    <Icon strokeWidth={2.2} className="h-[17px] w-[17px]" />
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-[9px] font-black text-white">
                       {index + 1}
                     </span>
@@ -446,7 +411,7 @@ export default function Benefits() {
 
           <div className="m-4 rounded-xl bg-gray-50 p-3 dark:bg-neutral-950">
             <div className="flex items-start gap-2">
-              <ShieldCheck size={17} className="mt-0.5 flex-shrink-0 text-sky-600" />
+              <ShieldCheckIcon className="mt-0.5 flex-shrink-0 text-sky-600 h-[17px] w-[17px]" />
               <p className="text-xs leading-relaxed text-gray-600 dark:text-neutral-300">
                 <strong className="text-gray-900 dark:text-white">Le délai est réglé par HDMarket</strong>, pas
                 par le vendeur — il ne peut ni le raccourcir ni forcer une libération anticipée. Si vous
@@ -468,7 +433,7 @@ export default function Benefits() {
           <div className="border-b border-orange-100 bg-[#FFF8F2] p-4 dark:border-orange-950/60 dark:bg-orange-950/20">
             <div className="flex items-start gap-3">
               <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#e85d00] text-white">
-                <RotateCcw size={21} strokeWidth={2.3} />
+                <ArrowUturnLeftIcon strokeWidth={2.3} className="h-[21px] w-[21px]" />
               </span>
               <div>
                 <h3 className="text-base font-black text-gray-900 dark:text-white">
@@ -490,7 +455,7 @@ export default function Benefits() {
               >
                 <div className="flex items-start gap-3">
                   <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FFF0E4] text-[#e85d00]">
-                    <Icon size={17} strokeWidth={2.2} />
+                    <Icon strokeWidth={2.2} className="h-[17px] w-[17px]" />
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#e85d00] text-[9px] font-black text-white">
                       {index + 1}
                     </span>
@@ -508,7 +473,7 @@ export default function Benefits() {
 
           <div className="m-4 rounded-xl bg-gray-50 p-3 dark:bg-neutral-950">
             <div className="flex items-start gap-2">
-              <Clock3 size={17} className="mt-0.5 flex-shrink-0 text-[#e85d00]" />
+              <ClockIcon className="mt-0.5 flex-shrink-0 text-[#e85d00] h-[17px] w-[17px]" />
               <div>
                 <p className="text-xs font-black text-gray-900 dark:text-white">
                   Les statuts à connaître
@@ -529,14 +494,14 @@ export default function Benefits() {
               className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition active:scale-[0.98]"
             >
               Ouvrir une réclamation
-              <ChevronRight size={16} />
+              <ChevronRightIcon className="h-4 w-4" />
             </Link>
             <Link
               to="/retours-remboursements"
               className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-4 text-sm font-black text-gray-700 transition hover:border-orange-200 hover:text-[#e85d00] active:scale-[0.98] dark:border-neutral-700 dark:text-neutral-200"
             >
               Lire les conditions
-              <ChevronRight size={16} />
+              <ChevronRightIcon className="h-4 w-4" />
             </Link>
           </div>
         </section>
@@ -550,27 +515,27 @@ export default function Benefits() {
         />
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={Truck}
+            icon={TruckIcon}
             title="Livraison ou retrait"
             benefit="Faites-vous livrer, ou passez récupérer en boutique quand ça vous arrange : le choix se fait à la commande."
             steps={['Au paiement, choisissez « Livraison » ou « Retrait en boutique »']}
           />
           {platformDeliveryEnabled && (
             <FeatureCard
-              icon={MapPin}
+              icon={MapPinIcon}
               title="Suivi en temps réel"
               benefit="Suivez votre livreur sur la carte et recevez une preuve de livraison à l’arrivée."
               steps={['Ouvrez le détail de votre commande', 'Touchez le suivi pour voir la position du livreur']}
             />
           )}
           <FeatureCard
-            icon={MessageCircle}
+            icon={ChatBubbleLeftIcon}
             title="Chat de commande & WhatsApp"
             benefit="Discutez avec le vendeur directement depuis la commande, ou en un tap sur WhatsApp."
             steps={['Dans une commande, ouvrez la conversation', 'Posez vos questions, photos à l’appui']}
           />
           <FeatureCard
-            icon={Store}
+            icon={BuildingStorefrontIcon}
             title="Boutiques « livraison offerte »"
             benefit="Une sélection de boutiques qui prennent la livraison en charge, réunies au même endroit."
             to="/shops/free-delivery"
@@ -587,36 +552,36 @@ export default function Benefits() {
         />
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={BadgeCheck}
+            icon={CheckBadgeIcon}
             title="Boutiques vérifiées"
             benefit="Le badge « vérifié » signale les vendeurs contrôlés par HDMarket. Repérez-le avant d’acheter."
             to="/shops/verified"
             cta="Voir les boutiques vérifiées"
           />
           <FeatureCard
-            icon={Star}
+            icon={StarIcon}
             title="Avis 100 % achats vérifiés"
             benefit="Seuls les acheteurs ayant réellement reçu le produit peuvent le noter ou le commenter : impossible de gonfler — ou de saboter — la réputation d’une boutique avec de faux avis."
             steps={['Consultez les avis en bas de chaque fiche produit', 'Après réception, laissez le vôtre pour aider les autres']}
           />
           <FeatureCard
-            icon={ShieldAlert}
+            icon={ShieldExclamationIcon}
             title="Alertes anti-arnaque dans le chat"
             benefit="Si un message vous demande de payer en dehors de HDMarket, une alerte apparaît directement dans la conversation pour vous rappeler de rester sur le paiement protégé de l’application."
           />
           <FeatureCard
-            icon={ShieldCheck}
+            icon={ShieldCheckIcon}
             title="Réclamations traitées"
             benefit="Un souci avec une commande ? Ouvrez un litige : notre équipe suit le dossier jusqu’à sa résolution."
             steps={['Depuis la commande concernée, ouvrez une réclamation', 'Ajoutez photos et description', 'Suivez la réponse de l’équipe dans vos notifications']}
           />
           <FeatureCard
-            icon={WifiOff}
+            icon={WifiIcon}
             title="Conçu pour les connexions lentes"
             benefit="Connexion 3G capricieuse ? L’application garde vos dernières données et met en file vos actions pour les envoyer dès le retour du réseau."
           />
           <FeatureCard
-            icon={Bell}
+            icon={BellIcon}
             title="Notifications à chaque étape"
             benefit="Paiement validé, commande expédiée, livreur en route : vous êtes prévenu en temps réel."
             to="/notifications"
@@ -636,7 +601,7 @@ export default function Benefits() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {referralProgramEnabled && (
                 <FeatureCard
-                  icon={Gift}
+                  icon={GiftIcon}
                   title="Parrainage récompensé"
                   benefit="Invitez un proche avec votre code personnel : vous recevez chacun une récompense dès sa première commande livrée."
                   steps={[
@@ -650,7 +615,7 @@ export default function Benefits() {
               )}
               {parcelDeliveryEnabled && (
                 <FeatureCard
-                  icon={Bike}
+                  icon={BoltIcon}
                   title="Envoyer un colis"
                   benefit="Besoin d’envoyer un document ou un paquet en ville ? Un livreur HDMarket récupère et livre, sans passer par un produit du catalogue."
                   steps={['Indiquez l’adresse de départ et d’arrivée', 'Un livreur est assigné et vous suivez la course', 'Suivez vos courses dans « Mes colis »']}
@@ -659,7 +624,7 @@ export default function Benefits() {
                 />
               )}
               <FeatureCard
-                icon={ShoppingBag}
+                icon={ShoppingBagIcon}
                 title="Acheter pour moi"
                 benefit="Pas le temps d’aller en boutique ? Décrivez ce qu’il vous faut : un livreur fait les achats à votre place et vous les apporte."
                 steps={['Décrivez les articles et le magasin si vous en avez un', 'Un livreur achète et vous livre', 'Suivez la demande dans « Mes demandes »']}
@@ -668,7 +633,7 @@ export default function Benefits() {
               />
               {aiRecommendationsEnabled && (
                 <FeatureCard
-                  icon={Sparkles}
+                  icon={SparklesIcon}
                   title="Suggestions personnalisées"
                   benefit="Une sélection « Pour vous », construite à partir de ce que vous consultez et achetez — pour découvrir sans chercher."
                   to="/suggestions"
@@ -676,7 +641,7 @@ export default function Benefits() {
                 />
               )}
               <FeatureCard
-                icon={Smartphone}
+                icon={DevicePhoneMobileIcon}
                 title="Inscription en un instant"
                 benefit="Créez votre compte avec juste votre numéro de téléphone et un code reçu par SMS — aucune adresse email n’est nécessaire pour acheter, vendre ou payer."
                 to="/register"
@@ -695,7 +660,7 @@ export default function Benefits() {
         />
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <FeatureCard
-            icon={Store}
+            icon={BuildingStorefrontIcon}
             title="Votre boutique en ligne"
             benefit="Créez votre boutique, publiez vos produits avec variantes, photos et vidéos, et vendez dans tout le Congo."
             to="/plans"
@@ -703,7 +668,7 @@ export default function Benefits() {
           />
           {productVideosEnabled && (
             <FeatureCard
-              icon={Clapperboard}
+              icon={FilmIcon}
               title="Vidéos produit pour les boutiques"
               benefit="Réservé aux comptes Boutique : publiez une vidéo par produit, mise en ligne immédiatement, et suivez vues, complétion et ajouts au panier depuis votre studio."
               steps={[
@@ -716,18 +681,18 @@ export default function Benefits() {
             />
           )}
           <FeatureCard
-            icon={Rocket}
+            icon={RocketLaunchIcon}
             title="Boost de visibilité"
             benefit="Mettez vos produits en avant sur l’accueil et dans les recherches pour toucher plus d’acheteurs."
             steps={['Depuis votre produit, demandez un boost', 'Choisissez la durée, payez, c’est en ligne']}
           />
           <FeatureCard
-            icon={BarChart3}
+            icon={ChartBarIcon}
             title="Statistiques de vente"
             benefit="Vues, ventes, meilleurs produits : pilotez votre activité avec des chiffres clairs."
           />
           <FeatureCard
-            icon={Ticket}
+            icon={TicketIcon}
             title="Vos propres promos"
             benefit="Créez vos codes promo et vos prix de gros pour fidéliser et vendre en volume."
           />

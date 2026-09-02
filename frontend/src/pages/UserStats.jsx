@@ -2,33 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import {
-  ArrowLeft,
-  Package,
-  CheckCircle,
-  Heart,
-  MessageCircle,
-  TrendingUp,
-  BarChart3,
-  Store,
-  Star,
-  Sparkles,
-  Clock,
-  X,
-  Eye,
-  ShoppingBag,
-  DollarSign,
-  Users,
-  Award,
-  Activity,
-  Calendar,
-  Target,
-  Zap,
-  MapPin,
-  RefreshCw,
-  FileDown,
-  Loader2
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ArrowTrendingUpIcon, BoltIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, ChatBubbleLeftIcon, CheckCircleIcon, ClockIcon, CubeIcon, CurrencyDollarIcon, DocumentArrowDownIcon, EyeIcon, HeartIcon, MapPinIcon, ShoppingBagIcon, SparklesIcon, StarIcon, TrophyIcon, UsersIcon, ViewfinderCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
@@ -205,7 +179,7 @@ const StatCard = ({ icon: Icon, label, value, subtitle, accent = 'default', tren
         </div>
         {trend ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-1 text-[11px] font-semibold text-neutral-700">
-            <TrendingUp className="h-3 w-3" />
+            <ArrowTrendingUpIcon className="h-3 w-3" />
             {trend}
           </span>
         ) : null}
@@ -876,7 +850,7 @@ export default function UserStats() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-600 flex items-center justify-center shadow-sm">
-            <BarChart3 className="w-10 h-10 text-white" />
+            <ChartBarIcon className="w-10 h-10 text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Accès aux statistiques</h1>
@@ -886,7 +860,7 @@ export default function UserStats() {
             to="/login"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all duration-200"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeftIcon className="w-4 h-4" />
             Se connecter
           </Link>
         </div>
@@ -982,7 +956,7 @@ export default function UserStats() {
         <DebugPanel />
         <div className="max-w-md w-full bg-white rounded-2xl border border-neutral-200 shadow-sm p-8 text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
-            <X className="w-8 h-8 text-neutral-800" />
+            <XMarkIcon className="w-8 h-8 text-neutral-800" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
           <p className="text-sm text-gray-600 mb-6">{error}</p>
@@ -1009,12 +983,12 @@ export default function UserStats() {
                 onClick={() => navigate(-1)}
                 className="mb-5 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeftIcon className="h-4 w-4" />
                 Retour
               </button>
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-950 text-white shadow-sm">
-                  <BarChart3 className="h-5 w-5" />
+                  <ChartBarIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-neutral-500">Centre de performance</p>
@@ -1032,7 +1006,7 @@ export default function UserStats() {
                 disabled={refreshing}
                 className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50 disabled:opacity-60"
               >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <ArrowPathIcon className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Actualisation...' : 'Actualiser'}
               </button>
               {lastFetchAt && (
@@ -1044,7 +1018,7 @@ export default function UserStats() {
                 to="/seller/products"
                 className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
               >
-                <Package className="w-4 h-4" />
+                <CubeIcon className="w-4 h-4" />
                 Mes annonces
               </Link>
               {userShopLink && (
@@ -1052,7 +1026,7 @@ export default function UserStats() {
                   to={userShopLink}
                   className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
                 >
-                  <Store className="w-4 h-4" />
+                  <BuildingStorefrontIcon className="w-4 h-4" />
                   Ma boutique
                 </Link>
               )}
@@ -1060,7 +1034,7 @@ export default function UserStats() {
                 to="/profile"
                 className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800"
               >
-                <Users className="w-4 h-4" />
+                <UsersIcon className="w-4 h-4" />
                 Mon profil
               </Link>
             </div>
@@ -1105,7 +1079,7 @@ export default function UserStats() {
             </div>
           </div>
 
-          <InsightCard icon={Sparkles} title="Prochaine meilleure action" to="/seller/products" actionLabel="Ouvrir mes annonces">
+          <InsightCard icon={SparklesIcon} title="Prochaine meilleure action" to="/seller/products" actionLabel="Ouvrir mes annonces">
             {performanceModel.priorities.length ? (
               <div className="space-y-3">
                 {performanceModel.priorities.slice(0, 2).map((item) => (
@@ -1123,28 +1097,28 @@ export default function UserStats() {
 
         <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard
-            icon={Package}
+            icon={CubeIcon}
             label="Annonces"
             value={formatNumber(stats.listings.total)}
             subtitle={`${formatNumber(stats.listings.approved)} approuvées`}
             accent="default"
           />
           <StatCard
-            icon={ShoppingBag}
+            icon={ShoppingBagIcon}
             label="Commandes"
             value={formatNumber(purchaseStats.totalCount + salesStats.totalCount)}
             subtitle={`${formatNumber(salesStats.totalCount)} ventes · ${formatNumber(purchaseStats.totalCount)} achats`}
             accent="good"
           />
           <StatCard
-            icon={Eye}
+            icon={EyeIcon}
             label="Visibilité"
             value={formatNumber(stats.performance.views)}
             subtitle={`${Number(performanceModel.clickRate || 0).toFixed(1)}% clics / vues`}
             accent="warning"
           />
           <StatCard
-            icon={DollarSign}
+            icon={CurrencyDollarIcon}
             label="Revenu moyen"
             value={formatCurrency(performanceModel.avgOrderValue)}
             subtitle={`${formatCurrency(sellerAnalytics.summary.revenue || salesStats.totalAmount)} générés`}
@@ -1225,9 +1199,9 @@ export default function UserStats() {
                     className="inline-flex h-10 items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-60"
                   >
                     {sellerAnalyticsRefreshing || sellerAnalyticsLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <ArrowPathIcon className="h-4 w-4 animate-spin" />
                     ) : (
-                      <RefreshCw className="h-4 w-4" />
+                      <ArrowPathIcon className="h-4 w-4" />
                     )}
                     Mettre à jour
                   </button>
@@ -1238,9 +1212,9 @@ export default function UserStats() {
                     className="inline-flex h-10 items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-60"
                   >
                     {downloadingSellerReport ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <ArrowPathIcon className="h-4 w-4 animate-spin" />
                     ) : (
-                      <FileDown className="h-4 w-4" />
+                      <DocumentArrowDownIcon className="h-4 w-4" />
                     )}
                     Télécharger PDF
                   </button>
@@ -1452,7 +1426,7 @@ export default function UserStats() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-neutral-600">
-                    <ShoppingBag className="w-5 h-5 text-white" />
+                    <ShoppingBagIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">Mes commandes</h2>
@@ -1475,13 +1449,13 @@ export default function UserStats() {
                 <MetricCard
                   title="Total dépensé"
                   value={formatCurrency(purchaseStats.totalAmount)}
-                  icon={DollarSign}
+                  icon={CurrencyDollarIcon}
                   color="indigo"
                 />
                 <MetricCard
                   title="Acompte versé"
                   value={formatCurrency(purchaseStats.paidAmount)}
-                  icon={CheckCircle}
+                  icon={CheckCircleIcon}
                   color="emerald"
                 />
               </div>
@@ -1489,7 +1463,7 @@ export default function UserStats() {
                 <MetricCard
                   title="Reste à payer"
                   value={formatCurrency(purchaseStats.remainingAmount)}
-                  icon={Target}
+                  icon={ViewfinderCircleIcon}
                   color="amber"
                 />
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
@@ -1527,7 +1501,7 @@ export default function UserStats() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-neutral-600">
-                    <TrendingUp className="w-5 h-5 text-white" />
+                    <ArrowTrendingUpIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">Mes ventes</h2>
@@ -1550,13 +1524,13 @@ export default function UserStats() {
                 <MetricCard
                   title="Gains estimés"
                   value={formatCurrency(salesStats.totalAmount)}
-                  icon={DollarSign}
+                  icon={CurrencyDollarIcon}
                   color="emerald"
                 />
                 <MetricCard
                   title="Commandes"
                   value={formatNumber(salesStats.totalCount)}
-                  icon={Package}
+                  icon={CubeIcon}
                   color="purple"
                 />
               </div>
@@ -1597,7 +1571,7 @@ export default function UserStats() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-neutral-600">
-                    <Store className="w-5 h-5 text-white" />
+                    <BuildingStorefrontIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">Boutiques suivies</h2>
@@ -1646,7 +1620,7 @@ export default function UserStats() {
                         </p>
                       </div>
                       {shop.shopVerified && (
-                        <Award className="w-5 h-5 text-neutral-600 flex-shrink-0" />
+                        <TrophyIcon className="w-5 h-5 text-neutral-600 flex-shrink-0" />
                       )}
                     </Link>
                   ))}
@@ -1662,14 +1636,14 @@ export default function UserStats() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Store className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <BuildingStorefrontIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500 mb-4">Aucune boutique suivie</p>
                   <Link
                     to="/shops/verified"
                     className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 hover:text-neutral-700"
                   >
                     Explorer les boutiques
-                    <ArrowLeft className="w-4 h-4 rotate-180" />
+                    <ArrowLeftIcon className="w-4 h-4 rotate-180" />
                   </Link>
                 </div>
               )}
@@ -1681,7 +1655,7 @@ export default function UserStats() {
             <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-neutral-600">
-                  <Activity className="w-5 h-5 text-white" />
+                  <ChartBarIcon className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Performance</h2>
@@ -1695,27 +1669,27 @@ export default function UserStats() {
                   title="Taux de conversion"
                   value={`${stats.performance.conversion}%`}
                   subtitle="Basé sur vos annonces"
-                  icon={Target}
+                  icon={ViewfinderCircleIcon}
                   color="blue"
                 />
                 <MetricCard
                   title="Commentaires"
                   value={formatNumber(stats.engagement.commentsReceived)}
                   subtitle="Interactions clients"
-                  icon={MessageCircle}
+                  icon={ChatBubbleLeftIcon}
                   color="purple"
                 />
                 <MetricCard
                   title="Favoris sauvegardés"
                   value={formatNumber(stats.engagement.favoritesSaved)}
                   subtitle="Dans votre liste"
-                  icon={Heart}
+                  icon={HeartIcon}
                   color="rose"
                 />
                 <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="p-2 rounded-lg bg-neutral-600">
-                      <Zap className="w-4 h-4 text-white" />
+                      <BoltIcon className="w-4 h-4 text-white" />
                     </div>
                   </div>
                   <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Statut annonces</p>
@@ -1738,7 +1712,7 @@ export default function UserStats() {
             <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-neutral-600">
-                  <BarChart3 className="w-5 h-5 text-white" />
+                  <ChartBarIcon className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Catégories actives</h2>
@@ -1749,7 +1723,7 @@ export default function UserStats() {
             <div className="p-6">
               {stats.breakdown.categories.length === 0 ? (
                 <div className="text-center py-8">
-                  <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <ChartBarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">Publiez des annonces pour voir vos catégories</p>
                 </div>
               ) : (
@@ -1778,7 +1752,7 @@ export default function UserStats() {
             <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-neutral-600">
-                  <Calendar className="w-5 h-5 text-white" />
+                  <CalendarIcon className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Activité mensuelle</h2>
@@ -1789,7 +1763,7 @@ export default function UserStats() {
             <div className="p-6">
               {timeline.length === 0 ? (
                 <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <CalendarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">Publiez vos premières annonces</p>
                 </div>
               ) : (
@@ -1800,11 +1774,11 @@ export default function UserStats() {
                       <p className="text-2xl font-bold text-gray-900 mb-1">{formatNumber(item.count)}</p>
                       <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
                         <span className="flex items-center gap-1">
-                          <Heart className="w-3 h-3 text-neutral-500" />
+                          <HeartIcon className="w-3 h-3 text-neutral-500" />
                           {formatNumber(item.favorites)}
                         </span>
                         <span className="flex items-center gap-1">
-                          <MessageCircle className="w-3 h-3 text-neutral-500" />
+                          <ChatBubbleLeftIcon className="w-3 h-3 text-neutral-500" />
                           {formatNumber(item.clicks)}
                         </span>
                       </div>
@@ -1822,7 +1796,7 @@ export default function UserStats() {
             <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
               <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-neutral-600">
-                  <Star className="w-5 h-5 text-white" />
+                  <StarIcon className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Meilleures annonces</h2>
@@ -1861,11 +1835,11 @@ export default function UserStats() {
                     </div>
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-1 text-neutral-600">
-                        <Heart className="w-4 h-4" />
+                        <HeartIcon className="w-4 h-4" />
                         <span className="font-semibold">{formatNumber(product.favorites)}</span>
                       </div>
                       <div className="flex items-center gap-1 text-neutral-600">
-                        <MessageCircle className="w-4 h-4" />
+                        <ChatBubbleLeftIcon className="w-4 h-4" />
                         <span className="font-semibold">{formatNumber(product.whatsappClicks)}</span>
                       </div>
                     </div>
@@ -1891,7 +1865,7 @@ export default function UserStats() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-white/20">
-                    <Store className="w-6 h-6" />
+                    <BuildingStorefrontIcon className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-white/80 uppercase tracking-wide">Boutiques suivies</p>
@@ -1906,7 +1880,7 @@ export default function UserStats() {
                   className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
                   aria-label="Fermer"
                 >
-                  <X size={20} />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -1940,7 +1914,7 @@ export default function UserStats() {
                         </div>
                         {shop.shopVerified && (
                           <div className="absolute -top-1 -right-1 p-1 bg-white rounded-full shadow-md">
-                            <Award className="w-4 h-4 text-neutral-600" />
+                            <TrophyIcon className="w-4 h-4 text-neutral-600" />
                           </div>
                         )}
                       </div>
@@ -1949,26 +1923,26 @@ export default function UserStats() {
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
                           {shop.city && (
                             <div className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-gray-400" />
+                              <MapPinIcon className="w-3 h-3 text-gray-400" />
                               <p className="text-xs text-gray-500">{shop.city}</p>
                             </div>
                           )}
                           <div className="flex items-center gap-1">
-                            <Users className="w-3 h-3 text-gray-400" />
+                            <UsersIcon className="w-3 h-3 text-gray-400" />
                             <p className="text-xs text-gray-500">
                               {formatNumber(shop.followersCount || 0)} abonné(s)
                             </p>
                           </div>
                         </div>
                       </div>
-                      <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
+                      <ArrowLeftIcon className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
                     </Link>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
-                    <Store className="w-10 h-10 text-neutral-600" />
+                    <BuildingStorefrontIcon className="w-10 h-10 text-neutral-600" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Aucune boutique suivie</h4>
                   <p className="text-sm text-gray-500 mb-6">Commencez à suivre vos boutiques préférées pour les retrouver facilement</p>
@@ -1977,7 +1951,7 @@ export default function UserStats() {
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all"
                     onClick={() => setShowFollowedModal(false)}
                   >
-                    <Store className="w-4 h-4" />
+                    <BuildingStorefrontIcon className="w-4 h-4" />
                     Explorer les boutiques
                   </Link>
                 </div>
@@ -1999,7 +1973,7 @@ export default function UserStats() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-white/20">
-                    <ShoppingBag className="w-6 h-6" />
+                    <ShoppingBagIcon className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-white/80 uppercase tracking-wide">Produits commandés</p>
@@ -2019,7 +1993,7 @@ export default function UserStats() {
                   className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
                   aria-label="Fermer"
                 >
-                  <X size={20} />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -2035,7 +2009,7 @@ export default function UserStats() {
               ) : orderedError ? (
                 <div className="text-center py-12">
                   <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
-                    <X className="w-8 h-8 text-neutral-800" />
+                    <XMarkIcon className="w-8 h-8 text-neutral-800" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Erreur de chargement</h4>
                   <p className="text-sm text-neutral-800">{orderedError}</p>
@@ -2063,17 +2037,17 @@ export default function UserStats() {
                           <p className="text-sm font-bold text-gray-900 truncate group-hover:text-neutral-600 transition-colors">{product.title}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
-                              <Package className="w-3 h-3" />
+                              <CubeIcon className="w-3 h-3" />
                               {formatNumber(product.quantity)} article(s)
                             </span>
                             <span className="flex items-center gap-1">
-                              <DollarSign className="w-3 h-3" />
+                              <CurrencyDollarIcon className="w-3 h-3" />
                               {formatCurrency(product.totalSpent)}
                             </span>
                           </div>
                         </div>
                         {product.product && (
-                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
+                          <ArrowLeftIcon className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
                         )}
                       </div>
                     );
@@ -2096,7 +2070,7 @@ export default function UserStats() {
               ) : (
                 <div className="text-center py-12">
                   <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
-                    <ShoppingBag className="w-10 h-10 text-neutral-600" />
+                    <ShoppingBagIcon className="w-10 h-10 text-neutral-600" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Aucun produit commandé</h4>
                   <p className="text-sm text-gray-500 mb-6">Vos produits commandés apparaîtront ici</p>
@@ -2105,7 +2079,7 @@ export default function UserStats() {
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all"
                     onClick={() => setShowOrdersModal(false)}
                   >
-                    <ShoppingBag className="w-4 h-4" />
+                    <ShoppingBagIcon className="w-4 h-4" />
                     Voir mes commandes
                   </Link>
                 </div>
@@ -2127,7 +2101,7 @@ export default function UserStats() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-white/20">
-                    <TrendingUp className="w-6 h-6" />
+                    <ArrowTrendingUpIcon className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-white/80 uppercase tracking-wide">Produits vendus</p>
@@ -2147,7 +2121,7 @@ export default function UserStats() {
                   className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
                   aria-label="Fermer"
                 >
-                  <X size={20} />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -2163,7 +2137,7 @@ export default function UserStats() {
               ) : soldError ? (
                 <div className="text-center py-12">
                   <div className="mx-auto w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
-                    <X className="w-8 h-8 text-neutral-800" />
+                    <XMarkIcon className="w-8 h-8 text-neutral-800" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Erreur de chargement</h4>
                   <p className="text-sm text-neutral-800">{soldError}</p>
@@ -2191,17 +2165,17 @@ export default function UserStats() {
                           <p className="text-sm font-bold text-gray-900 truncate group-hover:text-neutral-600 transition-colors">{product.title}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
-                              <Package className="w-3 h-3" />
+                              <CubeIcon className="w-3 h-3" />
                               {formatNumber(product.quantity)} article(s)
                             </span>
                             <span className="flex items-center gap-1 font-semibold text-neutral-600">
-                              <DollarSign className="w-3 h-3" />
+                              <CurrencyDollarIcon className="w-3 h-3" />
                               {formatCurrency(product.totalEarned)}
                             </span>
                           </div>
                         </div>
                         {product.product && (
-                          <ArrowLeft className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
+                          <ArrowLeftIcon className="w-5 h-5 text-gray-300 group-hover:text-neutral-600 rotate-180 transition-colors flex-shrink-0" />
                         )}
                       </div>
                     );
@@ -2224,7 +2198,7 @@ export default function UserStats() {
               ) : (
                 <div className="text-center py-12">
                   <div className="mx-auto w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-4">
-                    <TrendingUp className="w-10 h-10 text-neutral-600" />
+                    <ArrowTrendingUpIcon className="w-10 h-10 text-neutral-600" />
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Aucun produit vendu</h4>
                   <p className="text-sm text-gray-500 mb-6">Vos produits vendus apparaîtront ici une fois que vous recevrez des commandes</p>
@@ -2233,7 +2207,7 @@ export default function UserStats() {
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-neutral-600 text-white font-semibold hover:bg-neutral-700 shadow-sm hover:shadow-sm transition-all"
                     onClick={() => setShowSalesModal(false)}
                   >
-                    <TrendingUp className="w-4 h-4" />
+                    <ArrowTrendingUpIcon className="w-4 h-4" />
                     Voir mes ventes
                   </Link>
                 </div>

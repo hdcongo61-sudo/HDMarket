@@ -2,29 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import {
-  Package,
-  Truck,
-  CheckCircle,
-  MapPin,
-  Clock,
-  ShieldCheck,
-  Mail,
-  Calendar,
-  Download,
-  Store,
-  X,
-  ArrowLeft,
-  AlertCircle,
-  Info,
-  CreditCard,
-  Receipt,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-  MessageCircle
-} from 'lucide-react';
+import { ArrowDownTrayIcon, ArrowLeftIcon, BuildingStorefrontIcon, CalendarIcon, ChatBubbleLeftIcon, CheckCircleIcon, CheckIcon, ClockIcon, CreditCardIcon, CubeIcon, DocumentDuplicateIcon, EnvelopeIcon, ExclamationCircleIcon, EyeIcon, EyeSlashIcon, InformationCircleIcon, MapPinIcon, ReceiptPercentIcon, ShieldCheckIcon, TruckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, useReducedMotion } from 'framer-motion';
 import { buildProgressSteps, resolveProgressStepIndex, riseIn } from '../utils/orderProgress';
 import { buildProductPath } from '../utils/links';
@@ -111,23 +89,23 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
-  pending_payment: Clock,
-  paid: CreditCard,
-  ready_for_pickup: Package,
-  picked_up_confirmed: CheckCircle,
-  ready_for_delivery: Package,
-  out_for_delivery: Truck,
-  delivery_proof_submitted: Receipt,
-  confirmed_by_client: CheckCircle,
-  pending: Clock,
-  pending_installment: Clock,
-  installment_active: CreditCard,
-  overdue_installment: AlertCircle,
-  confirmed: Package,
-  delivering: Truck,
-  delivered: CheckCircle,
-  completed: CheckCircle,
-  cancelled: X
+  pending_payment: ClockIcon,
+  paid: CreditCardIcon,
+  ready_for_pickup: CubeIcon,
+  picked_up_confirmed: CheckCircleIcon,
+  ready_for_delivery: CubeIcon,
+  out_for_delivery: TruckIcon,
+  delivery_proof_submitted: ReceiptPercentIcon,
+  confirmed_by_client: CheckCircleIcon,
+  pending: ClockIcon,
+  pending_installment: ClockIcon,
+  installment_active: CreditCardIcon,
+  overdue_installment: ExclamationCircleIcon,
+  confirmed: CubeIcon,
+  delivering: TruckIcon,
+  delivered: CheckCircleIcon,
+  completed: CheckCircleIcon,
+  cancelled: XMarkIcon
 };
 
 const INSTALLMENT_SALE_STATUS_LABELS = {
@@ -1102,7 +1080,7 @@ export default function OrderDetail() {
     return (
       <div className="hd-order-flow hd-commerce-shell min-h-screen p-4">
         <Link to="/orders" className="inline-flex items-center gap-2 text-neutral-600 font-medium mb-4">
-          <ArrowLeft className="w-4 h-4" /> Retour aux commandes
+          <ArrowLeftIcon className="w-4 h-4" /> Retour aux commandes
         </Link>
         <p className="text-red-600">{queryErrorMessage || 'Commande introuvable.'}</p>
       </div>
@@ -1178,7 +1156,7 @@ export default function OrderDetail() {
   );
   const createdBySelf = order.createdBy?._id && order.customer?._id ? order.createdBy._id === order.customer._id : false;
   const createdByLabel = createdBySelf ? 'Vous' : order.createdBy?.name || order.createdBy?.email || 'Admin HDMarket';
-  const StatusIcon = STATUS_ICONS[effectiveOrderStatus] || Clock;
+  const StatusIcon = STATUS_ICONS[effectiveOrderStatus] || ClockIcon;
   const pickupShopAddress = pickupOrder ? getPickupShopAddress(order) : null;
   const normalizedBuyerAccountType = String(
     order?.customer?.accountType || user?.accountType || ''
@@ -1248,36 +1226,36 @@ export default function OrderDetail() {
     (visibleBuyerPrimaryAction?.mode === 'cancel' && buyerStatusMutation.isReliablePending) ||
     (visibleBuyerPrimaryAction?.mode === 'confirm_delivery' && confirmDeliveryMutation.isReliablePending);
   const statusTimelineEntries = [
-    { key: 'created', label: 'Créée', icon: Calendar, time: order.createdAt },
-    { key: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
+    { key: 'created', label: 'Créée', icon: CalendarIcon, time: order.createdAt },
+    { key: 'confirmed', label: 'Confirmée', icon: CubeIcon, time: order.confirmedAt },
     pickupOrder
       ? {
           key: 'ready_for_pickup',
           label: 'Prête au retrait',
-          icon: Store,
+          icon: BuildingStorefrontIcon,
           time: order.readyForPickupAt
         }
       : {
           key: 'out_for_delivery',
           label: 'En livraison',
-          icon: Truck,
+          icon: TruckIcon,
           time: order.outForDeliveryAt || order.shippedAt
         },
-    { key: 'proof_submitted', label: 'Preuve soumise', icon: Receipt, time: order.deliverySubmittedAt },
+    { key: 'proof_submitted', label: 'Preuve soumise', icon: ReceiptPercentIcon, time: order.deliverySubmittedAt },
     {
       key: 'delivered',
       label: pickupOrder ? 'Retrait confirmé' : 'Livrée',
-      icon: CheckCircle,
+      icon: CheckCircleIcon,
       time: order.deliveredAt
     },
     {
       key: 'confirmed_by_client',
       label: 'Confirmée client',
-      icon: ShieldCheck,
+      icon: ShieldCheckIcon,
       time: order.clientDeliveryConfirmedAt
     },
-    { key: 'completed', label: 'Terminée', icon: CheckCircle, time: order.completedAt },
-    { key: 'cancelled', label: 'Annulée', icon: X, time: order.cancelledAt }
+    { key: 'completed', label: 'Terminée', icon: CheckCircleIcon, time: order.completedAt },
+    { key: 'cancelled', label: 'Annulée', icon: XMarkIcon, time: order.cancelledAt }
   ].filter((entry) => Boolean(entry.time));
   const proofPreviewIsSignature = /signature/i.test(String(proofPreview?.label || ''));
   const deliveryProofSources = (Array.isArray(order.deliveryProofImages) ? order.deliveryProofImages : [])
@@ -1375,7 +1353,7 @@ export default function OrderDetail() {
                     className="inline-flex min-h-11 items-center gap-2 text-left"
                   >
                     <span className="text-base font-black text-[#231f1b]">Commande #{order._id.slice(-6)}</span>
-                    {copiedKey === 'orderId' ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-[#8a8378]" />}
+                    {copiedKey === 'orderId' ? <CheckIcon className="h-4 w-4 text-emerald-600" /> : <DocumentDuplicateIcon className="h-4 w-4 text-[#8a8378]" />}
                   </button>
                   <p className="text-xs font-semibold text-[#8a8378]">{formatOrderTimestamp(order.createdAt) || 'Date non disponible'}</p>
                 </div>
@@ -1400,7 +1378,7 @@ export default function OrderDetail() {
                       {image ? (
                         <img src={image} alt={item.snapshot?.title || 'Produit'} className="h-16 w-16 shrink-0 rounded-xl border border-[#eee8e0] object-cover" />
                       ) : (
-                        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-[#f5f2ee]"><Package className="h-5 w-5 text-[#8a8378]" /></div>
+                        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-[#f5f2ee]"><CubeIcon className="h-5 w-5 text-[#8a8378]" /></div>
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-2 text-sm font-black leading-5 text-[#231f1b]">{item.snapshot?.title || 'Produit'} × {item.quantity || 1}</p>
@@ -1422,7 +1400,7 @@ export default function OrderDetail() {
 
               {!hideDeliveryDetails ? (
                 <div className="flex items-start gap-3 rounded-xl border border-[#eee8e0] px-3 py-3">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#e85d00]" />
+                  <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#e85d00]" />
                   <div className="min-w-0">
                     <p className="text-xs font-black text-[#231f1b]">{pickupOrder ? 'Point de retrait' : 'Adresse de livraison'}</p>
                     <p className="mt-1 text-xs leading-5 text-[#6b6459]">{pickupOrder ? pickupShopAddress?.addressLine || 'Adresse boutique non renseignée' : displayDeliveryAddress}{!pickupOrder && displayDeliveryCity ? `, ${displayDeliveryCity}` : ''}</p>
@@ -1437,7 +1415,7 @@ export default function OrderDetail() {
                     <p className={`mt-1 font-mono text-xl font-black tracking-[0.22em] text-[#231f1b] ${deliveryCodeRevealed ? '' : 'select-none blur-sm'}`}>{order.deliveryCode}</p>
                   </div>
                   <button type="button" onClick={() => setDeliveryCodeRevealed((value) => !value)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-[#231f1b] ring-1 ring-[#e2dcd2]" aria-label={deliveryCodeRevealed ? 'Masquer le code' : 'Afficher le code'}>
-                    {deliveryCodeRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {deliveryCodeRevealed ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                   </button>
                 </div>
               ) : null}
@@ -1447,7 +1425,7 @@ export default function OrderDetail() {
                 order.status === 'delivery_proof_submitted') ? (
                 <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <ShieldCheckIcon className="h-4 w-4 shrink-0 text-emerald-600" />
                     <p className="text-sm font-black text-[#231f1b]">
                       {pickupOrder ? 'Preuve de retrait' : 'Preuve de livraison'}
                     </p>
@@ -1524,7 +1502,7 @@ export default function OrderDetail() {
                     disabled={skipLoadingId === order._id}
                     className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-black text-white shadow-sm disabled:opacity-70"
                   >
-                    <ShieldCheck className="h-4 w-4" />
+                    <ShieldCheckIcon className="h-4 w-4" />
                     {skipLoadingId === order._id ? 'En cours...' : 'Autoriser le vendeur à traiter'}
                   </button>
                 </div>
@@ -1532,15 +1510,15 @@ export default function OrderDetail() {
 
               {visibleBuyerPrimaryAction ? (
                 <button type="button" onClick={handlePrimaryBuyerAction} disabled={isPrimaryActionPending || skipLoadingId === order._id} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-black text-white disabled:opacity-60 ${visibleBuyerPrimaryAction.intent === 'danger' ? 'bg-red-700' : 'bg-[#e85d00]'}`}>
-                  {isPrimaryActionPending ? <Clock className="h-4 w-4 animate-spin" /> : null}
+                  {isPrimaryActionPending ? <ClockIcon className="h-4 w-4 animate-spin" /> : null}
                   {visibleBuyerPrimaryAction.label}
                 </button>
               ) : null}
 
               <OrderChat order={order} buttonText="Contacter le vendeur" unreadCount={unreadCount} />
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={shareOrderOnWhatsApp} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#e2dcd2] text-xs font-black text-[#231f1b]"><MessageCircle className="h-4 w-4" /> Partager</button>
-                <button type="button" onClick={() => openOrderPdf(order)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#e2dcd2] text-xs font-black text-[#231f1b]"><Download className="h-4 w-4" /> Bon de commande</button>
+                <button type="button" onClick={shareOrderOnWhatsApp} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#e2dcd2] text-xs font-black text-[#231f1b]"><ChatBubbleLeftIcon className="h-4 w-4" /> Partager</button>
+                <button type="button" onClick={() => openOrderPdf(order)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#e2dcd2] text-xs font-black text-[#231f1b]"><ArrowDownTrayIcon className="h-4 w-4" /> Bon de commande</button>
               </div>
             </div>
           </article>
@@ -1567,9 +1545,9 @@ export default function OrderDetail() {
                   >
                     <h3 className="text-2xl font-black tracking-tight">#{order._id.slice(-6)}</h3>
                     {copiedKey === 'orderId' ? (
-                      <Check className="h-4 w-4 text-white" />
+                      <CheckIcon className="h-4 w-4 text-white" />
                     ) : (
-                      <Copy className="h-4 w-4 text-white/60 transition group-hover:text-white" />
+                      <DocumentDuplicateIcon className="h-4 w-4 text-white/60 transition group-hover:text-white" />
                     )}
                   </button>
                   <p className="mt-1 text-xs font-semibold text-white/78">
@@ -1582,11 +1560,11 @@ export default function OrderDetail() {
                   {STATUS_LABELS[effectiveOrderStatus] || effectiveOrderStatus}
                 </span>
                 <button type="button" onClick={shareOrderOnWhatsApp} className="inline-flex min-h-[38px] items-center gap-2 rounded-full bg-black/18 px-3 text-xs font-black text-white ring-1 ring-white/20 transition hover:bg-black/25 active:scale-95" title="Partager le suivi sur WhatsApp">
-                  <MessageCircle className="w-4 h-4" />
+                  <ChatBubbleLeftIcon className="w-4 h-4" />
                   Partager
                 </button>
                 <button type="button" onClick={() => openOrderPdf(order)} className="inline-flex min-h-[38px] items-center gap-2 rounded-full bg-black/18 px-3 text-xs font-black text-white ring-1 ring-white/20 transition hover:bg-black/25 active:scale-95" title="Télécharger le bon de commande">
-                  <Download className="w-4 h-4" />
+                  <ArrowDownTrayIcon className="w-4 h-4" />
                   Bon
                 </button>
               </div>
@@ -1663,7 +1641,7 @@ export default function OrderDetail() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#e85d00]" /> Code de livraison
+                    <ShieldCheckIcon className="h-3.5 w-3.5 text-[#e85d00]" /> Code de livraison
                   </p>
                   <motion.p
                     animate={reduceMotion ? {} : { scale: deliveryCodeRevealed ? [1, 1.06, 1] : 1 }}
@@ -1687,7 +1665,7 @@ export default function OrderDetail() {
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition active:scale-95 dark:bg-neutral-800 dark:text-neutral-200"
                     title={deliveryCodeRevealed ? 'Masquer le code' : 'Afficher le code'}
                   >
-                    {deliveryCodeRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {deliveryCodeRevealed ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                   </button>
                   <button
                     type="button"
@@ -1695,7 +1673,7 @@ export default function OrderDetail() {
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e85d00] text-white transition active:scale-95"
                     title="Copier le code"
                   >
-                    {copiedKey === 'deliveryCode' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copiedKey === 'deliveryCode' ? <CheckIcon className="h-4 w-4" /> : <DocumentDuplicateIcon className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -1712,12 +1690,12 @@ export default function OrderDetail() {
                   onExpire={() => setOrder((prev) => prev ? { ...prev, cancellationWindow: { ...prev.cancellationWindow, isActive: false, remainingMs: 0 } } : null)}
                 />
                 <button type="button" onClick={handleSkipCancellationWindow} disabled={skipLoadingId === order._id} className="w-full rounded-full bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-700 disabled:opacity-70">
-                  <ShieldCheck className="w-5 h-5 inline mr-2" />
+                  <ShieldCheckIcon className="w-5 h-5 inline mr-2" />
                   {skipLoadingId === order._id ? 'En cours...' : 'Autoriser le vendeur à traiter'}
                 </button>
                 {visibleBuyerPrimaryAction?.key !== 'cancel_order' ? (
                   <button type="button" onClick={handleCancelOrder} className="w-full rounded-full bg-red-600 px-6 py-3 text-sm font-black text-white shadow-sm hover:bg-red-700">
-                    <X className="w-5 h-5 inline mr-2" /> Annuler la commande
+                    <XMarkIcon className="w-5 h-5 inline mr-2" /> Annuler la commande
                   </button>
                 ) : null}
               </div>
@@ -1733,7 +1711,7 @@ export default function OrderDetail() {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
-                    <Package className="w-4 h-4" />
+                    <CubeIcon className="w-4 h-4" />
                   </span>
                   <div>
                     <h4 className="text-sm font-black text-gray-900">Articles commandés</h4>
@@ -1751,7 +1729,7 @@ export default function OrderDetail() {
                       <img src={item.snapshot?.image || item.product?.images?.[0]} alt={item.snapshot?.title || 'Produit'} className="h-20 w-20 flex-shrink-0 rounded-xl border border-gray-200 object-cover sm:h-24 sm:w-24" />
                     ) : (
                       <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 sm:h-24 sm:w-24">
-                        <Package className="w-6 h-6 text-neutral-600" />
+                        <CubeIcon className="w-6 h-6 text-neutral-600" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
@@ -1777,7 +1755,7 @@ export default function OrderDetail() {
                       />
                       {item.snapshot?.shopName && (
                         <div className="flex items-center gap-1 text-xs text-gray-500">
-                          <Store className="w-3 h-3" />
+                          <BuildingStorefrontIcon className="w-3 h-3" />
                           <span>{item.snapshot.shopName}</span>
                         </div>
                       )}
@@ -1792,7 +1770,7 @@ export default function OrderDetail() {
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
-                    <MapPin className="w-4 h-4 text-[#e85d00]" /> {pickupOrder ? 'Adresse boutique' : 'Adresse de livraison'}
+                    <MapPinIcon className="w-4 h-4 text-[#e85d00]" /> {pickupOrder ? 'Adresse boutique' : 'Adresse de livraison'}
                   </h4>
                   {[
                     'pending',
@@ -1846,7 +1824,7 @@ export default function OrderDetail() {
                         )}
                       </div>
                       <div>
-                        <Truck className="mr-1 inline h-3 w-3 text-neutral-600" />
+                        <TruckIcon className="mr-1 inline h-3 w-3 text-neutral-600" />
                         <span className="font-semibold">Livreur:</span> {order.deliveryGuy.name || 'Non assigné'}
                         {order.deliveryGuy.phone && ` • ${order.deliveryGuy.phone}`}
                       </div>
@@ -1859,7 +1837,7 @@ export default function OrderDetail() {
 
             {!hideDeliveryDetails && order.trackingNote && (
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><Info className="w-4 h-4 text-[#e85d00]" /> Note de suivi</h4>
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><InformationCircleIcon className="w-4 h-4 text-[#e85d00]" /> Note de suivi</h4>
                 <p className="text-sm font-semibold leading-6 text-gray-700">{order.trackingNote}</p>
               </div>
             )}
@@ -1869,7 +1847,7 @@ export default function OrderDetail() {
               order.status === 'delivery_proof_submitted') && (
               <div className="space-y-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                 <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> {pickupOrder ? 'Preuve de retrait' : 'Preuve de livraison'}
+                  <ShieldCheckIcon className="w-4 h-4 text-emerald-600" /> {pickupOrder ? 'Preuve de retrait' : 'Preuve de livraison'}
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
@@ -2003,7 +1981,7 @@ export default function OrderDetail() {
             )}
 
             <motion.section {...riseIn(reduceMotion, 0.22)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCard className="w-4 h-4 text-[#e85d00]" /> Paiement</h4>
+              <h4 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><CreditCardIcon className="w-4 h-4 text-[#e85d00]" /> Paiement</h4>
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-100 px-3 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -2151,7 +2129,7 @@ export default function OrderDetail() {
             {isInstallmentOrder && (
               <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
-                  <Receipt className="w-4 h-4 text-[#e85d00]" /> Validation de vente
+                  <ReceiptPercentIcon className="w-4 h-4 text-[#e85d00]" /> Validation de vente
                 </h4>
                 <p className="text-sm text-gray-700">
                   Statut:{' '}
@@ -2171,7 +2149,7 @@ export default function OrderDetail() {
             {isInstallmentOrder && (
               <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <h4 className="flex items-center gap-2 text-sm font-black text-gray-900">
-                  <CreditCard className="w-4 h-4 text-[#e85d00]" /> Échéancier et preuves transactionnelles
+                  <CreditCardIcon className="w-4 h-4 text-[#e85d00]" /> Échéancier et preuves transactionnelles
                 </h4>
                 {!visibleInstallmentEntries.length ? (
                   <p className="text-sm text-gray-500">Aucune tranche disponible.</p>
@@ -2262,17 +2240,17 @@ export default function OrderDetail() {
             )}
 
             <div>
-              <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><ShieldCheck className="w-4 h-4 text-[#e85d00]" /> Gestionnaire</h4>
+              <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><ShieldCheckIcon className="w-4 h-4 text-[#e85d00]" /> Gestionnaire</h4>
               <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <p className="text-sm font-semibold text-gray-900">{createdByLabel}</p>
-                {order.createdBy?.email && <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Mail className="w-3 h-3" />{order.createdBy.email}</p>}
+                {order.createdBy?.email && <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><EnvelopeIcon className="w-3 h-3" />{order.createdBy.email}</p>}
               </div>
             </div>
 
             {effectiveOrderStatus === 'cancelled' && (
               <div className="space-y-2 rounded-2xl border border-red-200 bg-red-50 p-4">
                 <div className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  <ExclamationCircleIcon className="w-5 h-5 text-red-600" />
                   <p className="text-sm font-bold text-red-800">Commande annulée</p>
                 </div>
                 {order.cancellationReason && <p className="text-sm text-red-700">Raison: {order.cancellationReason}</p>}
@@ -2311,7 +2289,7 @@ export default function OrderDetail() {
             {!hideDeliveryDetails && cityMismatch && (
               <div className="rounded-2xl border-2 border-gray-200 bg-gray-100 p-4 space-y-2">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-orange-700 flex-shrink-0 mt-0.5" />
+                  <ExclamationCircleIcon className="w-5 h-5 text-orange-700 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-bold text-orange-900">Attention: villes différentes</p>
                     <p className="text-xs text-orange-800 mt-1">
@@ -2326,7 +2304,7 @@ export default function OrderDetail() {
             {visibleBuyerPrimaryAction ? (
               <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-gray-500" />
+                  <ShieldCheckIcon className="w-4 h-4 text-gray-500" />
                   <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
                     Action suivante
                   </h4>
@@ -2340,7 +2318,7 @@ export default function OrderDetail() {
                   )}`}
                 >
                   {isPrimaryActionPending ? (
-                    <Clock className="h-4 w-4 animate-spin" />
+                    <ClockIcon className="h-4 w-4 animate-spin" />
                   ) : null}
                   {visibleBuyerPrimaryAction.label}
                 </button>
@@ -2362,7 +2340,7 @@ export default function OrderDetail() {
               {isOrderFulfilmentComplete(order) &&
                 order.items?.length > 0 && (
                 <button type="button" onClick={handleReorder} disabled={reordering} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#e85d00] px-6 py-3 font-black text-white shadow-sm hover:bg-[#e85f00] disabled:opacity-50">
-                  {reordering ? <Clock className="w-5 h-5 animate-spin" /> : <Package className="w-5 h-5" />}
+                  {reordering ? <ClockIcon className="w-5 h-5 animate-spin" /> : <CubeIcon className="w-5 h-5" />}
                   <span>{reordering ? 'Ajout au panier...' : 'Commander à nouveau'}</span>
                 </button>
               )}

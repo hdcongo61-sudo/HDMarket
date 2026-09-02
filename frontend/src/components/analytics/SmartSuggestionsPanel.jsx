@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lightbulb, Sparkles } from 'lucide-react';
+import { LightBulbIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 const priorityClass = {
   high: 'bg-neutral-50 text-neutral-700 border-neutral-200',
@@ -11,13 +11,13 @@ export default function SmartSuggestionsPanel({ suggestions = [] }) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <Lightbulb className="h-4 w-4 text-neutral-600" />
+        <LightBulbIcon className="h-4 w-4 text-neutral-600" />
         <h3 className="text-sm font-semibold text-gray-900">Suggestions intelligentes</h3>
       </div>
       {!suggestions.length ? (
         <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 text-sm text-neutral-700">
           <div className="mb-1 flex items-center gap-1 font-semibold">
-            <Sparkles className="h-4 w-4" />
+            <SparklesIcon className="h-4 w-4" />
             Aucune alerte critique
           </div>
           Vos performances sont stables sur cette période.

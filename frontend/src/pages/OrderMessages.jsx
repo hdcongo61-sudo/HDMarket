@@ -2,18 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  MessageCircle,
-  Package,
-  Truck,
-  X,
-  Search,
-  Lock,
-  Archive,
-  ArchiveRestore,
-  CornerUpLeft,
-  XCircle
-} from 'lucide-react';
+import { ArchiveBoxArrowDownIcon, ArchiveBoxIcon, ArrowTurnUpLeftIcon, ChatBubbleLeftIcon, CubeIcon, LockClosedIcon, MagnifyingGlassIcon, TruckIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import storage from '../utils/storage';
 import AuthContext from '../context/AuthContext';
@@ -30,9 +19,9 @@ import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
 
 const ACTION_NOTES = {
-  delivering: { icon: Truck, label: 'En livraison' },
-  inquiry: { icon: CornerUpLeft, label: 'En attente de votre réponse' },
-  cancelled: { icon: XCircle, label: 'Commande annulée' }
+  delivering: { icon: TruckIcon, label: 'En livraison' },
+  inquiry: { icon: ArrowTurnUpLeftIcon, label: 'En attente de votre réponse' },
+  cancelled: { icon: XCircleIcon, label: 'Commande annulée' }
 };
 
 const PAGE_SIZE = 12;
@@ -587,7 +576,7 @@ export default function OrderMessages() {
               aria-label={activeFilter === 'archived' ? 'Afficher toutes les conversations' : 'Afficher les conversations archivées'}
               title="Conversations archivées"
             >
-              <Archive className="h-[19px] w-[19px]" />
+              <ArchiveBoxIcon className="h-[19px] w-[19px]" />
             </button>
           </div>
           <p className="mt-1 text-sm font-medium text-[#78716c] dark:text-neutral-400">
@@ -597,7 +586,7 @@ export default function OrderMessages() {
           </p>
 
           <div className="relative mt-3.5">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#a8a29e]" />
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#a8a29e]" />
             <input
               type="search"
               placeholder="Rechercher un produit, une boutique…"
@@ -612,7 +601,7 @@ export default function OrderMessages() {
                 className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#a8a29e] transition hover:bg-[#f6f3ee] hover:text-[#e85d00] dark:hover:bg-neutral-800"
                 aria-label="Effacer la recherche"
               >
-                <X className="h-4 w-4" />
+                <XMarkIcon className="h-4 w-4" />
               </button>
             )}
           </div>
@@ -680,7 +669,7 @@ export default function OrderMessages() {
             {filteredConversations.length === 0 ? (
               <div className="flex min-h-[460px] flex-1 flex-col items-center justify-center px-10 pb-20 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-white text-[#e85d00] ring-1 ring-[#ece5db] dark:bg-neutral-800 dark:ring-neutral-700">
-                  <MessageCircle className="h-[30px] w-[30px]" />
+                  <ChatBubbleLeftIcon className="h-[30px] w-[30px]" />
                 </div>
                 <h2 className="mt-[18px] text-[19px] font-extrabold text-[#141210] dark:text-white">
                   {emptyState.title}
@@ -694,7 +683,7 @@ export default function OrderMessages() {
                       to="/orders"
                       className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[15px] font-extrabold text-white transition hover:bg-[#f45f00]"
                     >
-                      <Package className="h-[18px] w-[18px]" />
+                      <CubeIcon className="h-[18px] w-[18px]" />
                       Voir mes commandes
                     </Link>
                     <Link
@@ -718,7 +707,7 @@ export default function OrderMessages() {
                   </button>
                 )}
                 <p className="mt-[26px] flex items-center gap-1.5 text-xs font-medium text-[#a8a29e]">
-                  <Lock className="h-[13px] w-[13px]" />
+                  <LockClosedIcon className="h-[13px] w-[13px]" />
                   Messages chiffrés
                 </p>
               </div>
@@ -764,7 +753,7 @@ export default function OrderMessages() {
                         />
                       ) : (
                         <div className="flex h-[46px] w-[46px] items-center justify-center rounded-[14px] bg-[#f6f3ee] dark:bg-neutral-800">
-                          <Package className="h-5 w-5 text-[#e85d00]" />
+                          <CubeIcon className="h-5 w-5 text-[#e85d00]" />
                         </div>
                       )}
                     </div>
@@ -799,7 +788,7 @@ export default function OrderMessages() {
                           onClick={(e) => handleUnarchive(conversation.conversationId, e)}
                           className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#b3480a] transition hover:text-[#e85d00]"
                         >
-                          <ArchiveRestore className="h-[13px] w-[13px]" />
+                          <ArchiveBoxArrowDownIcon className="h-[13px] w-[13px]" />
                           Désarchiver
                         </button>
                       )}

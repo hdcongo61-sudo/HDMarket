@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Clock3, CreditCard } from 'lucide-react';
+import { ClockIcon, CreditCardIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import { formatPriceWithStoredSettings } from '../../utils/priceFormatter';
 
 function defaultFormatCurrency(value) {
@@ -83,11 +83,11 @@ export default function InstallmentReminder({
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <CreditCard className="h-4 w-4 text-neutral-600 dark:text-neutral-300" />
+          <CreditCardIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-300" />
           <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Rappel de tranche</p>
         </div>
         <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${urgency.style}`}>
-          {urgency.tone === 'overdue' ? <AlertCircle className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
+          {urgency.tone === 'overdue' ? <ExclamationCircleIcon className="h-3.5 w-3.5" /> : <ClockIcon className="h-3.5 w-3.5" />}
           {urgency.tone === 'safe' ? 'Vert' : urgency.tone === 'soon' ? 'Bientot' : 'Retard'}
         </span>
       </div>

@@ -1,24 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Clock3,
-  HelpCircle,
-  Landmark as LandmarkIcon,
-  Loader2,
-  MapPinned,
-  Package,
-  Package2,
-  Plus,
-  RefreshCw,
-  Scale,
-  Settings2,
-  Tag,
-  Trash2,
-  Truck,
-  Zap,
-  Server
-} from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowPathIcon, BoltIcon, BuildingLibraryIcon, ClockIcon, CubeIcon, MapPinIcon, PlusIcon, QuestionMarkCircleIcon, ScaleIcon, ServerIcon, TagIcon, TrashIcon, TruckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
@@ -36,18 +18,18 @@ import PromotionsPanel from '../components/admin/deliveryPricing/PromotionsPanel
 import DeliverySystemPanel from '../components/admin/deliveryPricing/DeliverySystemPanel';
 
 const TABS = [
-  { value: 'guide', label: 'Guide', icon: HelpCircle },
-  { value: 'system', label: 'Système', icon: Server },
-  { value: 'general', label: 'Général', icon: Settings2 },
-  { value: 'communes', label: 'Villes & communes', icon: Truck },
-  { value: 'zones', label: 'Zones', icon: MapPinned },
-  { value: 'zone-matrix', label: 'Matrice de prix', icon: MapPinned },
-  { value: 'landmarks', label: 'Points de repère', icon: LandmarkIcon },
-  { value: 'package-types', label: 'Types de colis', icon: Package2 },
-  { value: 'weight-rules', label: 'Poids', icon: Scale },
-  { value: 'speed-rules', label: 'Vitesse', icon: Zap },
-  { value: 'peak-hours', label: 'Heures de pointe', icon: Clock3 },
-  { value: 'promotions', label: 'Promotions', icon: Tag }
+  { value: 'guide', label: 'Guide', icon: QuestionMarkCircleIcon },
+  { value: 'system', label: 'Système', icon: ServerIcon },
+  { value: 'general', label: 'Général', icon: AdjustmentsHorizontalIcon },
+  { value: 'communes', label: 'Villes & communes', icon: TruckIcon },
+  { value: 'zones', label: 'Zones', icon: MapPinIcon },
+  { value: 'zone-matrix', label: 'Matrice de prix', icon: MapPinIcon },
+  { value: 'landmarks', label: 'Points de repère', icon: BuildingLibraryIcon },
+  { value: 'package-types', label: 'Types de colis', icon: CubeIcon },
+  { value: 'weight-rules', label: 'Poids', icon: ScaleIcon },
+  { value: 'speed-rules', label: 'Vitesse', icon: BoltIcon },
+  { value: 'peak-hours', label: 'Heures de pointe', icon: ClockIcon },
+  { value: 'promotions', label: 'Promotions', icon: TagIcon }
 ];
 
 const PARCEL_PRICE_FIELDS = [
@@ -216,7 +198,7 @@ export default function AdminDeliveryPricing() {
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link to="/admin" className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
               Administration
             </Link>
             <h1 className="text-2xl font-black text-slate-950">Prix de livraison</h1>
@@ -228,7 +210,7 @@ export default function AdminDeliveryPricing() {
               onClick={() => setActiveTab('landmarks')}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white"
             >
-              <LandmarkIcon className="h-4 w-4" />
+              <BuildingLibraryIcon className="h-4 w-4" />
               Ajouter un repère
             </button>
             <button
@@ -237,7 +219,7 @@ export default function AdminDeliveryPricing() {
               disabled={loading}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
           </div>
@@ -262,7 +244,7 @@ export default function AdminDeliveryPricing() {
           <>
             <section className="rounded-2xl border border-gray-100 bg-white p-4">
               <div className="mb-4 flex items-center gap-2">
-                <Package className="h-5 w-5 text-[#e85d00]" />
+                <CubeIcon className="h-5 w-5 text-[#e85d00]" />
                 <h2 className="text-base font-black text-slate-950">Tarifs colis (course à la demande)</h2>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -288,7 +270,7 @@ export default function AdminDeliveryPricing() {
                 disabled={savingParcelPrices}
                 className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-50"
               >
-                {savingParcelPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {savingParcelPrices ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : null}
                 {savingParcelPrices ? 'Enregistrement…' : 'Enregistrer les tarifs colis'}
               </button>
             </section>
@@ -303,7 +285,7 @@ export default function AdminDeliveryPricing() {
           <>
             <section className="rounded-2xl border border-gray-100 bg-white p-4">
               <div className="mb-4 flex items-center gap-2">
-                <Truck className="h-5 w-5 text-[#e85d00]" />
+                <TruckIcon className="h-5 w-5 text-[#e85d00]" />
                 <h2 className="text-base font-black text-slate-950">Villes & communes (centres GPS + zones)</h2>
               </div>
               <p className="mb-4 text-xs text-gray-500">
@@ -378,7 +360,7 @@ export default function AdminDeliveryPricing() {
                   disabled={creatingCommune}
                   className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] text-xs font-black text-white disabled:opacity-50 sm:col-span-5"
                 >
-                  <Plus className="h-4 w-4" /> Ajouter la commune
+                  <PlusIcon className="h-4 w-4" /> Ajouter la commune
                 </button>
               </form>
 
@@ -495,7 +477,7 @@ export default function AdminDeliveryPricing() {
                                         className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-red-100 text-red-600 disabled:opacity-50"
                                         aria-label="Supprimer"
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <TrashIcon className="h-4 w-4" />
                                       </button>
                                     </>
                                   )}

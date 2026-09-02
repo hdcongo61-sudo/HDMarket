@@ -1,47 +1,33 @@
 import React, { useMemo } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import {
-  ArrowLeft,
-  BarChart3,
-  Clapperboard,
-  FileText,
-  Megaphone,
-  Package,
-  Rocket,
-  Share2,
-  ShoppingBag,
-  Store,
-  Tag,
-  Users2,
-  WalletCards
-} from 'lucide-react';
+import { ArrowLeftIcon, BuildingStorefrontIcon, ChartBarIcon, CubeIcon, DocumentTextIcon, FilmIcon, MegaphoneIcon, RocketLaunchIcon, ShareIcon, ShoppingBagIcon, TagIcon, UserGroupIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../../context/AppSettingsContext';
 
 const groups = [
   {
     label: 'Activité',
     items: [
-      { to: '/seller/products', label: 'Mes annonces', short: 'Annonces', icon: Package },
-      { to: '/seller/orders', label: 'Commandes', short: 'Commandes', icon: ShoppingBag },
-      { to: '/seller/quotations', label: 'Demandes de devis', short: 'Devis', icon: FileText },
-      { to: '/seller/analytics', label: 'Statistiques', short: 'Stats', icon: BarChart3 }
+      { to: '/seller/products', label: 'Mes annonces', short: 'Annonces', icon: CubeIcon },
+      { to: '/seller/orders', label: 'Commandes', short: 'Commandes', icon: ShoppingBagIcon },
+      { to: '/seller/quotations', label: 'Demandes de devis', short: 'Devis', icon: DocumentTextIcon },
+      { to: '/seller/analytics', label: 'Statistiques', short: 'Stats', icon: ChartBarIcon }
     ]
   },
   {
     label: 'Croissance',
     items: [
-      { to: '/seller/boosts', label: 'Boosts', short: 'Boosts', icon: Rocket },
-      { to: '/seller/promo-codes', label: 'Codes promo', short: 'Promos', icon: Tag },
-      { to: '/seller/global-notifications', label: 'Campagnes', short: 'Campagnes', icon: Megaphone },
-      { to: '/seller/social-commerce', label: 'Social Commerce', short: 'Social', icon: Share2, feature: 'social_commerce' }
+      { to: '/seller/boosts', label: 'Boosts', short: 'Boosts', icon: RocketLaunchIcon },
+      { to: '/seller/promo-codes', label: 'Codes promo', short: 'Promos', icon: TagIcon },
+      { to: '/seller/global-notifications', label: 'Campagnes', short: 'Campagnes', icon: MegaphoneIcon },
+      { to: '/seller/social-commerce', label: 'Social Commerce', short: 'Social', icon: ShareIcon, feature: 'social_commerce' }
     ]
   },
   {
     label: 'Gestion',
     items: [
-      { to: '/seller/assistant', label: 'Assistant', short: 'Assistant', icon: Users2 },
-      { to: '/seller/videos', label: 'Vidéos', short: 'Vidéos', icon: Clapperboard, feature: 'product_videos' },
-      { to: '/seller/settlements', label: 'Versements', short: 'Versements', icon: WalletCards }
+      { to: '/seller/assistant', label: 'Assistant', short: 'Assistant', icon: UserGroupIcon },
+      { to: '/seller/videos', label: 'Vidéos', short: 'Vidéos', icon: FilmIcon, feature: 'product_videos' },
+      { to: '/seller/settlements', label: 'Versements', short: 'Versements', icon: WalletIcon }
     ]
   }
 ];
@@ -127,7 +113,7 @@ export default function SellerLayout() {
           ))}
         </nav>
         <Link to="/" className="flex min-h-11 items-center gap-2 rounded-xl border border-[#e2dcd2] px-3 text-sm font-bold text-[#6b6459] dark:border-neutral-800 dark:text-neutral-300">
-          <ArrowLeft className="h-4 w-4" /> Marketplace
+          <ArrowLeftIcon className="h-4 w-4" /> Marketplace
         </Link>
       </aside>
 
@@ -135,14 +121,14 @@ export default function SellerLayout() {
         <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/95 px-3 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95 lg:hidden">
           <div className="flex items-center justify-between gap-3 pb-2">
             <Link to="/" aria-label="Retour à la marketplace" className="grid h-10 w-10 place-items-center rounded-full border border-[#e2dcd2] dark:border-neutral-800">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
             </Link>
             <div className="min-w-0 text-center">
               <p className="truncate text-sm font-black">Espace vendeur</p>
               <p className="text-[10px] font-bold text-[#8a8378]">Gérez votre activité</p>
             </div>
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
-              <Store className="h-4 w-4" />
+              <BuildingStorefrontIcon className="h-4 w-4" />
             </span>
           </div>
           <nav className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Navigation vendeur mobile">

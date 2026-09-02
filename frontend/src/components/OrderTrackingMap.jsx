@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { MapPin, Navigation, Package, Home, Store } from 'lucide-react';
+import { BuildingStorefrontIcon, CubeIcon, HomeIcon, MapPinIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 
 /**
  * OrderTrackingMap — Lightweight order tracking with OSM map + timeline.

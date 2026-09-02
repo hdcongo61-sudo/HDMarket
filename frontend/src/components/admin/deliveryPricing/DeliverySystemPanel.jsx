@@ -1,12 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Activity,
-  Database,
-  Loader2,
-  RefreshCw,
-  Server,
-  Sparkles
-} from 'lucide-react';
+import { ArrowPathIcon, ChartBarIcon, CircleStackIcon, ServerIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../../../utils/priceFormatter';
@@ -79,7 +72,7 @@ export default function DeliverySystemPanel() {
   if (loading && !overview) {
     return (
       <div className="grid min-h-48 place-items-center rounded-2xl border border-gray-100 bg-white">
-        <Loader2 className="h-5 w-5 animate-spin text-[#e85d00]" />
+        <ArrowPathIcon className="h-5 w-5 animate-spin text-[#e85d00]" />
       </div>
     );
   }
@@ -94,7 +87,7 @@ export default function DeliverySystemPanel() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Server className="h-5 w-5 text-[#e85d00]" />
+              <ServerIcon className="h-5 w-5 text-[#e85d00]" />
               <h2 className="text-base font-black text-slate-950">État du moteur</h2>
             </div>
             <p className="mt-1 text-xs text-gray-500">
@@ -108,9 +101,9 @@ export default function DeliverySystemPanel() {
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-xs font-black text-gray-700 disabled:opacity-50"
           >
             {action === 'refresh' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <ArrowPathIcon className="h-4 w-4 animate-spin" />
             ) : (
-              <RefreshCw className="h-4 w-4" />
+              <ArrowPathIcon className="h-4 w-4" />
             )}
             Actualiser le contexte
           </button>
@@ -127,7 +120,7 @@ export default function DeliverySystemPanel() {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-gray-100 bg-white p-4">
           <div className="mb-3 flex items-center gap-2">
-            <Database className="h-5 w-5 text-blue-600" />
+            <CircleStackIcon className="h-5 w-5 text-blue-600" />
             <h2 className="text-base font-black text-slate-950">Configuration chargée</h2>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -142,7 +135,7 @@ export default function DeliverySystemPanel() {
 
         <div className="rounded-2xl border border-gray-100 bg-white p-4">
           <div className="mb-3 flex items-center gap-2">
-            <Activity className="h-5 w-5 text-emerald-600" />
+            <ChartBarIcon className="h-5 w-5 text-emerald-600" />
             <h2 className="text-base font-black text-slate-950">Calculs — {analytics.days || 30} jours</h2>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -158,7 +151,7 @@ export default function DeliverySystemPanel() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-700" />
+              <SparklesIcon className="h-5 w-5 text-amber-700" />
               <h2 className="text-sm font-black text-amber-950">Données générées Brazzaville</h2>
             </div>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-amber-800">
@@ -173,7 +166,7 @@ export default function DeliverySystemPanel() {
             disabled={Boolean(action)}
             className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-700 px-4 text-xs font-black text-white disabled:opacity-50"
           >
-            {action === 'demo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {action === 'demo' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <SparklesIcon className="h-4 w-4" />}
             Installer les données
           </button>
         </div>

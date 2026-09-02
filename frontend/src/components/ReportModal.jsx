@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { Flag, AlertCircle } from 'lucide-react';
+import { ExclamationCircleIcon, FlagIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from './modals/BaseModal';
@@ -63,7 +63,7 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
         titleId={titleId}
         title="Signaler du contenu"
         subtitle={type === 'comment' ? 'Signaler un commentaire' : 'Signaler une photo'}
-        icon={<Flag className="w-5 h-5 text-red-600 dark:text-red-400" />}
+        icon={<FlagIcon className="w-5 h-5 text-red-600 dark:text-red-400" />}
         onClose={onClose}
       />
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
@@ -94,7 +94,7 @@ export default function ReportModal({ isOpen, onClose, type, commentId, productI
 
           {error && (
             <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/60 dark:bg-red-900/20">
-              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-300" />
+              <ExclamationCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-300" />
               <p className="text-sm text-red-700 dark:text-red-200">{error}</p>
             </div>
           )}

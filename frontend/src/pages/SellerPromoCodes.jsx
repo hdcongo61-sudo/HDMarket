@@ -1,10 +1,6 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft, Tag, Plus, Trash2, Copy, RefreshCw, Power, PowerOff,
-  Search, Calendar, Percent, Hash, TrendingUp, BarChart3,
-  Clock, CheckCircle, XCircle, AlertCircle, Sparkles
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ArrowTrendingUpIcon, CalendarIcon, ChartBarIcon, CheckCircleIcon, ClockIcon, DocumentDuplicateIcon, ExclamationCircleIcon, HashtagIcon, MagnifyingGlassIcon, PlusIcon, PowerIcon, ReceiptPercentIcon, SparklesIcon, TagIcon, TrashIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { getProductCardImageUrl } from '../utils/productImageUrl';
 import AuthContext from '../context/AuthContext';
@@ -12,10 +8,10 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 
 const FILTERS = [
-  { key: 'active', label: 'Actifs', icon: CheckCircle, color: 'text-green-600' },
-  { key: 'inactive', label: 'Inactifs', icon: XCircle, color: 'text-gray-500' },
-  { key: 'all', label: 'Tous', icon: Hash, color: 'text-blue-600' },
-  { key: 'expired', label: 'Expirés', icon: Clock, color: 'text-red-500' }
+  { key: 'active', label: 'Actifs', icon: CheckCircleIcon, color: 'text-green-600' },
+  { key: 'inactive', label: 'Inactifs', icon: XCircleIcon, color: 'text-gray-500' },
+  { key: 'all', label: 'Tous', icon: HashtagIcon, color: 'text-blue-600' },
+  { key: 'expired', label: 'Expirés', icon: ClockIcon, color: 'text-red-500' }
 ];
 
 const STAT_CARD = ({ label, value, icon: Icon, color }) => (
@@ -23,7 +19,7 @@ const STAT_CARD = ({ label, value, icon: Icon, color }) => (
     <div className="flex items-center justify-between">
       <span className="text-xs font-semibold text-gray-500">{label}</span>
       <div className={`rounded-lg p-1.5 ${color}`}>
-        <Icon size={14} className="text-white" />
+        <Icon className="text-white h-3.5 w-3.5" />
       </div>
     </div>
     <p className="mt-2 text-xl font-black text-gray-900">{value}</p>
@@ -195,11 +191,11 @@ export default function SellerPromoCodes() {
       <header className="ui-glass-header border-b border-purple-100">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link to="/seller/products" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
-            <ArrowLeft size={18} />
+            <ArrowLeftIcon className="h-[18px] w-[18px]" />
           </Link>
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500">
-              <Tag size={16} className="text-white" />
+              <TagIcon className="text-white h-4 w-4" />
             </div>
             <div>
               <h1 className="text-base font-bold">Codes promo</h1>
@@ -212,10 +208,10 @@ export default function SellerPromoCodes() {
       <div className="mx-auto w-full max-w-3xl px-4 pb-20 pt-4 space-y-4">
         {/* ── Analytics ── */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <STAT_CARD label="Actifs" value={analytics?.activeCount || promos.filter(p => p.isActive).length} icon={CheckCircle} color="bg-green-500" />
-          <STAT_CARD label="Utilisations" value={analytics?.totalUsage || promos.reduce((s, p) => s + (p.usedCount || 0), 0)} icon={TrendingUp} color="bg-blue-500" />
-          <STAT_CARD label="Total codes" value={promos.length} icon={Hash} color="bg-purple-500" />
-          <STAT_CARD label="Expirés" value={analytics?.expiredCount || promos.filter(p => new Date(p.endDate) < new Date()).length} icon={Clock} color="bg-red-500" />
+          <STAT_CARD label="Actifs" value={analytics?.activeCount || promos.filter(p => p.isActive).length} icon={CheckCircleIcon} color="bg-green-500" />
+          <STAT_CARD label="Utilisations" value={analytics?.totalUsage || promos.reduce((s, p) => s + (p.usedCount || 0), 0)} icon={ArrowTrendingUpIcon} color="bg-blue-500" />
+          <STAT_CARD label="Total codes" value={promos.length} icon={HashtagIcon} color="bg-purple-500" />
+          <STAT_CARD label="Expirés" value={analytics?.expiredCount || promos.filter(p => new Date(p.endDate) < new Date()).length} icon={ClockIcon} color="bg-red-500" />
         </div>
 
         {/* ── Actions bar ── */}
@@ -226,7 +222,7 @@ export default function SellerPromoCodes() {
               showForm ? 'bg-gray-200 text-gray-700' : 'bg-purple-500 text-white hover:bg-purple-600'
             }`}
           >
-            <Plus size={14} />
+            <PlusIcon className="h-3.5 w-3.5" />
             {showForm ? 'Annuler' : 'Créer un code'}
           </button>
 
@@ -243,7 +239,7 @@ export default function SellerPromoCodes() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <Icon size={12} />
+                <Icon className="h-3 w-3" />
                 {f.label}
               </button>
             );
@@ -254,7 +250,7 @@ export default function SellerPromoCodes() {
         {showForm && (
           <form onSubmit={handleCreate} className="rounded-2xl border border-purple-100 bg-purple-50/30 p-4 space-y-3">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles size={14} className="text-purple-500" />
+              <SparklesIcon className="text-purple-500 h-3.5 w-3.5" />
               Nouveau code promo
             </h3>
 
@@ -366,7 +362,7 @@ export default function SellerPromoCodes() {
           </div>
         ) : promos.length === 0 ? (
           <div className="flex flex-col items-center py-12 text-center">
-            <Tag size={48} className="mb-4 text-gray-300" />
+            <TagIcon className="mb-4 text-gray-300 h-12 w-12" />
             <p className="text-sm font-medium text-gray-600">Aucun code promo</p>
             <p className="mt-1 text-xs text-gray-400">Créez votre premier code pour attirer plus de clients.</p>
           </div>
@@ -396,17 +392,17 @@ export default function SellerPromoCodes() {
 
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
-                          {promo.discountType === 'percentage' ? <Percent size={12} /> : <Tag size={12} />}
+                          {promo.discountType === 'percentage' ? <ReceiptPercentIcon className="h-3 w-3" /> : <TagIcon className="h-3 w-3" />}
                           {promo.discountType === 'percentage'
                             ? `${promo.discountValue}% de remise`
                             : 'Livraison offerte'}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Hash size={12} />
+                          <HashtagIcon className="h-3 w-3" />
                           {promo.usedCount || 0} / {promo.usageLimit} utilisations
                         </span>
                         <span className="flex items-center gap-1">
-                          <Calendar size={12} />
+                          <CalendarIcon className="h-3 w-3" />
                           {formatDate(promo.startDate)} → {formatDate(promo.endDate)}
                         </span>
                       </div>
@@ -440,18 +436,18 @@ export default function SellerPromoCodes() {
                         } disabled:opacity-50`}
                         title={promo.isActive ? 'Désactiver' : 'Activer'}
                       >
-                        {toggleId === promo.id ? <RefreshCw size={14} className="animate-spin" /> :
-                         promo.isActive ? <PowerOff size={14} /> : <Power size={14} />}
+                        {toggleId === promo.id ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> :
+                         promo.isActive ? <PowerIcon className="h-3.5 w-3.5" /> : <PowerIcon className="h-3.5 w-3.5" />}
                       </button>
                       <button onClick={() => handleDuplicate(promo)} disabled={duplicatingId === promo.id}
                         className="rounded-lg p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 transition disabled:opacity-50"
                         title="Dupliquer">
-                        {duplicatingId === promo.id ? <RefreshCw size={14} className="animate-spin" /> : <Copy size={14} />}
+                        {duplicatingId === promo.id ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <DocumentDuplicateIcon className="h-3.5 w-3.5" />}
                       </button>
                       <button onClick={() => handleDelete(promo)} disabled={deletingId === promo.id}
                         className="rounded-lg p-2 bg-red-50 text-red-500 hover:bg-red-100 transition disabled:opacity-50"
                         title="Supprimer">
-                        {deletingId === promo.id ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        {deletingId === promo.id ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <TrashIcon className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </div>

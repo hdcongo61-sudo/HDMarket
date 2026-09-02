@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 const SIZE_CLASS_MAP = {
   sm: 'sm:max-w-md',
@@ -334,7 +334,7 @@ export function ModalHeader({
             onClick={onClose}
             className="ui-card inline-flex h-11 w-11 items-center justify-center rounded-xl text-neutral-600 transition hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white"
           >
-              <X size={18} />
+              <XMarkIcon className="h-[18px] w-[18px]" />
           </button>
         ) : null}
       </div>

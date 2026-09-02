@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Clock3, Eye, Megaphone, MousePointerClick, Send, Users } from 'lucide-react';
+import { ArrowLeftIcon, ClockIcon, CursorArrowRaysIcon, EyeIcon, MegaphoneIcon, PaperAirplaneIcon, UsersIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import GlobalNotificationRequestForm from '../components/GlobalNotificationRequestForm';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
@@ -67,12 +67,12 @@ export default function SellerGlobalNotifications() {
               to="/seller/products"
               className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
               Retour
             </Link>
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#e85d00] text-white shadow-sm">
-                <Megaphone className="h-5 w-5" />
+                <MegaphoneIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 space-y-0.5">
                 <h1 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">Notifications globales</h1>
@@ -107,7 +107,7 @@ export default function SellerGlobalNotifications() {
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className="border-l-[3px] border-[#e85d00] pl-2.5 text-base font-black text-gray-900 sm:text-lg">Mes campagnes</h2>
             <span className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-600">
-              <Send className="h-3.5 w-3.5" />
+              <PaperAirplaneIcon className="h-3.5 w-3.5" />
               {requests.length}
             </span>
           </div>
@@ -132,7 +132,7 @@ export default function SellerGlobalNotifications() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-black text-gray-900">{item.title}</p>
                         <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-                          <Clock3 className="h-3.5 w-3.5" />
+                          <ClockIcon className="h-3.5 w-3.5" />
                           {item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : '-'}
                         </p>
                       </div>
@@ -154,11 +154,11 @@ export default function SellerGlobalNotifications() {
                     {item.status === 'SENT' ? (
                       <>
                         <div className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-2">
-                          <p className="flex items-center gap-1 text-gray-500"><Users className="h-3 w-3" />Atteint</p>
+                          <p className="flex items-center gap-1 text-gray-500"><UsersIcon className="h-3 w-3" />Atteint</p>
                           <p className="font-black text-gray-900">{item.matchedCount || 0}</p>
                         </div>
                         <div className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-2">
-                          <p className="flex items-center gap-1 text-gray-500"><Eye className="h-3 w-3" />Ouvertes</p>
+                          <p className="flex items-center gap-1 text-gray-500"><EyeIcon className="h-3 w-3" />Ouvertes</p>
                           <p className="font-black text-gray-900">{item.stats?.opened || 0}</p>
                         </div>
                       </>
@@ -172,7 +172,7 @@ export default function SellerGlobalNotifications() {
 
                   {item.status === 'SENT' && (
                     <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-[11px] font-bold text-emerald-800">
-                      <MousePointerClick className="h-3.5 w-3.5" />
+                      <CursorArrowRaysIcon className="h-3.5 w-3.5" />
                       {item.stats?.clicked || 0} clic(s) · objectif {item.matchedCount || 0} utilisateur(s) atteint(s)
                     </div>
                   )}

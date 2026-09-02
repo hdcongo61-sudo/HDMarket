@@ -1,18 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  BarChart3,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Loader2,
-  Plus,
-  Power,
-  RefreshCw,
-  Trash2,
-  X
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ChartBarIcon, ChevronDownIcon, ChevronUpIcon, DocumentDuplicateIcon, PlusIcon, PowerIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useCountry } from '../context/CountryContext';
@@ -195,17 +183,17 @@ export default function AdminOnboardingSequences() {
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link to="/admin" className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900">
-              <ArrowLeft className="h-4 w-4" /> Admin
+              <ArrowLeftIcon className="h-4 w-4" /> Admin
             </Link>
             <h1 className="text-2xl font-black text-slate-950">Séquences d’onboarding</h1>
             <p className="mt-1 text-sm text-gray-500">Notifications automatiques envoyées progressivement aux nouveaux comptes.</p>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={load} disabled={loading} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50">
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button type="button" onClick={openCreate} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white">
-              <Plus className="h-4 w-4" /> Nouvelle séquence
+              <PlusIcon className="h-4 w-4" /> Nouvelle séquence
             </button>
           </div>
         </header>
@@ -242,17 +230,17 @@ export default function AdminOnboardingSequences() {
                       disabled={actioningId === sequence._id}
                       className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold disabled:opacity-50 ${sequence.isActive ? 'border border-orange-200 text-orange-700' : 'bg-[#0b6b4f] text-white'}`}
                     >
-                      <Power className="h-3.5 w-3.5" /> {sequence.isActive ? 'Désactiver' : 'Activer'}
+                      <PowerIcon className="h-3.5 w-3.5" /> {sequence.isActive ? 'Désactiver' : 'Activer'}
                     </button>
                     <button type="button" onClick={() => runAction(sequence._id, 'duplicate')} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 text-xs font-bold text-gray-700">
-                      <Copy className="h-3.5 w-3.5" /> Dupliquer
+                      <DocumentDuplicateIcon className="h-3.5 w-3.5" /> Dupliquer
                     </button>
                     <button type="button" onClick={() => openAnalytics(sequence._id)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 text-xs font-bold text-gray-700">
-                      <BarChart3 className="h-3.5 w-3.5" /> Analytics
+                      <ChartBarIcon className="h-3.5 w-3.5" /> Analytics
                     </button>
                     {!sequence.isActive ? (
                       <button type="button" onClick={() => deleteSequence(sequence._id)} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 text-xs font-bold text-gray-500">
-                        <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                        <TrashIcon className="h-3.5 w-3.5" /> Supprimer
                       </button>
                     ) : null}
                   </div>
@@ -268,7 +256,7 @@ export default function AdminOnboardingSequences() {
           <section className="max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-t-[28px] bg-white p-5 sm:rounded-[28px] sm:p-7">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-black text-slate-950">{editingId ? 'Modifier la séquence' : 'Nouvelle séquence'}</h2>
-              <button type="button" onClick={() => setBuilderOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-gray-100"><X size={18} /></button>
+              <button type="button" onClick={() => setBuilderOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-gray-100"><XMarkIcon className="h-[18px] w-[18px]" /></button>
             </div>
 
             <div className="mt-5 space-y-5">
@@ -304,7 +292,7 @@ export default function AdminOnboardingSequences() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-black uppercase tracking-wide text-[#e85d00]">Étapes</p>
                   <button type="button" onClick={addStep} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-700">
-                    <Plus className="h-3.5 w-3.5" /> Ajouter une étape
+                    <PlusIcon className="h-3.5 w-3.5" /> Ajouter une étape
                   </button>
                 </div>
                 {form.steps.map((step, index) => (
@@ -312,10 +300,10 @@ export default function AdminOnboardingSequences() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-gray-500">Étape {index + 1}</span>
                       <div className="flex items-center gap-1">
-                        <button type="button" onClick={() => moveStep(index, -1)} disabled={index === 0} className="grid h-8 w-8 place-items-center rounded-lg bg-white disabled:opacity-30"><ChevronUp size={14} /></button>
-                        <button type="button" onClick={() => moveStep(index, 1)} disabled={index === form.steps.length - 1} className="grid h-8 w-8 place-items-center rounded-lg bg-white disabled:opacity-30"><ChevronDown size={14} /></button>
+                        <button type="button" onClick={() => moveStep(index, -1)} disabled={index === 0} className="grid h-8 w-8 place-items-center rounded-lg bg-white disabled:opacity-30"><ChevronUpIcon className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => moveStep(index, 1)} disabled={index === form.steps.length - 1} className="grid h-8 w-8 place-items-center rounded-lg bg-white disabled:opacity-30"><ChevronDownIcon className="h-3.5 w-3.5" /></button>
                         {form.steps.length > 1 ? (
-                          <button type="button" onClick={() => removeStep(index)} className="grid h-8 w-8 place-items-center rounded-lg bg-white text-red-600"><Trash2 size={14} /></button>
+                          <button type="button" onClick={() => removeStep(index)} className="grid h-8 w-8 place-items-center rounded-lg bg-white text-red-600"><TrashIcon className="h-3.5 w-3.5" /></button>
                         ) : null}
                       </div>
                     </div>
@@ -359,7 +347,7 @@ export default function AdminOnboardingSequences() {
             <div className="mt-6 flex justify-end gap-3">
               <button type="button" onClick={() => setBuilderOpen(false)} className="min-h-12 rounded-2xl border border-gray-200 px-5 font-bold text-gray-700">Annuler</button>
               <button type="button" disabled={!canSubmit || saving} onClick={submitBuilder} className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#e85d00] px-5 font-black text-white disabled:opacity-40">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {editingId ? 'Enregistrer' : 'Créer'}
+                {saving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : null} {editingId ? 'Enregistrer' : 'Créer'}
               </button>
             </div>
           </section>
@@ -371,10 +359,10 @@ export default function AdminOnboardingSequences() {
           <section className="w-full max-w-md rounded-[26px] bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-black text-slate-950">Analytics</h2>
-              <button type="button" onClick={() => setAnalyticsFor(null)} className="grid h-9 w-9 place-items-center rounded-full bg-gray-100"><X size={16} /></button>
+              <button type="button" onClick={() => setAnalyticsFor(null)} className="grid h-9 w-9 place-items-center rounded-full bg-gray-100"><XMarkIcon className="h-4 w-4" /></button>
             </div>
             {!analytics ? (
-              <div className="mt-6 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
+              <div className="mt-6 flex justify-center"><ArrowPathIcon className="h-6 w-6 animate-spin text-gray-400" /></div>
             ) : (
               <div className="mt-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">

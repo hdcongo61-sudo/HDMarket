@@ -22,34 +22,7 @@ import ProfileEmailCompletionCard from '../components/profile/ProfileEmailComple
 import ProfilePhoneSection from '../components/profile/ProfilePhoneSection';
 import ProfilePhoneCompletionCard from '../components/profile/ProfilePhoneCompletionCard';
 import { storage } from '../utils/storage';
-import { 
-  User, Mail, Phone, Store, MapPin, Camera, Upload, 
-  Save, Eye, EyeOff, BarChart3, Heart, MessageCircle, 
-  Package, CheckCircle, Clock, XCircle, Shield, 
-  TrendingUp, Users, Star, Award, Edit3, Image as ImageIcon,
-  Lock,
-  LocateFixed,
-  Truck,
-  ClipboardList, AlertTriangle, Paperclip, FileText,
-  Bell,
-  DollarSign,
-  X,
-  Search,
-  Filter,
-  LayoutGrid,
-  List,
-  Download,
-  ChevronDown,
-  ChevronRight,
-  Settings,
-  RotateCcw,
-  FlipHorizontal,
-  ZoomIn,
-  ZoomOut,
-  Move,
-  Palette,
-  UserX
-} from 'lucide-react';
+import { ArrowDownTrayIcon, ArrowTrendingUpIcon, ArrowUpTrayIcon, ArrowUturnLeftIcon, ArrowsPointingOutIcon, ArrowsRightLeftIcon, BellIcon, BuildingStorefrontIcon, CameraIcon, ChartBarIcon, ChatBubbleLeftIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ClipboardDocumentListIcon, ClockIcon, Cog6ToothIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, EnvelopeIcon, ExclamationTriangleIcon, EyeIcon, EyeSlashIcon, FunnelIcon, HeartIcon, ListBulletIcon, LockClosedIcon, MagnifyingGlassIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon, MapPinIcon, PaperClipIcon, PencilSquareIcon, PhoneIcon, PhotoIcon, ShieldCheckIcon, Squares2X2Icon, StarIcon, SwatchIcon, TrophyIcon, TruckIcon, UserIcon, UserMinusIcon, UsersIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import VerifiedBadge from '../components/VerifiedBadge';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import { buildShopPath } from '../utils/links';
@@ -110,7 +83,7 @@ const AccountDeactivationCard = ({ onOpen }) => (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
-          <UserX className="h-5 w-5" />
+          <UserMinusIcon className="h-5 w-5" />
         </span>
         <div>
           <h3 className="text-sm font-black text-red-950">Désactiver mon compte</h3>
@@ -189,25 +162,25 @@ const ORDER_FLOW = [
     id: 'pending',
     label: 'Commande en attente',
     description: 'Votre commande est enregistrée et en attente de validation.',
-    icon: Clock
+    icon: ClockIcon
   },
   {
     id: 'confirmed',
     label: 'Commande confirmée',
     description: 'Votre commande a été validée et sera préparée pour la livraison.',
-    icon: Package
+    icon: CubeIcon
   },
   {
     id: 'delivering',
     label: 'En cours de livraison',
     description: 'Le livreur est en route avec votre colis.',
-    icon: Truck
+    icon: TruckIcon
   },
   {
     id: 'delivered',
     label: 'Commande terminée',
     description: 'La commande est livrée et archivée par nos équipes.',
-    icon: CheckCircle
+    icon: CheckCircleIcon
   }
 ];
 
@@ -230,7 +203,7 @@ const OrderProgress = ({ status }) => {
                   reached ? 'border-neutral-600 text-neutral-800 bg-white' : 'border-gray-200 text-gray-400 bg-white'
                 }`}
               >
-                <Icon size={16} />
+                <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1">
                 <p className={`text-sm font-semibold ${reached ? 'text-gray-900' : 'text-gray-500'}`}>
@@ -620,17 +593,17 @@ export default function Profile() {
 
   const mobileTabs = useMemo(() => {
     const base = [
-      { id: 'profile', label: 'Profil', icon: User },
-      { id: 'stats', label: 'Statistiques', icon: BarChart3 },
-      { id: 'performance', label: 'Performance', icon: TrendingUp },
-      { id: 'orders', label: 'Commandes', icon: ClipboardList }
+      { id: 'profile', label: 'Profil', icon: UserIcon },
+      { id: 'stats', label: 'Statistiques', icon: ChartBarIcon },
+      { id: 'performance', label: 'Performance', icon: ArrowTrendingUpIcon },
+      { id: 'orders', label: 'Commandes', icon: ClipboardDocumentListIcon }
     ];
     if (user?.accountType === 'shop') {
-      base.push({ id: 'shop', label: 'Boutique', icon: Store });
+      base.push({ id: 'shop', label: 'Boutique', icon: BuildingStorefrontIcon });
     }
     base.push(
-      { id: 'notifications', label: 'Notifications', icon: Bell },
-      { id: 'security', label: 'Sécurité', icon: Lock }
+      { id: 'notifications', label: 'Notifications', icon: BellIcon },
+      { id: 'security', label: 'Sécurité', icon: LockClosedIcon }
     );
     return base;
   }, [user?.accountType]);
@@ -1798,7 +1771,7 @@ export default function Profile() {
       <div className="hd-profile-flow hd-commerce-shell min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-white" />
+            <UserIcon className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-500">Vous devez être connecté pour accéder à votre profil.</p>
         </div>
@@ -1826,7 +1799,7 @@ export default function Profile() {
                 />
               ) : (
                 <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#e85d00] shadow-sm">
-                  <User className="h-9 w-9 text-white" />
+                  <UserIcon className="h-9 w-9 text-white" />
                 </div>
               )}
               <div className="min-w-0">
@@ -1837,7 +1810,7 @@ export default function Profile() {
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold text-slate-700">
                   <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5 text-[#e85d00]" />
+                    <MapPinIcon className="h-3.5 w-3.5 text-[#e85d00]" />
                     {(user?.city || 'Ville')}{user?.commune ? ` · ${user.commune}` : ''}
                   </span>
                   <span className="text-slate-300">|</span>
@@ -1846,7 +1819,7 @@ export default function Profile() {
                     onClick={() => setActiveTab('security')}
                     className="inline-flex items-center gap-1 text-slate-700"
                   >
-                    <Shield className="h-3.5 w-3.5 text-[#e85d00]" />
+                    <ShieldCheckIcon className="h-3.5 w-3.5 text-[#e85d00]" />
                     Compte sécurisé
                   </button>
                   {!user?.email ? (
@@ -1857,7 +1830,7 @@ export default function Profile() {
                         onClick={scrollToEmailSection}
                         className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800"
                       >
-                        <Mail className="h-3.5 w-3.5" />
+                        <EnvelopeIcon className="h-3.5 w-3.5" />
                         Compléter mon profil
                       </button>
                     </>
@@ -1872,7 +1845,7 @@ export default function Profile() {
                 className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-slate-900 shadow-sm active:scale-95"
                 aria-label="Notifications"
               >
-                <Bell className="h-5 w-5" />
+                <BellIcon className="h-5 w-5" />
               </button>
               <button
                 type="button"
@@ -1880,7 +1853,7 @@ export default function Profile() {
                 className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-slate-900 shadow-sm active:scale-95"
                 aria-label="Paramètres"
               >
-                <Settings className="h-5 w-5" />
+                <Cog6ToothIcon className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -1905,10 +1878,10 @@ export default function Profile() {
 
           <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl bg-white/90 p-3 shadow-sm">
             {[
-              { label: 'Favoris', icon: Heart, value: stats.engagement?.favoritesReceived || 0, tab: 'stats' },
-              { label: 'Boutique', icon: Store, value: stats.listings?.total || 0, tab: user?.accountType === 'shop' ? 'shop' : 'profile' },
-              { label: 'Vues', icon: Clock, value: stats.performance?.views || 0, tab: 'stats' },
-              { label: 'Avis', icon: Star, value: stats.reviews?.total || 0, tab: 'stats' }
+              { label: 'Favoris', icon: HeartIcon, value: stats.engagement?.favoritesReceived || 0, tab: 'stats' },
+              { label: 'Boutique', icon: BuildingStorefrontIcon, value: stats.listings?.total || 0, tab: user?.accountType === 'shop' ? 'shop' : 'profile' },
+              { label: 'Vues', icon: ClockIcon, value: stats.performance?.views || 0, tab: 'stats' },
+              { label: 'Avis', icon: StarIcon, value: stats.reviews?.total || 0, tab: 'stats' }
             ].map(({ label, icon: Icon, value, tab }) => (
               <button
                 key={label}
@@ -1931,15 +1904,15 @@ export default function Profile() {
                 onClick={() => setActiveTab('orders')}
                 className="inline-flex items-center text-sm font-bold text-slate-500"
               >
-                Tout <ChevronRight className="h-4 w-4" />
+                Tout <ChevronRightIcon className="h-4 w-4" />
               </button>
             </div>
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[
-                { label: 'À payer', icon: DollarSign, value: stats.orders?.purchases?.byStatus?.pending?.count || 0 },
-                { label: 'Acceptées', icon: Package, value: stats.orders?.purchases?.byStatus?.confirmed?.count || 0 },
-                { label: 'Livraison', icon: Truck, value: stats.orders?.purchases?.byStatus?.delivering?.count || 0 },
-                { label: 'Avis', icon: MessageCircle, value: stats.orders?.purchases?.byStatus?.delivered?.count || 0 }
+                { label: 'À payer', icon: CurrencyDollarIcon, value: stats.orders?.purchases?.byStatus?.pending?.count || 0 },
+                { label: 'Acceptées', icon: CubeIcon, value: stats.orders?.purchases?.byStatus?.confirmed?.count || 0 },
+                { label: 'Livraison', icon: TruckIcon, value: stats.orders?.purchases?.byStatus?.delivering?.count || 0 },
+                { label: 'Avis', icon: ChatBubbleLeftIcon, value: stats.orders?.purchases?.byStatus?.delivered?.count || 0 }
               ].map(({ label, icon: Icon, value }) => (
                 <button
                   key={label}
@@ -1964,7 +1937,7 @@ export default function Profile() {
               to={userShopLink}
               className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition-colors hover:bg-gray-100"
             >
-              <Store className="h-4 w-4 text-[#e85d00]" />
+              <BuildingStorefrontIcon className="h-4 w-4 text-[#e85d00]" />
               Voir ma boutique publique
             </Link>
           )}
@@ -1972,7 +1945,7 @@ export default function Profile() {
             to={String(user?.role || '').toLowerCase() === 'delivery_agent' ? '/delivery/dashboard' : '/delivery/apply'}
             className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-black text-orange-900 shadow-sm transition-colors hover:bg-orange-100"
           >
-            <Truck className="h-4 w-4 text-[#e85d00]" />
+            <TruckIcon className="h-4 w-4 text-[#e85d00]" />
             {String(user?.role || '').toLowerCase() === 'delivery_agent'
               ? 'Ouvrir mon espace livreur'
               : 'Demander à devenir livreur'}
@@ -2021,10 +1994,10 @@ export default function Profile() {
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-1 bg-white rounded-2xl p-2 sm:p-1 shadow-sm border border-gray-100 mb-6">
             {[
-              { id: 'profile', label: 'Profil', icon: User },
-              { id: 'stats', label: 'Statistiques', icon: BarChart3 },
-              { id: 'performance', label: 'Performance', icon: TrendingUp },
-              { id: 'orders', label: 'Mes commandes', icon: ClipboardList }
+              { id: 'profile', label: 'Profil', icon: UserIcon },
+              { id: 'stats', label: 'Statistiques', icon: ChartBarIcon },
+              { id: 'performance', label: 'Performance', icon: ArrowTrendingUpIcon },
+              { id: 'orders', label: 'Mes commandes', icon: ClipboardDocumentListIcon }
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -2064,7 +2037,7 @@ export default function Profile() {
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
                   <label className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <Camera className="h-4 w-4 text-neutral-700" />
+                    <CameraIcon className="h-4 w-4 text-neutral-700" />
                     <span>Photo de profil</span>
                   </label>
                   <div className="flex flex-wrap items-center gap-4">
@@ -2091,7 +2064,7 @@ export default function Profile() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <Upload className="h-4 w-4" />
+                        <ArrowUpTrayIcon className="h-4 w-4" />
                         Changer & recadrer
                         <input
                           type="file"
@@ -2108,7 +2081,7 @@ export default function Profile() {
                           className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
                           disabled={loading || profileImageEditorPreparing}
                         >
-                          <Edit3 className="h-4 w-4" />
+                          <PencilSquareIcon className="h-4 w-4" />
                           {profileImageEditorPreparing ? 'Ouverture…' : 'Modifier'}
                         </button>
                       ) : null}
@@ -2146,7 +2119,7 @@ export default function Profile() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <User className="w-4 h-4 text-neutral-700" />
+                    <UserIcon className="w-4 h-4 text-neutral-700" />
                     <span>Nom complet *</span>
                   </label>
                   <div className="relative">
@@ -2159,13 +2132,13 @@ export default function Profile() {
                       disabled={loading}
                       required
                     />
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Phone className="w-4 h-4 text-neutral-700" />
+                <PhoneIcon className="w-4 h-4 text-neutral-700" />
                 <span>Téléphone</span>
               </label>
               <div className="relative">
@@ -2176,13 +2149,13 @@ export default function Profile() {
                   disabled
                 />
                 <span className="absolute top-2 right-3 text-[11px] text-gray-500">Non modifiable</span>
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
             </div>
 
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-neutral-700" />
+                    <MapPinIcon className="w-4 h-4 text-neutral-700" />
                     <span>Pays *</span>
                   </label>
                   <div className="relative">
@@ -2192,13 +2165,13 @@ export default function Profile() {
                       readOnly
                       disabled
                     />
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-neutral-700" />
+                    <MapPinIcon className="w-4 h-4 text-neutral-700" />
                     <span>Ville *</span>
                   </label>
                   <div className="relative">
@@ -2217,13 +2190,13 @@ export default function Profile() {
                         </option>
                       ))}
                     </select>
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-neutral-700" />
+                    <MapPinIcon className="w-4 h-4 text-neutral-700" />
                     <span>Commune</span>
                   </label>
                   <div className="relative">
@@ -2246,13 +2219,13 @@ export default function Profile() {
                         </option>
                       ))}
                     </select>
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <MapPin className="w-4 h-4 text-neutral-700" />
+                    <MapPinIcon className="w-4 h-4 text-neutral-700" />
                     <span>Adresse complète *</span>
                   </label>
                   <div className="relative">
@@ -2266,14 +2239,14 @@ export default function Profile() {
                       placeholder="Quartier, rue, numéro de parcelle..."
                       required
                     />
-                    <MapPin className="absolute left-4 top-4 w-4 h-4 text-gray-400" />
+                    <MapPinIcon className="absolute left-4 top-4 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
 
                 {form.accountType === 'person' && (
                   <div className="space-y-2 md:col-span-2 rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-sky-900">
-                      <LocateFixed className="w-4 h-4 text-sky-600" />
+                      <MapPinIcon className="w-4 h-4 text-sky-600" />
                       <span>Position de livraison (géolocalisation)</span>
                     </div>
                     <p className="text-xs text-sky-800">
@@ -2286,7 +2259,7 @@ export default function Profile() {
                         disabled={loading || personLocationCaptureLoading || personLocationSaving}
                         className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
                       >
-                        <LocateFixed className="w-4 h-4" />
+                        <MapPinIcon className="w-4 h-4" />
                         {personLocationCaptureLoading ? 'Capture…' : personLocationSaving ? 'Enregistrement…' : 'Capturer ma position'}
                       </button>
                     </div>
@@ -2306,7 +2279,7 @@ export default function Profile() {
 
                 <div className="space-y-2 md:col-span-2">
                   <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-neutral-700" />
+                    <UsersIcon className="w-4 h-4 text-neutral-700" />
                     Genre *
                     <span className="text-[11px] text-gray-500">Non modifiable</span>
                   </span>
@@ -2340,7 +2313,7 @@ export default function Profile() {
                   {/* Type de compte */}
                   <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Shield className="w-4 h-4 text-neutral-700" />
+                    <ShieldCheckIcon className="w-4 h-4 text-neutral-700" />
                     <span>Type de compte</span>
                   </label>
                   {user?.accountType === 'shop' ? (
@@ -2393,7 +2366,7 @@ export default function Profile() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                        <Store className="w-4 h-4 text-amber-500" />
+                        <BuildingStorefrontIcon className="w-4 h-4 text-amber-500" />
                         <span>Nom de la boutique *</span>
                       </label>
                       <div className="relative">
@@ -2405,13 +2378,13 @@ export default function Profile() {
                           disabled={loading}
                           required
                         />
-                        <Store className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <BuildingStorefrontIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                        <MapPin className="w-4 h-4 text-amber-500" />
+                        <MapPinIcon className="w-4 h-4 text-amber-500" />
                         <span>Adresse *</span>
                       </label>
                       <div className="relative">
@@ -2423,7 +2396,7 @@ export default function Profile() {
                           disabled={loading}
                           required
                         />
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       </div>
                     </div>
                   </div>
@@ -2441,12 +2414,12 @@ export default function Profile() {
                       </div>
                       {hasVerifiedShopLocation ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                          <CheckCircle className="w-3.5 h-3.5" />
+                          <CheckCircleIcon className="w-3.5 h-3.5" />
                           Position vérifiée
                         </span>
                       ) : user?.shopLocationNeedsReview ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <ExclamationTriangleIcon className="w-3.5 h-3.5" />
                           En revue admin
                         </span>
                       ) : null}
@@ -2464,7 +2437,7 @@ export default function Profile() {
                         disabled={loading || locationCaptureLoading || locationSaving}
                         className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <LocateFixed className="w-4 h-4" />
+                        <MapPinIcon className="w-4 h-4" />
                         {locationCaptureLoading ? 'Capture en cours…' : 'Capturer la position'}
                       </button>
 
@@ -2474,7 +2447,7 @@ export default function Profile() {
                         disabled={loading || locationCaptureLoading || locationSaving}
                         className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <MapPin className="w-4 h-4" />
+                        <MapPinIcon className="w-4 h-4" />
                         Sélectionner sur carte
                       </button>
 
@@ -2484,7 +2457,7 @@ export default function Profile() {
                         disabled={loading || locationSaving || !locationDraft}
                         className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <Save className="w-4 h-4" />
+                        <CheckIcon className="w-4 h-4" />
                         {locationSaving ? 'Enregistrement…' : 'Confirmer la position'}
                       </button>
 
@@ -2494,7 +2467,7 @@ export default function Profile() {
                         disabled={!currentShopCoordinates}
                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <MapPin className="w-4 h-4" />
+                        <MapPinIcon className="w-4 h-4" />
                         {mapProvider === 'google' ? 'Ouvrir Google Maps' : 'Ouvrir OpenStreetMap'}
                       </button>
                     </div>
@@ -2545,7 +2518,7 @@ export default function Profile() {
 
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <Edit3 className="w-4 h-4 text-amber-500" />
+                      <PencilSquareIcon className="w-4 h-4 text-amber-500" />
                       <span>À propos de la boutique *</span>
                     </label>
                     <textarea
@@ -2565,7 +2538,7 @@ export default function Profile() {
 
                   <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4 space-y-4">
                     <div className="flex items-start gap-3">
-                      <Palette className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+                      <SwatchIcon className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
                       <div>
                         <p className="text-sm font-semibold text-gray-900">Couleur de la boutique</p>
                         <p className="text-xs text-gray-600">
@@ -2593,7 +2566,7 @@ export default function Profile() {
                             aria-pressed={selected}
                           >
                             {selected && (
-                              <CheckCircle
+                              <CheckCircleIcon
                                 className="mx-auto h-5 w-5 drop-shadow"
                                 style={{ color: getShopColorContrast(color) }}
                               />
@@ -2673,7 +2646,7 @@ export default function Profile() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                        <Clock className="w-4 h-4 text-amber-500" />
+                        <ClockIcon className="w-4 h-4 text-amber-500" />
                         <span>Horaires d'ouverture</span>
                       </div>
                       <button
@@ -2742,7 +2715,7 @@ export default function Profile() {
                   {/* Logo boutique */}
                   <div className="space-y-3">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <Camera className="w-4 h-4 text-amber-500" />
+                      <CameraIcon className="w-4 h-4 text-amber-500" />
                       <span>Logo de la boutique</span>
                     </label>
                     
@@ -2765,7 +2738,7 @@ export default function Profile() {
                         </div>
                       ) : (
                         <label className="text-center cursor-pointer">
-                          <Upload className="w-8 h-8 text-gray-400 group-hover:text-amber-500 transition-colors mb-2 mx-auto" />
+                          <ArrowUpTrayIcon className="w-8 h-8 text-gray-400 group-hover:text-amber-500 transition-colors mb-2 mx-auto" />
                           <span className="text-sm text-gray-500">
                             <span className="text-amber-600 font-medium">Cliquez pour uploader</span>
                             <br />
@@ -2785,7 +2758,7 @@ export default function Profile() {
                   {user?.shopVerified ? (
                     <div className="space-y-3">
                       <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                        <ImageIcon className="w-4 h-4 text-neutral-700" />
+                        <PhotoIcon className="w-4 h-4 text-neutral-700" />
                         <span>Bannière desktop</span>
                         <span className="text-xs text-gray-400 font-normal">(1200×400px)</span>
                       </label>
@@ -2808,7 +2781,7 @@ export default function Profile() {
                           </div>
                         ) : (
                           <label className="text-center cursor-pointer">
-                            <Upload className="w-8 h-8 text-gray-400 group-hover:text-neutral-700 transition-colors mb-2 mx-auto" />
+                            <ArrowUpTrayIcon className="w-8 h-8 text-gray-400 group-hover:text-neutral-700 transition-colors mb-2 mx-auto" />
                             <span className="text-sm text-gray-500">
                               <span className="text-neutral-800 font-medium">Cliquez pour uploader</span>
                               <br />
@@ -2827,7 +2800,7 @@ export default function Profile() {
                       {/* Mobile Banner */}
                       <div className="space-y-3 pt-4 border-t border-gray-100">
                         <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                          <ImageIcon className="w-4 h-4 text-neutral-700" />
+                          <PhotoIcon className="w-4 h-4 text-neutral-700" />
                           <span>Bannière mobile</span>
                           <span className="text-xs text-gray-400 font-normal">(800×420px)</span>
                         </label>
@@ -2850,7 +2823,7 @@ export default function Profile() {
                             </div>
                           ) : (
                             <label className="text-center cursor-pointer">
-                              <Upload className="w-8 h-8 text-gray-400 group-hover:text-neutral-700 transition-colors mb-2 mx-auto" />
+                              <ArrowUpTrayIcon className="w-8 h-8 text-gray-400 group-hover:text-neutral-700 transition-colors mb-2 mx-auto" />
                               <span className="text-sm text-gray-500">
                                 <span className="text-neutral-800 font-medium">Cliquez pour uploader</span>
                                 <br />
@@ -2885,7 +2858,7 @@ export default function Profile() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <Lock className="w-4 h-4 text-green-500" />
+                      <LockClosedIcon className="w-4 h-4 text-green-500" />
                       <span>Nouveau mot de passe</span>
                     </label>
                     <div className="relative">
@@ -2898,20 +2871,20 @@ export default function Profile() {
                         disabled={loading}
                         placeholder="Laisser vide pour conserver"
                       />
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                      <Lock className="w-4 h-4 text-green-500" />
+                      <LockClosedIcon className="w-4 h-4 text-green-500" />
                       <span>Confirmer le mot de passe</span>
                     </label>
                     <div className="relative">
@@ -2924,7 +2897,7 @@ export default function Profile() {
                         disabled={loading}
                         placeholder="Confirmez le mot de passe"
                       />
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     </div>
                   </div>
                 </div>
@@ -2960,7 +2933,7 @@ export default function Profile() {
                       onChange={(e) => setPasswordCode(e.target.value)}
                       disabled={loading}
                     />
-                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <ShieldCheckIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                   {passwordCodeError && <p className="text-sm text-red-600">{passwordCodeError}</p>}
                   {passwordCodeMessage && <p className="text-sm text-emerald-600">{passwordCodeMessage}</p>}
@@ -2986,13 +2959,13 @@ export default function Profile() {
                 <div className="flex-1">
                   {error && (
                     <div className="flex items-center space-x-2 text-red-600">
-                      <XCircle className="w-4 h-4" />
+                      <XCircleIcon className="w-4 h-4" />
                       <span className="text-sm">{error}</span>
                     </div>
                   )}
                   {feedback && (
                     <div className="flex items-center space-x-2 text-green-600">
-                      <CheckCircle className="w-4 h-4" />
+                      <CheckCircleIcon className="w-4 h-4" />
                       <span className="text-sm">{feedback}</span>
                     </div>
                   )}
@@ -3014,7 +2987,7 @@ export default function Profile() {
                     </>
                   ) : (
                     <>
-                      <Save className="w-5 h-5" />
+                      <CheckIcon className="w-5 h-5" />
                       <span>Sauvegarder les modifications</span>
                     </>
                   )}
@@ -3064,7 +3037,7 @@ export default function Profile() {
                 </div>
               ) : statsError ? (
                 <div className="text-center py-8 text-red-600">
-                  <XCircle className="w-12 h-12 mx-auto mb-3" />
+                  <XCircleIcon className="w-12 h-12 mx-auto mb-3" />
                   <p>{statsError}</p>
                 </div>
               ) : (
@@ -3079,7 +3052,7 @@ export default function Profile() {
                       className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm text-left hover:bg-neutral-800 active:scale-[0.98] transition-all cursor-pointer"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <ClipboardList className="w-7 h-7 opacity-90" />
+                        <ClipboardDocumentListIcon className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.orders?.purchases?.totalCount || 0)}</span>
                       </div>
                       <p className="text-white/90 text-sm font-medium">Commandes</p>
@@ -3088,7 +3061,7 @@ export default function Profile() {
                     {user?.accountType === 'shop' ? (
                       <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
-                          <DollarSign className="w-7 h-7 opacity-90" />
+                          <CurrencyDollarIcon className="w-7 h-7 opacity-90" />
                           <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.sales?.totalAmount || 0) / 1000)}k</span>
                         </div>
                         <p className="text-white/90 text-sm font-medium">Revenus</p>
@@ -3097,7 +3070,7 @@ export default function Profile() {
                     ) : (
                       <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
-                          <DollarSign className="w-7 h-7 opacity-90" />
+                          <CurrencyDollarIcon className="w-7 h-7 opacity-90" />
                           <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.purchases?.totalAmount || 0) / 1000)}k</span>
                         </div>
                         <p className="text-white/90 text-sm font-medium">Montant achats</p>
@@ -3109,7 +3082,7 @@ export default function Profile() {
                       className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm block hover:bg-neutral-800 active:scale-[0.98] transition-all"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <Package className="w-7 h-7 opacity-90" />
+                        <CubeIcon className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.listings.total)}</span>
                       </div>
                       <p className="text-white/90 text-sm font-medium">Produits</p>
@@ -3117,7 +3090,7 @@ export default function Profile() {
                     </Link>
                     <div className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
-                        <TrendingUp className="w-7 h-7 opacity-90" />
+                        <ArrowTrendingUpIcon className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.performance.views)}</span>
                       </div>
                       <p className="text-white/90 text-sm font-medium">Vues</p>
@@ -3125,7 +3098,7 @@ export default function Profile() {
                     </div>
                     <div className="bg-neutral-600 text-white rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
-                        <Heart className="w-7 h-7 opacity-90" />
+                        <HeartIcon className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">{formatNumber(stats.engagement.favoritesReceived)}</span>
                       </div>
                       <p className="text-white/90 text-sm font-medium">Engagement</p>
@@ -3133,7 +3106,7 @@ export default function Profile() {
                     </div>
                     <div className="bg-amber-600 text-white rounded-2xl p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
-                        <Award className="w-7 h-7 opacity-90" />
+                        <TrophyIcon className="w-7 h-7 opacity-90" />
                         <span className="text-xl font-bold">
                           {stats.listings.approved > 0
                             ? Math.round((stats.engagement.favoritesReceived + stats.engagement.commentsReceived) / stats.listings.approved)
@@ -3148,7 +3121,7 @@ export default function Profile() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
                       <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-emerald-600" />
+                        <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-600" />
                         Évolution des revenus
                       </h3>
                       {user?.accountType === 'shop' && (stats.orders?.sales?.totalAmount || 0) > 0 ? (
@@ -3172,7 +3145,7 @@ export default function Profile() {
 
                     <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
                       <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <ClipboardList className="w-5 h-5 text-neutral-800" />
+                        <ClipboardDocumentListIcon className="w-5 h-5 text-neutral-800" />
                         Commandes par statut
                       </h3>
                       <ResponsiveContainer width="100%" height={220}>
@@ -3207,7 +3180,7 @@ export default function Profile() {
 
                     <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
                       <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <Package className="w-5 h-5 text-neutral-800" />
+                        <CubeIcon className="w-5 h-5 text-neutral-800" />
                         Répartition des produits
                       </h3>
                       <ResponsiveContainer width="100%" height={220}>
@@ -3241,12 +3214,12 @@ export default function Profile() {
 
                     <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
                       <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5 text-neutral-800" />
+                        <ChartBarIcon className="w-5 h-5 text-neutral-800" />
                         Activité par jour
                       </h3>
                       <div className="h-[220px] flex items-center justify-center rounded-xl bg-white border border-gray-100">
                         <div className="text-center text-gray-500 text-sm">
-                          <BarChart3 className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                          <ChartBarIcon className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                           <p>Données d'activité par jour à venir</p>
                         </div>
                       </div>
@@ -3270,7 +3243,7 @@ export default function Profile() {
               {/* Insights de performance */}
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <TrendingUp className="w-5 h-5 text-neutral-700" />
+                  <ArrowTrendingUpIcon className="w-5 h-5 text-neutral-700" />
                   <span>Vos performances</span>
                 </h3>
                 
@@ -3282,7 +3255,7 @@ export default function Profile() {
                         {Math.round((stats.engagement.favoritesReceived + stats.engagement.commentsReceived) / Math.max(stats.listings.approved, 1))}
                       </p>
                     </div>
-                    <Award className="w-8 h-8 text-neutral-700" />
+                    <TrophyIcon className="w-8 h-8 text-neutral-700" />
                   </div>
 
                   <div className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 border border-neutral-200">
@@ -3295,7 +3268,7 @@ export default function Profile() {
                         }
                       </p>
                     </div>
-                    <CheckCircle className="w-8 h-8 text-neutral-700" />
+                    <CheckCircleIcon className="w-8 h-8 text-neutral-700" />
                   </div>
                 </div>
               </div>
@@ -3303,14 +3276,14 @@ export default function Profile() {
               {/* Recommandations */}
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <Star className="w-5 h-5 text-amber-500" />
+                  <StarIcon className="w-5 h-5 text-amber-500" />
                   <span>Recommandations</span>
                 </h3>
 
                 <div className="space-y-3">
                   {stats.listings.pending > 0 && (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                      <Clock className="w-4 h-4 text-amber-600" />
+                      <ClockIcon className="w-4 h-4 text-amber-600" />
                       <p className="text-sm text-amber-800">
                         Vous avez {stats.listings.pending} annonce(s) en attente de validation
                       </p>
@@ -3319,7 +3292,7 @@ export default function Profile() {
 
                   {stats.engagement.favoritesReceived === 0 && stats.listings.approved > 0 && (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-neutral-50 border border-neutral-200">
-                      <Heart className="w-4 h-4 text-neutral-800" />
+                      <HeartIcon className="w-4 h-4 text-neutral-800" />
                       <p className="text-sm text-neutral-800">
                         Améliorez vos photos pour augmenter les favoris
                       </p>
@@ -3328,7 +3301,7 @@ export default function Profile() {
 
                   {stats.listings.approved > 5 && (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl bg-green-50 border border-green-200">
-                      <TrendingUp className="w-4 h-4 text-green-600" />
+                      <ArrowTrendingUpIcon className="w-4 h-4 text-green-600" />
                       <p className="text-sm text-green-800">
                         Excellent ! Pensez à promouvoir vos meilleures annonces
                       </p>
@@ -3351,7 +3324,7 @@ export default function Profile() {
           panelClassName="border-gray-200 bg-gray-50"
         >
           <ModalHeader
-            icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
+            icon={<ClipboardDocumentListIcon className="w-5 h-5 text-neutral-700" />}
             title="Mes commandes"
             onClose={() => setShowOrdersModal(false)}
           />
@@ -3369,7 +3342,7 @@ export default function Profile() {
               </div>
             ) : orders.length === 0 ? (
               <div className="text-center py-10 text-gray-500">
-                <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <ClipboardDocumentListIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                 <p className="font-medium text-gray-700">Aucune commande</p>
                 <p className="text-sm">Vos commandes apparaîtront ici.</p>
               </div>
@@ -3404,10 +3377,10 @@ export default function Profile() {
                           </p>
                         </div>
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${ORDER_STATUS_STYLES[order.status] || 'border-gray-200 bg-gray-50 text-gray-600'}`}>
-                          {order.status === 'pending' && <Clock size={14} />}
-                          {order.status === 'confirmed' && <Package size={14} />}
-                          {order.status === 'delivering' && <Truck size={14} />}
-                          {order.status === 'delivered' && <CheckCircle size={14} />}
+                          {order.status === 'pending' && <ClockIcon className="h-3.5 w-3.5" />}
+                          {order.status === 'confirmed' && <CubeIcon className="h-3.5 w-3.5" />}
+                          {order.status === 'delivering' && <TruckIcon className="h-3.5 w-3.5" />}
+                          {order.status === 'delivered' && <CheckCircleIcon className="h-3.5 w-3.5" />}
                           {ORDER_STATUS_LABELS[order.status] || 'Statut inconnu'}
                         </span>
                       </div>
@@ -3438,7 +3411,7 @@ export default function Profile() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
               <div>
                 <div className="flex items-center gap-2 text-sm font-semibold text-neutral-800">
-                  <ClipboardList className="w-4 h-4" />
+                  <ClipboardDocumentListIcon className="w-4 h-4" />
                   Gestion des commandes
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">Mes commandes</h2>
@@ -3449,14 +3422,14 @@ export default function Profile() {
                   to="/orders"
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-medium hover:bg-neutral-100 transition-colors"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRightIcon className="w-4 h-4" />
                   Page complète
                 </Link>
                 <Link
                   to="/orders/draft"
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-amber-200 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-all duration-200 active:scale-95 shadow-sm"
                 >
-                  <Clock className="w-4 h-4" />
+                  <ClockIcon className="w-4 h-4" />
                   Brouillons
                 </Link>
                 <button
@@ -3511,7 +3484,7 @@ export default function Profile() {
             {/* Recherche, tri, vue, export */}
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Rechercher par n° commande, produit, client..."
@@ -3528,7 +3501,7 @@ export default function Profile() {
                     ordersShowFilters ? 'border-neutral-300 bg-neutral-50 text-neutral-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <Filter className="w-4 h-4" />
+                  <FunnelIcon className="w-4 h-4" />
                   Filtres
                 </button>
                 <select
@@ -3549,7 +3522,7 @@ export default function Profile() {
                     className={`p-2 ${ordersViewMode === 'list' ? 'bg-neutral-100 text-neutral-800' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                     title="Vue liste"
                   >
-                    <List className="w-4 h-4" />
+                    <ListBulletIcon className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
@@ -3557,14 +3530,14 @@ export default function Profile() {
                     className={`p-2 ${ordersViewMode === 'grid' ? 'bg-neutral-100 text-neutral-800' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                     title="Vue grille"
                   >
-                    <LayoutGrid className="w-4 h-4" />
+                    <Squares2X2Icon className="w-4 h-4" />
                   </button>
                 </div>
                 <button type="button" onClick={exportOrdersCSV} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50" title="Export CSV">
-                  <Download className="w-4 h-4" /> CSV
+                  <ArrowDownTrayIcon className="w-4 h-4" /> CSV
                 </button>
                 <button type="button" onClick={exportOrdersPDF} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50" title="Export PDF">
-                  <Download className="w-4 h-4" /> PDF
+                  <ArrowDownTrayIcon className="w-4 h-4" /> PDF
                 </button>
               </div>
             </div>
@@ -3632,7 +3605,7 @@ export default function Profile() {
             {!ordersLoading && !ordersError && orders.length === 0 && (
               <div className="text-center py-10 border border-dashed border-gray-200 rounded-2xl">
                 <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                  <ClipboardList className="w-8 h-8 text-gray-400" />
+                  <ClipboardDocumentListIcon className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">Aucune commande disponible</h3>
                 <p className="text-sm text-gray-500 max-w-md mx-auto">
@@ -3681,7 +3654,7 @@ export default function Profile() {
                               </div>
                               <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
                                 <span className="inline-flex items-center gap-1">
-                                  <Shield className="w-3.5 h-3.5 text-neutral-700" />
+                                  <ShieldCheckIcon className="w-3.5 h-3.5 text-neutral-700" />
                                   Gestionnaire : {order.createdBy?.name || order.createdBy?.email || 'Admin HDMarket'}
                                 </span>
                                 <span className="hidden sm:block text-gray-300">•</span>
@@ -3693,11 +3666,11 @@ export default function Profile() {
                             <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
                               ORDER_STATUS_STYLES[order.status] || 'border-gray-200 bg-gray-50 text-gray-600'
                             }`}>
-                              {order.status === 'pending' && <Clock size={14} />}
-                              {order.status === 'confirmed' && <Package size={14} />}
-                              {order.status === 'delivering' && <Truck size={14} />}
-                              {order.status === 'delivered' && <CheckCircle size={14} />}
-                              {order.status === 'cancelled' && <XCircle size={14} />}
+                              {order.status === 'pending' && <ClockIcon className="h-3.5 w-3.5" />}
+                              {order.status === 'confirmed' && <CubeIcon className="h-3.5 w-3.5" />}
+                              {order.status === 'delivering' && <TruckIcon className="h-3.5 w-3.5" />}
+                              {order.status === 'delivered' && <CheckCircleIcon className="h-3.5 w-3.5" />}
+                              {order.status === 'cancelled' && <XCircleIcon className="h-3.5 w-3.5" />}
                               {ORDER_STATUS_LABELS[order.status] || 'Statut inconnu'}
                             </span>
                           </div>
@@ -3707,7 +3680,7 @@ export default function Profile() {
                               <p className="text-xs uppercase tracking-wide text-gray-400">Adresse de livraison</p>
                               <p className="font-medium text-gray-900">{order.deliveryAddress}</p>
                               <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                                <MapPin size={13} />
+                                <MapPinIcon className="h-[13px] w-[13px]" />
                                 {order.deliveryCity}
                               </p>
                             </div>
@@ -3725,18 +3698,18 @@ export default function Profile() {
 
                           <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-500">
                             <span className="inline-flex items-center gap-1">
-                              <Clock size={12} />
+                              <ClockIcon className="h-3 w-3" />
                               Créée le {new Date(order.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
                             {order.shippedAt && (
                               <span className="inline-flex items-center gap-1">
-                                <Truck size={12} />
+                                <TruckIcon className="h-3 w-3" />
                                 Expédiée le {new Date(order.shippedAt).toLocaleDateString('fr-FR')}
                               </span>
                             )}
                             {order.deliveredAt && (
                               <span className="inline-flex items-center gap-1">
-                                <CheckCircle size={12} />
+                                <CheckCircleIcon className="h-3 w-3" />
                                 Livrée le {new Date(order.deliveredAt).toLocaleDateString('fr-FR')}
                               </span>
                             )}
@@ -3747,14 +3720,14 @@ export default function Profile() {
                               onClick={() => setSelectedOrderDetail(order)}
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-neutral-800 hover:bg-neutral-50 border border-neutral-200"
                             >
-                              <Package size={14} />
+                              <CubeIcon className="h-3.5 w-3.5" />
                               Voir détails
                             </button>
                             <Link
                               to="/orders/messages"
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 border border-gray-200"
                             >
-                              <MessageCircle size={14} />
+                              <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
                               Messages
                             </Link>
                           </div>
@@ -3776,7 +3749,7 @@ export default function Profile() {
               panelClassName="border-gray-200 bg-gray-50"
             >
               <ModalHeader
-                icon={<ClipboardList className="w-5 h-5 text-neutral-700" />}
+                icon={<ClipboardDocumentListIcon className="w-5 h-5 text-neutral-700" />}
                 title={`Commande #${selectedOrderDetail?._id?.slice(-6) || '—'}`}
                 onClose={() => setSelectedOrderDetail(null)}
               />
@@ -3784,11 +3757,11 @@ export default function Profile() {
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Statut</p>
                       <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border ${ORDER_STATUS_STYLES[selectedOrderDetail.status] || 'border-gray-200 bg-gray-50'}`}>
-                        {selectedOrderDetail.status === 'pending' && <Clock size={16} />}
-                        {selectedOrderDetail.status === 'confirmed' && <Package size={16} />}
-                        {selectedOrderDetail.status === 'delivering' && <Truck size={16} />}
-                        {selectedOrderDetail.status === 'delivered' && <CheckCircle size={16} />}
-                        {selectedOrderDetail.status === 'cancelled' && <XCircle size={16} />}
+                        {selectedOrderDetail.status === 'pending' && <ClockIcon className="h-4 w-4" />}
+                        {selectedOrderDetail.status === 'confirmed' && <CubeIcon className="h-4 w-4" />}
+                        {selectedOrderDetail.status === 'delivering' && <TruckIcon className="h-4 w-4" />}
+                        {selectedOrderDetail.status === 'delivered' && <CheckCircleIcon className="h-4 w-4" />}
+                        {selectedOrderDetail.status === 'cancelled' && <XCircleIcon className="h-4 w-4" />}
                         {ORDER_STATUS_LABELS[selectedOrderDetail.status] || 'Inconnu'}
                       </span>
                     </div>
@@ -3809,14 +3782,14 @@ export default function Profile() {
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Adresse de livraison</p>
                       <p className="text-gray-900">{selectedOrderDetail.deliveryAddress}</p>
-                      <p className="flex items-center gap-1 text-sm text-gray-500 mt-1"><MapPin size={14} /> {selectedOrderDetail.deliveryCity}</p>
+                      <p className="flex items-center gap-1 text-sm text-gray-500 mt-1"><MapPinIcon className="h-3.5 w-3.5" /> {selectedOrderDetail.deliveryCity}</p>
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Timeline</p>
                       <div className="space-y-4">
                         <div className="flex gap-3">
                           <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                            <Clock className="w-4 h-4 text-neutral-800" />
+                            <ClockIcon className="w-4 h-4 text-neutral-800" />
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">Créée</p>
@@ -3826,7 +3799,7 @@ export default function Profile() {
                         {selectedOrderDetail.shippedAt && (
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                              <Truck className="w-4 h-4 text-neutral-800" />
+                              <TruckIcon className="w-4 h-4 text-neutral-800" />
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">Expédiée</p>
@@ -3837,7 +3810,7 @@ export default function Profile() {
                         {selectedOrderDetail.deliveredAt && (
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">Livrée</p>
@@ -3848,7 +3821,7 @@ export default function Profile() {
                         {selectedOrderDetail.cancelledAt && (
                           <div className="flex gap-3">
                             <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                              <XCircle className="w-4 h-4 text-red-600" />
+                              <XCircleIcon className="w-4 h-4 text-red-600" />
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">Annulée</p>
@@ -3906,7 +3879,7 @@ export default function Profile() {
                     />
                   ) : (
                     <div className="w-14 h-14 rounded-xl bg-gray-200 flex items-center justify-center flex-shrink-0">
-                      <Store className="w-7 h-7 text-gray-400" />
+                      <BuildingStorefrontIcon className="w-7 h-7 text-gray-400" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
@@ -3944,7 +3917,7 @@ export default function Profile() {
             {/* Logo et bannière — Galerie */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">Logo et bannière</h3>
-              <p className="text-xs text-gray-500 mb-3">Upload avec preview. Gestion dans l’onglet Profil.</p>
+              <p className="text-xs text-gray-500 mb-3">ArrowUpTrayIcon avec preview. Gestion dans l’onglet Profil.</p>
               <div className="flex gap-3">
                 {(shopLogoPreview || user?.shopLogo) ? (
                   <img
@@ -3954,7 +3927,7 @@ export default function Profile() {
                   />
                 ) : (
                   <div className="w-16 h-16 rounded-xl bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
-                    <Camera className="w-6 h-6 text-gray-400" />
+                    <CameraIcon className="w-6 h-6 text-gray-400" />
                   </div>
                 )}
                 {user?.shopVerified && (shopBannerPreview || user?.shopBanner) ? (
@@ -3965,7 +3938,7 @@ export default function Profile() {
                   />
                 ) : user?.shopVerified ? (
                   <div className="h-16 flex-1 max-w-[120px] rounded-xl bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center">
-                    <ImageIcon className="w-6 h-6 text-gray-400" />
+                    <PhotoIcon className="w-6 h-6 text-gray-400" />
                   </div>
                 ) : null}
               </div>
@@ -3981,7 +3954,7 @@ export default function Profile() {
             {/* Horaires d'ouverture */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-500" />
+                <ClockIcon className="w-4 h-4 text-amber-500" />
                 Horaires d’ouverture
               </h3>
               <p className="text-xs text-gray-500 mb-3">Gestion des horaires par jour.</p>
@@ -4040,7 +4013,7 @@ export default function Profile() {
               to={userShopLink || '/profile'}
               className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors"
             >
-              <Store className="w-4 h-4" />
+              <BuildingStorefrontIcon className="w-4 h-4" />
               Voir ma boutique publique
             </Link>
           </div>
@@ -4051,7 +4024,7 @@ export default function Profile() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col gap-3 mb-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-neutral-800">
-                <Bell className="w-4 h-4" />
+                <BellIcon className="w-4 h-4" />
                 Préférences de notifications
               </div>
               <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
@@ -4061,7 +4034,7 @@ export default function Profile() {
               to="/settings/preferences#notifications"
               className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-neutral-900 text-white font-semibold hover:bg-neutral-800 transition-colors"
             >
-              <Bell className="w-4 h-4" />
+              <BellIcon className="w-4 h-4" />
               Gérer les préférences
             </Link>
           </div>
@@ -4078,7 +4051,7 @@ export default function Profile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Lock className="w-4 h-4 text-green-500" />
+                    <LockClosedIcon className="w-4 h-4 text-green-500" />
                     <span>Nouveau mot de passe</span>
                   </label>
                   <div className="relative">
@@ -4091,19 +4064,19 @@ export default function Profile() {
                       disabled={loading}
                       placeholder="Laisser vide pour conserver"
                     />
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                    <Lock className="w-4 h-4 text-green-500" />
+                    <LockClosedIcon className="w-4 h-4 text-green-500" />
                     <span>Confirmer le mot de passe</span>
                   </label>
                   <div className="relative">
@@ -4116,7 +4089,7 @@ export default function Profile() {
                       disabled={loading}
                       placeholder="Confirmez le mot de passe"
                     />
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   </div>
                 </div>
               </div>
@@ -4145,7 +4118,7 @@ export default function Profile() {
                     onChange={(e) => setPasswordCode(e.target.value)}
                     disabled={loading}
                   />
-                  <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <ShieldCheckIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 </div>
                 {passwordCodeError && <p className="text-sm text-red-600">{passwordCodeError}</p>}
                 {passwordCodeMessage && <p className="text-sm text-emerald-600">{passwordCodeMessage}</p>}
@@ -4168,7 +4141,7 @@ export default function Profile() {
                 disabled={loading || !form.password || form.password !== form.confirmPassword || !passwordCode.trim()}
                 className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Lock className="w-4 h-4" />
+                <LockClosedIcon className="w-4 h-4" />
                 Mettre à jour le mot de passe
               </button>
               <AccountDeactivationCard onOpen={() => setDeactivationModalOpen(true)} />
@@ -4294,7 +4267,7 @@ export default function Profile() {
                 ) : null}
                 <div className="pointer-events-none absolute inset-0 border-[3px] border-white/80 shadow-sm" />
                 <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/45 px-2 py-1 text-[11px] font-medium text-white">
-                  <Move className="mr-1 inline h-3 w-3" />
+                  <ArrowsPointingOutIcon className="mr-1 inline h-3 w-3" />
                   Glisser
                 </div>
               </div>
@@ -4320,7 +4293,7 @@ export default function Profile() {
                     }
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                   >
-                    <ZoomOut className="h-4 w-4" />
+                    <MagnifyingGlassMinusIcon className="h-4 w-4" />
                   </button>
                   <input
                     type="range"
@@ -4350,7 +4323,7 @@ export default function Profile() {
                     }
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                   >
-                    <ZoomIn className="h-4 w-4" />
+                    <MagnifyingGlassPlusIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -4391,7 +4364,7 @@ export default function Profile() {
                   }
                   className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
-                  <FlipHorizontal className="h-4 w-4" />
+                  <ArrowsRightLeftIcon className="h-4 w-4" />
                   Miroir
                 </button>
                 <button
@@ -4399,7 +4372,7 @@ export default function Profile() {
                   onClick={() => setProfileImageEditorTransform(getProfileImageEditorDefaultTransform())}
                   className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <ArrowUturnLeftIcon className="h-4 w-4" />
                   Réinitialiser
                 </button>
               </div>
@@ -4461,7 +4434,7 @@ export default function Profile() {
                 disabled={mapPickerLoading}
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
               >
-                <Search className="h-4 w-4" />
+                <MagnifyingGlassIcon className="h-4 w-4" />
                 {mapPickerLoading ? 'Recherche…' : 'Rechercher'}
               </button>
             </form>

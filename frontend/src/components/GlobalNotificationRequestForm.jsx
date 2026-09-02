@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ImagePlus, Loader2, Megaphone, ShieldCheck, Users } from 'lucide-react';
+import { ArrowPathIcon, MegaphoneIcon, PhotoIcon, ShieldCheckIcon, UsersIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import PawaPayButton from './PawaPayButton';
@@ -80,7 +80,7 @@ export default function GlobalNotificationRequestForm({ products = [], defaultCi
   return (
     <div className="hd-form-card rounded-2xl p-3 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
-        <Megaphone className="h-5 w-5 text-[#e85d00]" />
+        <MegaphoneIcon className="h-5 w-5 text-[#e85d00]" />
         <h3 className="text-base font-black text-slate-900 sm:text-lg">Nouvelle notification globale</h3>
       </div>
 
@@ -174,11 +174,11 @@ export default function GlobalNotificationRequestForm({ products = [], defaultCi
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-slate-700"
           >
             {imageUploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <ArrowPathIcon className="h-4 w-4 animate-spin" />
             ) : image ? (
               <img src={image.url} alt="Aperçu" className="h-10 w-10 rounded-lg object-cover" />
             ) : (
-              <ImagePlus className="h-4 w-4" />
+              <PhotoIcon className="h-4 w-4" />
             )}
             {imageUploading ? 'Envoi en cours...' : image ? 'Changer l’image' : 'Choisir une image'}
           </button>
@@ -198,7 +198,7 @@ export default function GlobalNotificationRequestForm({ products = [], defaultCi
             </p>
           )}
           <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-700">
-            <Users className="h-3.5 w-3.5" />
+            <UsersIcon className="h-3.5 w-3.5" />
             {previewLoading
               ? 'Calcul de la portée...'
               : preview
@@ -209,7 +209,7 @@ export default function GlobalNotificationRequestForm({ products = [], defaultCi
 
         <div className="rounded-2xl border border-emerald-500 bg-emerald-50 p-3 text-left text-emerald-800 shadow-sm">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4" />
+            <ShieldCheckIcon className="h-4 w-4" />
             <p className="text-sm font-black">Paiement sécurisé PawaPay</p>
           </div>
           <p className="mt-1 text-xs text-slate-500">Payez avec MTN MoMo ou Airtel Money via PawaPay.</p>

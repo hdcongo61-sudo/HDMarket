@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { Image as ImageIcon, Loader2, Phone, ShieldCheck, Upload, Wallet, X } from 'lucide-react';
+import { ArrowPathIcon, ArrowUpTrayIcon, PhoneIcon, PhotoIcon, ShieldCheckIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -238,9 +238,9 @@ export default function ParcelRequestDetail() {
           }`}
         >
           {parcelRequest.paymentMethod === 'PAWAPAY' ? (
-            <ShieldCheck size={16} className="shrink-0 text-emerald-700" />
+            <ShieldCheckIcon className="shrink-0 text-emerald-700 h-4 w-4" />
           ) : (
-            <Wallet size={16} className="shrink-0 text-amber-700" />
+            <WalletIcon className="shrink-0 text-amber-700 h-4 w-4" />
           )}
           <p
             className={`text-xs font-black ${
@@ -264,7 +264,7 @@ export default function ParcelRequestDetail() {
                 href={`tel:${parcelRequest.assignedDeliveryGuyId.phone}`}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700"
               >
-                <Phone size={15} />
+                <PhoneIcon className="h-[15px] w-[15px]" />
               </a>
             )}
           </div>
@@ -277,7 +277,7 @@ export default function ParcelRequestDetail() {
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <ImageIcon size={16} className="text-[#e85d00]" />
+              <PhotoIcon className="text-[#e85d00] h-4 w-4" />
               <div>
                 <p className="text-sm font-black text-gray-900">Justificatif de retrait</p>
                 <p className="text-[11px] text-gray-500">Visible par le livreur après acceptation.</p>
@@ -285,7 +285,7 @@ export default function ParcelRequestDetail() {
             </div>
             {canReplaceProof && (
               <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full bg-orange-50 px-3 text-xs font-black text-[#e85d00]">
-                {replacingProof ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                {replacingProof ? <ArrowPathIcon className="animate-spin h-[13px] w-[13px]" /> : <ArrowUpTrayIcon className="h-[13px] w-[13px]" />}
                 {replacingProof ? 'Envoi…' : 'Remplacer'}
                 <input
                   type="file"
@@ -314,7 +314,7 @@ export default function ParcelRequestDetail() {
 
         {parcelRequest.deliveryPinCode && parcelRequest.status !== 'DELIVERED' && (
           <div className="flex items-center gap-3 rounded-2xl border border-[#e85d00]/30 bg-[#fff7f0] p-3">
-            <ShieldCheck size={18} className="shrink-0 text-[#e85d00]" />
+            <ShieldCheckIcon className="shrink-0 text-[#e85d00] h-[18px] w-[18px]" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-gray-700">
                 Donnez ce code au livreur uniquement à la livraison, pour confirmer la réception.
@@ -335,7 +335,7 @@ export default function ParcelRequestDetail() {
             disabled={cancelling}
             className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-red-200 text-sm font-bold text-red-600 disabled:opacity-50"
           >
-            <X size={15} /> {cancelling ? 'Annulation…' : 'Annuler la course'}
+            <XMarkIcon className="h-[15px] w-[15px]" /> {cancelling ? 'Annulation…' : 'Annuler la course'}
           </button>
         )}
       </div>

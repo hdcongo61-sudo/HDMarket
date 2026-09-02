@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
@@ -76,7 +76,7 @@ export default function CertifiedProducts() {
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeftIcon className="w-4 h-4" />
           Retour
         </button>
         <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Confiance</p>

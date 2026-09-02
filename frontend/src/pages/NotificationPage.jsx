@@ -1,24 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  AlertCircle,
-  ArrowLeft,
-  Bell,
-  Check,
-  ClipboardList,
-  CreditCard,
-  Gavel,
-  MessageSquare,
-  Package,
-  Search,
-  ShieldAlert,
-  Sparkles,
-  Store,
-  Trash2,
-  Truck,
-  VolumeX
-} from 'lucide-react';
+import { ArrowLeftIcon, BellIcon, BuildingStorefrontIcon, ChatBubbleLeftRightIcon, CheckIcon, ClipboardDocumentListIcon, CreditCardIcon, CubeIcon, ExclamationCircleIcon, MagnifyingGlassIcon, ScaleIcon, ShieldExclamationIcon, SparklesIcon, SpeakerXMarkIcon, TrashIcon, TruckIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import GlassHeader from '../components/orders/GlassHeader';
 import useUserNotifications, { triggerNotificationsRefresh } from '../hooks/useUserNotifications';
@@ -156,37 +139,37 @@ const notificationMeta = (alert, t) => {
   const type = alert?.type || '';
   const explicitTitle = String(alert?.title || alert?.metadata?.title || '').trim();
   if (ORDER_TYPES.has(type) || type.startsWith('order_')) {
-    return { title: explicitTitle || t('notifications.orderUpdate', 'Mise à jour commande'), icon: <Package className="h-4 w-4" />, tone: 'order' };
+    return { title: explicitTitle || t('notifications.orderUpdate', 'Mise à jour commande'), icon: <CubeIcon className="h-4 w-4" />, tone: 'order' };
   }
   if (DELIVERY_TYPES.has(type) || PLATFORM_DELIVERY_TYPES.has(type)) {
-    return { title: explicitTitle || t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <Truck className="h-4 w-4" />, tone: 'delivery' };
+    return { title: explicitTitle || t('notifications.deliveryUpdate', 'Mise à jour livraison'), icon: <TruckIcon className="h-4 w-4" />, tone: 'delivery' };
   }
   if (DISPUTE_TYPES.has(type) || COMPLAINT_TYPES.has(type)) {
-    return { title: explicitTitle || t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <Gavel className="h-4 w-4" />, tone: 'risk' };
+    return { title: explicitTitle || t('notifications.disputeUpdate', 'Mise à jour litige'), icon: <ScaleIcon className="h-4 w-4" />, tone: 'risk' };
   }
-  if (VALIDATION_TYPES.has(type)) return { title: explicitTitle || t('notifications.validationRequired', 'Action requise'), icon: <ShieldAlert className="h-4 w-4" />, tone: 'risk' };
-  if (type === 'payment_pending' || type === 'payment_proof_submitted' || type === 'payment_validated') return { title: explicitTitle || t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCard className="h-4 w-4" />, tone: 'payment' };
-  if (type === 'order_message') return { title: explicitTitle || t('notifications.orderMessage', 'Message commande'), icon: <MessageSquare className="h-4 w-4" />, tone: 'message' };
-  if (type === 'admin_broadcast') return { title: explicitTitle || t('notifications.adminMessage', 'Message admin'), icon: <ShieldAlert className="h-4 w-4" />, tone: 'admin' };
+  if (VALIDATION_TYPES.has(type)) return { title: explicitTitle || t('notifications.validationRequired', 'Action requise'), icon: <ShieldExclamationIcon className="h-4 w-4" />, tone: 'risk' };
+  if (type === 'payment_pending' || type === 'payment_proof_submitted' || type === 'payment_validated') return { title: explicitTitle || t('notifications.paymentPending', 'Paiement en attente'), icon: <CreditCardIcon className="h-4 w-4" />, tone: 'payment' };
+  if (type === 'order_message') return { title: explicitTitle || t('notifications.orderMessage', 'Message commande'), icon: <ChatBubbleLeftRightIcon className="h-4 w-4" />, tone: 'message' };
+  if (type === 'admin_broadcast') return { title: explicitTitle || t('notifications.adminMessage', 'Message admin'), icon: <ShieldExclamationIcon className="h-4 w-4" />, tone: 'admin' };
   if (type === 'product_boosted' || /boost/i.test(String(alert?.message || ''))) {
-    return { title: explicitTitle || t('notifications.boost', 'Boost'), icon: <Sparkles className="h-4 w-4" />, tone: 'boost' };
+    return { title: explicitTitle || t('notifications.boost', 'Boost'), icon: <SparklesIcon className="h-4 w-4" />, tone: 'boost' };
   }
   if (type === 'account_restriction' || type === 'account_restriction_lifted') {
-    return { title: explicitTitle || t('notifications.accountAlert', 'Alerte compte'), icon: <AlertCircle className="h-4 w-4" />, tone: 'risk' };
+    return { title: explicitTitle || t('notifications.accountAlert', 'Alerte compte'), icon: <ExclamationCircleIcon className="h-4 w-4" />, tone: 'risk' };
   }
   if (type === 'shop_follow' || type === 'shop_review') {
-    return { title: explicitTitle || t('notifications.shop', 'Boutique'), icon: <Store className="h-4 w-4" />, tone: 'shop' };
+    return { title: explicitTitle || t('notifications.shop', 'Boutique'), icon: <BuildingStorefrontIcon className="h-4 w-4" />, tone: 'shop' };
   }
   if (type === 'assistant_product_action_request') {
-    return { title: explicitTitle || 'Demande assistant produit', icon: <Package className="h-4 w-4" />, tone: 'shop' };
+    return { title: explicitTitle || 'Demande assistant produit', icon: <CubeIcon className="h-4 w-4" />, tone: 'shop' };
   }
   if (type.startsWith('installment_')) {
-    return { title: explicitTitle || t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardList className="h-4 w-4" />, tone: 'payment' };
+    return { title: explicitTitle || t('notifications.installment', 'Paiement par tranche'), icon: <ClipboardDocumentListIcon className="h-4 w-4" />, tone: 'payment' };
   }
   if (type.startsWith('sponsorship_')) {
-    return { title: explicitTitle || t('notifications.sponsorship', 'Paiement par un proche'), icon: <CreditCard className="h-4 w-4" />, tone: 'payment' };
+    return { title: explicitTitle || t('notifications.sponsorship', 'Paiement par un proche'), icon: <CreditCardIcon className="h-4 w-4" />, tone: 'payment' };
   }
-  return { title: explicitTitle || t('notifications.notification', 'Notification'), icon: <Bell className="h-4 w-4" />, tone: 'system' };
+  return { title: explicitTitle || t('notifications.notification', 'Notification'), icon: <BellIcon className="h-4 w-4" />, tone: 'system' };
 };
 
 const BUYER_SIDE_ORDER_TYPES_FALLBACK = new Set([
@@ -237,7 +220,7 @@ const buildOrderNotificationPath = (alert, user) => {
     return `/admin/orders?orderId=${encodeURIComponent(orderId)}`;
   }
 
-  // Check if user is the customer of this order
+  // CheckIcon if user is the customer of this order
   const userCustomerId = String(user?._id || user?.id || '').trim();
   const orderCustomerId = String(alert?.metadata?.customerId || '').trim();
   const userIsOrderCustomer = Boolean(userCustomerId && orderCustomerId && userCustomerId === orderCustomerId);
@@ -680,7 +663,7 @@ export default function NotificationPage() {
       <div className="hd-commerce-shell min-h-screen px-5 py-16 text-center">
         <div className="mx-auto max-w-sm">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
-            <Bell className="h-7 w-7" />
+            <BellIcon className="h-7 w-7" />
           </div>
           <h1 className="mt-5 text-2xl font-semibold text-neutral-950 dark:text-neutral-100">{t('notifications.title', 'Notifications')}</h1>
           <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
@@ -695,7 +678,7 @@ export default function NotificationPage() {
     <div className="hd-commerce-shell min-h-screen text-neutral-900 dark:text-neutral-100">
       <header className="border-b border-[#f5f2ee] bg-white/95 dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto flex min-h-[60px] max-w-3xl items-center px-2">
-          <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b] dark:text-white" aria-label={t('common.back', 'Retour')}><ArrowLeft className="h-5 w-5" /></button>
+          <button type="button" onClick={() => navigate(-1)} className="inline-flex h-11 w-11 items-center justify-center text-[#231f1b] dark:text-white" aria-label={t('common.back', 'Retour')}><ArrowLeftIcon className="h-5 w-5" /></button>
           <h1 className="min-w-0 flex-1 text-[17px] font-black text-[#231f1b] dark:text-white">{t('notifications.title', 'Notifications')} <span className="text-[#8a8378]">({unreadCount})</span></h1>
           <button
             type="button"
@@ -763,7 +746,7 @@ export default function NotificationPage() {
         {selectionMode && selectedIds.size > 0 && (
           <div className="mt-2 flex items-center justify-between rounded-2xl bg-neutral-950 px-3 py-2 text-white">
             <span className="text-xs font-bold">{selectedIds.size} sélectionnée(s)</span>
-            <button type="button" onClick={handleBulkDelete} className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-xs font-black"><Trash2 className="h-3.5 w-3.5" /> Supprimer</button>
+            <button type="button" onClick={handleBulkDelete} className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-3 py-2 text-xs font-black"><TrashIcon className="h-3.5 w-3.5" /> Supprimer</button>
           </div>
         )}
 
@@ -777,7 +760,7 @@ export default function NotificationPage() {
                 className="flex items-center justify-center py-2"
               >
                 <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-500 shadow-sm dark:text-neutral-300">
-                  <Bell className={`h-3.5 w-3.5 ${refreshing ? 'animate-pulse' : ''}`} />
+                  <BellIcon className={`h-3.5 w-3.5 ${refreshing ? 'animate-pulse' : ''}`} />
                   {refreshing ? t('notifications.refreshing', 'Actualisation…') : t('notifications.pullToRefresh', 'Relâchez pour actualiser')}
                 </div>
               </motion.div>
@@ -896,7 +879,7 @@ export default function NotificationPage() {
             <div className="mt-14 text-center">
               <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
-                  <Bell className="h-6 w-6" />
+                  <BellIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-4 text-base font-medium text-neutral-900 dark:text-neutral-100">
                   {t('notifications.emptyTitle', 'Aucune notification')}

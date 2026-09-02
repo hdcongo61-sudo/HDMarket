@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, RotateCw, Sparkles, Wifi, WifiOff } from 'lucide-react';
+import { ArrowUturnRightIcon, ChevronDownIcon, ChevronUpIcon, SparklesIcon, WifiIcon } from '@heroicons/react/24/outline';
 
 const OFFLINE_MOODS = [
   { emoji: '🛶', title: 'Mode aventure activé' },
@@ -77,9 +77,9 @@ export default function OfflineOverlay() {
           role="status"
           className="flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-xl shadow-emerald-900/20"
         >
-          <Wifi size={17} />
+          <WifiIcon className="h-[17px] w-[17px]" />
           Connexion retrouvée
-          <Sparkles size={16} className="animate-pulse" />
+          <SparklesIcon className="animate-pulse h-4 w-4" />
         </div>
       </div>
     );
@@ -98,7 +98,7 @@ export default function OfflineOverlay() {
           aria-expanded={expanded}
         >
           <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-200 text-amber-900 dark:bg-amber-950 dark:text-amber-300">
-            <WifiOff size={18} />
+            <WifiIcon className="h-[18px] w-[18px]" />
             <span className="absolute -right-1 -top-1 text-base motion-safe:animate-bounce" aria-hidden="true">
               {mood.emoji}
             </span>
@@ -109,7 +109,7 @@ export default function OfflineOverlay() {
               Mode hors ligne · contenu enregistré disponible
             </span>
           </span>
-          {expanded ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+          {expanded ? <ChevronDownIcon className="h-[18px] w-[18px]" /> : <ChevronUpIcon className="h-[18px] w-[18px]" />}
         </button>
 
         {expanded && (
@@ -124,7 +124,7 @@ export default function OfflineOverlay() {
               disabled={checking}
               className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950"
             >
-              <RotateCw size={15} className={checking ? 'animate-spin' : ''} />
+              <ArrowUturnRightIcon className={checking ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
               {checking ? 'Vérification…' : 'Vérifier la connexion'}
             </button>
           </div>

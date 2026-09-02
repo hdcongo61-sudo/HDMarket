@@ -1,4 +1,4 @@
-import { History } from 'lucide-react';
+import { ClockIcon } from '@heroicons/react/24/outline';
 import { resolveAddressNames } from '../utils/addressHistory';
 
 export default function AddressHistoryChips({ items, cities, communes, onPick, label = 'Adresses récentes' }) {
@@ -6,7 +6,7 @@ export default function AddressHistoryChips({ items, cities, communes, onPick, l
   return (
     <div>
       <p className="mb-1.5 flex items-center gap-1 text-[11px] font-bold text-gray-400">
-        <History size={12} className="text-[#FF5000]" /> {label}
+        <ClockIcon className="text-[#FF5000] h-3 w-3" /> {label}
       </p>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {items.map((item, index) => {

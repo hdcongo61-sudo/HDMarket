@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Settings2 } from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 
@@ -95,7 +95,7 @@ export default function GeneralSettingsPanel() {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4">
       <div className="mb-4 flex items-center gap-2">
-        <Settings2 className="h-5 w-5 text-[#e85d00]" />
+        <AdjustmentsHorizontalIcon className="h-5 w-5 text-[#e85d00]" />
         <h2 className="text-base font-black text-slate-950">Paramètres généraux du moteur de prix</h2>
       </div>
 
@@ -170,7 +170,7 @@ export default function GeneralSettingsPanel() {
         disabled={saving}
         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-50"
       >
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        {saving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : null}
         {saving ? 'Enregistrement…' : 'Enregistrer les paramètres'}
       </button>
     </section>

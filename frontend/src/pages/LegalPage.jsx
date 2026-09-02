@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Cookie, FileText, LockKeyhole, RotateCcw, Scale } from 'lucide-react';
+import { ArrowLeftIcon, ArrowUturnLeftIcon, CakeIcon, CheckCircleIcon, DocumentTextIcon, ExclamationTriangleIcon, LockClosedIcon, ScaleIcon } from '@heroicons/react/24/outline';
 import { setPrivacyPreference } from '../services/privacyPreferences';
 import { useAppSettings } from '../context/AppSettingsContext';
 
@@ -19,7 +19,7 @@ const buildDocuments = (operator) => ({
   'conditions-utilisation': {
     title: "Conditions générales d’utilisation",
     summary: 'Règles applicables à l’accès à HDMarket et à l’utilisation des comptes acheteur, vendeur et livreur.',
-    icon: FileText,
+    icon: DocumentTextIcon,
     sections: [
       ['1. Objet et acceptation', `HDMarket est une place de marché numérique opérée par ${operator.name}. En créant un compte ou en utilisant la plateforme, vous acceptez les présentes conditions, la Politique de confidentialité et, lorsque vous achetez ou vendez, les Conditions de vente.`],
       ['2. Rôle de HDMarket', 'HDMarket fournit des outils de publication, recherche, messagerie, commande, paiement suivi et livraison. Sauf indication expresse, le contrat de vente est conclu entre l’acheteur et le vendeur. HDMarket peut modérer, suspendre ou retirer un contenu ou un compte pour protéger les utilisateurs et respecter la loi.'],
@@ -36,7 +36,7 @@ const buildDocuments = (operator) => ({
   'conditions-vente': {
     title: 'Conditions générales de vente de la marketplace',
     summary: 'Cadre des commandes conclues entre acheteurs et vendeurs par l’intermédiaire de HDMarket.',
-    icon: Scale,
+    icon: ScaleIcon,
     sections: [
       ['1. Formation de la commande', 'Avant validation, l’acheteur voit les caractéristiques essentielles, le vendeur, le prix, les frais, le mode de remise ou de livraison et le total. La commande devient ferme selon l’étape de confirmation affichée dans l’application.'],
       ['2. Obligations du vendeur', 'Le vendeur garantit la disponibilité, l’authenticité, la conformité, la sécurité et la description exacte du produit. Il communique les conditions de garantie, prépare la commande et respecte le délai annoncé.'],
@@ -52,7 +52,7 @@ const buildDocuments = (operator) => ({
   confidentialite: {
     title: 'Politique de confidentialité',
     summary: 'Comment HDMarket collecte, utilise, conserve et protège vos données personnelles.',
-    icon: LockKeyhole,
+    icon: LockClosedIcon,
     sections: [
       ['1. Responsable du traitement', `${operator.name}, établi à Brazzaville, République du Congo, est responsable des traitements décrits ici. Contact données personnelles : ${operator.email}.`],
       ['2. Données traitées', 'Identité et coordonnées, compte et authentification, profil vendeur, annonces et images, commandes, paiements et preuves, messages et réclamations, livraison et localisation lorsque vous l’autorisez, appareil, journaux de sécurité, préférences et utilisation du service.'],
@@ -69,7 +69,7 @@ const buildDocuments = (operator) => ({
   'mentions-legales': {
     title: 'Mentions légales',
     summary: 'Identification de l’éditeur, contacts et responsabilités de publication.',
-    icon: Scale,
+    icon: ScaleIcon,
     legalNotice: true,
     sections: [
       ['Éditeur', `${operator.name} — siège ou établissement : ${operator.address || 'À compléter avant lancement'} — RCCM : ${operator.rccm || 'À compléter'} — NIU : ${operator.niu || 'À compléter'}.`],
@@ -83,7 +83,7 @@ const buildDocuments = (operator) => ({
   'retours-remboursements': {
     title: 'Retours, rétractation et remboursements',
     summary: 'Procédure commune pour annuler, retourner un produit non conforme ou demander un remboursement.',
-    icon: RotateCcw,
+    icon: ArrowUturnLeftIcon,
     sections: [
       ['1. Annulation avant remise', 'Utilisez le bouton d’annulation lorsqu’il est disponible. Après préparation, expédition ou remise, une annulation peut nécessiter l’accord du vendeur ou le traitement d’une réclamation.'],
       ['2. Rétractation à distance', 'Lorsque le droit congolais de la consommation l’impose, le consommateur dispose du délai légal applicable pour se rétracter. Des exceptions peuvent concerner notamment les biens personnalisés, périssables, descellés pour des raisons d’hygiène, logiciels descellés et services pleinement exécutés avec accord préalable.'],
@@ -96,7 +96,7 @@ const buildDocuments = (operator) => ({
   cookies: {
     title: 'Cookies et technologies locales',
     summary: 'Choisissez si les mesures d’audience facultatives peuvent être utilisées sur votre appareil.',
-    icon: Cookie,
+    icon: CakeIcon,
     cookieControls: true,
     sections: [
       ['Technologies essentielles', 'HDMarket utilise le stockage local et des identifiants techniques nécessaires à la connexion, la sécurité, le panier, les préférences, le cache hors ligne et la synchronisation. Ils ne peuvent pas être désactivés depuis ce panneau sans empêcher certaines fonctions.'],
@@ -130,19 +130,19 @@ export default function LegalPage({ type }) {
   return (
     <div className="min-h-screen bg-[#f7f5f1] px-4 py-6 text-neutral-950 sm:py-10">
       <div className="mx-auto max-w-5xl">
-        <Link to="/" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-neutral-700"><ArrowLeft className="h-4 w-4" />Retour à HDMarket</Link>
+        <Link to="/" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-neutral-700"><ArrowLeftIcon className="h-4 w-4" />Retour à HDMarket</Link>
         <header className="mt-4 rounded-2xl border border-neutral-200 bg-white p-5 sm:p-8">
           <div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#e85d00]"><Icon className="h-6 w-6" /></span><div><p className="text-xs font-black uppercase tracking-[0.14em] text-[#e85d00]">Informations légales</p><h1 className="mt-1 text-2xl font-black sm:text-4xl">{document.title}</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600">{document.summary}</p><p className="mt-3 text-xs font-semibold text-neutral-500">Version {VERSION} · Dernière mise à jour : 18 juillet 2026</p></div></div>
         </header>
 
-        {missingLegalIdentity ? <div className="mt-4 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Action obligatoire avant lancement :</strong> renseignez l’adresse, le RCCM, le NIU, le directeur de publication et l’hébergeur dans Admin → Paramètres de l’application → Informations.</p></div> : null}
+        {missingLegalIdentity ? <div className="mt-4 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Action obligatoire avant lancement :</strong> renseignez l’adresse, le RCCM, le NIU, le directeur de publication et l’hébergeur dans Admin → Paramètres de l’application → Informations.</p></div> : null}
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[220px_1fr]">
           <nav className="h-fit rounded-xl border border-neutral-200 bg-white p-3 lg:sticky lg:top-28" aria-label="Documents légaux">
             {Object.entries(documents).map(([route, item]) => <Link key={route} to={`/${route}`} className={`block rounded-lg px-3 py-2.5 text-sm font-bold ${route === key ? 'bg-orange-50 text-[#c2410c]' : 'text-neutral-600 hover:bg-neutral-50'}`}>{item.title}</Link>)}
           </nav>
           <article className="rounded-2xl border border-neutral-200 bg-white p-5 sm:p-8">
-            <div className="space-y-7">{document.sections.map(([title, body]) => <section key={title}><h2 className="flex items-center gap-2 text-lg font-black"><CheckCircle2 className="h-5 w-5 text-[#e85d00]" />{title}</h2><p className="mt-2 text-sm leading-7 text-neutral-700">{body}</p></section>)}</div>
+            <div className="space-y-7">{document.sections.map(([title, body]) => <section key={title}><h2 className="flex items-center gap-2 text-lg font-black"><CheckCircleIcon className="h-5 w-5 text-[#e85d00]" />{title}</h2><p className="mt-2 text-sm leading-7 text-neutral-700">{body}</p></section>)}</div>
             {document.cookieControls ? <div className="mt-8 border-t border-neutral-200 pt-6"><h2 className="text-lg font-black">Gérer mon choix</h2><div className="mt-3 flex flex-col gap-2 sm:flex-row"><button type="button" onClick={() => setPrivacyPreference('essential')} className="min-h-11 rounded-xl border border-neutral-300 px-4 text-sm font-black">Refuser la mesure facultative</button><button type="button" onClick={() => setPrivacyPreference('analytics')} className="min-h-11 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white">Autoriser la mesure d’audience</button></div></div> : null}
             <div className="mt-8 rounded-xl bg-neutral-50 p-4 text-xs leading-6 text-neutral-600"><strong>Important :</strong> ces documents constituent une base opérationnelle et ne remplacent pas une validation par un juriste qualifié en République du Congo.</div>
           </article>

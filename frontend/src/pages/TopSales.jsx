@@ -4,7 +4,7 @@ import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
-import { TrendingUp, Award, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { ArrowLeftIcon, ArrowTrendingUpIcon, ShoppingCartIcon, TrophyIcon } from '@heroicons/react/24/outline';
 
 const PAGE_LIMIT = 12;
 const CACHE_KEY = 'top:sales';
@@ -119,12 +119,12 @@ export default function TopSales() {
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeftIcon className="w-4 h-4" />
             Retour
           </button>
           <div className="flex items-center gap-3 sm:gap-4 mb-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-orange-500 rounded-2xl flex items-center justify-center shadow-sm">
-              <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              <ArrowTrendingUpIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>
               <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-white">
@@ -142,7 +142,7 @@ export default function TopSales() {
         ) : error ? (
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 sm:p-6 text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Award className="w-6 h-6 text-red-600" />
+              <TrophyIcon className="w-6 h-6 text-red-600" />
             </div>
             <p className="text-sm sm:text-base text-red-700 font-semibold">{error}</p>
           </div>
@@ -171,7 +171,7 @@ export default function TopSales() {
         ) : (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShoppingCart className="w-8 h-8 text-gray-400" />
+              <ShoppingCartIcon className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun produit vendu</h3>
             <p className="text-gray-600 text-sm">

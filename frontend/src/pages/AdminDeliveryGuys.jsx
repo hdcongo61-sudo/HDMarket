@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
-import { Plus, Save, Edit3, Trash2, Phone, Truck, Search, Users, UserPlus, UserMinus, AlertCircle, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react';
+import { ArrowPathIcon, ArrowTopRightOnSquareIcon, CheckCircleIcon, CheckIcon, ExclamationCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, PhoneIcon, PlusIcon, TrashIcon, TruckIcon, UserMinusIcon, UserPlusIcon, UsersIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { resolveDeliveryGuyProfileImage } from '../utils/deliveryGuyAvatar';
@@ -277,7 +277,7 @@ export default function AdminDeliveryGuys() {
       const users = Array.isArray(data) ? data.filter((u) => u.role !== 'admin' && u.role !== 'founder') : [];
       setFoundUsers(users);
     } catch (err) {
-      console.error('Search users error:', err);
+      console.error('MagnifyingGlassIcon users error:', err);
       setFoundUsers([]);
     } finally {
       setSearchingUsers(false);
@@ -308,7 +308,7 @@ export default function AdminDeliveryGuys() {
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center text-neutral-600">
-          <Truck size={22} />
+          <TruckIcon className="h-[22px] w-[22px]" />
         </div>
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Gestion des livreurs</h1>
@@ -362,7 +362,7 @@ export default function AdminDeliveryGuys() {
 
         {applicationsLoading ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Chargement des candidatures…
+            <ArrowPathIcon className="h-4 w-4 animate-spin" /> Chargement des candidatures…
           </p>
         ) : applications.length === 0 ? (
           <p className="mt-4 rounded-xl bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
@@ -439,7 +439,7 @@ export default function AdminDeliveryGuys() {
                         rel="noreferrer"
                         className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-700 hover:border-orange-300 hover:text-orange-700"
                       >
-                        {label}<ExternalLink className="h-3.5 w-3.5" />
+                        {label}<ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
                       </a>
                     ))}
                   </div>
@@ -467,7 +467,7 @@ export default function AdminDeliveryGuys() {
                       onClick={() => reviewApplication(applicationId, 'approve')}
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white disabled:opacity-60"
                     >
-                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                      {busy ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
                       Approuver et activer
                     </button>
                     <button
@@ -476,7 +476,7 @@ export default function AdminDeliveryGuys() {
                       onClick={() => reviewApplication(applicationId, 'reject')}
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 disabled:opacity-60"
                     >
-                      <XCircle className="h-4 w-4" /> Refuser
+                      <XCircleIcon className="h-4 w-4" /> Refuser
                     </button>
                   </div>
                 </article>
@@ -490,7 +490,7 @@ export default function AdminDeliveryGuys() {
         <section className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-              <Users size={18} />
+              <UsersIcon className="h-[18px] w-[18px]" />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
@@ -504,7 +504,7 @@ export default function AdminDeliveryGuys() {
 
           {managerMessage && (
             <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              <AlertCircle size={16} />
+              <ExclamationCircleIcon className="h-4 w-4" />
               {managerMessage}
             </div>
           )}
@@ -524,7 +524,7 @@ export default function AdminDeliveryGuys() {
               disabled={searchingUsers || !userSearchQuery.trim()}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
             >
-              <Search size={14} />
+              <MagnifyingGlassIcon className="h-3.5 w-3.5" />
               Rechercher
             </button>
           </div>
@@ -557,11 +557,11 @@ export default function AdminDeliveryGuys() {
                       }`}
                     >
                       {isBusy ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
                       ) : isManagerUser ? (
-                        <UserMinus size={14} />
+                        <UserMinusIcon className="h-3.5 w-3.5" />
                       ) : (
-                        <UserPlus size={14} />
+                        <UserPlusIcon className="h-3.5 w-3.5" />
                       )}
                       {isBusy ? 'Traitement...' : isManagerUser ? 'Retirer' : 'Ajouter'}
                     </button>
@@ -599,9 +599,9 @@ export default function AdminDeliveryGuys() {
                       className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-70"
                     >
                       {managerBusyId === String(manager.id || manager._id) ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
                       ) : (
-                        <UserMinus size={14} />
+                        <UserMinusIcon className="h-3.5 w-3.5" />
                       )}
                       {managerBusyId === String(manager.id || manager._id) ? 'Traitement...' : 'Retirer'}
                     </button>
@@ -631,7 +631,7 @@ export default function AdminDeliveryGuys() {
           <div>
             <label className="text-xs font-semibold uppercase text-gray-500">Téléphone</label>
             <div className="mt-1 flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-neutral-500">
-              <Phone size={14} className="text-gray-400" />
+              <PhoneIcon className="text-gray-400 h-3.5 w-3.5" />
               <input
                 type="text"
                 value={formState.phone}
@@ -666,7 +666,7 @@ export default function AdminDeliveryGuys() {
               disabled={saving || !formState.name.trim()}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
             >
-              {editingId ? <Save size={16} /> : <Plus size={16} />}
+              {editingId ? <CheckIcon className="h-4 w-4" /> : <PlusIcon className="h-4 w-4" />}
               {editingId ? 'Mettre à jour' : 'Ajouter'}
             </button>
           </div>
@@ -774,7 +774,7 @@ export default function AdminDeliveryGuys() {
               ))}
             </select>
             <div className="relative w-full sm:w-56">
-              <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden />
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-[18px] w-[18px]" aria-hidden />
               <input
                 type="search"
                 value={searchDraft}
@@ -850,7 +850,7 @@ export default function AdminDeliveryGuys() {
                     onClick={() => handleEdit(deliveryGuy)}
                     className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                   >
-                    <Edit3 size={14} />
+                    <PencilSquareIcon className="h-3.5 w-3.5" />
                     Modifier
                   </button>
                   <button
@@ -858,7 +858,7 @@ export default function AdminDeliveryGuys() {
                     onClick={() => handleDelete(deliveryGuy._id)}
                     className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
                   >
-                    <Trash2 size={14} />
+                    <TrashIcon className="h-3.5 w-3.5" />
                     Supprimer
                   </button>
                 </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { MapPin, AlertCircle } from 'lucide-react';
+import { ExclamationCircleIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../context/AppSettingsContext';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from './modals/BaseModal';
 
@@ -58,14 +58,14 @@ export default function EditAddressModal({ isOpen, onClose, order, onSave }) {
       <ModalHeader
         titleId={titleId}
         title="Modifier l'adresse de livraison"
-        icon={<MapPin className="w-5 h-5" />}
+        icon={<MapPinIcon className="w-5 h-5" />}
         onClose={onClose}
       />
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <ModalBody className="space-y-4">
           {!canEdit && (
             <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <ExclamationCircleIcon className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-red-800 dark:text-red-300">
                   Modification impossible

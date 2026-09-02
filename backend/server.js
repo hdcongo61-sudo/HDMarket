@@ -293,7 +293,8 @@ const corsOptions = {
     'x-config-environment',
     'Idempotency-Key',
     'idempotency-key',
-    'x-idempotency-key'
+    'x-idempotency-key',
+    'x-upload-offset'
   ],
   optionsSuccessStatus: 200
 };

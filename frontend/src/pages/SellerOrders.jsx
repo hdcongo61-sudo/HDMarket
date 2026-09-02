@@ -1,35 +1,7 @@
 import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  ClipboardList,
-  Package,
-  Truck,
-  CheckCircle,
-  MapPin,
-  Clock,
-  User,
-  X,
-  AlertCircle,
-  ArrowLeft,
-  TrendingUp,
-  DollarSign,
-  Phone,
-  Mail,
-  Calendar,
-  Store,
-  Sparkles,
-  Info,
-  CreditCard,
-  Receipt,
-  ShieldCheck,
-  MessageCircle,
-  Ellipsis,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  RefreshCw
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ArrowTrendingUpIcon, BuildingStorefrontIcon, CalendarIcon, ChatBubbleLeftIcon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ClipboardDocumentListIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, EllipsisHorizontalIcon, EnvelopeIcon, ExclamationCircleIcon, InformationCircleIcon, MapPinIcon, PhoneIcon, ReceiptPercentIcon, ShieldCheckIcon, SparklesIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import useIsMobile from '../hooks/useIsMobile';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -113,23 +85,23 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
-  pending_payment: Clock,
-  paid: CreditCard,
-  ready_for_pickup: Package,
-  picked_up_confirmed: CheckCircle,
-  ready_for_delivery: Package,
-  out_for_delivery: Truck,
-  delivery_proof_submitted: ClipboardList,
-  confirmed_by_client: CheckCircle,
-  pending: Clock,
-  pending_installment: Clock,
-  installment_active: CreditCard,
-  overdue_installment: AlertCircle,
-  confirmed: Package,
-  delivering: Truck,
-  delivered: CheckCircle,
-  completed: CheckCircle,
-  cancelled: X
+  pending_payment: ClockIcon,
+  paid: CreditCardIcon,
+  ready_for_pickup: CubeIcon,
+  picked_up_confirmed: CheckCircleIcon,
+  ready_for_delivery: CubeIcon,
+  out_for_delivery: TruckIcon,
+  delivery_proof_submitted: ClipboardDocumentListIcon,
+  confirmed_by_client: CheckCircleIcon,
+  pending: ClockIcon,
+  pending_installment: ClockIcon,
+  installment_active: CreditCardIcon,
+  overdue_installment: ExclamationCircleIcon,
+  confirmed: CubeIcon,
+  delivering: TruckIcon,
+  delivered: CheckCircleIcon,
+  completed: CheckCircleIcon,
+  cancelled: XMarkIcon
 };
 
 const INSTALLMENT_SALE_STATUS_LABELS = {
@@ -140,23 +112,23 @@ const INSTALLMENT_SALE_STATUS_LABELS = {
 };
 
 const SELLER_TAB_ICONS = {
-  all: ClipboardList,
-  new: Sparkles,
-  prepare: Package,
-  handoff: Truck,
-  pickup: Store,
-  proof: ShieldCheck,
-  payment: CreditCard,
-  installments: Receipt,
-  late: AlertCircle,
-  completed: CheckCircle,
-  cancelled: X,
-  problems: AlertCircle
+  all: ClipboardDocumentListIcon,
+  new: SparklesIcon,
+  prepare: CubeIcon,
+  handoff: TruckIcon,
+  pickup: BuildingStorefrontIcon,
+  proof: ShieldCheckIcon,
+  payment: CreditCardIcon,
+  installments: ReceiptPercentIcon,
+  late: ExclamationCircleIcon,
+  completed: CheckCircleIcon,
+  cancelled: XMarkIcon,
+  problems: ExclamationCircleIcon
 };
 
 const STATUS_TABS = ORDER_FILTER_GROUPS.seller.map((tab) => ({
   ...tab,
-  icon: SELLER_TAB_ICONS[tab.key] || ClipboardList
+  icon: SELLER_TAB_ICONS[tab.key] || ClipboardDocumentListIcon
 }));
 
 const PAGE_SIZE = 6;
@@ -211,49 +183,49 @@ const ORDER_FLOW = [
     id: 'pending',
     label: 'Commande en attente',
     description: 'La commande est enregistrée et en attente de confirmation.',
-    icon: Clock,
+    icon: ClockIcon,
     color: 'gray'
   },
   {
     id: 'confirmed',
     label: 'Commande confirmée',
     description: 'La commande est confirmée et prête pour la préparation.',
-    icon: Package,
+    icon: CubeIcon,
     color: 'amber'
   },
   {
     id: 'ready_for_delivery',
     label: 'Prête à livrer',
     description: 'La commande est prête. Le vendeur peut démarrer la livraison.',
-    icon: Package,
+    icon: CubeIcon,
     color: 'amber'
   },
   {
     id: 'delivering',
     label: 'En cours de livraison',
     description: 'Le colis est pris en charge par le livreur.',
-    icon: Truck,
+    icon: TruckIcon,
     color: 'blue'
   },
   {
     id: 'delivery_proof_submitted',
     label: 'Preuve soumise',
     description: 'Preuve de livraison envoyée au client.',
-    icon: ClipboardList,
+    icon: ClipboardDocumentListIcon,
     color: 'indigo'
   },
   {
     id: 'completed',
     label: 'Commande terminée',
     description: 'La commande est livrée et clôturée avec succès.',
-    icon: CheckCircle,
+    icon: CheckCircleIcon,
     color: 'emerald'
   },
   {
     id: 'cancelled',
     label: 'Commande annulée',
     description: 'Cette commande a été annulée et ne sera pas livrée.',
-    icon: X,
+    icon: XMarkIcon,
     color: 'red'
   }
 ];
@@ -432,7 +404,7 @@ const OrderProgress = ({ status }) => {
     <div className="bg-white rounded-2xl border border-gray-100 p-4">
       <div className="flex items-center gap-2 mb-4">
         <div className="p-2 rounded-lg bg-neutral-900">
-          <TrendingUp className="w-4 h-4 text-white" />
+          <ArrowTrendingUpIcon className="w-4 h-4 text-white" />
         </div>
         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{t('orders.tracking', 'Suivi de commande')}</h3>
       </div>
@@ -581,7 +553,7 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
           </div>
         ) : (
           <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100">
-            <Package className="h-5 w-5 text-[#e85d00]" />
+            <CubeIcon className="h-5 w-5 text-[#e85d00]" />
           </div>
         )}
         <div className="min-w-0 flex-1">
@@ -613,19 +585,19 @@ const SellerOrderSummaryCard = ({ order, assistantShop, index = 0, unreadCount =
           <div className="flex items-center gap-3 rounded-xl bg-[#faf8f5] p-2.5">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fff0e4] text-sm font-black text-[#e85d00]">{String(customerName).charAt(0).toUpperCase()}</span>
             <span className="min-w-0 flex-1"><strong className="block truncate text-[13px] text-[#231f1b]">{customerName}</strong><span className="block truncate text-[11px] text-[#8a8378]">{order.customer?.address || order.deliveryAddress?.address || order.deliveryAddress?.street || t('orders.customerAddress', 'Adresse client')}</span></span>
-            {order.customer?.phone ? <a href={`tel:${order.customer.phone}`} onClick={(event) => event.stopPropagation()} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('orders.callCustomer', 'Appeler le client')}><Phone className="h-4 w-4" /></a> : null}
-            <Link to={`/orders/messages?orderId=${order._id}`} className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('orders.messageCustomer', 'Écrire au client')}><MessageCircle className="h-4 w-4" />{unreadCount > 0 ? <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e85d00] px-1 text-[9px] font-black text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</Link>
+            {order.customer?.phone ? <a href={`tel:${order.customer.phone}`} onClick={(event) => event.stopPropagation()} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('orders.callCustomer', 'Appeler le client')}><PhoneIcon className="h-4 w-4" /></a> : null}
+            <Link to={`/orders/messages?orderId=${order._id}`} className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] text-[#44403a]" aria-label={t('orders.messageCustomer', 'Écrire au client')}><ChatBubbleLeftIcon className="h-4 w-4" />{unreadCount > 0 ? <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#e85d00] px-1 text-[9px] font-black text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</Link>
           </div>
           {order.deliveryCode ? (
             <button type="button" onClick={() => setDeliveryCodeVisible((value) => !value)} className="flex min-h-11 w-full items-center justify-between rounded-xl border border-dashed border-[#d8d2c9] px-3 text-left">
-              <span className="inline-flex items-center gap-2 text-xs font-bold text-[#44403a]"><ShieldCheck className="h-4 w-4 text-[#8a8378]" />{t('orders.deliveryCode', 'Code de livraison')}</span>
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-[#44403a]"><ShieldCheckIcon className="h-4 w-4 text-[#8a8378]" />{t('orders.deliveryCode', 'Code de livraison')}</span>
               <span className="inline-flex items-center gap-2 text-xs font-black text-[#e85d00]"><span className="font-mono text-sm tracking-[0.15em] text-[#a49c8f]">{deliveryCodeVisible ? order.deliveryCode : '••••'}</span>{deliveryCodeVisible ? t('common.hide', 'Masquer') : t('common.show', 'Afficher')}</span>
             </button>
           ) : null}
           <OrderMiniRail label={uiState.nextStep} progress={uiState.progress} urgent={uiState.isUrgent} stops={isInstallmentOrder ? 4 : 5} className="rounded-2xl bg-[#faf7f3] px-3 py-2.5" />
           <div className="flex gap-2">
             <Link to={`/seller/orders/detail/${order._id}`} className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-neutral-950 px-4 text-sm font-black text-white">{uiState.primaryAction.label}</Link>
-            <button type="button" onClick={() => setExpanded(false)} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#e2dcd2] text-[#44403a]" aria-label={t('common.close', 'Fermer')}><ChevronUp className="h-5 w-5" /></button>
+            <button type="button" onClick={() => setExpanded(false)} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#e2dcd2] text-[#44403a]" aria-label={t('common.close', 'Fermer')}><ChevronUpIcon className="h-5 w-5" /></button>
           </div>
           <Link to={`/seller/orders/detail/${order._id}?action=cancel`} className="block min-h-11 text-center text-xs font-bold leading-[44px] text-[#b91c1c]">{t('orders.cancelOrder', 'Annuler la commande')}</Link>
         </div>
@@ -686,13 +658,13 @@ const SellerMobileOrderCard = ({
 
   // Timeline steps with timestamps
   const timelineSteps = [
-    { id: 'pending', label: 'Passée', icon: ClipboardList, time: order.createdAt },
-    { id: 'confirmed', label: 'Confirmée', icon: Package, time: order.confirmedAt },
-    { id: 'ready_for_delivery', label: 'Prête à livrer', icon: Package, time: order.readyForPickupAt },
+    { id: 'pending', label: 'Passée', icon: ClipboardDocumentListIcon, time: order.createdAt },
+    { id: 'confirmed', label: 'Confirmée', icon: CubeIcon, time: order.confirmedAt },
+    { id: 'ready_for_delivery', label: 'Prête à livrer', icon: CubeIcon, time: order.readyForPickupAt },
     {
       id: 'delivering',
       label: isPickupOrder ? 'Prête au retrait' : 'Expédiée',
-      icon: isPickupOrder ? Store : Truck,
+      icon: isPickupOrder ? BuildingStorefrontIcon : TruckIcon,
       time: isPickupOrder
         ? order.readyForPickupAt || order.shippedAt || order.updatedAt
         : order.outForDeliveryAt || order.shippedAt
@@ -700,7 +672,7 @@ const SellerMobileOrderCard = ({
     {
       id: 'delivered',
       label: isPickupOrder ? 'Retirée' : 'Livrée',
-      icon: CheckCircle,
+      icon: CheckCircleIcon,
       time: order.completedAt || order.clientDeliveryConfirmedAt || order.deliveredAt
     }
   ];
@@ -764,7 +736,7 @@ const SellerMobileOrderCard = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             {isCancelled ? (
-              <X className={`w-5 h-5 ${colors.text}`} />
+              <XMarkIcon className={`w-5 h-5 ${colors.text}`} />
             ) : (
               <div className={`w-2 h-2 rounded-full ${colors.bg} animate-pulse`} />
             )}
@@ -788,7 +760,7 @@ const SellerMobileOrderCard = ({
                   </div>
                 )}
               </div>
-              <Truck className="h-3.5 w-3.5" />
+              <TruckIcon className="h-3.5 w-3.5" />
               <span>{order.deliveryGuy.name}</span>
             </div>
           )}
@@ -819,27 +791,27 @@ const SellerMobileOrderCard = ({
                 {order.deliveryCode}
               </p>
             </div>
-            <ShieldCheck className="w-10 h-10 text-neutral-500" />
+            <ShieldCheckIcon className="w-10 h-10 text-neutral-500" />
           </div>
         </div>
       )}
 
-      {/* Customer Info */}
+      {/* Customer InformationCircleIcon */}
       <div className="mx-4 mt-3 p-4 rounded-2xl bg-gray-50">
         <div className="flex items-center gap-2 mb-2">
-          <User className="w-4 h-4 text-gray-500" />
+          <UserIcon className="w-4 h-4 text-gray-500" />
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.customer', 'Client')}</span>
         </div>
         <p className="text-sm font-semibold text-gray-900">{order.customer?.name || t('orders.customer', 'Client')}</p>
         {order.customer?.phone && (
           <a href={`tel:${order.customer.phone}`} className="flex items-center gap-1 text-xs text-neutral-800 mt-1">
-            <Phone className="w-3 h-3" />
+            <PhoneIcon className="w-3 h-3" />
             <span>{order.customer.phone}</span>
           </a>
         )}
         <div className="mt-2 pt-2 border-t border-gray-200">
           <div className="flex items-center gap-1 text-xs text-gray-500">
-            <MapPin className="w-3 h-3" />
+            <MapPinIcon className="w-3 h-3" />
             <span>{isPickupOrder ? (pickupShopAddress?.addressLine || 'Adresse boutique non renseignée') : (order.deliveryAddress || 'Adresse non renseignée')}</span>
           </div>
           <p className="text-xs text-gray-400 ml-4">{isPickupOrder ? (pickupShopAddress?.cityLine || '') : (order.deliveryCity || '')}</p>
@@ -850,7 +822,7 @@ const SellerMobileOrderCard = ({
       {!isCancelled && (
         <div className="px-4 py-4">
           <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-4 h-4 text-gray-400" />
+            <ClockIcon className="w-4 h-4 text-gray-400" />
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.tracking', 'Suivi')}</span>
           </div>
           <AnimatedOrderTimeline
@@ -867,7 +839,7 @@ const SellerMobileOrderCard = ({
         <div className="mx-4 my-4 p-4 rounded-2xl bg-red-50 border border-red-200">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-full bg-red-100">
-              <AlertCircle className="w-5 h-5 text-red-600" />
+              <ExclamationCircleIcon className="w-5 h-5 text-red-600" />
             </div>
             <div>
               <p className="font-semibold text-red-800">{t('orders.cancelledOrder', 'Commande annulée')}</p>
@@ -903,10 +875,10 @@ const SellerMobileOrderCard = ({
         <details className="group">
           <summary className="flex items-center justify-between cursor-pointer list-none py-3 px-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-3">
-              <Package className="w-4 h-4 text-gray-500" />
+              <CubeIcon className="w-4 h-4 text-gray-500" />
               <span className="text-sm font-semibold text-gray-700">{t('orders.articles', 'Articles')} ({itemCount})</span>
             </div>
-            <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
+            <ChevronDownIcon className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
           </summary>
           <div className="mt-3 space-y-2">
             {orderItems.slice(0, 3).map((item, index) => (
@@ -919,7 +891,7 @@ const SellerMobileOrderCard = ({
                   />
                 ) : (
                   <div className="w-12 h-12 rounded-lg bg-neutral-100 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-neutral-700" />
+                    <CubeIcon className="w-5 h-5 text-neutral-700" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -970,7 +942,7 @@ const SellerMobileOrderCard = ({
       {canUpdateStatus && (
         <div className="px-4 pb-4">
           <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck className="w-4 h-4 text-gray-400" />
+            <ShieldCheckIcon className="w-4 h-4 text-gray-400" />
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('orders.actions', 'Actions')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -986,7 +958,7 @@ const SellerMobileOrderCard = ({
                   }
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  <Truck className="w-4 h-4" />
+                  <TruckIcon className="w-4 h-4" />
                   En livraison
                 </button>
                 <button
@@ -999,7 +971,7 @@ const SellerMobileOrderCard = ({
                   }
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircleIcon className="w-4 h-4" />
                   {t('orders.delivered', 'Livrée')}
                 </button>
               </>
@@ -1011,7 +983,7 @@ const SellerMobileOrderCard = ({
                   disabled={!['pending', 'pending_payment', 'paid'].includes(String(order.status || '').toLowerCase()) || statusUpdatingId === order._id}
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  <Package className="w-4 h-4" />
+                  <CubeIcon className="w-4 h-4" />
                   {t('orders.confirm', 'Confirmer')}
                 </button>
                 <button
@@ -1036,7 +1008,7 @@ const SellerMobileOrderCard = ({
                   }
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-neutral-900 text-white font-semibold text-sm hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  {isPickupOrder ? <Package className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
+                  {isPickupOrder ? <CubeIcon className="w-4 h-4" /> : <TruckIcon className="w-4 h-4" />}
                   {isPickupOrder
                     ? 'Prête au retrait'
                     : order.status === 'confirmed'
@@ -1049,7 +1021,7 @@ const SellerMobileOrderCard = ({
                   to={`/seller/order/detail/${order._id}`}
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#e85d00] text-white font-semibold text-sm hover:bg-[#e55f00] transition-all"
                 >
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircleIcon className="w-4 h-4" />
                   {t('orders.deliveryProof', 'Preuve livraison')}
                 </Link>
               </>
@@ -1060,7 +1032,7 @@ const SellerMobileOrderCard = ({
               disabled={statusUpdatingId === order._id}
               className="flex items-center justify-center gap-2 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              <X className="w-4 h-4" />
+              <XMarkIcon className="w-4 h-4" />
               {t('common.cancel', 'Annuler')}
             </button>
           </div>
@@ -1772,25 +1744,25 @@ export default function SellerOrders() {
       label: t('orders.totalOrders', 'Commandes'),
       value: statsLoading ? '...' : stats.total,
       help: activeTabLabel,
-      icon: ClipboardList
+      icon: ClipboardDocumentListIcon
     },
     {
       label: t('orders.newOrders', 'Nouvelles'),
       value: statsLoading ? '...' : stats.byGroup.new || 0,
       help: t('orders.toProcessNow', 'À traiter'),
-      icon: Sparkles
+      icon: SparklesIcon
     },
     {
       label: t('orders.prepare', 'À préparer'),
       value: statsLoading ? '...' : stats.byGroup.prepare || 0,
       help: t('orders.sellerPreparation', 'Préparation'),
-      icon: Package
+      icon: CubeIcon
     },
     {
       label: t('orders.problems', 'Problèmes'),
       value: statsLoading ? '...' : stats.byGroup.problems || 0,
       help: t('orders.needsAttention', 'À surveiller'),
-      icon: AlertCircle
+      icon: ExclamationCircleIcon
     }
   ];
   const sellerActions = [
@@ -1801,14 +1773,14 @@ export default function SellerOrders() {
         setActiveStatus('installments');
         setPage(1);
       },
-      icon: CreditCard,
+      icon: CreditCardIcon,
       tone: 'soft'
     },
     {
       label: t('orders.stats', 'Stats'),
       description: t('orders.sellerStatsHelp', 'Performance vendeur'),
       to: '/stats',
-      icon: TrendingUp,
+      icon: ArrowTrendingUpIcon,
       tone: 'dark'
     },
     ...(user?.role === 'admin' || user?.role === 'founder' || user?.role === 'manager'
@@ -1817,7 +1789,7 @@ export default function SellerOrders() {
             label: t('orders.allAdminOrders', 'Commandes admin'),
             description: t('orders.adminOrdersHelp', 'Vue opérationnelle globale'),
             to: '/admin/orders',
-            icon: ShieldCheck,
+            icon: ShieldCheckIcon,
             tone: 'light'
           }
         ]
@@ -1845,7 +1817,7 @@ export default function SellerOrders() {
     <div className="hd-order-flow min-h-screen bg-[#f6f3ee] dark:bg-neutral-950" {...bind}>
       {(pullDistance > 0 || refreshing) && (
         <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-center gap-2 bg-neutral-900 py-2 text-white">
-          <RefreshCw
+          <ArrowPathIcon
             className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
             style={refreshing ? undefined : { transform: `rotate(${pullDistance * 2}deg)` }}
           />
@@ -1860,7 +1832,7 @@ export default function SellerOrders() {
         backTo="/seller/products"
         right={(
           <Link to="/stats" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f6f3ee] text-[#44403a] transition active:scale-95" aria-label={t('orders.stats', 'Stats')}>
-            <TrendingUp className="h-4 w-4" />
+            <ArrowTrendingUpIcon className="h-4 w-4" />
           </Link>
         )}
       />
@@ -1888,7 +1860,7 @@ export default function SellerOrders() {
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-[#e85d00]">
-                  <CreditCard className="w-5 h-5 text-white" />
+                  <CreditCardIcon className="w-5 h-5 text-white" />
                 </div>
 
                 {Number(cancelOrder?.paidAmount || 0) > 0 && (
@@ -1909,7 +1881,7 @@ export default function SellerOrders() {
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-[#e85d00]">
-                  <DollarSign className="w-5 h-5 text-white" />
+                  <CurrencyDollarIcon className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
                   {formatCurrency(installmentAnalytics.revenueInProgress)}
@@ -1923,7 +1895,7 @@ export default function SellerOrders() {
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-2xl bg-[#e85d00]">
-                  <AlertCircle className="w-5 h-5 text-white" />
+                  <ExclamationCircleIcon className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-900">
                   {formatCurrency(installmentAnalytics.riskExposure)}
@@ -1953,7 +1925,7 @@ export default function SellerOrders() {
         {error ? (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <ExclamationCircleIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
                 <h3 className="text-sm font-bold text-red-800 mb-1">{t('orders.loadErrorTitle', 'Erreur de chargement')}</h3>
                 <p className="text-sm text-red-600">{error}</p>
@@ -1963,7 +1935,7 @@ export default function SellerOrders() {
         ) : orders.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              <ClipboardList className="w-10 h-10 text-[#e85d00]" />
+              <ClipboardDocumentListIcon className="w-10 h-10 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">{t('orders.noOrders', 'Aucune commande')}</h3>
             <p className="text-sm text-gray-500 mb-6">{emptyMessage}</p>
@@ -1971,7 +1943,7 @@ export default function SellerOrders() {
               to="/seller/products"
               className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
             >
-              <Sparkles className="w-4 h-4" />
+              <SparklesIcon className="w-4 h-4" />
               {t('orders.manageListings', 'Gérer mes annonces')}
             </Link>
           </div>
@@ -1992,7 +1964,7 @@ export default function SellerOrders() {
               ariaLabel={t('orders.cancelOrderTitle', 'Annuler la commande')}
             >
               <ModalHeader
-                icon={<AlertCircle className="h-5 w-5" />}
+                icon={<ExclamationCircleIcon className="h-5 w-5" />}
                 title={t('orders.cancelOrderTitle', 'Annuler la commande')}
                 subtitle={`${t('orders.order', 'Commande')} #${cancelOrderId?.slice(-6) || '—'}`}
                 onClose={closeCancelModal}

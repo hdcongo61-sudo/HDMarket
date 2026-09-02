@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { MessageSquare, Plus, Save, Trash2, Edit3, ChevronRight, ChevronDown, HelpCircle } from 'lucide-react';
+import { ChatBubbleLeftRightIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, PencilSquareIcon, PlusIcon, QuestionMarkCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 
@@ -286,7 +286,7 @@ export default function AdminChatTemplates() {
               className="rounded-full border border-neutral-300 p-2 text-neutral-600 transition hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
               title="Modifier"
             >
-              <Edit3 className="h-3.5 w-3.5" />
+              <PencilSquareIcon className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -294,7 +294,7 @@ export default function AdminChatTemplates() {
               className="rounded-full border border-red-200 p-2 text-red-600 transition hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20"
               title="Supprimer"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <TrashIcon className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -309,7 +309,7 @@ export default function AdminChatTemplates() {
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/75">Centre assistant</p>
           <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold tracking-tight">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/18 ring-1 ring-white/25">
-              <MessageSquare className="h-5 w-5" />
+              <ChatBubbleLeftRightIcon className="h-5 w-5" />
             </span>
             Assistant guidé · Templates
         </h1>
@@ -326,13 +326,13 @@ export default function AdminChatTemplates() {
           className="flex w-full items-center justify-between gap-2 p-4 text-left"
         >
           <span className="flex items-center gap-2 text-sm font-extrabold text-neutral-950 dark:text-neutral-100">
-            <HelpCircle className="h-4 w-4 text-[#e85d00]" />
+            <QuestionMarkCircleIcon className="h-4 w-4 text-[#e85d00]" />
             Comment utiliser cette page
           </span>
           {showGuide ? (
-            <ChevronDown className="h-4 w-4 text-neutral-400" />
+            <ChevronDownIcon className="h-4 w-4 text-neutral-400" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-neutral-400" />
+            <ChevronRightIcon className="h-4 w-4 text-neutral-400" />
           )}
         </button>
         {showGuide && (
@@ -609,7 +609,7 @@ export default function AdminChatTemplates() {
                 disabled={saving}
                 className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-[#e85d00] px-4 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#f05f00] disabled:opacity-60"
               >
-                {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {editingId ? <CheckIcon className="h-4 w-4" /> : <PlusIcon className="h-4 w-4" />}
                 {saving ? 'Enregistrement...' : editingId ? 'Mettre à jour' : 'Créer'}
               </button>
               {editingId ? (
@@ -640,7 +640,7 @@ export default function AdminChatTemplates() {
           )}
           <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-3 text-xs text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
             <p className="mb-1 flex items-center gap-1 font-medium">
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRightIcon className="h-3.5 w-3.5" />
               Règle de flow
             </p>
             <p>

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { CircleDollarSign, ImagePlus, Loader2, MapPin, Minus, PackagePlus, Plus, ReceiptText, ShoppingBasket, Store, Truck, User, X } from 'lucide-react';
+import { ArrowPathIcon, BuildingStorefrontIcon, CubeIcon, CurrencyDollarIcon, MapPinIcon, MinusIcon, PhotoIcon, PlusIcon, ReceiptPercentIcon, ShoppingBagIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -57,7 +57,7 @@ function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, co
     <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#FFEDE3] text-[#FF5000]"><MapPin size={16} /></span>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#FFEDE3] text-[#FF5000]"><MapPinIcon className="h-4 w-4" /></span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <h2 className="text-sm font-black text-gray-900">{title}</h2>
@@ -68,7 +68,7 @@ function LocationCard({ title, subtitle, value, onChange, onAutofill, cities, co
         </div>
         {onAutofill ? (
           <button type="button" onClick={onAutofill} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold text-[#FF5000]">
-            <User size={12} />
+            <UserIcon className="h-3 w-3" />
             Mes infos
           </button>
         ) : null}
@@ -259,7 +259,7 @@ export default function BuyForMe() {
       <GlassHeader title="Acheter Pour Moi" subtitle="Un livreur fait les achats et vous livre" backTo="/" right={<Link to="/buy-for-me/orders" className="text-xs font-black text-[#FF5000]">Mes demandes</Link>} />
       <div className="mx-auto max-w-lg space-y-3 px-4 py-4">
         <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#FF5000] to-[#FF3D00] p-4 text-white shadow-sm">
-          <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15"><ShoppingBasket size={22} /></span><div><p className="text-base font-black">Vous choisissez, on achète.</p><p className="mt-1 text-xs font-medium leading-5 text-white/85">Indiquez les prix estimés, ou fixez un budget si vous ne les connaissez pas. Le livreur ne dépasse jamais le montant autorisé sans votre accord.</p></div></div>
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15"><ShoppingBagIcon className="h-[22px] w-[22px]" /></span><div><p className="text-base font-black">Vous choisissez, on achète.</p><p className="mt-1 text-xs font-medium leading-5 text-white/85">Indiquez les prix estimés, ou fixez un budget si vous ne les connaissez pas. Le livreur ne dépasse jamais le montant autorisé sans votre accord.</p></div></div>
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -269,7 +269,7 @@ export default function BuyForMe() {
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><Store size={16} className="text-[#FF5000]" /> Magasin souhaité</h2>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><BuildingStorefrontIcon className="text-[#FF5000] h-4 w-4" /> Magasin souhaité</h2>
           <div className="grid grid-cols-2 gap-2">
             {STORE_TYPES.filter(([key]) => supportedStoreTypes.includes(key)).map(([key, label]) => <button key={key} type="button" onClick={() => setStoreType(key)} className={`min-h-11 rounded-xl border px-2 text-xs font-bold ${storeType === key ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-500'}`}>{label}</button>)}
           </div>
@@ -277,7 +277,7 @@ export default function BuyForMe() {
         </section>
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-black text-gray-900"><PackagePlus size={16} className="text-[#FF5000]" /> Liste d’achats</h2><button type="button" onClick={() => setItems((previous) => [...previous, emptyItem()])} className="inline-flex items-center gap-1 text-xs font-black text-[#FF5000]"><Plus size={14} /> Ajouter</button></div>
+          <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-black text-gray-900"><CubeIcon className="text-[#FF5000] h-4 w-4" /> Liste d’achats</h2><button type="button" onClick={() => setItems((previous) => [...previous, emptyItem()])} className="inline-flex items-center gap-1 text-xs font-black text-[#FF5000]"><PlusIcon className="h-3.5 w-3.5" /> Ajouter</button></div>
           <div className="space-y-2">
             {items.map((item, index) => (
               <div key={index} className="rounded-xl border border-gray-100 bg-gray-50 p-2.5">
@@ -291,7 +291,7 @@ export default function BuyForMe() {
                       className="min-h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm font-semibold outline-none focus:border-[#FF5000]"
                     />
                   </label>
-                  <button type="button" onClick={() => removeItem(index)} className="mt-4 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-transparent text-gray-400 hover:border-red-100 hover:bg-white hover:text-red-500" aria-label={`Retirer le produit ${index + 1}`}><Minus size={15} /></button>
+                  <button type="button" onClick={() => removeItem(index)} className="mt-4 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-transparent text-gray-400 hover:border-red-100 hover:bg-white hover:text-red-500" aria-label={`Retirer le produit ${index + 1}`}><MinusIcon className="h-[15px] w-[15px]" /></button>
                 </div>
                 <div className={`mt-2 grid gap-2 ${authorizationMode === 'ITEM_ESTIMATES' ? 'grid-cols-[72px_minmax(0,1fr)]' : 'grid-cols-1'}`}>
                   <label>
@@ -319,11 +319,11 @@ export default function BuyForMe() {
                         <p className="text-xs font-black text-gray-800">{item.imageUploading ? 'Envoi de la photo…' : item.imageUrl ? 'Photo ajoutée' : 'Photo sélectionnée'}</p>
                         <p className="mt-0.5 text-[10px] text-gray-500">Le livreur pourra reconnaître le produit.</p>
                       </div>
-                      {item.imageUploading ? <Loader2 size={17} className="shrink-0 animate-spin text-[#FF5000]" /> : <button type="button" onClick={() => clearItemImage(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500" aria-label={`Supprimer la photo du produit ${index + 1}`}><X size={14} /></button>}
+                      {item.imageUploading ? <ArrowPathIcon className="shrink-0 animate-spin text-[#FF5000] h-[17px] w-[17px]" /> : <button type="button" onClick={() => clearItemImage(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500" aria-label={`Supprimer la photo du produit ${index + 1}`}><XMarkIcon className="h-3.5 w-3.5" /></button>}
                     </div>
                   ) : (
                     <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-orange-200 bg-orange-50/60 px-3 text-xs font-black text-[#FF3D00]">
-                      <ImagePlus size={16} />
+                      <PhotoIcon className="h-4 w-4" />
                       Ajouter une photo <span className="font-semibold text-orange-700/70">(facultatif)</span>
                       <input type="file" accept="image/*,.heic,.heif" className="sr-only" onChange={(event) => { uploadItemImage(index, event.target.files?.[0]); event.target.value = ''; }} />
                     </label>
@@ -335,7 +335,7 @@ export default function BuyForMe() {
           </div>
         </section>
 
-        {authorizationMode === 'SHOPPING_BUDGET' ? <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><label className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#FF5000]" /> Budget d’achats autorisé</label><input type="number" min="1" value={shoppingBudget} onChange={(event) => setShoppingBudget(event.target.value)} placeholder="Ex. 25 000" className="min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 text-lg font-black text-gray-900 outline-none focus:border-[#FF5000]" /><p className="mt-2 text-[11px] font-medium text-gray-500">Utilisez cette option si vous ne connaissez pas les prix. Le livreur ne dépassera pas ce budget sans votre accord.</p></section> : <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-sm font-black text-gray-900"><CircleDollarSign size={16} className="text-[#FF5000]" /> Valeur estimée des achats</p><p className="mt-1 text-[11px] font-medium text-gray-600">Calculée automatiquement à partir de chaque article.</p></div><p className="text-lg font-black text-[#FF3D00]">{formatCurrency(estimatedShoppingValue)}</p></div><p className="mt-3 text-[11px] font-medium text-gray-500">Ce montant autorise les achats. S’il est dépassé, les achats sont suspendus jusqu’à votre choix ou paiement complémentaire.</p></section>}
+        {authorizationMode === 'SHOPPING_BUDGET' ? <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><label className="mb-2 flex items-center gap-2 text-sm font-black text-gray-900"><CurrencyDollarIcon className="text-[#FF5000] h-4 w-4" /> Budget d’achats autorisé</label><input type="number" min="1" value={shoppingBudget} onChange={(event) => setShoppingBudget(event.target.value)} placeholder="Ex. 25 000" className="min-h-12 w-full rounded-xl border border-gray-200 bg-white px-3 text-lg font-black text-gray-900 outline-none focus:border-[#FF5000]" /><p className="mt-2 text-[11px] font-medium text-gray-500">Utilisez cette option si vous ne connaissez pas les prix. Le livreur ne dépassera pas ce budget sans votre accord.</p></section> : <section className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 shadow-sm"><div className="flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-sm font-black text-gray-900"><CurrencyDollarIcon className="text-[#FF5000] h-4 w-4" /> Valeur estimée des achats</p><p className="mt-1 text-[11px] font-medium text-gray-600">Calculée automatiquement à partir de chaque article.</p></div><p className="text-lg font-black text-[#FF3D00]">{formatCurrency(estimatedShoppingValue)}</p></div><p className="mt-3 text-[11px] font-medium text-gray-500">Ce montant autorise les achats. S’il est dépassé, les achats sont suspendus jusqu’à votre choix ou paiement complémentaire.</p></section>}
 
         <LocationCard title="Adresse du magasin" subtitle="Indiquez-la seulement si vous avez un magasin précis en tête" value={pickup} onChange={setPickup} onAutofill={canAutofillAddress ? () => setPickup({ ...savedAddress }) : null} cities={cities} communes={communes} optional addressHistory={addressHistory} onPickHistory={(item) => setPickup({ cityId: item.cityId || '', communeId: item.communeId || '', address: item.address || '', contactName: item.contactName || '', contactPhone: item.contactPhone || '' })} />
         <LocationCard title="Adresse de livraison" subtitle="Où nous vous remettons les achats" value={dropoff} onChange={setDropoff} onAutofill={canAutofillAddress ? () => setDropoff({ ...savedAddress }) : null} cities={cities} communes={communes} addressHistory={addressHistory} onPickHistory={(item) => setDropoff({ cityId: item.cityId || '', communeId: item.communeId || '', address: item.address || '', contactName: item.contactName || '', contactPhone: item.contactPhone || '' })} />
@@ -344,9 +344,9 @@ export default function BuyForMe() {
 
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><h2 className="text-sm font-black text-gray-900">S’il reste de l’argent</h2><p className="mt-1 text-xs text-gray-500">Votre choix est appliqué après la livraison, selon le reçu du magasin.</p><div className="mt-3 space-y-2">{[['WALLET_REFUND', 'Remboursement sur votre portefeuille HDMarket'], ['DRIVER_TIP', 'Donner le solde au livreur (pourboire)'], ['PLATFORM_DONATION', 'Faire don du solde à HDMarket']].map(([key, label]) => <label key={key} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-xs font-bold ${balancePreference === key ? 'border-[#FF5000] bg-orange-50 text-[#FF3D00]' : 'border-gray-200 text-gray-600'}`}><input type="radio" checked={balancePreference === key} onChange={() => setBalancePreference(key)} />{label}</label>)}</div></section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><ReceiptText size={16} className="text-[#FF5000]" /> Détail avant paiement</div>{quote?.breakdown?.map((line) => <div key={line.key} className="mb-2 flex items-center justify-between text-sm text-gray-600"><span>{line.label}</span><span className="font-bold text-gray-900">{formatCurrency(line.amount)}</span></div>)}{quoteError ? <p className="mt-2 text-xs font-bold text-red-600">{quoteError}</p> : null}</section>
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900"><ReceiptPercentIcon className="text-[#FF5000] h-4 w-4" /> Détail avant paiement</div>{quote?.breakdown?.map((line) => <div key={line.key} className="mb-2 flex items-center justify-between text-sm text-gray-600"><span>{line.label}</span><span className="font-bold text-gray-900">{formatCurrency(line.amount)}</span></div>)}{quoteError ? <p className="mt-2 text-xs font-bold text-red-600">{quoteError}</p> : null}</section>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3"><p className="flex items-center gap-2 text-xs font-bold text-emerald-800"><Truck size={15} /> Paiement sécurisé avant le début des achats</p><p className="mt-1 text-[11px] text-emerald-700">La valeur estimée de vos articles est réservée. Vous recevez le reçu du magasin et suivez chaque étape.</p></div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3"><p className="flex items-center gap-2 text-xs font-bold text-emerald-800"><TruckIcon className="h-[15px] w-[15px]" /> Paiement sécurisé avant le début des achats</p><p className="mt-1 text-[11px] text-emerald-700">La valeur estimée de vos articles est réservée. Vous recevez le reçu du magasin et suivez chaque étape.</p></div>
 
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-100 bg-white px-4 py-3 [padding-bottom:calc(env(safe-area-inset-bottom)+0.75rem)]">
           <div className="mx-auto max-w-lg">

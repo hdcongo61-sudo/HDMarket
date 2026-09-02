@@ -1,23 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Sparkles,
-  TrendingUp,
-  Eye,
-  Heart,
-  ShoppingBag,
-  ArrowRight,
-  Filter,
-  Zap,
-  Star,
-  Clock,
-  Target,
-  Award,
-  RefreshCw,
-  AlertCircle,
-  Search,
-  CheckCircle
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowRightIcon, ArrowTrendingUpIcon, BoltIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon, EyeIcon, FunnelIcon, HeartIcon, MagnifyingGlassIcon, ShoppingBagIcon, SparklesIcon, StarIcon, TrophyIcon, ViewfinderCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import useIsMobile from '../hooks/useIsMobile';
@@ -249,7 +232,7 @@ export default function Suggestions() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/20">
-                <Sparkles className="h-3.5 w-3.5" />
+                <SparklesIcon className="h-3.5 w-3.5" />
                 Suggestions personnalisées
               </div>
               <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl">Découvrez pour vous</h1>
@@ -263,7 +246,7 @@ export default function Suggestions() {
               disabled={refreshing || loading}
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-white/28 bg-white/16 px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/24 disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
           </div>
@@ -275,7 +258,7 @@ export default function Suggestions() {
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-950">
-                  <Eye className="w-5 h-5 text-white" />
+                  <EyeIcon className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-black text-gray-900 sm:text-2xl">{formatNumber(views.length)}</span>
               </div>
@@ -285,7 +268,7 @@ export default function Suggestions() {
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#e85d00]">
-                  <Target className="w-5 h-5 text-white" />
+                  <ViewfinderCircleIcon className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-black text-gray-900 sm:text-2xl">{formatNumber(preferredCategories.length)}</span>
               </div>
@@ -295,7 +278,7 @@ export default function Suggestions() {
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-700">
-                  <ShoppingBag className="w-5 h-5 text-white" />
+                  <ShoppingBagIcon className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-black text-gray-900 sm:text-2xl">{formatNumber(items.length)}</span>
               </div>
@@ -309,7 +292,7 @@ export default function Suggestions() {
         {preferredCategories.length > 0 && (
           <div className="hd-products-toolbar rounded-2xl p-3 shadow-sm sm:p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-[#e85d00]" />
+              <FunnelIcon className="w-4 h-4 text-[#e85d00]" />
               <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide">Catégories suggérées</h3>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -318,7 +301,7 @@ export default function Suggestions() {
                   key={category}
                   className="hd-products-chip inline-flex items-center gap-2 rounded-full px-4 py-2"
                 >
-                  <TrendingUp className="w-4 h-4 text-[#e85d00]" />
+                  <ArrowTrendingUpIcon className="w-4 h-4 text-[#e85d00]" />
                   <span className="text-sm font-black text-gray-800">{CATEGORY_LABELS[category] || category}</span>
                   {categoryStats[category] > 0 && (
                     <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-black text-gray-500">
@@ -335,7 +318,7 @@ export default function Suggestions() {
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <ExclamationCircleIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
                 <h3 className="text-sm font-bold text-red-800 mb-1">Erreur de chargement</h3>
                 <p className="text-sm text-red-600">{error}</p>
@@ -348,7 +331,7 @@ export default function Suggestions() {
         {!preferredCategories.length && !loading && (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
-              <Search className="w-10 h-10 text-[#e85d00]" />
+              <MagnifyingGlassIcon className="w-10 h-10 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900 mb-2">Aucune suggestion disponible</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
@@ -359,14 +342,14 @@ export default function Suggestions() {
                 to="/products"
                 className="hd-primary-button inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
               >
-                <ShoppingBag className="w-4 h-4" />
+                <ShoppingBagIcon className="w-4 h-4" />
                 Explorer les produits
               </Link>
               <Link
                 to="/shops/verified"
                 className="hd-products-chip inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
               >
-                <Award className="w-4 h-4" />
+                <TrophyIcon className="w-4 h-4" />
                 Boutiques vérifiées
               </Link>
             </div>
@@ -377,7 +360,7 @@ export default function Suggestions() {
         {!loading && items.length === 0 && preferredCategories.length > 0 && (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
-              <Zap className="w-10 h-10 text-[#e85d00]" />
+              <BoltIcon className="w-10 h-10 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900 mb-2">Aucune suggestion disponible</h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
@@ -388,7 +371,7 @@ export default function Suggestions() {
               onClick={handleRefresh}
               className="hd-primary-button inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
             >
-              <RefreshCw className="w-4 h-4" />
+              <ArrowPathIcon className="w-4 h-4" />
               Actualiser les suggestions
             </button>
           </div>
@@ -426,7 +409,7 @@ export default function Suggestions() {
               onClick={loadMore}
               className="hd-primary-button inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
             >
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRightIcon className="w-4 h-4" />
               Charger plus de suggestions
             </button>
           </div>
@@ -436,7 +419,7 @@ export default function Suggestions() {
         {!hasMore && items.length > 0 && (
           <div className="mt-8 text-center">
             <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-600 shadow-sm">
-              <CheckCircle className="w-4 h-4" />
+              <CheckCircleIcon className="w-4 h-4" />
               <span>Toutes les suggestions ont été chargées</span>
             </div>
           </div>

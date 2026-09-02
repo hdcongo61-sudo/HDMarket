@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Expand, Images } from 'lucide-react';
+import { ArrowsPointingOutIcon, ChevronLeftIcon, ChevronRightIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { getProductCardImageUrl, getProductCardSrcSet } from '../../utils/productImageUrl';
 import { PLACEHOLDER_IMAGE } from '../../utils/placeholderImage';
 
@@ -478,7 +478,7 @@ function ProductCardGallery({
 
       {!carouselActive && !photoFirst ? (
         <span className={`absolute z-20 inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/20 bg-black/60 px-2.5 text-[10px] font-black text-white shadow-sm backdrop-blur-md ${indicatorPosition}`}>
-          <Images className="h-3.5 w-3.5" aria-hidden="true" />
+          <PhotoIcon className="h-3.5 w-3.5" aria-hidden="true" />
           {mode === 'stacked' ? `+${imageCount - 1}` : imageCount}
         </span>
       ) : null}
@@ -516,7 +516,7 @@ function ProductCardGallery({
             }}
             aria-label="Photo précédente"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeftIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
@@ -529,7 +529,7 @@ function ProductCardGallery({
             }}
             aria-label="Photo suivante"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRightIcon className="h-5 w-5" />
           </button>
         </>
       ) : null}
@@ -537,9 +537,9 @@ function ProductCardGallery({
       {showSwipeHint && carouselActive ? (
         <div className="pointer-events-none absolute inset-x-3 top-1/2 z-30 flex -translate-y-1/2 justify-center">
           <span className="hd-gallery-swipe-hint inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/65 px-3 py-2 text-[11px] font-bold text-white shadow-lg backdrop-blur-md">
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeftIcon className="h-3.5 w-3.5" />
             Glissez pour voir plus de photos
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRightIcon className="h-3.5 w-3.5" />
           </span>
         </div>
       ) : null}
@@ -578,7 +578,7 @@ function ProductCardGallery({
             }}
             aria-label="Agrandir la galerie"
           >
-            <Expand className="h-4 w-4" />
+            <ArrowsPointingOutIcon className="h-4 w-4" />
           </button>
           {thumbnailsPinned ? (
             <button

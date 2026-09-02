@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Star } from 'lucide-react';
+import { ArrowTopRightOnSquareIcon, StarIcon } from '@heroicons/react/24/outline';
 import {
   GlassBottomSheetModal,
   GlassModalBody,
@@ -42,7 +42,7 @@ export default function ShopReviewsSection({
           className="inline-flex min-h-11 items-center gap-1.5 px-2 text-[13px] font-bold text-[#FF5000] transition dark:text-orange-300"
         >
           <span>{t('shop_profile.view_all', 'Voir tout')}</span>
-          <ExternalLink size={13} />
+          <ArrowTopRightOnSquareIcon className="h-[13px] w-[13px]" />
         </button>
       </div>
 
@@ -53,15 +53,14 @@ export default function ShopReviewsSection({
             <p className="text-4xl font-black text-[#FF3D00] dark:text-[#FF6A00]">{formatRatingLabel(ratingAverage)}</p>
             <div className="mt-1 flex items-center justify-center gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  size={13}
+                <StarIcon
+key={star}
+                  
                   className={
                     star <= Math.round(ratingAverage)
                       ? 'fill-[var(--shop-color)] text-[var(--shop-color)]'
                       : 'text-gray-200 dark:text-neutral-700'
-                  }
-                />
+                  } className="h-[13px] w-[13px]" />
               ))}
             </div>
             <p className="mt-0.5 text-[11px] text-gray-400">
@@ -77,7 +76,7 @@ export default function ShopReviewsSection({
               return (
                 <div key={bar} className="flex items-center gap-2 text-[11px] text-gray-500">
                   <span className="w-3 text-right">{bar}</span>
-                  <Star size={10} className="fill-[var(--shop-color)] text-[var(--shop-color)]" />
+                  <StarIcon className="fill-[var(--shop-color)] text-[var(--shop-color)] h-2.5 w-2.5" />
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
                     <div className="h-full rounded-full bg-[var(--shop-color)]" style={{ width: `${pct}%` }} />
                   </div>
@@ -112,14 +111,12 @@ export default function ShopReviewsSection({
                 onClick={() => setReviewForm((prev) => ({ ...prev, rating: value }))}
                 className="transition hover:scale-110"
               >
-                <Star
-                  size={26}
-                  className={
+                <StarIcon
+className={
                     value <= Number(reviewForm.rating)
                       ? 'fill-[var(--shop-color)] text-[var(--shop-color)]'
                       : 'text-gray-300 dark:text-neutral-700'
-                  }
-                />
+                  } className="h-[26px] w-[26px]" />
               </button>
             ))}
           </div>
@@ -195,15 +192,14 @@ export default function ShopReviewsSection({
                       <p className="text-sm font-black text-slate-950 dark:text-white">{name}</p>
                       <div className="flex items-center gap-0.5">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={`${review._id}-${star}`}
-                            size={11}
+                          <StarIcon
+key={`${review._id}-${star}`}
+                            
                             className={
                               star <= Number(review.rating || 0)
                                 ? 'fill-amber-400 text-amber-400'
                                 : 'text-neutral-300 dark:text-neutral-700'
-                            }
-                          />
+                            } className="h-[11px] w-[11px]" />
                         ))}
                       </div>
                       <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
@@ -250,7 +246,7 @@ export default function ShopReviewsSection({
           title={t('shop_profile.all_reviews', 'Tous les commentaires')}
           subtitle={`${formatCount(allCommentsQuery.data?.length || 0)} ${t('shop_profile.comments', 'commentaires')}`}
           onClose={() => setShowCommentsModal(false)}
-          icon={<ExternalLink size={16} />}
+          icon={<ArrowTopRightOnSquareIcon className="h-4 w-4" />}
         />
         <GlassModalBody className="max-h-[72vh] overflow-y-auto">
           {allCommentsQuery.isLoading && (
@@ -308,15 +304,14 @@ export default function ShopReviewsSection({
                           </div>
                           <div className="mt-1 flex items-center gap-0.5">
                             {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={`${review._id}-full-${star}`}
-                                size={11}
+                              <StarIcon
+key={`${review._id}-full-${star}`}
+                                
                                 className={
                                   star <= Number(review.rating || 0)
                                     ? 'fill-amber-400 text-amber-400'
                                     : 'text-neutral-300 dark:text-neutral-700'
-                                }
-                              />
+                                } className="h-[11px] w-[11px]" />
                             ))}
                           </div>
                           <p className="mt-2 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { setSocialAttribution } from '../utils/socialAttribution';
 
@@ -62,7 +62,7 @@ export default function SocialRedirect() {
           to="/products"
           className="inline-flex items-center gap-2 rounded-full bg-[#141210] px-5 py-3 text-sm font-black text-white"
         >
-          <Search className="h-4 w-4" />
+          <MagnifyingGlassIcon className="h-4 w-4" />
           Rechercher sur HDMarket
         </Link>
       </div>

@@ -1,18 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Clock3,
-  FileText,
-  MessageCircle,
-  Paperclip,
-  ShieldAlert,
-  Upload,
-  User
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowUpTrayIcon, ChatBubbleLeftIcon, CheckCircleIcon, ClockIcon, DocumentTextIcon, ExclamationTriangleIcon, PaperClipIcon, ShieldExclamationIcon, UserIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
@@ -281,11 +270,11 @@ export default function MyComplaints() {
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
-            <User className="h-8 w-8" />
+            <UserIcon className="h-8 w-8" />
           </div>
           <p className="text-sm font-semibold text-gray-600">Vous devez être connecté pour accéder à cette page.</p>
           <Link to="/login" className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#e85d00] px-5 text-sm font-black text-white">
-            <ArrowLeft size={16} />
+            <ArrowLeftIcon className="h-4 w-4" />
             Retour à la connexion
           </Link>
         </div>
@@ -300,14 +289,14 @@ export default function MyComplaints() {
           to="/profile"
           className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-black text-gray-500 shadow-sm transition active:scale-95"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeftIcon className="h-[18px] w-[18px]" />
           Retour au profil
         </Link>
 
         <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="hd-products-hero p-5 text-white sm:p-6">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
-                <ShieldAlert className="h-5 w-5" />
+                <ShieldExclamationIcon className="h-5 w-5" />
               <span className="text-xs font-black uppercase tracking-wide">Support commande</span>
             </div>
             <div>
@@ -360,7 +349,7 @@ export default function MyComplaints() {
             <div className="space-y-2">
               <label className="flex items-center justify-between text-sm font-black text-gray-800">
                 <span className="inline-flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4 text-[#e85d00]" />
+                  <ChatBubbleLeftIcon className="h-4 w-4 text-[#e85d00]" />
                   Description *
                 </span>
                 <span className="text-xs font-bold text-gray-500">
@@ -387,7 +376,7 @@ export default function MyComplaints() {
               </label>
               <label className="flex min-h-[56px] cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 text-sm font-bold text-gray-500 transition hover:bg-gray-100">
                 <span className="inline-flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
+                  <ArrowUpTrayIcon className="h-4 w-4" />
                   Ajouter des preuves
                 </span>
                 <span className="text-xs text-gray-500">{files.length}/{MAX_FILES}</span>
@@ -409,7 +398,7 @@ export default function MyComplaints() {
                       className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold"
                     >
                       <span className="inline-flex items-center gap-2 truncate">
-                        <Paperclip className="h-3.5 w-3.5 text-[#e85d00]" />
+                        <PaperClipIcon className="h-3.5 w-3.5 text-[#e85d00]" />
                         <span className="truncate">{file.name}</span>
                       </span>
                       <button
@@ -428,7 +417,7 @@ export default function MyComplaints() {
 
             {submitError && (
               <p className="inline-flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 ring-1 ring-red-100">
-                <AlertTriangle className="h-4 w-4" />
+                <ExclamationTriangleIcon className="h-4 w-4" />
                 {submitError}
               </p>
             )}
@@ -441,12 +430,12 @@ export default function MyComplaints() {
               >
                 {submitLoading ? (
                   <>
-                    <Clock3 className="h-4 w-4 animate-spin" />
+                    <ClockIcon className="h-4 w-4 animate-spin" />
                     Envoi...
                   </>
                 ) : (
                   <>
-                    <FileText className="h-4 w-4" />
+                    <DocumentTextIcon className="h-4 w-4" />
                     Ouvrir le litige
                   </>
                 )}
@@ -509,7 +498,7 @@ export default function MyComplaints() {
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-500"
                         >
-                          <Paperclip className="h-3.5 w-3.5" />
+                          <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve'}
                         </a>
                       ))}
@@ -547,7 +536,7 @@ export default function MyComplaints() {
 
                   {dispute.resolvedAt && (
                     <p className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-700">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <CheckCircleIcon className="h-3.5 w-3.5" />
                       Clôturé le {formatDate(dispute.resolvedAt)}
                     </p>
                   )}

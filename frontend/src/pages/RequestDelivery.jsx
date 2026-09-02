@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Package, MapPin, Navigation, Camera, Loader2, ArrowLeft, ShieldCheck, Wallet, MapPinned, X, User } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, CameraIcon, CubeIcon, MapPinIcon, PaperAirplaneIcon, ShieldCheckIcon, UserIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -82,7 +82,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity, allCo
     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-1.5 text-sm font-black text-gray-900">
-          <MapPin size={15} className="text-[#FF5000]" /> {title}
+          <MapPinIcon className="text-[#FF5000] h-[15px] w-[15px]" /> {title}
         </h3>
         <div className="flex items-center gap-3">
           {onAutofill ? (
@@ -91,7 +91,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity, allCo
               onClick={onAutofill}
               className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF5000]"
             >
-              <User size={12} />
+              <UserIcon className="h-3 w-3" />
               Mes infos
             </button>
           ) : null}
@@ -101,7 +101,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity, allCo
             disabled={locating}
             className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF5000] disabled:opacity-50"
           >
-            {locating ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+            {locating ? <ArrowPathIcon className="animate-spin h-3 w-3" /> : <PaperAirplaneIcon className="h-3 w-3" />}
             {value.coordinates ? 'Position capturée' : 'Utiliser ma position'}
           </button>
         </div>
@@ -154,7 +154,7 @@ function LocationFields({ title, value, onChange, cities, communesForCity, allCo
                 onClick={() => handlePickLandmark(landmark)}
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold text-gray-800 hover:bg-gray-50"
               >
-                <MapPinned size={14} className="shrink-0 text-[#FF5000]" />
+                <MapPinIcon className="shrink-0 text-[#FF5000] h-3.5 w-3.5" />
                 {landmark.name}
               </button>
             ))}
@@ -163,10 +163,10 @@ function LocationFields({ title, value, onChange, cities, communesForCity, allCo
       </div>
       {value.landmarkId ? (
         <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700">
-          <MapPinned size={12} />
+          <MapPinIcon className="h-3 w-3" />
           <span className="flex-1">Repère : {value.landmarkName}</span>
           <button type="button" onClick={handleClearLandmark} aria-label="Retirer le repère">
-            <X size={12} />
+            <XMarkIcon className="h-3 w-3" />
           </button>
         </div>
       ) : null}
@@ -441,7 +441,7 @@ export default function RequestDelivery() {
   if (!enabled) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10 text-center">
-        <Package className="mx-auto h-8 w-8 text-gray-300" />
+        <CubeIcon className="mx-auto h-8 w-8 text-gray-300" />
         <p className="mt-3 text-sm text-gray-500">Ce service n’est pas encore disponible.</p>
       </div>
     );
@@ -457,7 +457,7 @@ export default function RequestDelivery() {
 
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-black text-gray-900">
-            <Package size={15} className="text-[#FF5000]" /> Le colis
+            <CubeIcon className="text-[#FF5000] h-[15px] w-[15px]" /> Le colis
           </h3>
           <textarea
             value={parcelDescription}
@@ -527,7 +527,7 @@ export default function RequestDelivery() {
               <img src={proofPreview} alt="Justificatif" className="h-24 rounded-lg object-cover" />
             ) : (
               <span className="flex flex-col items-center gap-1 text-xs font-semibold text-gray-400">
-                <Camera size={20} />
+                <CameraIcon className="h-5 w-5" />
                 Ajouter une photo
               </span>
             )}
@@ -546,7 +546,7 @@ export default function RequestDelivery() {
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             maxLength={500}
-            placeholder="Consignes pour le livreur (ex : demander M. X à la réception)"
+            placeholder="Consignes pour le livreur (ex : demander M. XMarkIcon à la réception)"
             className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-800 outline-none focus:border-[#FF5000]"
           />
         </div>
@@ -563,7 +563,7 @@ export default function RequestDelivery() {
                   : 'border-gray-200 text-gray-500'
               }`}
             >
-              <ShieldCheck size={14} /> Payer maintenant
+              <ShieldCheckIcon className="h-3.5 w-3.5" /> Payer maintenant
             </button>
             <button
               type="button"
@@ -574,7 +574,7 @@ export default function RequestDelivery() {
                   : 'border-gray-200 text-gray-500'
               }`}
             >
-              <Wallet size={14} /> À la livraison
+              <WalletIcon className="h-3.5 w-3.5" /> À la livraison
             </button>
           </div>
           <p className="mt-2 text-[11px] text-gray-500">
@@ -628,7 +628,7 @@ export default function RequestDelivery() {
                 disabled={!canSubmit}
                 className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#FF5000] to-[#FF3D00] px-4 text-sm font-black text-white shadow-sm transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
               >
-                {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeft size={16} className="rotate-180" />}
+                {submitting ? <ArrowPathIcon className="animate-spin h-4 w-4" /> : <ArrowLeftIcon className="rotate-180 h-4 w-4" />}
                 {submitting ? 'Envoi…' : 'Commander la course (cash)'}
               </button>
             )}

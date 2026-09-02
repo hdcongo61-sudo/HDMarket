@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Pencil, Rocket, Star, Store, WalletCards } from 'lucide-react';
+import { BuildingStorefrontIcon, ChatBubbleLeftIcon, PencilIcon, RocketLaunchIcon, StarIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 
 /**
@@ -31,19 +31,19 @@ export default function ShopBottomActions({
       <div className="grid grid-cols-4 gap-1">
         {isOwnShop ? (
           <button type="button" onClick={onPrimaryAction} className={`${slot} ${neutral}`}>
-            <Pencil size={17} />
+            <PencilIcon className="h-[17px] w-[17px]" />
             <span className="truncate">{t('shop_profile.edit_profile', 'Modifier profil')}</span>
           </button>
         ) : (
           <button type="button" onClick={onMessage} className={`${slot} ${neutral}`}>
-            <MessageCircle size={17} />
+            <ChatBubbleLeftIcon className="h-[17px] w-[17px]" />
             <span className="truncate">{t('shop_profile.message', 'Message')}</span>
           </button>
         )}
 
         {isOwnShop ? (
           <Link to="/seller/boosts" className={`${slot} ${neutral}`}>
-            <Rocket size={17} />
+            <RocketLaunchIcon className="h-[17px] w-[17px]" />
             <span className="truncate">{t('shop_profile.boost_shop', 'Booster')}</span>
           </Link>
         ) : user && whatsappLink ? (
@@ -53,19 +53,19 @@ export default function ShopBottomActions({
             rel="noopener noreferrer"
             className={`${slot} text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10`}
           >
-            <MessageCircle size={17} />
+            <ChatBubbleLeftIcon className="h-[17px] w-[17px]" />
             <span className="truncate">WhatsApp</span>
           </a>
         ) : (
           <Link to="/login" state={{ from: `/shop/${slug}` }} className={`${slot} ${neutral}`}>
-            <MessageCircle size={17} />
+            <ChatBubbleLeftIcon className="h-[17px] w-[17px]" />
             <span className="truncate">WhatsApp</span>
           </Link>
         )}
 
         {isOwnShop ? (
           <Link to="/my/settlements" className={`${slot} ${neutral}`}>
-            <WalletCards size={17} />
+            <WalletIcon className="h-[17px] w-[17px]" />
             <span className="truncate">Versements</span>
           </Link>
         ) : (
@@ -74,13 +74,13 @@ export default function ShopBottomActions({
             onClick={onPrimaryAction}
             className={`${slot} text-[#FF5000] hover:bg-orange-50 dark:hover:bg-orange-500/10`}
           >
-            <Store size={17} />
+            <BuildingStorefrontIcon className="h-[17px] w-[17px]" />
             <span className="truncate">{t('shop_profile.view_products', 'Produits')}</span>
           </button>
         )}
 
         <button type="button" onClick={onGoReviews} className={`${slot} ${neutral}`}>
-          <Star size={17} />
+          <StarIcon className="h-[17px] w-[17px]" />
           <span className="truncate">{t('shop_profile.tab_reviews', 'Avis')}</span>
         </button>
       </div>

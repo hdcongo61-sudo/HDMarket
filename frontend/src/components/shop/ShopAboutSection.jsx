@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, ExternalLink, MapPin, Navigation, Phone, ShieldCheck, Store } from 'lucide-react';
+import { ArrowTopRightOnSquareIcon, BuildingStorefrontIcon, CalendarIcon, MapPinIcon, PaperAirplaneIcon, PhoneIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { formatDate } from './shopProfileHelpers';
 
 export default function ShopAboutSection({
@@ -25,7 +25,7 @@ export default function ShopAboutSection({
           {t('shop_profile.about', 'À propos')}
         </h2>
         <span className="inline-flex max-w-full items-center gap-1 rounded bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-[var(--shop-color)] dark:bg-neutral-800">
-          <Store size={12} />
+          <BuildingStorefrontIcon className="h-3 w-3" />
           <span className="truncate">{shopCategoryLabel || 'Marketplace'}</span>
         </span>
       </div>
@@ -45,7 +45,7 @@ export default function ShopAboutSection({
             {t('shop_profile.location', 'Localisation')}
           </dt>
           <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
-            <MapPin size={15} className="mt-0.5 shrink-0 text-[var(--shop-color)]" />
+            <MapPinIcon className="mt-0.5 shrink-0 text-[var(--shop-color)] h-[15px] w-[15px]" />
             {shop?.shopLocationAddress ? (
               <span className="break-words">{shop.shopLocationAddress}</span>
             ) : (
@@ -60,7 +60,7 @@ export default function ShopAboutSection({
             {t('shop_profile.address', 'Adresse')}
           </dt>
           <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
-            <MapPin size={15} className="mt-0.5 shrink-0 text-[var(--shop-color)]" />
+            <MapPinIcon className="mt-0.5 shrink-0 text-[var(--shop-color)] h-[15px] w-[15px]" />
             {shop?.shopAddress ? (
               <span className="break-words">{shop.shopAddress}</span>
             ) : (
@@ -75,7 +75,7 @@ export default function ShopAboutSection({
             {t('shop_profile.phone', 'Téléphone')}
           </dt>
           <dd className="mt-1 flex min-w-0 items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
-            <Phone size={15} className="mt-0.5 shrink-0 text-[var(--shop-color)]" />
+            <PhoneIcon className="mt-0.5 shrink-0 text-[var(--shop-color)] h-[15px] w-[15px]" />
             <span className="break-all">{phoneLabel}</span>
           </dd>
         </div>
@@ -84,7 +84,7 @@ export default function ShopAboutSection({
             {t('shop_profile.member_since', 'Membre depuis')}
           </dt>
           <dd className="mt-1 flex items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
-            <Calendar size={15} className="mt-0.5 shrink-0 text-[var(--shop-color)]" />
+            <CalendarIcon className="mt-0.5 shrink-0 text-[var(--shop-color)] h-[15px] w-[15px]" />
             <span>{formatDate(shop?.createdAt)}</span>
           </dd>
         </div>
@@ -93,7 +93,7 @@ export default function ShopAboutSection({
             {t('shop_profile.profile', 'Profil')}
           </dt>
           <dd className="mt-1 flex items-start gap-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">
-            <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[var(--shop-color)]" />
+            <ShieldCheckIcon className="mt-0.5 shrink-0 text-[var(--shop-color)] h-[15px] w-[15px]" />
             <span className="break-words">
               {isCertifiedShop
                 ? t('shop_profile.verified', 'Boutique vérifiée')
@@ -114,7 +114,7 @@ export default function ShopAboutSection({
                 shop?.locationVerified ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' : 'border border-neutral-200 bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200'
               }`}
             >
-              <MapPin size={12} />
+              <MapPinIcon className="h-3 w-3" />
               <span className="truncate">
                 {shop?.locationVerified
                   ? t('shop_profile.location_verified', 'Position vérifiée')
@@ -146,13 +146,13 @@ export default function ShopAboutSection({
               rel="noopener noreferrer"
               className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded bg-[var(--shop-color)] px-3 text-center text-xs font-black leading-tight text-[var(--shop-color-contrast)] sm:w-auto"
             >
-              <Navigation size={14} />
+              <PaperAirplaneIcon className="h-3.5 w-3.5" />
               <span className="truncate">
                 {mapProvider === 'google'
                   ? t('shop_profile.open_google_maps', 'Ouvrir Google Maps')
                   : t('shop_profile.open_osm', 'Ouvrir OpenStreetMap')}
               </span>
-              <ExternalLink size={13} />
+              <ArrowTopRightOnSquareIcon className="h-[13px] w-[13px]" />
             </a>
             <a
               href={appleDirectionsUrl || '#'}
@@ -160,9 +160,9 @@ export default function ShopAboutSection({
               rel="noopener noreferrer"
               className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded border border-gray-100 bg-gray-50 px-3 text-center text-xs font-black leading-tight text-gray-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 sm:w-auto"
             >
-              <MapPin size={14} />
+              <MapPinIcon className="h-3.5 w-3.5" />
               <span className="truncate">Apple Plans</span>
-              <ExternalLink size={13} />
+              <ArrowTopRightOnSquareIcon className="h-[13px] w-[13px]" />
             </a>
             <button
               type="button"
@@ -170,7 +170,7 @@ export default function ShopAboutSection({
               disabled={distanceLoading}
               className="inline-flex min-h-[44px] w-full max-w-full items-center justify-center gap-1.5 overflow-hidden rounded border border-gray-100 bg-gray-50 px-3 text-center text-xs font-black leading-tight text-gray-700 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 sm:w-auto"
             >
-              <Navigation size={14} />
+              <PaperAirplaneIcon className="h-3.5 w-3.5" />
               <span className="truncate">
                 {distanceLoading
                   ? t('shop_profile.calculating', 'Calcul…')

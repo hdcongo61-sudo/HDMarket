@@ -1,23 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Search,
-  Filter,
-  X,
-  SlidersHorizontal,
-  ChevronDown,
-  ChevronUp,
-  Star,
-  MapPin,
-  DollarSign,
-  Tag,
-  Store,
-  Sparkles,
-  RefreshCw,
-  Heart,
-  TrendingUp,
-  CheckCircle
-} from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArrowPathIcon, ArrowTrendingUpIcon, BuildingStorefrontIcon, CheckCircleIcon, ChevronDownIcon, ChevronUpIcon, CurrencyDollarIcon, FunnelIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, SparklesIcon, StarIcon, TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
@@ -45,7 +28,7 @@ export default function AdvancedSearch() {
     rapid3GBannerText
   } = useNetworkProfile();
   
-  // Filter states
+  // FunnelIcon states
   const initialSearchQuery = searchParams.get('q') || searchParams.get('search') || '';
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [searchDraft, setSearchDraft] = useState(initialSearchQuery);
@@ -400,7 +383,7 @@ export default function AdvancedSearch() {
     }));
   };
 
-  // Filter section component
+  // FunnelIcon section component
   const FilterSection = ({ title, icon: Icon, section, children }) => {
     const isExpanded = expandedSections[section];
     return (
@@ -415,9 +398,9 @@ export default function AdvancedSearch() {
             <span className="font-semibold text-gray-900">{title}</span>
           </div>
           {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-500" />
+            <ChevronUpIcon className="w-4 h-4 text-gray-500" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-500" />
+            <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           )}
         </button>
         {isExpanded && <div className="px-4 pb-4 space-y-3">{children}</div>}
@@ -432,7 +415,7 @@ export default function AdvancedSearch() {
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           <div className="mb-5 flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#fff0e4] text-[#e85d00]">
-              <Search className="h-5 w-5" />
+              <MagnifyingGlassIcon className="h-5 w-5" />
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[#e85d00]">HDMarket</p>
@@ -447,7 +430,7 @@ export default function AdvancedSearch() {
 
           <form onSubmit={submitSearch} className="flex max-w-4xl gap-2" role="search">
             <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+              <MagnifyingGlassIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
                 value={searchDraft}
@@ -467,7 +450,7 @@ export default function AdvancedSearch() {
                   className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-950"
                   aria-label={t('search.clearQuery', 'Effacer la recherche')}
                 >
-                  <X className="h-4 w-4" />
+                  <XMarkIcon className="h-4 w-4" />
                 </button>
               ) : null}
             </div>
@@ -475,7 +458,7 @@ export default function AdvancedSearch() {
               type="submit"
               className="inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-black text-white transition hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neutral-300"
             >
-              <Search className="h-4 w-4" />
+              <MagnifyingGlassIcon className="h-4 w-4" />
               <span className="hidden sm:inline">{t('search.submit', 'Rechercher')}</span>
             </button>
           </form>
@@ -491,7 +474,7 @@ export default function AdvancedSearch() {
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <SlidersHorizontal className="w-5 h-5" />
+                    <AdjustmentsHorizontalIcon className="w-5 h-5" />
                     {t('search.filters', 'Filtres')}
                   </h2>
                   {activeFiltersCount > 0 && (
@@ -514,10 +497,10 @@ export default function AdvancedSearch() {
                 )}
               </div>
 
-              {/* Filter Sections */}
+              {/* FunnelIcon Sections */}
               <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
                 {/* Basic Filters */}
-                <FilterSection title={t('search.category', 'Catégorie')} icon={Tag} section="basic">
+                <FilterSection title={t('search.category', 'Catégorie')} icon={TagIcon} section="basic">
                   <select
                     value={category}
                     onChange={(e) => {
@@ -539,7 +522,7 @@ export default function AdvancedSearch() {
                   </select>
                 </FilterSection>
 
-                <FilterSection title={t('search.tags', 'Tags')} icon={Tag} section="tags">
+                <FilterSection title={t('search.tags', 'Tags')} icon={TagIcon} section="tags">
                   <p className="mb-2 text-xs text-gray-500">Sélectionnez plusieurs tags pour une recherche ET.</p>
                   <div className="flex flex-wrap gap-2">
                     {availableTags.map((tag) => {
@@ -564,7 +547,7 @@ export default function AdvancedSearch() {
                 </FilterSection>
 
                 {/* Price Range */}
-                <FilterSection title={t('search.price', 'Prix')} icon={DollarSign} section="price">
+                <FilterSection title={t('search.price', 'Prix')} icon={CurrencyDollarIcon} section="price">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -600,7 +583,7 @@ export default function AdvancedSearch() {
                 </FilterSection>
 
                 {/* Quality Filters */}
-                <FilterSection title={t('search.qualityOptions', 'Qualité et options')} icon={Sparkles} section="quality">
+                <FilterSection title={t('search.qualityOptions', 'Qualité et options')} icon={SparklesIcon} section="quality">
                   <div className="space-y-3">
                     {/* Condition */}
                     <div>
@@ -673,7 +656,7 @@ export default function AdvancedSearch() {
                           className="w-4 h-4 text-neutral-600 focus:ring-neutral-500 rounded"
                         />
                         <span className="text-sm text-gray-700 flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                          <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
                           {t('search.verifiedOnly', 'Boutiques vérifiées uniquement')}
                         </span>
                       </label>
@@ -692,7 +675,7 @@ export default function AdvancedSearch() {
                           className="w-4 h-4 text-neutral-600 focus:ring-neutral-500 rounded"
                         />
                         <span className="text-sm text-gray-700 flex items-center gap-1">
-                          <Tag className="w-4 h-4 text-amber-500" />
+                          <TagIcon className="w-4 h-4 text-amber-500" />
                           {t('search.withDiscount', 'Avec remise')}
                         </span>
                       </label>
@@ -704,7 +687,7 @@ export default function AdvancedSearch() {
                         {t('search.minimumRating', 'Note minimum')}
                       </label>
                       <div className="flex items-center gap-2">
-                        <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                        <StarIcon className="w-4 h-4 text-amber-400 fill-amber-400" />
                         <input
                           type="number"
                           min="0"
@@ -727,7 +710,7 @@ export default function AdvancedSearch() {
                         {t('search.minimumFavorites', 'Minimum de favoris')}
                       </label>
                       <div className="flex items-center gap-2">
-                        <Heart className="w-4 h-4 text-red-500" />
+                        <HeartIcon className="w-4 h-4 text-red-500" />
                         <input
                           type="number"
                           min="0"
@@ -748,7 +731,7 @@ export default function AdvancedSearch() {
                         {t('search.minimumSales', 'Minimum de ventes')}
                       </label>
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-500" />
                         <input
                           type="number"
                           min="0"
@@ -766,7 +749,7 @@ export default function AdvancedSearch() {
                 </FilterSection>
 
                 {/* Location */}
-                <FilterSection title={t('search.location', 'Localisation')} icon={MapPin} section="location">
+                <FilterSection title={t('search.location', 'Localisation')} icon={MapPinIcon} section="location">
                   <select
                     value={city}
                     onChange={(e) => {
@@ -821,13 +804,13 @@ export default function AdvancedSearch() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* Mobile Filter Toggle */}
+                  {/* Mobile FunnelIcon Toggle */}
                   <button
                     type="button"
                     onClick={() => setShowFilters(!showFilters)}
                     className="hd-soft-button inline-flex items-center gap-2 px-4 py-2 text-sm font-bold lg:hidden"
                   >
-                    <Filter className="w-4 h-4" />
+                    <FunnelIcon className="w-4 h-4" />
                     {t('search.filters', 'Filtres')}
                     {activeFiltersCount > 0 && (
                       <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 text-xs font-bold">
@@ -867,7 +850,7 @@ export default function AdvancedSearch() {
                       aria-label={`${t('search.removeFilter', 'Retirer le filtre')} ${chip.label}`}
                     >
                       {chip.label}
-                      <X className="h-3.5 w-3.5" />
+                      <XMarkIcon className="h-3.5 w-3.5" />
                     </button>
                   ))}
                 </div>
@@ -917,7 +900,7 @@ export default function AdvancedSearch() {
               </>
             ) : (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-                <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <MagnifyingGlassIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-gray-900 mb-2">{t('search.noResults', 'Aucun résultat')}</h3>
                 <p className="text-sm text-gray-500 mb-6">
                   {t('search.noResultsHint', 'Aucun produit ne correspond à vos critères de recherche.')}
@@ -927,7 +910,7 @@ export default function AdvancedSearch() {
                   onClick={clearAllFilters}
                   className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <ArrowPathIcon className="w-4 h-4" />
                   {t('search.resetFilters', 'Réinitialiser les filtres')}
                 </button>
               </div>

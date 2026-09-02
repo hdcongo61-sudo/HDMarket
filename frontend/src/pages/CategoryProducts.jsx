@@ -5,7 +5,7 @@ import ProductCard from '../components/ProductCard';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import useCategories from '../hooks/useCategories';
-import { ChevronRight, ArrowLeft, SlidersHorizontal, Grid2X2, List } from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ChevronRightIcon, ListBulletIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'react-router-dom';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
@@ -361,7 +361,7 @@ export default function CategoryProducts() {
                       className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-black text-gray-500 hover:bg-gray-100 transition-colors"
                     >
                       {option.label}
-                      <ChevronRight className="w-3 h-3" />
+                      <ChevronRightIcon className="w-3 h-3" />
                     </Link>
                   ))}
                 </div>
@@ -373,7 +373,7 @@ export default function CategoryProducts() {
               to="/"
               className="hd-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeftIcon className="w-4 h-4" />
               Retour à l’accueil
             </Link>
           </div>
@@ -404,11 +404,11 @@ export default function CategoryProducts() {
           <Link to="/" className="hover:text-neutral-600 font-medium">
             Accueil
           </Link>
-          <ChevronRight className="w-3 h-3" />
+          <ChevronRightIcon className="w-3 h-3" />
           {group ? (
             <>
               <span>{group.label}</span>
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRightIcon className="w-3 h-3" />
             </>
           ) : null}
           <span className="text-gray-900 font-semibold">{categoryMeta.label}</span>
@@ -432,7 +432,7 @@ export default function CategoryProducts() {
                   htmlFor="category-sort"
                   className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-white/80"
                 >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
                   Trier
                 </label>
                 <select
@@ -451,8 +451,8 @@ export default function CategoryProducts() {
 
               <div className="inline-grid h-11 w-full grid-cols-2 rounded-full border border-white/30 bg-white/20 p-1 md:w-40">
                 {[
-                  { value: 'grid', label: 'Grille', icon: Grid2X2 },
-                  { value: 'list', label: 'Liste', icon: List }
+                  { value: 'grid', label: 'Grille', icon: Squares2X2Icon },
+                  { value: 'list', label: 'Liste', icon: ListBulletIcon }
                 ].map((option) => {
                   const Icon = option.icon;
                   const active = viewMode === option.value;
@@ -494,7 +494,7 @@ export default function CategoryProducts() {
                     }`}
                   >
                     {option.label}
-                    {isActive ? null : <ChevronRight className="w-3 h-3 opacity-50" />}
+                    {isActive ? null : <ChevronRightIcon className="w-3 h-3 opacity-50" />}
                   </Link>
                 );
               })}

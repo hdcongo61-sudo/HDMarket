@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp } from 'lucide-react';
+import { ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
 
 const classLabel = {
   high_potential: 'Haut potentiel',
@@ -22,7 +22,7 @@ export default function TopProductsAnalyticsTable({
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-neutral-600" />
+        <ArrowTrendingUpIcon className="h-4 w-4 text-neutral-600" />
         <h3 className="text-sm font-semibold text-gray-900">Produits les plus vus</h3>
       </div>
       {!products.length ? (

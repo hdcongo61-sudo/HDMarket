@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Package, Route } from 'lucide-react';
+import { ArrowRightIcon, CubeIcon, MapIcon } from '@heroicons/react/24/outline';
 import {
   formatCurrency,
   normalizeFileUrl,
@@ -50,7 +50,7 @@ export default function NextDeliveryCard({
         <div className="flex items-center gap-3">
           {assignment?.kind === 'PARCEL' ? (
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-white text-[#FF6A00] dark:bg-neutral-950">
-              <Package size={16} />
+              <CubeIcon className="h-4 w-4" />
             </div>
           ) : firstItem?.imageUrl ? (
             <img
@@ -61,7 +61,7 @@ export default function NextDeliveryCard({
             />
           ) : (
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-white text-gray-400 dark:bg-neutral-950 dark:text-gray-500">
-              <Package size={16} />
+              <CubeIcon className="h-4 w-4" />
             </div>
           )}
           <div className="min-w-0 flex-1">
@@ -79,7 +79,7 @@ export default function NextDeliveryCard({
               </>
             )}
           </div>
-          <Route size={15} className="text-gray-400" />
+          <MapIcon className="text-gray-400 h-[15px] w-[15px]" />
         </div>
       </div>
 
@@ -91,7 +91,7 @@ export default function NextDeliveryCard({
           className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white transition active:scale-[0.98] disabled:opacity-60"
         >
           {primaryLabel || 'Ouvrir'}
-          <ArrowRight size={14} />
+          <ArrowRightIcon className="h-3.5 w-3.5" />
         </button>
         {secondaryLabel ? (
           <button

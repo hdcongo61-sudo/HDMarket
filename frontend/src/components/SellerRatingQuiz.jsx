@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Star } from 'lucide-react';
+import { StarIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
 /**
@@ -76,14 +76,12 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
               onMouseLeave={() => setHoverOverall(0)}
               className="transition-transform hover:scale-110"
             >
-              <Star
-                size={24}
-                className={
+              <StarIcon
+className={
                   star <= (hoverOverall || overallRating)
                     ? 'fill-amber-400 text-amber-400'
                     : 'text-gray-300'
-                }
-              />
+                } className="h-6 w-6" />
             </button>
           ))}
         </div>
@@ -102,14 +100,12 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
               onMouseLeave={() => setHoverDescription(0)}
               className="transition-transform hover:scale-110"
             >
-              <Star
-                size={18}
-                className={
+              <StarIcon
+className={
                   star <= (hoverDescription || descriptionRating)
                     ? 'fill-blue-400 text-blue-400'
                     : 'text-gray-200'
-                }
-              />
+                } className="h-[18px] w-[18px]" />
             </button>
           ))}
         </div>
@@ -128,14 +124,12 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
               onMouseLeave={() => setHoverCommunication(0)}
               className="transition-transform hover:scale-110"
             >
-              <Star
-                size={18}
-                className={
+              <StarIcon
+className={
                   star <= (hoverCommunication || communicationRating)
                     ? 'fill-green-400 text-green-400'
                     : 'text-gray-200'
-                }
-              />
+                } className="h-[18px] w-[18px]" />
             </button>
           ))}
         </div>
@@ -154,14 +148,12 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
               onMouseLeave={() => setHoverDelivery(0)}
               className="transition-transform hover:scale-110"
             >
-              <Star
-                size={18}
-                className={
+              <StarIcon
+className={
                   star <= (hoverDelivery || deliveryRating)
                     ? 'fill-orange-400 text-orange-400'
                     : 'text-gray-200'
-                }
-              />
+                } className="h-[18px] w-[18px]" />
             </button>
           ))}
         </div>

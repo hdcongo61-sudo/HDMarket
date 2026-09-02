@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Ban, BarChart3, CheckCircle2, RefreshCw, Search, ShieldAlert, MessageSquareOff, ShoppingCartIcon, HeartOff, ImageOff, X, Calendar, ChevronDown, Package, EyeOff, History, Store, CheckCircle, XCircle, DollarSign, Hash, CreditCard, FileImage, User, UserX, AlertCircle, MapPin, Truck, Clock, Phone, Mail, MoreVertical, Lock, Unlock, KeyRound, LogOut, Crown, ShieldOff } from 'lucide-react';
+import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, ArrowPathIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, EllipsisVerticalIcon, EnvelopeIcon, ExclamationCircleIcon, EyeSlashIcon, HashtagIcon, HeartIcon, KeyIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, NoSymbolIcon, PhoneIcon, PhotoIcon, ShieldExclamationIcon, ShoppingCartIcon, TrophyIcon, TruckIcon, UserIcon, UserMinusIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -13,12 +13,12 @@ import { hasAnyPermission } from '../utils/permissions';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 
 const RESTRICTION_TYPES = [
-  { key: 'canComment', label: 'Commentaires', icon: MessageSquareOff, color: 'orange', shopOnly: false },
+  { key: 'canComment', label: 'Commentaires', icon: ChatBubbleLeftRightIcon, color: 'orange', shopOnly: false },
   { key: 'canOrder', label: 'Commandes', icon: ShoppingCartIcon, color: 'red', shopOnly: false },
-  { key: 'canMessage', label: 'Messages', icon: MessageSquareOff, color: 'purple', shopOnly: false },
-  { key: 'canAddFavorites', label: 'Favoris', icon: HeartOff, color: 'pink', shopOnly: false },
-  { key: 'canUploadImages', label: 'Images', icon: ImageOff, color: 'blue', shopOnly: false },
-  { key: 'canBeViewed', label: 'Visibilité boutique', icon: EyeOff, color: 'gray', shopOnly: true }
+  { key: 'canMessage', label: 'Messages', icon: ChatBubbleLeftRightIcon, color: 'purple', shopOnly: false },
+  { key: 'canAddFavorites', label: 'Favoris', icon: HeartIcon, color: 'pink', shopOnly: false },
+  { key: 'canUploadImages', label: 'Images', icon: PhotoIcon, color: 'blue', shopOnly: false },
+  { key: 'canBeViewed', label: 'Visibilité boutique', icon: EyeSlashIcon, color: 'gray', shopOnly: true }
 ];
 
 const accountTypeLabels = {
@@ -1389,7 +1389,7 @@ export default function AdminUsers() {
       <>
         {user.accountType !== 'shop' && conversionRequest && (
           <button type="button" onClick={run(() => openConversionModal(user))} className={itemClass}>
-            <Store size={14} className="text-neutral-400" /> Demande boutique
+            <BuildingStorefrontIcon className="text-neutral-400 h-3.5 w-3.5" /> Demande boutique
           </button>
         )}
         {user.accountType !== 'shop' && !conversionRequest && (
@@ -1399,7 +1399,7 @@ export default function AdminUsers() {
             disabled={!canManageSellers || convertingUserId === user.id}
             className={itemClass}
           >
-            <Store size={14} className="text-teal-500" /> Convertir en boutique
+            <BuildingStorefrontIcon className="text-teal-500 h-3.5 w-3.5" /> Convertir en boutique
           </button>
         )}
         {user.accountType === 'shop' && (
@@ -1409,7 +1409,7 @@ export default function AdminUsers() {
             disabled={!canManageSellers || convertingUserId === user.id}
             className={itemClass}
           >
-            <User size={14} className="text-orange-500" /> Reconvertir en particulier
+            <UserIcon className="text-orange-500 h-3.5 w-3.5" /> Reconvertir en particulier
           </button>
         )}
         {!['admin', 'founder'].includes(targetRole) && (
@@ -1422,7 +1422,7 @@ export default function AdminUsers() {
             }
             className={itemClass}
           >
-            <Truck size={14} className="text-cyan-500" />
+            <TruckIcon className="text-cyan-500 h-3.5 w-3.5" />
             {targetRole === 'delivery_agent' ? 'Lier profil livreur' : 'Promouvoir livreur'}
           </button>
         )}
@@ -1436,7 +1436,7 @@ export default function AdminUsers() {
             }
             className={itemClass}
           >
-            <Truck size={14} className="text-amber-500" /> Délier profil livreur
+            <TruckIcon className="text-amber-500 h-3.5 w-3.5" /> Délier profil livreur
           </button>
         )}
         {isShopAccount && (
@@ -1446,13 +1446,13 @@ export default function AdminUsers() {
             disabled={!canManageSellers || verifyingShopId === user.id}
             className={itemClass}
           >
-            <CheckCircle size={14} className={user.shopVerified ? 'text-amber-500' : 'text-emerald-500'} />
+            <CheckCircleIcon className={user.shopVerified ? 'text-amber-500' : 'text-emerald-500'} className="h-3.5 w-3.5" />
             {user.shopVerified ? 'Retirer le badge certifié' : 'Vérifier la boutique'}
           </button>
         )}
         {isShopAccount && (
           <button type="button" onClick={run(() => openOrdersModal(user))} disabled={!canManageOrders} className={itemClass}>
-            <Package size={14} className="text-neutral-400" /> Commandes reçues
+            <CubeIcon className="text-neutral-400 h-3.5 w-3.5" /> Commandes reçues
           </button>
         )}
         {isShopAccount && user.shopLocationNeedsReview && (
@@ -1463,7 +1463,7 @@ export default function AdminUsers() {
               disabled={!canManageSellers || locationReviewLoading}
               className={itemClass}
             >
-              <CheckCircle size={14} className="text-emerald-500" /> Approuver position GPS
+              <CheckCircleIcon className="text-emerald-500 h-3.5 w-3.5" /> Approuver position GPS
             </button>
             <button
               type="button"
@@ -1471,7 +1471,7 @@ export default function AdminUsers() {
               disabled={!canManageSellers || locationReviewLoading}
               className={itemClass}
             >
-              <XCircle size={14} className="text-red-500" /> Rejeter position GPS
+              <XCircleIcon className="text-red-500 h-3.5 w-3.5" /> Rejeter position GPS
             </button>
           </>
         )}
@@ -1482,12 +1482,12 @@ export default function AdminUsers() {
             disabled={!canManageSellers || locationTimelineLoading}
             className={itemClass}
           >
-            <MapPin size={14} className="text-sky-500" /> Timeline GPS
+            <MapPinIcon className="text-sky-500 h-3.5 w-3.5" /> Timeline GPS
           </button>
         )}
         {canViewLogs && (
           <button type="button" onClick={run(() => openAuditModal(user))} className={itemClass}>
-            <History size={14} className="text-neutral-400" /> Historique des actions
+            <ClockIcon className="text-neutral-400 h-3.5 w-3.5" /> Historique des actions
           </button>
         )}
         {isFounder && targetRole !== 'founder' && targetRole !== 'admin' && (canAssignRoles || canManagePermissions) && (
@@ -1497,7 +1497,7 @@ export default function AdminUsers() {
             disabled={!canTarget || securityActionKey === `promote:${user.id}`}
             className={itemClass}
           >
-            <Crown size={14} className="text-indigo-500" /> Promouvoir admin
+            <TrophyIcon className="text-indigo-500 h-3.5 w-3.5" /> Promouvoir admin
           </button>
         )}
         {isFounder && targetRole === 'admin' && (canRevokeRoles || canManagePermissions) && (
@@ -1507,7 +1507,7 @@ export default function AdminUsers() {
             disabled={!canTarget || securityActionKey === `revoke:${user.id}`}
             className={itemClass}
           >
-            <ShieldOff size={14} className="text-purple-500" /> Révoquer admin
+            <ShieldExclamationIcon className="text-purple-500 h-3.5 w-3.5" /> Révoquer admin
           </button>
         )}
         {canLockAccounts && (
@@ -1518,7 +1518,7 @@ export default function AdminUsers() {
               disabled={!canTarget || securityActionKey === `unlock:${user.id}`}
               className={itemClass}
             >
-              <Unlock size={14} className="text-green-500" /> Déverrouiller le compte
+              <LockOpenIcon className="text-green-500 h-3.5 w-3.5" /> Déverrouiller le compte
             </button>
           ) : (
             <button
@@ -1527,7 +1527,7 @@ export default function AdminUsers() {
               disabled={!canTarget || securityActionKey === `lock:${user.id}`}
               className={itemClass}
             >
-              <Lock size={14} className="text-red-500" /> Verrouiller le compte
+              <LockClosedIcon className="text-red-500 h-3.5 w-3.5" /> Verrouiller le compte
             </button>
           )
         )}
@@ -1542,7 +1542,7 @@ export default function AdminUsers() {
             }
             className={itemClass}
           >
-            <KeyRound size={14} className="text-amber-500" /> Modifier le mot de passe
+            <KeyIcon className="text-amber-500 h-3.5 w-3.5" /> Modifier le mot de passe
           </button>
         )}
         {canForceLogout && (
@@ -1552,11 +1552,11 @@ export default function AdminUsers() {
             disabled={!canTarget || securityActionKey === `logout:${user.id}`}
             className={itemClass}
           >
-            <LogOut size={14} className="text-neutral-500" /> Forcer la déconnexion
+            <ArrowLeftOnRectangleIcon className="text-neutral-500 h-3.5 w-3.5" /> Forcer la déconnexion
           </button>
         )}
         <Link to={`/admin/users/${user.id}/stats`} onClick={closeMenu} className={itemClass}>
-          <BarChart3 size={14} className="text-[#e85d00]" /> Voir les statistiques
+          <ChartBarIcon className="text-[#e85d00] h-3.5 w-3.5" /> Voir les statistiques
         </Link>
       </>
     );
@@ -1606,7 +1606,7 @@ export default function AdminUsers() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
-                <ShieldAlert size={18} />
+                <ShieldExclamationIcon className="h-[18px] w-[18px]" />
               </div>
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#e85d00]">Communauté</p>
@@ -1622,7 +1622,7 @@ export default function AdminUsers() {
                   onClick={openFounderAuditModal}
                   className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
                 >
-                  <History size={14} />
+                  <ClockIcon className="h-3.5 w-3.5" />
                   Timeline
                 </button>
               )}
@@ -1630,7 +1630,7 @@ export default function AdminUsers() {
                 to="/admin"
                 className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
               >
-                <ArrowLeft size={14} />
+                <ArrowLeftIcon className="h-3.5 w-3.5" />
                 Dashboard
               </Link>
               <button
@@ -1638,7 +1638,7 @@ export default function AdminUsers() {
                 onClick={handleRefresh}
                 className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-3.5 w-3.5" />
                 Actualiser
               </button>
             </div>
@@ -1656,7 +1656,7 @@ export default function AdminUsers() {
             )}
             {searchTerm && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
-                <Search size={12} />
+                <MagnifyingGlassIcon className="h-3 w-3" />
                 &quot;{searchTerm}&quot;
               </span>
             )}
@@ -1669,7 +1669,7 @@ export default function AdminUsers() {
           <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100">
-                <User size={14} className="text-neutral-600" />
+                <UserIcon className="text-neutral-600 h-3.5 w-3.5" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Total</p>
             </div>
@@ -1679,7 +1679,7 @@ export default function AdminUsers() {
           <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100">
-                <CheckCircle2 size={14} className="text-emerald-600" />
+                <CheckCircleIcon className="text-emerald-600 h-3.5 w-3.5" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Actifs</p>
             </div>
@@ -1689,7 +1689,7 @@ export default function AdminUsers() {
           <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-100">
-                <Ban size={14} className="text-red-600" />
+                <NoSymbolIcon className="text-red-600 h-3.5 w-3.5" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Suspendus</p>
             </div>
@@ -1699,7 +1699,7 @@ export default function AdminUsers() {
           <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100">
-                <Store size={14} className="text-violet-600" />
+                <BuildingStorefrontIcon className="text-violet-600 h-3.5 w-3.5" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Boutiques</p>
             </div>
@@ -1709,7 +1709,7 @@ export default function AdminUsers() {
           <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-100">
-                <Truck size={14} className="text-cyan-600" />
+                <TruckIcon className="text-cyan-600 h-3.5 w-3.5" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">Livreurs</p>
             </div>
@@ -1719,7 +1719,7 @@ export default function AdminUsers() {
           <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100">
-                <Clock size={14} className="text-amber-600" />
+                <ClockIcon className="text-amber-600 h-3.5 w-3.5" />
               </div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">En attente</p>
             </div>
@@ -1781,12 +1781,12 @@ export default function AdminUsers() {
           </div>
         )}
 
-        {/* Search + Filters */}
+        {/* MagnifyingGlassIcon + Filters */}
         <form onSubmit={handleSearchSubmit} className="px-4 py-3 sm:px-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            {/* Search bar */}
+            {/* MagnifyingGlassIcon bar */}
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 h-4 w-4" />
               <input
                 type="search"
                 placeholder="Rechercher nom, email ou téléphone…"
@@ -1906,35 +1906,35 @@ export default function AdminUsers() {
         {/* ─── Messages ─── */}
         {error && (
           <div className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 sm:mx-5">
-            <AlertCircle size={16} className="mr-2 inline-block" />
+            <ExclamationCircleIcon className="mr-2 inline-block h-4 w-4" />
             {error}
           </div>
         )}
         {actionError && (
           <div className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 sm:mx-5">
-            <AlertCircle size={16} className="mr-2 inline-block" />
+            <ExclamationCircleIcon className="mr-2 inline-block h-4 w-4" />
             {actionError}
           </div>
         )}
         {actionSuccess && (
           <div className="mx-4 mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 sm:mx-5">
-            <CheckCircle2 size={16} className="mr-2 inline-block" />
+            <CheckCircleIcon className="mr-2 inline-block h-4 w-4" />
             {actionSuccess}
           </div>
         )}
 
-        {/* ─── User List ─── */}
+        {/* ─── UserIcon List ─── */}
 
         {isMobileView ? (
           <div className="divide-y divide-neutral-100">
             {loading ? (
               <div className="px-4 py-12 text-center sm:px-5">
-                <RefreshCw size={20} className="mx-auto animate-spin text-neutral-300" />
+                <ArrowPathIcon className="mx-auto animate-spin text-neutral-300 h-5 w-5" />
                 <p className="mt-3 text-sm text-neutral-400">Chargement des utilisateurs…</p>
               </div>
             ) : paginatedUsers.length === 0 ? (
               <div className="px-4 py-12 text-center sm:px-5">
-                <User size={28} className="mx-auto text-neutral-200" />
+                <UserIcon className="mx-auto text-neutral-200 h-7 w-7" />
                 <p className="mt-3 text-sm font-medium text-neutral-500">Aucun utilisateur trouvé</p>
                 <p className="mt-1 text-xs text-neutral-400">Essayez de modifier vos filtres</p>
               </div>
@@ -1977,19 +1977,19 @@ export default function AdminUsers() {
                         </div>
                         <div className="space-y-0.5">
                           <p className="flex items-center gap-1 truncate text-xs text-neutral-500">
-                            <Phone size={10} className="shrink-0 text-neutral-400" />
+                            <PhoneIcon className="shrink-0 text-neutral-400 h-2.5 w-2.5" />
                             <span className="truncate">{user.phone}</span>
                             {user.phoneVerified ? (
-                              <CheckCircle2 size={10} className="shrink-0 text-emerald-500" />
+                              <CheckCircleIcon className="shrink-0 text-emerald-500 h-2.5 w-2.5" />
                             ) : null}
                           </p>
                           <p className="flex items-center gap-1 truncate text-xs text-neutral-500">
-                            <Mail size={10} className="shrink-0 text-neutral-400" />
+                            <EnvelopeIcon className="shrink-0 text-neutral-400 h-2.5 w-2.5" />
                             {user.email ? (
                               <>
                                 <span className="truncate">{user.email}</span>
                                 {user.emailVerified ? (
-                                  <CheckCircle2 size={10} className="shrink-0 text-emerald-500" />
+                                  <CheckCircleIcon className="shrink-0 text-emerald-500 h-2.5 w-2.5" />
                                 ) : (
                                   <span className="shrink-0 text-[10px] font-semibold text-amber-600">Non vérifié</span>
                                 )}
@@ -2011,10 +2011,10 @@ export default function AdminUsers() {
                                 : 'bg-emerald-50 text-emerald-600'
                           }`}>
                             {isBlocked
-                              ? <><Ban size={10} />Suspendu</>
+                              ? <><NoSymbolIcon className="h-2.5 w-2.5" />Suspendu</>
                               : isInactive
-                                ? <><UserX size={10} />Désactivé</>
-                                : <><CheckCircle2 size={10} />Actif</>}
+                                ? <><UserMinusIcon className="h-2.5 w-2.5" />Désactivé</>
+                                : <><CheckCircleIcon className="h-2.5 w-2.5" />Actif</>}
                           </span>
                           <span className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-500">
                             {accountTypeLabels[user.accountType] || user.accountType}
@@ -2022,7 +2022,7 @@ export default function AdminUsers() {
                         </div>
                         {user.accountType === 'shop' && user.shopName && (
                           <p className="mt-1 text-[11px] text-neutral-500">
-                            <Store size={10} className="mr-1 inline-block text-neutral-400" />
+                            <BuildingStorefrontIcon className="mr-1 inline-block text-neutral-400 h-2.5 w-2.5" />
                             {user.shopName}
                             <span className="mx-1 text-neutral-300">·</span>
                             {formatNumber(user.followersCount)} abonnés
@@ -2031,7 +2031,7 @@ export default function AdminUsers() {
                       </div>
                     </div>
 
-                    {/* Block/Lock details */}
+                    {/* Block/LockClosedIcon details */}
                     {isBlocked && (
                       <div className="mt-2 rounded-lg border border-red-100 bg-red-50/50 px-3 py-2 text-[11px] text-red-700">
                         <p className="font-semibold">Compte suspendu</p>
@@ -2086,7 +2086,7 @@ export default function AdminUsers() {
                           const IconComponent = rt.icon;
                           return (
                             <span key={rt.key} className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                              <IconComponent size={10} />
+                              <IconComponent className="h-2.5 w-2.5" />
                               {rt.label}
                             </span>
                           );
@@ -2125,7 +2125,7 @@ export default function AdminUsers() {
                               : 'border-neutral-300 text-neutral-600 hover:bg-amber-50'
                           }`}
                         >
-                          <ShieldAlert size={14} />
+                          <ShieldExclamationIcon className="h-3.5 w-3.5" />
                           {getActiveRestrictionsCount(user) > 0 && <span>{getActiveRestrictionsCount(user)}</span>}
                         </button>
                         {restrictionMenuOpen === user.id && (
@@ -2140,7 +2140,7 @@ export default function AdminUsers() {
                                   onClick={() => openRestrictionModal(user, rt.key)}
                                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
                                 >
-                                  <IconComponent size={14} className={isActive ? 'text-red-500' : 'text-gray-400'} />
+                                  <IconComponent className={isActive ? 'text-red-500' : 'text-gray-400'} className="h-3.5 w-3.5" />
                                   <span className={isActive ? 'text-red-600 font-semibold' : 'text-gray-700'}>{rt.label}</span>
                                   {isActive && <span className="ml-auto text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Actif</span>}
                                 </button>
@@ -2156,7 +2156,7 @@ export default function AdminUsers() {
                           onClick={() => setMoreMenuOpen(moreMenuOpen === user.id ? null : user.id)}
                           className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50"
                         >
-                          <MoreVertical size={14} />
+                          <EllipsisVerticalIcon className="h-3.5 w-3.5" />
                           Plus
                         </button>
                         {moreMenuOpen === user.id && (
@@ -2188,14 +2188,14 @@ export default function AdminUsers() {
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-16 text-center">
-                      <RefreshCw size={20} className="mx-auto animate-spin text-neutral-300" />
+                      <ArrowPathIcon className="mx-auto animate-spin text-neutral-300 h-5 w-5" />
                       <p className="mt-3 text-sm text-neutral-400">Chargement des utilisateurs…</p>
                     </td>
                   </tr>
                 ) : displayedUsers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-16 text-center">
-                      <User size={28} className="mx-auto text-neutral-200" />
+                      <UserIcon className="mx-auto text-neutral-200 h-7 w-7" />
                       <p className="mt-3 text-sm font-medium text-neutral-500">Aucun utilisateur trouvé</p>
                       <p className="mt-1 text-xs text-neutral-400">Essayez de modifier vos filtres</p>
                     </td>
@@ -2242,7 +2242,7 @@ export default function AdminUsers() {
                                   <>
                                     {user.email}
                                     {user.emailVerified ? (
-                                      <CheckCircle2 size={11} className="shrink-0 text-emerald-500" />
+                                      <CheckCircleIcon className="shrink-0 text-emerald-500 h-[11px] w-[11px]" />
                                     ) : (
                                       <span className="shrink-0 text-[10px] font-semibold text-amber-600">Non vérifié</span>
                                     )}
@@ -2254,7 +2254,7 @@ export default function AdminUsers() {
                               <span className="ml-2 inline-flex items-center gap-1 text-xs text-neutral-400">
                                 {user.phone || '—'}
                                 {user.phoneVerified ? (
-                                  <CheckCircle2 size={11} className="shrink-0 text-emerald-500" />
+                                  <CheckCircleIcon className="shrink-0 text-emerald-500 h-[11px] w-[11px]" />
                                 ) : null}
                               </span>
                             {user.accountType === 'shop' && user.shopName ? (
@@ -2274,7 +2274,7 @@ export default function AdminUsers() {
                             {shouldShowLocationPanel ? (
                               <div className="mt-2 rounded-lg border border-sky-100 bg-sky-50/70 px-2 py-1.5 text-[11px] text-sky-900">
                                 <div className="flex items-center gap-2">
-                                  <MapPin size={12} className="text-sky-700" />
+                                  <MapPinIcon className="text-sky-700 h-3 w-3" />
                                   <span className="font-semibold">
                                     {user.shopLocationNeedsReview
                                       ? 'GPS à valider'
@@ -2311,7 +2311,7 @@ export default function AdminUsers() {
                           {isBlocked ? (
                             <div className="flex flex-col gap-1">
                               <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
-                                <Ban size={12} />
+                                <NoSymbolIcon className="h-3 w-3" />
                                 Suspendu
                               </span>
                               <span className="text-xs text-gray-500">
@@ -2331,7 +2331,7 @@ export default function AdminUsers() {
                           ) : isInactive ? (
                             <div className="flex flex-col gap-1">
                               <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                                <UserX size={12} />
+                                <UserMinusIcon className="h-3 w-3" />
                                 Désactivé
                               </span>
                               {user.deactivatedAt ? (
@@ -2342,7 +2342,7 @@ export default function AdminUsers() {
                             </div>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600">
-                              <CheckCircle2 size={12} />
+                              <CheckCircleIcon className="h-3 w-3" />
                               Actif
                             </span>
                           )}
@@ -2423,7 +2423,7 @@ export default function AdminUsers() {
                                 }`}
                                 title="Restrictions"
                               >
-                                <ShieldAlert size={12} />
+                                <ShieldExclamationIcon className="h-3 w-3" />
                                 {getActiveRestrictionsCount(user) > 0 && <span>{getActiveRestrictionsCount(user)}</span>}
                               </button>
                               {restrictionMenuOpen === user.id && (
@@ -2439,7 +2439,7 @@ export default function AdminUsers() {
                                         onClick={() => openRestrictionModal(user, rt.key)}
                                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50"
                                       >
-                                        <IconComponent size={14} className={isActive ? 'text-red-500' : 'text-gray-400'} />
+                                        <IconComponent className={isActive ? 'text-red-500' : 'text-gray-400'} className="h-3.5 w-3.5" />
                                         <span className={isActive ? 'text-red-600 font-semibold' : 'text-gray-700'}>{rt.label}</span>
                                         {isActive && <span className="ml-auto text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Actif</span>}
                                       </button>
@@ -2456,7 +2456,7 @@ export default function AdminUsers() {
                                 className="inline-flex items-center justify-center rounded-lg border border-gray-300 p-1.5 text-gray-600 hover:bg-gray-50"
                                 title="Plus d'actions"
                               >
-                                <MoreVertical size={14} />
+                                <EllipsisVerticalIcon className="h-3.5 w-3.5" />
                               </button>
                               {moreMenuOpen === user.id && (
                                 <div className="absolute right-0 z-20 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border bg-white py-1 shadow-lg">
@@ -2486,7 +2486,7 @@ export default function AdminUsers() {
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
               >
-                <ChevronDown size={14} className="rotate-90" />
+                <ChevronDownIcon className="rotate-90 h-3.5 w-3.5" />
                 Précédent
               </button>
               <span className="text-xs font-medium text-neutral-500 tabular-nums">
@@ -2499,7 +2499,7 @@ export default function AdminUsers() {
                 disabled={page >= totalPages}
               >
                 Suivant
-                <ChevronDown size={14} className="-rotate-90" />
+                <ChevronDownIcon className="-rotate-90 h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -2509,7 +2509,7 @@ export default function AdminUsers() {
       {/* Restriction Modal */}
       {restrictionModal.open && restrictionModal.user && (() => {
         const restrictionType = RESTRICTION_TYPES.find((rt) => rt.key === restrictionForm.type);
-        const IconComponent = restrictionType?.icon || ShieldAlert;
+        const IconComponent = restrictionType?.icon || ShieldExclamationIcon;
         const isActive = restrictionForm.restricted;
         
         return (
@@ -2525,7 +2525,7 @@ export default function AdminUsers() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     <div className={`p-2.5 rounded-xl ${isActive ? 'bg-red-100' : 'bg-gray-100'}`}>
-                      <IconComponent size={24} className={isActive ? 'text-red-600' : 'text-gray-500'} />
+                      <IconComponent className={isActive ? 'text-red-600' : 'text-gray-500'} className="h-6 w-6" />
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-gray-900 mb-1">
@@ -2544,7 +2544,7 @@ export default function AdminUsers() {
                     onClick={closeRestrictionModal} 
                     className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-colors"
                   >
-                    <X size={20} />
+                    <XMarkIcon className="h-5 w-5" />
                   </button>
                 </div>
               </div>
@@ -2586,7 +2586,7 @@ export default function AdminUsers() {
                     {/* Dates Section */}
                     <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-100">
                       <h4 className="text-sm font-bold text-neutral-900 mb-3 flex items-center gap-2">
-                        <Calendar size={16} />
+                        <CalendarIcon className="h-4 w-4" />
                         Période de restriction
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2620,7 +2620,7 @@ export default function AdminUsers() {
                     {/* Reason Section */}
                     <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
                       <label className="block text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                        <ShieldAlert size={16} className="text-amber-600" />
+                        <ShieldExclamationIcon className="text-amber-600 h-4 w-4" />
                         Raison de la restriction
                         <span className="text-xs font-normal text-gray-500">(interne, visible uniquement par les administrateurs)</span>
                       </label>
@@ -2640,7 +2640,7 @@ export default function AdminUsers() {
                     <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-100">
                       <div className="flex items-start gap-3">
                         <div className="p-1.5 bg-neutral-100 rounded-lg">
-                          <ShieldAlert size={16} className="text-neutral-600" />
+                          <ShieldExclamationIcon className="text-neutral-600 h-4 w-4" />
                         </div>
                         <div className="flex-1">
                           <p className="text-xs font-semibold text-neutral-900 mb-1">Information importante</p>
@@ -2657,7 +2657,7 @@ export default function AdminUsers() {
                 {/* Inactive State Info */}
                 {!isActive && (
                   <div className="bg-green-50 rounded-xl p-5 border border-green-100 text-center">
-                    <CheckCircle2 size={48} className="text-green-500 mx-auto mb-3" />
+                    <CheckCircleIcon className="text-green-500 mx-auto mb-3 h-12 w-12" />
                     <p className="text-sm font-semibold text-green-900 mb-1">
                       Aucune restriction active
                     </p>
@@ -2671,7 +2671,7 @@ export default function AdminUsers() {
                 {actionError && (
                   <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 animate-in fade-in slide-in-from-top-2">
                     <div className="flex items-start gap-3">
-                      <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                      <ExclamationCircleIcon className="text-red-600 flex-shrink-0 mt-0.5 h-5 w-5" />
                       <div>
                         <p className="text-sm font-semibold text-red-900 mb-1">Erreur</p>
                         <p className="text-sm text-red-700">{actionError}</p>
@@ -2703,17 +2703,17 @@ export default function AdminUsers() {
                   >
                     {restrictionLoading ? (
                       <span className="flex items-center justify-center gap-2">
-                        <RefreshCw size={16} className="animate-spin" />
+                        <ArrowPathIcon className="animate-spin h-4 w-4" />
                         Traitement...
                       </span>
                     ) : isActive ? (
                       <span className="flex items-center justify-center gap-2">
-                        <Ban size={16} />
+                        <NoSymbolIcon className="h-4 w-4" />
                         Appliquer la restriction
                       </span>
                     ) : (
                       <span className="flex items-center justify-center gap-2">
-                        <CheckCircle2 size={16} />
+                        <CheckCircleIcon className="h-4 w-4" />
                         Désactiver la restriction
                       </span>
                     )}
@@ -2739,7 +2739,7 @@ export default function AdminUsers() {
                 <p className="text-xs text-gray-500">{ordersModal.user.shopName || ordersModal.user.name}</p>
               </div>
               <button type="button" onClick={closeOrdersModal} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
@@ -2824,7 +2824,7 @@ export default function AdminUsers() {
                 <p className="text-xs text-gray-500">{conversionModal.user.name} ({conversionModal.user.email})</p>
               </div>
               <button type="button" onClick={closeConversionModal} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
@@ -2835,7 +2835,7 @@ export default function AdminUsers() {
                   {/* Shop Information */}
                   <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <Store size={18} className="text-neutral-600" />
+                      <BuildingStorefrontIcon className="text-neutral-600 h-[18px] w-[18px]" />
                       Informations de la boutique
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2870,7 +2870,7 @@ export default function AdminUsers() {
 
                   <div className="rounded-xl bg-orange-50 p-4 space-y-3">
                     <h4 className="flex items-center gap-2 font-semibold text-gray-900">
-                      <FileImage size={18} className="text-[#e85d00]" />
+                      <PhotoIcon className="text-[#e85d00] h-[18px] w-[18px]" />
                       Justificatifs de la boutique (4 requis)
                     </h4>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2894,7 +2894,7 @@ export default function AdminUsers() {
                   {/* Payment Information */}
                   <div className="bg-neutral-50 rounded-xl p-4 space-y-3">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <DollarSign size={18} className="text-neutral-600" />
+                      <CurrencyDollarIcon className="text-neutral-600 h-[18px] w-[18px]" />
                       Informations de paiement
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2910,14 +2910,14 @@ export default function AdminUsers() {
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
-                          <CreditCard size={14} />
+                          <CreditCardIcon className="h-3.5 w-3.5" />
                           Nom de la transaction
                         </label>
                         <p className="text-sm text-gray-900 mt-1">{conversionModal.request.transactionName}</p>
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-600 flex items-center gap-1">
-                          <Hash size={14} />
+                          <HashtagIcon className="h-3.5 w-3.5" />
                           Numéro de transaction
                         </label>
                         <p className="text-sm text-gray-900 mt-1 font-mono">{conversionModal.request.transactionNumber}</p>
@@ -2928,7 +2928,7 @@ export default function AdminUsers() {
                   {/* Payment Proof */}
                   <div className="bg-green-50 rounded-xl p-4 space-y-3">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <FileImage size={18} className="text-green-600" />
+                      <PhotoIcon className="text-green-600 h-[18px] w-[18px]" />
                       Preuve de paiement
                     </h4>
                     {conversionModal.request.paymentProof && (
@@ -2970,7 +2970,7 @@ export default function AdminUsers() {
                   disabled={!canManageSellers || conversionLoading}
                   className="px-4 py-2 text-sm font-semibold text-red-600 border border-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  <XCircle size={16} className="inline mr-1" />
+                  <XCircleIcon className="inline mr-1 h-4 w-4" />
                   Rejeter
                 </button>
                 <button
@@ -2979,7 +2979,7 @@ export default function AdminUsers() {
                   disabled={!canManageSellers || conversionLoading}
                   className="px-4 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  <CheckCircle size={16} className="inline mr-1" />
+                  <CheckCircleIcon className="inline mr-1 h-4 w-4" />
                   Approuver
                 </button>
               </div>
@@ -3008,7 +3008,7 @@ export default function AdminUsers() {
               </p>
             </div>
             <button type="button" onClick={closeLocationReviewModal} className="text-gray-400 hover:text-gray-600">
-              <X size={20} />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
           <div className="space-y-4 overflow-y-auto p-4">
@@ -3110,7 +3110,7 @@ export default function AdminUsers() {
               </p>
             </div>
             <button type="button" onClick={closeLocationTimelineModal} className="text-gray-400 hover:text-gray-600">
-              <X size={20} />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
           <div className="overflow-y-auto p-4">
@@ -3196,7 +3196,7 @@ export default function AdminUsers() {
                 )}
               </div>
               <button type="button" onClick={closeAuditModal} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">

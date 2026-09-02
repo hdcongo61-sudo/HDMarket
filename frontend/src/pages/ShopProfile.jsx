@@ -1,18 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Calendar,
-  Clock,
-  MessageCircle,
-  Navigation,
-  Package,
-  ShieldCheck,
-  Star,
-  Store,
-  TrendingUp,
-  Users
-} from 'lucide-react';
+import { ArrowTrendingUpIcon, BuildingStorefrontIcon, CalendarIcon, ChatBubbleLeftIcon, ClockIcon, CubeIcon, PaperAirplaneIcon, ShieldCheckIcon, StarIcon, UsersIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage, isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -895,14 +884,14 @@ export default function ShopProfile() {
   const trustQuickInfo = [
     {
       id: 'verification',
-      icon: <ShieldCheck size={14} className="text-emerald-600" />,
+      icon: <ShieldCheckIcon className="text-emerald-600 h-3.5 w-3.5" />,
       label: t('shop_profile.badge_shop', 'Boutique'),
       value: isCertifiedShop ? t('shop_profile.verified', 'Vérifiée') : t('shop_profile.standard', 'Standard')
     },
     responseRateLabel
       ? {
           id: 'response-rate',
-          icon: <MessageCircle size={14} className="text-neutral-600 dark:text-neutral-300" />,
+          icon: <ChatBubbleLeftIcon className="text-neutral-600 dark:text-neutral-300 h-3.5 w-3.5" />,
           label: t('shop_profile.response_rate', 'Taux réponse'),
           value: responseRateLabel
         }
@@ -910,7 +899,7 @@ export default function ShopProfile() {
     responseTimeLabel
       ? {
           id: 'response-time',
-          icon: <Clock size={14} className="text-neutral-600 dark:text-neutral-300" />,
+          icon: <ClockIcon className="text-neutral-600 dark:text-neutral-300 h-3.5 w-3.5" />,
           label: t('shop_profile.response_time', 'Temps réponse'),
           value: responseTimeLabel
         }
@@ -918,7 +907,7 @@ export default function ShopProfile() {
     deliveryAvailableLabel
       ? {
           id: 'delivery',
-          icon: <Navigation size={14} className="text-neutral-600 dark:text-neutral-300" />,
+          icon: <PaperAirplaneIcon className="text-neutral-600 dark:text-neutral-300 h-3.5 w-3.5" />,
           label: t('shop_profile.delivery', 'Livraison'),
           value: deliveryAvailableLabel
         }
@@ -926,7 +915,7 @@ export default function ShopProfile() {
     pickupAvailableLabel
       ? {
           id: 'pickup',
-          icon: <Store size={14} className="text-slate-600 dark:text-slate-300" />,
+          icon: <BuildingStorefrontIcon className="text-slate-600 dark:text-slate-300 h-3.5 w-3.5" />,
           label: t('shop_profile.pickup', 'Retrait'),
           value: pickupAvailableLabel
         }
@@ -934,14 +923,14 @@ export default function ShopProfile() {
     shopCategoryLabel
       ? {
           id: 'category',
-          icon: <Package size={14} className="text-neutral-600 dark:text-neutral-300" />,
+          icon: <CubeIcon className="text-neutral-600 dark:text-neutral-300 h-3.5 w-3.5" />,
           label: t('shop_profile.category', 'Catégorie'),
           value: shopCategoryLabel
         }
       : null,
     {
       id: 'seniority',
-      icon: <Calendar size={14} className="text-slate-600 dark:text-slate-300" />,
+      icon: <CalendarIcon className="text-slate-600 dark:text-slate-300 h-3.5 w-3.5" />,
       label: t('shop_profile.seniority', 'Ancienneté'),
       value: yearsActiveLabel
     }
@@ -957,22 +946,22 @@ export default function ShopProfile() {
 
   const stats = [
     {
-      icon: <Package size={16} className="text-neutral-600" />,
+      icon: <CubeIcon className="text-neutral-600 h-4 w-4" />,
       label: t('shop_profile.products_count', 'Produits'),
       value: formatCount(shop?.productCount ?? products.length)
     },
     {
-      icon: <TrendingUp size={16} className="text-neutral-600" />,
+      icon: <ArrowTrendingUpIcon className="text-neutral-600 h-4 w-4" />,
       label: t('shop_profile.orders', 'Commandes'),
       value: formatCount(completedOrders)
     },
     {
-      icon: <Star size={16} className="text-amber-500" />,
+      icon: <StarIcon className="text-amber-500 h-4 w-4" />,
       label: t('shop_profile.reviews_count', 'Avis'),
       value: formatCount(ratingCount)
     },
     {
-      icon: <Users size={16} className="text-neutral-600" />,
+      icon: <UsersIcon className="text-neutral-600 h-4 w-4" />,
       label: t('shop_profile.followers', 'Abonnés'),
       value: formatCount(followersCount)
     }

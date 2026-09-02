@@ -128,7 +128,6 @@ export function normalizeUser(raw = {}) {
     preferredLanguage: safeString(raw.preferredLanguage, 'fr'),
     preferredCurrency: safeString(raw.preferredCurrency, 'XAF').toUpperCase(),
     preferredCity: safeString(raw.preferredCity) || safeString(raw.city, ''),
-    theme: ['light', 'dark', 'system'].includes(raw.theme) ? raw.theme : 'system',
 
     // Token (only from API responses, stripped before persist)
     token: safeString(raw.token),

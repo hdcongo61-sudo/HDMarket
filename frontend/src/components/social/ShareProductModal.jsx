@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Check, MessageCircle, Instagram, Facebook, Music2, Link2, Hash } from 'lucide-react';
+import { ChatBubbleLeftIcon, CheckIcon, DocumentDuplicateIcon, HashtagIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { FacebookIcon, InstagramIcon, TikTokIcon } from '../icons/BrandIcons';
 import { BottomSheetModal, ModalBody, ModalHeader } from '../modals/BaseModal';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
 // Spec §22/§23 — the per-product "Social Commerce card" + Share/Promote
 // bottom sheet: social code, HDMarket link, and channel-specific
-// copy-paste snippets (WhatsApp link, TikTok caption, Instagram message,
-// Facebook post). No fake "post directly to TikTok/Instagram" buttons —
+// copy-paste snippets (WhatsApp link, TikTok caption, InstagramIcon message,
+// FacebookIcon post). No fake "post directly to TikTok/InstagramIcon" buttons —
 // only copy actions the provider APIs actually support in this phase.
 const CopyRow = ({ icon: Icon, label, value, href, onCopy, copied }) => {
   if (!value) return null;
@@ -24,7 +25,7 @@ const CopyRow = ({ icon: Icon, label, value, href, onCopy, copied }) => {
           onClick={onCopy}
           className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-white px-3 text-xs font-black text-gray-800 ring-1 ring-inset ring-gray-200 active:scale-[0.98]"
         >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? <CheckIcon className="h-3.5 w-3.5 text-emerald-600" /> : <DocumentDuplicateIcon className="h-3.5 w-3.5" />}
           {copied ? 'Copié' : 'Copier'}
         </button>
         {href && (
@@ -97,14 +98,14 @@ export default function ShareProductModal({ productId, productTitle, onClose }) 
         ) : links ? (
           <div className="space-y-3">
             <CopyRow
-              icon={Hash}
+              icon={HashtagIcon}
               label="Code social"
               value={links.socialCode}
               copied={copiedKey === 'code'}
               onCopy={() => copy('code', links.socialCode)}
             />
             <CopyRow
-              icon={Link2}
+              icon={LinkIcon}
               label="Lien HDMarket"
               value={links.hdmarketLink}
               href={links.hdmarketLink}
@@ -113,7 +114,7 @@ export default function ShareProductModal({ productId, productTitle, onClose }) 
             />
             {links.whatsappLink ? (
               <CopyRow
-                icon={MessageCircle}
+                icon={ChatBubbleLeftIcon}
                 label="WhatsApp"
                 value={links.whatsappLink}
                 href={links.whatsappLink}
@@ -126,22 +127,22 @@ export default function ShareProductModal({ productId, productTitle, onClose }) 
               </p>
             )}
             <CopyRow
-              icon={Music2}
+              icon={TikTokIcon}
               label="Légende TikTok"
               value={links.tiktokCaption}
               copied={copiedKey === 'tiktok'}
               onCopy={() => copy('tiktok', links.tiktokCaption)}
             />
             <CopyRow
-              icon={Instagram}
-              label="Message Instagram"
+              icon={InstagramIcon}
+              label="Message InstagramIcon"
               value={links.instagramMessage}
               copied={copiedKey === 'instagram'}
               onCopy={() => copy('instagram', links.instagramMessage)}
             />
             <CopyRow
-              icon={Facebook}
-              label="Publication Facebook"
+              icon={FacebookIcon}
+              label="Publication FacebookIcon"
               value={links.facebookPost}
               copied={copiedKey === 'facebook'}
               onCopy={() => copy('facebook', links.facebookPost)}

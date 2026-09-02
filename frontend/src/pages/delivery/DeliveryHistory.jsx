@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import DeliveryHeader from '../../components/delivery/DeliveryHeader';
 import DeliverySkeleton from '../../components/delivery/DeliverySkeleton';
@@ -178,7 +178,7 @@ export default function DeliveryHistory() {
         subtitle="Livraisons terminees et incidents"
         online={!isOffline}
         actions={[
-          { key: 'back', label: 'Missions', to: `${routePrefix}/dashboard`, icon: ArrowLeft },
+          { key: 'back', label: 'Missions', to: `${routePrefix}/dashboard`, icon: ArrowLeftIcon },
           { key: 'profile', label: 'Profil', to: buildProfileRoute(routePrefix) }
         ]}
       />
@@ -243,7 +243,7 @@ export default function DeliveryHistory() {
               disabled={isFetchingNextPage}
               className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-black text-gray-900 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
             >
-              {isFetchingNextPage ? <Loader2 size={14} className="animate-spin" /> : null}
+              {isFetchingNextPage ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : null}
               Charger plus
             </button>
           ) : null}
@@ -287,7 +287,7 @@ export default function DeliveryHistory() {
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2.5 py-1 font-black text-gray-700 dark:bg-neutral-900 dark:text-gray-200"
                     >
-                      Maps <ExternalLink size={11} />
+                      Maps <ArrowTopRightOnSquareIcon className="h-[11px] w-[11px]" />
                     </a>
                   ) : null}
                   <Link
@@ -308,7 +308,7 @@ export default function DeliveryHistory() {
           <div ref={loadMoreRef} className="h-8" />
           {isFetchingNextPage ? (
             <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-400">
-              <Loader2 size={14} className="animate-spin" /> Chargement...
+              <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> Chargement...
             </div>
           ) : null}
         </div>

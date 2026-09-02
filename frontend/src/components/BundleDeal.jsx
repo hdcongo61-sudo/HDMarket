@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Plus, ShoppingCart } from 'lucide-react';
+import { CubeIcon, PlusIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import { getProductCardImageUrl } from '../utils/productImageUrl';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
@@ -35,7 +35,7 @@ export default function BundleDeal({ bundleData, onAddAll }) {
   return (
     <div className="rounded-2xl border border-green-100 bg-green-50/40 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <Package size={16} className="text-green-600" />
+        <CubeIcon className="text-green-600 h-4 w-4" />
         <h3 className="text-sm font-bold text-gray-900">
           {t('bundle.title', 'Souvent achetés ensemble')}
         </h3>
@@ -46,7 +46,7 @@ export default function BundleDeal({ bundleData, onAddAll }) {
         {allItems.map((item, idx) => (
           <React.Fragment key={item._id}>
             {idx > 0 && (
-              <Plus size={16} className="shrink-0 text-gray-400" />
+              <PlusIcon className="shrink-0 text-gray-400 h-4 w-4" />
             )}
             <Link
               to={item.slug ? `/product/${item.slug}` : '#'}
@@ -65,7 +65,7 @@ export default function BundleDeal({ bundleData, onAddAll }) {
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-gray-300">
-                    <Package size={16} />
+                    <CubeIcon className="h-4 w-4" />
                   </div>
                 )}
               </div>
@@ -105,7 +105,7 @@ export default function BundleDeal({ bundleData, onAddAll }) {
         disabled={adding}
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-green-700 disabled:opacity-50"
       >
-        <ShoppingCart size={16} />
+        <ShoppingCartIcon className="h-4 w-4" />
         {adding
           ? t('bundle.adding', 'Ajout...')
           : t('bundle.addAll', 'Ajouter l\'ensemble au panier')}

@@ -1,31 +1,31 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Package, Truck, ClipboardCheck, CheckCircle2 } from 'lucide-react';
+import { CheckCircleIcon, ClipboardDocumentCheckIcon, CreditCardIcon, CubeIcon, TruckIcon } from '@heroicons/react/24/outline';
 
 const DELIVERY_STEPS = [
-  { key: 'paid', label: 'Payée', hint: 'Paiement confirmé', Icon: CreditCard },
-  { key: 'processing', label: 'Préparation', hint: 'Commande en traitement', Icon: Package },
-  { key: 'out_for_delivery', label: 'En livraison', hint: 'Le colis est en route', Icon: Truck },
+  { key: 'paid', label: 'Payée', hint: 'Paiement confirmé', Icon: CreditCardIcon },
+  { key: 'processing', label: 'Préparation', hint: 'Commande en traitement', Icon: CubeIcon },
+  { key: 'out_for_delivery', label: 'En livraison', hint: 'Le colis est en route', Icon: TruckIcon },
   {
     key: 'delivery_proof_submitted',
     label: 'Preuve soumise',
     hint: 'Preuve de livraison envoyée',
-    Icon: ClipboardCheck
+    Icon: ClipboardDocumentCheckIcon
   },
-  { key: 'completed', label: 'Terminée', hint: 'Commande finalisée', Icon: CheckCircle2 }
+  { key: 'completed', label: 'Terminée', hint: 'Commande finalisée', Icon: CheckCircleIcon }
 ];
 
 const INSTALLMENT_STEPS = [
-  { key: 'pending_installment', label: 'Validation', hint: 'Vente en attente', Icon: CreditCard },
-  { key: 'installment_active', label: 'Tranches actives', hint: 'Paiements en cours', Icon: Package },
-  { key: 'out_for_delivery', label: 'En livraison', hint: 'Après paiement complet', Icon: Truck },
+  { key: 'pending_installment', label: 'Validation', hint: 'Vente en attente', Icon: CreditCardIcon },
+  { key: 'installment_active', label: 'Tranches actives', hint: 'Paiements en cours', Icon: CubeIcon },
+  { key: 'out_for_delivery', label: 'En livraison', hint: 'Après paiement complet', Icon: TruckIcon },
   {
     key: 'delivery_proof_submitted',
     label: 'Preuve soumise',
     hint: 'Preuve transmise au client',
-    Icon: ClipboardCheck
+    Icon: ClipboardDocumentCheckIcon
   },
-  { key: 'completed', label: 'Terminée', hint: 'Clôture de commande', Icon: CheckCircle2 }
+  { key: 'completed', label: 'Terminée', hint: 'Clôture de commande', Icon: CheckCircleIcon }
 ];
 
 const PICKUP_STEPS = [
@@ -33,11 +33,11 @@ const PICKUP_STEPS = [
     key: 'pending_payment',
     label: 'Paiement en attente',
     hint: 'Paiement en cours de validation',
-    Icon: CreditCard
+    Icon: CreditCardIcon
   },
-  { key: 'paid', label: 'Payée', hint: 'Paiement confirmé', Icon: CreditCard },
-  { key: 'ready_for_pickup', label: 'Prête au retrait', hint: 'Le client peut récupérer', Icon: Package },
-  { key: 'completed', label: 'Retrait confirmé', hint: 'Commande finalisée', Icon: CheckCircle2 }
+  { key: 'paid', label: 'Payée', hint: 'Paiement confirmé', Icon: CreditCardIcon },
+  { key: 'ready_for_pickup', label: 'Prête au retrait', hint: 'Le client peut récupérer', Icon: CubeIcon },
+  { key: 'completed', label: 'Retrait confirmé', hint: 'Commande finalisée', Icon: CheckCircleIcon }
 ];
 
 function mapDeliveryStatus(status) {
@@ -108,7 +108,7 @@ export default function AnimatedOrderTimeline({ status, paymentType = 'full', de
           {steps.map((step, index) => {
             const done = index < currentIndex;
             const current = index === currentIndex;
-            const Icon = done ? CheckCircle2 : step.Icon;
+            const Icon = done ? CheckCircleIcon : step.Icon;
             return (
               <motion.div
                 key={step.key}

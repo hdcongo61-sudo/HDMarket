@@ -1,27 +1,7 @@
 import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Hls from 'hls.js';
-import {
-  Bookmark,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Heart,
-  Loader2,
-  MapPin,
-  MessageCircle,
-  MoreHorizontal,
-  Play,
-  RotateCcw,
-  Search,
-  Send,
-  Share2,
-  ShoppingBag,
-  ShoppingCart,
-  Volume2,
-  VolumeX,
-  X
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowUturnLeftIcon, BookmarkIcon, ChatBubbleLeftIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, EllipsisHorizontalIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, PaperAirplaneIcon, PlayIcon, ShareIcon, ShoppingBagIcon, ShoppingCartIcon, SpeakerWaveIcon, SpeakerXMarkIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -370,7 +350,7 @@ function VideoSlide({
             }}
             className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/35 shadow-2xl backdrop-blur-lg"
           >
-            {showReplay ? <RotateCcw size={28} /> : <Play size={28} fill="currentColor" />}
+            {showReplay ? <ArrowUturnLeftIcon className="h-7 w-7" /> : <PlayIcon fill="currentColor" className="h-7 w-7" />}
           </motion.button>
         ) : null}
       </AnimatePresence>
@@ -388,26 +368,26 @@ function VideoSlide({
             className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-xl"
           />
           <span className="absolute -bottom-2 left-1/2 grid h-5 w-5 -translate-x-1/2 place-items-center rounded-full bg-emerald-500 text-white">
-            <Check size={13} strokeWidth={3} />
+            <CheckIcon strokeWidth={3} className="h-[13px] w-[13px]" />
           </span>
         </Link>
         <VideoAction label={video.viewer?.liked ? 'Retirer le J’aime' : 'J’aime'} value={video.counters?.likes} active={video.viewer?.liked} onClick={onLike}>
-          <Heart size={22} fill={video.viewer?.liked ? 'currentColor' : 'none'} />
+          <HeartIcon fill={video.viewer?.liked ? 'currentColor' : 'none'} className="h-[22px] w-[22px]" />
         </VideoAction>
         <VideoAction label="Commentaires" value={video.counters?.comments} onClick={onComments}>
-          <MessageCircle size={22} />
+          <ChatBubbleLeftIcon className="h-[22px] w-[22px]" />
         </VideoAction>
         <VideoAction label={video.viewer?.saved ? 'Retirer des vidéos enregistrées' : 'Enregistrer'} value={video.counters?.saves} active={video.viewer?.saved} onClick={onSave}>
-          <Bookmark size={22} fill={video.viewer?.saved ? 'currentColor' : 'none'} />
+          <BookmarkIcon fill={video.viewer?.saved ? 'currentColor' : 'none'} className="h-[22px] w-[22px]" />
         </VideoAction>
         <VideoAction label="Partager" value={video.counters?.shares} onClick={onShare}>
-          <Share2 size={22} />
+          <ShareIcon className="h-[22px] w-[22px]" />
         </VideoAction>
         <VideoAction label="Plus d’options" onClick={onReport}>
-          <MoreHorizontal size={22} />
+          <EllipsisHorizontalIcon className="h-[22px] w-[22px]" />
         </VideoAction>
         <VideoAction label={muted ? 'Activer le son' : 'Couper le son'} onClick={() => setMuted((value) => !value)}>
-          {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+          {muted ? <SpeakerXMarkIcon className="h-[22px] w-[22px]" /> : <SpeakerWaveIcon className="h-[22px] w-[22px]" />}
         </VideoAction>
       </div>
 
@@ -491,7 +471,7 @@ function VideoSlide({
             </span>
           </button>
           <div className="flex items-center gap-2 text-xs text-white/75">
-            <MapPin size={13} /> {product.city || seller.city || 'Congo'}
+            <MapPinIcon className="h-[13px] w-[13px]" /> {product.city || seller.city || 'Congo'}
             <span>•</span>
             <span>{compactNumber(video.counters?.views)} vues</span>
           </div>
@@ -509,11 +489,11 @@ function VideoSlide({
             >
               {inCart ? (
                 <>
-                  <Check size={18} strokeWidth={2.5} /> Ajouté
+                  <CheckIcon strokeWidth={2.5} className="h-[18px] w-[18px]" /> Ajouté
                 </>
               ) : (
                 <>
-                  <ShoppingCart size={18} /> Ajouter
+                  <ShoppingCartIcon className="h-[18px] w-[18px]" /> Ajouter
                 </>
               )}
             </button>
@@ -525,7 +505,7 @@ function VideoSlide({
               }}
               className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 font-bold shadow-lg transition active:scale-[0.98]"
             >
-              <ShoppingBag size={18} /> Acheter
+              <ShoppingBagIcon className="h-[18px] w-[18px]" /> Acheter
             </button>
           </div>
         </div>
@@ -602,7 +582,7 @@ function CartOptionsSheet({ video, formatPrice, submitting, onClose, onConfirm }
             <p className="mt-1 text-lg font-black text-emerald-600">{formatPrice(displayPrice)}</p>
           </div>
           <button type="button" aria-label="Fermer" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-neutral-100 dark:bg-white/10">
-            <X size={17} />
+            <XMarkIcon className="h-[17px] w-[17px]" />
           </button>
         </div>
 
@@ -651,7 +631,7 @@ function CartOptionsSheet({ video, formatPrice, submitting, onClose, onConfirm }
           onClick={confirm}
           className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-black text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {submitting ? <Loader2 size={18} className="animate-spin" /> : <ShoppingCart size={18} />}
+          {submitting ? <ArrowPathIcon className="animate-spin h-[18px] w-[18px]" /> : <ShoppingCartIcon className="h-[18px] w-[18px]" />}
           {submitting
             ? 'Ajout en cours…'
             : missing.length
@@ -715,11 +695,11 @@ function CommentsSheet({ video, onClose, onCountChange }) {
       <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4 dark:border-white/10">
         <span className="font-bold">{compactNumber(video.counters?.comments)} commentaires</span>
         <button type="button" onClick={onClose} aria-label="Fermer" className="rounded-full p-2 hover:bg-neutral-100 dark:hover:bg-white/10">
-          <X size={20} />
+          <XMarkIcon className="h-5 w-5" />
         </button>
       </div>
       <div className="min-h-48 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-        {loading ? <Loader2 className="mx-auto animate-spin" /> : null}
+        {loading ? <ArrowPathIcon className="mx-auto animate-spin" /> : null}
         {!loading && !comments.length ? <p className="py-12 text-center text-sm text-neutral-500">Soyez le premier à commenter.</p> : null}
         {comments.map((comment) => (
           <div key={comment._id} className={comment.parent ? 'ml-10' : ''}>
@@ -743,7 +723,7 @@ function CommentsSheet({ video, onClose, onCountChange }) {
                 }}
                 className={comment.viewerLiked ? 'text-rose-500' : 'text-neutral-400'}
               >
-                <Heart size={16} fill={comment.viewerLiked ? 'currentColor' : 'none'} />
+                <HeartIcon fill={comment.viewerLiked ? 'currentColor' : 'none'} className="h-4 w-4" />
                 <span className="text-[10px]">{comment.likesCount || ''}</span>
               </button>
             </div>
@@ -754,7 +734,7 @@ function CommentsSheet({ video, onClose, onCountChange }) {
         {replyTo ? <p className="mb-2 text-xs text-neutral-500">Réponse à {replyTo.user?.name} · <button type="button" onClick={() => setReplyTo(null)}>annuler</button></p> : null}
         <div className="flex gap-2">
           <input value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} placeholder="Ajouter un commentaire…" className="h-11 flex-1 rounded-full bg-neutral-100 px-4 outline-none ring-emerald-500 focus:ring-2 dark:bg-white/10" />
-          <button type="submit" aria-label="Envoyer" className="grid h-11 w-11 place-items-center rounded-full bg-emerald-500 text-white"><Send size={18} /></button>
+          <button type="submit" aria-label="Envoyer" className="grid h-11 w-11 place-items-center rounded-full bg-emerald-500 text-white"><PaperAirplaneIcon className="h-[18px] w-[18px]" /></button>
         </div>
       </form>
     </motion.div>
@@ -1058,7 +1038,7 @@ export default function ProductVideos() {
   if (loading && !items.length) {
     return (
       <div className="grid h-[calc(100dvh-124px)] place-items-center bg-neutral-950 text-white lg:h-[calc(100dvh-7rem)]">
-        <div className="text-center"><Loader2 className="mx-auto mb-3 animate-spin" /><p className="text-sm text-white/70">Préparation de votre flux…</p></div>
+        <div className="text-center"><ArrowPathIcon className="mx-auto mb-3 animate-spin" /><p className="text-sm text-white/70">Préparation de votre flux…</p></div>
       </div>
     );
   }
@@ -1074,7 +1054,7 @@ export default function ProductVideos() {
           }}
           className="pointer-events-auto mx-3 flex h-11 min-w-0 items-center gap-1.5 rounded-full border border-white/20 bg-black/40 pl-3.5 pr-1.5 text-white shadow-lg backdrop-blur-2xl transition-colors focus-within:border-[#FF6A00]/80 focus-within:bg-black/55"
         >
-          <Search size={16} className="shrink-0 text-white/60" />
+          <MagnifyingGlassIcon className="shrink-0 text-white/60 h-4 w-4" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -1089,7 +1069,7 @@ export default function ProductVideos() {
               onClick={() => { setSearch(''); setSubmittedSearch(''); }}
               className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/15 text-white/80 transition-colors hover:bg-white/25"
             >
-              <X size={14} />
+              <XMarkIcon className="h-3.5 w-3.5" />
             </button>
           ) : null}
           {search.trim() ? (
@@ -1098,7 +1078,7 @@ export default function ProductVideos() {
               aria-label="Rechercher"
               className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-r from-[#FFB000] to-[#FF6A00] text-white shadow-md"
             >
-              <Search size={15} strokeWidth={2.5} />
+              <MagnifyingGlassIcon strokeWidth={2.5} className="h-[15px] w-[15px]" />
             </button>
           ) : null}
         </form>
@@ -1122,7 +1102,7 @@ export default function ProductVideos() {
             <span className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-500/85 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md">
               <span className="truncate">#{submittedSearch.replace(/^#/, '')}</span>
               <button type="button" aria-label="Retirer le filtre" onClick={clearSearch} className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-white/20 transition hover:bg-white/35">
-                <X size={11} />
+                <XMarkIcon className="h-[11px] w-[11px]" />
               </button>
             </span>
           </div>
@@ -1132,7 +1112,7 @@ export default function ProductVideos() {
       {!items.length ? (
         <div className="grid h-full place-items-center px-8 text-center text-white">
           <div>
-            <Play className="mx-auto mb-4 opacity-50" size={42} />
+            <PlayIcon className="mx-auto mb-4 opacity-50 h-[42px] w-[42px]" />
             <h1 className="text-xl font-bold">{submittedSearch ? `Aucune vidéo avec #${submittedSearch.replace(/^#/, '')}` : 'Aucune vidéo pour le moment'}</h1>
             <p className="mt-2 text-sm text-white/60">{submittedSearch ? 'Ce hashtag n’a pas encore de vidéo publiée.' : 'Essayez un autre filtre ou revenez bientôt.'}</p>
             {submittedSearch ? (
@@ -1181,13 +1161,13 @@ export default function ProductVideos() {
               )}
             </section>
           ))}
-          {loading ? <div className="grid h-24 place-items-center text-white"><Loader2 className="animate-spin" /></div> : null}
+          {loading ? <div className="grid h-24 place-items-center text-white"><ArrowPathIcon className="animate-spin" /></div> : null}
         </div>
       )}
 
       <div className="pointer-events-none absolute right-3 top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-2 lg:flex">
-        <button type="button" onClick={() => scrollTo(currentIndex - 1)} disabled={currentIndex === 0} className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-black/45 text-white disabled:opacity-25"><ChevronUp size={20} /></button>
-        <button type="button" onClick={() => scrollTo(currentIndex + 1)} disabled={currentIndex >= items.length - 1} className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-black/45 text-white disabled:opacity-25"><ChevronDown size={20} /></button>
+        <button type="button" onClick={() => scrollTo(currentIndex - 1)} disabled={currentIndex === 0} className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-black/45 text-white disabled:opacity-25"><ChevronUpIcon className="h-5 w-5" /></button>
+        <button type="button" onClick={() => scrollTo(currentIndex + 1)} disabled={currentIndex >= items.length - 1} className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-black/45 text-white disabled:opacity-25"><ChevronDownIcon className="h-5 w-5" /></button>
       </div>
 
       <AnimatePresence>
@@ -1230,7 +1210,7 @@ export default function ProductVideos() {
               }}
               className="w-full max-w-sm rounded-3xl bg-white p-6 text-neutral-900 shadow-2xl dark:bg-neutral-900 dark:text-white"
             >
-              <div className="flex items-center justify-between"><h2 className="text-lg font-bold">Signaler cette vidéo</h2><button type="button" onClick={() => setReportVideo(null)}><X /></button></div>
+              <div className="flex items-center justify-between"><h2 className="text-lg font-bold">Signaler cette vidéo</h2><button type="button" onClick={() => setReportVideo(null)}><XMarkIcon /></button></div>
               <p className="mt-2 text-sm text-neutral-500">Expliquez ce qui ne respecte pas les règles HDMarket.</p>
               <textarea value={reportReason} onChange={(event) => setReportReason(event.target.value)} required maxLength={1000} className="mt-4 min-h-28 w-full rounded-2xl border border-neutral-200 bg-transparent p-3 outline-none focus:border-rose-400 dark:border-white/15" />
               <button type="submit" className="mt-4 h-11 w-full rounded-xl bg-rose-500 font-bold text-white">Envoyer le signalement</button>

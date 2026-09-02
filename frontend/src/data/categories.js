@@ -1,20 +1,11 @@
-import {
-  Smartphone,
-  Shirt,
-  Dumbbell,
-  Home as HomeIcon,
-  Factory,
-  HeartPulse,
-  Car,
-  Truck as TruckIcon
-} from 'lucide-react';
+import { BuildingOffice2Icon, DevicePhoneMobileIcon, FireIcon, HeartIcon, HomeIcon, ShoppingBagIcon, TruckIcon } from '@heroicons/react/24/outline';
 
 const categoryGroups = [
   {
     id: 'electronics',
     label: 'Électronique & High-Tech',
     description: 'Smartphones, ordinateurs, accessoires et plus encore.',
-    icon: Smartphone,
+    icon: DevicePhoneMobileIcon,
     options: [
       { value: 'telephones', label: 'Téléphones & Accessoires' },
       { value: 'informatique', label: 'Ordinateurs & Composants' },
@@ -26,7 +17,7 @@ const categoryGroups = [
     id: 'fashion',
     label: 'Mode & Accessoires',
     description: 'Prêt-à-porter, chaussures, bijoux et sacs tendance.',
-    icon: Shirt,
+    icon: ShoppingBagIcon,
     options: [
       { value: 'pret-porter', label: 'Prêt-à-porter' },
       { value: 'chaussures', label: 'Chaussures' },
@@ -38,7 +29,7 @@ const categoryGroups = [
     id: 'sport',
     label: 'Sport & Fitness',
     description: 'Équipements sportifs, fitness, plein air et loisirs.',
-    icon: Dumbbell,
+    icon: FireIcon,
     options: [
       { value: 'sports-loisirs', label: 'Sports & Loisirs' },
       { value: 'fitness', label: 'Fitness & Musculation' },
@@ -64,7 +55,7 @@ const categoryGroups = [
     id: 'industry',
     label: 'Industrie & Business',
     description: 'Machines, outils, matières premières et emballages.',
-    icon: Factory,
+    icon: BuildingOffice2Icon,
     options: [
       { value: 'machines-industrielles', label: 'Machines Industrielles' },
       { value: 'outils', label: 'Outils' },
@@ -76,7 +67,7 @@ const categoryGroups = [
     id: 'health',
     label: 'Santé, Beauté & Loisirs',
     description: 'Cosmétiques, soins, équipements médicaux et sports.',
-    icon: HeartPulse,
+    icon: HeartIcon,
     options: [
       { value: 'cosmetiques', label: 'Cosmétiques' },
       { value: 'soins-peau', label: 'Soins de la Peau' },
@@ -88,7 +79,7 @@ const categoryGroups = [
     id: 'automobile',
     label: 'Automobile & Accessoires',
     description: 'Voitures, motos, pièces détachées et équipements automobiles.',
-    icon: Car,
+    icon: TruckIcon,
     options: [
       { value: 'voitures', label: 'Voitures' },
       { value: 'motos', label: 'Motos & Scooters' },

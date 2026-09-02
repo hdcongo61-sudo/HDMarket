@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { ArrowPathIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 const toneStyles = {
   dark: 'bg-[#e85d00] text-white',
@@ -81,7 +81,7 @@ export function AdminCommandHero({
                 const content = (
                   <>
                     <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-2xl ${toneStyles[action.tone || 'neutral'] || toneStyles.neutral}`}>
-                      {action.loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : Icon ? <Icon className="h-4 w-4" /> : null}
+                      {action.loading ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : Icon ? <Icon className="h-4 w-4" /> : null}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold text-neutral-950 dark:text-white">
@@ -93,7 +93,7 @@ export function AdminCommandHero({
                         </span>
                       ) : null}
                     </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+                    <ChevronRightIcon className="h-4 w-4 shrink-0 text-neutral-400" />
                   </>
                 );
                 const className =

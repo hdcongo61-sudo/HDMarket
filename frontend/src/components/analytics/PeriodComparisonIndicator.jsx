@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownRightIcon, ArrowUpRightIcon } from '@heroicons/react/24/outline';
 
 const DeltaChip = ({ value }) => {
   const positive = Number(value || 0) >= 0;
@@ -9,7 +9,7 @@ const DeltaChip = ({ value }) => {
         positive ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-50 text-neutral-700'
       }`}
     >
-      {positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+      {positive ? <ArrowUpRightIcon className="h-3.5 w-3.5" /> : <ArrowDownRightIcon className="h-3.5 w-3.5" />}
       {positive ? '+' : ''}
       {Number(value || 0).toFixed(2)}%
     </span>

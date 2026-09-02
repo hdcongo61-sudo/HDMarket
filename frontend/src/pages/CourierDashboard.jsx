@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, ChevronRight, History, Loader2, LogOut, Package, RefreshCcw, User } from 'lucide-react';
+import { ArrowLeftOnRectangleIcon, ArrowPathIcon, ArrowsRightLeftIcon, ChevronRightIcon, ClockIcon, CubeIcon, UserIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
 import AuthContext from '../context/AuthContext';
@@ -675,7 +675,7 @@ export default function CourierDashboard() {
             key: 'normal-account',
             label: 'Compte normal',
             onClick: handleSwitchToNormalAccount,
-            icon: ArrowLeftRight
+            icon: ArrowsRightLeftIcon
           }
         ]
       : []),
@@ -683,7 +683,7 @@ export default function CourierDashboard() {
       key: 'parcels',
       label: 'Colis',
       to: `${routePrefix}/parcels`,
-      icon: Package,
+      icon: CubeIcon,
       badge: availableParcelCount,
       ariaLabel:
         availableParcelCount > 0
@@ -694,19 +694,19 @@ export default function CourierDashboard() {
       key: 'history',
       label: 'Historique',
       to: buildHistoryRoute(routePrefix),
-      icon: History
+      icon: ClockIcon
     },
     {
       key: 'profile',
       label: 'Profil',
       to: buildProfileRoute(routePrefix),
-      icon: User
+      icon: UserIcon
     },
     {
       key: 'refresh',
       label: 'Actualiser',
       onClick: handleRefresh,
-      icon: RefreshCcw,
+      icon: ArrowPathIcon,
       disabled: assignmentsQuery.isFetching,
       loading: assignmentsQuery.isFetching,
       ariaLabel: assignmentsQuery.isFetching ? 'Actualisation en cours' : 'Actualiser les livraisons'
@@ -715,7 +715,7 @@ export default function CourierDashboard() {
       key: 'logout',
       label: 'Déconnexion',
       onClick: handleLogout,
-      icon: LogOut,
+      icon: ArrowLeftOnRectangleIcon,
       tone: 'danger'
     }
   ];
@@ -976,7 +976,7 @@ export default function CourierDashboard() {
 
               {assignmentsQuery.isFetchingNextPage ? (
                 <div className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-500 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-gray-400">
-                  <Loader2 size={14} className="animate-spin" />
+                  <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
                   Chargement...
                 </div>
               ) : null}
@@ -1016,7 +1016,7 @@ export default function CourierDashboard() {
                   className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-xl bg-[#FF6A00] px-3 text-sm font-black text-white"
                 >
                   Ouvrir la mission
-                  <ChevronRight size={14} />
+                  <ChevronRightIcon className="h-3.5 w-3.5" />
                 </Link>
               ) : null}
             </div>
@@ -1086,7 +1086,7 @@ export default function CourierDashboard() {
               disabled={!rejectDialog.reason.trim() || rejectMutation.isPending || isOffline}
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-black text-white disabled:opacity-60"
             >
-              {rejectMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+              {rejectMutation.isPending ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : null}
               Confirmer
             </button>
           </div>

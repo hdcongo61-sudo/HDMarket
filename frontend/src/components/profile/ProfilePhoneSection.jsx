@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Phone, ShieldCheck } from 'lucide-react';
+import { CheckCircleIcon, PhoneIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
-// Dedicated "Phone" section for the profile: some accounts are created with
+// Dedicated "PhoneIcon" section for the profile: some accounts are created with
 // an unverified phone (SMS verification can be turned off at registration
 // via registration_sms_verification_required). Verifying here reuses the
 // phone already on file — no phone-change flow, just proof of ownership,
@@ -86,7 +86,7 @@ export default function ProfilePhoneSection({ user, onUserUpdated, sectionId = '
     >
       <div className="flex items-center gap-2.5">
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-neutral-800">
-          <Phone size={17} />
+          <PhoneIcon className="h-[17px] w-[17px]" />
         </span>
         <h2 className="text-[15px] font-black text-gray-900 dark:text-white">Téléphone</h2>
       </div>
@@ -98,7 +98,7 @@ export default function ProfilePhoneSection({ user, onUserUpdated, sectionId = '
           </span>
           {isVerified ? (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-              <CheckCircle2 size={13} /> Vérifié
+              <CheckCircleIcon className="h-[13px] w-[13px]" /> Vérifié
             </span>
           ) : (
             <button
@@ -121,7 +121,7 @@ export default function ProfilePhoneSection({ user, onUserUpdated, sectionId = '
         <form onSubmit={submitVerification} className="mt-3 space-y-2.5 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-100">
-              <ShieldCheck size={14} /> Code envoyé à {user?.phone}
+              <ShieldCheckIcon className="h-3.5 w-3.5" /> Code envoyé à {user?.phone}
             </div>
             <button
               type="button"

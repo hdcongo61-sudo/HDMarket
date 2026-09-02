@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const GoogleMark = () => (
   <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
@@ -18,7 +18,7 @@ export default function GoogleAuthButton({ label, loading = false, disabled = fa
       disabled={disabled || loading}
       className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl bg-white px-5 text-base font-bold text-[#141210] ring-1 ring-inset ring-[#e7dfd5] transition hover:bg-[#faf7f2] hover:ring-[#d8d0c4] disabled:cursor-wait disabled:opacity-60 dark:bg-neutral-900 dark:text-white dark:ring-neutral-800 dark:hover:bg-neutral-800"
     >
-      {loading ? <Loader2 size={19} className="animate-spin" /> : <GoogleMark />}
+      {loading ? <ArrowPathIcon className="animate-spin h-[19px] w-[19px]" /> : <GoogleMark />}
       {label}
     </button>
   );

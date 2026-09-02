@@ -2,12 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import {
-  Check,
-  Eye,
-  EyeOff,
-  Loader2
-} from 'lucide-react';
+import { ArrowPathIcon, CheckIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppSettings } from '../context/AppSettingsContext';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
@@ -477,7 +472,7 @@ export default function Login() {
                           className="flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210] active:scale-95 dark:text-neutral-300 dark:hover:text-white"
                           aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                         >
-                          {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                          {showPassword ? <EyeSlashIcon className="h-[19px] w-[19px]" /> : <EyeIcon className="h-[19px] w-[19px]" />}
                         </button>
                       </div>
                     </div>
@@ -491,7 +486,7 @@ export default function Login() {
                           className="peer sr-only"
                         />
                         <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white text-transparent ring-1 ring-inset ring-[#d8d0c4] transition peer-checked:bg-[#e85d00] peer-checked:text-white peer-checked:ring-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-700">
-                          <Check size={14} strokeWidth={3} />
+                          <CheckIcon strokeWidth={3} className="h-3.5 w-3.5" />
                         </span>
                         {copy.rememberMe}
                       </label>
@@ -503,7 +498,7 @@ export default function Login() {
                       whileTap={{ scale: 0.985 }}
                       className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55"
                     >
-                      {loading ? <Loader2 size={17} className="animate-spin" /> : null}
+                      {loading ? <ArrowPathIcon className="animate-spin h-[17px] w-[17px]" /> : null}
                       {loading ? copy.submitting : copy.submit}
                     </motion.button>
 

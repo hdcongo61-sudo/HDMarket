@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap } from 'lucide-react';
+import { BoltIcon } from '@heroicons/react/24/outline';
 import CountdownTimer from './CountdownTimer';
 import { getProductCardImageUrl } from '../utils/productImageUrl';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -30,7 +30,7 @@ export default function FlashSaleCard({ flashSale, onExpired, compact = false })
     >
       {/* Discount Badge */}
       <div className="absolute left-2 top-2 z-10 flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
-        <Zap size={10} className="fill-white" />
+        <BoltIcon className="fill-white h-2.5 w-2.5" />
         -{discount}%
       </div>
 
@@ -45,7 +45,7 @@ export default function FlashSaleCard({ flashSale, onExpired, compact = false })
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-gray-400">
-            <Zap size={24} />
+            <BoltIcon className="h-6 w-6" />
           </div>
         )}
         {/* Countdown overlay at bottom of image */}

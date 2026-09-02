@@ -1,33 +1,16 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import {
-  Share2,
-  MessageCircle,
-  Instagram,
-  Facebook,
-  Music2,
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-  Link2,
-  Unlink,
-  Activity,
-  BookOpen,
-  ChevronDown,
-  Building2,
-  Webhook,
-  ShieldCheck,
-  KeyRound
-} from 'lucide-react';
+import { ArrowPathIcon, BookOpenIcon, BuildingOffice2Icon, ChartBarIcon, ChatBubbleLeftIcon, CheckCircleIcon, ChevronDownIcon, CpuChipIcon, KeyIcon, LinkIcon, LinkSlashIcon, ShareIcon, ShieldCheckIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { FacebookIcon, InstagramIcon, TikTokIcon } from '../components/icons/BrandIcons';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { hasPermission } from '../utils/permissions';
 import { useToast } from '../context/ToastContext';
 
 const CHANNEL_META = {
-  WHATSAPP: { label: 'WhatsApp', icon: MessageCircle, color: 'text-emerald-600 bg-emerald-50' },
-  INSTAGRAM: { label: 'Instagram', icon: Instagram, color: 'text-pink-600 bg-pink-50' },
-  FACEBOOK_MESSENGER: { label: 'Facebook Messenger', icon: Facebook, color: 'text-blue-600 bg-blue-50' },
-  TIKTOK_MESSAGING: { label: 'TikTok Messaging', icon: Music2, color: 'text-neutral-600 bg-neutral-100' }
+  WHATSAPP: { label: 'WhatsApp', icon: ChatBubbleLeftIcon, color: 'text-emerald-600 bg-emerald-50' },
+  INSTAGRAM: { label: 'InstagramIcon', icon: InstagramIcon, color: 'text-pink-600 bg-pink-50' },
+  FACEBOOK_MESSENGER: { label: 'FacebookIcon Messenger', icon: FacebookIcon, color: 'text-blue-600 bg-blue-50' },
+  TIKTOK_MESSAGING: { label: 'TikTok Messaging', icon: TikTokIcon, color: 'text-neutral-600 bg-neutral-100' }
 };
 
 const STATUS_LABEL = {
@@ -65,18 +48,18 @@ function Code({ children }) {
 const GUIDE_SECTIONS = [
   {
     key: 'prereqs',
-    icon: Building2,
+    icon: BuildingOffice2Icon,
     color: 'bg-neutral-100 text-neutral-600',
     title: '0. Avant de commencer',
     steps: [
-      'Une Page Facebook pour HDMarket (créez-en une si besoin — gratuit, 5 minutes).',
-      'Un compte Meta Business (business.facebook.com) — relie votre Page, votre numéro WhatsApp et votre compte Instagram.',
+      'Une Page FacebookIcon pour HDMarket (créez-en une si besoin — gratuit, 5 minutes).',
+      'Un compte Meta Business (business.facebook.com) — relie votre Page, votre numéro WhatsApp et votre compte InstagramIcon.',
       'Un compte développeur Meta (developers.facebook.com) — même identifiants, juste activer le mode développeur.'
     ]
   },
   {
     key: 'app',
-    icon: KeyRound,
+    icon: KeyIcon,
     color: 'bg-violet-50 text-violet-600',
     title: '1. Créer l’app Meta (couvre les 3 canaux)',
     steps: [
@@ -87,10 +70,10 @@ const GUIDE_SECTIONS = [
   },
   {
     key: 'whatsapp',
-    icon: MessageCircle,
+    icon: ChatBubbleLeftIcon,
     color: 'text-emerald-600 bg-emerald-50',
     title: '2. WhatsApp Cloud API — à faire en premier',
-    intro: 'Tout le trafic TikTok/Instagram/Facebook redirige vers WhatsApp — c’est le canal le plus important.',
+    intro: 'Tout le trafic TikTok/InstagramIcon/FacebookIcon redirige vers WhatsApp — c’est le canal le plus important.',
     steps: [
       <>Dans l’app → <strong>Add Product → WhatsApp → Set up</strong>. Meta fournit un numéro de test gratuit pour développer.</>,
       <>Sous <strong>WhatsApp → API Setup</strong> : le <strong>Phone Number ID</strong> → <Code>WHATSAPP_PHONE_NUMBER_ID</Code>, et un jeton temporaire (24h) → <Code>WHATSAPP_ACCESS_TOKEN</Code>. Pour la production, générez un <strong>jeton permanent</strong> via un utilisateur système (Business Settings) avec le scope <Code>whatsapp_business_messaging</Code>.</>,
@@ -101,32 +84,32 @@ const GUIDE_SECTIONS = [
   },
   {
     key: 'instagram',
-    icon: Instagram,
+    icon: InstagramIcon,
     color: 'text-pink-600 bg-pink-50',
-    title: '3. Instagram Messaging',
+    title: '3. InstagramIcon Messaging',
     steps: [
-      'Le compte Instagram doit être Business ou Créateur, relié à votre Page Facebook (app Instagram → Paramètres → comptes liés).',
-      <>Dans l’app Meta : <strong>Add Product → Instagram → Instagram API setup with Facebook Login</strong>.</>,
+      'Le compte InstagramIcon doit être Business ou Créateur, relié à votre Page FacebookIcon (app InstagramIcon → Paramètres → comptes liés).',
+      <>Dans l’app Meta : <strong>Add Product → InstagramIcon → InstagramIcon API setup with FacebookIcon Login</strong>.</>,
       <>Générez un <strong>Page Access Token</strong> avec les scopes <Code>instagram_basic</Code>, <Code>instagram_manage_messages</Code>, <Code>pages_manage_metadata</Code> → <Code>INSTAGRAM_PAGE_ACCESS_TOKEN</Code>.</>,
-      <>Notez l’<strong>Instagram Business Account ID</strong> (affiché pendant la configuration) → <Code>INSTAGRAM_BUSINESS_ACCOUNT_ID</Code>.</>,
-      <>Webhook objet <Code>instagram</Code>, URL <Code>https://votre-domaine/api/webhooks/social/instagram</Code>, verify token → <Code>INSTAGRAM_VERIFY_TOKEN</Code>, champ <Code>messages</Code>.</>
+      <>Notez l’<strong>InstagramIcon Business Account ID</strong> (affiché pendant la configuration) → <Code>INSTAGRAM_BUSINESS_ACCOUNT_ID</Code>.</>,
+      <>CpuChipIcon objet <Code>instagram</Code>, URL <Code>https://votre-domaine/api/webhooks/social/instagram</Code>, verify token → <Code>INSTAGRAM_VERIFY_TOKEN</Code>, champ <Code>messages</Code>.</>
     ]
   },
   {
     key: 'messenger',
-    icon: Facebook,
+    icon: FacebookIcon,
     color: 'text-blue-600 bg-blue-50',
-    title: '4. Facebook Messenger',
+    title: '4. FacebookIcon Messenger',
     steps: [
       <><strong>Add Product → Messenger → Messenger API settings</strong>.</>,
       <>Sous <strong>Access Tokens</strong>, générez un <strong>Page Access Token</strong> pour la Page HDMarket → <Code>FACEBOOK_PAGE_ACCESS_TOKEN</Code>.</>,
       <>Notez le <strong>Page ID</strong> → <Code>FACEBOOK_PAGE_ID</Code>.</>,
-      <>Webhook : URL <Code>https://votre-domaine/api/webhooks/social/messenger</Code>, verify token → <Code>FACEBOOK_VERIFY_TOKEN</Code>, champ <Code>messages</Code>.</>
+      <>CpuChipIcon : URL <Code>https://votre-domaine/api/webhooks/social/messenger</Code>, verify token → <Code>FACEBOOK_VERIFY_TOKEN</Code>, champ <Code>messages</Code>.</>
     ]
   },
   {
     key: 'review',
-    icon: ShieldCheck,
+    icon: ShieldCheckIcon,
     color: 'bg-amber-50 text-amber-700',
     title: '5. App Review (nécessaire pour le public)',
     steps: [
@@ -136,7 +119,7 @@ const GUIDE_SECTIONS = [
   },
   {
     key: 'where',
-    icon: Webhook,
+    icon: CpuChipIcon,
     color: 'bg-sky-50 text-sky-700',
     title: '6. Où entrer ces valeurs',
     steps: [
@@ -154,8 +137,8 @@ function GuideAccordion() {
     <div className="space-y-5">
       <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
         <p className="flex items-start gap-2 text-xs font-semibold text-sky-800">
-          <BookOpen className="mt-0.5 h-4 w-4 shrink-0" />
-          Ce guide couvre uniquement la configuration côté Meta (WhatsApp, Instagram, Messenger). TikTok n’a pas
+          <BookOpenIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          Ce guide couvre uniquement la configuration côté Meta (WhatsApp, InstagramIcon, Messenger). TikTok n’a pas
           d’API de messagerie directe ici — le trafic TikTok passe par WhatsApp (référence produit dans la légende/bio).
         </p>
       </div>
@@ -175,7 +158,7 @@ function GuideAccordion() {
                   <Icon className="h-4.5 w-4.5" />
                 </span>
                 <span className="min-w-0 flex-1 text-sm font-black text-[#141210]">{section.title}</span>
-                <ChevronDown className={`h-4 w-4 shrink-0 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDownIcon className={`h-4 w-4 shrink-0 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
               </button>
               {isOpen && (
                 <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
@@ -259,7 +242,7 @@ function ConnectForm({ channel, onSubmit, submitting }) {
         disabled={submitting}
         className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[#141210] px-4 text-xs font-black text-white disabled:opacity-50"
       >
-        <Link2 className="h-3.5 w-3.5" />
+        <LinkIcon className="h-3.5 w-3.5" />
         Connecter
       </button>
     </form>
@@ -347,7 +330,7 @@ export default function AdminSocialCommerce() {
     <div className="mx-auto max-w-4xl space-y-5 px-3 py-4 sm:px-5">
       <header className="flex items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#fff0e4] text-[#e85d00]">
-          <Share2 className="h-5 w-5" />
+          <ShareIcon className="h-5 w-5" />
         </span>
         <div>
           <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">Admin</p>
@@ -382,7 +365,7 @@ export default function AdminSocialCommerce() {
         <div className="space-y-3">
           {connections.map((connection) => {
             const meta = CHANNEL_META[connection.channel] || {};
-            const Icon = meta.icon || Share2;
+            const Icon = meta.icon || ShareIcon;
             const isTikTok = connection.channel === 'TIKTOK_MESSAGING';
             return (
               <div key={connection.channel} className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
@@ -417,7 +400,7 @@ export default function AdminSocialCommerce() {
                           disabled={busyChannel === connection.channel}
                           className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-xs font-bold text-neutral-700 disabled:opacity-50"
                         >
-                          <RefreshCw className="h-3.5 w-3.5" /> Tester
+                          <ArrowPathIcon className="h-3.5 w-3.5" /> Tester
                         </button>
                         <button
                           type="button"
@@ -425,7 +408,7 @@ export default function AdminSocialCommerce() {
                           disabled={busyChannel === connection.channel}
                           className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-red-200 px-3 text-xs font-bold text-red-600 disabled:opacity-50"
                         >
-                          <Unlink className="h-3.5 w-3.5" /> Déconnecter
+                          <LinkSlashIcon className="h-3.5 w-3.5" /> Déconnecter
                         </button>
                       </>
                     ) : (
@@ -434,7 +417,7 @@ export default function AdminSocialCommerce() {
                         onClick={() => setOpenChannel(openChannel === connection.channel ? '' : connection.channel)}
                         className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[#141210] px-3 text-xs font-black text-white"
                       >
-                        <Link2 className="h-3.5 w-3.5" /> Connecter
+                        <LinkIcon className="h-3.5 w-3.5" /> Connecter
                       </button>
                     )}
                   </div>
@@ -472,7 +455,7 @@ export default function AdminSocialCommerce() {
           )}
           {interactions.map((interaction) => {
             const meta = CHANNEL_META[interaction.channel] || {};
-            const Icon = meta.icon || Share2;
+            const Icon = meta.icon || ShareIcon;
             return (
               <div key={interaction._id} className="flex items-center gap-3 rounded-xl border border-neutral-100 bg-white p-3">
                 <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${meta.color || 'bg-neutral-100 text-neutral-500'}`}>
@@ -487,9 +470,9 @@ export default function AdminSocialCommerce() {
                   </p>
                 </div>
                 {interaction.responseStatus === 'SENT' ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500" />
                 ) : (
-                  <XCircle className="h-4 w-4 shrink-0 text-neutral-300" />
+                  <XCircleIcon className="h-4 w-4 shrink-0 text-neutral-300" />
                 )}
               </div>
             );
@@ -510,7 +493,7 @@ export default function AdminSocialCommerce() {
           ))}
           <div className="col-span-2 rounded-2xl border border-neutral-100 bg-white p-4">
             <p className="mb-3 flex items-center gap-2 text-xs font-black text-neutral-600">
-              <Activity className="h-3.5 w-3.5" /> Commandes par canal
+              <ChartBarIcon className="h-3.5 w-3.5" /> Commandes par canal
             </p>
             {analytics.ordersByChannel?.length ? (
               <div className="space-y-2">

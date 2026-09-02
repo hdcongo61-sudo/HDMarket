@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { CreditCard, Search, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
+import { AdjustmentsHorizontalIcon, CreditCardIcon, MagnifyingGlassIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { isApiCanceledError } from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
@@ -415,7 +415,7 @@ const fetchProducts = useCallback(async () => {
             </div>
             <form onSubmit={handleSearchSubmit} className="w-full lg:max-w-xl">
               <div className="hd-products-search flex items-center gap-2 rounded-full bg-white px-3 py-1">
-                <Search className="h-5 w-5 shrink-0 text-[#e85d00]" />
+                <MagnifyingGlassIcon className="h-5 w-5 shrink-0 text-[#e85d00]" />
                 <input
                   type="search"
                   value={searchInput}
@@ -430,14 +430,14 @@ const fetchProducts = useCallback(async () => {
                     className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500"
                     aria-label="Effacer la recherche"
                   >
-                    <X className="h-4 w-4" />
+                    <XMarkIcon className="h-4 w-4" />
                   </button>
                 )}
                 <button
                   type="submit"
                   className="hd-primary-button min-h-0 rounded-full px-4 py-2 text-sm font-black"
                 >
-                  <Search className="h-4 w-4 sm:hidden" />
+                  <MagnifyingGlassIcon className="h-4 w-4 sm:hidden" />
                   <span className="hidden sm:inline">Rechercher</span>
                 </button>
               </div>
@@ -482,7 +482,7 @@ const fetchProducts = useCallback(async () => {
               className={`${installmentOnly ? 'hd-products-chip-active' : 'hd-products-chip'} inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black`}
               aria-pressed={installmentOnly}
             >
-              <CreditCard className="h-4 w-4" />
+              <CreditCardIcon className="h-4 w-4" />
               Tranche
             </button>
             <button
@@ -491,14 +491,14 @@ const fetchProducts = useCallback(async () => {
               className={`${shopVerified ? 'hd-products-chip-active' : 'hd-products-chip'} inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black`}
               aria-pressed={shopVerified}
             >
-              <ShieldCheck className="h-4 w-4" />
+              <ShieldCheckIcon className="h-4 w-4" />
               Boutiques vérifiées
             </button>
             <Link
               to="/search"
               className="hd-products-chip inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black"
             >
-              <SlidersHorizontal className="h-4 w-4 text-[#e85d00]" />
+              <AdjustmentsHorizontalIcon className="h-4 w-4 text-[#e85d00]" />
               Recherche avancée
             </Link>
           </div>
@@ -575,7 +575,7 @@ const fetchProducts = useCallback(async () => {
           </>
         ) : (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
-            <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-[#e85d00]" />
+            <ShieldCheckIcon className="mx-auto mb-3 h-10 w-10 text-[#e85d00]" />
             <p className="font-bold text-gray-900">Aucun produit ne correspond à votre recherche pour le moment.</p>
           </div>
         )}

@@ -1,25 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  ChevronDown,
-  CircleHelp,
-  Coins,
-  Landmark,
-  Languages,
-  Loader2,
-  MapPin,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Save,
-  Search,
-  SlidersHorizontal,
-  ToggleLeft,
-  Trash2,
-  Truck,
-  X
-} from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowPathIcon, Bars2Icon, BuildingLibraryIcon, CheckIcon, ChevronDownIcon, CurrencyDollarIcon, LanguageIcon, MagnifyingGlassIcon, MapPinIcon, PencilIcon, PlusIcon, QuestionMarkCircleIcon, TrashIcon, TruckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
@@ -40,7 +21,7 @@ const FEE_FIELDS = [
     label: 'Importance des vues',
     type: 'number',
     step: 0.01,
-    help: 'Plus la valeur est élevée, plus le nombre de vues influence le score produit.'
+    help: 'PlusIcon la valeur est élevée, plus le nombre de vues influence le score produit.'
   },
   {
     key: 'analyticsConversionWeight',
@@ -146,11 +127,6 @@ const NOTIFICATION_RUNTIME_FLAGS = [
 
 const NETWORK_RUNTIME_QUICK_FLAGS = [
   {
-    key: 'enable_dark_theme',
-    label: 'Thème sombre de l’application',
-    fallbackDescription: 'Autorise ou masque le mode sombre pour tous les utilisateurs.'
-  },
-  {
     key: 'enable_rapid_3g_mode',
     label: 'Mode Rapide 3G',
     fallbackDescription: 'Allège le chargement sur connexions lentes et mode économie de données.'
@@ -196,13 +172,13 @@ const COMMERCE_RUNTIME_CONTROLS = [
 ];
 
 const SYSTEM_SECTIONS = [
-  { value: 'fees', label: 'Frais & règles', icon: Landmark },
-  { value: 'runtime', label: 'Configuration', icon: SlidersHorizontal },
-  { value: 'flags', label: 'Fonctionnalités', icon: ToggleLeft },
-  { value: 'languages', label: 'Langues', icon: Languages },
-  { value: 'currencies', label: 'Devises', icon: Coins },
-  { value: 'cities', label: 'Villes', icon: MapPin },
-  { value: 'communes', label: 'Communes', icon: Truck }
+  { value: 'fees', label: 'Frais & règles', icon: BuildingLibraryIcon },
+  { value: 'runtime', label: 'Configuration', icon: AdjustmentsHorizontalIcon },
+  { value: 'flags', label: 'Fonctionnalités', icon: Bars2Icon },
+  { value: 'languages', label: 'Langues', icon: LanguageIcon },
+  { value: 'currencies', label: 'Devises', icon: CurrencyDollarIcon },
+  { value: 'cities', label: 'Villes', icon: MapPinIcon },
+  { value: 'communes', label: 'Communes', icon: TruckIcon }
 ];
 
 const CURATED_RUNTIME_KEYS = new Set([
@@ -373,7 +349,7 @@ const SectionShell = ({ icon: Icon, title, description, badge, children }) => (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FFF0E4] text-[#e85d00] dark:bg-[#e85d00]/15 dark:text-[#ff9a55]">
-          <Icon size={16} />
+          <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold sm:text-base">{title}</h2>
@@ -413,7 +389,7 @@ const SectionNavButton = ({ section, active, onSelect, variant, dirtyCount = 0 }
             : 'border-slate-200 bg-white font-semibold text-slate-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300'
         }`}
       >
-        <Icon size={14} />
+        <Icon className="h-3.5 w-3.5" />
         {section.label}
         {dot}
       </button>
@@ -430,7 +406,7 @@ const SectionNavButton = ({ section, active, onSelect, variant, dirtyCount = 0 }
           : 'font-semibold text-slate-600 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
       }`}
     >
-      <Icon size={16} />
+      <Icon className="h-4 w-4" />
       {section.label}
       {dot}
     </button>
@@ -439,7 +415,7 @@ const SectionNavButton = ({ section, active, onSelect, variant, dirtyCount = 0 }
 
 const SectionSearchInput = ({ value, onChange, placeholder }) => (
   <div className="relative mb-3">
-    <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500" />
+    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 h-3.5 w-3.5" />
     <input
       type="search"
       value={value}
@@ -454,7 +430,7 @@ const SectionSearchInput = ({ value, onChange, placeholder }) => (
         aria-label="Effacer la recherche"
         className="absolute right-2 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-slate-400 hover:bg-slate-100 dark:text-neutral-500 dark:hover:bg-neutral-800"
       >
-        <X size={12} />
+        <XMarkIcon className="h-3 w-3" />
       </button>
     ) : null}
   </div>
@@ -553,7 +529,7 @@ const RuntimeFlagGroup = ({
                     disabled={isSaving}
                     className={SAVE_BUTTON_CLASS}
                   >
-                    <Save size={12} />
+                    <CheckIcon className="h-3 w-3" />
                     {isSaving ? '…' : 'Enregistrer'}
                   </button>
                 </div>
@@ -1627,10 +1603,10 @@ export default function AdminSystemSettings() {
     [featureFlags]
   );
   const systemMetrics = [
-    { label: 'Runtime', value: loading ? '…' : runtimeSettings.length, help: `${publicRuntimeCount} publics`, icon: SlidersHorizontal },
-    { label: 'Flags', value: loading ? '…' : enabledFeatureCount, help: `${featureFlags.length} configurés`, icon: ToggleLeft },
-    { label: 'Villes', value: loading ? '…' : cities.length, help: `${communes.length} communes`, icon: MapPin },
-    { label: 'Modifs', value: quickSaveCount, help: 'Non enregistrées', icon: Save }
+    { label: 'Runtime', value: loading ? '…' : runtimeSettings.length, help: `${publicRuntimeCount} publics`, icon: AdjustmentsHorizontalIcon },
+    { label: 'Flags', value: loading ? '…' : enabledFeatureCount, help: `${featureFlags.length} configurés`, icon: Bars2Icon },
+    { label: 'Villes', value: loading ? '…' : cities.length, help: `${communes.length} communes`, icon: MapPinIcon },
+    { label: 'Modifs', value: quickSaveCount, help: 'Non enregistrées', icon: CheckIcon }
   ];
 
   const runtimeKeyLabel = t('admin.keyLabel', 'clé');
@@ -1655,14 +1631,14 @@ export default function AdminSystemSettings() {
               label: 'Retour admin',
               description: 'Revenir au panneau principal',
               to: '/admin',
-              icon: ArrowLeft,
+              icon: ArrowLeftIcon,
               tone: 'neutral'
             },
             {
               label: 'Actualiser',
               description: 'Recharger paramètres et flags',
               onClick: loadSettings,
-              icon: RefreshCw,
+              icon: ArrowPathIcon,
               tone: 'dark',
               loading
             },
@@ -1670,7 +1646,7 @@ export default function AdminSystemSettings() {
               label: quickSaveLabel,
               description: quickSaveCount ? `${quickSaveCount} modification${quickSaveCount > 1 ? 's' : ''}` : 'Aucune modification locale',
               onClick: handleQuickSave,
-              icon: Save,
+              icon: CheckIcon,
               tone: quickSaveCount ? 'emerald' : 'neutral',
               disabled: !quickSaveCount || isQuickSaveBusy,
               loading: isQuickSaveBusy
@@ -1709,7 +1685,7 @@ export default function AdminSystemSettings() {
           <div className="min-w-0 flex-1">
             {activeSystemSection === 'fees' ? (
               <SectionShell
-                icon={Landmark}
+                icon={BuildingLibraryIcon}
                 title="Frais & règles"
                 description="Commissions, boosts, paiement par tranches, scores et litiges."
               >
@@ -1778,7 +1754,7 @@ export default function AdminSystemSettings() {
                                           className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
                                           aria-label={tooltip}
                                         >
-                                          <CircleHelp size={12} />
+                                          <QuestionMarkCircleIcon className="h-3 w-3" />
                                         </span>
                                       </div>
                                       <div className="flex shrink-0 items-center gap-2">
@@ -1820,7 +1796,7 @@ export default function AdminSystemSettings() {
                                               : 'border-slate-200 bg-slate-50 text-slate-300 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-600'
                                           } disabled:cursor-not-allowed`}
                                         >
-                                          {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                          {isSaving ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <CheckIcon className="h-3.5 w-3.5" />}
                                         </button>
                                       </div>
                                     </div>
@@ -1839,7 +1815,7 @@ export default function AdminSystemSettings() {
 
             {activeSystemSection === 'runtime' ? (
               <SectionShell
-                icon={SlidersHorizontal}
+                icon={AdjustmentsHorizontalIcon}
                 title="Configuration"
                 description="Interrupteurs runtime diffusés à toute la plateforme."
                 badge={(
@@ -1900,10 +1876,8 @@ export default function AdminSystemSettings() {
                           <span>
                             Autres paramètres ({runtimeSearch.trim() ? `${filteredOtherRuntimeCount}/${otherRuntimeCount}` : otherRuntimeCount})
                           </span>
-                          <ChevronDown
-                            size={16}
-                            className={`transition-transform duration-300 ${otherRuntimeOpen ? 'rotate-180' : ''}`}
-                          />
+                          <ChevronDownIcon
+className={`transition-transform duration-300 ${otherRuntimeOpen ? 'rotate-180' : ''}`} className="h-4 w-4" />
                         </button>
                         {otherRuntimeOpen ? (
                         <div className="space-y-4 border-t border-slate-200 p-3 dark:border-neutral-700">
@@ -2007,7 +1981,7 @@ export default function AdminSystemSettings() {
                                           disabled={isSaving}
                                           className={SAVE_BUTTON_CLASS}
                                         >
-                                          <Save size={12} />
+                                          <CheckIcon className="h-3 w-3" />
                                           {isSaving ? '…' : 'Enregistrer'}
                                         </button>
                                       </div>
@@ -2045,7 +2019,7 @@ export default function AdminSystemSettings() {
 
             {activeSystemSection === 'flags' ? (
               <SectionShell
-                icon={ToggleLeft}
+                icon={Bars2Icon}
                 title="Fonctionnalités"
                 description="Activation des feature flags par environnement."
               >
@@ -2137,7 +2111,7 @@ export default function AdminSystemSettings() {
 
             {activeSystemSection === 'languages' ? (
               <SectionShell
-                icon={Languages}
+                icon={LanguageIcon}
                 title="Langues"
                 description="Langues disponibles dans l’application et langue par défaut."
               >
@@ -2147,7 +2121,7 @@ export default function AdminSystemSettings() {
                     onClick={addLanguage}
                     className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
                   >
-                    <Plus size={14} />
+                    <PlusIcon className="h-3.5 w-3.5" />
                     Ajouter langue
                   </button>
                 </div>
@@ -2183,7 +2157,7 @@ export default function AdminSystemSettings() {
                         className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-900/20"
                         aria-label="Supprimer langue"
                       >
-                        <Trash2 size={14} />
+                        <TrashIcon className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ))}
@@ -2216,7 +2190,7 @@ export default function AdminSystemSettings() {
 
             {activeSystemSection === 'currencies' ? (
               <SectionShell
-                icon={Coins}
+                icon={CurrencyDollarIcon}
                 title="Devises"
                 description="Devises, taux de conversion et devise par défaut."
               >
@@ -2346,7 +2320,7 @@ export default function AdminSystemSettings() {
 
             {activeSystemSection === 'cities' ? (
               <SectionShell
-                icon={MapPin}
+                icon={MapPinIcon}
                 title="Villes"
                 description="Villes couvertes, boost et disponibilité de livraison."
               >
@@ -2439,7 +2413,7 @@ export default function AdminSystemSettings() {
                               disabled={savingCityEdit}
                               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#e85d00] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
                             >
-                              {savingCityEdit ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                              {savingCityEdit ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <CheckIcon className="h-3.5 w-3.5" />}
                               {savingCityEdit ? 'Enregistrement…' : 'Enregistrer'}
                             </button>
                           </div>
@@ -2459,7 +2433,7 @@ export default function AdminSystemSettings() {
                           disabled={deletingCityId === String(item._id)}
                           className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
                         >
-                          <Pencil size={12} />
+                          <PencilIcon className="h-3 w-3" />
                           Modifier
                         </button>
                         <div className="flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 px-2 dark:border-neutral-700">
@@ -2490,7 +2464,7 @@ export default function AdminSystemSettings() {
                           disabled={deletingCityId === String(item._id)}
                           className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200"
                         >
-                          <Trash2 size={12} />
+                          <TrashIcon className="h-3 w-3" />
                           {deletingCityId === String(item._id) ? 'Suppression…' : 'Supprimer'}
                         </button>
                       </div>
@@ -2503,7 +2477,7 @@ export default function AdminSystemSettings() {
 
             {activeSystemSection === 'communes' ? (
               <SectionShell
-                icon={Truck}
+                icon={TruckIcon}
                 title="Communes"
                 description="Communes et règles de livraison associées."
               >
@@ -2683,7 +2657,7 @@ export default function AdminSystemSettings() {
                               disabled={deletingCommuneId === String(item._id)}
                               className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200"
                             >
-                              <Trash2 size={12} />
+                              <TrashIcon className="h-3 w-3" />
                               {deletingCommuneId === String(item._id) ? 'Suppression…' : 'Supprimer'}
                             </button>
                           </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bookmark, Eye, Heart, Loader2, Play, ShoppingBag, X } from 'lucide-react';
+import { ArrowPathIcon, BookmarkIcon, EyeIcon, HeartIcon, PlayIcon, ShoppingBagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -41,9 +41,9 @@ export default function SavedProductVideos() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950"><Bookmark /></span><div><h1 className="text-2xl font-black">Vidéos enregistrées</h1><p className="text-sm text-neutral-500">Retrouvez les produits que vous voulez revoir.</p></div></div>
-      {loading ? <div className="grid min-h-64 place-items-center"><Loader2 className="animate-spin" /></div> : null}
-      {!loading && !items.length ? <div className="mt-10 rounded-3xl border border-dashed border-neutral-300 p-12 text-center dark:border-white/15"><Bookmark className="mx-auto text-neutral-400" size={36} /><p className="mt-4 font-bold">Aucune vidéo enregistrée</p><Link to="/videos" className="mt-4 inline-flex rounded-xl bg-emerald-500 px-5 py-3 font-bold text-white">Découvrir HDMarket Videos</Link></div> : null}
+      <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950"><BookmarkIcon /></span><div><h1 className="text-2xl font-black">Vidéos enregistrées</h1><p className="text-sm text-neutral-500">Retrouvez les produits que vous voulez revoir.</p></div></div>
+      {loading ? <div className="grid min-h-64 place-items-center"><ArrowPathIcon className="animate-spin" /></div> : null}
+      {!loading && !items.length ? <div className="mt-10 rounded-3xl border border-dashed border-neutral-300 p-12 text-center dark:border-white/15"><BookmarkIcon className="mx-auto text-neutral-400 h-9 w-9" /><p className="mt-4 font-bold">Aucune vidéo enregistrée</p><Link to="/videos" className="mt-4 inline-flex rounded-xl bg-emerald-500 px-5 py-3 font-bold text-white">Découvrir HDMarket Videos</Link></div> : null}
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((video) => (
           <button
@@ -57,11 +57,11 @@ export default function SavedProductVideos() {
               <img src={video.thumbnailUrl || video.product?.images?.[0]} alt={video.product?.title || ''} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
               <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
               <span className="absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/45 backdrop-blur-sm transition group-hover:scale-110 group-hover:bg-emerald-500">
-                <Play size={20} fill="currentColor" />
+                <PlayIcon fill="currentColor" className="h-5 w-5" />
               </span>
               <div className="absolute inset-x-0 bottom-0 p-3">
                 <p className="line-clamp-2 text-sm font-bold">{video.product?.title}</p>
-                <div className="mt-2 flex gap-3 text-[11px] text-white/75"><span className="flex items-center gap-1"><Eye size={12} />{video.counters?.views || 0}</span><span className="flex items-center gap-1"><Heart size={12} />{video.counters?.likes || 0}</span></div>
+                <div className="mt-2 flex gap-3 text-[11px] text-white/75"><span className="flex items-center gap-1"><EyeIcon className="h-3 w-3" />{video.counters?.views || 0}</span><span className="flex items-center gap-1"><HeartIcon className="h-3 w-3" />{video.counters?.likes || 0}</span></div>
               </div>
             </div>
           </button>
@@ -93,7 +93,7 @@ export default function SavedProductVideos() {
                 onClick={() => setActiveVideo(null)}
                 className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-black/55 text-white backdrop-blur-md transition hover:bg-black/75"
               >
-                <X size={18} />
+                <XMarkIcon className="h-[18px] w-[18px]" />
               </button>
               <video
                 src={getPlayableSource(activeVideo)}
@@ -113,7 +113,7 @@ export default function SavedProductVideos() {
                     to={buildProductPath(activeVideo.product)}
                     className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-4 text-xs font-black text-white"
                   >
-                    <ShoppingBag size={15} /> Voir le produit
+                    <ShoppingBagIcon className="h-[15px] w-[15px]" /> Voir le produit
                   </Link>
                 ) : null}
               </div>

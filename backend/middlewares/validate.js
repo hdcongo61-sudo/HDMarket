@@ -1348,8 +1348,7 @@ export const schemas = {
   userPreferencesUpdate: Joi.object({
     preferredLanguage: Joi.string().trim().min(2).max(10),
     preferredCurrency: Joi.string().trim().uppercase().min(2).max(8),
-    preferredCity: Joi.string().trim().min(2).max(80).allow('', null),
-    theme: Joi.string().valid('light', 'dark', 'system')
+    preferredCity: Joi.string().trim().min(2).max(80).allow('', null)
   }).min(1),
   adminSettingKeyParam: Joi.object({
     key: Joi.string()

@@ -11,7 +11,6 @@ const STORAGE_KEYS = {
   language: 'hd_pref_language',
   currency: 'hd_pref_currency',
   city: 'hd_pref_city',
-  theme: 'hd_pref_theme',
   assistantChatEnabled: 'hd_pref_assistant_chat_enabled',
   publicSettings: 'hd_public_settings_payload',
   publicRuntime: 'hd_public_runtime_settings'
@@ -76,15 +75,6 @@ const toBoolean = (value, fallback = false) => {
   return fallback;
 };
 
-const normalizeTheme = (value) => (['light', 'dark', 'system'].includes(value) ? value : 'system');
-
-const applyThemeClass = (themeValue) => {
-  if (typeof document === 'undefined') return;
-  const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const resolved = themeValue === 'system' ? (systemDark ? 'dark' : 'light') : themeValue;
-  document.documentElement.classList.toggle('dark', resolved === 'dark');
-};
-
 export const AppSettingsProvider = ({ children }) => {
   const { user, updateUser } = useContext(AuthContext);
   const { country: selectedCountry } = useCountry();
@@ -106,14 +96,8 @@ export const AppSettingsProvider = ({ children }) => {
   const [language, setLanguageState] = useState('fr');
   const [currencyCode, setCurrencyCodeState] = useState('XAF');
   const [city, setCityState] = useState('');
-  const [theme, setThemeState] = useState('system');
   const [assistantChatEnabled, setAssistantChatEnabledState] = useState(true);
   const [resources, setResources] = useState({});
-  const darkThemeEnabled = toBoolean(
-    publicSettings.runtime?.enable_dark_theme,
-    true
-  );
-  const effectiveTheme = darkThemeEnabled ? theme : 'light';
 
   const normalizePublicPayload = useCallback((payload = {}) => {
     const normalizedCurrencies = Array.isArray(payload.currencies) ? payload.currencies : [];
@@ -263,7 +247,6 @@ export const AppSettingsProvider = ({ children }) => {
         const storedLanguage = (await storage.get(STORAGE_KEYS.language)) || '';
         const storedCurrency = (await storage.get(STORAGE_KEYS.currency)) || '';
         const storedCity = (await storage.get(STORAGE_KEYS.city)) || '';
-        const storedTheme = (await storage.get(STORAGE_KEYS.theme)) || '';
         const storedAssistantChatEnabled = await storage.get(STORAGE_KEYS.assistantChatEnabled);
 
         const nextLanguage =
@@ -281,12 +264,10 @@ export const AppSettingsProvider = ({ children }) => {
           storedCity ||
           payload?.defaultCity?.name ||
           '';
-        const nextTheme = normalizeTheme(user?.theme || storedTheme || 'system');
 
         setLanguageState(String(nextLanguage).toLowerCase());
         setCurrencyCodeState(String(nextCurrency).toUpperCase());
         setCityState(String(nextCity));
-        setThemeState(nextTheme);
         setAssistantChatEnabledState(storedAssistantChatEnabled !== false);
         setLoading(false);
 
@@ -301,15 +282,7 @@ export const AppSettingsProvider = ({ children }) => {
     return () => {
       mounted = false;
     };
-  }, [loadPublicSettings, user?.preferredLanguage, user?.preferredCurrency, user?.preferredCity, user?.city, user?.theme]);
-
-  useEffect(() => {
-    applyThemeClass(effectiveTheme);
-  }, [effectiveTheme]);
-
-  useEffect(() => {
-    storage.set(STORAGE_KEYS.theme, theme);
-  }, [theme]);
+  }, [loadPublicSettings, user?.preferredLanguage, user?.preferredCurrency, user?.preferredCity, user?.city]);
 
   useEffect(() => {
     storage.set(STORAGE_KEYS.language, language);
@@ -427,8 +400,7 @@ export const AppSettingsProvider = ({ children }) => {
       const nextPreferences = {
         preferredLanguage: patch.preferredLanguage ?? language,
         preferredCurrency: patch.preferredCurrency ?? currencyCode,
-        preferredCity: patch.preferredCity ?? city,
-        theme: normalizeTheme(patch.theme ?? theme)
+        preferredCity: patch.preferredCity ?? city
       };
       if (patch.preferredLanguage !== undefined) {
         nextPreferences.preferredLanguage = normalizeLanguage(nextPreferences.preferredLanguage);
@@ -437,7 +409,6 @@ export const AppSettingsProvider = ({ children }) => {
       if (patch.preferredLanguage !== undefined) setLanguageState(normalizeLanguage(nextPreferences.preferredLanguage));
       if (patch.preferredCurrency !== undefined) setCurrencyCodeState(String(nextPreferences.preferredCurrency).toUpperCase());
       if (patch.preferredCity !== undefined) setCityState(String(nextPreferences.preferredCity));
-      if (patch.theme !== undefined) setThemeState(nextPreferences.theme);
 
       if (!user?.token) return nextPreferences;
 
@@ -451,7 +422,7 @@ export const AppSettingsProvider = ({ children }) => {
         setSavingPreferences(false);
       }
     },
-    [city, currencyCode, language, theme, updateUser, user?.token]
+    [city, currencyCode, language, updateUser, user?.token]
   );
 
   const t = useCallback(
@@ -538,8 +509,6 @@ export const AppSettingsProvider = ({ children }) => {
       language,
       currencyCode,
       city,
-      theme: effectiveTheme,
-      darkThemeEnabled,
       assistantChatEnabled,
       selectedCurrency,
       t,
@@ -549,10 +518,6 @@ export const AppSettingsProvider = ({ children }) => {
       setLanguage: (value) => persistPreferences({ preferredLanguage: value }),
       setCurrency: (value) => persistPreferences({ preferredCurrency: value }),
       setCity: (value) => persistPreferences({ preferredCity: value }),
-      setTheme: (value) =>
-        darkThemeEnabled
-          ? persistPreferences({ theme: value })
-          : Promise.resolve({ theme: 'light' }),
       setAssistantChatEnabled,
       updatePreferences: persistPreferences,
       isFeatureEnabled
@@ -574,8 +539,6 @@ export const AppSettingsProvider = ({ children }) => {
       language,
       currencyCode,
       city,
-      effectiveTheme,
-      darkThemeEnabled,
       assistantChatEnabled,
       selectedCurrency,
       t,

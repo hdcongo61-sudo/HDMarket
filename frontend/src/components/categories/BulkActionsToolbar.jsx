@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, FileDown, Upload, EyeOff, Eye, Trash2, RotateCcw } from 'lucide-react';
+import { ArrowDownTrayIcon, ArrowUpTrayIcon, ArrowUturnLeftIcon, DocumentArrowDownIcon, EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 export default function BulkActionsToolbar({
   selectedCount,
@@ -22,7 +22,7 @@ export default function BulkActionsToolbar({
             disabled={loading || selectedCount === 0}
             className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
           >
-            <Eye size={14} /> Activer
+            <EyeIcon className="h-3.5 w-3.5" /> Activer
           </button>
           <button
             type="button"
@@ -30,7 +30,7 @@ export default function BulkActionsToolbar({
             disabled={loading || selectedCount === 0}
             className="inline-flex items-center gap-2 rounded-xl border border-amber-300 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
           >
-            <EyeOff size={14} /> Désactiver
+            <EyeSlashIcon className="h-3.5 w-3.5" /> Désactiver
           </button>
           <button
             type="button"
@@ -38,7 +38,7 @@ export default function BulkActionsToolbar({
             disabled={loading || selectedCount === 0}
             className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
-            <Trash2 size={14} /> Supprimer
+            <TrashIcon className="h-3.5 w-3.5" /> Supprimer
           </button>
           <button
             type="button"
@@ -46,7 +46,7 @@ export default function BulkActionsToolbar({
             disabled={loading || selectedCount === 0}
             className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
           >
-            <RotateCcw size={14} /> Restaurer
+            <ArrowUturnLeftIcon className="h-3.5 w-3.5" /> Restaurer
           </button>
           <button
             type="button"
@@ -54,7 +54,7 @@ export default function BulkActionsToolbar({
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
-            <Download size={14} /> Export JSON
+            <ArrowDownTrayIcon className="h-3.5 w-3.5" /> Export JSON
           </button>
           <button
             type="button"
@@ -62,7 +62,7 @@ export default function BulkActionsToolbar({
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
-            <FileDown size={14} /> Export CSV
+            <DocumentArrowDownIcon className="h-3.5 w-3.5" /> Export CSV
           </button>
           <button
             type="button"
@@ -70,7 +70,7 @@ export default function BulkActionsToolbar({
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
           >
-            <Upload size={14} /> Import
+            <ArrowUpTrayIcon className="h-3.5 w-3.5" /> Import
           </button>
         </div>
       </div>

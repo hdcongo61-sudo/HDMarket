@@ -1,21 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  AlertCircle,
-  ArrowUpDown,
-  CalendarDays,
-  CheckCircle2,
-  ChevronDown,
-  Clock3,
-  Copy,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  Smartphone,
-  Store,
-  WalletCards,
-  X
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowsUpDownIcon, BuildingStorefrontIcon, CalendarDaysIcon, CheckCircleIcon, ChevronDownIcon, ClockIcon, DevicePhoneMobileIcon, DocumentDuplicateIcon, ExclamationCircleIcon, MagnifyingGlassIcon, ShieldCheckIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -30,37 +15,37 @@ import {
 const STATUS_CONFIG = {
   CREATED: {
     label: 'Créé',
-    icon: Clock3,
+    icon: ClockIcon,
     className: 'bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
   },
   PROCESSING: {
     label: 'En traitement',
-    icon: RefreshCw,
+    icon: ArrowPathIcon,
     className: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
   },
   ENQUEUED: {
     label: 'Chez l’opérateur',
-    icon: Clock3,
+    icon: ClockIcon,
     className: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
   },
   COMPLETED: {
     label: 'Versé',
-    icon: CheckCircle2,
+    icon: CheckCircleIcon,
     className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
   },
   FAILED: {
     label: 'Échec',
-    icon: AlertCircle,
+    icon: ExclamationCircleIcon,
     className: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
   },
   NEEDS_ATTENTION: {
     label: 'À vérifier',
-    icon: AlertCircle,
+    icon: ExclamationCircleIcon,
     className: 'bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
   },
   CANCELLED: {
     label: 'Annulé',
-    icon: X,
+    icon: XMarkIcon,
     className: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
   }
 };
@@ -124,7 +109,7 @@ function PayoutSkeleton() {
 function StatusBadge({ status }) {
   const config = STATUS_CONFIG[status] || {
     label: status || 'Inconnu',
-    icon: AlertCircle,
+    icon: ExclamationCircleIcon,
     className: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
   };
   const Icon = config.icon;
@@ -196,29 +181,29 @@ export default function AdminSellerPayouts() {
 
   const statusOptions = useMemo(
     () => [
-      { value: 'all', label: 'Tous', icon: WalletCards, count: payouts.length },
+      { value: 'all', label: 'Tous', icon: WalletIcon, count: payouts.length },
       {
         value: 'attention',
         label: 'À traiter',
-        icon: AlertCircle,
+        icon: ExclamationCircleIcon,
         count: countPayoutsByGroup(payouts, 'attention')
       },
       {
         value: 'processing',
         label: 'En cours',
-        icon: Clock3,
+        icon: ClockIcon,
         count: countPayoutsByGroup(payouts, 'processing')
       },
       {
         value: 'completed',
         label: 'Versés',
-        icon: CheckCircle2,
+        icon: CheckCircleIcon,
         count: countPayoutsByGroup(payouts, 'completed')
       },
       {
         value: 'cancelled',
         label: 'Annulés',
-        icon: X,
+        icon: XMarkIcon,
         count: countPayoutsByGroup(payouts, 'cancelled')
       }
     ],
@@ -293,21 +278,21 @@ export default function AdminSellerPayouts() {
         subtitle="Suivez chaque transfert, repérez les blocages et rapprochez les versements avec les commandes concernées."
         meta="Les 100 versements les plus récents sont affichés."
         metrics={[
-          { label: 'Versements', value: summary.total, help: 'dans la liste', icon: WalletCards },
+          { label: 'Versements', value: summary.total, help: 'dans la liste', icon: WalletIcon },
           {
             label: 'Déjà versé',
             value: formatPriceWithStoredSettings(summary.completedAmount),
             help: `${summary.completed} terminé${summary.completed > 1 ? 's' : ''}`,
-            icon: CheckCircle2
+            icon: CheckCircleIcon
           },
-          { label: 'À traiter', value: summary.attention, help: 'échec ou vérification', icon: AlertCircle },
-          { label: 'En transit', value: summary.processing, help: 'chez PawaPay', icon: Clock3 }
+          { label: 'À traiter', value: summary.attention, help: 'échec ou vérification', icon: ExclamationCircleIcon },
+          { label: 'En transit', value: summary.processing, help: 'chez PawaPay', icon: ClockIcon }
         ]}
         actions={[
           {
             label: 'Actualiser les versements',
             description: 'Recharger la liste depuis HDMarket',
-            icon: RefreshCw,
+            icon: ArrowPathIcon,
             tone: 'orange',
             onClick: () => load(),
             loading
@@ -315,7 +300,7 @@ export default function AdminSellerPayouts() {
           {
             label: 'Vérification des paiements',
             description: 'Ouvrir le centre financier',
-            icon: ShieldCheck,
+            icon: ShieldCheckIcon,
             tone: 'neutral',
             to: '/admin/payment-verification'
           }
@@ -332,7 +317,7 @@ export default function AdminSellerPayouts() {
         <div className="grid gap-2 rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 md:grid-cols-[minmax(240px,1fr)_220px_190px_auto]">
           <label className="relative block">
             <span className="sr-only">Rechercher un versement</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <input
               type="search"
               value={searchQuery}
@@ -344,7 +329,7 @@ export default function AdminSellerPayouts() {
 
           <label className="relative block">
             <span className="sr-only">Filtrer par opérateur</span>
-            <Smartphone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <DevicePhoneMobileIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <select
               value={providerFilter}
               onChange={(event) => changeFilter('provider', event.target.value, setProviderFilter)}
@@ -354,12 +339,12 @@ export default function AdminSellerPayouts() {
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           </label>
 
           <label className="relative block">
             <span className="sr-only">Trier les versements</span>
-            <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <ArrowsUpDownIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <select
               value={sortOrder}
               onChange={(event) => changeFilter('sort', event.target.value, setSortOrder)}
@@ -369,7 +354,7 @@ export default function AdminSellerPayouts() {
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
           </label>
 
           {hasFilters ? (
@@ -378,7 +363,7 @@ export default function AdminSellerPayouts() {
               onClick={resetFilters}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold text-neutral-600 transition hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-900"
             >
-              <X className="h-4 w-4" /> Réinitialiser
+              <XMarkIcon className="h-4 w-4" /> Réinitialiser
             </button>
           ) : null}
         </div>
@@ -394,11 +379,11 @@ export default function AdminSellerPayouts() {
       {errorMessage ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-2 text-sm font-semibold">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <ExclamationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
           <button type="button" onClick={() => load()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-red-700 px-3 text-sm font-bold text-white">
-            <RefreshCw className="h-4 w-4" /> Réessayer
+            <ArrowPathIcon className="h-4 w-4" /> Réessayer
           </button>
         </div>
       ) : null}
@@ -410,7 +395,7 @@ export default function AdminSellerPayouts() {
       ) : !filteredPayouts.length && !errorMessage ? (
         <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-5 py-12 text-center dark:border-neutral-700 dark:bg-neutral-950">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
-            <WalletCards className="h-5 w-5" />
+            <WalletIcon className="h-5 w-5" />
           </span>
           <h2 className="mt-4 text-base font-black text-neutral-950 dark:text-white">
             {payouts.length ? 'Aucun versement ne correspond aux filtres' : 'Aucun versement vendeur'}
@@ -442,7 +427,7 @@ export default function AdminSellerPayouts() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-start gap-3">
                       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FFF0E4] text-sm font-black text-[#e85d00] dark:bg-orange-950/40 dark:text-orange-300">
-                        {initials || <Store className="h-5 w-5" />}
+                        {initials || <BuildingStorefrontIcon className="h-5 w-5" />}
                       </span>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -485,7 +470,7 @@ export default function AdminSellerPayouts() {
 
                   {failure ? (
                     <div className="mt-3 flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm font-semibold text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <ExclamationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
                       <span>{failure}</span>
                     </div>
                   ) : null}
@@ -495,7 +480,7 @@ export default function AdminSellerPayouts() {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <details className="group min-w-0">
                       <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 text-sm font-bold text-neutral-600 dark:text-neutral-300">
-                        <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+                        <ChevronDownIcon className="h-4 w-4 transition group-open:rotate-180" />
                         Détails et références
                       </summary>
                       <div className="mt-3 space-y-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950 sm:min-w-[520px]">
@@ -506,7 +491,7 @@ export default function AdminSellerPayouts() {
                               <code className="min-w-0 break-all text-xs text-neutral-700 dark:text-neutral-300">{payout.payoutId || '-'}</code>
                               {payout.payoutId ? (
                                 <button type="button" onClick={() => copyReference(payout.payoutId)} className="shrink-0 rounded-lg p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-900" aria-label="Copier l’identifiant du versement">
-                                  <Copy className="h-3.5 w-3.5" />
+                                  <DocumentDuplicateIcon className="h-3.5 w-3.5" />
                                 </button>
                               ) : null}
                             </div>
@@ -551,7 +536,7 @@ export default function AdminSellerPayouts() {
                           disabled={isBusy}
                           className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-neutral-950 sm:flex-none"
                         >
-                          <RefreshCw className={`h-4 w-4 ${isBusy && action.type === 'retry' ? 'animate-spin' : ''}`} />
+                          <ArrowPathIcon className={`h-4 w-4 ${isBusy && action.type === 'retry' ? 'animate-spin' : ''}`} />
                           {isBusy && action.type === 'retry' ? 'Relance…' : 'Relancer le versement'}
                         </button>
                       ) : null}
@@ -562,7 +547,7 @@ export default function AdminSellerPayouts() {
                           disabled={isBusy}
                           className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 text-sm font-bold text-neutral-700 transition hover:border-neutral-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 sm:flex-none"
                         >
-                          <RefreshCw className={`h-4 w-4 ${isBusy && action.type === 'refresh' ? 'animate-spin' : ''}`} />
+                          <ArrowPathIcon className={`h-4 w-4 ${isBusy && action.type === 'refresh' ? 'animate-spin' : ''}`} />
                           {isBusy && action.type === 'refresh' ? 'Vérification…' : 'Vérifier chez PawaPay'}
                         </button>
                       ) : null}
@@ -577,7 +562,7 @@ export default function AdminSellerPayouts() {
 
       {!loading && filteredPayouts.length ? (
         <div className="flex items-center justify-center gap-2 py-2 text-xs text-neutral-400">
-          <CalendarDays className="h-3.5 w-3.5" /> Liste limitée aux 100 versements les plus récents
+          <CalendarDaysIcon className="h-3.5 w-3.5" /> Liste limitée aux 100 versements les plus récents
         </div>
       ) : null}
     </div>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2, Zap } from 'lucide-react';
+import { ArrowPathIcon, BoltIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../../../utils/priceFormatter';
@@ -62,7 +62,7 @@ export default function SpeedRulesPanel() {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4">
       <div className="mb-4 flex items-center gap-2">
-        <Zap className="h-5 w-5 text-[#e85d00]" />
+        <BoltIcon className="h-5 w-5 text-[#e85d00]" />
         <h2 className="text-base font-black text-slate-950">Vitesse de livraison</h2>
       </div>
       <p className="mb-4 text-xs text-gray-500">Standard, Express, Immédiate — chacune avec un supplément et un délai indicatif.</p>
@@ -101,7 +101,7 @@ export default function SpeedRulesPanel() {
           disabled={creating}
           className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] text-xs font-black text-white disabled:opacity-50"
         >
-          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          {creating ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlusIcon className="h-4 w-4" />}
           Ajouter
         </button>
       </form>
@@ -125,7 +125,7 @@ export default function SpeedRulesPanel() {
                 className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-red-100 text-red-600 disabled:opacity-50"
                 aria-label="Supprimer"
               >
-                <Trash2 className="h-4 w-4" />
+                <TrashIcon className="h-4 w-4" />
               </button>
             </div>
           ))}

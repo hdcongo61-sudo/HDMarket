@@ -9,7 +9,7 @@ import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
 import useCategories from '../hooks/useCategories';
-import { Search, Star, Zap, Shield, Truck, Award, Heart, ChevronRight, Tag, Sparkles, RefreshCcw, MapPin, LayoutGrid, Clock, X, ShoppingBag, User, Flame, Store, CreditCard, Users, Package, Play, Clapperboard, Sun, Moon, Boxes } from "lucide-react";
+import { ArrowPathIcon, BoltIcon, BuildingStorefrontIcon, ChevronRightIcon, ClockIcon, CreditCardIcon, CubeIcon, FilmIcon, FireIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, MoonIcon, PlayIcon, ShieldCheckIcon, ShoppingBagIcon, SparklesIcon, Squares2X2Icon, StarIcon, SunIcon, TagIcon, TrophyIcon, TruckIcon, UserIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import useDesktopExternalLink from "../hooks/useDesktopExternalLink";
@@ -131,7 +131,7 @@ const FeaturedTagSections = ({ t }) => {
               <h2 className="mt-1 text-xl font-black text-neutral-950 sm:text-2xl">{tag.homepageTitle || tag.name}</h2>
             </div>
             <Link to={`/search?tags=${encodeURIComponent(tag.slug)}`} className="inline-flex items-center gap-1 text-xs font-black text-orange-600">
-              {t('home.viewAll', 'Voir tout')} <ChevronRight size={15} />
+              {t('home.viewAll', 'Voir tout')} <ChevronRightIcon className="h-[15px] w-[15px]" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -208,7 +208,7 @@ const PourVousSection = ({ user, t, formatPrice, buildProductLink, externalLinkP
           className="inline-flex min-h-11 shrink-0 items-center gap-0.5 text-[13px] font-bold text-[#e85d00] transition-colors active:text-[#c2410c]"
         >
           {t('home.viewAll', 'Voir tout')}
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          <ChevronRightIcon className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
       </div>
 
@@ -274,17 +274,17 @@ const ProductVideosHomeSection = ({ enabled }) => {
     <section className="order-[-9]">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-neutral-950 text-white"><Clapperboard size={16} /></span>
+          <span className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-neutral-950 text-white"><FilmIcon className="h-4 w-4" /></span>
           <div><h2 className="text-[18px] font-black tracking-[-0.02em]">HDMarket Videos</h2><p className="text-[10px] font-semibold text-neutral-500">Découvrez, regardez, achetez</p></div>
         </div>
-        <Link to="/videos" className="flex items-center text-xs font-semibold text-neutral-950">Voir tout <ChevronRight size={14} /></Link>
+        <Link to="/videos" className="flex items-center text-xs font-semibold text-neutral-950">Voir tout <ChevronRightIcon className="h-3.5 w-3.5" /></Link>
       </div>
       <div className="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-2 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4">
         {videos.map((video) => (
           <Link key={video._id} to={`/videos?video=${video._id}`} className="group relative aspect-[3/4] w-[142px] shrink-0 snap-start overflow-hidden rounded-[20px] bg-neutral-950 text-white shadow-sm">
             <img src={video.thumbnailUrl || video.product?.images?.[0]} alt={video.product?.title || ''} loading="lazy" className="h-full w-full object-cover transition duration-500 group-active:scale-105" />
             <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/10" />
-            <span className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white/20 backdrop-blur-md"><Play size={14} fill="currentColor" /></span>
+            <span className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white/20 backdrop-blur-md"><PlayIcon fill="currentColor" className="h-3.5 w-3.5" /></span>
             <span className="absolute inset-x-0 bottom-0 p-3"><span className="line-clamp-2 text-xs font-black">{video.product?.title}</span><span className="mt-1 block text-[10px] text-white/70">{Number(video.counters?.views || 0).toLocaleString('fr-FR')} vues</span></span>
           </Link>
         ))}
@@ -1420,17 +1420,17 @@ const loadDiscountProducts = async () => {
       { label: 'Promos', to: '/top-deals' }
     ];
     const shortcutItems = [
-      { label: 'Top Picks', icon: Award, to: '/top-ranking' },
-      { label: 'Boutiques', icon: Store, to: '/shops/verified' },
-      { label: 'Bon prix', icon: Zap, to: '/top-deals' },
-      { label: 'Livraison', icon: Truck, to: '/shops/free-delivery' },
-      { label: 'Découvrir', icon: Sparkles, to: '/discover' }
+      { label: 'Top Picks', icon: TrophyIcon, to: '/top-ranking' },
+      { label: 'Boutiques', icon: BuildingStorefrontIcon, to: '/shops/verified' },
+      { label: 'Bon prix', icon: BoltIcon, to: '/top-deals' },
+      { label: 'Livraison', icon: TruckIcon, to: '/shops/free-delivery' },
+      { label: 'Découvrir', icon: SparklesIcon, to: '/discover' }
     ];
     const promoCards = [
-      { badge: 'LIVRAISON OFFERTE', text: fullPaymentBannerText, cta: 'Voir', color: '#00A860', bg: '#E7F8EF', icon: Truck, to: '/products', backgroundImage: homePromoBackgrounds.freeDelivery },
-      { badge: 'PAIEMENT PAR UN PROCHE', text: payForOtherBannerText, cta: 'Voir', color: '#F26522', bg: '#FDF3E7', icon: Users, to: '/cart', backgroundImage: homePromoBackgrounds.payForOther },
-      ...(buyForMeEnabled ? [{ badge: 'NOUVEAU', text: 'Acheter Pour Moi — un livreur fait vos courses.', cta: 'Essayer', color: '#7C3AED', bg: '#F1EDFB', icon: ShoppingBag, to: '/buy-for-me', backgroundImage: homePromoBackgrounds.buyForMe }] : []),
-      { badge: 'ENVOI DE COLIS', text: 'Un livreur récupère et livre où vous voulez.', cta: 'Envoyer', color: '#0B87D4', bg: '#EBF4FD', icon: Package, to: '/parcels/new', backgroundImage: homePromoBackgrounds.parcel }
+      { badge: 'LIVRAISON OFFERTE', text: fullPaymentBannerText, cta: 'Voir', color: '#00A860', bg: '#E7F8EF', icon: TruckIcon, to: '/products', backgroundImage: homePromoBackgrounds.freeDelivery },
+      { badge: 'PAIEMENT PAR UN PROCHE', text: payForOtherBannerText, cta: 'Voir', color: '#F26522', bg: '#FDF3E7', icon: UsersIcon, to: '/cart', backgroundImage: homePromoBackgrounds.payForOther },
+      ...(buyForMeEnabled ? [{ badge: 'NOUVEAU', text: 'Acheter Pour Moi — un livreur fait vos courses.', cta: 'Essayer', color: '#7C3AED', bg: '#F1EDFB', icon: ShoppingBagIcon, to: '/buy-for-me', backgroundImage: homePromoBackgrounds.buyForMe }] : []),
+      { badge: 'ENVOI DE COLIS', text: 'Un livreur récupère et livre où vous voulez.', cta: 'Envoyer', color: '#0B87D4', bg: '#EBF4FD', icon: CubeIcon, to: '/parcels/new', backgroundImage: homePromoBackgrounds.parcel }
     ];
 
     const scrollStyle = { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' };
@@ -1472,11 +1472,11 @@ const loadDiscountProducts = async () => {
               >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
-                    <Truck className="h-[22px] w-[22px]" />
+                    <TruckIcon className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
-                      <Sparkles className="h-3 w-3" />
+                      <SparklesIcon className="h-3 w-3" />
                       Livraison offerte
                     </span>
                     <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
@@ -1485,7 +1485,7 @@ const loadDiscountProducts = async () => {
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-black text-white shadow-sm">
                     Voir
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </Link>
@@ -1500,11 +1500,11 @@ const loadDiscountProducts = async () => {
               >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e85d00] text-white shadow-sm">
-                    <Users className="h-[22px] w-[22px]" />
+                    <UsersIcon className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e85d00] ring-1 ring-orange-100">
-                      <Sparkles className="h-3 w-3" />
+                      <SparklesIcon className="h-3 w-3" />
                       Paiement par un proche
                     </span>
                     <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
@@ -1513,7 +1513,7 @@ const loadDiscountProducts = async () => {
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#e85d00] px-3 py-2 text-[11px] font-black text-white shadow-sm">
                     Voir
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </Link>
@@ -1528,11 +1528,11 @@ const loadDiscountProducts = async () => {
               >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm">
-                    <ShoppingBag className="h-[22px] w-[22px]" />
+                    <ShoppingBagIcon className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-100">
-                      <Sparkles className="h-3 w-3" />
+                      <SparklesIcon className="h-3 w-3" />
                       Nouveau
                     </span>
                     <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
@@ -1541,7 +1541,7 @@ const loadDiscountProducts = async () => {
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-600 px-3 py-2 text-[11px] font-black text-white shadow-sm">
                     Essayer
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </Link>
@@ -1556,11 +1556,11 @@ const loadDiscountProducts = async () => {
               >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-sm">
-                    <Package className="h-[22px] w-[22px]" />
+                    <CubeIcon className="h-[22px] w-[22px]" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-sky-700 ring-1 ring-sky-100">
-                      <Truck className="h-3 w-3" />
+                      <TruckIcon className="h-3 w-3" />
                       Course à la demande
                     </span>
                     <span className="mt-1 block line-clamp-2 text-[13px] font-black leading-5 text-slate-950">
@@ -1569,7 +1569,7 @@ const loadDiscountProducts = async () => {
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-600 px-3 py-2 text-[11px] font-black text-white shadow-sm">
                     Envoyer
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </Link>
@@ -1594,7 +1594,7 @@ const loadDiscountProducts = async () => {
                     className="inline-flex min-w-0 shrink-0 items-center gap-1 rounded-full px-0 py-0 text-[12.5px] font-extrabold"
                     title={effectiveUserCity || 'Local'}
                   >
-                    <MapPin className="h-3 w-3 shrink-0" />
+                    <MapPinIcon className="h-3 w-3 shrink-0" />
                     <span className="max-w-[64px] truncate max-[375px]:max-w-[50px]">{effectiveUserCity || 'Local'}</span>
                   </Link>
                   {user ? (
@@ -1646,7 +1646,7 @@ const loadDiscountProducts = async () => {
                 className="inline-flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-[#fbf2ea] text-[#f26522] active:scale-95"
                 aria-label="Ouvrir les catégories"
               >
-                <LayoutGrid className="h-5 w-5" />
+                <Squares2X2Icon className="h-5 w-5" />
               </button>
               <Link
                 to="/products"
@@ -1661,7 +1661,7 @@ const loadDiscountProducts = async () => {
                 className="inline-flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-full bg-[#e05a0f] text-white active:scale-95"
                 aria-label="Rechercher"
               >
-                <Search className="h-6 w-6" />
+                <MagnifyingGlassIcon className="h-6 w-6" />
               </Link>
             </div>
           </div>
@@ -1696,7 +1696,7 @@ const loadDiscountProducts = async () => {
                   <span className="w-fit rounded-full bg-white/85 px-3 py-1 text-[11px] font-black tracking-[0.6px]" style={{ color }}>{badge}</span>
                   <div className="flex max-w-[85%] flex-col items-start gap-2.5">
                     <p className="text-[17px] font-extrabold leading-[1.35] text-[#1b1d22]">{text}</p>
-                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-extrabold text-white" style={{ backgroundColor: color }}>{cta}<ChevronRight className="h-[13px] w-[13px] stroke-[3]" /></span>
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-extrabold text-white" style={{ backgroundColor: color }}>{cta}<ChevronRightIcon className="h-[13px] w-[13px] stroke-[3]" /></span>
                   </div>
                 </div>
                 {!backgroundImage ? (
@@ -1743,7 +1743,7 @@ const loadDiscountProducts = async () => {
                     <p className="mt-1.5 text-[19px] font-black leading-tight text-[#1b1d22]">Offres à suivre aujourd’hui</p>
                   </div>
                   <span className="inline-flex min-h-10 w-fit items-center gap-1 rounded-full bg-[#1b1d22] px-4 text-xs font-black text-white">
-                    Voir les offres <ChevronRight className="h-3.5 w-3.5" />
+                    Voir les offres <ChevronRightIcon className="h-3.5 w-3.5" />
                   </span>
                 </div>
                 <div className="grid h-[150px] w-[150px] shrink-0 grid-cols-2 gap-[6px] p-[9px]">
@@ -1772,7 +1772,7 @@ const loadDiscountProducts = async () => {
           <div className="mb-2.5 max-[375px]:mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 max-[375px]:gap-1.5">
               <div className="inline-flex h-7 w-7 max-[375px]:h-6 max-[375px]:w-6 items-center justify-center rounded-xl bg-[#e85d00] shadow-sm">
-                <LayoutGrid className="h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3 text-white" />
+                <Squares2X2Icon className="h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3 text-white" />
               </div>
               <p className="text-xs max-[375px]:text-[11px] font-black text-gray-900">{t('home.allCategories', 'Toutes catégories')}</p>
             </div>
@@ -1781,7 +1781,7 @@ const loadDiscountProducts = async () => {
               onClick={() => setCategoryModalOpen(true)}
               className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 max-[375px]:px-2 py-1.5 max-[375px]:py-1 text-[11px] max-[375px]:text-[10px] font-black text-gray-500 ring-1 ring-gray-200 transition-colors active:scale-95"
             >
-              Tout voir <ChevronRight className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" />
+              Tout voir <ChevronRightIcon className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" />
             </button>
           </div>
           <div className="flex gap-2 max-[375px]:gap-1.5 overflow-x-auto pb-1 hide-scrollbar" style={scrollStyle}>
@@ -1790,7 +1790,7 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="inline-flex items-center gap-1.5 max-[375px]:gap-1 px-3.5 max-[375px]:px-3 py-2 max-[375px]:py-1.5 rounded-full bg-[#e85d00] text-white text-xs max-[375px]:text-[11px] font-black leading-none whitespace-nowrap shadow-sm tap-feedback transition-transform"
             >
-              <LayoutGrid className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
+              <Squares2X2Icon className="w-3.5 h-3.5 max-[375px]:w-3 max-[375px]:h-3" />
               <span className="block truncate">{t('home.all', 'Tout')}</span>
             </Link>
             {categoryGroups.map((group) => {
@@ -1826,7 +1826,7 @@ const loadDiscountProducts = async () => {
           <div className="relative z-10 flex h-full flex-col justify-between p-4 max-[375px]:p-3 text-white">
             <div>
               <div className="mb-2 max-[375px]:mb-1.5 inline-flex items-center gap-1.5 max-[375px]:gap-1 rounded-full border border-white/25 bg-white/10 px-2.5 max-[375px]:px-2 py-1 max-[375px]:py-0.5 text-[10px] font-semibold">
-                <Star className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" fill="currentColor" />
+                <StarIcon className="h-3 w-3 max-[375px]:h-2.5 max-[375px]:w-2.5" fill="currentColor" />
                 HDMarket CG
               </div>
               <h1 className="text-lg max-[375px]:text-base font-black leading-tight">
@@ -1843,14 +1843,14 @@ const loadDiscountProducts = async () => {
                 {...externalLinkProps}
                 className="inline-flex items-center rounded-xl bg-white px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-neutral-950 shadow-sm transition-all duration-200 hover:bg-neutral-100 active:scale-[0.98]"
               >
-                Explorer <ChevronRight className="ml-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
+                Explorer <ChevronRightIcon className="ml-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
               </Link>
               {sellingEnabled && (
                 <Link
                   to="/seller/products"
                   className="inline-flex items-center rounded-xl border border-white/25 bg-white/10 px-3 max-[375px]:px-2.5 py-2 max-[375px]:py-1.5 text-xs max-[375px]:text-[11px] font-semibold text-white shadow-sm transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
                 >
-                  <Zap className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
+                  <BoltIcon className="mr-1 h-3.5 w-3.5 max-[375px]:h-3 max-[375px]:w-3" />
                   Publier
                 </Link>
               )}
@@ -1860,11 +1860,11 @@ const loadDiscountProducts = async () => {
 
         {/* Buyer or Seller callout */}
         <div className="hidden items-center justify-center gap-2 max-[375px]:gap-1.5 py-2.5 max-[375px]:py-2 px-3 max-[375px]:px-2.5 bg-neutral-50 rounded-xl border border-neutral-200/80">
-          <ShoppingBag className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
+          <ShoppingBagIcon className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
           <span className="text-xs max-[375px]:text-[11px] text-gray-700 text-center">
             {commerceCallout} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
           </span>
-          <Tag className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
+          <TagIcon className="w-4 h-4 max-[375px]:w-3.5 max-[375px]:h-3.5 text-neutral-800 flex-shrink-0" />
         </div>
 
         {/* Compact Promo Banner */}
@@ -1885,12 +1885,12 @@ const loadDiscountProducts = async () => {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="home-anim-pulse grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-[#1b1d22]">
-                  <Zap className="h-4 w-4 text-white" />
+                  <BoltIcon className="h-4 w-4 text-white" />
                 </div>
                 <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">{t('home.flashDeals', 'Flash Deals')}</h2>
               </div>
               <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-neutral-800 flex items-center">
-                {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
+                {t('home.viewAll', 'Voir tout')} <ChevronRightIcon className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
             <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
@@ -1925,7 +1925,7 @@ const loadDiscountProducts = async () => {
                     )}
                     {isInstallmentOfferActive(product) && (
                       <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
-                        <Clock className="h-2.5 w-2.5" />
+                        <ClockIcon className="h-2.5 w-2.5" />
                         Tranche
                       </span>
                     )}
@@ -1958,14 +1958,14 @@ const loadDiscountProducts = async () => {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500">
-                  <Zap size={14} className="text-white fill-white" />
+                  <BoltIcon className="text-white fill-white h-3.5 w-3.5" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">
                   {t('home.flashSalesTitle', '⚡ Bons Plans Flash')}
                 </h2>
               </div>
               <Link to="/flash-sales" className="text-xs font-semibold text-red-600">
-                {t('home.viewAll', 'Voir tout')} <ChevronRight className="inline h-3 w-3" />
+                {t('home.viewAll', 'Voir tout')} <ChevronRightIcon className="inline h-3 w-3" />
               </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar" style={scrollStyle}>
@@ -1982,7 +1982,7 @@ const loadDiscountProducts = async () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-neutral-500 rounded-lg flex items-center justify-center">
-                  <Flame className="w-3.5 h-3.5 text-white" />
+                  <FireIcon className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.promoShopsWeek', 'Boutiques en promo cette semaine')}</h2>
               </div>
@@ -2021,7 +2021,7 @@ const loadDiscountProducts = async () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-neutral-800 rounded-lg flex items-center justify-center">
-                  <MapPin className="w-3.5 h-3.5 text-white" />
+                  <MapPinIcon className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">{t('home.topSalesInCityToday', `Top ventes à ${effectiveUserCity} aujourd'hui`).replace('{city}', effectiveUserCity || '')}</h2>
               </div>
@@ -2030,7 +2030,7 @@ const loadDiscountProducts = async () => {
                 {...externalLinkProps}
                 className="text-xs font-semibold text-[#0A0A0A] flex items-center"
               >
-                {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
+                {t('home.viewAll', 'Voir tout')} <ChevronRightIcon className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
             {topSalesCityTodayLoading ? (
@@ -2085,14 +2085,14 @@ const loadDiscountProducts = async () => {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-[#1b1d22]">
-                  <MapPin className="h-4 w-4 text-white" />
+                  <MapPinIcon className="h-4 w-4 text-white" />
                 </div>
                 <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">
                   📍 Top ventes à {effectiveUserCity || 'Brazzaville'}
                 </h2>
               </div>
               <Link to="/top-sales" {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] flex items-center">
-                {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
+                {t('home.viewAll', 'Voir tout')} <ChevronRightIcon className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
             <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 hide-scrollbar max-[375px]:-mx-4 max-[375px]:px-4" style={scrollStyle}>
@@ -2117,7 +2117,7 @@ const loadDiscountProducts = async () => {
                     <span className="absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[#1b1d22] text-[11px] font-black text-white">{idx + 1}</span>
                     {isInstallmentOfferActive(product) && (
                       <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-sm">
-                        <Clock className="h-2.5 w-2.5" />
+                        <ClockIcon className="h-2.5 w-2.5" />
                         Tranche
                       </span>
                     )}
@@ -2138,12 +2138,12 @@ const loadDiscountProducts = async () => {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="grid h-[30px] w-[30px] place-items-center rounded-[10px] bg-[#1b1d22]">
-                  <Shield className="h-4 w-4 text-white" />
+                  <ShieldCheckIcon className="h-4 w-4 text-white" />
                 </div>
                 <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">{t('home.verifiedShops', 'Boutiques vérifiées')}</h2>
               </div>
               <Link to="/shops/verified" {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] flex items-center">
-                {t('home.viewAll', 'Voir tout')} <ChevronRight className="w-3 h-3 ml-0.5" />
+                {t('home.viewAll', 'Voir tout')} <ChevronRightIcon className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
             <div className="space-y-2">
@@ -2224,12 +2224,12 @@ const loadDiscountProducts = async () => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 bg-neutral-800 rounded-lg flex items-center justify-center">
-                    <MapPin className="w-3.5 h-3.5 text-white" />
+                    <MapPinIcon className="w-3.5 h-3.5 text-white" />
                   </div>
                   <h2 className="text-sm font-bold text-gray-900">{displayCity}</h2>
                 </div>
                 <Link to={`/cities?city=${encodeURIComponent(displayCity)}`} {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] flex items-center">
-                  Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
+                  Voir tout <ChevronRightIcon className="w-3 h-3 ml-0.5" />
                 </Link>
               </div>
               {displayCity && cityProds.length === 0 && uniqueSellers.length === 0 && (
@@ -2252,7 +2252,7 @@ const loadDiscountProducts = async () => {
                         {photo ? (
                           <img src={photo} alt={shopName} className="w-full h-full object-cover" loading="lazy" />
                         ) : (
-                          <User className="w-6 h-6 text-gray-400" />
+                          <UserIcon className="w-6 h-6 text-gray-400" />
                         )}
                       </div>
                     );
@@ -2298,7 +2298,7 @@ const loadDiscountProducts = async () => {
                         </span>
                         {isInstallmentOfferActive(product) && (
                           <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
-                            <Clock className="h-2.5 w-2.5" />
+                            <ClockIcon className="h-2.5 w-2.5" />
                             Tranche
                           </span>
                         )}
@@ -2380,7 +2380,7 @@ const loadDiscountProducts = async () => {
               </div>
               <Link to="/products?wholesaleOnly=true" className="inline-flex shrink-0 items-center gap-[3px] text-[13.5px] font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-95">
                 {t('home.viewAll', 'Voir tout')}
-                <ChevronRight className="h-[15px] w-[15px]" />
+                <ChevronRightIcon className="h-[15px] w-[15px]" />
               </Link>
             </div>
           {!shouldLoadSecondarySections ? (
@@ -2412,7 +2412,7 @@ const loadDiscountProducts = async () => {
                         <span className="whitespace-nowrap text-[11.5px] font-medium text-[#8a8378] dark:text-neutral-400">/ pièce</span>
                       </div>
                       <p className="flex items-center gap-[5px] whitespace-nowrap text-[11.5px] font-bold text-[#00814a] dark:text-emerald-400">
-                        <Boxes className="h-[13px] w-[13px] shrink-0" />
+                        <CubeIcon className="h-[13px] w-[13px] shrink-0" />
                         {t('home.wholesaleFrom', 'Dès {count} pièces').replace('{count}', String(minQty))}
                       </p>
                       {isInstallmentOfferActive(product) ? (
@@ -2448,7 +2448,7 @@ const loadDiscountProducts = async () => {
               </div>
               <Link to="/products?installmentOnly=true" className="inline-flex shrink-0 items-center gap-[3px] text-[13.5px] font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-95">
                 {t('home.viewAll', 'Voir tout')}
-                <ChevronRight className="h-[15px] w-[15px]" />
+                <ChevronRightIcon className="h-[15px] w-[15px]" />
               </Link>
             </div>
           {!shouldLoadSecondarySections ? (
@@ -2514,12 +2514,12 @@ const loadDiscountProducts = async () => {
           to="/products?quotationOnly=true"
           className="order-[3] flex min-h-[76px] items-center gap-3 rounded-2xl bg-white px-4 py-4 text-left shadow-[inset_0_0_0_1px_#e7dfd5] transition active:scale-[0.99] dark:bg-neutral-950 dark:shadow-[inset_0_0_0_1px_#262626]"
         >
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><Store className="h-6 w-6" /></span>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><BuildingStorefrontIcon className="h-6 w-6" /></span>
           <span className="min-w-0 flex-1">
             <strong className="block text-[16px] font-black text-[#141210] dark:text-white">Vous revendez ?</strong>
             <span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378] dark:text-neutral-400">Demandez un devis groupé au vendeur.</span>
           </span>
-          <ChevronRight className="h-6 w-6 shrink-0 text-[#a8a29e]" />
+          <ChevronRightIcon className="h-6 w-6 shrink-0 text-[#a8a29e]" />
         </Link>
 
         {/* All Products Grid */}
@@ -2536,7 +2536,7 @@ const loadDiscountProducts = async () => {
               className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-[0.98]"
             >
               Voir tout
-              <ChevronRight className="h-4 w-4 flex-shrink-0" />
+              <ChevronRightIcon className="h-4 w-4 flex-shrink-0" />
             </Link>
           </div>
 
@@ -2584,7 +2584,7 @@ const loadDiscountProducts = async () => {
             </>
           ) : (
             <div className="text-center py-8">
-              <Search className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <MagnifyingGlassIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
               <p className="text-sm text-gray-500 mb-3">{t('home.noProductsFound', 'Aucun produit trouvé')}</p>
               <button
                 onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
@@ -2605,7 +2605,7 @@ const loadDiscountProducts = async () => {
               className="flex flex-col items-center gap-2 rounded-[18px] border border-[#eeeff3] bg-white p-3 active:scale-95 transition-transform"
             >
               <div className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-[#fbf2ea]">
-                <Heart className="h-5 w-5 text-[#f26522]" />
+                <HeartIcon className="h-5 w-5 text-[#f26522]" />
               </div>
               <span className="text-[12px] font-extrabold text-[#3a3e46] text-center">{t('home.topFavorites', 'Top Favoris')}</span>
             </Link>
@@ -2614,7 +2614,7 @@ const loadDiscountProducts = async () => {
               className="flex flex-col items-center gap-2 rounded-[18px] border border-[#eeeff3] bg-white p-3 active:scale-95 transition-transform"
             >
               <div className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-[#fbf2ea]">
-                <Star className="h-5 w-5 text-[#f26522]" fill="currentColor" />
+                <StarIcon className="h-5 w-5 text-[#f26522]" fill="currentColor" />
               </div>
               <span className="text-[12px] font-extrabold text-[#3a3e46] text-center">{t('home.topRated', 'Top Notés')}</span>
             </Link>
@@ -2623,7 +2623,7 @@ const loadDiscountProducts = async () => {
               className="flex flex-col items-center gap-2 rounded-[18px] border border-[#eeeff3] bg-white p-3 active:scale-95 transition-transform"
             >
               <div className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-[#fbf2ea]">
-                <Sparkles className="h-5 w-5 text-[#f26522]" />
+                <SparklesIcon className="h-5 w-5 text-[#f26522]" />
               </div>
               <span className="text-[12px] font-extrabold text-[#3a3e46] text-center">{t('home.newProducts', 'Neufs')}</span>
             </Link>
@@ -2632,7 +2632,7 @@ const loadDiscountProducts = async () => {
               className="flex flex-col items-center gap-2 rounded-[18px] border border-[#eeeff3] bg-white p-3 active:scale-95 transition-transform"
             >
               <div className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-[#fbf2ea]">
-                <RefreshCcw className="h-5 w-5 text-[#f26522]" />
+                <ArrowPathIcon className="h-5 w-5 text-[#f26522]" />
               </div>
               <span className="text-[12px] font-extrabold text-[#3a3e46] text-center">{t('home.usedProducts', 'Occasion')}</span>
             </Link>
@@ -2641,7 +2641,7 @@ const loadDiscountProducts = async () => {
               className="flex flex-col items-center gap-2 rounded-[18px] border border-[#eeeff3] bg-white p-3 active:scale-95 transition-transform"
             >
               <div className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-[#fbf2ea]">
-                <Shield className="h-5 w-5 text-[#f26522]" />
+                <ShieldCheckIcon className="h-5 w-5 text-[#f26522]" />
               </div>
               <span className="text-[12px] font-extrabold text-[#3a3e46] text-center">{t('home.certified', 'Certifiés')}</span>
             </Link>
@@ -2651,7 +2651,7 @@ const loadDiscountProducts = async () => {
               className="flex flex-col items-center gap-2 rounded-[18px] border border-[#eeeff3] bg-white p-3 active:scale-95 transition-transform"
             >
               <div className="grid h-[42px] w-[42px] place-items-center rounded-[14px] bg-[#fbf2ea]">
-                <MapPin className="h-5 w-5 text-[#f26522]" />
+                <MapPinIcon className="h-5 w-5 text-[#f26522]" />
               </div>
               <span className="text-[12px] font-extrabold text-[#3a3e46] text-center">{t('home.cities', 'Villes')}</span>
             </Link>
@@ -2670,10 +2670,10 @@ const loadDiscountProducts = async () => {
     const displayFlashDeals = (flashDeals.length ? flashDeals : fallbackDeals).slice(0, 4);
 
     const topProductsTabData = {
-      favorites: { items: highlights.favorites, icon: Heart, label: t('home.topFavorites', 'Top Favoris'), link: '/top-favorites', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
-      topRated: { items: highlights.topRated, icon: Star, label: t('home.topRated', 'Top Notés'), link: '/top-ranking', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
-      newProducts: { items: highlights.newProducts, icon: Sparkles, label: t('home.newProducts', 'Neufs'), link: '/top-new', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
-      usedProducts: { items: highlights.usedProducts, icon: RefreshCcw, label: t('home.usedProducts', 'Occasion'), link: '/top-used', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' }
+      favorites: { items: highlights.favorites, icon: HeartIcon, label: t('home.topFavorites', 'Top Favoris'), link: '/top-favorites', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
+      topRated: { items: highlights.topRated, icon: StarIcon, label: t('home.topRated', 'Top Notés'), link: '/top-ranking', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
+      newProducts: { items: highlights.newProducts, icon: SparklesIcon, label: t('home.newProducts', 'Neufs'), link: '/top-new', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' },
+      usedProducts: { items: highlights.usedProducts, icon: ArrowPathIcon, label: t('home.usedProducts', 'Occasion'), link: '/top-used', iconColor: 'text-neutral-600', bgColor: 'bg-neutral-600' }
     };
     const activeTabData = topProductsTabData[topProductsTab] || topProductsTabData.favorites;
     const greeting = getGreetingInfo(user);
@@ -2688,7 +2688,7 @@ const loadDiscountProducts = async () => {
             title: 'Livraison offerte',
             subtitle: fullPaymentBannerText,
             to: '/products',
-            icon: Truck,
+            icon: TruckIcon,
             tile: 'bg-emerald-600',
             badgeClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
             hover: 'hover:border-emerald-200'
@@ -2701,7 +2701,7 @@ const loadDiscountProducts = async () => {
             title: 'Acheter Pour Moi',
             subtitle: 'Un livreur fait vos courses (supermarché, pharmacie, restaurant…) et vous livre',
             to: '/buy-for-me',
-            icon: ShoppingBag,
+            icon: ShoppingBagIcon,
             tile: 'bg-violet-600',
             badgeClass: 'bg-violet-50 text-violet-700 ring-violet-100',
             hover: 'hover:border-violet-200'
@@ -2714,7 +2714,7 @@ const loadDiscountProducts = async () => {
             title: 'Envoyer un colis',
             subtitle: 'Un livreur récupère et livre où vous voulez',
             to: '/parcels/new',
-            icon: Package,
+            icon: CubeIcon,
             tile: 'bg-sky-600',
             badgeClass: 'bg-sky-50 text-sky-700 ring-sky-100',
             hover: 'hover:border-sky-200'
@@ -2734,7 +2734,7 @@ const loadDiscountProducts = async () => {
           <section className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex-row lg:items-stretch lg:divide-x lg:divide-y-0 dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950">
             <div className="flex min-w-0 items-center gap-3 px-5 py-3.5">
               <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-100 dark:bg-orange-950/40 dark:text-orange-300 dark:ring-neutral-800">
-                {greeting.isEvening ? <Moon size={20} /> : <Sun size={20} />}
+                {greeting.isEvening ? <MoonIcon className="h-5 w-5" /> : <SunIcon className="h-5 w-5" />}
               </span>
               <div className="min-w-0">
                 <p className="truncate text-[15px] font-black text-gray-900 dark:text-white">
@@ -2750,7 +2750,7 @@ const loadDiscountProducts = async () => {
               className="group flex min-w-0 flex-1 items-center gap-3 px-5 py-3.5 transition hover:bg-gray-50 dark:hover:bg-neutral-900"
             >
               <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-gray-500 ring-1 ring-gray-100 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
-                <MapPin className="h-5 w-5" />
+                <MapPinIcon className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
@@ -2768,7 +2768,7 @@ const loadDiscountProducts = async () => {
                 </span>
               </span>
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-3 py-2 text-xs font-black text-gray-500 ring-1 ring-gray-200 transition group-hover:bg-[#e85d00] group-hover:text-white dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800">
-                Modifier <ChevronRight className="h-3.5 w-3.5" />
+                Modifier <ChevronRightIcon className="h-3.5 w-3.5" />
               </span>
             </Link>
             <div className="flex items-center px-5 py-3 lg:py-0">
@@ -2777,7 +2777,7 @@ const loadDiscountProducts = async () => {
                 {...externalLinkProps}
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0E4] px-3.5 py-2 text-xs font-black text-[#e85d00] transition hover:bg-[#e85d00] hover:text-white dark:bg-orange-950/40 dark:text-orange-300"
               >
-                <Sparkles size={13} />
+                <SparklesIcon className="h-[13px] w-[13px]" />
                 {greeting.isEvening ? 'Offres du soir' : 'Offres du jour'}
               </Link>
             </div>
@@ -2804,7 +2804,7 @@ const loadDiscountProducts = async () => {
                     <span className="block truncate text-xs font-medium text-gray-500 dark:text-neutral-400">{card.subtitle}</span>
                   ) : null}
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-neutral-600" />
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-neutral-600" />
               </Link>
             ))}
           </section>
@@ -2816,7 +2816,7 @@ const loadDiscountProducts = async () => {
             {...externalLinkProps}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e85d00] text-white text-sm font-black whitespace-nowrap shadow-sm hover:bg-[#e85f00] transition-colors"
           >
-            <LayoutGrid className="w-4 h-4" />
+            <Squares2X2Icon className="w-4 h-4" />
             Tout
           </Link>
           {categoryGroups.map((group) => {
@@ -2841,17 +2841,17 @@ const loadDiscountProducts = async () => {
             onClick={() => setCategoryModalOpen(true)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-sm font-black text-gray-500 whitespace-nowrap ring-1 ring-gray-200 hover:bg-orange-100 transition-colors"
           >
-            Tout voir <ChevronRight className="w-3.5 h-3.5" />
+            Tout voir <ChevronRightIcon className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Buyer or Seller callout */}
         <div className="flex items-center justify-center gap-3 py-3 px-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
-          <ShoppingBag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
+          <ShoppingBagIcon className="w-5 h-5 text-neutral-800 flex-shrink-0" />
           <span className="text-sm text-gray-700 text-center">
             {commerceCallout} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
           </span>
-          <Tag className="w-5 h-5 text-neutral-800 flex-shrink-0" />
+          <TagIcon className="w-5 h-5 text-neutral-800 flex-shrink-0" />
         </div>
 
         {/* Zone 1: Hero (65%) + Flash Deals Panel (35%) */}
@@ -2867,7 +2867,7 @@ const loadDiscountProducts = async () => {
               )}
               <div className="relative z-10 px-6 py-8 lg:py-10 text-left">
                 <div className="home-anim-fade-up inline-flex items-center px-3 py-1.5 bg-white/15 rounded-full border border-white/30 mb-4 shadow-sm">
-                  <Star className="w-3.5 h-3.5 text-neutral-300 mr-1.5" fill="currentColor" />
+                  <StarIcon className="w-3.5 h-3.5 text-neutral-300 mr-1.5" fill="currentColor" />
                   <span className="text-xs text-white font-semibold">{t('nav.marketplacePremium', 'Marketplace HDMarket')}</span>
                 </div>
                 <h1 className="home-anim-fade-up text-3xl lg:text-4xl font-black text-white mb-3 leading-tight" style={{ '--home-anim-delay': '90ms' }}>
@@ -2880,11 +2880,11 @@ const loadDiscountProducts = async () => {
                 <div className="home-anim-fade-up flex gap-3" style={{ '--home-anim-delay': '240ms' }}>
                   {sellingEnabled && (
                     <Link to="/seller/products" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-sm active:scale-[0.99]">
-                      <Zap className="w-4 h-4 mr-1.5" /> Publier
+                      <BoltIcon className="w-4 h-4 mr-1.5" /> Publier
                     </Link>
                   )}
                   <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-white text-neutral-950 font-semibold rounded-xl hover:bg-neutral-100 transition-all text-sm shadow-sm active:scale-[0.99]">
-                    Explorer <ChevronRight className="w-4 h-4 ml-1" />
+                    Explorer <ChevronRightIcon className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
               </div>
@@ -2907,12 +2907,12 @@ const loadDiscountProducts = async () => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="home-anim-pulse w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-white" />
+                  <BoltIcon className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.flashDeals', 'Flash Deals')}</h2>
               </div>
               <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-neutral-800 flex items-center hover:text-neutral-700">
-                Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
+                Voir tout <ChevronRightIcon className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
             {highlightLoading && flashDealsLoading ? (
@@ -2952,7 +2952,7 @@ const loadDiscountProducts = async () => {
                       )}
                       {isInstallmentOfferActive(product) && (
                         <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
-                          <Clock className="h-2.5 w-2.5" />
+                          <ClockIcon className="h-2.5 w-2.5" />
                           Tranche
                         </span>
                       )}
@@ -2973,7 +2973,7 @@ const loadDiscountProducts = async () => {
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-                <Zap className="w-6 h-6 mr-2 text-gray-300" /> Aucun deal en cours
+                <BoltIcon className="w-6 h-6 mr-2 text-gray-300" /> Aucun deal en cours
               </div>
             )}
           </section>
@@ -2985,7 +2985,7 @@ const loadDiscountProducts = async () => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center">
-                  <MapPin className="w-4 h-4 text-white" />
+                  <MapPinIcon className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">Top ventes à {effectiveUserCity} aujourd&apos;hui</h2>
               </div>
@@ -2994,7 +2994,7 @@ const loadDiscountProducts = async () => {
                 {...externalLinkProps}
                 className="text-sm font-semibold text-[#0A0A0A] flex items-center hover:text-[#111111]"
               >
-                Voir tout <ChevronRight className="w-4 h-4 ml-0.5" />
+                Voir tout <ChevronRightIcon className="w-4 h-4 ml-0.5" />
               </Link>
             </div>
             {topSalesCityTodayLoading ? (
@@ -3028,7 +3028,7 @@ const loadDiscountProducts = async () => {
                       </span>
                       {isInstallmentOfferActive(product) && (
                         <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                          <Clock className="h-2.5 w-2.5" />
+                          <ClockIcon className="h-2.5 w-2.5" />
                           Tranche
                         </span>
                       )}
@@ -3053,7 +3053,7 @@ const loadDiscountProducts = async () => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-neutral-500 rounded-lg flex items-center justify-center">
-                  <Shield className="w-3.5 h-3.5 text-white" />
+                  <ShieldCheckIcon className="w-3.5 h-3.5 text-white" />
                 </div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.verifiedShops', 'Boutiques vérifiées')}</h2>
               </div>
@@ -3103,7 +3103,7 @@ const loadDiscountProducts = async () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-gray-900">{t('home.trending', 'Tendances')}</h2>
               <Link to={activeTabData.link} {...externalLinkProps} className="text-xs font-semibold text-[#0A0A0A] hover:text-[#111111] flex items-center">
-                Voir tout <ChevronRight className="w-3 h-3 ml-0.5" />
+                Voir tout <ChevronRightIcon className="w-3 h-3 ml-0.5" />
               </Link>
             </div>
             {/* Tab buttons */}
@@ -3161,7 +3161,7 @@ const loadDiscountProducts = async () => {
                       </span>
                       {isInstallmentOfferActive(product) && (
                         <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white shadow">
-                          <Clock className="h-2.5 w-2.5" />
+                          <ClockIcon className="h-2.5 w-2.5" />
                           Tranche
                         </span>
                       )}
@@ -3171,13 +3171,13 @@ const loadDiscountProducts = async () => {
                       <p className="text-sm font-bold text-gray-900 mt-0.5">{formatPrice(product.price || 0)}</p>
                       {topProductsTab === 'favorites' && (
                         <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                          <Heart className="w-3 h-3 text-neutral-500" fill="currentColor" />
+                          <HeartIcon className="w-3 h-3 text-neutral-500" fill="currentColor" />
                           <span>{product.favoritesCount || 0}</span>
                         </div>
                       )}
                       {topProductsTab === 'topRated' && (
                         <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                          <Star className="w-3 h-3 text-neutral-400" fill="currentColor" />
+                          <StarIcon className="w-3 h-3 text-neutral-400" fill="currentColor" />
                           <span className="font-semibold text-gray-700">{Number(product.ratingAverage || 0).toFixed(1)}</span>
                           <span>({product.ratingCount || 0})</span>
                         </div>
@@ -3197,7 +3197,7 @@ const loadDiscountProducts = async () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-neutral-500 rounded-lg flex items-center justify-center">
-                <Flame className="w-4 h-4 text-white" />
+                <FireIcon className="w-4 h-4 text-white" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-gray-900">{t('home.promoShopsWeek', 'Boutiques en promo cette semaine')}</h2>
@@ -3248,7 +3248,7 @@ const loadDiscountProducts = async () => {
             <div className="relative flex items-center justify-between overflow-hidden border-b border-gray-100 bg-white px-5 py-4 text-gray-900">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-600 text-white">
-                  <ShoppingBag className="h-5 w-5" />
+                  <ShoppingBagIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -3260,7 +3260,7 @@ const loadDiscountProducts = async () => {
               </div>
               <Link to="/products?wholesaleOnly=true" className="group flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 transition hover:bg-emerald-100">
                 {t('home.viewAll', 'Voir tout')}
-                <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
 
@@ -3298,12 +3298,12 @@ const loadDiscountProducts = async () => {
                         />
                         {/* Wholesale badge */}
                         <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
-                          <Tag className="h-3 w-3" />
+                          <TagIcon className="h-3 w-3" />
                           GROS
                         </span>
                         {isInstallmentOfferActive(product) && (
                           <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
-                            <Clock className="h-3 w-3" />
+                            <ClockIcon className="h-3 w-3" />
                             Tranche
                           </span>
                         )}
@@ -3327,7 +3327,7 @@ const loadDiscountProducts = async () => {
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                            <ShoppingBag className="h-2.5 w-2.5" />
+                            <ShoppingBagIcon className="h-2.5 w-2.5" />
                             Min. {minQty} u.
                           </span>
                           {product.salesCount > 0 && (
@@ -3353,7 +3353,7 @@ const loadDiscountProducts = async () => {
             <div className="relative flex items-center justify-between overflow-hidden border-b border-gray-100 bg-white px-5 py-4 text-gray-900">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl bg-sky-600 text-white">
-                  <CreditCard className="h-5 w-5" />
+                  <CreditCardIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -3369,7 +3369,7 @@ const loadDiscountProducts = async () => {
               </div>
               <Link to="/products?installmentOnly=true" className="group flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 transition hover:bg-sky-100">
                 {t('home.viewAll', 'Voir tout')}
-                <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
 
@@ -3409,7 +3409,7 @@ const loadDiscountProducts = async () => {
                           />
                           {/* Installment badge */}
                           <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm">
-                            <Clock className="h-3 w-3" />
+                            <ClockIcon className="h-3 w-3" />
                             {duration > 0 ? `${duration}J` : 'TRANCHE'}
                           </span>
                           {firstPayment > 0 && (
@@ -3439,7 +3439,7 @@ const loadDiscountProducts = async () => {
                           )}
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                              <Clock className="h-2.5 w-2.5" />
+                              <ClockIcon className="h-2.5 w-2.5" />
                               {duration > 0 ? `${duration} jours` : 'Tranches dispo.'}
                             </span>
                             {product.salesCount > 0 && (
@@ -3463,12 +3463,12 @@ const loadDiscountProducts = async () => {
             to="/products?quotationOnly=true"
             className="flex min-h-[88px] items-center gap-4 rounded-2xl border border-[#e7dfd5] bg-white px-5 py-4 text-left shadow-sm transition hover:border-emerald-200 hover:shadow-md"
           >
-            <span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><Store className="h-6 w-6" /></span>
+            <span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><BuildingStorefrontIcon className="h-6 w-6" /></span>
             <span className="min-w-0 flex-1">
               <strong className="block text-lg font-black text-[#141210]">Vous revendez ?</strong>
               <span className="mt-0.5 block text-sm font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span>
             </span>
-            <ChevronRight className="h-6 w-6 shrink-0 text-[#a8a29e]" />
+            <ChevronRightIcon className="h-6 w-6 shrink-0 text-[#a8a29e]" />
           </Link>
         </div>
 
@@ -3483,7 +3483,7 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
-              <MapPin className="w-4 h-4" />
+              <MapPinIcon className="w-4 h-4" />
               Par ville
             </Link>
             <Link
@@ -3491,7 +3491,7 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
-              <Heart className="w-4 h-4" />
+              <HeartIcon className="w-4 h-4" />
               Favoris
             </Link>
             <Link
@@ -3499,7 +3499,7 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
-              <Star className="w-4 h-4" />
+              <StarIcon className="w-4 h-4" />
               Mieux notés
             </Link>
             <Link
@@ -3507,7 +3507,7 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
-              <Sparkles className="w-4 h-4" />
+              <SparklesIcon className="w-4 h-4" />
               Nouveautés
             </Link>
             <Link
@@ -3515,7 +3515,7 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
-              <Clock className="w-4 h-4" />
+              <ClockIcon className="w-4 h-4" />
               Occasions
             </Link>
             <Link
@@ -3523,7 +3523,7 @@ const loadDiscountProducts = async () => {
               {...externalLinkProps}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-neutral-50 border border-gray-100 hover:border-neutral-200 text-gray-700 hover:text-neutral-700 font-medium text-sm transition-all"
             >
-              <Shield className="w-4 h-4" />
+              <ShieldCheckIcon className="w-4 h-4" />
               Produits certifiés
             </Link>
           </div>
@@ -3540,7 +3540,7 @@ const loadDiscountProducts = async () => {
               </h2>
               {hasUserCity && (
                 <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
-                  <MapPin className="h-3.5 w-3.5" />
+                  <MapPinIcon className="h-3.5 w-3.5" />
                   {t('home.nearYou', 'Produits près de vous')}
                 </p>
               )}
@@ -3627,7 +3627,7 @@ const loadDiscountProducts = async () => {
             </>
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-200">
-              <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <MagnifyingGlassIcon className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">{t('home.noProductsFound', 'Aucun produit trouvé')}</h3>
               <p className="text-gray-500 text-sm mb-4">{t('home.adjustFilters', 'Modifiez vos critères de filtrage')}</p>
               <button
@@ -3675,13 +3675,13 @@ const loadDiscountProducts = async () => {
         <ModalHeader
           title={t('home.exploreCategoriesTitle', 'Explorer nos univers')}
           subtitle={t('home.exploreCategoriesSubtitle', 'Sélectionnez une catégorie pour découvrir nos produits')}
-          icon={<LayoutGrid className="w-4 h-4 text-[#e85d00]" />}
+          icon={<Squares2X2Icon className="w-4 h-4 text-[#e85d00]" />}
           onClose={() => setCategoryModalOpen(false)}
         />
         <ModalBody className="space-y-5">
           <div className="hd-products-hero rounded-2xl p-4 text-white sm:p-5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
-              <LayoutGrid className="w-4 h-4 text-white" />
+              <Squares2X2Icon className="w-4 h-4 text-white" />
               <span className="text-xs font-black uppercase tracking-wider text-white">
                 {t('home.allCategories', 'Toutes les catégories')}
               </span>
@@ -3695,7 +3695,7 @@ const loadDiscountProducts = async () => {
             onClick={() => setCategoryModalOpen(false)}
             className="hd-primary-button inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black"
           >
-            <LayoutGrid className="h-4 w-4" />
+            <Squares2X2Icon className="h-4 w-4" />
             Voir tout le catalogue
           </Link>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -3713,7 +3713,7 @@ const loadDiscountProducts = async () => {
                     className="group flex items-start gap-3"
                   >
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200 transition group-hover:scale-105">
-                      {Icon ? <Icon className="h-6 w-6" /> : <LayoutGrid className="h-6 w-6" />}
+                      {Icon ? <Icon className="h-6 w-6" /> : <Squares2X2Icon className="h-6 w-6" />}
                     </span>
                     <span className="min-w-0">
                       <span className="block text-base font-black text-gray-900">{group.label}</span>

@@ -1,18 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Clock3,
-  Eye,
-  Info,
-  Loader2,
-  Megaphone,
-  MousePointerClick,
-  RefreshCw,
-  Users,
-  XCircle
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, CheckCircleIcon, ClockIcon, CursorArrowRaysIcon, EyeIcon, InformationCircleIcon, MegaphoneIcon, UsersIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
@@ -137,7 +125,7 @@ export default function AdminGlobalNotifications() {
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link to="/admin" className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
               Admin
             </Link>
             <h1 className="text-2xl font-black text-slate-950">Notifications globales sponsorisées</h1>
@@ -151,13 +139,13 @@ export default function AdminGlobalNotifications() {
             disabled={loading}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Actualiser
           </button>
         </header>
 
         <p className="flex items-start gap-2 rounded-2xl border border-blue-100 bg-blue-50 p-3.5 text-sm text-blue-800">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             Cette page ne concerne que les diffusions payées par les vendeurs. Pour une annonce HDMarket (nouvelle fonctionnalité, maintenance, promotion interne…), utilisez{' '}
             <Link to="/admin/notification-campaigns" className="font-bold underline hover:text-blue-900">
@@ -199,7 +187,7 @@ export default function AdminGlobalNotifications() {
               disabled={pricingSaving}
               className="inline-flex min-h-10 items-center rounded-xl bg-[#0b6b4f] px-4 text-sm font-bold text-white disabled:opacity-50"
             >
-              {pricingSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enregistrer'}
+              {pricingSaving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : 'Enregistrer'}
             </button>
           </form>
           {pricingError && <p className="mt-2 text-xs font-semibold text-red-600">{pricingError}</p>}
@@ -256,7 +244,7 @@ export default function AdminGlobalNotifications() {
                           {STATUS_LABELS[item.status] || item.status}
                         </span>
                         <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                          <Clock3 className="h-3 w-3" /> {formatDate(item.createdAt)}
+                          <ClockIcon className="h-3 w-3" /> {formatDate(item.createdAt)}
                         </span>
                       </div>
                       <p className="mt-1 truncate text-sm font-black text-slate-950">{item.title}</p>
@@ -270,10 +258,10 @@ export default function AdminGlobalNotifications() {
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-sm font-black text-slate-950">{formatCurrency(item.price)}</span>
                     <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                      <Megaphone className="h-3 w-3" /> {item.audienceCity || 'Toutes villes'} · {item.audienceGender}
+                      <MegaphoneIcon className="h-3 w-3" /> {item.audienceCity || 'Toutes villes'} · {item.audienceGender}
                     </span>
                     <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                      <Users className="h-3 w-3" /> ~{item.estimatedReach || 0} au moment de la demande
+                      <UsersIcon className="h-3 w-3" /> ~{item.estimatedReach || 0} au moment de la demande
                     </span>
                   </div>
                 </div>
@@ -285,11 +273,11 @@ export default function AdminGlobalNotifications() {
                       <p className="text-base font-black text-emerald-900">{item.matchedCount || 0}</p>
                     </div>
                     <div>
-                      <p className="flex items-center justify-center gap-1 text-[11px] font-bold uppercase text-emerald-700"><Eye className="h-3 w-3" />Ouvertes</p>
+                      <p className="flex items-center justify-center gap-1 text-[11px] font-bold uppercase text-emerald-700"><EyeIcon className="h-3 w-3" />Ouvertes</p>
                       <p className="text-base font-black text-emerald-900">{item.stats?.opened || 0}</p>
                     </div>
                     <div>
-                      <p className="flex items-center justify-center gap-1 text-[11px] font-bold uppercase text-emerald-700"><MousePointerClick className="h-3 w-3" />Clics</p>
+                      <p className="flex items-center justify-center gap-1 text-[11px] font-bold uppercase text-emerald-700"><CursorArrowRaysIcon className="h-3 w-3" />Clics</p>
                       <p className="text-base font-black text-emerald-900">{item.stats?.clicked || 0}</p>
                     </div>
                   </div>
@@ -307,7 +295,7 @@ export default function AdminGlobalNotifications() {
                       disabled={actioningId === item.id}
                       className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] text-sm font-bold text-white disabled:opacity-50"
                     >
-                      {actioningId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                      {actioningId === item.id ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
                       Confirmer et diffuser
                     </button>
                     <button
@@ -316,7 +304,7 @@ export default function AdminGlobalNotifications() {
                       disabled={actioningId === item.id}
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 px-4 text-sm font-bold text-red-700 disabled:opacity-50"
                     >
-                      <XCircle className="h-4 w-4" />
+                      <XCircleIcon className="h-4 w-4" />
                       Rejeter
                     </button>
                   </div>

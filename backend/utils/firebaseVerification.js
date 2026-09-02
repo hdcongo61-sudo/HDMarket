@@ -254,8 +254,19 @@ export const buildPhoneCandidates = (phone, phoneCode = '+242') => {
   if (!raw) return [];
   const compact = raw.replace(/\s+/g, '');
   const normalized = normalizePhone(raw, phoneCode);
-  const candidates = [raw, compact, normalized].filter(Boolean);
-  return Array.from(new Set(candidates));
+  const candidates = [raw, compact, normalized];
+
+  // normalizePhone strips a leading local trunk "0" (e.g. "064151569" -> "+24264151569"),
+  // but accounts created before that stripping was added are stored as "+242064151569".
+  // Add that leading-zero-preserved form so lookups (login, uniqueness checks) still
+  // find those older accounts.
+  const digits = raw.replace(/\D/g, '');
+  const countryDigits = String(phoneCode || '+242').replace(/\D/g, '') || '242';
+  if (digits && !raw.startsWith('+') && !digits.startsWith('00') && !digits.startsWith(countryDigits)) {
+    candidates.push(`+${countryDigits}${digits}`);
+  }
+
+  return Array.from(new Set(candidates.filter(Boolean)));
 };
 
 export const isCongoBrazzavillePhone = (phone) => {

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronRight, MapPin, Store, Truck, Users } from 'lucide-react';
+import { BuildingStorefrontIcon, ChevronRightIcon, MapPinIcon, TruckIcon, UsersIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { buildShopPath } from '../utils/links';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -96,7 +96,7 @@ export default function FreeDeliveryShops() {
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
             <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              <Truck className="h-3.5 w-3.5" />
+              <TruckIcon className="h-3.5 w-3.5" />
               Livraison gratuite
             </div>
             <h1 className="text-xl font-bold text-gray-900">Boutiques avec livraison gratuite</h1>
@@ -106,7 +106,7 @@ export default function FreeDeliveryShops() {
             to="/"
             className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
-            Retour accueil <ChevronRight className="h-4 w-4" />
+            Retour accueil <ChevronRightIcon className="h-4 w-4" />
           </Link>
         </div>
 
@@ -144,7 +144,7 @@ export default function FreeDeliveryShops() {
                       </div>
                     ) : (
                       <div className="ui-media-frame ui-media-frame-square flex h-12 w-12 items-center justify-center text-emerald-700">
-                        <Store className="h-5 w-5" />
+                        <BuildingStorefrontIcon className="h-5 w-5" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -156,12 +156,12 @@ export default function FreeDeliveryShops() {
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                         {shop.city ? (
                           <span className="inline-flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5" />
+                            <MapPinIcon className="h-3.5 w-3.5" />
                             {shop.city}
                           </span>
                         ) : null}
                         <span className="inline-flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
+                          <UsersIcon className="h-3.5 w-3.5" />
                           {Number(shop.followersCount || 0).toLocaleString('fr-FR')}
                         </span>
                       </div>

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bike, ClipboardList, History, Package, ShoppingBasket, UserRound } from 'lucide-react';
+import { BoltIcon, ClipboardDocumentListIcon, ClockIcon, CubeIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 
 const NAV_ITEMS = [
-  { key: 'missions', label: 'Missions', to: '/delivery/dashboard', icon: ClipboardList },
-  { key: 'parcels', label: 'Colis', to: '/delivery/parcels', icon: Package },
-  { key: 'shopping', label: 'Achats', to: '/delivery/buy-for-me', icon: ShoppingBasket },
-  { key: 'history', label: 'Historique', to: '/delivery/history', icon: History },
-  { key: 'profile', label: 'Profil', to: '/delivery/profile', icon: UserRound }
+  { key: 'missions', label: 'Missions', to: '/delivery/dashboard', icon: ClipboardDocumentListIcon },
+  { key: 'parcels', label: 'Colis', to: '/delivery/parcels', icon: CubeIcon },
+  { key: 'shopping', label: 'Achats', to: '/delivery/buy-for-me', icon: ShoppingBagIcon },
+  { key: 'history', label: 'Historique', to: '/delivery/history', icon: ClockIcon },
+  { key: 'profile', label: 'Profil', to: '/delivery/profile', icon: UserCircleIcon }
 ];
 
 const isNavItemActive = (pathname, item) => {
@@ -59,7 +59,7 @@ export default function DeliveryAppShell() {
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-gray-100 bg-white px-4 py-5 dark:border-neutral-800 dark:bg-neutral-950 lg:flex">
         <div className="flex items-center gap-3 px-2">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#FF6A00] shadow-sm">
-            <Bike className="h-5 w-5 text-white" />
+            <BoltIcon className="h-5 w-5 text-white" />
           </span>
           <div>
             <p className="text-base font-black tracking-tight text-gray-900 dark:text-white">HDMarket Delivery</p>

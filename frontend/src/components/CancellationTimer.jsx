@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, AlertCircle } from 'lucide-react';
+import { ClockIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 /**
  * Timer component showing remaining time in 30-minute cancellation window
@@ -68,10 +68,8 @@ export default function CancellationTimer({ deadline, remainingMs: initialRemain
           : 'bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400'
       }`}
     >
-      <Clock
-        size={18}
-        className={`${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}
-      />
+      <ClockIcon
+className={`${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`} className="h-[18px] w-[18px]" />
       <div className="flex-1">
         <div className="text-xs font-semibold uppercase tracking-wide mb-0.5">
           Délai d'annulation
@@ -86,10 +84,8 @@ export default function CancellationTimer({ deadline, remainingMs: initialRemain
         </div>
       </div>
       {isUrgent && (
-        <AlertCircle
-          size={16}
-          className="text-red-600 dark:text-red-400 animate-pulse"
-        />
+        <ExclamationCircleIcon
+className="text-red-600 dark:text-red-400 animate-pulse h-4 w-4" />
       )}
     </div>
   );

@@ -1,18 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowLeft,
-  Camera,
-  ExternalLink,
-  FileText,
-  Loader2,
-  MapPin,
-  Package,
-  Phone,
-  ShieldAlert,
-  Trash2
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ArrowTopRightOnSquareIcon, CameraIcon, CubeIcon, DocumentTextIcon, MapPinIcon, PhoneIcon, ShieldExclamationIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import SignaturePad from '../../components/SignaturePad';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../../components/modals/BaseModal';
@@ -383,7 +372,7 @@ export default function DeliveryAssignmentDetail() {
             onClick={() => navigate(-1)}
             className="inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 text-sm font-black text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeftIcon className="h-3.5 w-3.5" />
             Back
           </button>
 
@@ -402,7 +391,7 @@ export default function DeliveryAssignmentDetail() {
       ) : assignmentUnavailable ? (
         <section className="rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-sm dark:border-amber-900 dark:bg-neutral-950">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-            <Package size={22} />
+            <CubeIcon className="h-[22px] w-[22px]" />
           </span>
           <h2 className="mt-4 text-base font-black text-gray-900 dark:text-white">
             Cette mission n’est plus disponible
@@ -449,7 +438,7 @@ export default function DeliveryAssignmentDetail() {
                 />
               ) : (
                 <div className="grid h-14 w-14 place-items-center rounded-xl bg-gray-50 text-gray-400 dark:bg-neutral-900 dark:text-gray-500">
-                  <Package size={16} />
+                  <CubeIcon className="h-4 w-4" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -477,7 +466,7 @@ export default function DeliveryAssignmentDetail() {
                     href={`tel:${assignment.seller.phone}`}
                     className="mt-2 inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                   >
-                    <Phone size={12} />
+                    <PhoneIcon className="h-3 w-3" />
                     {assignment.seller.phone}
                   </a>
                 ) : null}
@@ -492,7 +481,7 @@ export default function DeliveryAssignmentDetail() {
                     href={`tel:${assignment.buyer.phone}`}
                     className="mt-2 inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                   >
-                    <Phone size={12} />
+                    <PhoneIcon className="h-3 w-3" />
                     {assignment.buyer.phone}
                   </a>
                 ) : null}
@@ -519,7 +508,7 @@ export default function DeliveryAssignmentDetail() {
                           rel="noreferrer"
                           className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
-                          Google <ExternalLink size={11} />
+                          Google <ArrowTopRightOnSquareIcon className="h-[11px] w-[11px]" />
                         </a>
                       ) : null}
                       {pickupMapApple ? (
@@ -529,7 +518,7 @@ export default function DeliveryAssignmentDetail() {
                           rel="noreferrer"
                           className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
-                          Apple <ExternalLink size={11} />
+                          Apple <ArrowTopRightOnSquareIcon className="h-[11px] w-[11px]" />
                         </a>
                       ) : null}
                     </div>
@@ -555,7 +544,7 @@ export default function DeliveryAssignmentDetail() {
                           rel="noreferrer"
                           className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
-                          Google <ExternalLink size={11} />
+                          Google <ArrowTopRightOnSquareIcon className="h-[11px] w-[11px]" />
                         </a>
                       ) : null}
                       {dropoffMapApple ? (
@@ -565,7 +554,7 @@ export default function DeliveryAssignmentDetail() {
                           rel="noreferrer"
                           className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200"
                         >
-                          Apple <ExternalLink size={11} />
+                          Apple <ArrowTopRightOnSquareIcon className="h-[11px] w-[11px]" />
                         </a>
                       ) : null}
                     </div>
@@ -588,7 +577,7 @@ export default function DeliveryAssignmentDetail() {
                 rel="noreferrer"
                 className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-200"
               >
-                <FileText size={14} />
+                <DocumentTextIcon className="h-3.5 w-3.5" />
                 Ouvrir la facture
               </a>
             ) : (
@@ -606,7 +595,7 @@ export default function DeliveryAssignmentDetail() {
             </div>
             {nextStage === 'DELIVERED' && !hasPickupProof ? (
               <p className="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                <ShieldAlert size={12} /> Submit pickup proof first to unlock delivery proof.
+                <ShieldExclamationIcon className="h-3 w-3" /> Submit pickup proof first to unlock delivery proof.
               </p>
             ) : null}
           </section>
@@ -727,7 +716,7 @@ export default function DeliveryAssignmentDetail() {
           <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
             <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Photos ({proofPhotos.length}/{MAX_PROOF_PHOTOS})</p>
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-gray-200">
-              <Camera size={14} />
+              <CameraIcon className="h-3.5 w-3.5" />
               Ajouter des photos
               <input
                 type="file"
@@ -761,7 +750,7 @@ export default function DeliveryAssignmentDetail() {
                     <div className="mt-1 flex items-center justify-between gap-2">
                       <span className="truncate text-[10px] text-gray-600 dark:text-gray-400">{file.name}</span>
                       <button type="button" onClick={() => removeProofPhoto(index)} className="text-rose-600 dark:text-rose-400">
-                        <Trash2 size={12} />
+                        <TrashIcon className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
@@ -823,7 +812,7 @@ export default function DeliveryAssignmentDetail() {
             onClick={submitProof}
             className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white disabled:opacity-60"
           >
-            {proofMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+            {proofMutation.isPending ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <CameraIcon className="h-3.5 w-3.5" />}
             Enregistrer la preuve
           </button>
         </ModalFooter>
@@ -914,7 +903,7 @@ export default function DeliveryAssignmentDetail() {
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-black text-white disabled:opacity-60"
             >
               {(rejectMutation.isPending || stageMutation.isPending) ? (
-                <Loader2 size={14} className="animate-spin" />
+                <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
               ) : null}
               Confirmer
             </button>

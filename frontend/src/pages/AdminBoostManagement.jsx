@@ -1,14 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import {
-  BarChart3,
-  CalendarClock,
-  CheckCircle2,
-  Loader2,
-  Sparkles,
-  TrendingUp,
-  XCircle
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, CalendarDaysIcon, ChartBarIcon, CheckCircleIcon, SparklesIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -192,7 +184,7 @@ export default function AdminBoostManagement() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 space-y-5">
       <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-neutral-600" />
+        <SparklesIcon className="h-5 w-5 text-neutral-600" />
         <h1 className="text-xl font-bold text-gray-900">Boost Management</h1>
       </div>
 
@@ -220,7 +212,7 @@ export default function AdminBoostManagement() {
 
       {loading ? (
         <div className="ui-card ui-card-interactive ui-card-fade-in p-6 flex items-center gap-2 text-gray-600">
-          <Loader2 className="h-4 w-4 animate-spin" /> Chargement...
+          <ArrowPathIcon className="h-4 w-4 animate-spin" /> Chargement...
         </div>
       ) : (
         <>
@@ -461,9 +453,9 @@ export default function AdminBoostManagement() {
                                   className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
                                   {isApproving ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
                                   ) : (
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    <CheckCircleIcon className="h-3.5 w-3.5" />
                                   )}{' '}
                                   {isApproving ? 'Validation...' : 'Approuver'}
                                 </button>
@@ -474,9 +466,9 @@ export default function AdminBoostManagement() {
                                   className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
                                   {isRejecting ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
                                   ) : (
-                                    <XCircle className="h-3.5 w-3.5" />
+                                    <XCircleIcon className="h-3.5 w-3.5" />
                                   )}{' '}
                                   {isRejecting ? 'Rejet...' : 'Rejeter'}
                                 </button>
@@ -525,19 +517,19 @@ export default function AdminBoostManagement() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <article className="ui-card ui-card-interactive ui-card-fade-in p-4">
                   <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
-                    <TrendingUp className="h-3.5 w-3.5" /> Journalier
+                    <ArrowTrendingUpIcon className="h-3.5 w-3.5" /> Journalier
                   </p>
                   <p className="text-xl font-bold text-gray-900">{formatCurrency(dashboard?.revenue?.daily?.totalRevenue)}</p>
                 </article>
                 <article className="ui-card ui-card-interactive ui-card-fade-in p-4">
                   <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
-                    <CalendarClock className="h-3.5 w-3.5" /> Hebdomadaire
+                    <CalendarDaysIcon className="h-3.5 w-3.5" /> Hebdomadaire
                   </p>
                   <p className="text-xl font-bold text-gray-900">{formatCurrency(dashboard?.revenue?.weekly?.totalRevenue)}</p>
                 </article>
                 <article className="ui-card ui-card-interactive ui-card-fade-in p-4">
                   <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
-                    <BarChart3 className="h-3.5 w-3.5" /> Mensuel
+                    <ChartBarIcon className="h-3.5 w-3.5" /> Mensuel
                   </p>
                   <p className="text-xl font-bold text-gray-900">{formatCurrency(dashboard?.revenue?.monthly?.totalRevenue)}</p>
                 </article>

@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCal
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { Upload, Camera, DollarSign, Tag, FileText, Package, Send, AlertCircle, CheckCircle2, Video, Trash2, Crop, Eye, X, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, RotateCcw, FlipHorizontal, FlipVertical, ZoomIn, ZoomOut, Plus, Edit, ShieldCheck, CreditCard, Boxes, Megaphone, Lock, SlidersHorizontal, Sun, Contrast, Droplet, Calendar, Clock, Percent, Users, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArrowPathIcon, ArrowRightIcon, ArrowUpTrayIcon, ArrowUturnLeftIcon, ArrowUturnRightIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BeakerIcon, CalendarIcon, CameraIcon, CheckCircleIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, EyeIcon, LockClosedIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon, MegaphoneIcon, PaperAirplaneIcon, PencilIcon, PlusIcon, ReceiptPercentIcon, ScissorsIcon, ShieldCheckIcon, SparklesIcon, SunIcon, TagIcon, TrashIcon, UsersIcon, VideoCameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -1232,7 +1232,7 @@ export default function ProductForm(props) {
         setVideoFile(compressedFile);
         setVideoError('');
       } catch (error) {
-        console.error('Video compression error:', error);
+        console.error('VideoCameraIcon compression error:', error);
         setVideoFile(null);
         setVideoError(
           error?.message === 'Compression vidéo non supportée par ce navigateur.'
@@ -1539,7 +1539,7 @@ export default function ProductForm(props) {
       <div className="space-y-2 border-t border-gray-200 bg-white p-2.5">
         {entry.label && (
           <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Option enregistrée
+            <CheckCircleIcon className="h-3.5 w-3.5" /> Option enregistrée
           </div>
         )}
         <label className="block">
@@ -2384,7 +2384,7 @@ export default function ProductForm(props) {
             </span>
           </span>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {expanded ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
           </span>
         </button>
       );
@@ -2441,7 +2441,7 @@ export default function ProductForm(props) {
       {!hideHeader && (
         <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-[#FFEDE3] flex items-center justify-center flex-shrink-0">
-            {isEditing ? <Edit className="w-4 h-4 text-[#FF5000]" /> : <Plus className="w-4 h-4 text-[#FF5000]" />}
+            {isEditing ? <PencilIcon className="w-4 h-4 text-[#FF5000]" /> : <PlusIcon className="w-4 h-4 text-[#FF5000]" />}
           </div>
           <div className="min-w-0">
             <p className="text-[15px] font-black text-gray-900 leading-tight">{headerTitle}</p>
@@ -2472,7 +2472,7 @@ export default function ProductForm(props) {
       {draftOffer && !isEditing && (
         <div className="mx-4 mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-950" role="status">
           <div className="flex items-start gap-3">
-            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-sky-700" />
+            <ClockIcon className="mt-0.5 h-5 w-5 shrink-0 text-sky-700" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-black">Brouillon retrouvé</p>
               <p className="mt-1 text-xs font-semibold leading-5 text-sky-800">
@@ -2519,7 +2519,7 @@ export default function ProductForm(props) {
         <div ref={(node) => { sectionRefs.current.info = node; }} className={sectionShellClass}>
           {renderSectionHeader({
             id: 'info',
-            icon: FileText,
+            icon: DocumentTextIcon,
             title: 'Informations du produit',
             subtitle: "Les détails qui aident l'acheteur à décider vite."
           })}
@@ -2528,7 +2528,7 @@ export default function ProductForm(props) {
           {/* Titre */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-              <FileText className="w-4 h-4 text-neutral-500" />
+              <DocumentTextIcon className="w-4 h-4 text-neutral-500" />
               <span>Titre de l'annonce *</span>
             </label>
             <input
@@ -2546,7 +2546,7 @@ export default function ProductForm(props) {
           {/* Description */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-              <FileText className="w-4 h-4 text-neutral-500" />
+              <DocumentTextIcon className="w-4 h-4 text-neutral-500" />
               <span>Description détaillée *</span>
             </label>
             <textarea
@@ -2565,7 +2565,7 @@ export default function ProductForm(props) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Package className="h-4 w-4 text-neutral-500" />
+                <CubeIcon className="h-4 w-4 text-neutral-500" />
                 <span>Marque</span>
               </label>
               <input
@@ -2597,7 +2597,7 @@ export default function ProductForm(props) {
             {/* Catégorie */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <Tag className="w-4 h-4 text-neutral-500" />
+                <TagIcon className="w-4 h-4 text-neutral-500" />
                 <span>Catégorie *</span>
               </label>
               <select
@@ -2624,7 +2624,7 @@ export default function ProductForm(props) {
             {/* Prix */}
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                <DollarSign className="w-4 h-4 text-neutral-500" />
+                <CurrencyDollarIcon className="w-4 h-4 text-neutral-500" />
                 <span>Prix *</span>
               </label>
               <input
@@ -2644,7 +2644,7 @@ export default function ProductForm(props) {
             {isEditing && (
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Tag className="w-4 h-4 text-amber-500" />
+                  <TagIcon className="w-4 h-4 text-amber-500" />
                   <span>Remise (%)</span>
                 </label>
                 <input
@@ -2674,7 +2674,7 @@ export default function ProductForm(props) {
           {isPerishableCategory && (
             <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
               <label className="flex items-center space-x-2 text-sm font-medium text-amber-900">
-                <Calendar className="w-4 h-4 text-amber-600" />
+                <CalendarIcon className="w-4 h-4 text-amber-600" />
                 <span>Durée de fraîcheur (denrée périssable)</span>
               </label>
               {isEditing ? (
@@ -2803,7 +2803,7 @@ export default function ProductForm(props) {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-neutral-700 shadow-sm ring-1 ring-gray-200">
-                  <ShieldCheck className="h-4 w-4" />
+                  <ShieldCheckIcon className="h-4 w-4" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Garantie</p>
@@ -2946,7 +2946,7 @@ export default function ProductForm(props) {
         <div ref={(node) => { sectionRefs.current.commercialisation = node; }} className={sectionShellClass}>
           {renderSectionHeader({
             id: 'commercialisation',
-            icon: Megaphone,
+            icon: MegaphoneIcon,
             title: 'Commercialisation',
             subtitle: 'Outils de vente avancés — activez seulement ce dont vous avez besoin.',
             optional: true
@@ -2959,7 +2959,7 @@ export default function ProductForm(props) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
                 <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.installmentEnabled ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'}`}>
-                  <CreditCard className="h-[18px] w-[18px]" />
+                  <CreditCardIcon className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-black text-gray-900">Paiement par tranche</p>
@@ -2978,7 +2978,7 @@ export default function ProductForm(props) {
 
             {!isBoutiqueOwner && (
               <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                <Lock className="h-3.5 w-3.5 shrink-0" />
+                <LockClosedIcon className="h-3.5 w-3.5 shrink-0" />
                 Réservé aux comptes convertis en boutique.
               </p>
             )}
@@ -2989,7 +2989,7 @@ export default function ProductForm(props) {
                 {installmentPlanPreview && (
                   <div className="rounded-xl border border-[#FF5000]/30 bg-white p-3">
                     <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF5000]">
-                      <CreditCard className="h-3.5 w-3.5" />
+                      <CreditCardIcon className="h-3.5 w-3.5" />
                       Aperçu de l'échéancier
                     </div>
                     <div className="mt-2.5 flex items-stretch gap-2">
@@ -3002,7 +3002,7 @@ export default function ProductForm(props) {
                         </p>
                       </div>
                       <div className="flex items-center text-gray-300">
-                        <ArrowRight className="h-4 w-4" />
+                        <ArrowRightIcon className="h-4 w-4" />
                       </div>
                       <div className="flex-1 rounded-lg bg-gray-50 px-3 py-2">
                         <p className="text-[11px] font-semibold text-gray-500">Solde restant</p>
@@ -3015,7 +3015,7 @@ export default function ProductForm(props) {
                     </div>
                     {installmentPlanPreview.days > 0 && (
                       <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
-                        <Clock className="h-3.5 w-3.5 text-[#FF5000]" />
+                        <ClockIcon className="h-3.5 w-3.5 text-[#FF5000]" />
                         Solde à régler sur {installmentPlanPreview.days} jour
                         {installmentPlanPreview.days > 1 ? 's' : ''}.
                       </p>
@@ -3026,7 +3026,7 @@ export default function ProductForm(props) {
                 {/* Group: amount & duration */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-[#FF5000]" />
+                    <CurrencyDollarIcon className="h-4 w-4 text-[#FF5000]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Montant &amp; durée</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -3066,7 +3066,7 @@ export default function ProductForm(props) {
                 {/* Group: schedule window */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-[#FF5000]" />
+                    <CalendarIcon className="h-4 w-4 text-[#FF5000]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Période de l'échéancier</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -3098,13 +3098,13 @@ export default function ProductForm(props) {
                 {/* Group: late rules & guarantees */}
                 <div className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="mb-3 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-[#FF5000]" />
+                    <ShieldCheckIcon className="h-4 w-4 text-[#FF5000]" />
                     <p className="text-xs font-black uppercase tracking-wide text-gray-700">Règles &amp; garanties</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                        <Percent className="h-3.5 w-3.5 text-gray-400" />
+                        <ReceiptPercentIcon className="h-3.5 w-3.5 text-gray-400" />
                         Pénalité de retard (%)
                       </label>
                       <input
@@ -3122,7 +3122,7 @@ export default function ProductForm(props) {
                     </div>
                     <div className="space-y-1.5">
                       <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-                        <AlertCircle className="h-3.5 w-3.5 text-gray-400" />
+                        <ExclamationCircleIcon className="h-3.5 w-3.5 text-gray-400" />
                         Impayés max avant suspension
                       </label>
                       <input
@@ -3151,7 +3151,7 @@ export default function ProductForm(props) {
                           form.installmentRequireGuarantor ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'
                         }`}
                       >
-                        <Users className="h-4 w-4" />
+                        <UsersIcon className="h-4 w-4" />
                       </span>
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold text-gray-800">Exiger un garant</span>
@@ -3175,7 +3175,7 @@ export default function ProductForm(props) {
 
             {installmentError && (
               <p className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <ExclamationCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>{installmentError}</span>
               </p>
             )}
@@ -3185,7 +3185,7 @@ export default function ProductForm(props) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
                 <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${form.wholesaleEnabled ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'}`}>
-                  <Boxes className="h-[18px] w-[18px]" />
+                  <CubeIcon className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-black text-gray-900">Vente en gros</p>
@@ -3204,7 +3204,7 @@ export default function ProductForm(props) {
 
             {!isBoutiqueOwner && (
               <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                <Lock className="h-3.5 w-3.5 shrink-0" />
+                <LockClosedIcon className="h-3.5 w-3.5 shrink-0" />
                 Réservé aux comptes convertis en boutique.
               </p>
             )}
@@ -3255,7 +3255,7 @@ export default function ProductForm(props) {
                         className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100 transition-colors"
                         aria-label="Supprimer ce palier"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <TrashIcon className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -3266,14 +3266,14 @@ export default function ProductForm(props) {
                   onClick={addWholesaleTier}
                   className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
+                  <PlusIcon className="w-4 h-4" />
                   Ajouter un palier
                 </button>
 
                 {normalizedWholesalePreviewTiers.length > 0 && (
                   <div className="rounded-xl border border-[#FF5000]/30 bg-white p-3">
                     <div className="mb-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-[#FF5000]">
-                      <Boxes className="h-3.5 w-3.5" />
+                      <CubeIcon className="h-3.5 w-3.5" />
                       Aperçu des prix appliqués
                     </div>
                     <div className="space-y-1.5 text-xs text-gray-700">
@@ -3320,7 +3320,7 @@ export default function ProductForm(props) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
                 <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${form.quotationEnabled ? 'bg-[#FF5000] text-white' : 'bg-gray-100 text-gray-500'}`}>
-                  <FileText className="h-[18px] w-[18px]" />
+                  <DocumentTextIcon className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-black text-gray-900">Autoriser les demandes de devis</p>
@@ -3343,7 +3343,7 @@ export default function ProductForm(props) {
         <div ref={(node) => { sectionRefs.current.options = node; }} className={sectionShellClass}>
           {renderSectionHeader({
             id: 'options',
-            icon: Package,
+            icon: CubeIcon,
             title: 'Options & dimensions',
             subtitle: 'Ajoutez seulement les options utiles à la commande.',
             optional: true
@@ -3364,7 +3364,7 @@ export default function ProductForm(props) {
                     onClick={addProductAttribute}
                     className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    <Plus className="w-4 h-4" />
+                    <PlusIcon className="w-4 h-4" />
                     Ajouter
                   </button>
                 </div>
@@ -3432,7 +3432,7 @@ export default function ProductForm(props) {
                                 className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2 text-red-600 hover:bg-red-100 transition-colors"
                                 aria-label="Supprimer cet attribut"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <TrashIcon className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
@@ -3473,7 +3473,7 @@ export default function ProductForm(props) {
                                   onClick={() => addProductAttributeOption(index)}
                                   className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
                                 >
-                                  <Plus className="w-3.5 h-3.5" />
+                                  <PlusIcon className="w-3.5 h-3.5" />
                                   Option
                                 </button>
                               </div>
@@ -3493,7 +3493,7 @@ export default function ProductForm(props) {
                                       className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50"
                                       aria-label="Supprimer cette option"
                                     >
-                                      <X className="w-4 h-4" />
+                                      <XMarkIcon className="w-4 h-4" />
                                     </button>
                                   </div>
                                 ))}
@@ -3592,7 +3592,7 @@ export default function ProductForm(props) {
         <div className={sectionShellClass}>
           {renderSectionHeader({
             id: 'images',
-            icon: Camera,
+            icon: CameraIcon,
             title: 'Photos & variantes',
             subtitle: 'Chaque photo peut devenir une variante : option et prix sous l’image.',
             recommended: true
@@ -3601,10 +3601,10 @@ export default function ProductForm(props) {
           {/* Image upload content - shown on desktop always, on mobile when expanded */}
           {(!isMobile || expandedSections.images) && (
             <div className="space-y-3 pt-1">
-              {/* Upload d'images */}
+              {/* ArrowUpTrayIcon d'images */}
               <div className="space-y-3">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Camera className="w-4 h-4 text-neutral-500" />
+                  <CameraIcon className="w-4 h-4 text-neutral-500" />
                   <span>
                     Photos{' '}
                     {(existingImages.length + files.length) > 0 &&
@@ -3616,7 +3616,7 @@ export default function ProductForm(props) {
                 </p>
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-3 text-xs text-emerald-900">
                   <div className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-700" />
+                    <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-700" />
                     <div className="space-y-1">
                       <p className="font-semibold">Pour de meilleures photos publiées</p>
                       <p className="leading-relaxed">
@@ -3675,7 +3675,7 @@ export default function ProductForm(props) {
                               className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
                               aria-label="Supprimer l'image"
                             >
-                              <X size={12} />
+                              <XMarkIcon className="h-3 w-3" />
                             </button>
                           </div>
                           <div className="border-t border-gray-200 bg-white p-2">
@@ -3684,7 +3684,7 @@ export default function ProductForm(props) {
                               onClick={() => setStudioImageIndex(index)}
                               className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-neutral-950 px-3 text-xs font-black text-white transition hover:bg-neutral-800"
                             >
-                              <SlidersHorizontal className="h-3.5 w-3.5" />
+                              <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
                               Retoucher
                             </button>
                           </div>
@@ -3696,7 +3696,7 @@ export default function ProductForm(props) {
                 )}
 
                 <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 active:bg-gray-100 transition-colors group ${isMobile ? 'h-28 min-h-[120px] py-4' : 'h-32'}`}>
-                  <Upload className={`text-gray-400 group-hover:text-neutral-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
+                  <ArrowUpTrayIcon className={`text-gray-400 group-hover:text-neutral-500 transition-colors mb-2 ${isMobile ? 'w-10 h-10' : 'w-8 h-8'}`} />
                   <span className={`text-gray-500 text-center ${isMobile ? 'text-sm' : 'text-sm'}`}>
                     <span className="text-neutral-600 font-medium">{isMobile ? 'Appuyez pour ajouter des photos' : 'Cliquez pour uploader'}</span>
                     <br />
@@ -3763,7 +3763,7 @@ export default function ProductForm(props) {
                                 aria-label="Modifier cette image dans le Studio"
                                 title="Retoucher la photo"
                               >
-                                <SlidersHorizontal className="w-3.5 h-3.5" />
+                                <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
                                 Retoucher
                               </button>
                               <button
@@ -3774,7 +3774,7 @@ export default function ProductForm(props) {
                                 aria-label="Laisser cette image telle quelle"
                                 title="Laisser tel quel"
                               >
-                                <Eye className="w-3.5 h-3.5" />
+                                <EyeIcon className="w-3.5 h-3.5" />
                                 Laisser tel quel
                               </button>
                             </div>
@@ -3793,7 +3793,7 @@ export default function ProductForm(props) {
         {canUploadVideo || (isEditing && Boolean(existingVideoUrl)) ? (
           <div className={sectionShellClass}>
             {renderSectionHeader({
-              icon: Video,
+              icon: VideoCameraIcon,
               collapsible: false,
               title: 'Vidéo de présentation',
               subtitle: `Ajoutez une courte vidéo (MP4, MOV, WEBM). Taille maximale ${MAX_VIDEO_SIZE_MB} Mo.`
@@ -3851,7 +3851,7 @@ export default function ProductForm(props) {
                       className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
                       aria-label="Supprimer la vidéo actuelle"
                     >
-                      <Trash2 className="h-4 w-4" /> Supprimer
+                      <TrashIcon className="h-4 w-4" /> Supprimer
                     </button>
                   </div>
                 </div>
@@ -3860,7 +3860,7 @@ export default function ProductForm(props) {
             {removeExistingVideo && !videoFile ? (
               <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-800" role="status">
                 <div className="flex items-start gap-2.5">
-                  <Trash2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <TrashIcon className="mt-0.5 h-4 w-4 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold">Suppression de la vidéo programmée</p>
                     <p className="mt-1 text-xs leading-5 text-red-700">
@@ -3882,7 +3882,7 @@ export default function ProductForm(props) {
                 htmlFor="product-form-video-input"
                 className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group"
               >
-                <Video className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 transition-colors mb-2" />
+                <VideoCameraIcon className="w-8 h-8 text-gray-400 group-hover:text-emerald-500 transition-colors mb-2" />
                 <span className="text-sm text-gray-500 text-center">
                   {removeExistingVideo ? 'Ajouter une vidéo de remplacement' : 'Cliquez pour uploader votre vidéo'}
                 </span>
@@ -3996,7 +3996,7 @@ export default function ProductForm(props) {
                 </div>
                 {originalVideoSize > MAX_VIDEO_SIZE_MB * 1024 * 1024 && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                     <p className="text-xs text-emerald-700">
                       Vidéo optimisée avec succès pour un upload plus rapide.
                     </p>
@@ -4014,7 +4014,7 @@ export default function ProductForm(props) {
             {isUploadingVideo && (
               <div className="mt-2 space-y-1">
                 <div className="flex items-center justify-between text-xs text-gray-600">
-                  <span>Upload en cours...</span>
+                  <span>ArrowUpTrayIcon en cours...</span>
                   <span>{uploadProgress}%</span>
                 </div>
                 <div className="w-full rounded-full bg-gray-100 h-2 overflow-hidden">
@@ -4041,7 +4041,7 @@ export default function ProductForm(props) {
 
         <div className={sectionShellClass}>
           {renderSectionHeader({
-            icon: Video,
+            icon: VideoCameraIcon,
             collapsible: false,
             title: 'Vidéo Facebook / TikTok',
             subtitle: 'Collez le lien d’une vidéo Facebook ou TikTok. Elle sera intégrée et lisible sur la page du produit.'
@@ -4064,7 +4064,7 @@ export default function ProductForm(props) {
         {canUploadPdf && (
           <div className={sectionShellClass}>
             {renderSectionHeader({
-              icon: FileText,
+              icon: DocumentTextIcon,
               collapsible: false,
               title: 'Fiche produit (PDF)',
               subtitle: `Générez-la automatiquement à partir de ce formulaire, ou uploadez la vôtre. Taille maximale ${MAX_PDF_SIZE_MB} Mo.`
@@ -4077,12 +4077,12 @@ export default function ProductForm(props) {
             >
               {generatingPdf ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
                   Génération en cours…
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" />
+                  <SparklesIcon className="h-4 w-4" />
                   Générer la fiche automatiquement
                 </>
               )}
@@ -4108,7 +4108,7 @@ export default function ProductForm(props) {
                   aria-label="Supprimer le PDF"
                   title="Supprimer le PDF"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
             )}
@@ -4125,7 +4125,7 @@ export default function ProductForm(props) {
               </div>
             )}
             <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
-              <FileText className="w-8 h-8 text-gray-400 group-hover:text-slate-600 transition-colors mb-2" />
+              <DocumentTextIcon className="w-8 h-8 text-gray-400 group-hover:text-slate-600 transition-colors mb-2" />
               <span className="text-sm text-gray-500 text-center">Cliquez pour uploader un PDF</span>
               <input
                 type="file"
@@ -4152,7 +4152,7 @@ export default function ProductForm(props) {
 
         <div className={sectionShellClass}>
             {renderSectionHeader({
-              icon: ShieldCheck,
+              icon: ShieldCheckIcon,
               collapsible: false,
               accent: 'amber',
               title: "Vérification de l'annonce",
@@ -4163,7 +4163,7 @@ export default function ProductForm(props) {
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-start space-x-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <ExclamationCircleIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="space-y-3 flex-1">
                   <h3 className="text-sm font-black text-amber-900">
                     {isEditing ? 'Impact de cette modification' : 'Commission de publication'}
@@ -4225,7 +4225,7 @@ export default function ProductForm(props) {
                     </p>
                   )}
                   <div className="flex items-center space-x-2 text-xs text-amber-600">
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircleIcon className="w-4 h-4" />
                     <span>Le règlement est sécurisé par PawaPay et confirmé automatiquement.</span>
                   </div>
                 </div>
@@ -4248,12 +4248,12 @@ export default function ProductForm(props) {
               >
                 {showPreview ? (
                   <>
-                    <Minimize2 className="w-4 h-4" />
+                    <ArrowsPointingInIcon className="w-4 h-4" />
                     <span>Masquer</span>
                   </>
                 ) : (
                   <>
-                    <Maximize2 className="w-4 h-4" />
+                    <ArrowsPointingOutIcon className="w-4 h-4" />
                     <span>Afficher</span>
                   </>
                 )}
@@ -4303,7 +4303,7 @@ export default function ProductForm(props) {
         {validationSummary.length > 0 && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4" role="alert" aria-live="assertive">
             <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <ExclamationCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
               <div>
                 <p className="text-sm font-black text-red-900">
                   {validationSummary.length} champ{validationSummary.length > 1 ? 's' : ''} à compléter
@@ -4349,7 +4349,7 @@ export default function ProductForm(props) {
                 </>
               ) : (
                 <>
-                  <Send className="w-5 h-5" />
+                  <PaperAirplaneIcon className="w-5 h-5" />
                   <span>{buttonLabel}</span>
                 </>
               )}
@@ -4368,7 +4368,7 @@ export default function ProductForm(props) {
               </>
             ) : (
               <>
-                <Send className="w-5 h-5" />
+                <PaperAirplaneIcon className="w-5 h-5" />
                 <span>{buttonLabel}</span>
               </>
             )}
@@ -4403,7 +4403,7 @@ export default function ProductForm(props) {
               <div className={`flex items-center justify-between bg-[#1a1a1a] border-b border-white/10 flex-shrink-0 ${isMobile ? 'px-4 py-3 safe-area-top' : 'px-4 py-3'}`}>
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-[#FF5000] flex items-center justify-center flex-shrink-0">
-                    <Crop className="w-4 h-4 text-white" />
+                    <ScissorsIcon className="w-4 h-4 text-white" />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-white">Modifier la photo</p>
@@ -4413,7 +4413,7 @@ export default function ProductForm(props) {
                 <button type="button" onClick={handleCropCancel}
                   className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20 transition-colors touch-manipulation"
                   aria-label="Fermer">
-                  <X className="w-4 h-4" />
+                  <XMarkIcon className="w-4 h-4" />
                 </button>
               </div>
 
@@ -4528,8 +4528,8 @@ export default function ProductForm(props) {
                 {/* Tab switcher */}
                 <div className="flex items-center gap-2 px-4 pt-3">
                   {[
-                    { id: 'crop', label: 'Recadrer', icon: Crop },
-                    { id: 'filters', label: 'Filtres', icon: SlidersHorizontal }
+                    { id: 'crop', label: 'Recadrer', icon: ScissorsIcon },
+                    { id: 'filters', label: 'Filtres', icon: AdjustmentsHorizontalIcon }
                   ].map(({ id, label, icon: Icon }) => {
                     const active = cropTab === id;
                     return (
@@ -4554,10 +4554,10 @@ export default function ProductForm(props) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {[
-                          { fn: handleRotateLeft, icon: RotateCcw, label: 'Tourner gauche' },
-                          { fn: handleRotateRight, icon: RotateCw, label: 'Tourner droite' },
-                          { fn: handleFlipH, icon: FlipHorizontal, label: 'Miroir H' },
-                          { fn: handleFlipV, icon: FlipVertical, label: 'Miroir V' }
+                          { fn: handleRotateLeft, icon: ArrowUturnLeftIcon, label: 'Tourner gauche' },
+                          { fn: handleRotateRight, icon: ArrowUturnRightIcon, label: 'Tourner droite' },
+                          { fn: handleFlipH, icon: ArrowsRightLeftIcon, label: 'Miroir H' },
+                          { fn: handleFlipV, icon: ArrowsUpDownIcon, label: 'Miroir V' }
                         ].map(({ fn, icon: Icon, label }) => (
                           <button key={label} type="button" onClick={fn}
                             className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white transition-colors active:bg-white/20 touch-manipulation"
@@ -4568,7 +4568,7 @@ export default function ProductForm(props) {
                       </div>
                       <button type="button" onClick={resetCropFit}
                         className="flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/80 active:bg-white/20 touch-manipulation">
-                        <Maximize2 className="w-3.5 h-3.5" />
+                        <ArrowsPointingOutIcon className="w-3.5 h-3.5" />
                         Ajuster
                       </button>
                     </div>
@@ -4578,7 +4578,7 @@ export default function ProductForm(props) {
                       <button type="button" onClick={() => handleZoomChange(-0.15)}
                         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white active:bg-white/20 touch-manipulation"
                         aria-label="Zoom arrière">
-                        <ZoomOut className="w-4 h-4" />
+                        <MagnifyingGlassMinusIcon className="w-4 h-4" />
                       </button>
                       <input type="range" min={sliderMinScale} max={sliderMaxScale} step={0.001} value={imageScale}
                         onChange={handleZoomInput}
@@ -4587,7 +4587,7 @@ export default function ProductForm(props) {
                       <button type="button" onClick={() => handleZoomChange(0.15)}
                         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white active:bg-white/20 touch-manipulation"
                         aria-label="Zoom avant">
-                        <ZoomIn className="w-4 h-4" />
+                        <MagnifyingGlassPlusIcon className="w-4 h-4" />
                       </button>
                       <span className="w-12 flex-shrink-0 text-right text-xs font-black text-[#FF5000]">{zoomPct}%</span>
                     </div>
@@ -4595,9 +4595,9 @@ export default function ProductForm(props) {
                 ) : (
                   <div className="px-4 py-3 space-y-3.5">
                     {[
-                      { key: 'brightness', label: 'Luminosité', icon: Sun, min: 50, max: 150 },
-                      { key: 'contrast', label: 'Contraste', icon: Contrast, min: 50, max: 150 },
-                      { key: 'saturate', label: 'Saturation', icon: Droplet, min: 0, max: 200 }
+                      { key: 'brightness', label: 'Luminosité', icon: SunIcon, min: 50, max: 150 },
+                      { key: 'contrast', label: 'Contraste', icon: AdjustmentsHorizontalIcon, min: 50, max: 150 },
+                      { key: 'saturate', label: 'Saturation', icon: BeakerIcon, min: 0, max: 200 }
                     ].map(({ key, label, icon: Icon, min, max }) => (
                       <div key={key}>
                         <div className="mb-1.5 flex items-center justify-between">

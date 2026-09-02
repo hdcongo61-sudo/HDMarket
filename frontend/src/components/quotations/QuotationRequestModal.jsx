@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, FileText, MapPin, Minus, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { AdjustmentsHorizontalIcon, CalendarDaysIcon, DocumentTextIcon, MapPinIcon, MinusIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import { createIdempotencyKey } from '../../utils/idempotency';
 import { formatPriceWithStoredSettings } from '../../utils/priceFormatter';
@@ -162,13 +162,13 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
                   </div>
                   {grouped && items.length > 1 ? (
                     <button type="button" aria-label={`Retirer ${item.title}`} onClick={() => removeItem(index)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#e2dcd2] bg-white text-[#79716a] transition hover:border-red-200 hover:text-red-600 dark:border-neutral-700 dark:bg-neutral-950">
-                      <X className="h-4 w-4" />
+                      <XMarkIcon className="h-4 w-4" />
                     </button>
                   ) : null}
                 </div>
                 {item.attributes.length ? (
                   <div className="mt-3 space-y-3 rounded-2xl border border-[#e8e1d7] bg-white p-3 dark:border-neutral-700 dark:bg-neutral-950">
-                    <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-[#6b6459]"><SlidersHorizontal className="h-3.5 w-3.5 text-[#e85d00]" />Options du produit</p>
+                    <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-[#6b6459]"><AdjustmentsHorizontalIcon className="h-3.5 w-3.5 text-[#e85d00]" />Options du produit</p>
                     {item.attributes.map((attribute) => {
                       const selectedValue = item.selectedAttributes.find((entry) => entry.name.toLowerCase() === attribute.name.toLowerCase())?.value || '';
                       return <label key={`${item.productId}-${attribute.key || attribute.name}`} className="block text-[11px] font-bold text-[#6b6459]">
@@ -193,9 +193,9 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
                   <div>
                     <label className="mb-1 block text-[11px] font-bold text-[#6b6459]">Quantité</label>
                     <div className="flex h-11 items-center rounded-xl border border-[#e2dcd2] bg-white dark:border-neutral-700 dark:bg-neutral-950">
-                      <button type="button" className="grid h-11 w-9 place-items-center" onClick={() => updateItem(index, { quantity: Math.max(1, item.quantity - 1) })}><Minus className="h-4 w-4" /></button>
+                      <button type="button" className="grid h-11 w-9 place-items-center" onClick={() => updateItem(index, { quantity: Math.max(1, item.quantity - 1) })}><MinusIcon className="h-4 w-4" /></button>
                       <input aria-label={`Quantité ${item.title}`} type="number" min="1" max="9999" value={item.quantity} onChange={(event) => updateItem(index, { quantity: event.target.value })} className="h-10 w-12 border-0 bg-transparent p-0 text-center text-sm font-black outline-none" />
-                      <button type="button" className="grid h-11 w-9 place-items-center" onClick={() => updateItem(index, { quantity: Math.min(9999, Number(item.quantity || 1) + 1) })}><Plus className="h-4 w-4" /></button>
+                      <button type="button" className="grid h-11 w-9 place-items-center" onClick={() => updateItem(index, { quantity: Math.min(9999, Number(item.quantity || 1) + 1) })}><PlusIcon className="h-4 w-4" /></button>
                     </div>
                   </div>
                   <label className="block min-w-0 text-[11px] font-bold text-[#6b6459]">
@@ -225,7 +225,7 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
                         <span className="block truncate text-xs font-black text-[#231f1b] dark:text-white">{source?.title || 'Produit'}</span>
                         <span className="mt-0.5 block text-[11px] font-bold text-[#8a8378]">{formatPriceWithStoredSettings(source?.price || 0)}</span>
                       </span>
-                      <span className="inline-flex min-h-9 items-center gap-1 rounded-xl bg-white px-3 text-[11px] font-black text-[#e85d00] shadow-sm dark:bg-neutral-800"><Plus className="h-3.5 w-3.5" />Ajouter</span>
+                      <span className="inline-flex min-h-9 items-center gap-1 rounded-xl bg-white px-3 text-[11px] font-black text-[#e85d00] shadow-sm dark:bg-neutral-800"><PlusIcon className="h-3.5 w-3.5" />Ajouter</span>
                     </button>
                   );
                 })}
@@ -233,9 +233,9 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
             </section>
           ) : null}
 
-          <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><MapPin className="mr-1 inline h-4 w-4" />Ville de livraison<input value={deliveryCity} onChange={(event) => setDeliveryCity(event.target.value)} className={`${fieldClass} mt-1.5`} maxLength={120} required /></label>
-          <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><CalendarDays className="mr-1 inline h-4 w-4" />Date souhaitée <span className="font-medium text-[#a8a29e]">(optionnel)</span><input type="date" min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)} value={expectedDeliveryDate} onChange={(event) => setExpectedDeliveryDate(event.target.value)} className={`${fieldClass} mt-1.5`} /></label>
-          <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><FileText className="mr-1 inline h-4 w-4" />Message<textarea value={message} onChange={(event) => setMessage(event.target.value)} className={`${fieldClass} mt-1.5 min-h-28 py-3`} maxLength={2000} /></label>
+          <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><MapPinIcon className="mr-1 inline h-4 w-4" />Ville de livraison<input value={deliveryCity} onChange={(event) => setDeliveryCity(event.target.value)} className={`${fieldClass} mt-1.5`} maxLength={120} required /></label>
+          <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><CalendarDaysIcon className="mr-1 inline h-4 w-4" />Date souhaitée <span className="font-medium text-[#a8a29e]">(optionnel)</span><input type="date" min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)} value={expectedDeliveryDate} onChange={(event) => setExpectedDeliveryDate(event.target.value)} className={`${fieldClass} mt-1.5`} /></label>
+          <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><DocumentTextIcon className="mr-1 inline h-4 w-4" />Message<textarea value={message} onChange={(event) => setMessage(event.target.value)} className={`${fieldClass} mt-1.5 min-h-28 py-3`} maxLength={2000} /></label>
           {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
           <button type="submit" disabled={submitting || !items.length} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-60">{submitting ? 'Envoi…' : grouped || items.length > 1 ? 'Demander le devis groupé' : 'Envoyer la demande'}</button>
         </form>

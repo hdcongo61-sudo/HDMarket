@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PlusCircle, Save, Trash2, RotateCcw, ArrowRightLeft } from 'lucide-react';
+import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, CheckIcon, PlusCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const initialCreateState = {
   name: '',
@@ -134,7 +134,7 @@ export default function CategoryEditor({
           onClick={handleCreateRoot}
           className="mt-2 inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-500"
         >
-          <PlusCircle size={16} /> Ajouter
+          <PlusCircleIcon className="h-4 w-4" /> Ajouter
         </button>
       </div>
 
@@ -216,7 +216,7 @@ export default function CategoryEditor({
                   onClick={handleCreateChild}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-500"
                 >
-                  <PlusCircle size={16} /> Ajouter
+                  <PlusCircleIcon className="h-4 w-4" /> Ajouter
                 </button>
               </div>
             </div>
@@ -229,7 +229,7 @@ export default function CategoryEditor({
               disabled={saving}
               className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
             >
-              <Save size={16} /> Enregistrer
+              <CheckIcon className="h-4 w-4" /> Enregistrer
             </button>
             {!isDeleted ? (
               <button
@@ -238,7 +238,7 @@ export default function CategoryEditor({
                 disabled={saving}
                 className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-900/30"
               >
-                <Trash2 size={16} /> Soft delete
+                <TrashIcon className="h-4 w-4" /> Soft delete
               </button>
             ) : (
               <button
@@ -247,7 +247,7 @@ export default function CategoryEditor({
                 disabled={saving}
                 className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
               >
-                <RotateCcw size={16} /> Restaurer
+                <ArrowUturnLeftIcon className="h-4 w-4" /> Restaurer
               </button>
             )}
             <button
@@ -256,7 +256,7 @@ export default function CategoryEditor({
               disabled={saving}
               className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
-              <ArrowRightLeft size={16} /> Réassigner produits
+              <ArrowsRightLeftIcon className="h-4 w-4" /> Réassigner produits
             </button>
           </div>
 

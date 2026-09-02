@@ -1,28 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  FileText,
-  Download,
-  Calendar,
-  Users,
-  Package,
-  DollarSign,
-  Truck,
-  MessageSquare,
-  Sparkles,
-  ShieldAlert,
-  Store,
-  TrendingUp,
-  RefreshCw,
-  CheckSquare,
-  Square,
-  Save,
-  Trash2,
-  CopyPlus,
-  Zap,
-  Award,
-  ShieldCheck,
-  Percent
-} from 'lucide-react';
+import { ArrowDownTrayIcon, ArrowPathIcon, ArrowTrendingUpIcon, BoltIcon, BuildingStorefrontIcon, CalendarIcon, ChatBubbleLeftRightIcon, CheckIcon, CubeIcon, CurrencyDollarIcon, DocumentDuplicateIcon, DocumentTextIcon, ReceiptPercentIcon, ShieldCheckIcon, ShieldExclamationIcon, SparklesIcon, Square2StackIcon, StopIcon, TrashIcon, TrophyIcon, TruckIcon, UsersIcon } from '@heroicons/react/24/outline';
 import {
   ResponsiveContainer,
   BarChart,
@@ -47,25 +24,25 @@ const PERIOD_OPTIONS = [
 ];
 
 const SECTION_CONFIG = [
-  { id: 'users', label: 'Utilisateurs', icon: Users, description: 'Profils, villes et vérifications' },
-  { id: 'orders', label: 'Commandes', icon: TrendingUp, description: 'Volumes, statuts et valeurs' },
-  { id: 'products', label: 'Produits', icon: Package, description: 'Annonces, catégories et paiements' },
-  { id: 'payments', label: 'Paiements', icon: DollarSign, description: 'Montants, opérateurs et vérification' },
-  { id: 'delivery', label: 'Livraisons', icon: Truck, description: 'Demandes, agents et performance' },
-  { id: 'messaging', label: 'Messages', icon: MessageSquare, description: 'Messages commande et non lus' },
-  { id: 'boosts', label: 'Boosts', icon: Sparkles, description: 'Demandes, revenus et statuts' },
-  { id: 'shopConversions', label: 'Conversions boutique', icon: Store, description: 'Demandes de conversion' },
-  { id: 'feedback', label: "Avis d'amélioration", icon: MessageSquare, description: 'Feedback utilisateur' },
-  { id: 'complaints', label: 'Réclamations', icon: ShieldAlert, description: 'Litiges et suivi' },
-  { id: 'moderation', label: 'Modération & sécurité', icon: ShieldAlert, description: 'Signals, blacklist, actions admin' },
-  { id: 'shops', label: 'Boutiques', icon: Store, description: 'Vérifications et top boutiques' },
-  { id: 'metrics', label: 'Métriques clés', icon: TrendingUp, description: 'Taux globaux de performance' },
-  { id: 'growth', label: 'Croissance', icon: TrendingUp, description: 'Evolution période vs précédente' },
-  { id: 'content', label: 'Contenu', icon: FileText, description: 'Qualité des annonces et prix moyens' },
-  { id: 'flashSales', label: 'Ventes Flash', icon: Zap, description: 'Performance des ventes flash' },
-  { id: 'sellerReputation', label: 'Réputation Vendeurs', icon: Award, description: 'Niveaux, notes et classements' },
-  { id: 'shopAssistant', label: 'Assistants Boutique', icon: ShieldCheck, description: 'Délégations et activité' },
-  { id: 'promoCodes', label: 'Codes Promo', icon: Percent, description: 'Utilisation et performance des codes promo' }
+  { id: 'users', label: 'Utilisateurs', icon: UsersIcon, description: 'Profils, villes et vérifications' },
+  { id: 'orders', label: 'Commandes', icon: ArrowTrendingUpIcon, description: 'Volumes, statuts et valeurs' },
+  { id: 'products', label: 'Produits', icon: CubeIcon, description: 'Annonces, catégories et paiements' },
+  { id: 'payments', label: 'Paiements', icon: CurrencyDollarIcon, description: 'Montants, opérateurs et vérification' },
+  { id: 'delivery', label: 'Livraisons', icon: TruckIcon, description: 'Demandes, agents et performance' },
+  { id: 'messaging', label: 'Messages', icon: ChatBubbleLeftRightIcon, description: 'Messages commande et non lus' },
+  { id: 'boosts', label: 'Boosts', icon: SparklesIcon, description: 'Demandes, revenus et statuts' },
+  { id: 'shopConversions', label: 'Conversions boutique', icon: BuildingStorefrontIcon, description: 'Demandes de conversion' },
+  { id: 'feedback', label: "Avis d'amélioration", icon: ChatBubbleLeftRightIcon, description: 'Feedback utilisateur' },
+  { id: 'complaints', label: 'Réclamations', icon: ShieldExclamationIcon, description: 'Litiges et suivi' },
+  { id: 'moderation', label: 'Modération & sécurité', icon: ShieldExclamationIcon, description: 'Signals, blacklist, actions admin' },
+  { id: 'shops', label: 'Boutiques', icon: BuildingStorefrontIcon, description: 'Vérifications et top boutiques' },
+  { id: 'metrics', label: 'Métriques clés', icon: ArrowTrendingUpIcon, description: 'Taux globaux de performance' },
+  { id: 'growth', label: 'Croissance', icon: ArrowTrendingUpIcon, description: 'Evolution période vs précédente' },
+  { id: 'content', label: 'Contenu', icon: DocumentTextIcon, description: 'Qualité des annonces et prix moyens' },
+  { id: 'flashSales', label: 'Ventes Flash', icon: BoltIcon, description: 'Performance des ventes flash' },
+  { id: 'sellerReputation', label: 'Réputation Vendeurs', icon: TrophyIcon, description: 'Niveaux, notes et classements' },
+  { id: 'shopAssistant', label: 'Assistants Boutique', icon: ShieldCheckIcon, description: 'Délégations et activité' },
+  { id: 'promoCodes', label: 'Codes Promo', icon: ReceiptPercentIcon, description: 'Utilisation et performance des codes promo' }
 ];
 
 const CORE_SECTION_IDS = ['users', 'orders', 'products', 'payments', 'delivery', 'metrics'];
@@ -196,7 +173,7 @@ const getSectionChartConfig = (report, id) => {
     case 'growth':
       return makeLine(
         [
-          ['Users', report.growth?.monthlyGrowthRate?.users || 0],
+          ['UsersIcon', report.growth?.monthlyGrowthRate?.users || 0],
           ['Products', report.growth?.monthlyGrowthRate?.products || 0],
           ['Orders', report.growth?.monthlyGrowthRate?.orders || 0],
           ['Payments', report.growth?.monthlyGrowthRate?.payments || 0]
@@ -663,25 +640,25 @@ export default function AdminReports() {
     if (!report) return [];
     const cards = [];
     if (selectedSections.users && report.users) {
-      cards.push({ title: 'Utilisateurs', value: formatNumber(report.users.total), sub: `+${formatNumber(report.users.new)}`, icon: Users });
+      cards.push({ title: 'Utilisateurs', value: formatNumber(report.users.total), sub: `+${formatNumber(report.users.new)}`, icon: UsersIcon });
     }
     if (selectedSections.orders && report.orders) {
-      cards.push({ title: 'Commandes', value: formatNumber(report.orders.total), sub: `+${formatNumber(report.orders.new)}`, icon: TrendingUp });
+      cards.push({ title: 'Commandes', value: formatNumber(report.orders.total), sub: `+${formatNumber(report.orders.new)}`, icon: ArrowTrendingUpIcon });
     }
     if (selectedSections.payments && report.payments) {
-      cards.push({ title: 'Paiements', value: formatCurrency(report.payments.totalValue), sub: `${formatPercent(report.payments.verificationRate)} vérifiés`, icon: DollarSign });
+      cards.push({ title: 'Paiements', value: formatCurrency(report.payments.totalValue), sub: `${formatPercent(report.payments.verificationRate)} vérifiés`, icon: CurrencyDollarIcon });
     }
     if (selectedSections.delivery && report.delivery) {
-      cards.push({ title: 'Livraisons', value: formatNumber(report.delivery.totalRequests), sub: `${formatNumber(report.delivery.deliveredRequests)} livrées`, icon: Truck });
+      cards.push({ title: 'Livraisons', value: formatNumber(report.delivery.totalRequests), sub: `${formatNumber(report.delivery.deliveredRequests)} livrées`, icon: TruckIcon });
     }
     if (selectedSections.boosts && report.boosts) {
-      cards.push({ title: 'Boosts', value: formatCurrency(report.boosts.totalRevenue), sub: `${formatNumber(report.boosts.totalRequests)} demandes`, icon: Sparkles });
+      cards.push({ title: 'Boosts', value: formatCurrency(report.boosts.totalRevenue), sub: `${formatNumber(report.boosts.totalRequests)} demandes`, icon: SparklesIcon });
     }
     if (selectedSections.messaging && report.messaging) {
-      cards.push({ title: 'Messages', value: formatNumber(report.messaging.totalMessages), sub: `${formatNumber(report.messaging.unreadMessages)} non lus`, icon: MessageSquare });
+      cards.push({ title: 'Messages', value: formatNumber(report.messaging.totalMessages), sub: `${formatNumber(report.messaging.unreadMessages)} non lus`, icon: ChatBubbleLeftRightIcon });
     }
     if (selectedSections.flashSales && report.flashSales) {
-      cards.push({ title: 'Flash Sales', value: formatNumber(report.flashSales.active), sub: `${formatNumber(report.flashSales.total)} totales`, icon: Zap });
+      cards.push({ title: 'Flash Sales', value: formatNumber(report.flashSales.active), sub: `${formatNumber(report.flashSales.total)} totales`, icon: BoltIcon });
     }
     return cards.slice(0, 8);
   }, [report, selectedSections]);
@@ -803,7 +780,7 @@ export default function AdminReports() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
-                <FileText className="w-3.5 h-3.5" />
+                <DocumentTextIcon className="w-3.5 h-3.5" />
                 Report Builder
               </div>
               <h1 className="mt-3 text-2xl md:text-3xl font-black text-gray-900">Rapports Administratifs</h1>
@@ -902,7 +879,7 @@ export default function AdminReports() {
                 onClick={saveTemplateAsNew}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
               >
-                <CopyPlus className="w-3.5 h-3.5" />
+                <DocumentDuplicateIcon className="w-3.5 h-3.5" />
                 Sauvegarder nouveau
               </button>
               <button
@@ -911,7 +888,7 @@ export default function AdminReports() {
                 disabled={!selectedTemplateId}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
               >
-                <Save className="w-3.5 h-3.5" />
+                <CheckIcon className="w-3.5 h-3.5" />
                 Mettre à jour
               </button>
               <button
@@ -920,7 +897,7 @@ export default function AdminReports() {
                 disabled={!selectedTemplateId}
                 className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <TrashIcon className="w-3.5 h-3.5" />
                 Supprimer
               </button>
             </div>
@@ -962,7 +939,7 @@ export default function AdminReports() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      {selected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                      {selected ? <Square2StackIcon className="w-4 h-4" /> : <StopIcon className="w-4 h-4" />}
                       <Icon className="w-4 h-4" />
                       <span className="text-sm font-semibold">{section.label}</span>
                     </div>
@@ -986,7 +963,7 @@ export default function AdminReports() {
               disabled={loading}
               className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
             >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+              {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CalendarIcon className="w-4 h-4" />}
               {loading ? 'Génération...' : 'Générer le rapport'}
             </button>
             <button
@@ -995,7 +972,7 @@ export default function AdminReports() {
               disabled={!report || activeSections.length === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
+              <ArrowDownTrayIcon className="w-4 h-4" />
               Export PDF
             </button>
             <button
@@ -1004,7 +981,7 @@ export default function AdminReports() {
               disabled={!report || activeSections.length === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
+              <ArrowDownTrayIcon className="w-4 h-4" />
               Export Excel
             </button>
           </div>

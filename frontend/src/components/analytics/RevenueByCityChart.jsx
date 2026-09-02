@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPinIcon } from '@heroicons/react/24/outline';
 
 export default function RevenueByCityChart({ data = [], formatCurrency, formatNumber }) {
   const maxRevenue = Math.max(1, ...data.map((item) => Number(item?.revenue || 0)));
@@ -7,7 +7,7 @@ export default function RevenueByCityChart({ data = [], formatCurrency, formatNu
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <MapPin className="h-4 w-4 text-neutral-600" />
+        <MapPinIcon className="h-4 w-4 text-neutral-600" />
         <h3 className="text-sm font-semibold text-gray-900">Revenu par ville</h3>
       </div>
       {!data.length ? (

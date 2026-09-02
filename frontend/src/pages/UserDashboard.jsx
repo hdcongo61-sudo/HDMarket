@@ -1,47 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import {
-  Package,
-  Plus,
-  Edit,
-  Eye,
-  Power,
-  PowerOff,
-  Clock,
-  CheckCircle,
-  X,
-  AlertCircle,
-  TrendingUp,
-  Image as ImageIcon,
-  Calendar,
-  ArrowLeft,
-  ArrowRight,
-  Filter,
-  RefreshCw,
-  CheckSquare,
-  Square,
-  Trash2,
-  Download,
-  FileText,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  Save,
-  XCircle,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  BarChart3,
-  Grid3x3,
-  List,
-  Zap,
-  Sparkles,
-  AlertTriangle,
-  CalendarClock,
-  ShieldCheck,
-  Share2,
-} from 'lucide-react';
+import { ArrowDownIcon, ArrowDownTrayIcon, ArrowLeftIcon, ArrowPathIcon, ArrowRightIcon, ArrowTrendingUpIcon, ArrowUpIcon, ArrowsUpDownIcon, BoltIcon, CalendarDaysIcon, CalendarIcon, ChartBarIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, CubeIcon, DocumentTextIcon, ExclamationCircleIcon, ExclamationTriangleIcon, EyeIcon, FunnelIcon, ListBulletIcon, MagnifyingGlassIcon, PencilIcon, PhotoIcon, PlusIcon, PowerIcon, ShareIcon, ShieldCheckIcon, SparklesIcon, Square2StackIcon, Squares2X2Icon, StopIcon, TrashIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
@@ -79,10 +39,10 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
-  pending: Clock,
-  approved: CheckCircle,
-  rejected: X,
-  disabled: PowerOff
+  pending: ClockIcon,
+  approved: CheckCircleIcon,
+  rejected: XMarkIcon,
+  disabled: PowerIcon
 };
 
 const STATUS_MESSAGES = {
@@ -272,7 +232,7 @@ export default function UserDashboard() {
     }
   };
 
-  // Save current filter state
+  // CheckIcon current filter state
   const saveCurrentFilter = async () => {
     if (!filterName.trim()) {
       showToast('Veuillez entrer un nom pour ce filtre', { variant: 'error' });
@@ -475,11 +435,11 @@ export default function UserDashboard() {
       .map((p) => p._id || p.id);
   }, [items]);
 
-  // Filter items by all criteria
+  // FunnelIcon items by all criteria
   const filteredItems = useMemo(() => {
     let filtered = [...items];
 
-    // Search by title and description
+    // MagnifyingGlassIcon by title and description
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -489,12 +449,12 @@ export default function UserDashboard() {
       );
     }
 
-    // Filter by categories
+    // FunnelIcon by categories
     if (selectedCategories.length > 0) {
       filtered = filtered.filter((p) => selectedCategories.includes(p.category));
     }
 
-    // Filter by price range
+    // FunnelIcon by price range
     if (priceMin) {
       const min = Number(priceMin);
       if (!isNaN(min)) {
@@ -508,7 +468,7 @@ export default function UserDashboard() {
       }
     }
 
-    // Filter by date range
+    // FunnelIcon by date range
     if (dateFrom) {
       const fromDate = new Date(dateFrom);
       if (!isNaN(fromDate.getTime())) {
@@ -529,21 +489,21 @@ export default function UserDashboard() {
       }
     }
 
-    // Filter by status (multiple statuses or single status filter)
+    // FunnelIcon by status (multiple statuses or single status filter)
     if (selectedStatuses.length > 0) {
       filtered = filtered.filter((p) => selectedStatuses.includes(p.status));
     } else if (statusFilter !== 'all' && statusFilter !== 'custom') {
       filtered = filtered.filter((p) => p.status === statusFilter);
     }
 
-    // Filter by boosted status
+    // FunnelIcon by boosted status
     if (boostedFilter === 'boosted') {
       filtered = filtered.filter((p) => p.boosted === true);
     } else if (boostedFilter === 'non-boosted') {
       filtered = filtered.filter((p) => p.boosted !== true);
     }
 
-    // Filter by installment availability
+    // FunnelIcon by installment availability
     if (installmentFilter === 'enabled') {
       filtered = filtered.filter((p) => p.installmentEnabled === true);
     } else if (installmentFilter === 'disabled') {
@@ -962,18 +922,18 @@ export default function UserDashboard() {
             <button type="button" onClick={load} disabled={loading}
               className="flex h-11 w-11 items-center justify-center rounded-full border border-[#e2dcd2] bg-white text-[#6b6459] active:scale-95 transition-transform disabled:opacity-50 dark:bg-neutral-800 dark:text-neutral-300"
               aria-label="Actualiser">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             {sellingEnabled ? (
               <button type="button"
                 onClick={() => { setEditingProduct(null); setProductModalOpen(true); }}
                 className="flex min-h-11 items-center gap-1.5 rounded-full bg-black pl-3 pr-4 text-sm font-black text-white active:scale-95 transition-transform">
-                <Plus className="w-4 h-4" />
+                <PlusIcon className="w-4 h-4" />
                 Publier
               </button>
             ) : (
               <span className="flex items-center gap-1 px-3 py-2 rounded-full bg-gray-100 text-gray-400 text-xs font-semibold">
-                <AlertTriangle className="w-3.5 h-3.5" /> Désactivé
+                <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Désactivé
               </span>
             )}
           </div>
@@ -989,7 +949,7 @@ export default function UserDashboard() {
                 key: 'all',
                 label: 'Total',
                 value: stats.total,
-                icon: Package,
+                icon: CubeIcon,
                 iconClass: 'bg-[#f5f2ee] text-[#6b6459]',
                 activeClass: 'border-[#231f1b] ring-[#231f1b]/5'
               },
@@ -997,7 +957,7 @@ export default function UserDashboard() {
                 key: 'approved',
                 label: 'En ligne',
                 value: stats.approved,
-                icon: CheckCircle,
+                icon: CheckCircleIcon,
                 iconClass: 'bg-emerald-50 text-emerald-600',
                 activeClass: 'border-emerald-400 ring-emerald-500/5'
               },
@@ -1005,7 +965,7 @@ export default function UserDashboard() {
                 key: 'pending',
                 label: 'À traiter',
                 value: Number(stats.pending || 0) + Number(stats.rejected || 0),
-                icon: AlertCircle,
+                icon: ExclamationCircleIcon,
                 iconClass: 'bg-orange-50 text-[#e85d00]',
                 activeClass: 'border-[#e85d00] ring-orange-500/5'
               }
@@ -1048,7 +1008,7 @@ export default function UserDashboard() {
           {pendingDraft ? (
             <div className="flex items-center gap-3 rounded-2xl border border-[#f0c7aa] bg-[#fff8f2] px-3.5 py-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#e85d00] ring-1 ring-[#f0c7aa]">
-                <FileText className="h-5 w-5" />
+                <DocumentTextIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-black text-[#231f1b]">Annonce en brouillon</p>
@@ -1070,14 +1030,14 @@ export default function UserDashboard() {
                 aria-label="Ignorer le brouillon"
                 className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8a7263] active:bg-[#f5e8dc]"
               >
-                <X className="h-4 w-4" />
+                <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
           ) : null}
           {!loading && stats.pending > 0 ? (
             <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-600 ring-1 ring-amber-200">
-                <Clock className="h-5 w-5" />
+                <ClockIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-black text-[#231f1b]">
@@ -1108,7 +1068,7 @@ export default function UserDashboard() {
             <div className="relative flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3.5">
                 <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#fff0e4] to-[#ffe1cb] text-[#e85d00] ring-1 ring-orange-100 sm:h-14 sm:w-14">
-                  <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <ShieldCheckIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e85d00]">Espace collaboratif</p>
@@ -1123,7 +1083,7 @@ export default function UserDashboard() {
               <Link to="/seller/assistant/workspace"
                 className="group inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-full bg-[#231f1b] px-4 text-xs font-black text-white shadow-sm transition hover:bg-[#e85d00] active:scale-95 sm:px-5 sm:text-sm">
                 {assistantAssignment ? 'Ouvrir' : 'Voir'}
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
           </div>
@@ -1134,7 +1094,7 @@ export default function UserDashboard() {
             <div className="relative flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3.5">
                 <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#fff0e4] to-[#ffe1cb] text-[#e85d00] ring-1 ring-orange-100 sm:h-14 sm:w-14">
-                  <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <ShieldCheckIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e85d00]">Équipe boutique</p>
@@ -1145,7 +1105,7 @@ export default function UserDashboard() {
               <Link to="/seller/assistant"
                 className="group inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-full bg-[#e85d00] px-4 text-xs font-black text-white shadow-[0_5px_15px_rgba(232,93,0,0.22)] transition hover:bg-[#c94f00] active:scale-95 sm:px-5 sm:text-sm">
                 Gérer
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
           </div>
@@ -1154,10 +1114,10 @@ export default function UserDashboard() {
         {/* ── TAOBAO SEARCH + FILTER BAR ── */}
         {!loading && items.length > 0 && (
           <div className="rounded-2xl border border-[#e2dcd2] bg-white shadow-sm">
-            {/* Search input */}
+            {/* MagnifyingGlassIcon input */}
             <div className="px-4 pt-3 pb-2">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="text" value={searchDraft}
                   onChange={(e) => setSearchDraft(e.target.value)}
                   placeholder="Rechercher par titre ou description..."
@@ -1166,12 +1126,12 @@ export default function UserDashboard() {
                   <button type="button"
                     onClick={() => { setSearchDraft(''); setSearchQuery(''); }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 active:scale-90">
-                    <XCircle className="w-4 h-4" />
+                    <XCircleIcon className="w-4 h-4" />
                   </button>
                 )}
               </div>
             </div>
-            {/* Sort + Filter toggle row */}
+            {/* Sort + FunnelIcon toggle row */}
             <div className="flex items-center justify-between px-4 pb-3 gap-3">
               <button type="button"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -1180,12 +1140,12 @@ export default function UserDashboard() {
                     ? 'border-[#e85d00] bg-[#fff0e4] text-[#e85d00]'
                     : 'border-[#e2dcd2] bg-white text-[#6b6459]'
                 }`}>
-                <Filter className="w-3.5 h-3.5" />
+                <FunnelIcon className="w-3.5 h-3.5" />
                 Filtres
                 {(selectedCategories.length > 0 || priceMin || priceMax || dateFrom || dateTo || selectedStatuses.length > 0 || boostedFilter !== 'all' || installmentFilter !== 'all') && (
                   <span className="ml-1 w-4 h-4 rounded-full bg-[#e85d00] text-white text-[9px] flex items-center justify-center font-black">!</span>
                 )}
-                {showAdvancedFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {showAdvancedFilters ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
               </button>
               <div className="flex items-center gap-1.5">
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
@@ -1200,11 +1160,11 @@ export default function UserDashboard() {
                 <div className="flex min-h-11 items-center rounded-full bg-[#f5f2ee] p-1">
                   <button type="button" onClick={() => setViewMode('list')}
                     className={`p-1.5 rounded-full transition-all ${viewMode === 'list' ? 'bg-white text-[#e85d00] shadow-sm' : 'text-gray-400'}`}>
-                    <List className="w-3.5 h-3.5" />
+                    <ListBulletIcon className="w-3.5 h-3.5" />
                   </button>
                   <button type="button" onClick={() => setViewMode('grid')}
                     className={`p-1.5 rounded-full transition-all ${viewMode === 'grid' ? 'bg-white text-[#e85d00] shadow-sm' : 'text-gray-400'}`}>
-                    <Grid3x3 className="w-3.5 h-3.5" />
+                    <Squares2X2Icon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1217,7 +1177,7 @@ export default function UserDashboard() {
                 {(searchQuery || selectedCategories.length > 0 || priceMin || priceMax || dateFrom || dateTo || selectedStatuses.length > 0 || boostedFilter !== 'all' || installmentFilter !== 'all') && (
                   <button type="button" onClick={clearAllFilters}
                     className="flex items-center gap-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full">
-                    <XCircle className="w-3.5 h-3.5" /> Réinitialiser les filtres
+                    <XCircleIcon className="w-3.5 h-3.5" /> Réinitialiser les filtres
                   </button>
                 )}
                 {/* Categories */}
@@ -1271,14 +1231,14 @@ export default function UserDashboard() {
                     ))}
                   </div>
                 </div>
-                {/* Save filter */}
+                {/* CheckIcon filter */}
                 <div className="flex gap-2 pt-1 border-t border-gray-100">
                   <input type="text" value={filterName} onChange={(e) => setFilterName(e.target.value)}
                     placeholder="Nom du filtre à sauvegarder..."
                     className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#e85d00]" />
                   <button type="button" onClick={saveCurrentFilter}
                     className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs font-semibold">
-                    <Save className="w-3 h-3" /> Sauver
+                    <CheckIcon className="w-3 h-3" /> Sauver
                   </button>
                 </div>
                 {savedFilters.length > 0 && (
@@ -1288,7 +1248,7 @@ export default function UserDashboard() {
                         <button type="button" onClick={() => loadSavedFilter(filter)}
                           className="text-[11px] font-semibold text-gray-700">{filter.name}</button>
                         <button type="button" onClick={() => deleteSavedFilter(filter.id)} className="text-gray-400 active:text-red-500">
-                          <X className="w-3 h-3" />
+                          <XMarkIcon className="w-3 h-3" />
                         </button>
                       </div>
                     ))}
@@ -1328,7 +1288,7 @@ export default function UserDashboard() {
         {/* ── ERROR ── */}
         {error && (
           <div className="bg-red-50 border-l-[3px] border-red-500 px-4 py-3 flex items-center gap-3">
-            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <ExclamationCircleIcon className="w-4 h-4 text-red-600 flex-shrink-0" />
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
@@ -1337,14 +1297,14 @@ export default function UserDashboard() {
         {!loading && items.length === 0 && (
           <div className="bg-white px-8 py-16 text-center">
             <div className="mx-auto w-16 h-16 rounded-full bg-[#fff0e4] flex items-center justify-center mb-4">
-              <Package className="w-8 h-8 text-[#e85d00]" />
+              <CubeIcon className="w-8 h-8 text-[#e85d00]" />
             </div>
             <h3 className="text-base font-black text-gray-900 mb-1">Aucune annonce</h3>
             <p className="text-sm text-gray-500 mb-5">Publiez votre première annonce pour commencer à vendre</p>
             <button type="button"
               onClick={() => { setEditingProduct(null); setProductModalOpen(true); }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#e85d00] text-white font-bold text-sm shadow-sm active:scale-95 transition-transform">
-              <Plus className="w-4 h-4" /> Publier une annonce
+              <PlusIcon className="w-4 h-4" /> Publier une annonce
             </button>
           </div>
         )}
@@ -1352,7 +1312,7 @@ export default function UserDashboard() {
         {/* ── EMPTY FILTERED ── */}
         {!loading && items.length > 0 && visibleItems.length === 0 && (
           <div className="bg-white px-8 py-10 text-center">
-            <Filter className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+            <FunnelIcon className="w-8 h-8 text-gray-300 mx-auto mb-3" />
             <p className="text-sm font-semibold text-gray-600 mb-3">Aucune annonce pour ces filtres</p>
             <button type="button" onClick={clearAllFilters}
               className="text-sm font-bold text-[#e85d00] underline-offset-2 hover:underline">
@@ -1379,27 +1339,27 @@ export default function UserDashboard() {
             <div className="flex items-center gap-1.5 flex-wrap">
               <button type="button" onClick={handleBulkEnable} disabled={bulkActionLoading}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-emerald-500 text-white text-xs font-semibold disabled:opacity-50">
-                <Power className="w-3 h-3" /> On
+                <PowerIcon className="w-3 h-3" /> On
               </button>
               <button type="button" onClick={handleBulkDisable} disabled={bulkActionLoading}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-500 text-white text-xs font-semibold disabled:opacity-50">
-                <PowerOff className="w-3 h-3" /> Off
+                <PowerIcon className="w-3 h-3" /> Off
               </button>
               <button type="button" onClick={handleBulkDelete} disabled={bulkActionLoading}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-red-500 text-white text-xs font-semibold disabled:opacity-50">
-                <Trash2 className="w-3 h-3" /> Suppr.
+                <TrashIcon className="w-3 h-3" /> Suppr.
               </button>
               <button type="button" onClick={handleExportCSV} disabled={bulkActionLoading}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold disabled:opacity-50">
-                <Download className="w-3 h-3" /> CSV
+                <ArrowDownTrayIcon className="w-3 h-3" /> CSV
               </button>
               <button type="button" onClick={handleExportPDF} disabled={bulkActionLoading}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold disabled:opacity-50">
-                <FileText className="w-3 h-3" /> PDF
+                <DocumentTextIcon className="w-3 h-3" /> PDF
               </button>
               <button type="button" onClick={clearSelection}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold">
-                <X className="w-3 h-3" /> Annuler
+                <XMarkIcon className="w-3 h-3" /> Annuler
               </button>
             </div>
           </div>
@@ -1413,9 +1373,9 @@ export default function UserDashboard() {
               <button type="button" onClick={selectAllProducts}
                 className="flex items-center gap-2 text-xs font-semibold text-gray-600 active:text-[#e85d00] transition-colors">
                 {selectedProducts.size === paginatedItems.length && paginatedItems.length > 0 ? (
-                  <CheckSquare className="w-4 h-4 text-[#e85d00]" />
+                  <Square2StackIcon className="w-4 h-4 text-[#e85d00]" />
                 ) : (
-                  <Square className="w-4 h-4 text-gray-400" />
+                  <StopIcon className="w-4 h-4 text-gray-400" />
                 )}
                 {selectedProducts.size === paginatedItems.length && paginatedItems.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner'}
               </button>
@@ -1427,7 +1387,7 @@ export default function UserDashboard() {
 
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'space-y-3'}>
               {paginatedItems.map((product) => {
-                const StatusIcon = STATUS_ICONS[product.status] || Clock;
+                const StatusIcon = STATUS_ICONS[product.status] || ClockIcon;
                 const statusStyle = STATUS_STYLES[product.status] || STATUS_STYLES.pending;
                 const mainImage = Array.isArray(product.images) && product.images.length > 0
                   ? product.images[0]
@@ -1467,8 +1427,8 @@ export default function UserDashboard() {
                           className="mt-0.5 flex-shrink-0 active:scale-90 transition-transform"
                           aria-label={isSelected ? 'Désélectionner' : 'Sélectionner'}>
                           {isSelected
-                            ? <CheckSquare className="w-4.5 h-4.5 text-[#e85d00]" />
-                            : <Square className="w-4 h-4 text-gray-300" />}
+                            ? <Square2StackIcon className="w-4.5 h-4.5 text-[#e85d00]" />
+                            : <StopIcon className="w-4 h-4 text-gray-300" />}
                         </button>
 
                         {/* Thumbnail */}
@@ -1480,7 +1440,7 @@ export default function UserDashboard() {
                               className="w-full h-full object-cover cursor-zoom-in" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <ImageIcon className="w-8 h-8 text-gray-300" />
+                              <PhotoIcon className="w-8 h-8 text-gray-300" />
                             </div>
                           )}
                           {/* Photo count */}
@@ -1507,7 +1467,7 @@ export default function UserDashboard() {
                             </span>
                             {isTopPerformer && (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-yellow-50 text-yellow-700">
-                                <TrendingUp className="w-2.5 h-2.5" /> Top
+                                <ArrowTrendingUpIcon className="w-2.5 h-2.5" /> Top
                               </span>
                             )}
                             {isRecentlyCreated && (
@@ -1540,7 +1500,7 @@ export default function UserDashboard() {
                           {/* Installment expired warning */}
                           {isInstallmentExpired && (
                             <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-orange-600 bg-gray-100 rounded px-2 py-1">
-                              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                              <ExclamationTriangleIcon className="w-3 h-3 flex-shrink-0" />
                               <span className="font-semibold">Tranche expirée · {formatDate(product.installmentEndDate)}</span>
                               <button type="button"
                                 onClick={() => { setEditingProduct(product); setProductModalOpen(true); }}
@@ -1556,23 +1516,23 @@ export default function UserDashboard() {
                       <div className="flex gap-2 border-t border-[#eee8e0] px-3 py-3">
                         <Link to={`/seller/products/${product.slug || productId}`}
                           className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full bg-black px-4 text-xs font-black text-white transition-colors">
-                          <FileText className="w-3.5 h-3.5" /> Détail
+                          <DocumentTextIcon className="w-3.5 h-3.5" /> Détail
                         </Link>
                         <button type="button"
                           onClick={() => { setEditingProduct(product); setProductModalOpen(true); }}
                           className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] active:bg-[#f5f2ee] transition-colors" aria-label="Modifier">
-                          <Edit className="w-3.5 h-3.5" />
+                          <PencilIcon className="w-3.5 h-3.5" />
                         </button>
                         <button type="button"
                           onClick={() => setAnalyticsProduct({ id: productId, title: product.title })}
                           className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] active:bg-[#f5f2ee] transition-colors" aria-label="Statistiques">
-                          <BarChart3 className="w-3.5 h-3.5" />
+                          <ChartBarIcon className="w-3.5 h-3.5" />
                         </button>
                         {socialCommerceEnabled && product.status === 'approved' && (
                           <button type="button"
                             onClick={() => setShareProduct({ id: productId, title: product.title })}
                             className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] active:bg-[#f5f2ee] transition-colors" aria-label="Partager">
-                            <Share2 className="w-3.5 h-3.5" />
+                            <ShareIcon className="w-3.5 h-3.5" />
                           </button>
                         )}
                         {product.status !== 'disabled' ? (
@@ -1580,14 +1540,14 @@ export default function UserDashboard() {
                             onClick={() => updateStatus(product.slug || product._id, 'disable')}
                             disabled={updatingId === product._id}
                             className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-red-200 text-red-600 active:bg-red-50 transition-colors disabled:opacity-40" aria-label="Désactiver">
-                            <PowerOff className="w-3.5 h-3.5" />
+                            <PowerIcon className="w-3.5 h-3.5" />
                           </button>
                         ) : (
                           <button type="button"
                             onClick={() => updateStatus(product.slug || product._id, 'enable')}
                             disabled={updatingId === product._id}
                             className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-emerald-200 text-emerald-700 active:bg-emerald-50 transition-colors disabled:opacity-40" aria-label="Activer">
-                            <Power className="w-3.5 h-3.5" />
+                            <PowerIcon className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -1621,13 +1581,13 @@ export default function UserDashboard() {
                     <div className="absolute top-3 right-3 z-20 flex flex-col gap-2">
                       {isRecentlyCreated && (
                         <div className="px-2 py-1 rounded-lg bg-sky-500 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" />
+                          <SparklesIcon className="w-3 h-3" />
                           Nouveau
                         </div>
                       )}
                       {isTopPerformer && (
                         <div className="px-2 py-1 rounded-lg bg-yellow-400 text-white text-xs font-bold shadow-sm flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" />
+                          <ArrowTrendingUpIcon className="w-3 h-3" />
                           Top
                         </div>
                       )}
@@ -1656,9 +1616,9 @@ export default function UserDashboard() {
                         aria-label={isSelected ? 'Désélectionner' : 'Sélectionner'}
                       >
                         {isSelected ? (
-                          <CheckSquare className="w-4 h-4" />
+                          <Square2StackIcon className="w-4 h-4" />
                         ) : (
-                          <Square className="w-4 h-4" />
+                          <StopIcon className="w-4 h-4" />
                         )}
                       </button>
                     </div>
@@ -1678,7 +1638,7 @@ export default function UserDashboard() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-12 h-12 text-gray-400" />
+                          <PhotoIcon className="w-12 h-12 text-gray-400" />
                         </div>
                       )}
                       {/* Status Badge */}
@@ -1692,7 +1652,7 @@ export default function UserDashboard() {
                         {/* Boosted Badge */}
                         {product.boosted && (
                           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-500 text-white shadow-sm">
-                            <Zap className="w-3.5 h-3.5" />
+                            <BoltIcon className="w-3.5 h-3.5" />
                             <span className="text-xs font-bold uppercase tracking-wide">Boosté</span>
                           </div>
                         )}
@@ -1737,7 +1697,7 @@ export default function UserDashboard() {
                       {isInstallmentExpired && (
                         <div className="rounded-xl border border-gray-200 bg-gray-100 p-3 flex flex-col gap-2">
                           <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
+                            <ExclamationTriangleIcon className="w-4 h-4 text-orange-500 shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-semibold text-orange-800">Tranche expirée</p>
                               <p className="text-xs text-orange-600">Limite : {formatDate(product.installmentEndDate)}</p>
@@ -1749,7 +1709,7 @@ export default function UserDashboard() {
                               onClick={() => { setEditingProduct(product); setProductModalOpen(true); }}
                               className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-1000 hover:bg-orange-600 text-white text-xs font-semibold transition-colors"
                             >
-                              <CalendarClock className="w-3.5 h-3.5" />
+                              <CalendarDaysIcon className="w-3.5 h-3.5" />
                               Prolonger
                             </button>
                             {product.status !== 'disabled' && (
@@ -1759,7 +1719,7 @@ export default function UserDashboard() {
                                 disabled={updatingId === product._id}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
                               >
-                                <PowerOff className="w-3.5 h-3.5" />
+                                <PowerIcon className="w-3.5 h-3.5" />
                                 Désactiver
                               </button>
                             )}
@@ -1771,19 +1731,19 @@ export default function UserDashboard() {
                       <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
                         {product.category && (
                           <div className="flex items-center gap-1">
-                            <Package className="w-3 h-3" />
+                            <CubeIcon className="w-3 h-3" />
                             <span className="capitalize">{product.category}</span>
                           </div>
                         )}
                         {product.boosted && (
                           <div className="flex items-center gap-1 text-neutral-600 dark:text-neutral-400 font-semibold">
-                            <Zap className="w-3 h-3" />
+                            <BoltIcon className="w-3 h-3" />
                             <span>Boosté</span>
                           </div>
                         )}
                         {product.createdAt && (
                           <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                            <CalendarIcon className="w-3 h-3" />
                             <span>{formatDate(product.createdAt)}</span>
                           </div>
                         )}
@@ -1795,7 +1755,7 @@ export default function UserDashboard() {
                           to={`/my/annonce/${product.slug || productId}`}
                           className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all"
                         >
-                          <FileText className="w-4 h-4" />
+                          <DocumentTextIcon className="w-4 h-4" />
                           Detail
                         </Link>
                         {product.status === 'approved' && (
@@ -1804,7 +1764,7 @@ export default function UserDashboard() {
                             {...externalLinkProps}
                             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 transition-all"
                           >
-                            <Eye className="w-4 h-4" />
+                            <EyeIcon className="w-4 h-4" />
                             Voir
                           </Link>
                         )}
@@ -1815,7 +1775,7 @@ export default function UserDashboard() {
                           }}
                           className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-sm font-semibold hover:bg-neutral-100 transition-all"
                         >
-                          <BarChart3 className="w-4 h-4" />
+                          <ChartBarIcon className="w-4 h-4" />
                           Analytics
                         </button>
                         <button
@@ -1826,7 +1786,7 @@ export default function UserDashboard() {
                           }}
                           className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all"
                         >
-                          <Edit className="w-4 h-4" />
+                          <PencilIcon className="w-4 h-4" />
                           Modifier
                         </button>
                         {product.status !== 'disabled' ? (
@@ -1836,7 +1796,7 @@ export default function UserDashboard() {
                             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-all disabled:opacity-50"
                             type="button"
                           >
-                            <PowerOff className="w-4 h-4" />
+                            <PowerIcon className="w-4 h-4" />
                             Désactiver
                           </button>
                         ) : (
@@ -1846,7 +1806,7 @@ export default function UserDashboard() {
                             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold hover:bg-emerald-100 transition-all disabled:opacity-50"
                             type="button"
                           >
-                            <Power className="w-4 h-4" />
+                            <PowerIcon className="w-4 h-4" />
                             Réactiver
                           </button>
                         )}
@@ -1873,14 +1833,14 @@ export default function UserDashboard() {
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}
                     className="h-8 w-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 disabled:opacity-40 active:scale-95 transition-transform">
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeftIcon className="w-4 h-4" />
                   </button>
                   <span className="text-xs font-semibold text-gray-700">
                     {currentPage} / {totalPages}
                   </span>
                   <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}
                     className="h-8 w-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 disabled:opacity-40 active:scale-95 transition-transform">
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRightIcon className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -1914,7 +1874,7 @@ export default function UserDashboard() {
           className="fixed bottom-24 right-4 z-30 w-14 h-14 rounded-full bg-[#e85d00] text-white shadow-sm flex items-center justify-center active:scale-90 transition-transform"
           style={{ boxShadow: '0 8px 24px rgba(255,106,0,0.45)' }}
           aria-label="Publier une annonce">
-          <Plus className="w-6 h-6" />
+          <PlusIcon className="w-6 h-6" />
         </button>
       )}
 
@@ -1939,9 +1899,9 @@ export default function UserDashboard() {
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`rounded-xl bg-white/20 flex-shrink-0 ${isMobile ? 'p-2.5' : 'p-3'}`}>
                     {editingProduct ? (
-                      <Edit className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
+                      <PencilIcon className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
                     ) : (
-                      <Plus className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
+                      <PlusIcon className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
                     )}
                   </div>
                   <div className="min-w-0">
@@ -1964,7 +1924,7 @@ export default function UserDashboard() {
                   className={`rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 active:bg-white/30 transition-all touch-manipulation flex-shrink-0 ${isMobile ? 'min-w-[44px] min-h-[44px] w-11 h-11' : 'h-10 w-10'}`}
                   aria-label="Fermer"
                 >
-                  <X size={20} />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>

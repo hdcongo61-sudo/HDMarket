@@ -1,13 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ChevronRight,
-  Compass,
-  MapPin,
-  Search,
-  ShieldCheck,
-  Store
-} from 'lucide-react';
+import { BuildingStorefrontIcon, ChevronRightIcon, MagnifyingGlassIcon, MapIcon, MapPinIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import ShimmerSkeleton from '../components/ui/ShimmerSkeleton';
@@ -52,7 +45,7 @@ function SectionHeader({ title, subtitle, to, viewAllLabel = 'Voir tout' }) {
           className="inline-flex min-h-11 shrink-0 items-center gap-0.5 px-1 text-xs font-black text-[#c2410c]"
         >
           {viewAllLabel}
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRightIcon className="h-4 w-4" />
         </Link>
       ) : null}
     </div>
@@ -222,21 +215,21 @@ export default function Discover() {
         <header className="rounded-2xl border border-[#e2dcd2] bg-white p-3 shadow-sm sm:p-5">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
-              <Compass className="h-5 w-5" />
+              <MapIcon className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
               <h1 className="text-xl font-black tracking-tight text-[#231f1b] sm:text-2xl">{t('market.discover', 'Découvrir')}</h1>
               <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">{t('market.discoverSubtitle', 'Produits, tendances et boutiques à explorer')}</p>
             </div>
             <span className="inline-flex min-h-11 max-w-[42%] items-center gap-1.5 rounded-full border border-[#e2dcd2] px-3 text-xs font-black text-[#6b6459]">
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#e85d00]" />
+              <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-[#e85d00]" />
               <span className="truncate">{city || t('market.allCitiesShort', 'Toutes villes')}</span>
             </span>
           </div>
           <Link to="/products" className="mt-3 flex min-h-12 items-center gap-3 rounded-full bg-[#f5f2ee] pl-4 pr-1.5 text-sm font-bold text-[#8a8378] ring-1 ring-[#eee8e0]">
-            <Search className="h-4 w-4 shrink-0" />
+            <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
             <span className="min-w-0 flex-1 truncate">{t('market.searchProductShop', 'Rechercher un produit ou une boutique')}</span>
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black text-white"><Search className="h-4 w-4" /></span>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black text-white"><MagnifyingGlassIcon className="h-4 w-4" /></span>
           </Link>
         </header>
 
@@ -285,10 +278,10 @@ export default function Discover() {
                 ) : (
                   <Link key={shop._id || shop.slug} to={buildShopPath(shop)} className="rounded-2xl border border-[#e2dcd2] bg-white p-3 shadow-sm transition active:scale-[0.98]">
                     <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-[#f5f2ee]">
-                      {shop.shopLogo ? <img src={shop.shopLogo} alt="" className="h-full w-full object-cover" loading="lazy" /> : <Store className="h-5 w-5 text-[#8a8378]" />}
+                      {shop.shopLogo ? <img src={shop.shopLogo} alt="" className="h-full w-full object-cover" loading="lazy" /> : <BuildingStorefrontIcon className="h-5 w-5 text-[#8a8378]" />}
                     </div>
                     <p className="mt-3 truncate text-sm font-black text-[#231f1b]">{shop.shopName || shop.name || 'Boutique'}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-[#8a8378]"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> {t('market.verified', 'Vérifiée')}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-[#8a8378]"><ShieldCheckIcon className="h-3.5 w-3.5 text-emerald-600" /> {t('market.verified', 'Vérifiée')}</p>
                   </Link>
                 )
               )}

@@ -1,14 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Eye,
-  Heart,
-  MessageCircle,
-  Store,
-  Tag,
-  TrendingUp
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowTrendingUpIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, EyeIcon, HeartIcon, TagIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -33,7 +25,7 @@ const HighlightStat = ({ label, value, helper, icon: Icon }) => (
   <div className="rounded-2xl border border-orange-200 bg-[#FFF7F0] px-4 py-4">
     <div className="flex items-center justify-between">
       <p className="text-[11px] font-black uppercase tracking-wide text-[#B45309]">{label}</p>
-      {Icon ? <Icon size={16} className="text-[#e85d00]" /> : null}
+      {Icon ? <Icon className="text-[#e85d00] h-4 w-4" /> : null}
     </div>
     <p className="mt-1.5 text-3xl font-black leading-none text-[#e85d00]">{value}</p>
     {helper ? <p className="mt-1.5 text-xs font-medium text-gray-500">{helper}</p> : null}
@@ -129,19 +121,19 @@ export default function AdminUserStats() {
         label: 'Contacts WhatsApp',
         value: formatNumber(stats.performance.clicks),
         helper: 'Nombre de clics générés',
-        icon: MessageCircle
+        icon: ChatBubbleLeftIcon
       },
       {
         label: 'Vues totales',
         value: formatNumber(stats.performance.views),
         helper: 'Réponses aux annonces',
-        icon: Eye
+        icon: EyeIcon
       },
       {
         label: 'Conversion',
         value: `${formatNumber(stats.performance.conversion)} %`,
         helper: 'Annonces approuvées',
-        icon: TrendingUp
+        icon: ArrowTrendingUpIcon
       }
     ];
   }, [stats]);
@@ -178,7 +170,7 @@ export default function AdminUserStats() {
           to="/admin/users"
           className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-bold text-gray-600 transition hover:bg-gray-50 active:scale-[0.97]"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeftIcon className="h-3.5 w-3.5" />
           Utilisateurs
         </Link>
         <div className="mt-3 flex items-center gap-3">
@@ -252,7 +244,7 @@ export default function AdminUserStats() {
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
-                          <Store size={16} />
+                          <BuildingStorefrontIcon className="h-4 w-4" />
                         </span>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-gray-900">{shop.name}</p>
@@ -330,7 +322,7 @@ export default function AdminUserStats() {
                     key={category.category}
                     className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-bold text-gray-600"
                   >
-                    <Tag size={12} className="text-[#e85d00]" />
+                    <TagIcon className="text-[#e85d00] h-3 w-3" />
                     {category.category} · {formatNumber(category.count)}
                   </span>
                 ))
@@ -358,11 +350,11 @@ export default function AdminUserStats() {
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-4 text-xs font-semibold text-gray-500">
                       <span className="flex items-center gap-1">
-                        <Heart className="h-3.5 w-3.5 text-[#e85d00]" />
+                        <HeartIcon className="h-3.5 w-3.5 text-[#e85d00]" />
                         {formatNumber(product.favorites)}
                       </span>
                       <span className="flex items-center gap-1">
-                        <MessageCircle className="h-3.5 w-3.5 text-[#e85d00]" />
+                        <ChatBubbleLeftIcon className="h-3.5 w-3.5 text-[#e85d00]" />
                         {formatNumber(product.whatsappClicks)}
                       </span>
                       <span className="font-black text-gray-900">{formatCurrency(product.price)}</span>

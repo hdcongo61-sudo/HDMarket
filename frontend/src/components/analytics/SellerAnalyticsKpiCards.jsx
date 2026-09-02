@@ -1,5 +1,5 @@
 import React from 'react';
-import { Banknote, DollarSign, Package, Percent } from 'lucide-react';
+import { BanknotesIcon, CubeIcon, CurrencyDollarIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
 
 const Card = ({ icon: Icon, label, value, subtitle, tone = 'indigo' }) => {
   const toneMap = {
@@ -31,28 +31,28 @@ export default function SellerAnalyticsKpiCards({
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       <Card
-        icon={DollarSign}
+        icon={CurrencyDollarIcon}
         label="Revenu"
         value={formatCurrency(summary?.revenue || 0)}
         subtitle="Période sélectionnée"
         tone="emerald"
       />
       <Card
-        icon={Package}
+        icon={CubeIcon}
         label="Commandes"
         value={formatNumber(summary?.orders || 0)}
         subtitle={`${formatNumber(summary?.views || 0)} vues produit`}
         tone="indigo"
       />
       <Card
-        icon={Percent}
+        icon={ReceiptPercentIcon}
         label="Conversion"
         value={`${Number(summary?.conversionRate || 0).toFixed(2)}%`}
         subtitle="Orders / vues"
         tone="amber"
       />
       <Card
-        icon={Banknote}
+        icon={BanknotesIcon}
         label="Tranches"
         value={`${formatCurrency(installment?.amountPaidSoFar || 0)} / ${formatCurrency(
           installment?.remainingAmount || 0

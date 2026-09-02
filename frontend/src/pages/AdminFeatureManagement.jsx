@@ -1,25 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  AlertTriangle,
-  Archive,
-  Beaker,
-  Check,
-  ChevronRight,
-  CircleOff,
-  Clock3,
-  Code2,
-  Flag,
-  LoaderCircle,
-  Plus,
-  RefreshCw,
-  Rocket,
-  Save,
-  Search,
-  ShieldAlert,
-  SlidersHorizontal,
-  Users,
-  X
-} from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArchiveBoxIcon, ArrowPathIcon, BeakerIcon, CheckIcon, ChevronRightIcon, ClockIcon, CodeBracketIcon, ExclamationTriangleIcon, FlagIcon, MagnifyingGlassIcon, NoSymbolIcon, PlusIcon, RocketLaunchIcon, ShieldExclamationIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { appConfirm } from '../utils/appDialog';
@@ -367,7 +347,7 @@ export default function AdminFeatureManagement() {
         actions={[
           {
             label: 'Nouvelle fonctionnalité',
-            icon: Plus,
+            icon: PlusIcon,
             onClick: () => {
               setSelected(null);
               setShowCreate(true);
@@ -376,7 +356,7 @@ export default function AdminFeatureManagement() {
               setFeedback([]);
             }
           },
-          { label: 'Actualiser', icon: RefreshCw, onClick: () => loadFeatures() }
+          { label: 'Actualiser', icon: ArrowPathIcon, onClick: () => loadFeatures() }
         ]}
       />
 
@@ -395,13 +375,13 @@ export default function AdminFeatureManagement() {
               <p className="text-sm text-neutral-500">{totalUsers.toLocaleString('fr-FR')} utilisateurs actifs sur la plateforme.</p>
             </div>
             <label className="flex min-w-[220px] items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 dark:border-neutral-700">
-              <Search size={16} className="text-neutral-400" />
+              <MagnifyingGlassIcon className="text-neutral-400 h-4 w-4" />
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher" className="w-full bg-transparent text-sm outline-none" />
             </label>
           </div>
 
           {loading ? (
-            <div className="flex min-h-64 items-center justify-center text-neutral-500"><LoaderCircle className="mr-2 animate-spin" size={20} /> Chargement…</div>
+            <div className="flex min-h-64 items-center justify-center text-neutral-500"><ArrowPathIcon className="mr-2 animate-spin h-5 w-5" /> Chargement…</div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {visibleFeatures.map((feature) => {
@@ -415,15 +395,15 @@ export default function AdminFeatureManagement() {
                     className={`group rounded-2xl border p-4 text-left transition ${isSelected ? 'border-neutral-900 ring-2 ring-neutral-900/10 dark:border-white dark:ring-white/10' : 'border-neutral-200 hover:border-neutral-400 dark:border-neutral-800 dark:hover:border-neutral-600'}`}
                   >
                     <div className="flex items-start gap-3">
-                      <span className="rounded-xl bg-neutral-100 p-2.5 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"><Flag size={18} /></span>
+                      <span className="rounded-xl bg-neutral-100 p-2.5 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"><FlagIcon className="h-[18px] w-[18px]" /></span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           <span className="truncate font-bold text-neutral-900 dark:text-white">{feature.displayName || feature.featureName}</span>
-                        {(feature.emergencyDisabled || feature.isExpired) && <ShieldAlert size={16} className="shrink-0 text-red-500" />}
+                        {(feature.emergencyDisabled || feature.isExpired) && <ShieldExclamationIcon className="shrink-0 text-red-500 h-4 w-4" />}
                         </span>
                         <span className="mt-1 block truncate font-mono text-xs text-neutral-500">{feature.featureName}</span>
                       </span>
-                      <ChevronRight size={18} className="mt-1 text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white" />
+                      <ChevronRightIcon className="mt-1 text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white h-[18px] w-[18px]" />
                     </div>
                     <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                       <span className={`rounded-full px-2 py-1 font-semibold ${stage.className}`}>{stage.label}</span>
@@ -447,7 +427,7 @@ export default function AdminFeatureManagement() {
         <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-5">
           {!selected && !showCreate ? (
             <div className="flex min-h-96 flex-col items-center justify-center text-center text-neutral-500">
-              <SlidersHorizontal size={32} className="mb-3" />
+              <AdjustmentsHorizontalIcon className="mb-3 h-8 w-8" />
               <p className="font-semibold text-neutral-700 dark:text-neutral-200">Sélectionnez une fonctionnalité</p>
               <p className="mt-1 max-w-sm text-sm">Ses règles de visibilité, configurations, testeurs, métriques et historique apparaîtront ici.</p>
             </div>
@@ -458,17 +438,17 @@ export default function AdminFeatureManagement() {
                   <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{showCreate ? 'Nouvelle entrée' : 'Configuration complète'}</div>
                   <h2 className="mt-1 text-xl font-bold text-neutral-900 dark:text-white">{showCreate ? 'Créer une fonctionnalité' : selected.displayName || selected.featureName}</h2>
                 </div>
-                <button type="button" onClick={() => { setSelected(null); setShowCreate(false); }} className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={18} /></button>
+                <button type="button" onClick={() => { setSelected(null); setShowCreate(false); }} className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><XMarkIcon className="h-[18px] w-[18px]" /></button>
               </div>
 
               {!showCreate && selected && (
                 <div className="flex flex-wrap gap-2">
                   <button type="button" disabled={saving} onClick={() => patchStatus({ enabled: !selected.enabled }, selected.enabled ? 'Fonctionnalité désactivée.' : 'Fonctionnalité activée.')} className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900">
-                    {selected.enabled ? <CircleOff size={16} /> : <Check size={16} />}{selected.enabled ? 'Désactiver' : 'Activer'}
+                    {selected.enabled ? <NoSymbolIcon className="h-4 w-4" /> : <CheckIcon className="h-4 w-4" />}{selected.enabled ? 'Désactiver' : 'Activer'}
                   </button>
-                  <button type="button" disabled={saving} onClick={emergencyDisable} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"><AlertTriangle size={16} />Urgence</button>
-                  <button type="button" disabled={saving} onClick={async () => { try { const { data } = await api.post(`/features/${encodeURIComponent(selected._id || selected.featureName)}/release`); showToast('Fonctionnalité publiée.', 'success'); await loadFeatures({ silent: true }); if (data?.item) await openFeature(data.item); } catch (error) { showToast(error?.response?.data?.message || 'Publication impossible.', 'error'); } }} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"><Rocket size={16} />Publier</button>
-                  <button type="button" disabled={saving} onClick={async () => { const ok = await appConfirm(`Archiver ${selected.displayName || selected.featureName} ? La fonctionnalité sera coupée.`); if (!ok) return; try { const { data } = await api.post(`/features/${encodeURIComponent(selected._id || selected.featureName)}/archive`); showToast('Fonctionnalité archivée.', 'success'); await loadFeatures({ silent: true }); if (data?.item) await openFeature(data.item); } catch (error) { showToast(error?.response?.data?.message || 'Archivage impossible.', 'error'); } }} className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"><Archive size={16} />Archiver</button>
+                  <button type="button" disabled={saving} onClick={emergencyDisable} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/40"><ExclamationTriangleIcon className="h-4 w-4" />Urgence</button>
+                  <button type="button" disabled={saving} onClick={async () => { try { const { data } = await api.post(`/features/${encodeURIComponent(selected._id || selected.featureName)}/release`); showToast('Fonctionnalité publiée.', 'success'); await loadFeatures({ silent: true }); if (data?.item) await openFeature(data.item); } catch (error) { showToast(error?.response?.data?.message || 'Publication impossible.', 'error'); } }} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"><RocketLaunchIcon className="h-4 w-4" />Publier</button>
+                  <button type="button" disabled={saving} onClick={async () => { const ok = await appConfirm(`Archiver ${selected.displayName || selected.featureName} ? La fonctionnalité sera coupée.`); if (!ok) return; try { const { data } = await api.post(`/features/${encodeURIComponent(selected._id || selected.featureName)}/archive`); showToast('Fonctionnalité archivée.', 'success'); await loadFeatures({ silent: true }); if (data?.item) await openFeature(data.item); } catch (error) { showToast(error?.response?.data?.message || 'Archivage impossible.', 'error'); } }} className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"><ArchiveBoxIcon className="h-4 w-4" />Archiver</button>
                 </div>
               )}
 
@@ -483,7 +463,7 @@ export default function AdminFeatureManagement() {
               </fieldset>
 
               <section className="rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-900/60">
-                <div className="mb-3 flex items-center gap-2 font-bold text-neutral-900 dark:text-white"><SlidersHorizontal size={17} />Publication et ciblage</div>
+                <div className="mb-3 flex items-center gap-2 font-bold text-neutral-900 dark:text-white"><AdjustmentsHorizontalIcon className="h-[17px] w-[17px]" />Publication et ciblage</div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"><input type="checkbox" checked={form.enabled} onChange={(event) => updateForm('enabled', event.target.checked)} /> Activée</label>
                   <label className="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-neutral-950 dark:text-red-300"><input type="checkbox" checked={form.emergencyDisabled} onChange={(event) => updateForm('emergencyDisabled', event.target.checked)} /> Arrêt d’urgence</label>
@@ -506,17 +486,17 @@ export default function AdminFeatureManagement() {
               </section>
 
               <section className="space-y-3">
-                <label className="block text-sm font-medium"><span className="flex items-center gap-2"><Code2 size={16} />Configuration distante (JSON)</span><textarea rows="7" value={form.remoteConfig} onChange={(event) => updateForm('remoteConfig', event.target.value)} spellCheck="false" className="mt-1 w-full rounded-xl border border-neutral-200 bg-neutral-950 px-3 py-2 font-mono text-xs text-emerald-200 outline-none dark:border-neutral-700" /></label>
-                <label className="block text-sm font-medium"><span className="flex items-center gap-2"><Beaker size={16} />Expériences A/B (JSON)</span><textarea rows="5" value={form.experiments} onChange={(event) => updateForm('experiments', event.target.value)} spellCheck="false" className="mt-1 w-full rounded-xl border border-neutral-200 bg-neutral-950 px-3 py-2 font-mono text-xs text-emerald-200 outline-none dark:border-neutral-700" /></label>
+                <label className="block text-sm font-medium"><span className="flex items-center gap-2"><CodeBracketIcon className="h-4 w-4" />Configuration distante (JSON)</span><textarea rows="7" value={form.remoteConfig} onChange={(event) => updateForm('remoteConfig', event.target.value)} spellCheck="false" className="mt-1 w-full rounded-xl border border-neutral-200 bg-neutral-950 px-3 py-2 font-mono text-xs text-emerald-200 outline-none dark:border-neutral-700" /></label>
+                <label className="block text-sm font-medium"><span className="flex items-center gap-2"><BeakerIcon className="h-4 w-4" />Expériences A/B (JSON)</span><textarea rows="5" value={form.experiments} onChange={(event) => updateForm('experiments', event.target.value)} spellCheck="false" className="mt-1 w-full rounded-xl border border-neutral-200 bg-neutral-950 px-3 py-2 font-mono text-xs text-emerald-200 outline-none dark:border-neutral-700" /></label>
               </section>
 
-              <button type="submit" disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 py-3 text-sm font-bold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-900">{saving ? <LoaderCircle size={17} className="animate-spin" /> : <Save size={17} />}{showCreate ? 'Créer la fonctionnalité' : 'Enregistrer les réglages'}</button>
+              <button type="submit" disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 py-3 text-sm font-bold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-900">{saving ? <ArrowPathIcon className="animate-spin h-[17px] w-[17px]" /> : <CheckIcon className="h-[17px] w-[17px]" />}{showCreate ? 'Créer la fonctionnalité' : 'Enregistrer les réglages'}</button>
 
               {!showCreate && selected && (
                 <section className="space-y-3 border-t border-neutral-200 pt-5 dark:border-neutral-800">
-                  <div className="flex items-center gap-2 font-bold text-neutral-900 dark:text-white"><Users size={17} />Testeurs spécifiques</div>
-                  <div className="relative"><input value={testerSearch} onChange={(event) => searchTesters(event.target.value)} placeholder="Rechercher nom, email, téléphone, boutique…" className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-900" />{testerResults.length > 0 && <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">{testerResults.map((user) => <button key={user._id || user.id} type="button" onClick={() => addSpecificTester(user._id || user.id)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"><span><b>{user.name}</b><span className="ml-2 text-neutral-500">{user.email || user.phone}</span></span><Plus size={16} /></button>)}</div>}</div>
-                  <div className="flex flex-wrap gap-2">{(selected.targeting?.userIds || []).length ? selected.targeting.userIds.map((userId) => <span key={userId} className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-1 font-mono text-xs text-violet-800 dark:bg-violet-500/15 dark:text-violet-200">{String(userId).slice(-8)}<button type="button" onClick={() => removeSpecificTester(userId)} className="rounded-full p-0.5 hover:bg-violet-200 dark:hover:bg-violet-500/30"><X size={12} /></button></span>) : <span className="text-sm text-neutral-500">Aucun testeur ciblé. Utilisez « tous les testeurs bêta » ci-dessus ou ajoutez une personne.</span>}</div>
+                  <div className="flex items-center gap-2 font-bold text-neutral-900 dark:text-white"><UsersIcon className="h-[17px] w-[17px]" />Testeurs spécifiques</div>
+                  <div className="relative"><input value={testerSearch} onChange={(event) => searchTesters(event.target.value)} placeholder="Rechercher nom, email, téléphone, boutique…" className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-900" />{testerResults.length > 0 && <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">{testerResults.map((user) => <button key={user._id || user.id} type="button" onClick={() => addSpecificTester(user._id || user.id)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"><span><b>{user.name}</b><span className="ml-2 text-neutral-500">{user.email || user.phone}</span></span><PlusIcon className="h-4 w-4" /></button>)}</div>}</div>
+                  <div className="flex flex-wrap gap-2">{(selected.targeting?.userIds || []).length ? selected.targeting.userIds.map((userId) => <span key={userId} className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-1 font-mono text-xs text-violet-800 dark:bg-violet-500/15 dark:text-violet-200">{String(userId).slice(-8)}<button type="button" onClick={() => removeSpecificTester(userId)} className="rounded-full p-0.5 hover:bg-violet-200 dark:hover:bg-violet-500/30"><XMarkIcon className="h-3 w-3" /></button></span>) : <span className="text-sm text-neutral-500">Aucun testeur ciblé. Utilisez « tous les testeurs bêta » ci-dessus ou ajoutez une personne.</span>}</div>
                 </section>
               )}
 
@@ -526,8 +506,8 @@ export default function AdminFeatureManagement() {
                   <Metric label="Activations (30 j)" value={selected.metrics?.activations || 0} />
                   <Metric label="Conversion" value={selected.metrics?.conversionRate || 0} suffix=" %" />
                   <Metric label="Note moyenne" value={selected.metrics?.averageRating ? Number(selected.metrics.averageRating).toFixed(1) : '—'} />
-                  <div className="sm:col-span-2 rounded-xl border border-neutral-200 p-3 dark:border-neutral-700"><div className="mb-2 flex items-center gap-2 text-sm font-bold"><Clock3 size={15} />Historique récent</div>{history.length ? <div className="space-y-2">{history.slice(0, 4).map((entry) => <div key={entry._id} className="text-xs text-neutral-600 dark:text-neutral-300"><b>{entry.performedBy?.name || 'Administrateur'}</b> · {entry.actionType} · {new Date(entry.createdAt).toLocaleString('fr-FR')}</div>)}</div> : <p className="text-xs text-neutral-500">Aucun changement enregistré.</p>}</div>
-                  <div className="sm:col-span-2 rounded-xl border border-neutral-200 p-3 dark:border-neutral-700"><div className="mb-2 flex items-center gap-2 text-sm font-bold"><Beaker size={15} />Retours bêta</div>{feedback.length ? <div className="space-y-2">{feedback.slice(0, 4).map((item) => <div key={item._id} className="text-xs text-neutral-600 dark:text-neutral-300"><b>{item.type}</b>{item.rating ? ` · ${item.rating}/5` : ''} · {item.message || 'Note sans commentaire'}</div>)}</div> : <p className="text-xs text-neutral-500">Aucun retour pour le moment.</p>}</div>
+                  <div className="sm:col-span-2 rounded-xl border border-neutral-200 p-3 dark:border-neutral-700"><div className="mb-2 flex items-center gap-2 text-sm font-bold"><ClockIcon className="h-[15px] w-[15px]" />Historique récent</div>{history.length ? <div className="space-y-2">{history.slice(0, 4).map((entry) => <div key={entry._id} className="text-xs text-neutral-600 dark:text-neutral-300"><b>{entry.performedBy?.name || 'Administrateur'}</b> · {entry.actionType} · {new Date(entry.createdAt).toLocaleString('fr-FR')}</div>)}</div> : <p className="text-xs text-neutral-500">Aucun changement enregistré.</p>}</div>
+                  <div className="sm:col-span-2 rounded-xl border border-neutral-200 p-3 dark:border-neutral-700"><div className="mb-2 flex items-center gap-2 text-sm font-bold"><BeakerIcon className="h-[15px] w-[15px]" />Retours bêta</div>{feedback.length ? <div className="space-y-2">{feedback.slice(0, 4).map((item) => <div key={item._id} className="text-xs text-neutral-600 dark:text-neutral-300"><b>{item.type}</b>{item.rating ? ` · ${item.rating}/5` : ''} · {item.message || 'Note sans commentaire'}</div>)}</div> : <p className="text-xs text-neutral-500">Aucun retour pour le moment.</p>}</div>
                 </section>
               )}
             </form>
@@ -536,7 +516,7 @@ export default function AdminFeatureManagement() {
       </div>
 
       <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 sm:p-5">
-        <div className="mb-4 flex items-center gap-2"><Users size={19} /><div><h2 className="font-bold text-neutral-900 dark:text-white">Demandes de testeurs bêta</h2><p className="text-sm text-neutral-500">Une appartenance bêta conserve le rôle d’origine du client, de la boutique ou du livreur.</p></div></div>
+        <div className="mb-4 flex items-center gap-2"><UsersIcon className="h-[19px] w-[19px]" /><div><h2 className="font-bold text-neutral-900 dark:text-white">Demandes de testeurs bêta</h2><p className="text-sm text-neutral-500">Une appartenance bêta conserve le rôle d’origine du client, de la boutique ou du livreur.</p></div></div>
         <div className="relative mb-4 max-w-xl"><input value={betaUserSearch} onChange={(event) => searchBetaUsers(event.target.value)} placeholder="Ajouter manuellement : rechercher nom, email, téléphone ou boutique" className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-900" />{betaUserResults.length > 0 && <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">{betaUserResults.map((user) => <button key={user._id || user.id} type="button" onClick={() => setManualBetaTester(user._id || user.id, true)} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"><span><b>{user.name}</b><span className="ml-2 text-neutral-500">{user.email || user.phone}</span></span><span className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-bold text-white">Ajouter</span></button>)}</div>}</div>
         {betaRequests.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{betaRequests.map((request) => <div key={request._id} className="rounded-2xl border border-neutral-200 p-3 dark:border-neutral-800"><div className="font-semibold text-neutral-900 dark:text-white">{request.name}</div><div className="mt-0.5 text-xs text-neutral-500">{request.email || request.phone} · {request.role}</div><div className="mt-2 text-xs text-neutral-600 dark:text-neutral-300">Statut : <b>{request.betaTesterApplication?.status || (request.betaTester ? 'approved' : 'none')}</b></div>{request.betaTesterApplication?.status === 'pending' && <div className="mt-3 flex gap-2"><button type="button" onClick={() => reviewBetaRequest(request._id, 'approved')} className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white">Approuver</button><button type="button" onClick={() => reviewBetaRequest(request._id, 'rejected')} className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-700 dark:border-red-900 dark:text-red-300">Refuser</button></div>}{request.betaTester && <button type="button" onClick={() => setManualBetaTester(request._id, false)} className="mt-3 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-700 dark:border-red-900 dark:text-red-300">Retirer du programme</button>}</div>)}</div> : <p className="text-sm text-neutral-500">Aucune demande bêta pour le moment.</p>}
       </section>

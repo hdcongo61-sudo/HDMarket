@@ -1,22 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Package,
-  RefreshCw,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  Phone,
-  Image as ImageIcon,
-  ShieldCheck,
-  X,
-  Clock,
-  Truck,
-  CheckCircle2,
-  Ban,
-  Banknote
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, BanknotesIcon, CheckCircleIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, CubeIcon, MagnifyingGlassIcon, NoSymbolIcon, PhoneIcon, PhotoIcon, ShieldCheckIcon, TruckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
@@ -57,7 +41,7 @@ function StatCard({ icon: Icon, label, value, tone }) {
     <div className="flex flex-col gap-1 bg-white px-4 py-3.5">
       <div className="flex items-center gap-2">
         <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${tone}`}>
-          <Icon size={14} />
+          <Icon className="h-3.5 w-3.5" />
         </div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">{label}</p>
       </div>
@@ -135,7 +119,7 @@ function ParcelRequestCard({ item, deliveryGuys, onChange, showToast }) {
           <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${STATUS_BADGE[item.status] || 'bg-neutral-100 text-neutral-600'}`}>
             {item.status}
           </span>
-          {expanded ? <ChevronUp size={16} className="text-neutral-400" /> : <ChevronDown size={16} className="text-neutral-400" />}
+          {expanded ? <ChevronUpIcon className="text-neutral-400 h-4 w-4" /> : <ChevronDownIcon className="text-neutral-400 h-4 w-4" />}
         </div>
       </button>
 
@@ -147,14 +131,14 @@ function ParcelRequestCard({ item, deliveryGuys, onChange, showToast }) {
             {item.parcelDescription && <p className="mt-1"><strong>Colis :</strong> {item.parcelDescription}</p>}
             {item.requesterId?.phone && (
               <a href={`tel:${item.requesterId.phone}`} className="mt-2 inline-flex items-center gap-1 font-bold text-neutral-900">
-                <Phone size={12} /> Appeler le client
+                <PhoneIcon className="h-3 w-3" /> Appeler le client
               </a>
             )}
           </div>
 
           <div className="rounded-xl border border-[#e85d00]/30 bg-[#fff7f0] p-3 text-xs">
             <p className="mb-1.5 flex items-center gap-1.5 font-black uppercase text-[#e85d00]">
-              <ShieldCheck size={12} /> Justificatif de retrait
+              <ShieldCheckIcon className="h-3 w-3" /> Justificatif de retrait
             </p>
             {item.authorization?.referenceCode && <p>Référence : {item.authorization.referenceCode}</p>}
             {item.authorization?.notes && <p className="mt-1">{item.authorization.notes}</p>}
@@ -165,7 +149,7 @@ function ParcelRequestCard({ item, deliveryGuys, onChange, showToast }) {
                 rel="noopener noreferrer"
                 className="mt-1.5 inline-flex items-center gap-1 font-bold text-[#e85d00]"
               >
-                <ImageIcon size={12} /> Voir le justificatif
+                <PhotoIcon className="h-3 w-3" /> Voir le justificatif
               </a>
             )}
             {item.deliveryPinCode && item.status !== 'DELIVERED' && (
@@ -249,7 +233,7 @@ function ParcelRequestCard({ item, deliveryGuys, onChange, showToast }) {
                 onClick={() => setShowCancelInput(true)}
                 className="inline-flex items-center gap-1 text-xs font-bold text-red-600"
               >
-                <X size={12} /> Annuler la course
+                <XMarkIcon className="h-3 w-3" /> Annuler la course
               </button>
             )
           )}
@@ -317,7 +301,7 @@ export default function AdminParcelRequests() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Link to="/admin" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 text-neutral-600">
-              <ArrowLeft size={15} />
+              <ArrowLeftIcon className="h-[15px] w-[15px]" />
             </Link>
             <div>
               <h1 className="text-lg font-black text-neutral-900">Courses colis</h1>
@@ -329,30 +313,30 @@ export default function AdminParcelRequests() {
             onClick={load}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 text-neutral-600"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {stats && (
           <>
             <div className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-neutral-100 sm:grid-cols-6">
-              <StatCard icon={Package} label="Total" value={stats.total} tone="bg-neutral-100 text-neutral-600" />
-              <StatCard icon={Clock} label="En attente" value={stats.pending} tone="bg-amber-100 text-amber-600" />
-              <StatCard icon={Truck} label="Assignées" value={stats.accepted + stats.inProgress} tone="bg-blue-100 text-blue-600" />
-              <StatCard icon={CheckCircle2} label="Livrées" value={stats.delivered} tone="bg-emerald-100 text-emerald-600" />
-              <StatCard icon={Ban} label="Annulées" value={stats.canceled} tone="bg-red-100 text-red-600" />
-              <StatCard icon={Banknote} label="Revenu" value={formatCurrency(stats.totalRevenue)} tone="bg-violet-100 text-violet-600" />
+              <StatCard icon={CubeIcon} label="Total" value={stats.total} tone="bg-neutral-100 text-neutral-600" />
+              <StatCard icon={ClockIcon} label="En attente" value={stats.pending} tone="bg-amber-100 text-amber-600" />
+              <StatCard icon={TruckIcon} label="Assignées" value={stats.accepted + stats.inProgress} tone="bg-blue-100 text-blue-600" />
+              <StatCard icon={CheckCircleIcon} label="Livrées" value={stats.delivered} tone="bg-emerald-100 text-emerald-600" />
+              <StatCard icon={NoSymbolIcon} label="Annulées" value={stats.canceled} tone="bg-red-100 text-red-600" />
+              <StatCard icon={BanknotesIcon} label="Revenu" value={formatCurrency(stats.totalRevenue)} tone="bg-violet-100 text-violet-600" />
             </div>
             <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-neutral-100">
-              <StatCard icon={Banknote} label="Commission plateforme" value={formatCurrency(stats.totalCommission)} tone="bg-emerald-100 text-emerald-700" />
-              <StatCard icon={Truck} label="Revenu livreurs" value={formatCurrency(stats.totalCourierEarnings)} tone="bg-sky-100 text-sky-700" />
+              <StatCard icon={BanknotesIcon} label="Commission plateforme" value={formatCurrency(stats.totalCommission)} tone="bg-emerald-100 text-emerald-700" />
+              <StatCard icon={TruckIcon} label="Revenu livreurs" value={formatCurrency(stats.totalCourierEarnings)} tone="bg-sky-100 text-sky-700" />
             </div>
           </>
         )}
 
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 h-3.5 w-3.5" />
             <input
               type="search"
               value={searchInput}
@@ -385,7 +369,7 @@ export default function AdminParcelRequests() {
           <p className="py-10 text-center text-sm text-neutral-400">Chargement…</p>
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center">
-            <Package className="mx-auto h-8 w-8 text-neutral-300" />
+            <CubeIcon className="mx-auto h-8 w-8 text-neutral-300" />
             <p className="mt-2 text-sm text-neutral-500">Aucune course colis.</p>
           </div>
         ) : (

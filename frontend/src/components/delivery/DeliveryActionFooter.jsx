@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useLocation } from 'react-router-dom';
 
 export default function DeliveryActionFooter({
@@ -33,7 +33,7 @@ export default function DeliveryActionFooter({
           disabled={primaryDisabled || primaryLoading}
           className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white transition active:scale-[0.98] disabled:opacity-60"
         >
-          {primaryLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+          {primaryLoading ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : null}
           {primaryLabel}
         </button>
       </div>

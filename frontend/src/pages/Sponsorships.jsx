@@ -6,7 +6,7 @@ import { getSponsorshipStatusMeta } from '../utils/sponsorship';
 import GlassHeader from '../components/orders/GlassHeader';
 import BaseModal from '../components/modals/BaseModal';
 import PawaPayButton from '../components/PawaPayButton';
-import { Check, X, Clock, CreditCard, RefreshCw, MessageCircle } from 'lucide-react';
+import { ArrowPathIcon, ChatBubbleLeftIcon, CheckIcon, ClockIcon, CreditCardIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const formatExpiry = (value) => {
   const date = new Date(value);
@@ -231,7 +231,7 @@ export default function Sponsorships() {
               onClick={() => openForm(gid, 'accept')}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#e85d00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
             >
-              <Check size={16} /> Approuver &amp; payer
+              <CheckIcon className="h-4 w-4" /> Approuver &amp; payer
             </button>
             <button
               type="button"
@@ -239,7 +239,7 @@ export default function Sponsorships() {
               onClick={() => setConfirmAction({ gid, kind: 'decline' })}
               className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-black text-gray-700 disabled:opacity-60"
             >
-              <X size={16} /> Refuser
+              <XMarkIcon className="h-4 w-4" /> Refuser
             </button>
           </div>
         )}
@@ -299,7 +299,7 @@ export default function Sponsorships() {
               onClick={() => shareOnWhatsApp(req)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white"
             >
-              <MessageCircle size={14} /> Relancer sur WhatsApp
+              <ChatBubbleLeftIcon className="h-3.5 w-3.5" /> Relancer sur WhatsApp
             </button>
             <button
               type="button"
@@ -307,7 +307,7 @@ export default function Sponsorships() {
               onClick={() => setConfirmAction({ gid, kind: 'cancel' })}
               className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-60"
             >
-              <X size={14} /> Annuler la demande
+              <XMarkIcon className="h-3.5 w-3.5" /> Annuler la demande
             </button>
           </div>
         )}
@@ -320,7 +320,7 @@ export default function Sponsorships() {
               onClick={() => openForm(gid, 'pay')}
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#e85d00] px-3 py-2.5 text-sm font-black text-white disabled:opacity-60"
             >
-              <CreditCard size={16} /> Payer moi-même
+              <CreditCardIcon className="h-4 w-4" /> Payer moi-même
             </button>
             {Boolean(req.canRetry) && (
               <button
@@ -329,7 +329,7 @@ export default function Sponsorships() {
                 onClick={() => openForm(gid, 'retry')}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-black text-gray-700 disabled:opacity-60"
               >
-                <RefreshCw size={16} /> Réessayer
+                <ArrowPathIcon className="h-4 w-4" /> Réessayer
               </button>
             )}
           </div>
@@ -404,7 +404,7 @@ export default function Sponsorships() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-gray-500">
-            <Clock size={16} className="animate-pulse" /> Chargement…
+            <ClockIcon className="animate-pulse h-4 w-4" /> Chargement…
           </div>
         ) : list.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-16 text-center text-sm font-semibold text-gray-500">

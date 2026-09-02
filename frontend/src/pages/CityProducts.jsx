@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
@@ -210,7 +210,7 @@ export default function CityProducts() {
               onClick={() => navigate(-1)}
               className="inline-flex items-center gap-2 mb-3 sm:mb-4 text-sm font-semibold text-white/86 hover:text-white transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeftIcon className="w-4 h-4" />
               Retour
             </button>
             <p className="mb-2 text-xs font-black uppercase tracking-wide text-white/78">Ville</p>
@@ -263,7 +263,7 @@ export default function CityProducts() {
             <div ref={loadMoreSentinelRef} className="h-px" />
             {loading && page > 1 && (
               <div className="flex justify-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin text-[#e85d00]" />
+                <ArrowPathIcon className="w-6 h-6 animate-spin text-[#e85d00]" />
               </div>
             )}
             {!loading && page < totalPages && (

@@ -140,13 +140,6 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
-  enable_dark_theme: {
-    category: 'ui',
-    description: 'Autorise les utilisateurs à activer le thème sombre dans l’application.',
-    valueType: 'boolean',
-    defaultValue: true,
-    isPublic: true
-  },
   auth_email_login_enabled: {
     category: 'authentication',
     description: 'Autorise la connexion par email ou numéro de téléphone avec mot de passe.',

@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MessageCircle, X, ChevronRight } from 'lucide-react';
+import { ChatBubbleLeftIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { io } from 'socket.io-client';
 import AuthContext from '../context/AuthContext';
 import storage from '../utils/storage';
@@ -202,7 +202,7 @@ export default function UnreadMessageReminder() {
         className="flex w-full items-center gap-3 bg-[#e85d00] px-4 py-3 text-white shadow-md transition-colors hover:bg-[#f45f00] active:bg-[#cc5200]"
       >
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20">
-          <MessageCircle className="h-4 w-4" />
+          <ChatBubbleLeftIcon className="h-4 w-4" />
         </div>
 
         <div className="flex-1 text-left min-w-0">
@@ -216,7 +216,7 @@ export default function UnreadMessageReminder() {
           </p>
         </div>
 
-        <ChevronRight className="h-5 w-5 flex-shrink-0" />
+        <ChevronRightIcon className="h-5 w-5 flex-shrink-0" />
 
         <button
           type="button"
@@ -227,7 +227,7 @@ export default function UnreadMessageReminder() {
           className="flex-shrink-0 rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
           aria-label="Fermer"
         >
-          <X className="h-4 w-4" />
+          <XMarkIcon className="h-4 w-4" />
         </button>
       </button>
     </div>

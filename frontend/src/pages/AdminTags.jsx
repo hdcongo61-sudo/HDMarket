@@ -1,20 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  BarChart3,
-  Check,
-  Download,
-  Edit3,
-  GitMerge,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Search,
-  Sparkles,
-  Tag,
-  Trash2,
-  Upload,
-  X
-} from 'lucide-react';
+import { ArrowDownTrayIcon, ArrowPathIcon, ArrowUpTrayIcon, ArrowsPointingInIcon, ChartBarIcon, CheckIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, SparklesIcon, TagIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 
 const EMPTY_FORM = {
@@ -147,7 +132,7 @@ export default function AdminTags() {
       };
       if (editingId) await api.put(`/tags/admin/${editingId}`, payload);
       else await api.post('/tags/admin', payload);
-      setMessage(editingId ? 'Tag mis à jour.' : 'Tag créé.');
+      setMessage(editingId ? 'TagIcon mis à jour.' : 'TagIcon créé.');
       resetForm();
       await load();
     } catch (requestError) {
@@ -170,20 +155,20 @@ export default function AdminTags() {
 
   const review = (tag, approved) => mutate(
     () => api.post(`/tags/admin/${tag._id}/review`, { approved, reason: approved ? '' : 'Rejeté par la modération.' }),
-    approved ? 'Tag vendeur approuvé.' : 'Tag vendeur rejeté.'
+    approved ? 'TagIcon vendeur approuvé.' : 'TagIcon vendeur rejeté.'
   );
 
   const toggleFeatured = (tag) => mutate(
     () => api.put(`/tags/admin/${tag._id}`, { featured: !tag.featured }),
-    tag.featured ? 'Tag retiré de l’accueil.' : 'Tag ajouté à l’accueil.'
+    tag.featured ? 'TagIcon retiré de l’accueil.' : 'TagIcon ajouté à l’accueil.'
   );
 
   const remove = (tag) => {
     if (!window.confirm(`Supprimer le tag “${tag.name}” ?`)) return;
-    mutate(() => api.delete(`/tags/admin/${tag._id}`), 'Tag supprimé.');
+    mutate(() => api.delete(`/tags/admin/${tag._id}`), 'TagIcon supprimé.');
   };
 
-  const restore = (tag) => mutate(() => api.post(`/tags/admin/${tag._id}/restore`), 'Tag restauré en brouillon.');
+  const restore = (tag) => mutate(() => api.post(`/tags/admin/${tag._id}/restore`), 'TagIcon restauré en brouillon.');
 
   const merge = (tag) => {
     const targetTagId = window.prompt('Identifiant du tag cible (les affectations seront déplacées) :');
@@ -242,10 +227,10 @@ export default function AdminTags() {
           <p className="mt-1 text-sm text-neutral-500">Recherche, recommandations, campagnes, SEO et analytique depuis un catalogue unique.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={exportCsv} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 text-sm font-bold"><Download size={16} /> Exporter</button>
-          <button type="button" onClick={() => importRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 text-sm font-bold"><Upload size={16} /> Importer JSON</button>
+          <button type="button" onClick={exportCsv} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 text-sm font-bold"><ArrowDownTrayIcon className="h-4 w-4" /> Exporter</button>
+          <button type="button" onClick={() => importRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 text-sm font-bold"><ArrowUpTrayIcon className="h-4 w-4" /> Importer JSON</button>
           <input ref={importRef} type="file" accept="application/json,.json" className="hidden" onChange={importJson} />
-          <button type="button" onClick={() => { setShowForm(true); setEditingId(''); setForm(EMPTY_FORM); }} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-neutral-950 px-4 text-sm font-bold text-white"><Plus size={16} /> Nouveau tag</button>
+          <button type="button" onClick={() => { setShowForm(true); setEditingId(''); setForm(EMPTY_FORM); }} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-neutral-950 px-4 text-sm font-bold text-white"><PlusIcon className="h-4 w-4" /> Nouveau tag</button>
         </div>
       </div>
 
@@ -264,7 +249,7 @@ export default function AdminTags() {
         <form onSubmit={saveTag} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-black">{editingId ? 'Modifier le tag' : 'Créer un tag'}</h2>
-            <button type="button" onClick={resetForm} className="rounded-lg p-2 hover:bg-neutral-100"><X size={18} /></button>
+            <button type="button" onClick={resetForm} className="rounded-lg p-2 hover:bg-neutral-100"><XMarkIcon className="h-[18px] w-[18px]" /></button>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <label className="text-sm font-bold">Nom<input required minLength={2} maxLength={80} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 min-h-11 w-full rounded-xl border border-neutral-200 px-3 font-normal" /></label>
@@ -280,34 +265,34 @@ export default function AdminTags() {
             <label className="flex items-center gap-2 self-end rounded-xl border border-neutral-200 p-3 text-sm font-bold"><input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} /> Mettre à la une</label>
             <label className="text-sm font-bold md:col-span-2 lg:col-span-3">Description<textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-1 w-full rounded-xl border border-neutral-200 p-3 font-normal" /></label>
           </div>
-          <button disabled={saving} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-orange-600 px-5 text-sm font-black text-white disabled:opacity-60">{saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Enregistrer</button>
+          <button disabled={saving} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-orange-600 px-5 text-sm font-black text-white disabled:opacity-60">{saving ? <ArrowPathIcon className="animate-spin h-4 w-4" /> : <CheckIcon className="h-4 w-4" />} Enregistrer</button>
         </form>
       )}
 
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
         <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
           <div className="flex flex-wrap gap-2 border-b border-neutral-200 p-4">
-            <div className="relative min-w-52 flex-1"><Search size={16} className="absolute left-3 top-3 text-neutral-400" /><input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Rechercher un tag…" className="min-h-10 w-full rounded-xl border border-neutral-200 pl-9 pr-3 text-sm" /></div>
+            <div className="relative min-w-52 flex-1"><MagnifyingGlassIcon className="absolute left-3 top-3 text-neutral-400 h-4 w-4" /><input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Rechercher un tag…" className="min-h-10 w-full rounded-xl border border-neutral-200 pl-9 pr-3 text-sm" /></div>
             <select value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} className="min-h-10 rounded-xl border border-neutral-200 px-3 text-sm"><option value="">Tous les types</option>{TYPES.map((value) => <option key={value} value={value}>{TYPE_LABELS[value]}</option>)}</select>
             <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="min-h-10 rounded-xl border border-neutral-200 px-3 text-sm"><option value="">Tous les statuts</option>{STATUSES.map((value) => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</select>
             <label className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-neutral-200 px-3 text-xs font-bold"><input type="checkbox" checked={showDeleted} onChange={(e) => { setShowDeleted(e.target.checked); setPage(1); }} /> Corbeille</label>
-            <button type="button" onClick={load} className="rounded-xl border border-neutral-200 p-2.5"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
-            {selected.size > 0 && <button type="button" onClick={bulkDelete} className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700"><Trash2 size={14} /> Supprimer ({selected.size})</button>}
+            <button type="button" onClick={load} className="rounded-xl border border-neutral-200 p-2.5"><ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-4 w-4" /></button>
+            {selected.size > 0 && <button type="button" onClick={bulkDelete} className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700"><TrashIcon className="h-3.5 w-3.5" /> Supprimer ({selected.size})</button>}
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500"><tr><th className="p-3"><input type="checkbox" checked={items.length > 0 && selected.size === items.length} onChange={(e) => setSelected(e.target.checked ? new Set(items.map((item) => item._id)) : new Set())} /></th><th className="p-3">Tag</th><th className="p-3">Type / état</th><th className="p-3">Données</th><th className="p-3 text-right">Actions</th></tr></thead>
+              <thead className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500"><tr><th className="p-3"><input type="checkbox" checked={items.length > 0 && selected.size === items.length} onChange={(e) => setSelected(e.target.checked ? new Set(items.map((item) => item._id)) : new Set())} /></th><th className="p-3">TagIcon</th><th className="p-3">Type / état</th><th className="p-3">Données</th><th className="p-3 text-right">Actions</th></tr></thead>
               <tbody className="divide-y divide-neutral-100">
                 {items.map((tag) => (
                   <tr key={tag._id} className="hover:bg-neutral-50/70">
                     <td className="p-3"><input type="checkbox" checked={selected.has(tag._id)} onChange={() => setSelected((current) => { const next = new Set(current); if (next.has(tag._id)) next.delete(tag._id); else next.add(tag._id); return next; })} /></td>
-                    <td className="p-3"><div className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: tag.color }} /><div><p className="font-black text-neutral-900">{tag.name} {tag.featured && <Sparkles size={13} className="inline text-amber-500" />}</p><p className="text-xs text-neutral-500">#{tag.slug} · {tag.category?.name || 'Sans catégorie'}</p></div></div></td>
+                    <td className="p-3"><div className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: tag.color }} /><div><p className="font-black text-neutral-900">{tag.name} {tag.featured && <SparklesIcon className="inline text-amber-500 h-[13px] w-[13px]" />}</p><p className="text-xs text-neutral-500">#{tag.slug} · {tag.category?.name || 'Sans catégorie'}</p></div></div></td>
                     <td className="p-3"><p className="font-semibold">{TYPE_LABELS[tag.type] || tag.type}</p><p className="text-xs text-neutral-500">{STATUS_LABELS[tag.status]} · {VISIBILITY_LABELS[tag.visibility]}</p></td>
                     <td className="p-3 text-xs text-neutral-600"><p>{tag.usageCount || 0} usages</p><p>{tag.searchCount || 0} recherches · {tag.conversionCount || 0} conversions</p></td>
                     <td className="p-3"><div className="flex justify-end gap-1">
-                      {tag.type === 'seller' && tag.status === 'draft' && !tag.deletedAt && <><button title="Approuver" onClick={() => review(tag, true)} className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50"><Check size={16} /></button><button title="Rejeter" onClick={() => review(tag, false)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><X size={16} /></button></>}
-                      {!tag.deletedAt && <><button title="Accueil" onClick={() => toggleFeatured(tag)} className="rounded-lg p-2 text-amber-600 hover:bg-amber-50"><Sparkles size={16} /></button><button title="Modifier" onClick={() => startEdit(tag)} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"><Edit3 size={16} /></button><button title="Fusionner" onClick={() => merge(tag)} className="rounded-lg p-2 text-violet-600 hover:bg-violet-50"><GitMerge size={16} /></button><button title="Supprimer" onClick={() => remove(tag)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button></>}
-                      {tag.deletedAt && <button title="Restaurer" onClick={() => restore(tag)} className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50"><RefreshCw size={16} /></button>}
+                      {tag.type === 'seller' && tag.status === 'draft' && !tag.deletedAt && <><button title="Approuver" onClick={() => review(tag, true)} className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50"><CheckIcon className="h-4 w-4" /></button><button title="Rejeter" onClick={() => review(tag, false)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><XMarkIcon className="h-4 w-4" /></button></>}
+                      {!tag.deletedAt && <><button title="Accueil" onClick={() => toggleFeatured(tag)} className="rounded-lg p-2 text-amber-600 hover:bg-amber-50"><SparklesIcon className="h-4 w-4" /></button><button title="Modifier" onClick={() => startEdit(tag)} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"><PencilSquareIcon className="h-4 w-4" /></button><button title="Fusionner" onClick={() => merge(tag)} className="rounded-lg p-2 text-violet-600 hover:bg-violet-50"><ArrowsPointingInIcon className="h-4 w-4" /></button><button title="Supprimer" onClick={() => remove(tag)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><TrashIcon className="h-4 w-4" /></button></>}
+                      {tag.deletedAt && <button title="Restaurer" onClick={() => restore(tag)} className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50"><ArrowPathIcon className="h-4 w-4" /></button>}
                     </div></td>
                   </tr>
                 ))}
@@ -320,13 +305,13 @@ export default function AdminTags() {
 
         <aside className="space-y-4">
           <section className="rounded-2xl border border-neutral-200 bg-white p-4">
-            <h2 className="flex items-center gap-2 font-black"><Tag size={17} /> Catégories de tags</h2>
-            <form onSubmit={createCategory} className="mt-3 flex gap-2"><input value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="Nouvelle catégorie" className="min-h-10 min-w-0 flex-1 rounded-xl border border-neutral-200 px-3 text-sm" /><button className="rounded-xl bg-neutral-950 px-3 text-white"><Plus size={16} /></button></form>
+            <h2 className="flex items-center gap-2 font-black"><TagIcon className="h-[17px] w-[17px]" /> Catégories de tags</h2>
+            <form onSubmit={createCategory} className="mt-3 flex gap-2"><input value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="Nouvelle catégorie" className="min-h-10 min-w-0 flex-1 rounded-xl border border-neutral-200 px-3 text-sm" /><button className="rounded-xl bg-neutral-950 px-3 text-white"><PlusIcon className="h-4 w-4" /></button></form>
             <button type="button" onClick={() => mutate(() => api.post('/tags/admin/categories/seed'), 'Catégories par défaut ajoutées.')} className="mt-2 text-xs font-bold text-orange-600">Installer les catégories par défaut</button>
             <div className="mt-3 flex flex-wrap gap-2">{categories.map((category) => <span key={category._id} className="rounded-full border px-2.5 py-1 text-xs font-semibold" style={{ borderColor: `${category.color || '#64748B'}55`, color: category.color || '#64748B' }}>{category.name}</span>)}</div>
           </section>
           <section className="rounded-2xl border border-neutral-200 bg-white p-4">
-            <h2 className="flex items-center gap-2 font-black"><BarChart3 size={17} /> Tendances</h2>
+            <h2 className="flex items-center gap-2 font-black"><ChartBarIcon className="h-[17px] w-[17px]" /> Tendances</h2>
             <div className="mt-3 space-y-2">{(analytics?.trending || []).slice(0, 8).map((tag, index) => <div key={tag._id} className="flex items-center gap-2 text-sm"><span className="w-5 text-xs font-black text-neutral-400">{index + 1}</span><span className="h-2.5 w-2.5 rounded-full" style={{ background: tag.color }} /><span className="min-w-0 flex-1 truncate font-semibold">{tag.name}</span><span className="text-xs text-neutral-500">{Math.round(tag.popularityScore || 0)}</span></div>)}</div>
           </section>
         </aside>

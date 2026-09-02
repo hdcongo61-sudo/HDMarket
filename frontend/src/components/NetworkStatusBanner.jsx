@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CloudOff, Wifi, WifiOff } from 'lucide-react';
+import { CloudIcon, WifiIcon } from '@heroicons/react/24/outline';
 import { recordNetworkMetric } from '../utils/networkMetrics';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 
@@ -46,7 +46,7 @@ export default function NetworkStatusBanner() {
   const content = useMemo(() => {
     if (offline) {
       return {
-        icon: WifiOff,
+        icon: WifiIcon,
         tone: 'border-slate-700 bg-slate-900/95 text-white',
         iconTone: 'bg-rose-500/20 text-rose-300',
         title: 'Vous êtes hors ligne',
@@ -57,7 +57,7 @@ export default function NetworkStatusBanner() {
     }
     if (rapid3GActive) {
       return {
-        icon: CloudOff,
+        icon: CloudIcon,
         tone: 'border-sky-700 bg-sky-950/95 text-white',
         iconTone: 'bg-sky-400/20 text-sky-300',
         title: rapid3GBannerText,
@@ -66,7 +66,7 @@ export default function NetworkStatusBanner() {
     }
     if (showReconnected) {
       return {
-        icon: Wifi,
+        icon: WifiIcon,
         tone: 'border-emerald-700 bg-emerald-950/95 text-white',
         iconTone: 'bg-emerald-400/20 text-emerald-300',
         title: 'Connexion rétablie',

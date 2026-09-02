@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Share2, PartyPopper } from 'lucide-react';
+import { ShareIcon, SparklesIcon, UsersIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
@@ -111,7 +111,7 @@ export default function GroupBuySection({ productId, enabled, resolveCartSelecti
     return (
       <div className="rounded-2xl border border-[#e85d00]/30 bg-[#fff7f0] p-4">
         <div className="flex items-center gap-2">
-          <Users size={18} className="text-[#e85d00]" />
+          <UsersIcon className="text-[#e85d00] h-[18px] w-[18px]" />
           <h3 className="text-sm font-black text-gray-900">Achat groupé disponible</h3>
         </div>
         <p className="mt-1.5 text-xs text-gray-600">
@@ -123,7 +123,7 @@ export default function GroupBuySection({ productId, enabled, resolveCartSelecti
           disabled={busy}
           className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-50"
         >
-          <Users size={16} /> Démarrer une équipe
+          <UsersIcon className="h-4 w-4" /> Démarrer une équipe
         </button>
       </div>
     );
@@ -141,9 +141,9 @@ export default function GroupBuySection({ productId, enabled, resolveCartSelecti
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {isFilled ? (
-            <PartyPopper size={18} className="text-[#e85d00]" />
+            <SparklesIcon className="text-[#e85d00] h-[18px] w-[18px]" />
           ) : (
-            <Users size={18} className="text-[#e85d00]" />
+            <UsersIcon className="text-[#e85d00] h-[18px] w-[18px]" />
           )}
           <h3 className="text-sm font-black text-gray-900">
             {isFilled ? 'Équipe complète !' : 'Achat groupé en cours'}
@@ -194,7 +194,7 @@ export default function GroupBuySection({ productId, enabled, resolveCartSelecti
             className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#e85d00] px-3 text-[#e85d00]"
             aria-label="Partager"
           >
-            <Share2 size={16} />
+            <ShareIcon className="h-4 w-4" />
           </button>
         )}
       </div>

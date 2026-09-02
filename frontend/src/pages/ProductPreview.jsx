@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Sparkles, Star, Store, Zap, ChevronRight, Eye, MapPin, ShieldCheck } from 'lucide-react';
+import { ArrowLeftIcon, BoltIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, ChevronRightIcon, EyeIcon, MapPinIcon, ShieldCheckIcon, SparklesIcon, StarIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { buildProductPath } from '../utils/links';
 import useIsMobile from '../hooks/useIsMobile';
@@ -302,13 +302,13 @@ export default function ProductPreview() {
               aria-label="Retour"
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 shadow-sm ring-1 ring-gray-200 active:scale-95"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeftIcon className="h-5 w-5" />
             </button>
             <Link
               to="/products"
               className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 py-2.5 text-sm font-black text-slate-500 shadow-sm ring-1 ring-gray-200"
             >
-              <Eye className="h-4 w-4 text-[#e85d00]" />
+              <EyeIcon className="h-4 w-4 text-[#e85d00]" />
               <span className="truncate">Explorer HDMarket</span>
             </Link>
           </div>
@@ -338,7 +338,7 @@ export default function ProductPreview() {
         ) : error ? (
           <div className="rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
-              <Zap className="h-7 w-7 text-red-500" />
+              <BoltIcon className="h-7 w-7 text-red-500" />
             </div>
             <p className="text-sm font-black text-red-600">{error}</p>
             <button
@@ -395,19 +395,19 @@ export default function ProductPreview() {
                   <div className="flex flex-wrap items-center gap-2 text-[11px] font-black text-gray-600">
                     {productRatingAverage > 0 ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-amber-700">
-                        <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                        <StarIcon className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
                         {productRatingAverage.toFixed(1)}
                       </span>
                     ) : null}
                     {product?.commentCount > 0 ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-1">
-                        <MessageCircle className="h-3.5 w-3.5" />
+                        <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
                         {formatCount(product.commentCount)}
                       </span>
                     ) : null}
                     {cityLabel ? (
                       <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-gray-50 px-2 py-1">
-                        <MapPin className="h-3.5 w-3.5 text-[#e85d00]" />
+                        <MapPinIcon className="h-3.5 w-3.5 text-[#e85d00]" />
                         <span className="max-w-[160px] truncate">{cityLabel}</span>
                       </span>
                     ) : null}
@@ -419,16 +419,16 @@ export default function ProductPreview() {
                 <div className="border-t border-gray-100 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff2e6] text-[#e85d00] ring-1 ring-gray-200">
-                      <Store className="h-5 w-5" />
+                      <BuildingStorefrontIcon className="h-5 w-5" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-slate-950">{shopName}</p>
                       <p className="flex items-center gap-1 text-[11px] font-bold text-gray-500">
-                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                        <ShieldCheckIcon className="h-3.5 w-3.5 text-emerald-600" />
                         Boutique reliée au produit
                       </p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                    <ChevronRightIcon className="h-4 w-4 text-gray-400" />
                   </div>
                 </div>
               ) : null}
@@ -447,7 +447,7 @@ export default function ProductPreview() {
                   className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-[#ffb000] text-sm font-black text-white shadow-sm active:scale-[0.98]"
                 >
                   Voir le produit
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRightIcon className="h-4 w-4" />
                 </Link>
               </div>
             </section>
@@ -459,7 +459,7 @@ export default function ProductPreview() {
                   <p className="text-xs font-semibold text-gray-500">Sélection rapide en 3 colonnes</p>
                 </div>
                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1.5 text-[11px] font-black text-gray-500 ring-1 ring-gray-200">
-                  <Eye className="h-3.5 w-3.5" />
+                  <EyeIcon className="h-3.5 w-3.5" />
                   Découverte
                 </span>
               </div>
@@ -514,7 +514,7 @@ export default function ProductPreview() {
                           <div className="mt-1 flex min-h-[16px] items-center gap-1 text-[9px] font-bold text-gray-500">
                             {pickRatingAverage > 0 ? (
                               <span className="inline-flex items-center gap-0.5">
-                                <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                                <StarIcon className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
                                 {pickRatingAverage.toFixed(1)}
                               </span>
                             ) : null}
@@ -528,7 +528,7 @@ export default function ProductPreview() {
               ) : (
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#e85d00] shadow-sm">
-                    <Store className="h-7 w-7" />
+                    <BuildingStorefrontIcon className="h-7 w-7" />
                   </div>
                   <p className="text-sm font-black text-slate-800">Aucune inspiration pour le moment</p>
                   <p className="mt-1 text-xs font-semibold text-gray-500">

@@ -4,7 +4,7 @@ import api from '../services/api';
 import useDesktopExternalLink from '../hooks/useDesktopExternalLink';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
-import { CheckCircle, Search, Package, User, MapPin, Truck, Clock, ClipboardList, Plus, RefreshCcw, ArrowLeft, X, AlertCircle, ShieldCheck, FileSpreadsheet, Trash2, ChevronDown, ChevronRight, Filter, ShoppingCart, CreditCard, Store, Ban } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, BuildingStorefrontIcon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon, ClipboardDocumentListIcon, ClockIcon, CreditCardIcon, CubeIcon, ExclamationCircleIcon, FunnelIcon, MagnifyingGlassIcon, MapPinIcon, NoSymbolIcon, PlusIcon, ShieldCheckIcon, ShoppingCartIcon, TableCellsIcon, TrashIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import OrderChat from '../components/OrderChat';
 import SelectedAttributesList from '../components/orders/SelectedAttributesList';
 import BaseModal from '../components/modals/BaseModal';
@@ -78,7 +78,7 @@ const STATUS_CATEGORIES = [
   {
     key: 'all',
     label: 'Toutes',
-    icon: ClipboardList,
+    icon: ClipboardDocumentListIcon,
     color: 'bg-neutral-900 text-white',
     lightColor: 'bg-neutral-100 text-neutral-800 border-neutral-200',
     statuses: []
@@ -86,7 +86,7 @@ const STATUS_CATEGORIES = [
   {
     key: 'to_process',
     label: 'À traiter',
-    icon: Clock,
+    icon: ClockIcon,
     color: 'bg-amber-600 text-white',
     lightColor: 'bg-amber-50 text-amber-800 border-amber-200',
     statuses: ['pending_payment', 'pending', 'pending_installment', 'dispute_opened']
@@ -94,7 +94,7 @@ const STATUS_CATEGORIES = [
   {
     key: 'confirmed',
     label: 'Confirmées',
-    icon: CheckCircle,
+    icon: CheckCircleIcon,
     color: 'bg-emerald-600 text-white',
     lightColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     statuses: ['paid', 'confirmed', 'ready_for_pickup', 'ready_for_delivery']
@@ -102,7 +102,7 @@ const STATUS_CATEGORIES = [
   {
     key: 'in_progress',
     label: 'En cours',
-    icon: Truck,
+    icon: TruckIcon,
     color: 'bg-blue-600 text-white',
     lightColor: 'bg-blue-50 text-blue-800 border-blue-200',
     statuses: ['out_for_delivery', 'delivering', 'installment_active']
@@ -110,7 +110,7 @@ const STATUS_CATEGORIES = [
   {
     key: 'delivered',
     label: 'Livrées',
-    icon: Package,
+    icon: CubeIcon,
     color: 'bg-violet-600 text-white',
     lightColor: 'bg-violet-50 text-violet-800 border-violet-200',
     statuses: ['delivered', 'delivery_proof_submitted', 'confirmed_by_client', 'picked_up_confirmed']
@@ -118,7 +118,7 @@ const STATUS_CATEGORIES = [
   {
     key: 'completed',
     label: 'Terminées',
-    icon: CheckCircle,
+    icon: CheckCircleIcon,
     color: 'bg-green-600 text-white',
     lightColor: 'bg-green-50 text-green-800 border-green-200',
     statuses: ['completed']
@@ -126,7 +126,7 @@ const STATUS_CATEGORIES = [
   {
     key: 'problems',
     label: 'Problèmes',
-    icon: AlertCircle,
+    icon: ExclamationCircleIcon,
     color: 'bg-red-600 text-white',
     lightColor: 'bg-red-50 text-red-800 border-red-200',
     statuses: ['cancelled', 'overdue_installment']
@@ -135,11 +135,11 @@ const STATUS_CATEGORIES = [
 
 // ─── Redesigned: Visual order pipeline (5 stages) ───
 const ORDER_PIPELINE = [
-  { key: 'payment', label: 'Paiement', icon: CreditCard, statuses: ['pending_payment', 'pending_installment'] },
-  { key: 'confirmed', label: 'Confirmé', icon: Store, statuses: ['paid', 'pending', 'confirmed', 'ready_for_pickup', 'ready_for_delivery'] },
-  { key: 'shipping', label: 'En cours', icon: Truck, statuses: ['out_for_delivery', 'delivering', 'installment_active'] },
-  { key: 'delivered', label: 'Livré', icon: Package, statuses: ['delivered', 'delivery_proof_submitted', 'confirmed_by_client', 'picked_up_confirmed'] },
-  { key: 'done', label: 'Terminé', icon: CheckCircle, statuses: ['completed'] }
+  { key: 'payment', label: 'Paiement', icon: CreditCardIcon, statuses: ['pending_payment', 'pending_installment'] },
+  { key: 'confirmed', label: 'Confirmé', icon: BuildingStorefrontIcon, statuses: ['paid', 'pending', 'confirmed', 'ready_for_pickup', 'ready_for_delivery'] },
+  { key: 'shipping', label: 'En cours', icon: TruckIcon, statuses: ['out_for_delivery', 'delivering', 'installment_active'] },
+  { key: 'delivered', label: 'Livré', icon: CubeIcon, statuses: ['delivered', 'delivery_proof_submitted', 'confirmed_by_client', 'picked_up_confirmed'] },
+  { key: 'done', label: 'Terminé', icon: CheckCircleIcon, statuses: ['completed'] }
 ];
 
 // Phase badge mapping for order cards
@@ -183,7 +183,7 @@ const getPipelineCount = (phase, stats) => {
 };
 
 const STATUS_TABS = [
-  { key: 'all', label: 'Toutes', icon: ClipboardList },
+  { key: 'all', label: 'Toutes', icon: ClipboardDocumentListIcon },
   ...STATUS_CATEGORIES.filter(c => c.key !== 'all').flatMap(cat =>
     cat.statuses.map(s => ({ key: s, label: STATUS_LABELS[s] || s, icon: cat.icon, category: cat.key }))
   )
@@ -1435,7 +1435,7 @@ export default function AdminOrders() {
                   </div>
                 </button>
                 {!isLast && (
-                  <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                  <ChevronRightIcon className="w-4 h-4 text-gray-300 flex-shrink-0" />
                 )}
               </React.Fragment>
             );
@@ -1443,13 +1443,13 @@ export default function AdminOrders() {
           {/* Problems indicator */}
           {problemsCount > 0 && (
             <>
-              <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              <ChevronRightIcon className="w-4 h-4 text-gray-300 flex-shrink-0" />
               <button
                 type="button"
                 onClick={() => setStatusFilter('problems')}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 transition-all text-xs font-medium min-h-[40px] flex-shrink-0"
               >
-                <Ban className="w-3.5 h-3.5 text-red-500" />
+                <NoSymbolIcon className="w-3.5 h-3.5 text-red-500" />
                 <div className="text-left">
                   <div className="text-[10px] uppercase tracking-wide text-red-500">Problèmes</div>
                   <div className="text-sm font-bold text-red-700">{problemsCount.toLocaleString('fr-FR')}</div>
@@ -1543,7 +1543,7 @@ export default function AdminOrders() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <ClipboardList className="w-6 h-6 text-neutral-700" />
+                <ClipboardDocumentListIcon className="w-6 h-6 text-neutral-700" />
                 Gestion des commandes
               </h1>
               <p className="mt-1 text-sm text-gray-500">
@@ -1556,7 +1556,7 @@ export default function AdminOrders() {
                 onClick={openCreateModal}
                 className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800 active:scale-95 transition-all"
               >
-                <Plus className="h-4 w-4" />
+                <PlusIcon className="h-4 w-4" />
                 Créer une commande
               </button>
               <button
@@ -1564,14 +1564,14 @@ export default function AdminOrders() {
                 onClick={exportToExcel}
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <FileSpreadsheet className="h-4 w-4" />
+                <TableCellsIcon className="h-4 w-4" />
                 Export Excel
               </button>
               <Link
                 to="/admin"
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeftIcon className="w-4 h-4" />
                 Retour admin
               </Link>
             </div>
@@ -1588,24 +1588,24 @@ export default function AdminOrders() {
               disabled={ordersLoading || statsLoading || commandCenterLoading || alertsLoading}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50"
             >
-              <RefreshCcw className={`h-3.5 w-3.5 ${(ordersLoading || commandCenterLoading || alertsLoading) ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`h-3.5 w-3.5 ${(ordersLoading || commandCenterLoading || alertsLoading) ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
           </div>
           {renderOrderPipeline()}
         </section>
 
-        {/* ── Category + Sub-status Filter ── */}
+        {/* ── Category + Sub-status FunnelIcon ── */}
         <section className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-5 space-y-0">
           {renderStatusTabs()}
           {renderSubStatusFilter()}
         </section>
 
-        {/* ── Search + Filters ── */}
+        {/* ── MagnifyingGlassIcon + Filters ── */}
         <section className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-5 space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative w-full lg:max-w-xl">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher par produit, client, adresse..."
@@ -1625,7 +1625,7 @@ export default function AdminOrders() {
                     : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <Filter className="w-4 h-4" />
+                <FunnelIcon className="w-4 h-4" />
                 Filtres avancés
                 {(cityFilter || shopFilter || dateFromFilter || dateToFilter || delayedOnly || deliveryModeFilter || paymentTypeFilter || priorityFilter) && (
                   <span className="w-2 h-2 rounded-full bg-neutral-600" />
@@ -1637,7 +1637,7 @@ export default function AdminOrders() {
                 disabled={ordersLoading || commandCenterLoading || alertsLoading}
                 className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95 shadow-sm disabled:opacity-60 transition-all"
               >
-                <RefreshCcw className={`w-4 h-4 ${(ordersLoading || commandCenterLoading || alertsLoading) ? 'animate-spin' : ''}`} />
+                <ArrowPathIcon className={`w-4 h-4 ${(ordersLoading || commandCenterLoading || alertsLoading) ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Actualiser</span>
               </button>
             </div>
@@ -1740,7 +1740,7 @@ export default function AdminOrders() {
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <ShoppingCart className="w-3 h-3 mr-1" />
+              <ShoppingCartIcon className="w-3 h-3 mr-1" />
               Paiement par tranche
             </button>
             <button
@@ -1752,7 +1752,7 @@ export default function AdminOrders() {
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <Store className="w-3 h-3 mr-1" />
+              <BuildingStorefrontIcon className="w-3 h-3 mr-1" />
               Récupérer en boutique
             </button>
           </div>
@@ -1768,7 +1768,7 @@ export default function AdminOrders() {
         >
             <div className="flex items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2 text-gray-900 font-semibold text-lg">
-                <Plus className="w-5 h-5 text-green-600" />
+                <PlusIcon className="w-5 h-5 text-green-600" />
                 Créer une commande
               </div>
               <button
@@ -1777,7 +1777,7 @@ export default function AdminOrders() {
                 className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 aria-label="Fermer"
               >
-                X
+                XMarkIcon
               </button>
             </div>
 
@@ -1785,11 +1785,11 @@ export default function AdminOrders() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                    <User size={16} />
+                    <UserIcon className="h-4 w-4" />
                     Client
                   </label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <input
                       type="text"
                       className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
@@ -1821,11 +1821,11 @@ export default function AdminOrders() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                    <Package size={16} />
+                    <CubeIcon className="h-4 w-4" />
                     Produit
                   </label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <input
                       type="text"
                       className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
@@ -1911,7 +1911,7 @@ export default function AdminOrders() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <MapPin size={16} />
+                    <MapPinIcon className="h-4 w-4" />
                     Adresse de livraison *
                   </label>
                   <textarea
@@ -1924,7 +1924,7 @@ export default function AdminOrders() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Truck size={16} />
+                    <TruckIcon className="h-4 w-4" />
                     Ville de livraison *
                   </label>
                   <select
@@ -1942,7 +1942,7 @@ export default function AdminOrders() {
                     ))}
                   </select>
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <RefreshCcw size={16} />
+                    <ArrowPathIcon className="h-4 w-4" />
                     Note de suivi
                   </label>
                   <textarea
@@ -1967,7 +1967,7 @@ export default function AdminOrders() {
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-600 text-white px-4 py-2 text-sm font-semibold hover:bg-neutral-700 disabled:opacity-50"
               >
-                <Plus size={16} />
+                <PlusIcon className="h-4 w-4" />
                 Ajouter la commande
               </button>
             </form>
@@ -1995,14 +1995,14 @@ export default function AdminOrders() {
                 className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 aria-label="Fermer"
               >
-                X
+                XMarkIcon
               </button>
             </div>
 
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Truck size={16} />
+                  <TruckIcon className="h-4 w-4" />
                   Livreur
                 </label>
                 <select
@@ -2091,7 +2091,7 @@ export default function AdminOrders() {
           ariaLabel="Statut de commande mis à jour"
         >
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
-              <CheckCircle className="h-6 w-6" />
+              <CheckCircleIcon className="h-6 w-6" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Statut mis à jour</h3>
             <p className="mt-1 text-sm text-gray-600">
@@ -2133,7 +2133,7 @@ export default function AdminOrders() {
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
                 aria-label="Fermer aperçu commande"
               >
-                <X className="h-4 w-4" />
+                <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
 
@@ -2296,7 +2296,7 @@ export default function AdminOrders() {
         >
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-                <Trash2 className="h-6 w-6" />
+                <TrashIcon className="h-6 w-6" />
               </div>
               <div className="text-left">
                 <h3 className="text-lg font-semibold text-gray-900">Supprimer la commande</h3>
@@ -2353,7 +2353,7 @@ export default function AdminOrders() {
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
                 aria-label="Fermer"
               >
-                <X className="h-4 w-4" />
+                <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
             {!isAdminUser && (
@@ -2470,7 +2470,7 @@ export default function AdminOrders() {
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
                 aria-label="Fermer timeline"
               >
-                <X className="h-4 w-4" />
+                <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
             <div className="mb-4 grid grid-cols-2 gap-2">
@@ -2582,7 +2582,7 @@ export default function AdminOrders() {
             </div>
           ) : orders.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
-              <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <ClipboardDocumentListIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="text-sm font-medium">Aucune commande à afficher</p>
               <p className="text-xs mt-1">Modifiez les filtres ou créez une nouvelle commande.</p>
             </div>
@@ -2630,7 +2630,7 @@ export default function AdminOrders() {
                       {/* Customer */}
                       <div className="flex items-start gap-2">
                         <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-neutral-500" />
+                          <UserIcon className="w-4 h-4 text-neutral-500" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">{order.customer?.name || 'Client'}</p>
@@ -2673,7 +2673,7 @@ export default function AdminOrders() {
 
                       {/* Location */}
                       <div className="flex items-center gap-1 text-[11px] text-gray-400">
-                        <MapPin className="w-3 h-3 flex-shrink-0" />
+                        <MapPinIcon className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate">{order.deliveryCity || '—'}{order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}</span>
                       </div>
 
@@ -2750,15 +2750,15 @@ export default function AdminOrders() {
                         <OrderChat order={order} buttonText="Chat" unreadCount={orderUnreadCounts[order._id] || 0} />
                         <button type="button" onClick={() => openTimelineDrawer(order)}
                           className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 hover:bg-gray-50">
-                          <Clock size={12} /> Timeline
+                          <ClockIcon className="h-3 w-3" /> Timeline
                         </button>
                         <button type="button" onClick={() => openActionModal(order)}
                           className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2 text-[11px] font-semibold text-gray-700 hover:bg-gray-50">
-                          <AlertCircle size={12} /> Action
+                          <ExclamationCircleIcon className="h-3 w-3" /> Action
                         </button>
                         <button type="button" onClick={() => openOrderPdf(order)}
                           className="inline-flex items-center justify-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-2 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-100">
-                          <ClipboardList size={12} /> PDF
+                          <ClipboardDocumentListIcon className="h-3 w-3" /> PDF
                         </button>
                       </div>
 
@@ -2766,7 +2766,7 @@ export default function AdminOrders() {
                       {order.status === 'cancelled' && (
                         <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-1">
                           <div className="flex items-center gap-1.5">
-                            <X className="w-3.5 h-3.5 text-red-600" />
+                            <XMarkIcon className="w-3.5 h-3.5 text-red-600" />
                             <p className="text-xs font-bold text-red-800">Commande annulée</p>
                           </div>
                           {order.cancellationReason && <p className="text-[11px] text-red-700">Raison: {order.cancellationReason}</p>}
@@ -2777,7 +2777,7 @@ export default function AdminOrders() {
                       {/* Delete */}
                       <button type="button" onClick={() => setDeleteOrder(order)}
                         className="inline-flex items-center justify-center gap-1.5 w-full rounded-lg border border-red-200 bg-red-50 px-2 py-2 text-[11px] font-semibold text-red-700 hover:bg-red-100 transition-colors">
-                        <Trash2 size={12} /> Supprimer
+                        <TrashIcon className="h-3 w-3" /> Supprimer
                       </button>
                     </div>
                   );

@@ -1,18 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Heart,
-  Sparkles,
-  TrendingUp,
-  MapPin,
-  ShoppingBag,
-  Store,
-  RefreshCw,
-  ChevronRight,
-  Package,
-  Grid3X3
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, BuildingStorefrontIcon, ChevronRightIcon, CubeIcon, HeartIcon, MapPinIcon, ShoppingBagIcon, SparklesIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 import useRecommendations from '../hooks/useRecommendations';
 import AuthContext from '../context/AuthContext';
 import FavoriteContext from '../context/FavoriteContext';
@@ -66,7 +55,7 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
           </div>
           {product?.boosted && (
             <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-black text-amber-900 shadow-sm">
-              <Sparkles className="h-2.5 w-2.5" />Boost
+              <SparklesIcon className="h-2.5 w-2.5" />Boost
             </div>
           )}
         </div>
@@ -76,12 +65,12 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
           </p>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1 min-w-0 flex-1">
-              {isShop ? <Store className="h-3 w-3 flex-shrink-0 text-[#e85d00]" /> : <ShoppingBag className="h-3 w-3 flex-shrink-0 text-gray-400" />}
+              {isShop ? <BuildingStorefrontIcon className="h-3 w-3 flex-shrink-0 text-[#e85d00]" /> : <ShoppingBagIcon className="h-3 w-3 flex-shrink-0 text-gray-400" />}
               <span className="text-[10px] font-semibold text-gray-500 truncate">{shopName}</span>
             </div>
             {product?.city && (
               <span className="text-[9px] font-medium text-gray-400 flex items-center gap-0.5 flex-shrink-0">
-                <MapPin className="h-2.5 w-2.5" />{product.city}
+                <MapPinIcon className="h-2.5 w-2.5" />{product.city}
               </span>
             )}
           </div>
@@ -101,7 +90,7 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
         }`}
         aria-label={isFavorited ? 'Retirer des favoris' : 'Ajouter aux favoris'}
       >
-        <Heart className={`h-4 w-4 transition ${isFavorited ? 'fill-white scale-110' : ''}`} />
+        <HeartIcon className={`h-4 w-4 transition ${isFavorited ? 'fill-white scale-110' : ''}`} />
       </button>
     </motion.div>
   );
@@ -201,7 +190,7 @@ export default function Explorer() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 shadow-sm ring-1 ring-white/25">
-              <Sparkles className="h-6 w-6" />
+              <SparklesIcon className="h-6 w-6" />
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-wide text-white/78">
@@ -221,7 +210,7 @@ export default function Explorer() {
             disabled={isRefreshing}
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <ArrowPathIcon className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -239,7 +228,7 @@ export default function Explorer() {
                   : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 hover:text-gray-500'
               }`}
             >
-              <Grid3X3 className="inline h-3 w-3 mr-1 -mt-0.5" />
+              <Squares2X2Icon className="inline h-3 w-3 mr-1 -mt-0.5" />
               {t('explorer.all', 'Tout')}
             </button>
             {categoryChips.map(([cat, label]) => (
@@ -267,12 +256,12 @@ export default function Explorer() {
         {isError && !isLoading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
-              <TrendingUp className="h-8 w-8 text-[#e85d00]" />
+              <ArrowTrendingUpIcon className="h-8 w-8 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900">{t('explorer.errorTitle', 'Oups !')}</h3>
             <p className="mt-2 text-sm text-gray-500 max-w-xs">{t('explorer.errorMessage', 'Recommandations momentanément indisponibles.')}</p>
             <button type="button" onClick={handleRefresh} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-sm transition active:scale-95">
-              <RefreshCw className="h-3.5 w-3.5" />{t('explorer.retry', 'Réessayer')}
+              <ArrowPathIcon className="h-3.5 w-3.5" />{t('explorer.retry', 'Réessayer')}
             </button>
           </div>
         )}
@@ -280,7 +269,7 @@ export default function Explorer() {
         {hasContent === false && !isLoading && !isError && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 ring-1 ring-gray-200">
-              <Package className="h-8 w-8 text-[#e85d00]" />
+              <CubeIcon className="h-8 w-8 text-[#e85d00]" />
             </div>
             <h3 className="text-lg font-black text-gray-900">
               {activeCategory ? t('explorer.emptyCategory', `Aucun produit en "${activeCategory}"`) : t('explorer.emptyTitle', 'Commencez à explorer')}
@@ -294,7 +283,7 @@ export default function Explorer() {
               </button>
             ) : (
               <Link to="/products" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e85d00] px-6 py-2.5 text-sm font-black text-white shadow-sm transition active:scale-95">
-                {t('explorer.browseProducts', 'Parcourir les produits')}<ChevronRight className="h-4 w-4" />
+                {t('explorer.browseProducts', 'Parcourir les produits')}<ChevronRightIcon className="h-4 w-4" />
               </Link>
             )}
           </div>

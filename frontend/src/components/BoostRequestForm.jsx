@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, Receipt, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowPathIcon, ReceiptPercentIcon, ShieldCheckIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import PawaPayButton from './PawaPayButton';
@@ -96,7 +96,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
   return (
     <div className="hd-form-card rounded-2xl p-3 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-[#e85d00]" />
+        <SparklesIcon className="h-5 w-5 text-[#e85d00]" />
         <h3 className="text-base font-black text-slate-900 sm:text-lg">Nouvelle demande de boost</h3>
       </div>
 
@@ -206,7 +206,7 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
         <div className="grid grid-cols-1 gap-2">
           <div className="rounded-2xl border border-emerald-500 bg-emerald-50 p-3 text-left text-emerald-800 shadow-sm">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4" />
+              <ShieldCheckIcon className="h-4 w-4" />
               <p className="text-sm font-black">Paiement sécurisé PawaPay</p>
             </div>
             <p className="mt-1 text-xs text-slate-500">
@@ -251,12 +251,12 @@ export default function BoostRequestForm({ products = [], defaultCity = '', onSu
 
       <div className="mt-4 rounded-2xl border border-gray-200 bg-white/85 p-3">
         <div className="mb-2 flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-neutral-700" />
+          <ReceiptPercentIcon className="h-4 w-4 text-neutral-700" />
           <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-700">Prévisualisation du prix</p>
         </div>
         {previewLoading ? (
           <div className="flex items-center gap-2 text-sm text-neutral-700">
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <ArrowPathIcon className="h-4 w-4 animate-spin" />
             Calcul en cours...
           </div>
         ) : preview ? (

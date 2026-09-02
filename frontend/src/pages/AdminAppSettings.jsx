@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Image, Images, Layout, Smartphone, Upload, Shield, Search, X, Sparkles, Plus, Trash2, Edit, Save, Flag, MessageSquare, FileImage, User, Package, CheckCircle, XCircle, Clock, AppWindow, Monitor, Globe, LogIn } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightOnRectangleIcon, ArrowUpTrayIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, CheckIcon, ClockIcon, ComputerDesktopIcon, CubeIcon, DevicePhoneMobileIcon, FlagIcon, GlobeAltIcon, MagnifyingGlassIcon, PencilIcon, PhotoIcon, PlusIcon, ShieldCheckIcon, SparklesIcon, Squares2X2Icon, TrashIcon, UserIcon, WindowIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { clearCache } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { appConfirm } from '../utils/appDialog';
@@ -164,7 +164,7 @@ function LogoUploadTile({
         ) : (
           <>
             <span className="grid h-11 w-11 place-items-center rounded-full bg-gray-100 text-gray-400 transition-colors group-hover:bg-orange-100 group-hover:text-[#e85d00]">
-              <Upload className="h-5 w-5" />
+              <ArrowUpTrayIcon className="h-5 w-5" />
             </span>
             <span className="text-xs font-bold text-gray-700">Cliquez pour uploader</span>
           </>
@@ -210,14 +210,14 @@ function NetworkEditForm({ network, onSave, onCancel }) {
           onClick={() => onSave(name.trim(), phoneNumber.trim())}
           className="p-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
         >
-          <Save size={16} />
+          <CheckIcon className="h-4 w-4" />
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="p-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
         >
-          <X size={16} />
+          <XMarkIcon className="h-4 w-4" />
         </button>
       </div>
     </>
@@ -260,8 +260,6 @@ export default function AdminAppSettings() {
   const [authLogoSaving, setAuthLogoSaving] = useState(false);
   const [authLogoError, setAuthLogoError] = useState('');
   const [authLogoSuccess, setAuthLogoSuccess] = useState('');
-  const [darkThemeEnabled, setDarkThemeEnabled] = useState(true);
-  const [darkThemeSaving, setDarkThemeSaving] = useState(false);
   const [authProviderSettings, setAuthProviderSettings] = useState(DEFAULT_AUTH_SETTINGS);
   const [authProviderSavingKey, setAuthProviderSavingKey] = useState('');
   const [appInformation, setAppInformation] = useState(DEFAULT_APP_INFORMATION);
@@ -376,7 +374,6 @@ export default function AdminAppSettings() {
           setBootSplashMobileDuration(clampBoot(splashRes.data.bootSplashMobileDurationSeconds));
         }
         setNetworks(Array.isArray(networksRes?.data) ? networksRes.data : []);
-        setDarkThemeEnabled(runtimeRes?.data?.values?.enable_dark_theme !== false);
         setAuthProviderSettings(Object.fromEntries(
           Object.keys(DEFAULT_AUTH_SETTINGS).map((key) => [key, runtimeRes?.data?.values?.[key] !== false])
         ));
@@ -391,27 +388,6 @@ export default function AdminAppSettings() {
     };
     load();
     return () => { active = false; };
-  }, [showToast]);
-
-  const saveDarkThemeSetting = useCallback(async (enabled) => {
-    const nextValue = Boolean(enabled);
-    setDarkThemeSaving(true);
-    try {
-      await api.patch('/admin/config/runtime/enable_dark_theme', { value: nextValue });
-      setDarkThemeEnabled(nextValue);
-      await clearCache('/settings');
-      emitSettingsRefresh();
-      showToast(
-        nextValue ? 'Thème sombre autorisé.' : 'Thème sombre désactivé pour l’application.',
-        { variant: 'success' }
-      );
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Impossible de modifier le thème sombre.', {
-        variant: 'error'
-      });
-    } finally {
-      setDarkThemeSaving(false);
-    }
   }, [showToast]);
 
   const saveAuthProviderSetting = useCallback(async (key, enabled) => {
@@ -1061,7 +1037,7 @@ export default function AdminAppSettings() {
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
-              <Image size={24} strokeWidth={2.2} />
+              <PhotoIcon strokeWidth={2.2} className="h-6 w-6" />
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
@@ -1077,21 +1053,21 @@ export default function AdminAppSettings() {
               to="/admin/settings/categories"
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
             >
-              <Layout size={16} />
+              <Squares2X2Icon className="h-4 w-4" />
               Catégories
             </Link>
             <Link
               to="/admin/system-settings"
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
             >
-              <Shield size={16} />
+              <ShieldCheckIcon className="h-4 w-4" />
               Paramètres système
             </Link>
             <Link
               to="/admin"
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeftIcon className="h-4 w-4" />
               Retour
             </Link>
           </div>
@@ -1101,7 +1077,6 @@ export default function AdminAppSettings() {
         <nav className="rounded-2xl border border-gray-200 bg-white/90 px-2 py-2 shadow-sm">
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
-              ['#apparence', 'Apparence'],
               ['#cartes-produit', 'Cartes produit'],
               ['#informations-app', 'Informations'],
               ['#authentification', 'Authentification'],
@@ -1126,46 +1101,11 @@ export default function AdminAppSettings() {
         </nav>
 
         <section className="space-y-8">
-          <div id="apparence" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gray-900 text-white">
-                  <Monitor size={20} />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-gray-900">Thème sombre</h2>
-                  <p className="mt-1 max-w-xl text-sm font-medium text-gray-500">
-                    Autorisez les utilisateurs à choisir le mode sombre. Si cette option est désactivée,
-                    toute l’application utilise immédiatement le thème clair.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={darkThemeEnabled}
-                disabled={darkThemeSaving}
-                onClick={() => saveDarkThemeSetting(!darkThemeEnabled)}
-                className={`inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl px-5 text-sm font-black text-white transition disabled:cursor-wait disabled:opacity-60 ${
-                  darkThemeEnabled
-                    ? 'bg-gray-900 hover:bg-black'
-                    : 'bg-gray-400 hover:bg-gray-500'
-                }`}
-              >
-                {darkThemeSaving
-                  ? 'Enregistrement…'
-                  : darkThemeEnabled
-                    ? 'Thème sombre autorisé'
-                    : 'Thème sombre désactivé'}
-              </button>
-            </div>
-          </div>
-
           <div id="cartes-produit" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-3">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
-                  <Images size={20} />
+                  <PhotoIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-black text-gray-900">Cartes produit · aperçu multi-images</h2>
@@ -1178,7 +1118,7 @@ export default function AdminAppSettings() {
                 to="/admin/features"
                 className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3.5 text-xs font-black text-violet-700 transition hover:bg-violet-100"
               >
-                <Flag size={15} />
+                <FlagIcon className="h-[15px] w-[15px]" />
                 Gérer le déploiement
               </Link>
             </div>
@@ -1281,7 +1221,7 @@ export default function AdminAppSettings() {
                   disabled={productCardSettingsSaving}
                   className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-5 text-sm font-black text-white transition hover:bg-[#c94f00] disabled:cursor-wait disabled:opacity-60"
                 >
-                  <Save size={16} />
+                  <CheckIcon className="h-4 w-4" />
                   {productCardSettingsSaving ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
               </div>
@@ -1291,7 +1231,7 @@ export default function AdminAppSettings() {
           <div id="informations-app" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-start gap-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e85d00] text-white">
-                <Globe size={20} />
+                <GlobeAltIcon className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-base font-black text-gray-900">Informations de l’application</h2>
@@ -1335,7 +1275,7 @@ export default function AdminAppSettings() {
                   disabled={appInformationSaving}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-5 text-sm font-black text-white transition hover:bg-[#c94f00] disabled:cursor-wait disabled:opacity-60"
                 >
-                  <Save size={16} />
+                  <CheckIcon className="h-4 w-4" />
                   {appInformationSaving ? 'Enregistrement…' : 'Enregistrer les informations'}
                 </button>
               </div>
@@ -1345,7 +1285,7 @@ export default function AdminAppSettings() {
           <div id="authentification" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-start gap-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e85d00] text-white">
-                <Shield size={20} />
+                <ShieldCheckIcon className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-base font-black text-gray-900">Connexion et création de compte</h2>
@@ -1397,7 +1337,7 @@ export default function AdminAppSettings() {
           <div id="identite" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#e85d00] text-white">
-                <Sparkles size={20} />
+                <SparklesIcon className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-base font-black text-gray-900">Identité visuelle</h2>
@@ -1408,7 +1348,7 @@ export default function AdminAppSettings() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <LogoUploadTile
-                icon={<Monitor className="h-4 w-4 text-[#e85d00]" />}
+                icon={<ComputerDesktopIcon className="h-4 w-4 text-[#e85d00]" />}
                 label="Logo desktop"
                 hint="Barre de navigation (web) — format horizontal."
                 fileHint="PNG, JPG, WEBP — horizontal"
@@ -1422,7 +1362,7 @@ export default function AdminAppSettings() {
                 onSave={saveAppLogoDesktop}
               />
               <LogoUploadTile
-                icon={<Smartphone className="h-4 w-4 text-[#e85d00]" />}
+                icon={<DevicePhoneMobileIcon className="h-4 w-4 text-[#e85d00]" />}
                 label="Logo mobile"
                 hint="En-tête sur mobile — format carré."
                 fileHint="PNG, JPG, WEBP — carré"
@@ -1436,7 +1376,7 @@ export default function AdminAppSettings() {
                 onSave={saveAppLogoMobile}
               />
               <LogoUploadTile
-                icon={<AppWindow className="h-4 w-4 text-[#e85d00]" />}
+                icon={<WindowIcon className="h-4 w-4 text-[#e85d00]" />}
                 label="Icône de l’application"
                 hint="Icône PWA & écran d’accueil (iOS/Android)."
                 fileHint="PNG carré — 512×512 recommandé"
@@ -1450,7 +1390,7 @@ export default function AdminAppSettings() {
                 onSave={saveAppIcon}
               />
               <LogoUploadTile
-                icon={<Globe className="h-4 w-4 text-[#e85d00]" />}
+                icon={<GlobeAltIcon className="h-4 w-4 text-[#e85d00]" />}
                 label="Favicon"
                 hint="Petite icône de l’onglet du navigateur."
                 fileHint="PNG carré — 32×32 ou 48×48"
@@ -1464,7 +1404,7 @@ export default function AdminAppSettings() {
                 onSave={saveAppFavicon}
               />
               <LogoUploadTile
-                icon={<LogIn className="h-4 w-4 text-[#e85d00]" />}
+                icon={<ArrowRightOnRectangleIcon className="h-4 w-4 text-[#e85d00]" />}
                 label="Logo Connexion / Inscription"
                 hint="Affiché uniquement sur les pages de connexion et d’inscription. Vide = logo desktop/mobile par défaut."
                 fileHint="PNG, JPG, WEBP — horizontal ou carré"
@@ -1484,12 +1424,12 @@ export default function AdminAppSettings() {
           <div id="banniere-hero" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                <Image size={20} className="text-neutral-600" />
+                <PhotoIcon className="text-neutral-600 h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-lg font-black tracking-tight text-gray-900">Bannière du HERO (Accueil)</h2>
                 <p className="text-sm text-gray-500">
-                  Image en arrière-plan du HERO sur la page d’accueil. 1600×600px recommandé.
+                  PhotoIcon en arrière-plan du HERO sur la page d’accueil. 1600×600px recommandé.
                 </p>
               </div>
             </div>
@@ -1505,7 +1445,7 @@ export default function AdminAppSettings() {
                 <p className="text-sm text-gray-500">Aucune bannière définie.</p>
               )}
               <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
-                <Upload size={20} className="text-gray-400" />
+                <ArrowUpTrayIcon className="text-gray-400 h-5 w-5" />
                 <span className="text-xs text-neutral-600 font-medium">Cliquez pour uploader</span>
                 <span className="text-xs text-gray-400">PNG, JPG — 1600×600px recommandé</span>
                 <input type="file" accept="image/*" onChange={onHeroBannerChange} className="hidden" />
@@ -1525,7 +1465,7 @@ export default function AdminAppSettings() {
           <div id="banniere-pub" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                <Image size={20} className="text-neutral-600" />
+                <PhotoIcon className="text-neutral-600 h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-lg font-black tracking-tight text-gray-900">Bannière publicitaire</h2>
@@ -1580,8 +1520,8 @@ export default function AdminAppSettings() {
                   <p className="text-sm text-gray-500">Aucune bannière desktop.</p>
                 )}
                 <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
-                  <Upload size={18} className="text-gray-400" />
-                  <span className="text-xs text-neutral-600 font-medium">Upload</span>
+                  <ArrowUpTrayIcon className="text-gray-400 h-[18px] w-[18px]" />
+                  <span className="text-xs text-neutral-600 font-medium">ArrowUpTrayIcon</span>
                   <input type="file" accept="image/*" onChange={onPromoBannerChange} className="hidden" />
                 </label>
               </div>
@@ -1595,15 +1535,15 @@ export default function AdminAppSettings() {
                   <p className="text-sm text-gray-500">Aucune bannière mobile.</p>
                 )}
                 <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
-                  <Upload size={18} className="text-gray-400" />
-                  <span className="text-xs text-neutral-600 font-medium">Upload</span>
+                  <ArrowUpTrayIcon className="text-gray-400 h-[18px] w-[18px]" />
+                  <span className="text-xs text-neutral-600 font-medium">ArrowUpTrayIcon</span>
                   <input type="file" accept="image/*" onChange={onPromoBannerMobileChange} className="hidden" />
                 </label>
               </div>
             </div>
             <div className="mb-6 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
               <div className="mb-4">
-                <h3 className="text-sm font-black text-gray-900">Images de fond du carrousel de services</h3>
+                <h3 className="text-sm font-black text-gray-900">PhotoIcon de fond du carrousel de services</h3>
                 <p className="mt-1 text-xs leading-relaxed text-gray-600">
                   Ajoutez une image propre à chaque carte. L’image reste adoucie par la couleur de la carte pour préserver la lisibilité du texte.
                 </p>
@@ -1627,7 +1567,7 @@ export default function AdminAppSettings() {
                         </div>
                       )}
                       <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">
-                        <Upload size={15} />
+                        <ArrowUpTrayIcon className="h-[15px] w-[15px]" />
                         Ajouter ou remplacer
                         <input type="file" accept="image/*" onChange={onHomePromoBackgroundChange(key)} className="hidden" />
                       </label>
@@ -1650,12 +1590,12 @@ export default function AdminAppSettings() {
           <div id="demarrage" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-                <Sparkles size={20} className="text-amber-600" />
+                <SparklesIcon className="text-amber-600 h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-lg font-black tracking-tight text-gray-900">Écran de démarrage</h2>
                 <p className="text-sm text-gray-500">
-                  Image plein écran affichée à l’ouverture de l’app avant la page d’accueil. Durée en secondes (1–30) et bouton « Passer ».
+                  PhotoIcon plein écran affichée à l’ouverture de l’app avant la page d’accueil. Durée en secondes (1–30) et bouton « Passer ».
                 </p>
               </div>
             </div>
@@ -1682,13 +1622,13 @@ export default function AdminAppSettings() {
                       alt="Écran de démarrage"
                       className="h-40 w-full rounded-xl object-cover mx-auto mb-2 border border-gray-200"
                     />
-                    <p className="text-xs text-gray-600">Image actuelle</p>
+                    <p className="text-xs text-gray-600">PhotoIcon actuelle</p>
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500">Aucune image. Ajoutez une image pour afficher l’écran de démarrage.</p>
                 )}
                 <label className="mt-2 flex flex-col items-center gap-1 cursor-pointer">
-                  <Upload size={18} className="text-gray-400" />
+                  <ArrowUpTrayIcon className="text-gray-400 h-[18px] w-[18px]" />
                   <span className="text-xs text-neutral-600 font-medium">Choisir une image</span>
                   <span className="text-xs text-gray-400">PNG, JPG — plein écran</span>
                   <input type="file" accept="image/*" onChange={onSplashImageChange} className="hidden" />
@@ -1723,7 +1663,7 @@ export default function AdminAppSettings() {
           <div id="splash" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#e85d00] text-white">
-                <Monitor size={20} />
+                <ComputerDesktopIcon className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-base font-black text-gray-900">Splash animé (lancement)</h2>
@@ -1739,7 +1679,7 @@ export default function AdminAppSettings() {
                 {
                   key: 'desktop',
                   label: 'Desktop',
-                  icon: <Monitor className="h-4 w-4 text-[#e85d00]" />,
+                  icon: <ComputerDesktopIcon className="h-4 w-4 text-[#e85d00]" />,
                   enabled: bootSplashDesktopEnabled,
                   setEnabled: setBootSplashDesktopEnabled,
                   duration: bootSplashDesktopDuration,
@@ -1748,7 +1688,7 @@ export default function AdminAppSettings() {
                 {
                   key: 'mobile',
                   label: 'Mobile',
-                  icon: <Smartphone className="h-4 w-4 text-[#e85d00]" />,
+                  icon: <DevicePhoneMobileIcon className="h-4 w-4 text-[#e85d00]" />,
                   enabled: bootSplashMobileEnabled,
                   setEnabled: setBootSplashMobileEnabled,
                   duration: bootSplashMobileDuration,
@@ -1798,7 +1738,7 @@ export default function AdminAppSettings() {
           <div id="mots-interdits" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-                <Shield size={20} className="text-amber-600" />
+                <ShieldCheckIcon className="text-amber-600 h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-lg font-black tracking-tight text-gray-900">Mots interdits</h2>
@@ -1809,7 +1749,7 @@ export default function AdminAppSettings() {
             </div>
             <form onSubmit={addProhibitedWord} className="flex flex-col gap-3 sm:flex-row mb-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-[18px] w-[18px]" />
                 <input
                   type="text"
                   placeholder="Ex : contrefaçon, interdit..."
@@ -1831,7 +1771,7 @@ export default function AdminAppSettings() {
                   </>
                 ) : (
                   <>
-                    <Shield size={16} />
+                    <ShieldCheckIcon className="h-4 w-4" />
                     Ajouter
                   </>
                 )}
@@ -1855,7 +1795,7 @@ export default function AdminAppSettings() {
                     onClick={() => removeProhibitedWord(item.id)}
                     className="text-[11px] text-red-600 hover:text-red-500 transition-colors"
                   >
-                    <X size={12} />
+                    <XMarkIcon className="h-3 w-3" />
                   </button>
                 </span>
               ))}
@@ -1869,7 +1809,7 @@ export default function AdminAppSettings() {
           <div id="contacts" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100">
-                <Smartphone size={20} className="text-teal-600" />
+                <DevicePhoneMobileIcon className="text-teal-600 h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-lg font-black tracking-tight text-gray-900">Réseaux de contact</h2>
@@ -1972,7 +1912,7 @@ export default function AdminAppSettings() {
                   </>
                 ) : (
                   <>
-                    <Plus size={16} />
+                    <PlusIcon className="h-4 w-4" />
                     Ajouter un réseau
                   </>
                 )}
@@ -2033,7 +1973,7 @@ export default function AdminAppSettings() {
                             onClick={() => setEditingNetworkId(network._id)}
                             className="p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                           >
-                            <Edit size={16} />
+                            <PencilIcon className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
@@ -2054,7 +1994,7 @@ export default function AdminAppSettings() {
                             }}
                             className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
                           >
-                            <Trash2 size={16} />
+                            <TrashIcon className="h-4 w-4" />
                           </button>
                         </div>
                       </>
@@ -2069,7 +2009,7 @@ export default function AdminAppSettings() {
           <div id="signalements" className="scroll-mt-24 rounded-2xl border border-gray-200/60 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
-                <Flag size={20} className="text-red-600" />
+                <FlagIcon className="text-red-600 h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-lg font-black tracking-tight text-gray-900">Signalements de contenu</h2>
@@ -2100,7 +2040,7 @@ export default function AdminAppSettings() {
                   <option value="all">Tous les types</option>
                   <option value="comment">Commentaires</option>
                   <option value="photo">Photos</option>
-                  <option value="preview_image">Images (preview)</option>
+                  <option value="preview_image">PhotoIcon (preview)</option>
                 </select>
               </div>
               <button
@@ -2128,15 +2068,15 @@ export default function AdminAppSettings() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           {report.type === 'comment' ? (
-                            <MessageSquare size={16} className="text-neutral-600" />
+                            <ChatBubbleLeftRightIcon className="text-neutral-600 h-4 w-4" />
                           ) : (
-                            <FileImage size={16} className="text-neutral-600" />
+                            <PhotoIcon className="text-neutral-600 h-4 w-4" />
                           )}
                           <span className="font-semibold text-gray-900">
                             {report.type === 'comment'
                               ? 'Commentaire signalé'
                               : report.type === 'preview_image'
-                              ? 'Image signalée (preview)'
+                              ? 'PhotoIcon signalée (preview)'
                               : 'Photo signalée'}
                           </span>
                           {getStatusBadge(report.status)}

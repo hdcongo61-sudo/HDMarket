@@ -2,14 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
-import {
-  ArrowLeft,
-  CheckCircle,
-  FileText,
-  MessageCircle,
-  Send,
-  User
-} from 'lucide-react';
+import { ArrowLeftIcon, ChatBubbleLeftIcon, CheckCircleIcon, DocumentTextIcon, PaperAirplaneIcon, UserIcon } from '@heroicons/react/24/outline';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
 
 const formatDate = (value) =>
@@ -115,14 +108,14 @@ export default function MyFeedback() {
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
-            <User className="h-8 w-8" />
+            <UserIcon className="h-8 w-8" />
           </div>
           <p className="text-sm font-semibold text-gray-600">Vous devez être connecté pour accéder à cette page.</p>
           <Link
             to="/login"
             className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#e85d00] px-5 text-sm font-black text-white"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeftIcon className="h-4 w-4" />
             Retour à la connexion
           </Link>
         </div>
@@ -137,14 +130,14 @@ export default function MyFeedback() {
           to="/profile"
           className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-black text-gray-500 shadow-sm transition active:scale-95"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeftIcon className="h-[18px] w-[18px]" />
           Retour au profil
         </Link>
 
         <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="hd-products-hero p-5 text-white sm:p-6">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
-              <MessageCircle className="h-4 w-4" />
+              <ChatBubbleLeftIcon className="h-4 w-4" />
               <span className="text-xs font-black uppercase tracking-wide">Voix utilisateur</span>
             </div>
             <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Avis sur l’amélioration</h1>
@@ -166,7 +159,7 @@ export default function MyFeedback() {
           <form onSubmit={handleSubmit} className="space-y-4 p-5 sm:p-6">
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-black text-gray-800">
-                <FileText className="h-4 w-4 text-[#e85d00]" />
+                <DocumentTextIcon className="h-4 w-4 text-[#e85d00]" />
                 Sujet *
               </label>
               <input
@@ -182,7 +175,7 @@ export default function MyFeedback() {
             </div>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-black text-gray-800">
-                <MessageCircle className="h-4 w-4 text-[#e85d00]" />
+                <ChatBubbleLeftIcon className="h-4 w-4 text-[#e85d00]" />
                 Votre avis *
               </label>
               <textarea
@@ -214,7 +207,7 @@ export default function MyFeedback() {
                   <span>{submitError}</span>
                 ) : (
                   <>
-                    <CheckCircle className="w-4 h-4" />
+                    <CheckCircleIcon className="w-4 h-4" />
                     <span>{submitSuccess}</span>
                   </>
                 )}
@@ -233,7 +226,7 @@ export default function MyFeedback() {
                   </span>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
+                    <PaperAirplaneIcon className="w-4 h-4" />
                     Envoyer l’avis
                   </>
                 )}

@@ -3,17 +3,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
-import {
-  ClipboardList,
-  ArrowLeft,
-  ShoppingCart,
-  CreditCard,
-  Clock,
-  Trash2,
-  AlertCircle,
-  CheckCircle,
-  Package
-} from 'lucide-react';
+import { ArrowLeftIcon, CheckCircleIcon, ClipboardDocumentListIcon, ClockIcon, CreditCardIcon, CubeIcon, ExclamationCircleIcon, ShoppingCartIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert, appConfirm } from '../utils/appDialog';
@@ -102,7 +92,7 @@ export default function DraftOrders() {
           <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-[#e85d00]/40 blur-3xl" />
           <div className="relative flex items-center gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e85d00]">
-              <ClipboardList size={23} />
+              <ClipboardDocumentListIcon className="h-[23px] w-[23px]" />
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-300">Reprendre plus tard</p>
@@ -114,7 +104,7 @@ export default function DraftOrders() {
 
         {error && (
           <div className="rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
-            <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+            <ExclamationCircleIcon className="text-red-600 flex-shrink-0 mt-0.5 h-[18px] w-[18px]" />
             <p className="text-sm text-red-700 font-semibold">{error}</p>
           </div>
         )}
@@ -122,7 +112,7 @@ export default function DraftOrders() {
         {drafts.length === 0 ? (
           <div className="rounded-[28px] border border-[#e7dfd5] bg-white p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-              <ClipboardList size={32} className="text-gray-400" />
+              <ClipboardDocumentListIcon className="text-gray-400 h-8 w-8" />
             </div>
             <h2 className="text-2xl font-black text-gray-900 mb-3">Aucun brouillon</h2>
             <p className="text-gray-600 font-medium mb-8">
@@ -132,7 +122,7 @@ export default function DraftOrders() {
               to="/cart"
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-6 text-sm font-black text-white transition active:scale-95"
             >
-              <ShoppingCart size={18} />
+              <ShoppingCartIcon className="h-[18px] w-[18px]" />
               Voir mon panier
             </Link>
           </div>
@@ -155,7 +145,7 @@ export default function DraftOrders() {
                   <div className="flex items-center justify-between border-b border-orange-100 bg-[#fff4e8] px-4 py-3.5 sm:px-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e85d00] shadow-sm">
-                        <Clock size={20} className="text-white" />
+                        <ClockIcon className="text-white h-5 w-5" />
                       </div>
                       <div>
                         <h3 className="text-lg font-black text-gray-900">Brouillon</h3>
@@ -175,7 +165,7 @@ export default function DraftOrders() {
                       disabled={deleting[draft._id]}
                       className="p-2 rounded-full bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-all duration-200 active:scale-95"
                     >
-                      <Trash2 size={18} />
+                      <TrashIcon className="h-[18px] w-[18px]" />
                     </button>
                   </div>
 
@@ -235,7 +225,7 @@ export default function DraftOrders() {
                       </div>
                     ) : (
                       <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
-                        <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                        <ExclamationCircleIcon className="text-amber-600 flex-shrink-0 mt-0.5 h-[18px] w-[18px]" />
                         <p className="text-sm text-amber-800 font-medium">
                           Les informations de paiement n'ont pas encore été renseignées.
                         </p>
@@ -270,7 +260,7 @@ export default function DraftOrders() {
                         to="/orders/checkout"
                         className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-5 text-sm font-black text-white transition active:scale-95"
                       >
-                        <CreditCard size={18} />
+                        <CreditCardIcon className="h-[18px] w-[18px]" />
                         Continuer la commande
                       </Link>
                       <button
@@ -278,7 +268,7 @@ export default function DraftOrders() {
                         disabled={deleting[draft._id]}
                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-300 bg-white text-red-600 px-6 py-3.5 text-sm font-semibold hover:bg-red-50 transition-all duration-200 active:scale-95 shadow-sm disabled:opacity-60"
                       >
-                        <Trash2 size={18} />
+                        <TrashIcon className="h-[18px] w-[18px]" />
                         Supprimer
                       </button>
                     </div>

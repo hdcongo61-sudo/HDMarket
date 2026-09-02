@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, CloudOff, MessageSquareMore, RefreshCw, Signal, Truck, UploadCloud, Wifi, WifiOff } from 'lucide-react';
+import { ArrowPathIcon, ChatBubbleLeftEllipsisIcon, ChevronDownIcon, CloudArrowUpIcon, CloudIcon, SignalIcon, TruckIcon, WifiIcon } from '@heroicons/react/24/outline';
 import useNetworkProfile from '../../hooks/useNetworkProfile';
 import useOfflineQueueStats from '../../hooks/useOfflineQueueStats';
 import GlassCard from '../ui/GlassCard';
@@ -32,7 +32,7 @@ export default function AppOfflineDiagnosticsCard({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white dark:bg-white/10 dark:text-slate-100">
-            <Signal size={12} />
+            <SignalIcon className="h-3 w-3" />
             Appareil actuel
           </div>
           <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
@@ -44,14 +44,14 @@ export default function AppOfflineDiagnosticsCard({
         <div className="grid flex-1 grid-cols-2 gap-2 xl:grid-cols-4">
           <div className="col-span-2 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50 xl:col-span-1">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
-              {offline ? <WifiOff size={14} /> : rapid3GActive ? <CloudOff size={14} /> : <Wifi size={14} />}
+              {offline ? <WifiIcon className="h-3.5 w-3.5" /> : rapid3GActive ? <CloudIcon className="h-3.5 w-3.5" /> : <WifiIcon className="h-3.5 w-3.5" />}
               Réseau
             </div>
             <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{networkLabel}</p>
           </div>
           <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
-              <UploadCloud size={14} />
+              <CloudArrowUpIcon className="h-3.5 w-3.5" />
               Statuts
             </div>
             <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
@@ -60,7 +60,7 @@ export default function AppOfflineDiagnosticsCard({
           </div>
           <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
-              <MessageSquareMore size={14} />
+              <ChatBubbleLeftEllipsisIcon className="h-3.5 w-3.5" />
               Messages
             </div>
             <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
@@ -69,7 +69,7 @@ export default function AppOfflineDiagnosticsCard({
           </div>
           <div className="min-w-0 rounded-2xl border border-slate-200/70 bg-white/70 px-3 py-3 dark:border-slate-700/70 dark:bg-slate-900/50">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
-              <Truck size={14} />
+              <TruckIcon className="h-3.5 w-3.5" />
               Logistique
             </div>
             <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
@@ -90,7 +90,7 @@ export default function AppOfflineDiagnosticsCard({
           onClick={reload}
           className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-200/80 px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800 sm:w-auto"
         >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-3.5 w-3.5" />
           Vérifier
         </button>
       </div>
@@ -108,7 +108,7 @@ export default function AppOfflineDiagnosticsCard({
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
-                <Signal size={12} />
+                <SignalIcon className="h-3 w-3" />
                 Diagnostic local
               </div>
               <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-white">{networkLabel}</p>
@@ -120,7 +120,7 @@ export default function AppOfflineDiagnosticsCard({
               className="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-2xl border border-slate-200/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               {mobileExpanded ? 'Masquer' : 'Voir'}
-              <ChevronDown size={14} className={`transition-transform ${mobileExpanded ? 'rotate-180' : ''}`} />
+              <ChevronDownIcon className={`transition-transform ${mobileExpanded ? 'rotate-180' : ''}`} className="h-3.5 w-3.5" />
             </button>
           </div>
         </GlassCard>

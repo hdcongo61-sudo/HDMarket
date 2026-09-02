@@ -23,44 +23,7 @@ import { buildProductPath } from '../utils/links';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import FloatingGlassButton from '../components/ui/FloatingGlassButton';
 import BaseModal, { ModalBody, ModalHeader } from '../components/modals/BaseModal';
-import {
-  Paperclip,
-  Users,
-  Store,
-  Package,
-  DollarSign,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  BarChart3,
-  RefreshCw,
-  X,
-  ChevronRight,
-  Activity,
-  ShoppingCart,
-  MessageSquare,
-  Shield,
-  FileText,
-  MapPin,
-  Phone,
-  Wifi,
-  Smartphone,
-  Tablet,
-  Monitor,
-  Crown,
-  ArrowUpRight,
-  Sparkles,
-  ClipboardList,
-  Truck,
-  Wrench,
-  Gift,
-  Star,
-  HelpCircle,
-  Send,
-  Workflow,
-  ShoppingBag
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, BuildingStorefrontIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronRightIcon, ClipboardDocumentListIcon, ClockIcon, ComputerDesktopIcon, CubeIcon, CurrencyDollarIcon, DevicePhoneMobileIcon, DeviceTabletIcon, DocumentTextIcon, ExclamationCircleIcon, GiftIcon, MapPinIcon, PaperAirplaneIcon, PaperClipIcon, PhoneIcon, QuestionMarkCircleIcon, ShieldCheckIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Square3Stack3DIcon, StarIcon, TrophyIcon, TruckIcon, UsersIcon, WifiIcon, WrenchIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import useAdminCounts from '../hooks/useAdminCounts';
 import { useAppSettings } from '../context/AppSettingsContext';
 
@@ -120,7 +83,7 @@ function SectionStatCard({ label, value, helper, icon: Icon, variant: _variant =
         </div>
         {Icon && (
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
-            <Icon size={18} strokeWidth={2.2} />
+            <Icon strokeWidth={2.2} className="h-[18px] w-[18px]" />
           </span>
         )}
       </div>
@@ -142,12 +105,12 @@ function FeatureEngagementCard({ icon: Icon, title, accent = 'orange', metrics, 
     <article className="flex flex-col rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex items-center gap-2.5">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${FEATURE_CARD_ACCENTS[accent] || FEATURE_CARD_ACCENTS.orange}`}>
-          <Icon size={17} strokeWidth={2.2} />
+          <Icon strokeWidth={2.2} className="h-[17px] w-[17px]" />
         </span>
         <h4 className="text-sm font-bold text-gray-900 dark:text-neutral-100">{title}</h4>
         {link && (
           <Link to={link} className="ml-auto text-gray-300 transition hover:text-gray-500" title="Voir le détail">
-            <ChevronRight size={16} />
+            <ChevronRightIcon className="h-4 w-4" />
           </Link>
         )}
       </div>
@@ -307,7 +270,7 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend, loadin
           {subtitle && !loading && (
             <p className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-neutral-400">
               {trend && (
-                <TrendingUp size={12} className={trend > 0 ? 'text-emerald-500' : 'text-red-500'} />
+                <ArrowTrendingUpIcon className={trend className="h-3 w-3"> 0 ? 'text-emerald-500' : 'text-red-500'} />
               )}
               {subtitle}
             </p>
@@ -315,7 +278,7 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend, loadin
         </div>
         {Icon && (
           <span className="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF0E4] text-[#e85d00]">
-            <Icon size={20} strokeWidth={2.2} />
+            <Icon strokeWidth={2.2} className="h-5 w-5" />
           </span>
         )}
       </div>
@@ -484,13 +447,13 @@ export default function AdminDashboard() {
   }, [canAccessBackOffice, canViewStats, canManageUsers, canManagePayments, canManageComplaints, t]);
   const adminTabMeta = useMemo(
     () => ({
-      overview: { icon: Activity, helper: 'Vue globale' },
-      analytics: { icon: BarChart3, helper: 'Graphiques & tendances' },
-      tools: { icon: Wrench, helper: 'Cache, notifications, exports' },
-      users: { icon: Users, helper: 'Comptes & rôles' },
-      payments: { icon: DollarSign, helper: 'Validations' },
-      orders: { icon: ClipboardList, helper: 'Suivi des commandes' },
-      complaints: { icon: AlertCircle, helper: 'Support & litiges' }
+      overview: { icon: ChartBarIcon, helper: 'Vue globale' },
+      analytics: { icon: ChartBarIcon, helper: 'Graphiques & tendances' },
+      tools: { icon: WrenchIcon, helper: 'Cache, notifications, exports' },
+      users: { icon: UsersIcon, helper: 'Comptes & rôles' },
+      payments: { icon: CurrencyDollarIcon, helper: 'Validations' },
+      orders: { icon: ClipboardDocumentListIcon, helper: 'Suivi des commandes' },
+      complaints: { icon: ExclamationCircleIcon, helper: 'Support & litiges' }
     }),
     []
   );
@@ -1392,7 +1355,7 @@ export default function AdminDashboard() {
       label: 'Mobile',
       count: deviceCounts.mobile,
       percent: formatPercent(deviceCounts.mobile, totalDeviceSessions),
-      icon: Smartphone,
+      icon: DevicePhoneMobileIcon,
       color: 'bg-blue-500'
     },
     {
@@ -1400,7 +1363,7 @@ export default function AdminDashboard() {
       label: 'iPad / Tablette',
       count: deviceCounts.tablet,
       percent: formatPercent(deviceCounts.tablet, totalDeviceSessions),
-      icon: Tablet,
+      icon: DeviceTabletIcon,
       color: 'bg-emerald-500'
     },
     {
@@ -1408,7 +1371,7 @@ export default function AdminDashboard() {
       label: 'PC',
       count: deviceCounts.desktop,
       percent: formatPercent(deviceCounts.desktop, totalDeviceSessions),
-      icon: Monitor,
+      icon: ComputerDesktopIcon,
       color: 'bg-violet-500'
     }
   ];
@@ -1478,7 +1441,7 @@ export default function AdminDashboard() {
       helper: onlineStatsLoading
         ? t('admin.dashboard.syncing', 'Synchronisation...')
         : `DAU ${formatNumber(onlineStats?.dau)} · Pic ${formatNumber(onlineStats?.peakToday)}`,
-      icon: Wifi,
+      icon: WifiIcon,
       tone: 'blue'
     },
     {
@@ -1486,7 +1449,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.users', 'Utilisateurs'),
       value: formatNumber(totalUserCount),
       helper: `${formatNumber(stats?.users?.shops)} ${t('admin.dashboard.shops', 'boutiques')}`,
-      icon: Users,
+      icon: UsersIcon,
       tone: 'purple'
     },
     {
@@ -1494,7 +1457,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.paymentsPending', 'Paiements en attente'),
       value: formatNumber(stats?.payments?.waiting),
       helper: `${formatNumber(stats?.payments?.verified)} ${t('admin.dashboard.verified', 'vérifiés')}`,
-      icon: DollarSign,
+      icon: CurrencyDollarIcon,
       tone: 'green'
     },
     {
@@ -1502,7 +1465,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.complaints', 'Réclamations'),
       value: formatNumber(pendingComplaintsCount),
       helper: complaintsLoading ? t('common.loading', 'Chargement...') : `${formatNumber(complaints.length)} ${t('admin.dashboard.total', 'total')}`,
-      icon: AlertCircle,
+      icon: ExclamationCircleIcon,
       tone: 'orange'
     }
   ];
@@ -1515,7 +1478,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.paymentsVerify', 'Paiements à vérifier'),
       count: Number(stats?.payments?.waiting || 0),
       to: '/admin/payment-verification',
-      icon: DollarSign,
+      icon: CurrencyDollarIcon,
       show: canManagePayments
     },
     {
@@ -1523,7 +1486,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.productsValidate', 'Produits à valider'),
       count: Number(pendingTasksByType.productValidation || 0),
       to: '/admin/payment-verification',
-      icon: Package,
+      icon: CubeIcon,
       show: canManagePayments
     },
     {
@@ -1531,7 +1494,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.boostsApprove', 'Boosts à approuver'),
       count: Number(pendingTasksByType.boostApproval || 0),
       to: '/admin/product-boosts',
-      icon: Sparkles,
+      icon: SparklesIcon,
       show: isAdmin || isFounder
     },
     {
@@ -1539,7 +1502,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.disputes', 'Litiges & réclamations'),
       count: Math.max(Number(pendingTasksByType.disputes || 0), Number(pendingComplaintsCount || 0)),
       to: '/admin/complaints',
-      icon: AlertCircle,
+      icon: ExclamationCircleIcon,
       show: canManageComplaints
     },
     {
@@ -1547,7 +1510,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.deliveries', 'Livraisons à traiter'),
       count: Number(pendingTasksByType.deliveryOps || 0),
       to: '/admin/delivery-requests',
-      icon: Truck,
+      icon: TruckIcon,
       show: Number(pendingTasksByType.deliveryOps || 0) > 0
     },
     {
@@ -1555,7 +1518,7 @@ export default function AdminDashboard() {
       label: t('admin.dashboard.unreadFeedback', 'Avis non lus'),
       count: Number(adminTaskCounts?.unreadFeedback || 0),
       to: '/admin/feedback',
-      icon: MessageSquare,
+      icon: ChatBubbleLeftRightIcon,
       show: isAdmin || isFounder
     }
   ].filter((tile) => tile.show);
@@ -1698,14 +1661,14 @@ export default function AdminDashboard() {
                   className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#e2dcd2] bg-white text-gray-700 transition active:scale-[0.97] disabled:opacity-60"
                   aria-label={t('admin.dashboard.refresh', 'Actualiser')}
                 >
-                  <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+                  <ArrowPathIcon className={refreshing ? 'animate-spin' : ''} className="h-4 w-4" />
                   <span className="sr-only">{refreshing ? t('admin.dashboard.refreshing', 'Actualisation...') : t('admin.dashboard.refresh', 'Actualiser')}</span>
                 </button>
                 <Link
                   to="/admin/task-center"
                   className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-neutral-950 px-4 text-sm font-black text-white transition active:scale-[0.97]"
                 >
-                  <CheckCircle size={16} />
+                  <CheckCircleIcon className="h-4 w-4" />
                   {t('admin.dashboard.taskCenter', 'Centre de tâches')}
                   {pendingQueueTotal > 0 ? <span className="rounded-full bg-[#e85d00] px-2 py-0.5 text-[11px]">{formatNumber(pendingQueueTotal)}</span> : null}
                 </Link>
@@ -1765,7 +1728,7 @@ export default function AdminDashboard() {
           <div className="hd-admin-sticky -mx-1 rounded-2xl border border-gray-100 px-1 py-1.5">
             <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
               {availableTabs.map((tab) => {
-                const TabIcon = adminTabMeta[tab.key]?.icon || Activity;
+                const TabIcon = adminTabMeta[tab.key]?.icon || ChartBarIcon;
                 const active = activeAdminTab === tab.key;
                 const tabBadge =
                   tab.key === 'payments'
@@ -1780,7 +1743,7 @@ export default function AdminDashboard() {
                 }`;
                 const tabContent = (
                   <>
-                    <TabIcon size={16} />
+                    <TabIcon className="h-4 w-4" />
                     {tab.label}
                     {tabBadge > 0 ? (
                       <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-[#e85d00] px-1.5 py-0.5 text-[11px] font-black text-white">
@@ -1813,7 +1776,7 @@ export default function AdminDashboard() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="soft-card soft-card-purple inline-flex h-9 w-9 items-center justify-center rounded-xl text-purple-900 dark:text-purple-100">
-                <Crown size={18} />
+                <TrophyIcon className="h-[18px] w-[18px]" />
               </span>
               <div>
                 <h2 className="text-base font-semibold text-slate-900 dark:text-white">Aperçu fondateur</h2>
@@ -1839,31 +1802,31 @@ export default function AdminDashboard() {
               label="Revenue / actif"
               value={formatCurrency(founderMini?.kpis?.revenuePerActiveUser)}
               helper={founderMiniLoading ? 'Mise à jour…' : `AOV ${formatCurrency(founderMini?.kpis?.averageOrderValue)}`}
-              icon={TrendingUp}
+              icon={ArrowTrendingUpIcon}
             />
             <SectionStatCard
               label="Rétention 30j"
               value={`${Number(founderMini?.kpis?.retention30Day || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
               helper={`7j ${Number(founderMini?.kpis?.retention7Day || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
-              icon={Users}
+              icon={UsersIcon}
             />
             <SectionStatCard
               label="Churn détecté"
               value={`${Number(founderMini?.kpis?.churnDetectionRate || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
               helper={`${formatNumber(founderMini?.kpis?.highValueUsers)} utilisateurs forte valeur`}
-              icon={AlertCircle}
+              icon={ExclamationCircleIcon}
             />
             <SectionStatCard
               label="Croissance hebdo"
               value={`${Number(founderMini?.kpis?.growthVelocity?.weekly || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
               helper={`Par jour ${Number(founderMini?.kpis?.growthVelocity?.daily || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
-              icon={ArrowUpRight}
+              icon={ArrowUpRightIcon}
             />
             <SectionStatCard
               label="Paiement comptant"
               value={`${Number(founderMini?.kpis?.fullPaymentConversion?.adoptionRate || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
               helper={`${formatNumber(founderMini?.kpis?.fullPaymentConversion?.ordersPaidInFull)} commandes · ${formatCurrency(founderMini?.kpis?.fullPaymentConversion?.waivedDeliveryAmount)}`}
-              icon={Sparkles}
+              icon={SparklesIcon}
             />
           </div>
         </section>
@@ -1875,7 +1838,7 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-              <Activity size={20} className="text-neutral-600" />
+              <ChartBarIcon className="text-neutral-600 h-5 w-5" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Vue d'ensemble</h2>
@@ -1889,7 +1852,7 @@ export default function AdminDashboard() {
         </div>
         {statsError ? (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
-            <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
+            <ExclamationCircleIcon className="text-red-600 flex-shrink-0 h-5 w-5" />
             <p className="text-sm font-medium text-red-800">{statsError}</p>
           </div>
         ) : null}
@@ -1905,7 +1868,7 @@ export default function AdminDashboard() {
             {payForOtherStats && payForOtherStats.totalRequests > 0 ? (
               <div className="grid grid-cols-2 gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 md:grid-cols-4">
                 <div className="col-span-2 flex items-center gap-2 md:col-span-4">
-                  <Users size={18} className="text-amber-700" />
+                  <UsersIcon className="text-amber-700 h-[18px] w-[18px]" />
                   <p className="text-sm font-black text-amber-900">Paiement par un proche</p>
                 </div>
                 <SectionStatCard label="Demandes" value={formatNumber(payForOtherStats.totalRequests)} variant="orange" />
@@ -1923,26 +1886,26 @@ export default function AdminDashboard() {
                     ? 'Mise à jour…'
                     : `DAU ${formatNumber(onlineStats?.dau)} · Pic ${formatNumber(onlineStats?.peakToday)}`
                 }
-                icon={Wifi}
+                icon={WifiIcon}
                 highlight
               />
               <StatCard
                 title="Acheteurs en ligne"
                 value={formatNumber(onlineStats?.usersOnline)}
                 subtitle={`WAU ${formatNumber(onlineStats?.weeklyActiveUsers)}`}
-                icon={Users}
+                icon={UsersIcon}
               />
               <StatCard
                 title="Vendeurs en ligne"
                 value={formatNumber(onlineStats?.sellersOnline)}
                 subtitle="Sessions boutiques"
-                icon={Store}
+                icon={BuildingStorefrontIcon}
               />
               <StatCard
                 title="Admins en ligne"
                 value={formatNumber(onlineStats?.adminsOnline)}
                 subtitle="Surveillance temps réel"
-                icon={Shield}
+                icon={ShieldCheckIcon}
               />
             </div>
             <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 sm:p-5">
@@ -1969,7 +1932,7 @@ export default function AdminDashboard() {
                         <span
                           className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-white ${item.color}`}
                         >
-                          <Icon size={16} />
+                          <Icon className="h-4 w-4" />
                         </span>
                         <span className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-300">
                           {item.label}
@@ -2089,52 +2052,52 @@ export default function AdminDashboard() {
                 title="Utilisateurs inscrits"
                 value={formatNumber(stats?.users?.total)}
                 subtitle={`${formatNumber(stats?.users?.newLast30Days)} nouveaux sur 30 jours`}
-                icon={Users}
+                icon={UsersIcon}
                 trend={stats?.users?.newLast30Days > 0 ? 1 : -1}
               />
               <StatCard
                 title="Boutiques actives"
                 value={formatNumber(stats?.users?.shops)}
                 subtitle={`${formatNumber(stats?.users?.admins)} administrateurs`}
-                icon={Store}
+                icon={BuildingStorefrontIcon}
               />
               <StatCard
                 title="Annonces actives"
                 value={formatNumber(stats?.products?.total)}
                 subtitle={`${formatNumber(stats?.products?.approved)} publiées`}
-                icon={Package}
+                icon={CubeIcon}
               />
               <StatCard
                 title="Annonces en attente"
                 value={formatNumber(stats?.products?.pending)}
                 subtitle={`${formatNumber(stats?.products?.rejected)} rejetées`}
-                icon={Clock}
+                icon={ClockIcon}
               />
               <StatCard
                 title="Paiements en attente"
                 value={formatNumber(stats?.payments?.waiting)}
                 subtitle={`${formatNumber(stats?.payments?.verified)} validés`}
-                icon={DollarSign}
+                icon={CurrencyDollarIcon}
               />
               <StatCard
                 title="Commentaires"
                 value={formatNumber(stats?.engagement?.comments)}
                 subtitle={`${formatNumber(stats?.engagement?.ratings)} évaluations`}
-                icon={MessageSquare}
+                icon={ChatBubbleLeftRightIcon}
               />
               <StatCard
                 title="CA total"
                 value={formatCurrency(stats?.payments?.revenue)}
                 subtitle={`${formatCurrency(stats?.payments?.revenueLast30Days)} sur 30 jours`}
                 highlight
-                icon={TrendingUp}
+                icon={ArrowTrendingUpIcon}
                 trend={stats?.payments?.revenueLast30Days > 0 ? 1 : -1}
               />
               <StatCard
                 title="Favoris enregistrés"
                 value={formatNumber(stats?.engagement?.favorites)}
                 subtitle="Total cumulé"
-                icon={ShoppingCart}
+                icon={ShoppingCartIcon}
               />
             </div>
           </div>
@@ -2145,7 +2108,7 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
-                  <ShoppingCart size={20} className="text-emerald-600" />
+                  <ShoppingCartIcon className="text-emerald-600 h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Commandes globales</h2>
@@ -2157,13 +2120,13 @@ export default function AdminDashboard() {
                 onClick={() => setRemindersOpen(true)}
                 className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-100 hover:border-neutral-300"
               >
-                <Clock size={16} />
+                <ClockIcon className="h-4 w-4" />
                 Relances commandes
               </button>
             </div>
             {statsError ? (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
-                <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
+                <ExclamationCircleIcon className="text-red-600 flex-shrink-0 h-5 w-5" />
                 <p className="text-sm font-medium text-red-800">{statsError}</p>
               </div>
             ) : null}
@@ -2181,68 +2144,68 @@ export default function AdminDashboard() {
                     title="Commandes totales"
                     value={formatNumber(orderStats.total || 0)}
                     subtitle="Toutes les commandes"
-                    icon={FileText}
+                    icon={DocumentTextIcon}
                   />
                   <StatCard
                     title="Paiement"
                     value={formatNumber(orderStatusCount('pending_payment'))}
                     subtitle="En attente de paiement"
-                    icon={Clock}
+                    icon={ClockIcon}
                   />
                   <StatCard
                     title="En attente validation"
                     value={formatNumber(orderStatusCount('pending', 'pending_installment'))}
                     subtitle="Préparation requise"
-                    icon={CheckCircle}
+                    icon={CheckCircleIcon}
                   />
                   <StatCard
                     title="Prêtes au retrait"
                     value={formatNumber(orderStatusCount('ready_for_pickup'))}
                     subtitle="Boutique / retrait"
-                    icon={Package}
+                    icon={CubeIcon}
                   />
                   <StatCard
                     title="Prêtes à livrer"
                     value={formatNumber(orderStatusCount('ready_for_delivery', 'confirmed'))}
                     subtitle="Avant expédition"
-                    icon={Package}
+                    icon={CubeIcon}
                   />
                   <StatCard
                     title="En livraison"
                     value={formatNumber(orderStatusCount('out_for_delivery', 'delivering', 'delivery_proof_submitted'))}
                     subtitle="Transport en cours"
-                    icon={Package}
+                    icon={CubeIcon}
                   />
                   <StatCard
                     title="Livrées"
                     value={formatNumber(orderStatusCount('delivered', 'confirmed_by_client', 'picked_up_confirmed', 'completed'))}
                     subtitle="Retraits confirmés, confirmées client, paiement terminé"
-                    icon={CheckCircle}
+                    icon={CheckCircleIcon}
                   />
                   <StatCard
                     title="Annulées"
                     value={formatNumber(orderStatusCount('cancelled'))}
                     subtitle="Commandes fermées"
-                    icon={X}
+                    icon={XMarkIcon}
                   />
                   <StatCard
                     title="Montant total"
                     value={formatCurrency(orderStats.totalAmount || 0)}
                     subtitle="Volume commandes"
                     highlight
-                    icon={TrendingUp}
+                    icon={ArrowTrendingUpIcon}
                   />
                   <StatCard
                     title="Acomptes encaissés"
                     value={formatCurrency(orderStats.paidAmount || 0)}
                     subtitle="Paiements reçus"
-                    icon={DollarSign}
+                    icon={CurrencyDollarIcon}
                   />
                   <StatCard
                     title="Reste a payer"
                     value={formatCurrency(orderStats.remainingAmount || 0)}
                     subtitle="Soldes ouverts"
-                    icon={AlertCircle}
+                    icon={ExclamationCircleIcon}
                   />
                 </div>
                 <div className="rounded-2xl border border-gray-200/60 bg-white dark:bg-slate-900 p-4 shadow-sm">
@@ -2384,7 +2347,7 @@ export default function AdminDashboard() {
           <section className="space-y-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                <BarChart3 size={20} className="text-neutral-600" />
+                <ChartBarIcon className="text-neutral-600 h-5 w-5" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Analytics en Temps Réel</h3>
@@ -2606,7 +2569,7 @@ export default function AdminDashboard() {
           <section className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                <Sparkles size={20} className="text-neutral-600" />
+                <SparklesIcon className="text-neutral-600 h-5 w-5" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-neutral-100">Engagement des fonctionnalités</h3>
@@ -2617,7 +2580,7 @@ export default function AdminDashboard() {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <FeatureEngagementCard
-                icon={ShoppingBag}
+                icon={ShoppingBagIcon}
                 title="Achats groupés"
                 accent="purple"
                 loading={featureEngagementLoading}
@@ -2628,7 +2591,7 @@ export default function AdminDashboard() {
                 ]}
               />
               <FeatureEngagementCard
-                icon={Star}
+                icon={StarIcon}
                 title="Points HD"
                 accent="amber"
                 loading={featureEngagementLoading}
@@ -2639,7 +2602,7 @@ export default function AdminDashboard() {
                 ]}
               />
               <FeatureEngagementCard
-                icon={Gift}
+                icon={GiftIcon}
                 title="Parrainage"
                 accent="pink"
                 loading={featureEngagementLoading}
@@ -2650,7 +2613,7 @@ export default function AdminDashboard() {
                 ]}
               />
               <FeatureEngagementCard
-                icon={HelpCircle}
+                icon={QuestionMarkCircleIcon}
                 title="Questions produits"
                 accent="sky"
                 loading={featureEngagementLoading}
@@ -2661,7 +2624,7 @@ export default function AdminDashboard() {
                 ]}
               />
               <FeatureEngagementCard
-                icon={Send}
+                icon={PaperAirplaneIcon}
                 title="Campagnes de notifications"
                 accent="orange"
                 link="/admin/notification-campaigns"
@@ -2673,7 +2636,7 @@ export default function AdminDashboard() {
                 ]}
               />
               <FeatureEngagementCard
-                icon={Workflow}
+                icon={Square3Stack3DIcon}
                 title="Onboarding nouveaux inscrits"
                 accent="emerald"
                 link="/admin/onboarding-sequences"
@@ -2893,13 +2856,13 @@ export default function AdminDashboard() {
                     label="Taux de succès"
                     value={`${cacheHitRatio.toFixed(2)} %`}
                     helper={`${formatNumber(cacheHits)} hits / ${formatNumber(cacheReads)} lectures`}
-                    icon={TrendingUp}
+                    icon={ArrowTrendingUpIcon}
                   />
                   <SectionStatCard
                     label="Redis"
                     value={cacheStats?.redis?.ready ? 'Connecté' : 'Fallback mémoire'}
                     helper={`${formatNumber(cacheStats?.redis?.keyCount || 0)} clés`}
-                    icon={Activity}
+                    icon={ChartBarIcon}
                   />
                   <SectionStatCard
                     label="Mémoire Redis"
@@ -2908,13 +2871,13 @@ export default function AdminDashboard() {
                       formatBytes(cacheStats?.redis?.memoryUsedBytes || 0)
                     }
                     helper={`L1 mémoire: ${formatNumber(cacheStats?.hotCacheSize || 0)} entrées`}
-                    icon={BarChart3}
+                    icon={ChartBarIcon}
                   />
                   <SectionStatCard
                     label="Invalidations / erreurs"
                     value={`${formatNumber(cacheStats?.invalidations || 0)} / ${formatNumber(cacheErrors)}`}
                     helper={`SET: ${formatNumber(cacheStats?.sets || 0)} • MISS: ${formatNumber(cacheStats?.misses || 0)}`}
-                    icon={AlertCircle}
+                    icon={ExclamationCircleIcon}
                   />
                 </div>
                 <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
@@ -2951,7 +2914,7 @@ export default function AdminDashboard() {
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                    <MessageSquare size={20} className="text-neutral-600" />
+                    <ChatBubbleLeftRightIcon className="text-neutral-600 h-5 w-5" />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-neutral-100">Notification globale</h2>
@@ -3014,7 +2977,7 @@ export default function AdminDashboard() {
                           disabled={broadcastPreviewing}
                           className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                         >
-                          {broadcastPreviewing ? <RefreshCw size={14} className="animate-spin" /> : <Users size={14} />}
+                          {broadcastPreviewing ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <UsersIcon className="h-3.5 w-3.5" />}
                           Calculer l’audience
                         </button>
                         {broadcastAudienceCount !== null ? (
@@ -3095,12 +3058,12 @@ export default function AdminDashboard() {
                     >
                       {broadcastSending ? (
                         <>
-                          <RefreshCw size={16} className="animate-spin" />
+                          <ArrowPathIcon className="animate-spin h-4 w-4" />
                           Envoi en cours…
                         </>
                       ) : (
                         <>
-                          <MessageSquare size={16} />
+                          <ChatBubbleLeftRightIcon className="h-4 w-4" />
                           Envoyer la notification
                         </>
                       )}
@@ -3112,7 +3075,7 @@ export default function AdminDashboard() {
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-100">
-                    <Phone size={20} className="text-neutral-600" />
+                    <PhoneIcon className="text-neutral-600 h-5 w-5" />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-neutral-100">Export des numéros de téléphone</h2>
@@ -3139,12 +3102,12 @@ export default function AdminDashboard() {
                     >
                       {exportLoading ? (
                         <>
-                          <RefreshCw size={16} className="animate-spin" />
+                          <ArrowPathIcon className="animate-spin h-4 w-4" />
                           Export…
                         </>
                       ) : (
                         <>
-                          <FileText size={16} />
+                          <DocumentTextIcon className="h-4 w-4" />
                           Exporter en CSV
                         </>
                       )}
@@ -3164,7 +3127,7 @@ export default function AdminDashboard() {
           <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 dark:border-slate-700 lg:bg-gray-50/80">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
-                <Users size={22} strokeWidth={2} />
+                <UsersIcon strokeWidth={2} className="h-[22px] w-[22px]" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Gestion des utilisateurs</h2>
@@ -3176,7 +3139,7 @@ export default function AdminDashboard() {
                   className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-700 hover:text-neutral-900"
                 >
                   Ouvrir la gestion des suspensions
-                  <ChevronRight size={16} className="shrink-0" />
+                  <ChevronRightIcon className="shrink-0 h-4 w-4" />
                 </Link>
               </div>
             </div>
@@ -3185,7 +3148,7 @@ export default function AdminDashboard() {
               className="hidden lg:inline-flex items-center gap-2 rounded-xl bg-neutral-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-700 transition-colors"
             >
               Gestion des suspensions
-              <ChevronRight size={18} />
+              <ChevronRightIcon className="h-[18px] w-[18px]" />
             </Link>
           </div>
           <div className="p-4 sm:p-5 space-y-4">
@@ -3194,19 +3157,19 @@ export default function AdminDashboard() {
               label="Utilisateurs"
               value={formatNumber(stats?.users?.total)}
               helper={`Boutiques : ${formatNumber(stats?.users?.shops)}`}
-              icon={Users}
+              icon={UsersIcon}
             />
             <SectionStatCard
               label="Utilisateurs bloqués"
               value={formatNumber(stats?.users?.blocked || 0)}
               helper="À surveiller"
-              icon={Shield}
+              icon={ShieldCheckIcon}
             />
             <SectionStatCard
               label="Nouveaux (30j)"
               value={formatNumber(stats?.users?.newLast30Days)}
               helper="Indicateur 30 jours"
-              icon={Activity}
+              icon={ChartBarIcon}
             />
           </div>
           <form
@@ -3759,7 +3722,7 @@ export default function AdminDashboard() {
           <div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between lg:border-b lg:border-gray-100 dark:border-slate-700 lg:bg-gray-50/80">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                <DollarSign size={22} strokeWidth={2} />
+                <CurrencyDollarIcon strokeWidth={2} className="h-[22px] w-[22px]" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Vérification des paiements</h2>
@@ -3773,7 +3736,7 @@ export default function AdminDashboard() {
               className="hidden lg:inline-flex items-center gap-2 rounded-xl bg-neutral-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-700 transition-colors"
             >
               Ouvrir la vérification
-              <ChevronRight size={18} />
+              <ChevronRightIcon className="h-[18px] w-[18px]" />
             </Link>
           </div>
           <div className="p-4 sm:p-5 space-y-4">
@@ -3782,19 +3745,19 @@ export default function AdminDashboard() {
               label="En attente"
               value={formatNumber(stats?.payments?.waiting)}
               helper="Paiements non vérifiés"
-              icon={Clock}
+              icon={ClockIcon}
             />
             <SectionStatCard
               label="Validés"
               value={formatNumber(stats?.payments?.verified)}
               helper="Paiements acceptés"
-              icon={CheckCircle}
+              icon={CheckCircleIcon}
             />
             <SectionStatCard
               label="CA validé"
               value={formatCurrency(stats?.payments?.revenue)}
               helper="Total confirmé"
-              icon={DollarSign}
+              icon={CurrencyDollarIcon}
             />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 lg:rounded-xl lg:border lg:border-gray-200/80 lg:bg-gray-50/50 lg:p-3 dark:lg:border-slate-700 dark:lg:bg-slate-900/60">
@@ -4254,7 +4217,7 @@ export default function AdminDashboard() {
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 px-3 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:border-neutral-200"
                             >
-                              <Paperclip className="w-3 h-3" />
+                              <PaperClipIcon className="w-3 h-3" />
                               {attachment.originalName || attachment.filename}
                             </a>
                           ))}
@@ -4301,7 +4264,7 @@ export default function AdminDashboard() {
                       onClick={resetReminderFilters}
                       className="inline-flex items-center gap-1 rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800"
                     >
-                      <RefreshCw size={12} />
+                      <ArrowPathIcon className="h-3 w-3" />
                       Réinitialiser
                     </button>
                   </div>
@@ -4587,7 +4550,7 @@ export default function AdminDashboard() {
                           {order.deliveryAddress && (
                             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-neutral-700">
                               <p className="text-xs text-gray-600 dark:text-neutral-300">
-                                <MapPin size={12} className="inline mr-1" />
+                                <MapPinIcon className="inline mr-1 h-3 w-3" />
                                 {order.deliveryAddress}
                                 {order.deliveryCity && `, ${order.deliveryCity}`}
                               </p>
@@ -4611,7 +4574,7 @@ export default function AdminDashboard() {
         </>
       )}
       <FloatingGlassButton
-        icon={RefreshCw}
+        icon={ArrowPathIcon}
         label={refreshing ? 'Mise à jour...' : 'Actualiser'}
         onClick={refreshAll}
         disabled={refreshing}

@@ -4,18 +4,7 @@ import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
-import {
-  Store,
-  Upload,
-  X,
-  CheckCircle,
-  Clock,
-  XCircle,
-  AlertCircle,
-  DollarSign,
-  Image as ImageIcon,
-  ShieldCheck
-} from 'lucide-react';
+import { ArrowUpTrayIcon, BuildingStorefrontIcon, CheckCircleIcon, ClockIcon, CurrencyDollarIcon, ExclamationCircleIcon, PhotoIcon, ShieldCheckIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import PawaPayButton from '../components/PawaPayButton';
 
 const readFileAsDataURL = (file) => {
@@ -217,28 +206,28 @@ export default function ShopConversionRequest() {
       case 'awaiting_payment':
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-            <DollarSign size={14} />
+            <CurrencyDollarIcon className="h-3.5 w-3.5" />
             Paiement requis
           </span>
         );
       case 'approved':
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-            <CheckCircle size={14} />
+            <CheckCircleIcon className="h-3.5 w-3.5" />
             Approuvée
           </span>
         );
       case 'rejected':
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-            <XCircle size={14} />
+            <XCircleIcon className="h-3.5 w-3.5" />
             Rejetée
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-            <Clock size={14} />
+            <ClockIcon className="h-3.5 w-3.5" />
             En attente
           </span>
         );
@@ -261,7 +250,7 @@ export default function ShopConversionRequest() {
       <div className="hd-products-flow flex min-h-screen items-center justify-center bg-[#f6f2ec] px-4">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00]">
-            <Store className="h-8 w-8" />
+            <BuildingStorefrontIcon className="h-8 w-8" />
           </div>
           <p className="text-sm font-semibold text-gray-600">Veuillez vous connecter pour accéder à cette page.</p>
         </div>
@@ -284,7 +273,7 @@ export default function ShopConversionRequest() {
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/16 px-3 py-1.5 ring-1 ring-white/20">
-                <Store className="h-4 w-4" />
+                <BuildingStorefrontIcon className="h-4 w-4" />
                 <span className="text-xs font-black uppercase tracking-wide">Compte vendeur</span>
               </div>
               <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Devenir Boutique</h1>
@@ -386,7 +375,7 @@ export default function ShopConversionRequest() {
           <form onSubmit={(event) => event.preventDefault()} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             {error && (
               <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4">
-                <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                <ExclamationCircleIcon className="text-red-600 flex-shrink-0 mt-0.5 h-5 w-5" />
                 <p className="text-sm font-semibold text-red-700">{error}</p>
               </div>
             )}
@@ -459,12 +448,12 @@ export default function ShopConversionRequest() {
                       onClick={removeShopLogo}
                       className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white transition-colors hover:bg-red-600"
                     >
-                      <X size={16} />
+                      <XMarkIcon className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
                   <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100">
-                    <ImageIcon className="mb-2 text-[#e85d00]" size={32} />
+                    <PhotoIcon className="mb-2 text-[#e85d00] h-8 w-8" />
                     <span className="text-sm font-black text-gray-500">Cliquez pour ajouter un logo</span>
                     <input
                       type="file"
@@ -479,12 +468,12 @@ export default function ShopConversionRequest() {
               {/* Payment Section */}
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="mb-4 flex items-center gap-2 text-xl font-black text-gray-900">
-                  <DollarSign size={20} className="text-[#e85d00]" />
+                  <CurrencyDollarIcon className="text-[#e85d00] h-5 w-5" />
                   Paiement sécurisé
                 </h3>
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                   <div className="flex items-start gap-3">
-                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+                    <ShieldCheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
                     <div>
                       <p className="mb-1 text-sm font-black text-emerald-950">
                     Montant requis: <span className="text-lg text-[#e85d00]">{requiredAmountLabel}</span>
@@ -512,12 +501,12 @@ export default function ShopConversionRequest() {
                         {preview ? (
                           <div className="relative">
                             <img src={preview} alt={requirement.label} className="h-36 w-full object-cover" />
-                            <button type="button" onClick={() => removeVerificationFile(requirement.key)} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-red-600 text-white shadow"><X size={15} /></button>
+                            <button type="button" onClick={() => removeVerificationFile(requirement.key)} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-red-600 text-white shadow"><XMarkIcon className="h-[15px] w-[15px]" /></button>
                             <span className="absolute bottom-2 left-2 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-black text-white">Ajoutée</span>
                           </div>
                         ) : (
                           <label className="flex h-36 cursor-pointer flex-col items-center justify-center px-4 text-center hover:bg-orange-50">
-                            <Upload className="mb-2 text-[#e85d00]" size={24} />
+                            <ArrowUpTrayIcon className="mb-2 text-[#e85d00] h-6 w-6" />
                             <span className="text-xs font-black text-gray-800">Ajouter l’image {index + 1}/4</span>
                             <input type="file" accept="image/*" onChange={(event) => handleVerificationFileChange(requirement.key, event)} className="hidden" />
                           </label>
@@ -548,7 +537,7 @@ export default function ShopConversionRequest() {
         ) : (
           <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm">
             <div className="flex items-start gap-3">
-              <Clock className="mt-0.5 flex-shrink-0 text-amber-600" size={20} />
+              <ClockIcon className="mt-0.5 flex-shrink-0 text-amber-600 h-5 w-5" />
               <div>
                 <h3 className="mb-1 font-black text-amber-900">Demande en attente</h3>
                 <p className="text-sm font-semibold leading-6 text-amber-700">

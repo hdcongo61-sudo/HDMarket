@@ -1,18 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock3,
-  CreditCard,
-  ExternalLink,
-  Loader2,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  UserMinus,
-  UserPlus,
-  XCircle
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowTopRightOnSquareIcon, CheckCircleIcon, ClockIcon, CreditCardIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, ShieldCheckIcon, UserMinusIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -26,14 +13,14 @@ import {
 import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: 'waiting', label: 'À vérifier', icon: Clock3 },
-  { value: 'verified', label: 'Validés', icon: CheckCircle2 },
-  { value: 'rejected', label: 'Rejetés', icon: XCircle }
+  { value: 'waiting', label: 'À vérifier', icon: ClockIcon },
+  { value: 'verified', label: 'Validés', icon: CheckCircleIcon },
+  { value: 'rejected', label: 'Rejetés', icon: XCircleIcon }
 ];
 
 const PANEL_OPTIONS = [
-  { value: 'payments', label: 'Paiements', icon: CreditCard },
-  { value: 'verifiers', label: 'Vérificateurs', icon: ShieldCheck }
+  { value: 'payments', label: 'Paiements', icon: CreditCardIcon },
+  { value: 'verifiers', label: 'Vérificateurs', icon: ShieldCheckIcon }
 ];
 
 const OPERATOR_FILTER_OPTIONS = [
@@ -327,25 +314,25 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
       label: paymentStatusLabels[paymentStatus] || 'Paiements',
       value: loadingPayments ? '...' : payments.length,
       help: 'File affichée',
-      icon: CreditCard
+      icon: CreditCardIcon
     },
     {
       label: 'Montant affiché',
       value: loadingPayments ? '...' : formatCurrency(displayedPaymentAmount),
       help: 'Selon les filtres actifs',
-      icon: CreditCard
+      icon: CreditCardIcon
     },
     {
       label: 'Vérificateurs',
       value: canManageVerifiers ? verifiers.length : '-',
       help: canManageVerifiers ? 'Autorisés' : 'Admin only',
-      icon: UserPlus
+      icon: UserPlusIcon
     },
     {
       label: 'Action',
       value: paymentStatus === 'waiting' ? 'Manuelle' : 'Historique',
       help: paymentStatus === 'waiting' ? 'Valider ou rejeter' : 'Consultation',
-      icon: ShieldCheck
+      icon: ShieldCheckIcon
     }
   ];
 
@@ -403,7 +390,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
       const users = Array.isArray(data) ? data.filter((item) => !['admin', 'founder'].includes(item.role)) : [];
       setFoundUsers(users);
     } catch (error) {
-      console.error('Search users error:', error);
+      console.error('MagnifyingGlassIcon users error:', error);
       setFoundUsers([]);
     } finally {
       setSearchingUsers(false);
@@ -444,7 +431,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
             {
               label: 'Actualiser',
               description: activePanel === 'verifiers' ? 'Recharger les vérificateurs' : 'Recharger la file paiement',
-              icon: RefreshCw,
+              icon: ArrowPathIcon,
               tone: 'dark',
               loading: loadingPayments || loadingVerifiers,
               onClick: () => {
@@ -456,7 +443,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
               ? {
                   label: 'Vérificateurs',
                   description: 'Ajouter ou retirer un accès',
-                  icon: ShieldCheck,
+                  icon: ShieldCheckIcon,
                   tone: activePanel === 'verifiers' ? 'emerald' : 'neutral',
                   onClick: () => changePanel('verifiers')
                 }
@@ -465,7 +452,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
               ? {
                   label: 'Centre PawaPay',
                   description: 'Encaissements, incidents et rapprochements',
-                  icon: CreditCard,
+                  icon: CreditCardIcon,
                   tone: 'orange',
                   to: '/admin/pawapay'
                 }
@@ -475,7 +462,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
 
         {paymentsError && activePanel === 'payments' ? (
           <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300" role="alert">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{paymentsError}</span>
           </div>
         ) : null}
@@ -494,7 +481,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
             <div className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                   <input
                     type="text"
                     className="min-h-[46px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 pl-10 pr-4 text-sm font-medium text-neutral-950 outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white dark:focus:border-neutral-600"
@@ -577,7 +564,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
             {!loadingPayments && payments.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                 <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
-                  <CreditCard className="h-5 w-5" />
+                  <CreditCardIcon className="h-5 w-5" />
                 </div>
                 <p className="mt-3 text-sm font-bold text-neutral-950 dark:text-white">Aucun paiement à afficher</p>
                 <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
@@ -611,7 +598,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                           />
                         ) : (
                           <div className="grid h-full place-items-center text-neutral-400">
-                            <CreditCard className="h-6 w-6" />
+                            <CreditCardIcon className="h-6 w-6" />
                           </div>
                         )}
                       </div>
@@ -647,7 +634,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                               className="grid h-7 w-7 shrink-0 place-items-center rounded-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-950 dark:hover:bg-neutral-900 dark:hover:text-white"
                               title="Voir le produit"
                             >
-                              <ExternalLink className="h-4 w-4" />
+                              <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                             </Link>
                           ) : null}
                         </div>
@@ -704,7 +691,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                               disabled={isRowLoading}
                               className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60"
                             >
-                              {isVerifyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                              {isVerifyLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
                               Valider
                             </button>
                             <button
@@ -713,7 +700,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                               disabled={isRowLoading}
                               className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-bold text-red-700 transition hover:bg-red-100 active:scale-[0.98] disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
                             >
-                              {isRejectLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                              {isRejectLoading ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <XCircleIcon className="h-4 w-4" />}
                               Rejeter
                             </button>
                           </>
@@ -739,7 +726,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
             <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
               <div className="flex items-start gap-3">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-200">
-                  <UserPlus className="h-5 w-5" />
+                  <UserPlusIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-neutral-950 dark:text-white">Ajouter un vérificateur</h2>
@@ -766,7 +753,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                   disabled={searchingUsers || !userSearchQuery.trim()}
                   className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-4 text-sm font-bold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950"
                 >
-                  {searchingUsers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {searchingUsers ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <MagnifyingGlassIcon className="h-4 w-4" />}
                   <span className="hidden sm:inline">Chercher</span>
                 </button>
               </div>
@@ -787,7 +774,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                         disabled={isBusy}
                         className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-xl bg-neutral-950 px-3 text-xs font-bold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950"
                       >
-                        {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                        {isBusy ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <UserPlusIcon className="h-3.5 w-3.5" />}
                         Ajouter
                       </button>
                     </div>
@@ -816,7 +803,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                   className="grid h-10 w-10 place-items-center rounded-2xl border border-neutral-200 text-neutral-500 transition hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900"
                   aria-label="Actualiser les vérificateurs"
                 >
-                  <RefreshCw className={`h-4 w-4 ${loadingVerifiers ? 'animate-spin' : ''}`} />
+                  <ArrowPathIcon className={`h-4 w-4 ${loadingVerifiers ? 'animate-spin' : ''}`} />
                 </button>
               </div>
 
@@ -829,7 +816,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                 {!loadingVerifiers && verifiers.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-neutral-300 p-4 dark:border-neutral-800">
                     <div className="flex items-start gap-3 text-sm text-neutral-500 dark:text-neutral-400">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
                       Aucun vérificateur dédié. Les admins et founders gardent leurs accès via leurs rôles.
                     </div>
                   </div>
@@ -848,7 +835,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                         disabled={isBusy}
                         className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
                       >
-                        {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserMinus className="h-3.5 w-3.5" />}
+                        {isBusy ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <UserMinusIcon className="h-3.5 w-3.5" />}
                         Retirer
                       </button>
                     </div>

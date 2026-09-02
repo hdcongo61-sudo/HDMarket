@@ -1,7 +1,7 @@
 import React, { memo, useContext, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Star, Eye, ShoppingCart, MessageCircle, Zap, Clock, ShieldCheck, TrendingUp, Award, ChevronLeft, ChevronRight, Package, MapPin, Boxes, Expand, Check, Loader2 } from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, ArrowsPointingOutIcon, BoltIcon, ChatBubbleLeftIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, CubeIcon, EyeIcon, HeartIcon, MapPinIcon, ShieldCheckIcon, ShoppingCartIcon, StarIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import CartContext from '../context/CartContext';
 import FavoriteContext from '../context/FavoriteContext';
@@ -819,7 +819,7 @@ function ProductCard({
               aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             >
               <span className={`${useHomeFeed ? `inline-flex h-[34px] w-[34px] items-center justify-center rounded-full ${favoriteActive ? 'bg-[#e85d00] text-white' : 'bg-white/94 text-[#57534e] dark:bg-neutral-950/90 dark:text-neutral-200'}` : 'contents'}`}>
-                <Heart
+                <HeartIcon
                   className={`${useHomeFeed ? 'h-[17px] w-[17px]' : 'h-4 w-4'} transition-transform duration-150 ${favoritePending ? 'scale-90' : favoriteActive ? 'scale-110' : ''}`}
                   fill={favoriteActive ? 'currentColor' : 'none'}
                 />
@@ -828,7 +828,7 @@ function ProductCard({
 
             {productCity && !useCommerceMobileCard ? (
               <span className="absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded-full bg-white/92 px-2 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-sm dark:bg-neutral-950/90 dark:text-neutral-200 sm:bottom-2 sm:left-2 sm:px-2.5 sm:py-1 sm:text-[11px]">
-                <MapPin className="h-3 w-3 shrink-0" />
+                <MapPinIcon className="h-3 w-3 shrink-0" />
                 <span className="truncate">{productCity}</span>
               </span>
             ) : null}
@@ -839,7 +839,7 @@ function ProductCard({
                   useCommerceMobileCard ? 'bottom-1.5 left-1.5 sm:bottom-2 sm:left-2' : 'bottom-1.5 right-1.5 sm:bottom-2 sm:right-2'
                 }`}
               >
-                <Clock className="h-3 w-3 shrink-0" />
+                <ClockIcon className="h-3 w-3 shrink-0" />
                 Tranche
               </span>
             ) : null}
@@ -856,7 +856,7 @@ function ProductCard({
                       : 'bottom-1.5 right-1.5 sm:bottom-2 sm:right-2'
                 }`}
               >
-                <Boxes className="h-3 w-3 shrink-0" />
+                <CubeIcon className="h-3 w-3 shrink-0" />
                 En gros
               </span>
             ) : null}
@@ -922,7 +922,7 @@ function ProductCard({
                     aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
                   >
                     <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${inCart ? 'bg-[#fff5ec] text-[#b3480a]' : 'bg-[#e85d00] text-white'}`}>
-                      {adding ? <Loader2 className="h-[17px] w-[17px] animate-spin" /> : inCart ? <Check className="h-[17px] w-[17px]" /> : <ShoppingCart className="h-[17px] w-[17px]" />}
+                      {adding ? <ArrowPathIcon className="h-[17px] w-[17px] animate-spin" /> : inCart ? <CheckIcon className="h-[17px] w-[17px]" /> : <ShoppingCartIcon className="h-[17px] w-[17px]" />}
                     </span>
                   </button>
                 ) : (
@@ -934,7 +934,7 @@ function ProductCard({
                     aria-label="Voir le produit"
                   >
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#e85d00]">
-                      <ChevronRight className="h-[17px] w-[17px]" />
+                      <ChevronRightIcon className="h-[17px] w-[17px]" />
                     </span>
                   </ProductDetailLink>
                 )}
@@ -963,7 +963,7 @@ function ProductCard({
 
             {useCommerceMobileCard && !useHomeFeed ? (
               <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-[#8a8378]">
-                {ratingAverage > 0 ? <span className="inline-flex items-center gap-1"><Star className={`h-3 w-3 fill-current ${useHomeFeed ? 'text-[#ffb300]' : 'text-[#e85d00]'}`} />{ratingAverage}</span> : null}
+                {ratingAverage > 0 ? <span className="inline-flex items-center gap-1"><StarIcon className={`h-3 w-3 fill-current ${useHomeFeed ? 'text-[#ffb300]' : 'text-[#e85d00]'}`} />{ratingAverage}</span> : null}
                 {salesCount > 0 ? <span>{formatSalesCount(salesCount)} vendus</span> : null}
                 {productCity ? <span className="truncate">{productCity}</span> : null}
               </div>
@@ -995,7 +995,7 @@ function ProductCard({
               )}
               {ratingAverage > 0 ? (
                 <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-neutral-700 dark:text-neutral-200">
-                  <Star className="h-3 w-3 fill-current" />
+                  <StarIcon className="h-3 w-3 fill-current" />
                   {ratingAverage}
                 </span>
               ) : null}
@@ -1004,7 +1004,7 @@ function ProductCard({
 
             {trustLabel && !isShopProfileCompact && !useCommerceMobileCard ? (
               <div className="inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500 dark:bg-neutral-900 dark:text-orange-300">
-                <ShieldCheck className="h-3 w-3 shrink-0" />
+                <ShieldCheckIcon className="h-3 w-3 shrink-0" />
                 <span className="truncate">{trustLabel}</span>
               </div>
             ) : null}
@@ -1026,7 +1026,7 @@ function ProductCard({
                   }`}
                   aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
                 >
-                  <ShoppingCart className={compactCartAction ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+                  <ShoppingCartIcon className={compactCartAction ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
                   {inCart ? (compactCartAction ? 'Ajouté' : 'Dans le panier') : adding ? 'Ajout…' : compactCartAction ? 'Ajouter' : 'Ajouter au panier'}
                 </button>
               ) : (
@@ -1203,7 +1203,7 @@ function ProductCard({
 
             {longPressPreviewEnabled ? (
               <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white">
-                <Expand className="h-3.5 w-3.5" />
+                <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
               </span>
             ) : null}
 
@@ -1244,7 +1244,7 @@ function ProductCard({
                 className="absolute left-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="Previous image"
               >
-                <ChevronLeft className="h-3 w-3 text-gray-700" />
+                <ChevronLeftIcon className="h-3 w-3 text-gray-700" />
               </button>
               <button
                 type="button"
@@ -1256,7 +1256,7 @@ function ProductCard({
                 className="absolute right-1 top-1/2 -translate-y-1/2 z-30 hidden h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm transition-all hover:scale-105 hover:bg-white sm:flex sm:opacity-0 sm:group-hover:opacity-100"
                 aria-label="Next image"
               >
-                <ChevronRight className="h-3 w-3 text-gray-700" />
+                <ChevronRightIcon className="h-3 w-3 text-gray-700" />
               </button>
             </>
           </div>
@@ -1284,7 +1284,7 @@ function ProductCard({
 
             {longPressPreviewEnabled ? (
               <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white">
-                <Expand className="h-3.5 w-3.5" />
+                <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
               </span>
             ) : null}
             
@@ -1304,7 +1304,7 @@ function ProductCard({
           )}
           {hasActiveBoost && !useCompactMobile && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-white/95 text-neutral-900 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-semibold shadow-md">
-              <Zap className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              <BoltIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Boost
             </div>
           )}
@@ -1325,31 +1325,31 @@ function ProductCard({
           {/* Badge Certifié */}
           {p.certified && (!useCompactMobile || hideDenseMobileBadges || (!hasActivePromo && !hasDiscount)) && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
-              <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              <ShieldCheckIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Certifié
             </div>
           )}
           {installmentAvailable && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-800 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
-              <Clock className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              <ClockIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Paiement en tranche
             </div>
           )}
           {wholesaleEnabled && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-emerald-700 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
-              <Boxes className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              <CubeIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Vente en gros{wholesaleMinQty ? ` dès ${wholesaleMinQty}` : ''}
             </div>
           )}
           {pickupOnly && !useCompactMobile && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-slate-700 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
-              <Package className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              <CubeIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Retrait boutique
             </div>
           )}
           {freeDeliveryAvailable && !hideDenseMobileBadges && (
             <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-neutral-900 text-white px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold shadow-md">
-              <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+              <ShieldCheckIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
               Livraison gratuite
             </div>
           )}
@@ -1361,7 +1361,7 @@ function ProductCard({
             info shouldn't disappear just because the grid is dense. */}
         {isShopProfileCompact && installmentAvailable && (
           <div className="absolute top-1 left-1 z-20 inline-flex items-center gap-0.5 rounded bg-neutral-800 px-1 py-0.5 text-[7px] font-bold text-white shadow-md">
-            <Clock className="w-2 h-2" />
+            <ClockIcon className="w-2 h-2" />
             Tranche
           </div>
         )}
@@ -1379,16 +1379,14 @@ function ProductCard({
             } ${favoritePending ? 'scale-95 cursor-wait opacity-85' : ''}`}
             aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
-            <Heart
-              size={14}
-              className={`sm:w-4 sm:h-4 transition-all duration-300 ${
+            <HeartIcon
+className={`sm:w-4 sm:h-4 transition-all duration-300 ${
                 favoriteActive
                   ? 'scale-110 text-white'
                   : 'text-current'
               }`}
               strokeWidth={2}
-              fill={favoriteActive ? 'currentColor' : 'none'}
-            />
+              fill={favoriteActive ? 'currentColor' : 'none'} className="h-3.5 w-3.5" />
           </button>
         )}
 
@@ -1413,7 +1411,7 @@ function ProductCard({
               {/* Badge Best Seller */}
               {isBestSeller && (
                 <div className="bg-black text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold flex items-center gap-0.5 sm:gap-1">
-                  <Award className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  <TrophyIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                   TOP VENTE
                 </div>
               )}
@@ -1465,7 +1463,7 @@ function ProductCard({
           <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-gray-500 flex-wrap">
             {ratingAverage > 0 && (
               <div className="flex items-center gap-0.5 sm:gap-1">
-                <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-neutral-700 fill-neutral-700 dark:text-neutral-200 dark:fill-neutral-200" />
+                <StarIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-neutral-700 fill-neutral-700 dark:text-neutral-200 dark:fill-neutral-200" />
                 <span className="font-semibold text-gray-700">{ratingAverage}</span>
                 {ratingCount > 0 && (
                   <span className="text-gray-500 hidden sm:inline">({formatSalesCount(ratingCount)})</span>
@@ -1474,13 +1472,13 @@ function ProductCard({
             )}
             {commentCount > 0 && (
               <div className="flex items-center gap-0.5 sm:gap-1">
-                <MessageCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                <ChatBubbleLeftIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 <span>{formatSalesCount(commentCount)}</span>
               </div>
             )}
             {salesCount > 0 && (
               <div className="flex items-center gap-0.5 sm:gap-1 text-neutral-700 dark:text-neutral-300">
-                <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                <ArrowTrendingUpIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 <span className="font-semibold">
                   {hasRealSalesData ? 'Vendu' : 'Engagement'} {formatSalesCount(salesCount)}
                 </span>
@@ -1495,7 +1493,7 @@ function ProductCard({
               isShopProfileCompact ? 'text-[8px]' : useCompactMobile ? 'text-[8px]' : 'text-[9px]'
             }`}
           >
-            <MapPin className="h-2.5 w-2.5 shrink-0" />
+            <MapPinIcon className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate">{productCity}</span>
           </div>
         )}
@@ -1507,7 +1505,7 @@ function ProductCard({
         )}
         {wholesaleEnabled && !useCompactMobile && (
           <div className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">
-            <Boxes className="h-2.5 w-2.5" />
+            <CubeIcon className="h-2.5 w-2.5" />
             Vente en gros disponible{wholesaleMinQty ? ` dès ${wholesaleMinQty} pièces` : ''}
           </div>
         )}
@@ -1521,7 +1519,7 @@ function ProductCard({
         {p.certified && !useCompactMobile && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="inline-flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 px-2 py-0.5 rounded text-[9px] font-semibold border border-neutral-200 dark:border-neutral-700">
-              <ShieldCheck className="w-2.5 h-2.5" />
+              <ShieldCheckIcon className="w-2.5 h-2.5" />
               Garanti authentique
             </span>
             {conditionLabel === 'Neuf' && (
@@ -1581,7 +1579,7 @@ function ProductCard({
                   : 'bg-neutral-950 text-white hover:bg-neutral-800'
               }`}
             >
-              <ShoppingCart size={compactCartAction ? 13 : 12} className={compactCartAction ? '' : 'sm:w-4 sm:h-4'} />
+              <ShoppingCartIcon size={compactCartAction ? 13 : 12} className={compactCartAction ? '' : 'sm:w-4 sm:h-4'} />
               <span>
                 {inCart ? (compactCartAction ? 'Ajouté' : 'Dans le panier') : adding ? 'Ajout...' : compactCartAction ? 'Ajouter' : 'Ajouter au panier'}
               </span>

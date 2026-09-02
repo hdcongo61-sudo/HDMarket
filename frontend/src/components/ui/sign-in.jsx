@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { EyeIcon, EyeSlashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import useAppBrandLogo from '../../hooks/useAppBrandLogo';
 
 export const LightLogin = ({
@@ -33,7 +33,7 @@ export const LightLogin = ({
                   className={`${isMobile ? 'h-12 w-12' : 'h-14 w-14'} object-contain`}
                 />
               ) : (
-                <ShieldCheck className="h-10 w-10 text-blue-600" />
+                <ShieldCheckIcon className="h-10 w-10 text-blue-600" />
               )}
             </div>
             <h2 className="text-center text-2xl font-bold text-slate-900 dark:text-white">
@@ -79,7 +79,7 @@ export const LightLogin = ({
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                 </button>
               </div>
             </div>

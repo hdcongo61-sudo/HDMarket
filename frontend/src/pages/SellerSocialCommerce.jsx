@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Share2, Plus, TrendingUp } from 'lucide-react';
+import { ArrowTrendingUpIcon, PlusIcon, ShareIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import ShareProductModal from '../components/social/ShareProductModal';
@@ -114,7 +114,7 @@ export default function SellerSocialCommerce() {
     <div className="mx-auto max-w-4xl space-y-5 px-3 py-4 sm:px-5">
       <header className="flex items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#fff0e4] text-[#e85d00]">
-          <Share2 className="h-5 w-5" />
+          <ShareIcon className="h-5 w-5" />
         </span>
         <div>
           <p className="text-[11px] font-black uppercase tracking-wide text-[#e85d00]">Ce mois-ci</p>
@@ -147,7 +147,7 @@ export default function SellerSocialCommerce() {
           {analytics?.topChannels?.length > 0 && (
             <div className="rounded-2xl border border-neutral-100 bg-white p-4">
               <p className="mb-3 flex items-center gap-2 text-xs font-black text-neutral-600">
-                <TrendingUp className="h-3.5 w-3.5" /> Canaux les plus actifs
+                <ArrowTrendingUpIcon className="h-3.5 w-3.5" /> Canaux les plus actifs
               </p>
               <div className="space-y-2">
                 {analytics.topChannels.map((row) => (
@@ -186,7 +186,7 @@ export default function SellerSocialCommerce() {
                     <p className="truncate text-sm font-bold text-[#141210]">{product.title}</p>
                     <p className="text-[11px] text-neutral-400">{product.socialCode} · {product.clicks} clics</p>
                   </div>
-                  <Share2 className="h-4 w-4 shrink-0 text-neutral-300" />
+                  <ShareIcon className="h-4 w-4 shrink-0 text-neutral-300" />
                 </button>
               ))}
             </div>
@@ -202,7 +202,7 @@ export default function SellerSocialCommerce() {
                   disabled={!products.length}
                   className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[#141210] px-3 text-xs font-black text-white disabled:opacity-40"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Nouvelle
+                  <PlusIcon className="h-3.5 w-3.5" /> Nouvelle
                 </button>
               )}
             </div>

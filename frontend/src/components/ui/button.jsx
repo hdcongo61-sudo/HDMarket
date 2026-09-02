@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import cn from '../../lib/utils';
 
 const VARIANT_CLASSES = {
@@ -69,7 +69,7 @@ const Button = React.forwardRef(function Button(
       data-loading={loading ? 'true' : undefined}
       {...props}
     >
-      {loading ? <Loader2 className="ui-btn-spinner h-4 w-4 animate-spin" aria-hidden="true" /> : leftIcon}
+      {loading ? <ArrowPathIcon className="ui-btn-spinner h-4 w-4 animate-spin" aria-hidden="true" /> : leftIcon}
       <span className="min-w-0 truncate">{loading && loadingText ? loadingText : children}</span>
       {!loading ? rightIcon : null}
     </button>

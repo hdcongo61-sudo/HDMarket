@@ -1,5 +1,5 @@
 import React from 'react';
-import { BadgeCheck, CreditCard, Lock, ShieldCheck } from 'lucide-react';
+import { CheckBadgeIcon, CreditCardIcon, LockClosedIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../../context/AppSettingsContext';
 
 export default function AuthTrustPanel({ compact = false }) {
@@ -15,7 +15,7 @@ export default function AuthTrustPanel({ compact = false }) {
       description: isFrench
         ? 'Protection active de vos sessions et connexions.'
         : 'Active protection for your sessions and sign-ins.',
-      icon: ShieldCheck
+      icon: ShieldCheckIcon
     },
     {
       key: 'encrypted',
@@ -23,7 +23,7 @@ export default function AuthTrustPanel({ compact = false }) {
       description: isFrench
         ? 'Les informations sensibles sont protégées.'
         : 'Sensitive information stays protected.',
-      icon: Lock
+      icon: LockClosedIcon
     },
     {
       key: 'verified-users',
@@ -31,7 +31,7 @@ export default function AuthTrustPanel({ compact = false }) {
       description: isFrench
         ? 'Vendeurs et acheteurs validés sur la plateforme.'
         : 'Sellers and buyers are verified on the platform.',
-      icon: BadgeCheck
+      icon: CheckBadgeIcon
     },
     {
       key: 'secure-payments',
@@ -39,7 +39,7 @@ export default function AuthTrustPanel({ compact = false }) {
       description: isFrench
         ? 'Flux de paiement surveillés et renforcés.'
         : 'Payment flows are monitored and reinforced.',
-      icon: CreditCard
+      icon: CreditCardIcon
     }
   ];
 
@@ -52,7 +52,7 @@ export default function AuthTrustPanel({ compact = false }) {
             <article key={item.key} className="glass-card rounded-2xl p-3">
               <div className="flex items-start gap-2.5">
                 <span className="soft-card soft-card-blue inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-blue-800 dark:text-blue-100">
-                  <Icon size={16} />
+                  <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-900 dark:text-white">{item.title}</p>
@@ -87,7 +87,7 @@ export default function AuthTrustPanel({ compact = false }) {
             <article key={item.key} className="soft-card soft-card-blue rounded-2xl p-3.5">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/50 text-blue-800 dark:bg-black/20 dark:text-blue-100">
-                  <Icon size={17} />
+                  <Icon className="h-[17px] w-[17px]" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-blue-950 dark:text-blue-100">{item.title}</p>

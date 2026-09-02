@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, CheckCircle2, Loader2, MapPin, Paperclip, Send, Trash2 } from 'lucide-react';
+import { ArrowPathIcon, CameraIcon, CheckCircleIcon, MapPinIcon, PaperAirplaneIcon, PaperClipIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import SignaturePad from './SignaturePad';
 
@@ -222,7 +222,7 @@ export default function DeliveryProofUpload({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-100 text-[#e85d00] ring-1 ring-gray-200">
-            <Camera className="w-5 h-5" />
+            <CameraIcon className="w-5 h-5" />
           </span>
           <div>
             <h4 className="text-sm font-black text-gray-950">
@@ -235,7 +235,7 @@ export default function DeliveryProofUpload({
         </div>
         {preparingFiles ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-black text-gray-500 ring-1 ring-gray-200">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
             Préparation
           </span>
         ) : null}
@@ -253,7 +253,7 @@ export default function DeliveryProofUpload({
                 rel="noreferrer"
                 className="inline-flex min-h-[34px] items-center gap-1 rounded-full border border-gray-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-gray-100 active:scale-95"
               >
-                <Paperclip className="w-3 h-3" />
+                <PaperClipIcon className="w-3 h-3" />
                 Preuve {index + 1}
               </a>
             ))}
@@ -267,7 +267,7 @@ export default function DeliveryProofUpload({
         </label>
         <label className="flex min-h-[84px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-center transition hover:bg-gray-100 active:scale-[0.99]">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#e85d00] shadow-sm ring-1 ring-gray-200">
-            <Camera className="w-5 h-5" />
+            <CameraIcon className="w-5 h-5" />
           </span>
           <span className="text-sm font-black text-gray-500">
             {preparingFiles ? 'Préparation des photos...' : 'Ajouter des photos'}
@@ -310,7 +310,7 @@ export default function DeliveryProofUpload({
                     className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-red-600 ring-1 ring-red-100 transition hover:bg-red-50 active:scale-95"
                     title="Retirer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <TrashIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -350,12 +350,12 @@ export default function DeliveryProofUpload({
           disabled={locationLoading}
           className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-3 text-xs font-black text-gray-500 transition hover:bg-orange-100 active:scale-95 disabled:opacity-60"
         >
-          <MapPin className="w-3.5 h-3.5" />
+          <MapPinIcon className="w-3.5 h-3.5" />
           {locationLoading ? 'GPS…' : 'Ajouter GPS'}
         </button>
         {location && (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-            <CheckCircle2 className="w-3.5 h-3.5" />
+            <CheckCircleIcon className="w-3.5 h-3.5" />
             GPS capturé
           </span>
         )}
@@ -385,7 +385,7 @@ export default function DeliveryProofUpload({
           disabled={submitDisabled}
           className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-full bg-[#FFB000] px-4 text-sm font-black text-white shadow-sm transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-56"
         >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PaperAirplaneIcon className="w-4 h-4" />}
           {loading
             ? 'Envoi...'
             : preparingFiles

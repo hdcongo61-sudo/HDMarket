@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Clock3, Landmark, RefreshCw, ShieldCheck, Smartphone, WalletCards } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, BuildingLibraryIcon, CheckCircleIcon, ClockIcon, DevicePhoneMobileIcon, ShieldCheckIcon, WalletIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
@@ -79,7 +79,7 @@ export default function SellerSettlements() {
             to="/seller/products"
             className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-700 hover:bg-neutral-100"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeftIcon className="h-4 w-4" />
             Retour
           </Link>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#e85d00]">Finances boutique</p>
@@ -87,15 +87,15 @@ export default function SellerSettlements() {
           <p className="mt-1 max-w-2xl text-sm text-neutral-600">Après la livraison et le délai de contestation, HDMarket déduit la commission puis PawaPay envoie automatiquement le solde sur votre Mobile Money.</p>
         </div>
         <button type="button" onClick={load} disabled={loading} className="rounded-full border border-neutral-200 bg-white p-3 shadow-sm disabled:opacity-50" aria-label="Actualiser">
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: 'À venir', value: summary.waiting, icon: Clock3 },
-          { label: 'En cours PawaPay', value: summary.processing, icon: RefreshCw },
-          { label: 'Déjà versé', value: summary.paid, icon: CheckCircle2 }
+          { label: 'À venir', value: summary.waiting, icon: ClockIcon },
+          { label: 'En cours PawaPay', value: summary.processing, icon: ArrowPathIcon },
+          { label: 'Déjà versé', value: summary.paid, icon: CheckCircleIcon }
         ].map(({ label, value, icon: Icon }) => (
           <article key={label} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
             <Icon className="h-5 w-5 text-[#e85d00]" />
@@ -107,12 +107,12 @@ export default function SellerSettlements() {
 
       <section className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-orange-50 p-2 text-[#e85d00]"><Smartphone className="h-5 w-5" /></span>
+          <span className="rounded-xl bg-orange-50 p-2 text-[#e85d00]"><DevicePhoneMobileIcon className="h-5 w-5" /></span>
           <div><h2 className="font-black text-neutral-950">Compte de réception</h2><p className="text-xs text-neutral-500">Le numéro doit être celui déjà vérifié dans votre profil.</p></div>
         </div>
         {account.verifiedAt ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <div><p className="flex items-center gap-1.5 text-sm font-black text-emerald-900"><ShieldCheck className="h-4 w-4" /> {providerName}</p><p className="mt-1 text-sm text-emerald-800">{account.phoneNumber}</p></div>
+            <div><p className="flex items-center gap-1.5 text-sm font-black text-emerald-900"><ShieldCheckIcon className="h-4 w-4" /> {providerName}</p><p className="mt-1 text-sm text-emerald-800">{account.phoneNumber}</p></div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">Opérateur confirmé par PawaPay</span>
           </div>
         ) : (
@@ -124,7 +124,7 @@ export default function SellerSettlements() {
       </section>
 
       <section className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2"><WalletCards className="h-5 w-5 text-[#e85d00]" /><h2 className="font-black text-neutral-950">Ventes à régler</h2></div>
+        <div className="mb-3 flex items-center gap-2"><WalletIcon className="h-5 w-5 text-[#e85d00]" /><h2 className="font-black text-neutral-950">Ventes à régler</h2></div>
         {!data?.settlements?.length ? <p className="rounded-xl bg-neutral-50 p-5 text-center text-sm text-neutral-500">Aucun règlement pour le moment.</p> : (
           <div className="space-y-2">{data.settlements.map((item) => (
             <article key={item._id} className="rounded-xl border border-neutral-200 p-3">
@@ -144,7 +144,7 @@ export default function SellerSettlements() {
       </section>
 
       <section className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2"><Landmark className="h-5 w-5 text-[#e85d00]" /><h2 className="font-black text-neutral-950">Historique PawaPay</h2></div>
+        <div className="mb-3 flex items-center gap-2"><BuildingLibraryIcon className="h-5 w-5 text-[#e85d00]" /><h2 className="font-black text-neutral-950">Historique PawaPay</h2></div>
         {!data?.payouts?.length ? <p className="text-sm text-neutral-500">Aucun versement envoyé.</p> : data.payouts.map((payout) => (
           <div key={payout._id} className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 py-3 first:border-t-0">
             <div><p className="text-sm font-black">{formatPriceWithStoredSettings(payout.amount)}</p><p className="text-xs text-neutral-500">{date(payout.createdAt)} · {String(payout.payoutId).slice(0, 8)}</p></div>

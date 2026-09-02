@@ -1,17 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Package,
-  Phone,
-  MapPin,
-  Image as ImageIcon,
-  ShieldCheck,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  Camera,
-  ArrowLeft
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, CameraIcon, ChevronDownIcon, ChevronUpIcon, CubeIcon, MapPinIcon, PhoneIcon, PhotoIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { STAGE_LABELS, NEXT_STAGE, normalizeFileUrl, workflowStatusOf } from '../../utils/deliveryUi';
@@ -103,7 +92,7 @@ function ParcelJobCard({ job, onChange }) {
         className="flex w-full items-center gap-3 p-3.5 text-left"
       >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#FF6A00] dark:bg-orange-950">
-          <Package size={18} />
+          <CubeIcon className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
@@ -129,14 +118,14 @@ function ParcelJobCard({ job, onChange }) {
             )}
           </p>
         </div>
-        {expanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        {expanded ? <ChevronUpIcon className="text-gray-400 h-4 w-4" /> : <ChevronDownIcon className="text-gray-400 h-4 w-4" />}
       </button>
 
       {expanded && (
         <div className="space-y-3 border-t border-gray-100 p-3.5 dark:border-neutral-800">
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-start gap-2">
-              <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <MapPinIcon className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400 h-3.5 w-3.5" />
               <div>
                 <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500">Retrait</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">
@@ -153,7 +142,7 @@ function ParcelJobCard({ job, onChange }) {
               </div>
             </div>
             <div className="mt-2 flex items-start gap-2 border-t border-gray-200 pt-2 dark:border-neutral-700">
-              <MapPin size={14} className="mt-0.5 shrink-0 text-[#FF6A00]" />
+              <MapPinIcon className="mt-0.5 shrink-0 text-[#FF6A00] h-3.5 w-3.5" />
               <div>
                 <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500">Dépôt</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">
@@ -179,7 +168,7 @@ function ParcelJobCard({ job, onChange }) {
           ) : (
             <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 dark:border-orange-900 dark:bg-orange-950">
               <p className="mb-2 flex items-center gap-1.5 text-[11px] font-black uppercase text-[#FF6A00]">
-                <ShieldCheck size={13} /> À présenter au retrait
+                <ShieldCheckIcon className="h-[13px] w-[13px]" /> À présenter au retrait
               </p>
               {job.parcelDescription && <p className="text-sm text-gray-800 dark:text-gray-200">{job.parcelDescription}</p>}
               {job.authorization?.referenceCode && (
@@ -193,7 +182,7 @@ function ParcelJobCard({ job, onChange }) {
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#FF6A00]"
                 >
-                  <ImageIcon size={13} /> Voir le justificatif
+                  <PhotoIcon className="h-[13px] w-[13px]" /> Voir le justificatif
                 </a>
               )}
               {job.requesterId?.phone && (
@@ -201,7 +190,7 @@ function ParcelJobCard({ job, onChange }) {
                   href={`tel:${job.requesterId.phone}`}
                   className="mt-2 flex items-center gap-1.5 text-xs font-bold text-gray-600 dark:text-gray-400"
                 >
-                  <Phone size={13} /> {job.requesterId.name || 'Client'} · {job.requesterId.phone}
+                  <PhoneIcon className="h-[13px] w-[13px]" /> {job.requesterId.name || 'Client'} · {job.requesterId.phone}
                 </a>
               )}
             </div>
@@ -235,7 +224,7 @@ function ParcelJobCard({ job, onChange }) {
               disabled={busy}
               className="w-full rounded-full bg-[#FF6A00] py-2.5 text-sm font-black text-white disabled:opacity-50"
             >
-              {busy ? <Loader2 size={14} className="mx-auto animate-spin" /> : 'Prendre cette course'}
+              {busy ? <ArrowPathIcon className="mx-auto animate-spin h-3.5 w-3.5" /> : 'Prendre cette course'}
             </button>
           ) : isPendingAcceptance ? (
             showReject ? (
@@ -269,7 +258,7 @@ function ParcelJobCard({ job, onChange }) {
                   disabled={busy}
                   className="flex-1 rounded-full bg-gray-900 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
                 >
-                  {busy ? <Loader2 size={14} className="mx-auto animate-spin" /> : 'Accepter la course'}
+                  {busy ? <ArrowPathIcon className="mx-auto animate-spin h-3.5 w-3.5" /> : 'Accepter la course'}
                 </button>
                 <button
                   type="button"
@@ -285,7 +274,7 @@ function ParcelJobCard({ job, onChange }) {
               <div className="space-y-2">
                 <label className="flex min-h-16 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-xs font-semibold text-gray-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-500">
                   {proofFile ? proofFile.name : (
-                    <span className="flex items-center gap-1.5"><Camera size={16} /> Photo de preuve</span>
+                    <span className="flex items-center gap-1.5"><CameraIcon className="h-4 w-4" /> Photo de preuve</span>
                   )}
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
                 </label>
@@ -304,7 +293,7 @@ function ParcelJobCard({ job, onChange }) {
                   disabled={busy}
                   className="w-full rounded-full bg-[#FF6A00] py-2.5 text-sm font-black text-white disabled:opacity-50"
                 >
-                  {busy ? <Loader2 size={14} className="mx-auto animate-spin" /> : `Confirmer : ${STAGE_LABELS[nextStage]}`}
+                  {busy ? <ArrowPathIcon className="mx-auto animate-spin h-3.5 w-3.5" /> : `Confirmer : ${STAGE_LABELS[nextStage]}`}
                 </button>
               </div>
             ) : (
@@ -314,7 +303,7 @@ function ParcelJobCard({ job, onChange }) {
                 disabled={busy}
                 className="w-full rounded-full bg-gray-900 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
               >
-                {busy ? <Loader2 size={14} className="mx-auto animate-spin" /> : `Étape suivante : ${STAGE_LABELS[nextStage]}`}
+                {busy ? <ArrowPathIcon className="mx-auto animate-spin h-3.5 w-3.5" /> : `Étape suivante : ${STAGE_LABELS[nextStage]}`}
               </button>
             )
           ) : null}
@@ -483,7 +472,7 @@ export default function ParcelJobs() {
             aria-label="Retour au tableau de bord des livraisons"
             className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold text-[#FF6A00] transition hover:bg-orange-50 active:scale-95 dark:hover:bg-orange-950"
           >
-            <ArrowLeft size={15} />
+            <ArrowLeftIcon className="h-[15px] w-[15px]" />
             Retour
           </Link>
         </div>

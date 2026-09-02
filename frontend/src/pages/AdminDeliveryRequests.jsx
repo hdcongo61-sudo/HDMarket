@@ -1,21 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  AlertCircle,
-  BarChart3,
-  Camera,
-  CheckCircle2,
-  ClipboardList,
-  Filter,
-  Landmark,
-  Loader2,
-  MapPin,
-  Package,
-  RefreshCcw,
-  Truck,
-  UserCheck,
-  XCircle
-} from 'lucide-react';
+import { ArrowPathIcon, BuildingLibraryIcon, CameraIcon, ChartBarIcon, CheckCircleIcon, ClipboardDocumentListIcon, CubeIcon, ExclamationCircleIcon, FunnelIcon, MapPinIcon, TruckIcon, UserIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -909,14 +894,14 @@ export default function AdminDeliveryRequests() {
                   disabled={refreshing || loading}
                   className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60 sm:flex-none"
                 >
-                  <RefreshCcw size={15} className={refreshing ? 'animate-spin' : ''} />
+                  <ArrowPathIcon className={refreshing ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
                   Actualiser
                 </button>
                 <Link
                   to="/admin/delivery-guys"
                   className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 sm:flex-none"
                 >
-                  <Truck size={15} />
+                  <TruckIcon className="h-[15px] w-[15px]" />
                   Livreurs
                 </Link>
               </div>
@@ -962,12 +947,12 @@ export default function AdminDeliveryRequests() {
 
         <section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200/70 sm:p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <BarChart3 size={15} />
+            <ChartBarIcon className="h-[15px] w-[15px]" />
             Analytics livraison
           </div>
           {analyticsLoading ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 size={14} className="animate-spin" />
+              <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
               Chargement analytics...
             </div>
           ) : analytics?.kpis ? (
@@ -1105,7 +1090,7 @@ export default function AdminDeliveryRequests() {
               onClick={() => setShowAdvanced((prev) => !prev)}
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200"
             >
-              <Filter size={14} />
+              <FunnelIcon className="h-3.5 w-3.5" />
               {showAdvanced ? 'Masquer avancés' : 'Filtres avancés'}
             </button>
           </div>
@@ -1161,7 +1146,7 @@ export default function AdminDeliveryRequests() {
         {orphanOrders.length > 0 ? (
           <section className="rounded-2xl bg-amber-50/80 p-4 shadow-sm ring-1 ring-amber-200">
             <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-amber-900">
-              <AlertCircle size={18} />
+              <ExclamationCircleIcon className="h-[18px] w-[18px]" />
               Commandes REQUESTED sans demande
             </h3>
             <p className="mb-3 text-xs text-amber-800">
@@ -1198,7 +1183,7 @@ export default function AdminDeliveryRequests() {
                           disabled={isCreating}
                           className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
                         >
-                          {isCreating ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                          {isCreating ? <ArrowPathIcon className="animate-spin h-3 w-3" /> : <CheckCircleIcon className="h-3 w-3" />}
                           {isCreating ? 'Création...' : 'Créer'}
                         </button>
                       </div>
@@ -1212,7 +1197,7 @@ export default function AdminDeliveryRequests() {
 
         {loading ? (
           <div className="rounded-2xl bg-white p-6 text-center text-slate-500 shadow-sm ring-1 ring-slate-200/70">
-            <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
+            <ArrowPathIcon className="mx-auto mb-2 h-5 w-5 animate-spin" />
             Chargement des demandes...
           </div>
         ) : (
@@ -1235,7 +1220,7 @@ export default function AdminDeliveryRequests() {
 
             {items.length === 0 ? (
               <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200/70">
-                <ClipboardList className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+                <ClipboardDocumentListIcon className="mx-auto mb-3 h-10 w-10 text-slate-300" />
                 <p className="text-sm font-semibold text-slate-700">Aucune demande de livraison</p>
                 <p className="mt-1 text-xs text-slate-500">
                   {hasActiveFilters
@@ -1319,7 +1304,7 @@ export default function AdminDeliveryRequests() {
                         disabled={isCapturingPickup}
                         className="mt-2 inline-flex min-h-[34px] items-center gap-1 rounded-lg bg-white px-2.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 disabled:opacity-60"
                       >
-                        {isCapturingPickup ? <Loader2 size={10} className="animate-spin" /> : <MapPin size={10} />}
+                        {isCapturingPickup ? <ArrowPathIcon className="animate-spin h-2.5 w-2.5" /> : <MapPinIcon className="h-2.5 w-2.5" />}
                         {isCapturingPickup ? 'Capture...' : 'Capturer GPS'}
                       </button>
                     </div>
@@ -1335,7 +1320,7 @@ export default function AdminDeliveryRequests() {
                         disabled={isCapturingDropoff}
                         className="mt-2 inline-flex min-h-[34px] items-center gap-1 rounded-lg bg-white px-2.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 disabled:opacity-60"
                       >
-                        {isCapturingDropoff ? <Loader2 size={10} className="animate-spin" /> : <MapPin size={10} />}
+                        {isCapturingDropoff ? <ArrowPathIcon className="animate-spin h-2.5 w-2.5" /> : <MapPinIcon className="h-2.5 w-2.5" />}
                         {isCapturingDropoff ? 'Capture...' : 'Capturer GPS'}
                       </button>
                       {buyerInfo?.phone ? <p className="mt-1 text-xs font-medium text-slate-700">Tel acheteur: {buyerInfo.phone}</p> : null}
@@ -1344,12 +1329,12 @@ export default function AdminDeliveryRequests() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-700">
                     <span className="inline-flex items-center gap-1" title={getDisplayDeliveryPrice(item).source === 'adminRule' ? 'Prix règle admin/fondateur' : 'Prix de la commande'}>
-                      <MapPin size={14} />
+                      <MapPinIcon className="h-3.5 w-3.5" />
                       {fmtMoney(getDisplayDeliveryPrice(item).price)} {item.currency || 'XAF'}
                       {getDisplayDeliveryPrice(item).source === 'adminRule' ? <span className="text-[10px] text-slate-500">(règle)</span> : null}
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <Package size={14} />
+                      <CubeIcon className="h-3.5 w-3.5" />
                       {requestItems.length} produit(s)
                     </span>
                     {item.invoiceUrl ? (
@@ -1542,7 +1527,7 @@ export default function AdminDeliveryRequests() {
                       to={`/admin/orders?orderId=${encodeURIComponent(String(item.orderId?._id || item.orderId || ''))}`}
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200"
                     >
-                      <ClipboardList size={12} />
+                      <ClipboardDocumentListIcon className="h-3 w-3" />
                       Voir commande
                     </Link>
                     <button
@@ -1551,7 +1536,7 @@ export default function AdminDeliveryRequests() {
                       disabled={!canAccept}
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-300 hover:bg-emerald-100 disabled:opacity-40"
                     >
-                      <CheckCircle2 size={12} />
+                      <CheckCircleIcon className="h-3 w-3" />
                       Accepter
                     </button>
                     <button
@@ -1560,7 +1545,7 @@ export default function AdminDeliveryRequests() {
                       disabled={!canReject}
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-red-50 px-3 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-100 disabled:opacity-40"
                     >
-                      <XCircle size={12} />
+                      <XCircleIcon className="h-3 w-3" />
                       Rejeter
                     </button>
                     <button
@@ -1569,7 +1554,7 @@ export default function AdminDeliveryRequests() {
                       disabled={!canAssign}
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-blue-50 px-3 text-xs font-semibold text-blue-700 ring-1 ring-blue-300 hover:bg-blue-100 disabled:opacity-40"
                     >
-                      <UserCheck size={12} />
+                      <UserIcon className="h-3 w-3" />
                       Assigner
                     </button>
                     <button
@@ -1585,7 +1570,7 @@ export default function AdminDeliveryRequests() {
                       }
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-100 disabled:opacity-40"
                     >
-                      <Landmark size={12} />
+                      <BuildingLibraryIcon className="h-3 w-3" />
                       Prix
                     </button>
                     {item.assignedDeliveryGuyId && !DELIVERY_REQUEST_CLOSED_STATUSES.includes(status) ? (
@@ -1596,7 +1581,7 @@ export default function AdminDeliveryRequests() {
                         title={courierHasAccepted ? 'Désassigner impossible : le livreur a accepté la livraison.' : undefined}
                         className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-gray-100 px-3 text-xs font-semibold text-orange-700 ring-1 ring-orange-300 hover:bg-orange-100 disabled:opacity-40"
                       >
-                        <UserCheck size={12} />
+                        <UserIcon className="h-3 w-3" />
                         Désassigner
                       </button>
                     ) : null}
@@ -1606,7 +1591,7 @@ export default function AdminDeliveryRequests() {
                       disabled={['REJECTED', 'CANCELED', 'DELIVERED'].includes(status)}
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-300 hover:bg-indigo-100 disabled:opacity-40"
                     >
-                      <Camera size={12} />
+                      <CameraIcon className="h-3 w-3" />
                       Preuve pickup
                     </button>
                     <button
@@ -1615,7 +1600,7 @@ export default function AdminDeliveryRequests() {
                       disabled={['REJECTED', 'CANCELED', 'DELIVERED', 'FAILED'].includes(status)}
                       className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-violet-50 px-3 text-xs font-semibold text-violet-700 ring-1 ring-violet-300 hover:bg-violet-100 disabled:opacity-40"
                     >
-                      <Camera size={12} />
+                      <CameraIcon className="h-3 w-3" />
                       Preuve livraison
                     </button>
                   </div>
@@ -1657,9 +1642,9 @@ export default function AdminDeliveryRequests() {
         panelClassName="w-full max-w-md"
       >
         <ModalHeader
-          title="Accepter la demande"
+title="Accepter la demande"
           subtitle="Optionnel: assigner un livreur immédiatement"
-          icon={<CheckCircle2 size={16} />}
+          icon={<CheckCircleIcon className="h-4 w-4" />}
           onClose={closeAllModals}
         />
         <ModalBody className="space-y-3">
@@ -1681,7 +1666,7 @@ export default function AdminDeliveryRequests() {
 
           {deliveryGuysLoading ? (
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 size={14} className="animate-spin" />
+              <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
               Chargement des livreurs...
             </div>
           ) : (
@@ -1728,7 +1713,7 @@ export default function AdminDeliveryRequests() {
             disabled={savingAction}
             className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
-            {savingAction ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            {savingAction ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <CheckCircleIcon className="h-3.5 w-3.5" />}
             Confirmer l’acceptation
           </button>
         </ModalFooter>
@@ -1740,9 +1725,9 @@ export default function AdminDeliveryRequests() {
         panelClassName="w-full max-w-md"
       >
         <ModalHeader
-          title="Rejeter la demande"
+title="Rejeter la demande"
           subtitle="Le motif est obligatoire"
-          icon={<XCircle size={16} />}
+          icon={<XCircleIcon className="h-4 w-4" />}
           onClose={closeAllModals}
         />
         <ModalBody className="space-y-3">
@@ -1763,7 +1748,7 @@ export default function AdminDeliveryRequests() {
             disabled={savingAction}
             className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
           >
-            {savingAction ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+            {savingAction ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <XCircleIcon className="h-3.5 w-3.5" />}
             Rejeter la demande
           </button>
         </ModalFooter>
@@ -1775,9 +1760,9 @@ export default function AdminDeliveryRequests() {
         panelClassName="w-full max-w-md"
       >
         <ModalHeader
-          title="Assigner un livreur"
+title="Assigner un livreur"
           subtitle="Sélectionnez un livreur actif"
-          icon={<UserCheck size={16} />}
+          icon={<UserIcon className="h-4 w-4" />}
           onClose={closeAllModals}
         />
         <ModalBody className="space-y-3">
@@ -1828,7 +1813,7 @@ export default function AdminDeliveryRequests() {
             disabled={savingAction}
             className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {savingAction ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+            {savingAction ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <UserIcon className="h-3.5 w-3.5" />}
             Confirmer l’assignation
           </button>
         </ModalFooter>
@@ -1840,9 +1825,9 @@ export default function AdminDeliveryRequests() {
         panelClassName="w-full max-w-md"
       >
         <ModalHeader
-          title="Modifier le prix livraison"
+title="Modifier le prix livraison"
           subtitle="Mise à jour immédiate de la demande"
-          icon={<Landmark size={16} />}
+          icon={<BuildingLibraryIcon className="h-4 w-4" />}
           onClose={closeAllModals}
         />
         <ModalBody className="space-y-3">
@@ -1899,7 +1884,7 @@ export default function AdminDeliveryRequests() {
             }
             className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
           >
-            {priceSaving ? <Loader2 size={14} className="animate-spin" /> : <Landmark size={14} />}
+            {priceSaving ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <BuildingLibraryIcon className="h-3.5 w-3.5" />}
             Enregistrer le nouveau prix
           </button>
         </ModalFooter>
@@ -1911,9 +1896,9 @@ export default function AdminDeliveryRequests() {
         panelClassName="w-full max-w-md"
       >
         <ModalHeader
-          title={proofType === 'delivery' ? 'Preuve livraison' : 'Preuve pickup'}
+title={proofType === 'delivery' ? 'Preuve livraison' : 'Preuve pickup'}
           subtitle="Photo, signature ou note"
-          icon={<Camera size={16} />}
+          icon={<CameraIcon className="h-4 w-4" />}
           onClose={closeAllModals}
         />
         <ModalBody className="space-y-3">
@@ -1958,7 +1943,7 @@ export default function AdminDeliveryRequests() {
             disabled={proofSaving}
             className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-neutral-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-900 disabled:opacity-60"
           >
-            {proofSaving ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+            {proofSaving ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <CameraIcon className="h-3.5 w-3.5" />}
             Enregistrer la preuve
           </button>
         </ModalFooter>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Phone, X } from 'lucide-react';
+import { PhoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { storage } from '../../utils/storage';
 
 const DISMISS_DAYS = 3;
@@ -46,12 +46,12 @@ export default function ProfilePhoneCompletionCard({ user, onVerifyPhone }) {
         aria-label="Fermer"
         className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-full text-slate-400 transition hover:bg-white/70 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-white/10"
       >
-        <X size={14} />
+        <XMarkIcon className="h-3.5 w-3.5" />
       </button>
 
       <div className="flex items-start gap-3 pr-6">
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm ring-1 ring-amber-100 dark:bg-neutral-900 dark:text-amber-300 dark:ring-amber-900/40">
-          <Phone size={20} />
+          <PhoneIcon className="h-5 w-5" />
         </span>
         <div className="min-w-0">
           <h3 className="text-[15px] font-black text-gray-900 dark:text-white">
@@ -76,7 +76,7 @@ export default function ProfilePhoneCompletionCard({ user, onVerifyPhone }) {
           onClick={onVerifyPhone}
           className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#d45400] active:scale-[0.98]"
         >
-          <Phone size={15} /> Vérifier mon numéro
+          <PhoneIcon className="h-[15px] w-[15px]" /> Vérifier mon numéro
         </button>
       </div>
     </div>

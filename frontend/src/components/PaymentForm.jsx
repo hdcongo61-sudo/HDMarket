@@ -1,18 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api, { isApiPossiblyCommittedError, verifyTransactionCodeAvailability } from '../services/api';
 import useCommissionRate from '../hooks/useCommissionRate';
-import {
-  CreditCard,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  User,
-  Hash,
-  DollarSign,
-  Send,
-  Shield,
-  Ticket
-} from 'lucide-react';
+import { CheckCircleIcon, ClockIcon, CreditCardIcon, CurrencyDollarIcon, ExclamationCircleIcon, HashtagIcon, PaperAirplaneIcon, ShieldCheckIcon, TicketIcon, UserIcon } from '@heroicons/react/24/outline';
 import { useNetworks, getNetworkPhoneByName, getFirstNetworkPhone } from '../hooks/useNetworks';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import { appAlert } from '../utils/appDialog';
@@ -382,7 +371,7 @@ export default function PaymentForm({ product, onSubmitted }) {
       title: 'Paiement en attente de validation',
       description:
         'Votre paiement a été reçu et est en cours de vérification par notre équipe. Votre annonce sera publiée sous 24h après approbation.',
-      icon: Clock,
+      icon: ClockIcon,
       tone: 'bg-amber-50 border-amber-200 text-amber-800',
       iconColor: 'text-amber-500'
     },
@@ -390,7 +379,7 @@ export default function PaymentForm({ product, onSubmitted }) {
       title: 'Paiement vérifié - Annonce active',
       description:
         'Votre paiement a été validé avec succès. Votre annonce est maintenant visible par tous les acheteurs sur la plateforme.',
-      icon: CheckCircle,
+      icon: CheckCircleIcon,
       tone: 'bg-green-50 border-green-200 text-green-800',
       iconColor: 'text-green-500'
     },
@@ -398,7 +387,7 @@ export default function PaymentForm({ product, onSubmitted }) {
       title: 'Paiement rejeté',
       description:
         "Votre paiement n'a pas pu être validé. Veuillez contacter notre support ou soumettre un nouveau paiement.",
-      icon: AlertCircle,
+      icon: ExclamationCircleIcon,
       tone: 'bg-red-50 border-red-200 text-red-800',
       iconColor: 'text-red-500'
     }
@@ -409,14 +398,14 @@ export default function PaymentForm({ product, onSubmitted }) {
         title: 'Complément en cours de vérification',
         description:
           'Votre prix actuel reste visible. Le nouveau prix sera publié automatiquement après validation du complément.',
-        icon: Clock,
+        icon: ClockIcon,
         tone: 'bg-amber-50 border-amber-200 text-amber-800',
         iconColor: 'text-amber-500'
       }
     : paymentStatusConfig[paymentStatus] || {
     title: 'Paiement enregistré',
     description: 'Statut en cours de mise à jour.',
-    icon: Clock,
+    icon: ClockIcon,
     tone: 'bg-gray-50 dark:bg-slate-900/70 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200',
     iconColor: 'text-gray-500 dark:text-slate-400'
   };
@@ -437,7 +426,7 @@ export default function PaymentForm({ product, onSubmitted }) {
       <div className="hd-my-flow max-w-2xl mx-auto">
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-white" />
+            <ShieldCheckIcon className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">Statut de paiement</h2>
           <p className="text-gray-500 dark:text-slate-400">Suivi de votre transaction</p>
@@ -520,7 +509,7 @@ export default function PaymentForm({ product, onSubmitted }) {
     <div className="hd-my-flow max-w-2xl mx-auto">
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-neutral-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <CreditCard className="w-8 h-8 text-white" />
+          <CreditCardIcon className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
           {isReconciliation ? 'Complément de frais de publication' : "Validation de l'annonce"}
@@ -574,7 +563,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
         {!isReconciliation && <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/70 p-4 space-y-3">
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-slate-200">
-            <Ticket className="w-4 h-4 text-neutral-600" />
+            <TicketIcon className="w-4 h-4 text-neutral-600" />
             Code promo commission
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -604,7 +593,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <ExclamationCircleIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="space-y-2">
               <h3 className="font-semibold text-amber-800 text-sm">Instructions de paiement</h3>
               {hasCommissionDue ? (
@@ -664,7 +653,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               <div className="grid grid-cols-1 gap-3">
                 <div className="rounded-2xl border border-emerald-600 bg-emerald-600 p-4 text-left text-white shadow-sm">
                   <span className="flex items-center gap-2 text-sm font-semibold">
-                    <Shield className="h-4 w-4" />
+                    <ShieldCheckIcon className="h-4 w-4" />
                     Paiement sécurisé par PawaPay
                   </span>
                   <span className="mt-1 block text-xs text-white/80">
@@ -677,7 +666,7 @@ export default function PaymentForm({ product, onSubmitted }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
-                  <User className="w-4 h-4 text-neutral-500" />
+                  <UserIcon className="w-4 h-4 text-neutral-500" />
                   <span>Nom du payeur *</span>
                 </label>
                 <input
@@ -692,7 +681,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
-                  <CreditCard className="w-4 h-4 text-neutral-500" />
+                  <CreditCardIcon className="w-4 h-4 text-neutral-500" />
                   <span>Opérateur mobile *</span>
                 </label>
                 <select
@@ -731,7 +720,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
-                  <Hash className="w-4 h-4 text-neutral-500" />
+                  <HashtagIcon className="w-4 h-4 text-neutral-500" />
                   <span>Numéro de transaction *</span>
                 </label>
                 <input
@@ -753,7 +742,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
               <div className="space-y-2">
                 <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-200">
-                  <DollarSign className="w-4 h-4 text-neutral-500" />
+                  <CurrencyDollarIcon className="w-4 h-4 text-neutral-500" />
                   <span>Montant payé</span>
                 </label>
                 <input
@@ -786,7 +775,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               </>
             ) : (
               <>
-                <Send className="w-5 h-5" />
+                <PaperAirplaneIcon className="w-5 h-5" />
                 <span>
                   {hasCommissionDue ? 'Soumettre le complément' : 'Soumettre la validation promo'}
                 </span>

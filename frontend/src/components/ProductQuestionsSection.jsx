@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { MessageCircleQuestion, ThumbsUp, BadgeCheck, Store } from 'lucide-react';
+import { BuildingStorefrontIcon, ChatBubbleLeftEllipsisIcon, CheckBadgeIcon, HandThumbUpIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -126,7 +126,7 @@ export default function ProductQuestionsSection({ productId, onCountChange }) {
           return (
             <div key={qa._id} className="rounded-xl border border-gray-100 p-3 space-y-2">
               <div className="flex items-start gap-2">
-                <MessageCircleQuestion size={16} className="mt-0.5 shrink-0 text-[#e85d00]" />
+                <ChatBubbleLeftEllipsisIcon className="mt-0.5 shrink-0 text-[#e85d00] h-4 w-4" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-gray-900">{qa.question}</p>
                   <p className="mt-0.5 text-[11px] text-gray-400">
@@ -140,7 +140,7 @@ export default function ProductQuestionsSection({ productId, onCountChange }) {
                     upvoted ? 'border-[#e85d00] bg-[#fff0e4] text-[#e85d00]' : 'border-gray-200 text-gray-500'
                   }`}
                 >
-                  <ThumbsUp size={11} />
+                  <HandThumbUpIcon className="h-[11px] w-[11px]" />
                   {qa.upvotes?.length || 0}
                 </button>
               </div>
@@ -150,11 +150,11 @@ export default function ProductQuestionsSection({ productId, onCountChange }) {
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600">
                     {answer.isSeller ? (
                       <span className="inline-flex items-center gap-1 text-[#e85d00]">
-                        <Store size={11} /> Vendeur
+                        <BuildingStorefrontIcon className="h-[11px] w-[11px]" /> Vendeur
                       </span>
                     ) : answer.isVerifiedBuyer ? (
                       <span className="inline-flex items-center gap-1 text-emerald-600">
-                        <BadgeCheck size={11} /> Acheteur vérifié
+                        <CheckBadgeIcon className="h-[11px] w-[11px]" /> Acheteur vérifié
                       </span>
                     ) : (
                       <span>{answer.userId?.name || 'Utilisateur'}</span>

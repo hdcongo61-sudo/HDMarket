@@ -1,19 +1,19 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, Clock3, Filter, Megaphone, PackageCheck, RefreshCw, ShieldAlert, Truck } from 'lucide-react';
+import { ArrowPathIcon, CheckCircleIcon, ClockIcon, CubeIcon, ExclamationCircleIcon, FunnelIcon, MegaphoneIcon, ShieldExclamationIcon, TruckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const VALIDATION_TYPE_OPTIONS = [
-  { value: '', label: 'Toutes', icon: Filter },
-  { value: 'boostApproval', label: 'Boost', icon: CheckCircle2 },
-  { value: 'productValidation', label: 'Produits/Paiements', icon: PackageCheck },
-  { value: 'deliveryOps', label: 'Livraison', icon: Truck },
-  { value: 'disputes', label: 'Litiges', icon: ShieldAlert },
-  { value: 'shopConversion', label: 'Conversion boutique', icon: AlertCircle },
-  { value: 'sponsoredAds', label: 'Notifications globales', icon: Megaphone }
+  { value: '', label: 'Toutes', icon: FunnelIcon },
+  { value: 'boostApproval', label: 'Boost', icon: CheckCircleIcon },
+  { value: 'productValidation', label: 'Produits/Paiements', icon: CubeIcon },
+  { value: 'deliveryOps', label: 'Livraison', icon: TruckIcon },
+  { value: 'disputes', label: 'Litiges', icon: ShieldExclamationIcon },
+  { value: 'shopConversion', label: 'Conversion boutique', icon: ExclamationCircleIcon },
+  { value: 'sponsoredAds', label: 'Notifications globales', icon: MegaphoneIcon }
 ];
 
 const formatDateTime = (value) =>
@@ -112,16 +112,16 @@ export default function AdminTaskCenter() {
           subtitle="Une file unique pour les validations qui demandent une action humaine: produits, paiements, livraisons, litiges et conversions boutique."
           meta={summaryQuery.data ? `${pendingTotal} tâche${pendingTotal > 1 ? 's' : ''} en attente` : 'Chargement des compteurs...'}
           metrics={[
-            { label: 'En attente', value: pendingTotal, help: 'Toutes validations', icon: Clock3 },
-            { label: 'Produits', value: Number(taskTypeCounts?.productValidation || 0), help: 'Paiements inclus', icon: PackageCheck },
-            { label: 'Livraison', value: Number(taskTypeCounts?.deliveryOps || 0), help: 'À surveiller', icon: Truck },
-            { label: 'Litiges', value: Number(taskTypeCounts?.disputes || 0), help: 'Priorité élevée', icon: ShieldAlert }
+            { label: 'En attente', value: pendingTotal, help: 'Toutes validations', icon: ClockIcon },
+            { label: 'Produits', value: Number(taskTypeCounts?.productValidation || 0), help: 'Paiements inclus', icon: CubeIcon },
+            { label: 'Livraison', value: Number(taskTypeCounts?.deliveryOps || 0), help: 'À surveiller', icon: TruckIcon },
+            { label: 'Litiges', value: Number(taskTypeCounts?.disputes || 0), help: 'Priorité élevée', icon: ShieldExclamationIcon }
           ]}
           actions={[
             {
               label: 'Actualiser',
               description: 'Synchroniser les compteurs',
-              icon: RefreshCw,
+              icon: ArrowPathIcon,
               tone: 'dark',
               loading: summaryQuery.isFetching || listQuery.isFetching,
               onClick: () => {
@@ -198,7 +198,7 @@ export default function AdminTaskCenter() {
           {!listQuery.isLoading && tasks.length === 0 ? (
             <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-                <ShieldAlert size={20} />
+                <ShieldExclamationIcon className="h-5 w-5" />
               </div>
               <p className="mt-3 text-sm font-bold text-neutral-900 dark:text-white">Aucune tâche en attente</p>
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">La file opérationnelle est à jour.</p>
@@ -208,7 +208,7 @@ export default function AdminTaskCenter() {
 
         <footer className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
           <p className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <Clock3 size={14} />
+            <ClockIcon className="h-3.5 w-3.5" />
             Le centre de commande lit les mêmes files que les compteurs du panneau admin/founder.
           </p>
         </footer>

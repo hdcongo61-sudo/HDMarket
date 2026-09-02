@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowPathIcon, ArrowUpRightIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { getPawaPayRequestError } from '../utils/pawapayErrors';
 import { createIdempotencyKey } from '../utils/idempotency';
@@ -172,9 +172,9 @@ export default function PawaPayButton({
         disabled={loading || normalizedAmount < 10}
         className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] px-4 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#07563f] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
       >
-        {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+        {loading ? <ArrowPathIcon className="animate-spin h-[18px] w-[18px]" /> : <ShieldCheckIcon className="h-[18px] w-[18px]" />}
         <span>{loading ? 'Ouverture du paiement…' : `${label} · ${formatPriceWithStoredSettings(normalizedAmount)}`}</span>
-        {!loading && <ArrowUpRight size={16} />}
+        {!loading && <ArrowUpRightIcon className="h-4 w-4" />}
       </button>
       {error ? (
         <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">

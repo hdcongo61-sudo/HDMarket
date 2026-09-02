@@ -3,7 +3,6 @@ import tailwindcssSafeArea from 'tailwindcss-safe-area';
 
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ['class'],
   content: [
     './index.html',
     './src/**/*.{js,jsx,ts,tsx,mdx}',

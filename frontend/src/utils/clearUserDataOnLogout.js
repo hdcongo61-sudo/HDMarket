@@ -18,7 +18,6 @@ const LOCAL_STORAGE_KEYS_TO_REMOVE = [
   'hd_pref_language',
   'hd_pref_currency',
   'hd_pref_city',
-  'hd_pref_theme',
   'hd_public_currency_settings',
   'hdmarket_chat_hidden',
   'hdmarket_chat_button_collapsed',

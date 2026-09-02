@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2, MapPinned, Plus, Trash2 } from 'lucide-react';
+import { ArrowPathIcon, MapPinIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 
@@ -61,7 +61,7 @@ export default function ZonesPanel() {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4">
       <div className="mb-4 flex items-center gap-2">
-        <MapPinned className="h-5 w-5 text-[#e85d00]" />
+        <MapPinIcon className="h-5 w-5 text-[#e85d00]" />
         <h2 className="text-base font-black text-slate-950">Zones de livraison</h2>
       </div>
       <p className="mb-4 text-xs text-gray-500">
@@ -86,7 +86,7 @@ export default function ZonesPanel() {
           disabled={creating}
           className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#231f1b] px-3 text-xs font-black text-white disabled:opacity-50"
         >
-          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          {creating ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlusIcon className="h-4 w-4" />}
           Ajouter
         </button>
       </form>
@@ -112,7 +112,7 @@ export default function ZonesPanel() {
                 className="text-gray-400 hover:text-red-600 disabled:opacity-50"
                 aria-label={`Supprimer ${zone.name}`}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <TrashIcon className="h-3.5 w-3.5" />
               </button>
             </span>
           ))}

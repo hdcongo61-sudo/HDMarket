@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 const DEFAULT_DURATION = 3;
 
@@ -49,7 +49,7 @@ export default function SplashScreen({ splashImage, splashDurationSeconds = DEFA
         >
           <span>Passer</span>
           <span className="min-w-[1.25rem] tabular-nums">{countdown}</span>
-          <X size={18} className="text-gray-600" />
+          <XMarkIcon className="text-gray-600 h-[18px] w-[18px]" />
         </button>
       </div>
     </div>

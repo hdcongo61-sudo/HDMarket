@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Play } from 'lucide-react';
+import { ChevronRightIcon, PlayIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { formatCount } from './shopProfileHelpers';
@@ -39,7 +39,7 @@ export default function ShopVideosSection({ shopId, t }) {
           className="inline-flex min-h-11 items-center gap-1.5 px-2 text-[13px] font-bold text-[#FF5000] transition dark:text-orange-300"
         >
           <span>{t('shop_profile.view_all', 'Voir tout')}</span>
-          <ChevronRight size={14} />
+          <ChevronRightIcon className="h-3.5 w-3.5" />
         </button>
       </div>
       <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -60,19 +60,19 @@ export default function ShopVideosSection({ shopId, t }) {
               />
             ) : (
               <div className="grid h-full w-full place-items-center text-white/40">
-                <Play size={26} />
+                <PlayIcon className="h-[26px] w-[26px]" />
               </div>
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
             <span className="absolute left-1/2 top-1/2 grid h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white backdrop-blur-sm">
-              <Play size={16} fill="currentColor" />
+              <PlayIcon fill="currentColor" className="h-4 w-4" />
             </span>
             <div className="absolute inset-x-2 bottom-2 space-y-0.5">
               <p className="truncate text-[11px] font-bold text-white drop-shadow">
                 {video.product?.title || video.caption || ''}
               </p>
               <p className="flex items-center gap-1 text-[10px] font-semibold text-white/80">
-                <Play size={9} />
+                <PlayIcon className="h-[9px] w-[9px]" />
                 {formatCount(video.counters?.views || 0)}
               </p>
             </div>

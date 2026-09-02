@@ -1,21 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  AlertCircle,
-  CheckCircle2,
-  CircleHelp,
-  FileText,
-  Mail,
-  Paperclip,
-  Pencil,
-  Phone,
-  Search,
-  SendHorizonal,
-  Shield,
-  Trash2,
-  UserCog,
-  X
-} from 'lucide-react';
+import { CheckCircleIcon, DocumentTextIcon, EnvelopeIcon, ExclamationCircleIcon, MagnifyingGlassIcon, PaperAirplaneIcon, PaperClipIcon, PencilIcon, PhoneIcon, QuestionMarkCircleIcon, ShieldCheckIcon, TrashIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -567,13 +552,13 @@ export default function HelpPage() {
               className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
-                icon={UserCog}
+                icon={UserIcon}
                 title="Gestion accès Help Center"
                 subtitle="Accordez l'accès à l'éditeur aux utilisateurs autorisés."
               />
 
               <label className="relative block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                 <input
                   type="text"
                   value={editorSearch}
@@ -681,7 +666,7 @@ export default function HelpPage() {
               className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
-                icon={CircleHelp}
+                icon={QuestionMarkCircleIcon}
                 title="Rédiger une demande"
                 subtitle="Écrivez clairement votre problème pour accélérer le traitement."
               />
@@ -760,7 +745,7 @@ export default function HelpPage() {
                       onClick={() => fileInputRef.current?.click()}
                       className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-bold text-[#e85d00] transition hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     >
-                      <Paperclip className="h-3.5 w-3.5" />
+                      <PaperClipIcon className="h-3.5 w-3.5" />
                       Ajouter
                     </button>
                   </div>
@@ -792,7 +777,7 @@ export default function HelpPage() {
                             className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-neutral-300 text-neutral-500 transition hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                             aria-label={`Retirer ${file.name}`}
                           >
-                            <X className="h-3.5 w-3.5" />
+                            <XMarkIcon className="h-3.5 w-3.5" />
                           </button>
                         </li>
                       ))}
@@ -809,7 +794,7 @@ export default function HelpPage() {
                     disabled={submitting}
                     className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#e85d00] px-4 py-2 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#f05f00] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <SendHorizonal className="h-4 w-4" />
+                    <PaperAirplaneIcon className="h-4 w-4" />
                     {submitting ? 'Envoi...' : 'Envoyer la demande'}
                   </button>
                 </div>
@@ -825,7 +810,7 @@ export default function HelpPage() {
               className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
             >
               <SectionTitle
-                icon={FileText}
+                icon={DocumentTextIcon}
                 title="Conditions utiles"
                 subtitle={`${conditions.length} élément(s)`}
               />
@@ -881,7 +866,7 @@ export default function HelpPage() {
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-neutral-300 text-neutral-600 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                 aria-label="Modifier la condition"
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <PencilIcon className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 type="button"
@@ -890,7 +875,7 @@ export default function HelpPage() {
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-red-300 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
                                 aria-label="Supprimer la condition"
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <TrashIcon className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           ) : null}
@@ -917,18 +902,18 @@ export default function HelpPage() {
             transition={{ duration: 0.22, ease: 'easeOut' }}
             className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
-            <SectionTitle icon={CircleHelp} title="Contact support" />
+            <SectionTitle icon={QuestionMarkCircleIcon} title="Contact support" />
             <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">
               <p className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-neutral-500" />
+                <EnvelopeIcon className="h-4 w-4 text-neutral-500" />
                 support@hdmarket.cg
               </p>
               <p className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-neutral-500" />
+                <PhoneIcon className="h-4 w-4 text-neutral-500" />
                 {networkDisplay || 'Numéro indisponible'}
               </p>
               <p className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-                <Shield className="h-3.5 w-3.5" />
+                <ShieldCheckIcon className="h-3.5 w-3.5" />
                 Les demandes sont historisées et traitées par priorité.
               </p>
             </div>
@@ -940,18 +925,18 @@ export default function HelpPage() {
             transition={{ duration: 0.24, ease: 'easeOut' }}
             className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70"
           >
-            <SectionTitle icon={FileText} title="Bonnes pratiques" />
+            <SectionTitle icon={DocumentTextIcon} title="Bonnes pratiques" />
             <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-300">
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
+                <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                 Ajoutez l'ID de commande, transaction ou capture utile.
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
+                <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                 Décrivez les étapes, la date et l'impact rencontré.
               </li>
               <li className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
+                <ExclamationCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
                 Évitez les données sensibles (mot de passe, code OTP).
               </li>
             </ul>

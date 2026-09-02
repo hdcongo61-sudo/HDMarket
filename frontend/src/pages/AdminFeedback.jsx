@@ -1,14 +1,14 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Filter, MessageSquare, Search, User, FileText, UserPlus, UserMinus, FileDown, RefreshCw } from 'lucide-react';
+import { ArrowPathIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, DocumentArrowDownIcon, DocumentTextIcon, FunnelIcon, MagnifyingGlassIcon, UserIcon, UserMinusIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { appAlert } from '../utils/appDialog';
 import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const STATUS_FILTERS = [
-  { value: 'all', label: 'Tous', icon: MessageSquare },
-  { value: 'unread', label: 'Non lus', icon: Filter },
-  { value: 'read', label: 'Lus', icon: CheckCircle }
+  { value: 'all', label: 'Tous', icon: ChatBubbleLeftRightIcon },
+  { value: 'unread', label: 'Non lus', icon: FunnelIcon },
+  { value: 'read', label: 'Lus', icon: CheckCircleIcon }
 ];
 
 const PAGE_SIZE = 12;
@@ -307,7 +307,7 @@ export default function AdminFeedback() {
       const users = Array.isArray(data) ? data.filter(u => u.role !== 'admin' && u.role !== 'founder') : [];
       setFoundUsers(users);
     } catch (err) {
-      console.error('Search users error:', err);
+      console.error('MagnifyingGlassIcon users error:', err);
       setFoundUsers([]);
     } finally {
       setSearchingUsers(false);
@@ -340,16 +340,16 @@ export default function AdminFeedback() {
           subtitle="Centralisez les suggestions, priorisez les retours non lus et gérez les personnes autorisées à lire les avis."
           meta={`${paginationLabel} · page ${page}/${meta.totalPages || 1}`}
           metrics={[
-            { label: 'Total', value: meta.total, help: 'Tous avis filtrés', icon: MessageSquare },
-            { label: 'Non lus', value: unreadCount, help: 'Sur cette page', icon: Filter },
-            { label: 'Lus', value: readCount, help: 'Sur cette page', icon: CheckCircle },
-            { label: 'Lecteurs', value: readers.length, help: isAdmin ? 'Autorisés' : 'Admin only', icon: User }
+            { label: 'Total', value: meta.total, help: 'Tous avis filtrés', icon: ChatBubbleLeftRightIcon },
+            { label: 'Non lus', value: unreadCount, help: 'Sur cette page', icon: FunnelIcon },
+            { label: 'Lus', value: readCount, help: 'Sur cette page', icon: CheckCircleIcon },
+            { label: 'Lecteurs', value: readers.length, help: isAdmin ? 'Autorisés' : 'Admin only', icon: UserIcon }
           ]}
           actions={[
             {
               label: 'Actualiser',
               description: 'Recharger les avis',
-              icon: RefreshCw,
+              icon: ArrowPathIcon,
               tone: 'dark',
               loading,
               onClick: loadFeedback
@@ -357,7 +357,7 @@ export default function AdminFeedback() {
             {
               label: exporting ? 'Export...' : 'Exporter PDF',
               description: 'Exporter la vue filtrée',
-              icon: FileText,
+              icon: DocumentTextIcon,
               tone: 'neutral',
               disabled: exporting || items.length === 0,
               loading: exporting,
@@ -367,7 +367,7 @@ export default function AdminFeedback() {
               ? {
                   label: showReaders ? 'Masquer lecteurs' : 'Lecteurs',
                   description: 'Gérer les accès lecture',
-                  icon: User,
+                  icon: UserIcon,
                   tone: showReaders ? 'emerald' : 'neutral',
                   onClick: () => {
                     setShowReaders((prev) => !prev);
@@ -409,7 +409,7 @@ export default function AdminFeedback() {
                   disabled={searchingUsers || !userSearchQuery.trim()}
                   className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-neutral-950 px-4 text-sm font-bold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950"
                 >
-                  <Search className="w-4 h-4" />
+                  <MagnifyingGlassIcon className="w-4 h-4" />
                 </button>
               </div>
 
@@ -430,7 +430,7 @@ export default function AdminFeedback() {
                         onClick={() => handleToggleFeedbackReader(user._id || user.id)}
                         className="ml-3 inline-flex min-h-[38px] items-center gap-1 rounded-xl bg-neutral-950 px-3 text-xs font-bold text-white transition hover:bg-black dark:bg-white dark:text-neutral-950"
                       >
-                        <UserPlus className="w-3.5 h-3.5" />
+                        <UserPlusIcon className="w-3.5 h-3.5" />
                         Ajouter
                       </button>
                     </div>
@@ -460,7 +460,7 @@ export default function AdminFeedback() {
                           onClick={() => handleToggleFeedbackReader(reader._id || reader.id)}
                           className="ml-3 inline-flex min-h-[38px] items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
                         >
-                          <UserMinus className="w-3.5 h-3.5" />
+                          <UserMinusIcon className="w-3.5 h-3.5" />
                           Retirer
                         </button>
                       </div>
@@ -481,7 +481,7 @@ export default function AdminFeedback() {
               onChange={setStatusFilter}
             />
             <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
               <input
                 type="text"
                 className="min-h-[44px] w-full rounded-2xl border border-neutral-200 bg-neutral-50 pl-9 pr-3 text-sm outline-none transition focus:border-neutral-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-900 dark:text-white"
@@ -510,7 +510,7 @@ export default function AdminFeedback() {
           ) : items.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
               <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
-                <MessageSquare className="h-5 w-5" />
+                <ChatBubbleLeftRightIcon className="h-5 w-5" />
               </div>
               Aucun avis disponible pour ce filtre.
             </div>
@@ -527,7 +527,7 @@ export default function AdminFeedback() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                          <ChatBubbleLeftRightIcon className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
                           <h3 className="text-base font-bold text-neutral-950 dark:text-white">
                             {item.subject}
                           </h3>
@@ -551,7 +551,7 @@ export default function AdminFeedback() {
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-                        <User className="h-4 w-4 text-neutral-400" />
+                        <UserIcon className="h-4 w-4 text-neutral-400" />
                         <span>{author}</span>
                         {item.user?.phone ? <span>- {item.user.phone}</span> : null}
                       </div>
@@ -563,7 +563,7 @@ export default function AdminFeedback() {
                           className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
                           title="Exporter cet avis en PDF"
                         >
-                          <FileDown className="h-3.5 w-3.5" />
+                          <DocumentArrowDownIcon className="h-3.5 w-3.5" />
                           {exportingItemId === item._id ? 'Export...' : 'PDF'}
                         </button>
                         {isRead ? (
@@ -578,7 +578,7 @@ export default function AdminFeedback() {
                             disabled={actionId === item._id}
                             className="inline-flex min-h-[36px] items-center gap-2 rounded-xl bg-neutral-950 px-3 text-xs font-bold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-neutral-950"
                           >
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircleIcon className="h-4 w-4" />
                             {actionId === item._id ? 'Mise a jour...' : 'Marquer comme lu'}
                           </button>
                         )}

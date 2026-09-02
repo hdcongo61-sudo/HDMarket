@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Package, Sparkles } from 'lucide-react';
+import { ChevronRightIcon, CubeIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import useDesktopExternalLink from '../../hooks/useDesktopExternalLink';
 import { buildProductPath } from '../../utils/links';
@@ -13,12 +13,12 @@ export default function CategoryProductMiniRail({ products = [], loading = false
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="flex min-w-0 items-center gap-2 text-sm font-black text-gray-900">
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#e85d00] ring-1 ring-orange-100">
-            <Sparkles className="h-3.5 w-3.5" />
+            <SparklesIcon className="h-3.5 w-3.5" />
           </span>
           <span className="truncate">Produits de la même catégorie</span>
         </h3>
         <Link to="/suggestions" className="flex shrink-0 items-center gap-0.5 text-[11px] font-black text-gray-500">
-          Voir tout <ChevronRight className="h-3.5 w-3.5" />
+          Voir tout <ChevronRightIcon className="h-3.5 w-3.5" />
         </Link>
       </div>
 
@@ -51,7 +51,7 @@ export default function CategoryProductMiniRail({ products = [], loading = false
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
-                      <Package className="h-5 w-5 text-[#e85d00]/45" />
+                      <CubeIcon className="h-5 w-5 text-[#e85d00]/45" />
                     </div>
                   )}
                 </div>

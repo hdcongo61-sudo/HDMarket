@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Check, CheckCircle, ChevronDown, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
 import AuthSuccessCard from '../components/auth/AuthSuccessCard';
@@ -122,7 +122,7 @@ export default function Register() {
     verifyingCode: isFrench ? 'Vérification...' : 'Verifying...',
     codeSentMessage: isFrench
       ? 'Code envoyé par SMS. Vérifiez vos messages.'
-      : 'Code sent by SMS. Check your messages.',
+      : 'Code sent by SMS. CheckIcon your messages.',
     phoneVerifiedMessage: isFrench ? 'Numéro de téléphone vérifié.' : 'Phone number verified.',
     phoneNotVerifiedError: isFrench
       ? 'Veuillez vérifier votre numéro de téléphone avant de continuer.'
@@ -668,7 +668,7 @@ export default function Register() {
                   className="flex h-11 w-7 shrink-0 items-center justify-center text-[#57534e] transition hover:text-[#e85d00] dark:text-neutral-300"
                   aria-label={copy.back}
                 >
-                  <ArrowLeft size={22} />
+                  <ArrowLeftIcon className="h-[22px] w-[22px]" />
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12.5px] font-bold text-[#78716c] dark:text-neutral-400">
@@ -713,7 +713,7 @@ export default function Register() {
 
                   {providerAuth && step === 1 ? (
                     <div className="mt-5 flex items-center gap-3 rounded-[14px] bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-100 dark:ring-emerald-400/20">
-                      <CheckCircle size={18} />
+                      <CheckCircleIcon className="h-[18px] w-[18px]" />
                       <span className="min-w-0 truncate">{providerAuth.provider === 'apple' ? copy.appleConnected : copy.googleConnected} · {form.email}</span>
                     </div>
                   ) : null}
@@ -748,9 +748,9 @@ export default function Register() {
                                 )}
                               </select>
                               {countrySwitching ? (
-                                <Loader2 size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[#78716c]" />
+                                <ArrowPathIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-[#78716c] h-4 w-4" />
                               ) : (
-                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
+                                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c] h-4 w-4" />
                               )}
                             </div>
                           </div>
@@ -786,7 +786,7 @@ export default function Register() {
                               </div>
                               {!codeSent ? (
                                 <button type="button" onClick={sendPhoneOtp} disabled={codeSending || !form.phone.trim()} className="mt-2.5 flex min-h-[50px] w-full items-center justify-center rounded-[14px] bg-[#faf7f2] text-sm font-bold text-[#b3480a] ring-1 ring-inset ring-[#ece5db] transition hover:text-[#e85d00] disabled:cursor-not-allowed disabled:opacity-55 dark:bg-neutral-800 dark:ring-neutral-700">
-                                  {codeSending ? <><Loader2 size={16} className="mr-2 animate-spin" />{copy.sendingCode}</> : copy.sendCode}
+                                  {codeSending ? <><ArrowPathIcon className="mr-2 animate-spin h-4 w-4" />{copy.sendingCode}</> : copy.sendCode}
                                 </button>
                               ) : (
                                 <div className="mt-2.5 grid grid-cols-6 gap-2" onPaste={handleOtpPaste}>
@@ -795,8 +795,8 @@ export default function Register() {
                                   ))}
                                 </div>
                               )}
-                              {codeVerifying ? <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-[#78716c]"><Loader2 size={14} className="animate-spin" />{copy.verifyingCode}</p> : null}
-                              {phoneVerified ? <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#15803d]"><CheckCircle size={14} />{isFrench ? 'Numéro vérifié' : 'Number verified'}</p> : null}
+                              {codeVerifying ? <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-[#78716c]"><ArrowPathIcon className="animate-spin h-3.5 w-3.5" />{copy.verifyingCode}</p> : null}
+                              {phoneVerified ? <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-[#15803d]"><CheckCircleIcon className="h-3.5 w-3.5" />{isFrench ? 'Numéro vérifié' : 'Number verified'}</p> : null}
                               {codeError ? <p className="mt-2.5 text-[12.5px] font-medium text-[#b91c1c]">{codeError}</p> : null}
                               {codeMessage && !phoneVerified ? <p className="mt-2.5 text-[12.5px] font-medium text-[#78716c]">{codeMessage}</p> : null}
                             </section>
@@ -810,7 +810,7 @@ export default function Register() {
                                 <label htmlFor="register-password" className={labelClass}>{copy.password}</label>
                                 <div className="relative">
                                   <input id="register-password" ref={passwordRef} type={showPassword ? 'text' : 'password'} autoComplete="new-password" className={`${fieldClass} !pr-12`} placeholder={copy.passwordPlaceholder} value={form.password} onChange={(event) => setForm((previous) => ({ ...previous, password: event.target.value }))} required />
-                                  <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210]" aria-label={showPassword ? 'Masquer' : 'Afficher'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                                  <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210]" aria-label={showPassword ? 'Masquer' : 'Afficher'}>{showPassword ? <EyeSlashIcon className="h-[18px] w-[18px]" /> : <EyeIcon className="h-[18px] w-[18px]" />}</button>
                                 </div>
                                 <div className="flex items-center gap-2 pt-0.5">
                                   {[1, 2, 3, 4].map((segment) => <span key={segment} className={`h-[3px] flex-1 rounded-full ${passwordScore >= segment ? 'bg-[#e85d00]' : 'bg-[#e7dfd5] dark:bg-neutral-800'}`} />)}
@@ -822,7 +822,7 @@ export default function Register() {
                                 <label htmlFor="register-confirm-password" className={labelClass}>{isFrench ? 'Confirmer' : 'Confirm'}</label>
                                 <div className="relative">
                                   <input id="register-confirm-password" ref={confirmRef} type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" className={`${fieldClass} !pr-12`} placeholder={copy.confirmPasswordPlaceholder} value={form.confirmPassword} onChange={(event) => setForm((previous) => ({ ...previous, confirmPassword: event.target.value }))} required />
-                                  <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210]" aria-label={showConfirmPassword ? 'Masquer' : 'Afficher'}>{showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                                  <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center text-[#78716c] transition hover:text-[#141210]" aria-label={showConfirmPassword ? 'Masquer' : 'Afficher'}>{showConfirmPassword ? <EyeSlashIcon className="h-[18px] w-[18px]" /> : <EyeIcon className="h-[18px] w-[18px]" />}</button>
                                 </div>
                               </div>
                             </>
@@ -833,14 +833,14 @@ export default function Register() {
                               <label htmlFor="register-city" className={labelClass}>{copy.city}</label>
                               <div className="relative">
                                 <select id="register-city" className={`${fieldClass} !appearance-none !pr-9`} value={form.city} onChange={(event) => setForm((previous) => ({ ...previous, city: event.target.value, commune: '' }))} required><option value="">{copy.chooseCity}</option>{cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}</select>
-                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
+                                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c] h-4 w-4" />
                               </div>
                             </div>
                             <div className="space-y-[7px]">
                               <label htmlFor="register-commune" className={labelClass}>{copy.commune}</label>
                               <div className="relative">
                                 <select id="register-commune" className={`${fieldClass} !appearance-none !pr-9 disabled:!text-[#a8a29e]`} value={form.commune} onChange={(event) => setForm((previous) => ({ ...previous, commune: event.target.value }))} required={availableCommunes.length > 0} disabled={!form.city || availableCommunes.length === 0}><option value="">{form.city ? copy.chooseCommune : copy.chooseCityFirst}</option>{availableCommunes.map((commune) => <option key={commune._id} value={commune.name}>{commune.name}</option>)}</select>
-                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
+                                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#78716c] h-4 w-4" />
                               </div>
                             </div>
                           </div>
@@ -863,7 +863,7 @@ export default function Register() {
 
                           <label className="flex cursor-pointer items-start gap-2.5 text-[13px] font-medium leading-[1.5] text-[#57534e] dark:text-neutral-300">
                             <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="peer sr-only" />
-                            <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-transparent ring-1 ring-inset ring-[#d8d0c4] transition peer-checked:bg-[#e85d00] peer-checked:text-white peer-checked:ring-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-700"><Check size={14} strokeWidth={3} /></span>
+                            <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-transparent ring-1 ring-inset ring-[#d8d0c4] transition peer-checked:bg-[#e85d00] peer-checked:text-white peer-checked:ring-[#e85d00] dark:bg-neutral-900 dark:ring-neutral-700"><CheckIcon strokeWidth={3} className="h-3.5 w-3.5" /></span>
                             <span>{copy.termsLead}{' '}<Link to="/conditions-utilisation" target="_blank" className="font-bold text-[#141210] underline dark:text-white">{copy.terms}</Link>{' '}{isFrench ? 'et la' : 'and the'}{' '}<Link to="/confidentialite" target="_blank" className="font-bold text-[#141210] underline dark:text-white">{copy.privacy}</Link>.</span>
                           </label>
                         </>
@@ -886,7 +886,7 @@ export default function Register() {
                     {step === 1 ? (
                       <button type="button" onClick={goToStep2} disabled={!canGoToStep2} className="flex h-14 w-full items-center justify-center rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55">{copy.continueStep2}</button>
                     ) : (
-                      <button type="submit" form="register-form" disabled={!canSubmit} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <Loader2 size={18} className="animate-spin" /> : null}{loading ? copy.creatingAccount : copy.createAccount}</button>
+                      <button type="submit" form="register-form" disabled={!canSubmit} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-[17px] font-extrabold text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <ArrowPathIcon className="animate-spin h-[18px] w-[18px]" /> : null}{loading ? copy.creatingAccount : copy.createAccount}</button>
                     )}
                     <p className="mt-3 text-center text-[13px] font-medium text-[#78716c]">{copy.haveAccount}{' '}<Link to="/login" className="font-bold text-[#b3480a] hover:text-[#e85d00]">{copy.signIn}</Link></p>
                   </div>

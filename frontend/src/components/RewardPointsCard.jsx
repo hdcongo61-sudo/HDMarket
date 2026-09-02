@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Gift, Flame, Loader2 } from 'lucide-react';
+import { ArrowPathIcon, FireIcon, GiftIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -50,7 +50,7 @@ export default function RewardPointsCard() {
       <div className="flex items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff0e4] text-[#e85d00]">
-            <Gift size={20} />
+            <GiftIcon className="h-5 w-5" />
           </span>
           <div>
             <p className="text-[11px] font-bold uppercase text-gray-400">HDPoints</p>
@@ -68,9 +68,9 @@ export default function RewardPointsCard() {
           }`}
         >
           {checkingIn ? (
-            <Loader2 size={14} className="animate-spin" />
+            <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
           ) : (
-            <Flame size={14} />
+            <FireIcon className="h-3.5 w-3.5" />
           )}
           {data.checkedInToday ? `Série ${data.checkinStreak}j` : 'Check-in du jour'}
         </button>

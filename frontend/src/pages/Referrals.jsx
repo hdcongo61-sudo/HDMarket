@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Gift, Share2, Copy, Users } from 'lucide-react';
+import { DocumentDuplicateIcon, GiftIcon, ShareIcon, UsersIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -54,7 +54,7 @@ export default function Referrals() {
           <p className="text-center text-sm text-gray-400">Chargement…</p>
         ) : !summary?.enabled ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-sm">
-            <Gift className="mx-auto h-8 w-8 text-gray-300" />
+            <GiftIcon className="mx-auto h-8 w-8 text-gray-300" />
             <p className="mt-3 text-sm text-gray-500">
               Le programme de parrainage n’est pas encore activé.
             </p>
@@ -74,7 +74,7 @@ export default function Referrals() {
                   rel="noopener noreferrer"
                   className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-[#e85d00]"
                 >
-                  <Share2 size={16} /> Partager sur WhatsApp
+                  <ShareIcon className="h-4 w-4" /> Partager sur WhatsApp
                 </a>
                 <button
                   type="button"
@@ -82,7 +82,7 @@ export default function Referrals() {
                   className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/40 px-4 text-sm font-bold text-white"
                   aria-label="Copier le lien"
                 >
-                  <Copy size={16} />
+                  <DocumentDuplicateIcon className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -100,7 +100,7 @@ export default function Referrals() {
 
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-black text-gray-900">
-                <Users size={16} /> Tes filleuls
+                <UsersIcon className="h-4 w-4" /> Tes filleuls
               </h3>
               {summary.referredUsers.length === 0 ? (
                 <p className="text-xs text-gray-400">Aucun filleul pour le moment.</p>

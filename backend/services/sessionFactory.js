@@ -157,7 +157,6 @@ export function buildSession(user, decoded = {}, token = '') {
     preferredLanguage: safeString(user.preferredLanguage, 'fr'),
     preferredCurrency: safeString(user.preferredCurrency, 'XAF').toUpperCase(),
     preferredCity: safeString(user.preferredCity) || safeString(user.city, ''),
-    theme: ['light', 'dark', 'system'].includes(user.theme) ? user.theme : 'system',
 
     // ── Session metadata ──
     token: token || '',

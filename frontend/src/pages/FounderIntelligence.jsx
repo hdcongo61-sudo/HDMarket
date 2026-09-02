@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, AlertTriangle, ArrowUpRight, Crown, RefreshCcw, ShieldAlert, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, ChartBarIcon, ExclamationTriangleIcon, ShieldExclamationIcon, SparklesIcon, TrophyIcon, UsersIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -27,7 +27,7 @@ function KpiCard({ label, value, helper, icon: Icon, variant = 'glass' }) {
         </div>
         {Icon ? (
           <div className="soft-card soft-card-green shrink-0 rounded-xl p-2 text-emerald-700 dark:text-emerald-100">
-            <Icon size={18} />
+            <Icon className="h-[18px] w-[18px]" />
           </div>
         ) : null}
       </div>
@@ -146,7 +146,7 @@ export default function FounderIntelligence() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="soft-card soft-card-purple inline-flex min-h-[34px] items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-purple-900 dark:text-purple-100">
-                    <Crown size={14} />
+                    <TrophyIcon className="h-3.5 w-3.5" />
                     Founder Confidential
                   </span>
                   <span className="inline-flex min-h-[34px] items-center rounded-full border border-slate-200/80 bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 dark:border-slate-700/70 dark:bg-slate-900/40 dark:text-slate-300">
@@ -171,7 +171,7 @@ export default function FounderIntelligence() {
                   disabled={refreshing}
                   className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                 >
-                  <RefreshCcw size={16} className={refreshing ? 'animate-spin' : ''} />
+                  <ArrowPathIcon className={refreshing ? 'animate-spin' : ''} className="h-4 w-4" />
                   Rafraichir
                 </button>
                 <Link
@@ -226,25 +226,25 @@ export default function FounderIntelligence() {
                 label="Revenue / Active User"
                 value={formatCurrency(data?.kpis?.revenuePerActiveUser)}
                 helper={`AOV ${formatCurrency(data?.kpis?.averageOrderValue)}`}
-                icon={TrendingUp}
+                icon={ArrowTrendingUpIcon}
               />
               <KpiCard
                 label="Retention 30 jours"
                 value={formatPercent(data?.kpis?.retention30Day)}
                 helper={`7 jours ${formatPercent(data?.kpis?.retention7Day)}`}
-                icon={Users}
+                icon={UsersIcon}
               />
               <KpiCard
                 label="Churn détecté"
                 value={formatPercent(data?.kpis?.churnDetectionRate)}
                 helper={`Utilisateurs à forte valeur: ${formatNumber(data?.kpis?.highValueUsers)}`}
-                icon={ShieldAlert}
+                icon={ShieldExclamationIcon}
               />
               <KpiCard
                 label="Croissance hebdo"
                 value={formatPercent(data?.kpis?.growthVelocity?.weekly)}
                 helper={`Jour: ${formatPercent(data?.kpis?.growthVelocity?.daily)}`}
-                icon={ArrowUpRight}
+                icon={ArrowUpRightIcon}
               />
             </section>
 
@@ -253,19 +253,19 @@ export default function FounderIntelligence() {
                 label="Full Payment Conversion"
                 value={formatPercent(data?.kpis?.fullPaymentConversion?.adoptionRate)}
                 helper={`${formatNumber(data?.kpis?.fullPaymentConversion?.ordersPaidInFull)} commandes payées en full`}
-                icon={Crown}
+                icon={TrophyIcon}
               />
               <KpiCard
                 label="Livraisons offertes"
                 value={formatNumber(data?.kpis?.fullPaymentConversion?.deliveryFeesWaivedCount)}
                 helper={`Montant offert ${formatCurrency(data?.kpis?.fullPaymentConversion?.waivedDeliveryAmount)}`}
-                icon={Sparkles}
+                icon={SparklesIcon}
               />
               <KpiCard
                 label="Impact revenu"
                 value={formatCurrency(data?.kpis?.fullPaymentConversion?.revenueImpact)}
                 helper="GMV associé aux commandes full payment"
-                icon={TrendingUp}
+                icon={ArrowTrendingUpIcon}
               />
             </section>
 
@@ -363,7 +363,7 @@ export default function FounderIntelligence() {
             <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
               <div className="glass-card overflow-hidden rounded-2xl p-4 sm:p-5 xl:col-span-2">
                 <div className="mb-3 flex items-center gap-2">
-                  <Activity size={16} className="text-emerald-600 dark:text-emerald-300" />
+                  <ChartBarIcon className="text-emerald-600 dark:text-emerald-300 h-4 w-4" />
                   <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Seller Leaderboard</h2>
                 </div>
                 <div className="space-y-2">
@@ -383,7 +383,7 @@ export default function FounderIntelligence() {
 
               <div className="glass-card overflow-hidden rounded-2xl p-4 sm:p-5">
                 <div className="mb-3 flex items-center gap-2">
-                  <AlertTriangle size={16} className="text-amber-600 dark:text-amber-300" />
+                  <ExclamationTriangleIcon className="text-amber-600 dark:text-amber-300 h-4 w-4" />
                   <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-200">Risk Alerts</h2>
                 </div>
                 <div className="space-y-2">

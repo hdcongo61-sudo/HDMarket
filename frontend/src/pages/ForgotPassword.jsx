@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, EnvelopeIcon, EyeIcon, EyeSlashIcon, LockClosedIcon, PhoneIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import AuthTrustPanel from '../components/auth/AuthTrustPanel';
@@ -73,13 +73,13 @@ export default function ForgotPassword() {
     subtitle: isFrench
       ? 'Recevez un code par SMS puis définissez un nouveau mot de passe sécurisé.'
       : 'Receive a code by SMS, then set a new secure password.',
-    channelPhone: isFrench ? 'Téléphone' : 'Phone',
+    channelPhone: isFrench ? 'Téléphone' : 'PhoneIcon',
     channelEmail: 'Email',
     stepCode: isFrench ? 'Étape 1 : Code' : 'Step 1: Code',
     stepReset: isFrench ? 'Étape 2 : Réinitialiser' : 'Step 2: Reset',
     email: isFrench ? 'Adresse email' : 'Email address',
     emailPlaceholder: isFrench ? 'nom@email.com' : 'name@email.com',
-    phone: isFrench ? 'Numéro de téléphone' : 'Phone number',
+    phone: isFrench ? 'Numéro de téléphone' : 'PhoneIcon number',
     phonePlaceholder: isFrench ? '060000000' : '060000000',
     sendCode: isFrench ? 'Envoyer le code' : 'Send code',
     resendCode: isFrench ? 'Renvoyer le code' : 'Resend code',
@@ -130,7 +130,7 @@ export default function ForgotPassword() {
       : 'Password must include 8 characters, one uppercase letter and one number.',
     mismatch: isFrench ? 'Les mots de passe ne correspondent pas.' : 'Passwords do not match.'
   };
-  // Phone-first recovery is the default; email stays available for accounts
+  // PhoneIcon-first recovery is the default; email stays available for accounts
   // that have added one.
   const [channel, setChannel] = useState('phone');
   const [form, setForm] = useState({
@@ -313,7 +313,7 @@ export default function ForgotPassword() {
               <>
                 <header className="mb-6">
                   <p className="inline-flex items-center gap-2 rounded-full soft-card soft-card-blue px-3 py-1 text-xs font-semibold text-blue-900 dark:text-blue-100">
-                    <ShieldCheck size={14} />
+                    <ShieldCheckIcon className="h-3.5 w-3.5" />
                     {copy.appBadge}
                   </p>
                   <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
@@ -416,7 +416,7 @@ export default function ForgotPassword() {
                         }}
                         required
                       />
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <PhoneIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                     </div>
                   </div> : null}
 
@@ -439,7 +439,7 @@ export default function ForgotPassword() {
                         }}
                         required
                       />
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <EnvelopeIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                     </div>
                   </div> : null}
 
@@ -451,7 +451,7 @@ export default function ForgotPassword() {
                   >
                     {codeSending ? (
                       <span className="inline-flex items-center gap-2">
-                        <Loader2 size={16} className="animate-spin" />
+                        <ArrowPathIcon className="animate-spin h-4 w-4" />
                         {copy.sending}
                       </span>
                     ) : codeSent ? (
@@ -492,7 +492,7 @@ export default function ForgotPassword() {
                             }}
                             required
                           />
-                          <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <ShieldCheckIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                         </div>
                       </div> : null}
 
@@ -515,14 +515,14 @@ export default function ForgotPassword() {
                               }}
                               required
                             />
-                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <LockClosedIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                             <button
                               type="button"
                               onClick={() => setShowPassword((prev) => !prev)}
                               className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
                               aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                             >
-                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                              {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                             </button>
                           </div>
                         </div>
@@ -545,14 +545,14 @@ export default function ForgotPassword() {
                               }}
                               required
                             />
-                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <LockClosedIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword((prev) => !prev)}
                               className="absolute right-1.5 top-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg glass-card text-slate-600 dark:text-slate-200"
                               aria-label={showConfirmPassword ? copy.hidePassword : copy.showPassword}
                             >
-                              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                              {showConfirmPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                             </button>
                           </div>
                         </div>
@@ -609,7 +609,7 @@ export default function ForgotPassword() {
                           }
                           className="soft-card soft-card-purple inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-purple-900 disabled:opacity-60 dark:text-purple-100"
                         >
-                          {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+                          {loading ? <ArrowPathIcon className="animate-spin h-4 w-4" /> : null}
                           {loading ? copy.updating : copy.updatePassword}
                         </button>
                       </div>
@@ -626,7 +626,7 @@ export default function ForgotPassword() {
                     to="/login"
                     className="inline-flex items-center gap-2 font-semibold text-slate-800 hover:underline dark:text-white"
                   >
-                    <ArrowLeft size={16} />
+                    <ArrowLeftIcon className="h-4 w-4" />
                     {copy.backToLogin}
                   </Link>
                 </footer>

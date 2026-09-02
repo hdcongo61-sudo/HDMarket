@@ -2,31 +2,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } 
 import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  MessageCircle,
-  X,
-  Loader2,
-  Shield,
-  Check,
-  MoreVertical,
-  ArrowLeft,
-  ArrowUp,
-  ShieldCheck,
-  Lock,
-  AlertTriangle,
-  User,
-  Store,
-  Plus,
-  Mic,
-  MicOff,
-  File,
-  Download,
-  Search,
-  ExternalLink,
-  Archive,
-  Trash2,
-  Pencil
-} from 'lucide-react';
+import { ArchiveBoxIcon, ArrowDownTrayIcon, ArrowLeftIcon, ArrowPathIcon, ArrowTopRightOnSquareIcon, ArrowUpIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, CheckIcon, DocumentIcon, EllipsisVerticalIcon, ExclamationTriangleIcon, LockClosedIcon, MagnifyingGlassIcon, MicrophoneIcon, PencilIcon, PlusIcon, ShieldCheckIcon, TrashIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 import storage from '../utils/storage';
@@ -842,7 +818,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
       setUploadProgress(100);
       setAttachments((prev) => [...prev, ...uploadedAttachments]);
     } catch (error) {
-      console.error('File upload error:', error);
+      console.error('DocumentIcon upload error:', error);
       setError('Erreur lors de l\'upload du fichier.');
     } finally {
       setUploadProgress(null);
@@ -1347,7 +1323,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
         onClick={() => setIsOpen(true)}
         className="relative inline-flex min-h-11 items-center gap-2 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm transition-all hover:bg-[#f45f00] active:scale-[0.98]"
       >
-        <MessageCircle className="w-4 h-4" />
+        <ChatBubbleLeftIcon className="w-4 h-4" />
         <span>{buttonText}</span>
         {unreadCount > 0 && (
           <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center animate-pulse shadow-sm">
@@ -1405,7 +1381,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                 className="-ml-1 flex h-9 w-7 shrink-0 items-center justify-center text-[#57534e] transition hover:text-[#e85d00] dark:text-neutral-300"
                 aria-label="Retour"
               >
-                <ArrowLeft className="h-[22px] w-[22px]" />
+                <ArrowLeftIcon className="h-[22px] w-[22px]" />
               </button>
 
               <div className="shrink-0">
@@ -1417,7 +1393,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   />
                 ) : (
                   <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#f6f3ee] text-[#b3480a] ring-1 ring-[#ece5db] dark:bg-neutral-900 dark:ring-neutral-800">
-                    {isCustomer ? <Store className="h-[19px] w-[19px]" /> : <User className="h-[19px] w-[19px]" />}
+                    {isCustomer ? <BuildingStorefrontIcon className="h-[19px] w-[19px]" /> : <UserIcon className="h-[19px] w-[19px]" />}
                   </div>
                 )}
               </div>
@@ -1438,7 +1414,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   className="flex h-9 w-7 items-center justify-center text-[#57534e] transition hover:text-[#e85d00] dark:text-neutral-300"
                   title="Options"
                 >
-                  <MoreVertical className="h-5 w-5" />
+                  <EllipsisVerticalIcon className="h-5 w-5" />
                 </button>
                 {showChatMenu && (
                   <>
@@ -1452,7 +1428,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                         }}
                         className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#57534e] hover:bg-[#f6f3ee] dark:text-neutral-200 dark:hover:bg-neutral-800"
                       >
-                        <Search className="h-4 w-4" />
+                        <MagnifyingGlassIcon className="h-4 w-4" />
                         Rechercher dans les messages
                       </button>
                       {hasProductLink && (
@@ -1464,7 +1440,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                           }}
                           className="flex items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#57534e] hover:bg-[#f6f3ee] dark:text-neutral-200 dark:hover:bg-neutral-800"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                           Voir le produit
                         </Link>
                       )}
@@ -1487,7 +1463,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                           }}
                           className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#57534e] hover:bg-[#f6f3ee] disabled:opacity-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         >
-                          {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                          {archiving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArchiveBoxIcon className="w-4 h-4" />}
                           Archiver la conversation
                         </button>
                       )}
@@ -1510,7 +1486,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                           }}
                           className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-black text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-900/20"
                         >
-                          {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                          {deleting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
                           Supprimer la conversation
                         </button>
                       )}
@@ -1525,7 +1501,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
               <img src={productImage} alt="" className="h-[34px] w-[34px] shrink-0 rounded-[10px] object-cover" />
             ) : (
               <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-[#f0e6d8] text-[#b3480a]">
-                <Store className="h-4 w-4" />
+                <BuildingStorefrontIcon className="h-4 w-4" />
               </div>
             )}
             <div className="min-w-0 flex-1">
@@ -1561,11 +1537,11 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           </div>
         )}
 
-        {/* Search panel */}
+        {/* MagnifyingGlassIcon panel */}
         {showSearch && (
           <div className="flex-shrink-0 border-b border-gray-200 bg-white/90 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-950/90">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#e85d00]" />
+              <MagnifyingGlassIcon className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#e85d00]" />
               <input
                 type="text"
                 value={searchQuery}
@@ -1580,7 +1556,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   onClick={() => setSearchQuery('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-[#e85d00] dark:hover:bg-neutral-800"
                 >
-                  <X className="w-4 h-4" />
+                  <XMarkIcon className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -1624,7 +1600,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                     }}
                     className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1.5 text-sm font-black text-[#e85d00] ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-orange-300 dark:ring-neutral-800"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                     Voir le produit
                   </Link>
                 )}
@@ -1632,11 +1608,11 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-black text-slate-600 dark:text-gray-400">
               <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <ShieldCheckIcon className="w-4 h-4 text-emerald-500" />
                 Transaction protégée
               </span>
               <span className="flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-neutral-500" />
+                <ShieldCheckIcon className="w-4 h-4 text-neutral-500" />
                 Données sécurisées
               </span>
             </div>
@@ -1653,7 +1629,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           {loadingOlderMessages && (
             <div className="flex items-center justify-center py-1">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-gray-200 dark:bg-neutral-900 dark:text-gray-300 dark:ring-neutral-800">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
                 Chargement des anciens messages…
               </span>
             </div>
@@ -1662,7 +1638,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           {showClientLabel && clientName && (
             <div className="mb-2 flex justify-center">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#78716c] ring-1 ring-[#f0e6d8] dark:bg-neutral-900 dark:text-neutral-400 dark:ring-neutral-800">
-                <User className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
+                <UserIcon className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
                 Client : {clientName}
               </span>
             </div>
@@ -1670,7 +1646,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           {searchQuery && filteredMessages.length === 0 && !loading ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-8">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-white ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
-                <Search className="h-7 w-7 text-[#e85d00]" />
+                <MagnifyingGlassIcon className="h-7 w-7 text-[#e85d00]" />
               </div>
               <h3 className="mb-1 font-black text-slate-950 dark:text-white">Aucun résultat</h3>
               <p className="text-sm font-semibold text-slate-500 dark:text-gray-400">
@@ -1685,7 +1661,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-8">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-white ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
-                <MessageCircle className="h-7 w-7 text-[#e85d00]" />
+                <ChatBubbleLeftIcon className="h-7 w-7 text-[#e85d00]" />
               </div>
               <h3 className="mb-1 font-black text-slate-950 dark:text-white">Démarrez la conversation</h3>
               <p className="mb-5 max-w-xs text-sm font-semibold text-slate-500 dark:text-gray-400">
@@ -1760,7 +1736,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                                   onClick={handleCancelEdit}
                                   className="flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1.5 text-sm font-black text-white transition-colors hover:bg-white/30"
                                 >
-                                  <X className="w-3.5 h-3.5" />
+                                  <XMarkIcon className="w-3.5 h-3.5" />
                                   Annuler
                                 </button>
                                 <button
@@ -1770,9 +1746,9 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                                   className="flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-sm font-black text-[#e85d00] transition-colors hover:bg-gray-100 disabled:opacity-50"
                                 >
                                   {savingEditId === message._id ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                                   ) : (
-                                    <Check className="w-3.5 h-3.5" />
+                                    <CheckIcon className="w-3.5 h-3.5" />
                                   )}
                                   Enregistrer
                                 </button>
@@ -1805,9 +1781,9 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                                       download={att.filename}
                                       className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20 hover:bg-white/30' : 'bg-gray-50 hover:bg-gray-100 dark:bg-neutral-800 dark:hover:bg-neutral-700'}`}
                                     >
-                                      <File className="h-4 w-4" />
+                                      <DocumentIcon className="h-4 w-4" />
                                       <span className="text-xs">{att.filename}</span>
-                                      <Download className="h-3 w-3" />
+                                      <ArrowDownTrayIcon className="h-3 w-3" />
                                     </a>
                                   )}
                                 </div>
@@ -1839,7 +1815,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
 
                           {message.safetyFlag === 'off_platform_payment' && (
                             <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] font-semibold leading-snug text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                              <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                              <ExclamationTriangleIcon className="mt-0.5 shrink-0 h-[13px] w-[13px]" />
                               <span>
                                 Ne payez jamais en dehors de HDMarket. Utilisez toujours le paiement sécurisé de l’application — HDMarket ne peut pas vous protéger pour un paiement effectué ailleurs.
                               </span>
@@ -1907,7 +1883,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                                 title="Modifier le message"
                                 className="rounded p-0.5 text-orange-50 opacity-0 transition-opacity hover:bg-white/20 hover:text-white focus:opacity-100 group-hover:opacity-100"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
+                                <PencilIcon className="w-3.5 h-3.5" />
                               </button>
                             )}
                             {isOwnMessage && !isPending && (
@@ -1919,9 +1895,9 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                                 className="rounded p-0.5 text-orange-50 opacity-0 transition-opacity hover:bg-white/20 hover:text-white focus:opacity-100 disabled:opacity-50 group-hover:opacity-100"
                               >
                                 {deletingMessageId === message._id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <TrashIcon className="w-3.5 h-3.5" />
                                 )}
                               </button>
                             )}
@@ -1947,7 +1923,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           {typingIndicator && (
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                <User className="w-4 h-4 text-gray-500" />
+                <UserIcon className="w-4 h-4 text-gray-500" />
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md px-4 py-2.5 border border-gray-200 dark:border-gray-600 shadow-sm">
                 <div className="flex gap-1">
@@ -1981,7 +1957,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
               className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
               aria-label="Fermer"
             >
-              <X className="w-6 h-6" />
+              <XMarkIcon className="w-6 h-6" />
             </button>
             <div className="relative max-w-[90vw] max-h-[90vh] p-4">
               <img
@@ -2016,7 +1992,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
         {/* Error banner */}
         {sendMessageMutation.uiPhase === 'stillWorking' && !error && (
           <div className="flex flex-shrink-0 items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/20">
-            <Loader2 className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 animate-spin" />
+            <ArrowPathIcon className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 animate-spin" />
             <p className="min-w-0 flex-1 text-sm font-semibold text-amber-700 dark:text-amber-300">
               Envoi en cours... merci de patienter.
             </p>
@@ -2024,7 +2000,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
         )}
         {sendMessageMutation.uiPhase === 'slow' && !error && (
           <div className="flex flex-shrink-0 items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-900/20">
-            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0" />
+            <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0" />
             <p className="min-w-0 flex-1 text-sm font-semibold text-amber-700 dark:text-amber-300">
               Synchronisation automatique en cours.
             </p>
@@ -2032,10 +2008,10 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
         )}
         {error && !offlineSnapshotActive && (
           <div className="flex flex-shrink-0 items-center gap-2 border-t border-red-200 bg-red-50 px-4 py-2.5 dark:border-red-800 dark:bg-red-900/20">
-            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <ExclamationTriangleIcon className="w-4 h-4 text-red-500 flex-shrink-0" />
             <p className="min-w-0 flex-1 text-sm font-semibold text-red-700 dark:text-red-300">{error}</p>
             <button type="button" onClick={() => setError('')} className="flex-shrink-0 p-1 rounded-lg text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" aria-label="Fermer">
-              <X className="w-4 h-4" />
+              <XMarkIcon className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -2077,19 +2053,19 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                         onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
                         className="absolute -right-1 -top-1 rounded-full bg-red-500 p-0.5 text-white ring-2 ring-white"
                       >
-                        <X className="h-3 w-3" />
+                        <XMarkIcon className="h-3 w-3" />
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 rounded-[16px] bg-gray-50 px-2 py-1 ring-1 ring-gray-200 dark:bg-neutral-900 dark:ring-neutral-800">
-                      <File className="h-4 w-4" />
+                      <DocumentIcon className="h-4 w-4" />
                       <span className="text-xs">{att.filename}</span>
                       <button
                         type="button"
                         onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
                         className="text-red-500"
                       >
-                        <X className="h-3 w-3" />
+                        <XMarkIcon className="h-3 w-3" />
                       </button>
                     </div>
                   )}
@@ -2123,7 +2099,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                 title="Ajouter une photo ou un document"
                 aria-label="Ajouter une photo ou un document"
               >
-                <Plus className="h-5 w-5" />
+                <PlusIcon className="h-5 w-5" />
               </button>
             </div>
 
@@ -2159,7 +2135,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   className="absolute bottom-0 right-1 flex h-10 w-9 items-center justify-center text-[#78716c] transition hover:text-[#e85d00] dark:text-neutral-400"
                   title="Enregistrer un message vocal"
                 >
-                  <Mic className="h-[19px] w-[19px]" />
+                  <MicrophoneIcon className="h-[19px] w-[19px]" />
                 </button>
               ) : (
                 <button
@@ -2168,7 +2144,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                   className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
                   title="Arrêter l'enregistrement"
                 >
-                  <MicOff className="h-4 w-4" />
+                  <MicrophoneIcon className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -2179,7 +2155,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white transition hover:bg-[#f45f00] disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Envoyer"
             >
-              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
+              {sending ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <ArrowUpIcon className="h-5 w-5" />}
             </button>
           </div>
 

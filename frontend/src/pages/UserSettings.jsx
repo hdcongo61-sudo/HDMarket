@@ -1,20 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Bell,
-  Bot,
-  ChevronRight,
-  Coins,
-  FlaskConical,
-  Globe,
-  Monitor,
-  Moon,
-  Palette,
-  RefreshCcw,
-  ShieldAlert,
-  Sun
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, BeakerIcon, BellIcon, ChevronRightIcon, CpuChipIcon, CurrencyDollarIcon, GlobeAltIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
 import { resolveUserProfileImage } from '../utils/userAvatar';
 import { useQueryClient } from '@tanstack/react-query';
 import AuthContext from '../context/AuthContext';
@@ -58,7 +44,7 @@ const SectionCard = ({ id, icon: Icon, title, subtitle, action, children }) => (
     <div className="flex items-center gap-2.5">
       {Icon && (
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e85d00]/10 text-[#e85d00]">
-          <Icon size={17} />
+          <Icon className="h-[17px] w-[17px]" />
         </span>
       )}
       <div className="min-w-0 flex-1">
@@ -103,9 +89,6 @@ export default function UserSettings() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const {
-    theme,
-    darkThemeEnabled,
-    setTheme,
     formatPrice,
     savingPreferences,
     t,
@@ -119,14 +102,6 @@ export default function UserSettings() {
   const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
   const [betaStatus, setBetaStatus] = useState(null);
   const [requestingBeta, setRequestingBeta] = useState(false);
-  const themeOptions = useMemo(
-    () => [
-      { value: 'system', label: t('settings.theme.system', 'Systeme'), icon: Monitor },
-      { value: 'light', label: t('settings.theme.light', 'Clair'), icon: Sun },
-      { value: 'dark', label: t('settings.theme.dark', 'Sombre'), icon: Moon }
-    ],
-    [t]
-  );
 
   const previewPrice = useMemo(() => formatPrice(125000), [formatPrice]);
 
@@ -347,7 +322,7 @@ export default function UserSettings() {
             className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center"
             aria-label={t('settings.back', 'Retour')}
           >
-            <ArrowLeft size={18} />
+            <ArrowLeftIcon className="h-[18px] w-[18px]" />
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-black text-gray-900 dark:text-white">{t('settings.title', 'Parametres')}</h1>
@@ -386,11 +361,11 @@ export default function UserSettings() {
               {t('settings.editProfile', 'Modifier le profil')}
             </span>
           </div>
-          <ChevronRight size={18} className="shrink-0 text-gray-400" />
+          <ChevronRightIcon className="shrink-0 text-gray-400 h-[18px] w-[18px]" />
         </Link>
 
         <SectionCard
-          icon={Globe}
+          icon={GlobeAltIcon}
           title={t('settings.localization', 'Région & langue')}
           subtitle={t('settings.localizationDescription', 'Langue, devise et ville de livraison.')}
         >
@@ -401,7 +376,7 @@ export default function UserSettings() {
             <SettingRow label={t('settings.currency', 'Devise')}>
               <CurrencySelector />
               <p className="flex items-center gap-1.5 text-[11px] font-medium text-gray-500 dark:text-neutral-400">
-                <Coins size={12} className="text-[#e85d00]" />
+                <CurrencyDollarIcon className="text-[#e85d00] h-3 w-3" />
                 {t('settings.pricePreview', 'Apercu prix')}: <span className="font-bold text-gray-700 dark:text-neutral-200">{previewPrice}</span>
               </p>
             </SettingRow>
@@ -411,39 +386,8 @@ export default function UserSettings() {
           </div>
         </SectionCard>
 
-        {darkThemeEnabled ? (
-          <SectionCard
-            icon={Palette}
-            title={t('settings.appearance', 'Apparence')}
-            subtitle={t('settings.appearanceDescription', 'Choisissez le thème de l’application.')}
-          >
-            <div className="grid grid-cols-3 gap-2">
-              {themeOptions.map((item) => {
-                const ItemIcon = item.icon;
-                const active = theme === item.value;
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => setTheme(item.value)}
-                    aria-pressed={active}
-                    className={`flex flex-col items-center justify-center gap-2 rounded-xl border py-3.5 text-xs font-bold transition active:scale-[0.97] ${
-                      active
-                        ? 'border-[#e85d00] bg-[#e85d00]/10 text-[#e85d00]'
-                        : 'border-gray-200 text-gray-600 hover:bg-black/[0.03] dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <ItemIcon size={20} />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </SectionCard>
-        ) : null}
-
         <SectionCard
-          icon={Bot}
+          icon={CpuChipIcon}
           title={t('settings.assistantChat', 'Assistant chat')}
           subtitle={t(
             'settings.assistantChatDescription',
@@ -462,7 +406,7 @@ export default function UserSettings() {
         </SectionCard>
 
         <SectionCard
-          icon={FlaskConical}
+          icon={BeakerIcon}
           title="Programme bêta"
           subtitle="Testez en avant-première les fonctionnalités HDMarket et partagez vos retours."
         >
@@ -481,7 +425,7 @@ export default function UserSettings() {
               disabled={requestingBeta}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-black text-white transition active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-neutral-900"
             >
-              <FlaskConical size={16} className={requestingBeta ? 'animate-pulse' : ''} />
+              <BeakerIcon className={requestingBeta ? 'animate-pulse' : ''} className="h-4 w-4" />
               {requestingBeta ? 'Envoi…' : 'Devenir testeur bêta'}
             </button>
           )}
@@ -490,7 +434,7 @@ export default function UserSettings() {
         {/* ── Notification Preferences ── */}
         <SectionCard
           id="notifications"
-          icon={Bell}
+          icon={BellIcon}
           title={t('settings.notifications', 'Notifications')}
           subtitle={t('settings.notifDescription', 'Choisissez les notifications que vous souhaitez recevoir.')}
         >
@@ -568,7 +512,7 @@ export default function UserSettings() {
         </SectionCard>
 
         <SectionCard
-          icon={ShieldAlert}
+          icon={ShieldExclamationIcon}
           title={t('settings.cache.title', 'Maintenance cache')}
           subtitle={t(
             'settings.cache.description',
@@ -582,7 +526,7 @@ export default function UserSettings() {
               disabled={hardRefreshing || clearingPwaCache}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#f45f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <RefreshCcw size={16} className={hardRefreshing ? 'animate-spin' : ''} />
+              <ArrowPathIcon className={hardRefreshing ? 'animate-spin' : ''} className="h-4 w-4" />
               {hardRefreshing
                 ? t('settings.cache.refreshing', 'Actualisation...')
                 : t('settings.cache.hardRefresh', 'Hard refresh (forcer)')}

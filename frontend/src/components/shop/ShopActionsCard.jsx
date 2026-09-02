@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Navigation, Pencil, Phone, Rocket, WalletCards } from 'lucide-react';
+import { ChatBubbleLeftIcon, PaperAirplaneIcon, PencilIcon, PhoneIcon, RocketLaunchIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 
 export default function ShopActionsCard({
@@ -30,15 +30,15 @@ export default function ShopActionsCard({
     <section className="bg-white px-4 py-3.5 dark:bg-neutral-950">
       {isOwnShop ? (
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={onPrimaryAction} className={primaryBtn}><Pencil size={15} />{t('shop_profile.edit_profile', 'Modifier profil')}</button>
-          <Link to="/seller/boosts" className={outlineBtn}><Rocket size={15} />{t('shop_profile.boost_shop', 'Booster')}</Link>
-          <Link to="/my/settlements" className={`${outlineBtn} col-span-2`}><WalletCards size={15} />Versements des ventes</Link>
+          <button type="button" onClick={onPrimaryAction} className={primaryBtn}><PencilIcon className="h-[15px] w-[15px]" />{t('shop_profile.edit_profile', 'Modifier profil')}</button>
+          <Link to="/seller/boosts" className={outlineBtn}><RocketLaunchIcon className="h-[15px] w-[15px]" />{t('shop_profile.boost_shop', 'Booster')}</Link>
+          <Link to="/my/settlements" className={`${outlineBtn} col-span-2`}><WalletIcon className="h-[15px] w-[15px]" />Versements des ventes</Link>
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <button type="button" onClick={onMessage} className={`${primaryBtn} flex-1`}><MessageCircle size={15} />{t('shop_profile.message', 'Message')}</button>
-          {user && shopPhone ? <a href={`tel:${shopPhone}`} className={iconBtn} aria-label={t('shop_profile.phone', 'Téléphone')}><Phone size={16} /></a> : <Link to="/login" state={{ from: `/shop/${slug}` }} className={iconBtn} aria-label={t('shop_profile.phone', 'Téléphone')}><Phone size={16} /></Link>}
-          <button type="button" onClick={onDirections} className={iconBtn} aria-label={t('shop_profile.directions', 'Itinéraire')}><Navigation size={16} /></button>
+          <button type="button" onClick={onMessage} className={`${primaryBtn} flex-1`}><ChatBubbleLeftIcon className="h-[15px] w-[15px]" />{t('shop_profile.message', 'Message')}</button>
+          {user && shopPhone ? <a href={`tel:${shopPhone}`} className={iconBtn} aria-label={t('shop_profile.phone', 'Téléphone')}><PhoneIcon className="h-4 w-4" /></a> : <Link to="/login" state={{ from: `/shop/${slug}` }} className={iconBtn} aria-label={t('shop_profile.phone', 'Téléphone')}><PhoneIcon className="h-4 w-4" /></Link>}
+          <button type="button" onClick={onDirections} className={iconBtn} aria-label={t('shop_profile.directions', 'Itinéraire')}><PaperAirplaneIcon className="h-4 w-4" /></button>
         </div>
       )}
     </section>

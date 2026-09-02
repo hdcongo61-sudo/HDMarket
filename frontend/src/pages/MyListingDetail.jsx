@@ -1,23 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  AlertCircle,
-  ArrowLeft,
-  BarChart3,
-  Calendar,
-  CheckCircle,
-  Clock,
-  Eye,
-  FolderOpen,
-  Image as ImageIcon,
-  Package,
-  Pencil,
-  Power,
-  PowerOff,
-  RefreshCw,
-  Tag,
-  X
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, CalendarIcon, ChartBarIcon, CheckCircleIcon, ClockIcon, CubeIcon, ExclamationCircleIcon, EyeIcon, FolderOpenIcon, PencilIcon, PhotoIcon, PowerIcon, TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import PaymentForm from '../components/PaymentForm';
 import ProductAnalytics from '../components/ProductAnalytics';
@@ -41,10 +24,10 @@ const STATUS_STYLES = {
 };
 
 const STATUS_ICONS = {
-  pending: Clock,
-  approved: CheckCircle,
-  rejected: X,
-  disabled: PowerOff
+  pending: ClockIcon,
+  approved: CheckCircleIcon,
+  rejected: XMarkIcon,
+  disabled: PowerIcon
 };
 
 const STATUS_MESSAGES = {
@@ -134,7 +117,7 @@ export default function MyListingDetail() {
   }, [loadProduct]);
 
   const status = product?.status || 'pending';
-  const StatusIcon = STATUS_ICONS[status] || Clock;
+  const StatusIcon = STATUS_ICONS[status] || ClockIcon;
   const statusClass = STATUS_STYLES[status] || STATUS_STYLES.pending;
   const productIdentifier = resolveIdentifier(product);
 
@@ -188,7 +171,7 @@ export default function MyListingDetail() {
         <div className="mx-auto max-w-xl px-4 py-10">
           <div className="rounded-2xl border border-red-100 bg-white p-6 shadow-sm">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+              <ExclamationCircleIcon className="w-5 h-5 text-red-600 mt-0.5" />
               <div className="space-y-4">
                 <div>
                   <h1 className="text-lg font-bold text-gray-900">Impossible d'ouvrir cette annonce</h1>
@@ -200,7 +183,7 @@ export default function MyListingDetail() {
                     onClick={() => navigate('/seller/products')}
                     className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white"
                   >
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeftIcon className="w-4 h-4" />
                     Retour a la liste
                   </button>
                   <button
@@ -208,7 +191,7 @@ export default function MyListingDetail() {
                     onClick={loadProduct}
                     className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700"
                   >
-                    <RefreshCw className="w-4 h-4" />
+                    <ArrowPathIcon className="w-4 h-4" />
                     Reessayer
                   </button>
                 </div>
@@ -227,7 +210,7 @@ export default function MyListingDetail() {
           to={`/product/${productIdentifier}/edit`}
           className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 active:scale-[0.98]"
         >
-          <Pencil className="w-4 h-4" />
+          <PencilIcon className="w-4 h-4" />
           Modifier
         </Link>
       ) : null}
@@ -238,7 +221,7 @@ export default function MyListingDetail() {
           {...externalLinkProps}
           className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-700 active:scale-[0.98]"
         >
-          <Eye className="w-4 h-4" />
+          <EyeIcon className="w-4 h-4" />
           Voir publique
         </Link>
       ) : null}
@@ -248,7 +231,7 @@ export default function MyListingDetail() {
         onClick={() => setAnalyticsProduct({ id: product._id || product.id || product.slug, title: product.title })}
         className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 active:scale-[0.98]"
       >
-        <BarChart3 className="w-4 h-4" />
+        <ChartBarIcon className="w-4 h-4" />
         Analytics
       </button>
 
@@ -259,7 +242,7 @@ export default function MyListingDetail() {
           onClick={() => handleStatusUpdate('disable')}
           className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 active:scale-[0.98] disabled:opacity-60"
         >
-          <PowerOff className="w-4 h-4" />
+          <PowerIcon className="w-4 h-4" />
           Desactiver
         </button>
       ) : (
@@ -269,7 +252,7 @@ export default function MyListingDetail() {
           onClick={() => handleStatusUpdate('enable')}
           className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 active:scale-[0.98] disabled:opacity-60"
         >
-          <Power className="w-4 h-4" />
+          <PowerIcon className="w-4 h-4" />
           Reactiver
         </button>
       )}
@@ -285,7 +268,7 @@ export default function MyListingDetail() {
             onClick={() => navigate('/seller/products')}
             className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeftIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Mes annonces</span>
             <span className="sm:hidden">Retour</span>
           </button>
@@ -294,7 +277,7 @@ export default function MyListingDetail() {
             onClick={loadProduct}
             className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700"
           >
-            <RefreshCw className="w-4 h-4" />
+            <ArrowPathIcon className="w-4 h-4" />
             Actualiser
           </button>
         </div>
@@ -308,7 +291,7 @@ export default function MyListingDetail() {
                 <img src={mainImage} alt={product.title || 'Annonce'} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
-                  <ImageIcon className="w-12 h-12 text-gray-400" />
+                  <PhotoIcon className="w-12 h-12 text-gray-400" />
                 </div>
               )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
@@ -403,23 +386,23 @@ export default function MyListingDetail() {
               <h2 className="text-base font-bold text-gray-900">Informations</h2>
               <div className="mt-3 space-y-2 text-sm text-gray-700">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1 text-gray-500"><Package className="w-4 h-4" /> Categorie</span>
+                  <span className="inline-flex items-center gap-1 text-gray-500"><CubeIcon className="w-4 h-4" /> Categorie</span>
                   <span className="font-semibold text-right">{product.category || 'N/A'}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1 text-gray-500"><Tag className="w-4 h-4" /> Reference</span>
+                  <span className="inline-flex items-center gap-1 text-gray-500"><TagIcon className="w-4 h-4" /> Reference</span>
                   <span className="font-semibold text-right">{productIdentifier || 'N/A'}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1 text-gray-500"><Calendar className="w-4 h-4" /> Creee le</span>
+                  <span className="inline-flex items-center gap-1 text-gray-500"><CalendarIcon className="w-4 h-4" /> Creee le</span>
                   <span className="font-semibold text-right">{formatDate(product.createdAt)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1 text-gray-500"><Calendar className="w-4 h-4" /> Mise a jour</span>
+                  <span className="inline-flex items-center gap-1 text-gray-500"><CalendarIcon className="w-4 h-4" /> Mise a jour</span>
                   <span className="font-semibold text-right">{formatDate(product.updatedAt)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1 text-gray-500"><FolderOpen className="w-4 h-4" /> Images</span>
+                  <span className="inline-flex items-center gap-1 text-gray-500"><FolderOpenIcon className="w-4 h-4" /> Images</span>
                   <span className="font-semibold text-right">{Array.isArray(product.images) ? product.images.length : 0}</span>
                 </div>
               </div>
@@ -435,7 +418,7 @@ export default function MyListingDetail() {
               to={`/product/${productIdentifier}/edit`}
               className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700"
             >
-              <Pencil className="w-4 h-4" />
+              <PencilIcon className="w-4 h-4" />
               Modifier
             </Link>
           ) : null}
@@ -446,7 +429,7 @@ export default function MyListingDetail() {
               onClick={() => handleStatusUpdate('disable')}
               className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 disabled:opacity-60"
             >
-              <PowerOff className="w-4 h-4" />
+              <PowerIcon className="w-4 h-4" />
               Desactiver
             </button>
           ) : (
@@ -456,7 +439,7 @@ export default function MyListingDetail() {
               onClick={() => handleStatusUpdate('enable')}
               className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 disabled:opacity-60"
             >
-              <Power className="w-4 h-4" />
+              <PowerIcon className="w-4 h-4" />
               Reactiver
             </button>
           )}

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { Package, ChevronRight, Plus } from 'lucide-react';
+import { ChevronRightIcon, CubeIcon, PlusIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
@@ -48,7 +48,7 @@ export default function MyParcelRequests() {
             className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#e85d00] text-white"
             aria-label="Nouvelle course"
           >
-            <Plus size={16} />
+            <PlusIcon className="h-4 w-4" />
           </Link>
         }
       />
@@ -58,7 +58,7 @@ export default function MyParcelRequests() {
           <p className="py-10 text-center text-sm text-gray-400">Chargement…</p>
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-sm">
-            <Package className="mx-auto h-8 w-8 text-gray-300" />
+            <CubeIcon className="mx-auto h-8 w-8 text-gray-300" />
             <p className="mt-3 text-sm text-gray-500">Aucune course pour le moment.</p>
             <Link
               to="/parcels/new"
@@ -77,7 +77,7 @@ export default function MyParcelRequests() {
                 className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fff0e4] text-[#e85d00]">
-                  <Package size={18} />
+                  <CubeIcon className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-gray-900">
@@ -100,7 +100,7 @@ export default function MyParcelRequests() {
                     {item.paymentMethod === 'PAWAPAY' ? 'Payé' : 'À la livraison'}
                   </p>
                 </div>
-                <ChevronRight size={16} className="shrink-0 text-gray-300" />
+                <ChevronRightIcon className="shrink-0 text-gray-300 h-4 w-4" />
               </Link>
             );
           })

@@ -1,22 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowRight,
-  BadgePercent,
-  Check,
-  Clock3,
-  Crown,
-  FilePlus2,
-  Globe2,
-  Info,
-  MapPin,
-  Package,
-  Rocket,
-  ShieldCheck,
-  Sparkles,
-  Store,
-  Truck
-} from 'lucide-react';
+import { ArrowRightIcon, BuildingStorefrontIcon, CheckIcon, ClockIcon, CubeIcon, DocumentPlusIcon, GlobeAltIcon, InformationCircleIcon, MapPinIcon, ReceiptPercentIcon, RocketLaunchIcon, ShieldCheckIcon, SparklesIcon, TrophyIcon, TruckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -25,22 +9,22 @@ const BOOST_META = {
   PRODUCT_BOOST: {
     title: 'Boost produit',
     description: 'Placez une annonce plus haut dans les résultats et augmentez sa visibilité.',
-    icon: Rocket
+    icon: RocketLaunchIcon
   },
   LOCAL_PRODUCT_BOOST: {
     title: 'Boost produit local',
     description: 'Mettez votre annonce en avant auprès des acheteurs d’une ville précise.',
-    icon: MapPin
+    icon: MapPinIcon
   },
   SHOP_BOOST: {
     title: 'Boost boutique',
     description: 'Donnez plus de visibilité à toute votre boutique et à votre catalogue.',
-    icon: Store
+    icon: BuildingStorefrontIcon
   },
   HOMEPAGE_FEATURED: {
     title: 'À la une',
     description: 'Présentez un produit dans les emplacements mis en avant de la page d’accueil.',
-    icon: Crown
+    icon: TrophyIcon
   }
 };
 
@@ -70,7 +54,7 @@ function PlanCard({ icon: Icon, eyebrow, title, price, suffix, description, feat
         </span>
       )}
       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#e85d00] dark:bg-orange-950/50">
-        <Icon size={21} />
+        <Icon className="h-[21px] w-[21px]" />
       </div>
       <p className="mt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#e85d00]">{eyebrow}</p>
       <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-white">{title}</h2>
@@ -83,7 +67,7 @@ function PlanCard({ icon: Icon, eyebrow, title, price, suffix, description, feat
         {features.map((feature) => (
           <li key={feature} className="flex items-start gap-2 text-sm text-gray-700 dark:text-neutral-300">
             <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <Check size={11} strokeWidth={3} />
+              <CheckIcon strokeWidth={3} className="h-[11px] w-[11px]" />
             </span>
             {feature}
           </li>
@@ -99,7 +83,7 @@ function PlanCard({ icon: Icon, eyebrow, title, price, suffix, description, feat
         }`}
       >
         {action.label}
-        <ArrowRight size={16} />
+        <ArrowRightIcon className="h-4 w-4" />
       </Link>
     </article>
   );
@@ -182,8 +166,8 @@ export default function Plans() {
             Consultez le prix d’une annonce, d’une conversion en boutique, des boosts et des autres frais avant de payer.
           </p>
           <div className="mt-7 flex flex-wrap gap-3 text-xs font-bold text-gray-200">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2"><ShieldCheck size={14} /> Prix issus des paramètres de l’application</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2"><Globe2 size={14} /> Tarifs affichés dans votre devise</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2"><ShieldCheckIcon className="h-3.5 w-3.5" /> Prix issus des paramètres de l’application</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2"><GlobeAltIcon className="h-3.5 w-3.5" /> Tarifs affichés dans votre devise</span>
           </div>
         </div>
       </section>
@@ -196,7 +180,7 @@ export default function Plans() {
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <PlanCard
-            icon={FilePlus2}
+            icon={DocumentPlusIcon}
             eyebrow="Annonce"
             title="Publier un produit"
             price={`${commissionRate.toLocaleString('fr-FR')} %`}
@@ -211,7 +195,7 @@ export default function Plans() {
             featured
           />
           <PlanCard
-            icon={Store}
+            icon={BuildingStorefrontIcon}
             eyebrow="Compte professionnel"
             title="Devenir une boutique"
             price={formatPrice(conversionAmount)}
@@ -225,7 +209,7 @@ export default function Plans() {
             action={conversionAction}
           />
           <PlanCard
-            icon={BadgePercent}
+            icon={ReceiptPercentIcon}
             eyebrow="Paiement flexible"
             title="Vente par tranches"
             price={`${installmentMinPercent.toLocaleString('fr-FR')} %`}
@@ -280,7 +264,7 @@ export default function Plans() {
                   <article key={type} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-950 text-white dark:bg-white dark:text-neutral-950">
-                        <Icon size={20} />
+                        <Icon className="h-5 w-5" />
                       </div>
                       {primaryPricing?.campaign && (
                         <span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-black text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
@@ -311,7 +295,7 @@ export default function Plans() {
                       state={boostAction.state}
                       className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 text-xs font-black text-[#e85d00] transition hover:bg-orange-100 dark:bg-orange-950/40"
                     >
-                      {boostAction.label} <ArrowRight size={14} />
+                      {boostAction.label} <ArrowRightIcon className="h-3.5 w-3.5" />
                     </Link>
                   </article>
                 );
@@ -323,7 +307,7 @@ export default function Plans() {
         <section className="mt-14 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
-              <Info size={20} />
+              <InformationCircleIcon className="h-5 w-5" />
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">Autres paiements</p>
@@ -332,7 +316,7 @@ export default function Plans() {
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-2">
             <div className="flex gap-3 rounded-2xl bg-gray-50 p-4 dark:bg-neutral-950">
-              <Truck className="mt-0.5 shrink-0 text-[#e85d00]" size={20} />
+              <TruckIcon className="mt-0.5 shrink-0 text-[#e85d00] h-5 w-5" />
               <div>
                 <p className="font-black">Livraison</p>
                 <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-neutral-300">
@@ -343,7 +327,7 @@ export default function Plans() {
               </div>
             </div>
             <div className="flex gap-3 rounded-2xl bg-gray-50 p-4 dark:bg-neutral-950">
-              <Package className="mt-0.5 shrink-0 text-[#e85d00]" size={20} />
+              <CubeIcon className="mt-0.5 shrink-0 text-[#e85d00] h-5 w-5" />
               <div>
                 <p className="font-black">Achat d’un produit</p>
                 <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-neutral-300">
@@ -353,7 +337,7 @@ export default function Plans() {
             </div>
           </div>
           <div className="mt-5 flex items-start gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-xs leading-5 text-gray-500 dark:border-neutral-800 dark:text-neutral-400">
-            <Clock3 size={15} className="mt-0.5 shrink-0" />
+            <ClockIcon className="mt-0.5 shrink-0 h-[15px] w-[15px]" />
             Les montants peuvent évoluer lorsque l’administration met à jour les tarifs. Le montant affiché sur l’écran de confirmation au moment du paiement fait foi.
           </div>
         </section>

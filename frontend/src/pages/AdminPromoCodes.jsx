@@ -1,16 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import {
-  Ticket,
-  Plus,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  BarChart3,
-  Zap,
-  Search,
-  ShieldCheck
-} from 'lucide-react';
+import { ArrowPathIcon, BoltIcon, ChartBarIcon, CheckCircleIcon, MagnifyingGlassIcon, PlusIcon, ShieldCheckIcon, TicketIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import useCommissionRate from '../hooks/useCommissionRate';
 
@@ -237,7 +227,7 @@ export default function AdminPromoCodes() {
         <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3">
-              <Ticket className="w-8 h-8 text-neutral-600" />
+              <TicketIcon className="w-8 h-8 text-neutral-600" />
               Codes Promo Commission
             </h1>
             <p className="text-sm text-gray-600 mt-1">
@@ -252,7 +242,7 @@ export default function AdminPromoCodes() {
             }}
             className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            <RefreshCw className="w-4 h-4" />
+            <ArrowPathIcon className="w-4 h-4" />
             Rafraîchir
           </button>
         </header>
@@ -293,7 +283,7 @@ export default function AdminPromoCodes() {
 
         <section className="ui-card ui-card-interactive ui-card-fade-in p-5">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-neutral-600" />
+            <PlusIcon className="w-5 h-5 text-neutral-600" />
             {isEditing ? 'Modifier le code promo' : 'Créer un code promo'}
           </h2>
           <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -457,7 +447,7 @@ export default function AdminPromoCodes() {
                 disabled={saving}
                 className="inline-flex items-center gap-2 rounded-xl bg-neutral-600 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
               >
-                <ShieldCheck className="w-4 h-4" />
+                <ShieldCheckIcon className="w-4 h-4" />
                 {saving ? 'Enregistrement...' : isEditing ? 'Mettre à jour' : 'Créer le code'}
               </button>
               {isEditing && (
@@ -476,7 +466,7 @@ export default function AdminPromoCodes() {
         <section className="ui-card ui-card-interactive ui-card-fade-in p-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Search className="w-5 h-5 text-neutral-600" />
+              <MagnifyingGlassIcon className="w-5 h-5 text-neutral-600" />
               Liste des codes promo
             </h2>
             <div className="flex gap-2">
@@ -523,7 +513,7 @@ export default function AdminPromoCodes() {
                       <td className="py-3 pr-3 font-semibold text-gray-900">
                         <div className="flex items-center gap-2">
                           <span>{item.code}</span>
-                          {item.isFlashPromo && <Zap className="w-4 h-4 text-amber-500" />}
+                          {item.isFlashPromo && <BoltIcon className="w-4 h-4 text-amber-500" />}
                         </div>
                         {item.referralTag && <p className="text-xs text-gray-500">{item.referralTag}</p>}
                       </td>
@@ -548,9 +538,9 @@ export default function AdminPromoCodes() {
                           }`}
                         >
                           {item.isActive && !item.isExpired ? (
-                            <CheckCircle className="w-3.5 h-3.5" />
+                            <CheckCircleIcon className="w-3.5 h-3.5" />
                           ) : (
-                            <XCircle className="w-3.5 h-3.5" />
+                            <XCircleIcon className="w-3.5 h-3.5" />
                           )}
                           {item.isActive && !item.isExpired ? 'Actif' : 'Inactif'}
                         </span>
@@ -611,7 +601,7 @@ export default function AdminPromoCodes() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="ui-card ui-card-interactive ui-card-fade-in p-5">
             <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 mb-3">
-              <BarChart3 className="w-5 h-5 text-neutral-600" />
+              <ChartBarIcon className="w-5 h-5 text-neutral-600" />
               Top performances
             </h3>
             {analyticsLoading ? (

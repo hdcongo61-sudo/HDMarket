@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function NetworkFallbackCard({
   title = 'Impossible de charger les données',
@@ -18,7 +18,7 @@ export default function NetworkFallbackCard({
           onClick={onRetry}
           className="soft-card soft-card-purple inline-flex min-h-[44px] items-center gap-2 rounded-2xl px-3 text-sm font-semibold text-purple-900 transition active:scale-[0.98] dark:text-purple-100"
         >
-          <RefreshCcw size={14} />
+          <ArrowPathIcon className="h-3.5 w-3.5" />
           {retryLabel}
         </button>
         <button

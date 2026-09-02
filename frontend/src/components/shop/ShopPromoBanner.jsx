@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, TicketPercent } from 'lucide-react';
+import { ChevronRightIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { getLowestProductPrice } from '../../utils/productAttributes';
 
@@ -36,7 +36,7 @@ export default function ShopPromoBanner({ shop, hasActivePromo, promoProduct, on
         />
         <div className="relative flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-            <TicketPercent size={20} />
+            <ReceiptPercentIcon className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-bold uppercase tracking-wide text-white/90">
@@ -60,7 +60,7 @@ export default function ShopPromoBanner({ shop, hasActivePromo, promoProduct, on
             className="flex shrink-0 items-center gap-0.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#FF3D00] shadow-sm transition active:scale-95 sm:px-4 sm:py-2 sm:text-sm"
           >
             {t('shop_profile.promo_banner_cta', 'Promos')}
-            <ChevronRight size={14} />
+            <ChevronRightIcon className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

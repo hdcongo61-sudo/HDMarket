@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, MessageSquare, ShieldOff, Star } from 'lucide-react';
+import { ChatBubbleLeftRightIcon, CheckCircleIcon, ShieldExclamationIcon, StarIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { buildProductPath, buildShopPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -319,7 +319,7 @@ export default function OrderReview() {
             {reviewCompleted ? (
               <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5" />
+                  <CheckCircleIcon className="mt-0.5 h-5 w-5" />
                   <div>
                     <p className="font-semibold">Votre avis est déjà pris en compte.</p>
                     <p className="mt-1 text-sm">
@@ -344,7 +344,7 @@ export default function OrderReview() {
                             : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
                         }`}
                       >
-                        <Star className={`h-5 w-5 ${value <= rating ? 'fill-current' : ''}`} />
+                        <StarIcon className={`h-5 w-5 ${value <= rating ? 'fill-current' : ''}`} />
                       </button>
                     ))}
                   </div>
@@ -372,7 +372,7 @@ export default function OrderReview() {
                     onClick={handleSubmitReview}
                     disabled={submitting}
                   >
-                    <MessageSquare className="mr-2 h-4 w-4" />
+                    <ChatBubbleLeftRightIcon className="mr-2 h-4 w-4" />
                     {submitting ? 'Envoi...' : 'Soumettre mon avis'}
                   </ReviewActionButton>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -387,7 +387,7 @@ export default function OrderReview() {
                       onClick={() => submitReminderAction('disable')}
                       disabled={Boolean(actionSubmitting)}
                     >
-                      <ShieldOff className="mr-2 h-4 w-4" />
+                      <ShieldExclamationIcon className="mr-2 h-4 w-4" />
                       Ne plus rappeler
                     </ReviewActionButton>
                   </div>

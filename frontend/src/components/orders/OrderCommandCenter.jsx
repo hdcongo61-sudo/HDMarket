@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRightIcon } from '@heroicons/react/24/outline';
 
 export function OrderCommandCenter({
   eyebrow,
@@ -40,7 +40,7 @@ export function OrderCommandCenter({
                   <>
                     {Icon ? <Icon className="h-4 w-4" /> : null}
                     <span className="whitespace-nowrap">{action.label}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 opacity-60" />
+                    <ArrowUpRightIcon className="h-3.5 w-3.5 opacity-60" />
                   </>
                 );
                 const classNames = `inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-xs font-black ring-1 transition active:scale-[0.98] ${toneClass}`;

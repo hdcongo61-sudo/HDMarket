@@ -1,36 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  Activity,
-  AlertCircle,
-  ArrowLeft,
-  BarChart3,
-  Bell,
-  CheckCircle,
-  ChevronRight,
-  Clock,
-  Edit3,
-  Eye,
-  Hash,
-  Loader2,
-  LogOut,
-  Mail,
-  MessageSquare,
-  Package,
-  Phone,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  ShoppingBag,
-  SlidersHorizontal,
-  Store,
-  Trash2,
-  Truck,
-  UserCheck,
-  UserPlus,
-  UserX,
-  XCircle
-} from 'lucide-react';
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowLeftOnRectangleIcon, ArrowPathIcon, BellIcon, BuildingStorefrontIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronRightIcon, ClockIcon, CubeIcon, EnvelopeIcon, ExclamationCircleIcon, EyeIcon, HashtagIcon, MagnifyingGlassIcon, PencilSquareIcon, PhoneIcon, ShieldCheckIcon, ShoppingBagIcon, TrashIcon, TruckIcon, UserIcon, UserMinusIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -40,30 +10,30 @@ const PERMISSION_GROUPS = [
     title: 'Clients',
     description: 'Commentaires, questions produits et messages acheteurs.',
     permissions: [
-      { key: 'respond_to_comments', label: 'Commentaires', description: 'Repondre aux commentaires publics.', icon: MessageSquare },
-      { key: 'manage_product_questions', label: 'Questions produits', description: 'Traiter les questions avant achat.', icon: MessageSquare },
-      { key: 'respond_to_buyer_messages', label: 'Messages acheteurs', description: 'Repondre aux conversations client.', icon: Mail }
+      { key: 'respond_to_comments', label: 'Commentaires', description: 'Repondre aux commentaires publics.', icon: ChatBubbleLeftRightIcon },
+      { key: 'manage_product_questions', label: 'Questions produits', description: 'Traiter les questions avant achat.', icon: ChatBubbleLeftRightIcon },
+      { key: 'respond_to_buyer_messages', label: 'Messages acheteurs', description: 'Repondre aux conversations client.', icon: EnvelopeIcon }
     ]
   },
   {
     title: 'Commandes',
     description: 'Validation, refus, statuts et demandes de livraison.',
     permissions: [
-      { key: 'confirm_orders', label: 'Confirmer', description: 'Accepter les commandes recues.', icon: ShoppingBag },
-      { key: 'reject_orders', label: 'Rejeter', description: 'Refuser une commande non traitable.', icon: XCircle },
-      { key: 'update_order_status', label: 'Statuts', description: 'Mettre a jour le suivi des commandes.', icon: Package },
-      { key: 'manage_delivery_requests', label: 'Livraisons', description: 'Gerer les demandes de livraison.', icon: Truck }
+      { key: 'confirm_orders', label: 'Confirmer', description: 'Accepter les commandes recues.', icon: ShoppingBagIcon },
+      { key: 'reject_orders', label: 'Rejeter', description: 'Refuser une commande non traitable.', icon: XCircleIcon },
+      { key: 'update_order_status', label: 'Statuts', description: 'Mettre a jour le suivi des commandes.', icon: CubeIcon },
+      { key: 'manage_delivery_requests', label: 'Livraisons', description: 'Gerer les demandes de livraison.', icon: TruckIcon }
     ]
   },
   {
     title: 'Boutique',
     description: 'Consultation du tableau de bord, produits et notifications.',
     permissions: [
-      { key: 'manage_product_availability', label: 'Disponibilite', description: 'Activer ou desactiver la disponibilite.', icon: Package },
-      { key: 'view_shop_dashboard', label: 'Tableau de bord', description: 'Consulter les indicateurs boutique.', icon: BarChart3 },
-      { key: 'view_shop_orders', label: 'Voir commandes', description: 'Acceder a la liste des commandes.', icon: ShoppingBag },
-      { key: 'view_shop_products', label: 'Voir produits', description: 'Consulter le catalogue boutique.', icon: Package },
-      { key: 'view_shop_notifications', label: 'Notifications', description: 'Voir les alertes boutique.', icon: Bell }
+      { key: 'manage_product_availability', label: 'Disponibilite', description: 'Activer ou desactiver la disponibilite.', icon: CubeIcon },
+      { key: 'view_shop_dashboard', label: 'Tableau de bord', description: 'Consulter les indicateurs boutique.', icon: ChartBarIcon },
+      { key: 'view_shop_orders', label: 'Voir commandes', description: 'Acceder a la liste des commandes.', icon: ShoppingBagIcon },
+      { key: 'view_shop_products', label: 'Voir produits', description: 'Consulter le catalogue boutique.', icon: CubeIcon },
+      { key: 'view_shop_notifications', label: 'Notifications', description: 'Voir les alertes boutique.', icon: BellIcon }
     ]
   }
 ];
@@ -129,10 +99,10 @@ const getProductImage = (product) => {
 };
 
 const STATUS_COPY = {
-  active: { label: 'Actif', className: 'bg-emerald-50 text-emerald-700 ring-emerald-100', Icon: CheckCircle },
-  pending: { label: 'Invitation en attente', className: 'bg-amber-50 text-amber-700 ring-amber-100', Icon: Clock },
-  removed: { label: 'Retire', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: UserX },
-  left: { label: 'Parti', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: LogOut }
+  active: { label: 'Actif', className: 'bg-emerald-50 text-emerald-700 ring-emerald-100', Icon: CheckCircleIcon },
+  pending: { label: 'Invitation en attente', className: 'bg-amber-50 text-amber-700 ring-amber-100', Icon: ClockIcon },
+  removed: { label: 'Retire', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: UserMinusIcon },
+  left: { label: 'Parti', className: 'bg-gray-100 text-gray-600 ring-gray-200', Icon: ArrowLeftOnRectangleIcon }
 };
 
 const ORDER_STATUS_LABELS = {
@@ -182,7 +152,7 @@ function StatusBadge({ status }) {
   const Icon = statusData.Icon;
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${statusData.className}`}>
-      <Icon size={13} />
+      <Icon className="h-[13px] w-[13px]" />
       {statusData.label}
     </span>
   );
@@ -193,7 +163,7 @@ function Metric({ label, value, icon: Icon }) {
     <div className="rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</p>
-        <Icon size={16} className="text-[#e85d00]" />
+        <Icon className="text-[#e85d00] h-4 w-4" />
       </div>
       <p className="mt-2 text-2xl font-black text-gray-900">{value}</p>
     </div>
@@ -206,7 +176,7 @@ function PermissionPill({ permissionKey }) {
   const Icon = permission.icon;
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
-      <Icon size={12} />
+      <Icon className="h-3 w-3" />
       {permission.label}
     </span>
   );
@@ -225,7 +195,7 @@ function PermissionSwitch({ permission, checked, onToggle, disabled }) {
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <Icon size={15} className={checked ? 'text-[#e85d00]' : 'text-gray-400'} />
+          <Icon className={checked ? 'text-[#e85d00]' : 'text-gray-400'} className="h-[15px] w-[15px]" />
           <p className="text-sm font-bold text-gray-900">{permission.label}</p>
         </div>
         <p className="mt-1 text-xs leading-5 text-gray-500">{permission.description}</p>
@@ -242,20 +212,20 @@ function ActivityLog({ logs, loading }) {
           <h2 className="text-base font-black text-gray-900">Journal d'activite</h2>
           <p className="text-sm text-gray-500">Historique des invitations, permissions et actions assistant.</p>
         </div>
-        <Activity size={18} className="text-[#e85d00]" />
+        <ChartBarIcon className="text-[#e85d00] h-[18px] w-[18px]" />
       </div>
 
       <div className="mt-4 space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-8 text-sm text-gray-500">
-            <Loader2 size={18} className="mr-2 animate-spin text-[#e85d00]" />
+            <ArrowPathIcon className="mr-2 animate-spin text-[#e85d00] h-[18px] w-[18px]" />
             Chargement du journal...
           </div>
         ) : logs.length ? (
           logs.map((log) => (
             <div key={log._id} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3">
               <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#e85d00] ring-1 ring-gray-100">
-                <Activity size={15} />
+                <ChartBarIcon className="h-[15px] w-[15px]" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-gray-900">{ACTION_LABELS[log.action] || log.action}</p>
@@ -295,7 +265,7 @@ function WorkspaceOrderRow({ order }) {
       className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 transition hover:border-[#e85d00]/30 hover:bg-gray-100"
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[#e85d00]">
-        <Package size={17} />
+        <CubeIcon className="h-[17px] w-[17px]" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-gray-900">{title}</p>
@@ -305,7 +275,7 @@ function WorkspaceOrderRow({ order }) {
       </div>
       <div className="text-right">
         <p className="text-sm font-black text-gray-900">{formatMoney(order?.totalAmount)}</p>
-        <ChevronRight size={15} className="ml-auto mt-1 text-gray-300" />
+        <ChevronRightIcon className="ml-auto mt-1 text-gray-300 h-[15px] w-[15px]" />
       </div>
     </Link>
   );
@@ -326,7 +296,7 @@ function WorkspaceTaskCard({ title, description, count, icon: Icon, to, tone = '
           <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
         </div>
         <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClass}`}>
-          <Icon size={18} />
+          <Icon className="h-[18px] w-[18px]" />
         </span>
       </div>
       <p className="mt-4 text-2xl font-black text-gray-900">{count}</p>
@@ -407,7 +377,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
           disabled={workspaceLoading}
           className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          <RefreshCw size={15} className={workspaceLoading ? 'animate-spin' : ''} />
+          <ArrowPathIcon className={workspaceLoading ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
           Actualiser
         </button>
       </div>
@@ -420,17 +390,17 @@ function AssistantWorkspace({ assignment, auditLogs }) {
 
       {!canViewOrders && !canManageDelivery ? (
         <div className="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
-          <ShieldCheck size={24} className="mx-auto text-gray-300" />
+          <ShieldCheckIcon className="mx-auto text-gray-300 h-6 w-6" />
           <p className="mt-2 text-sm font-bold text-gray-600">Aucune permission operationnelle active.</p>
           <p className="mt-1 text-xs text-gray-400">Le proprietaire doit ajouter les permissions commandes ou livraisons.</p>
         </div>
       ) : (
         <>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Commandes" value={workspaceLoading ? '...' : totalOrders} icon={ShoppingBag} />
-            <Metric label="Montant" value={workspaceLoading ? '...' : formatMoney(totalAmount)} icon={BarChart3} />
-            <Metric label="A traiter" value={workspaceLoading ? '...' : newCount} icon={Clock} />
-            <Metric label="Livraisons" value={workspaceLoading ? '...' : handoffCount} icon={Truck} />
+            <Metric label="Commandes" value={workspaceLoading ? '...' : totalOrders} icon={ShoppingBagIcon} />
+            <Metric label="Montant" value={workspaceLoading ? '...' : formatMoney(totalAmount)} icon={ChartBarIcon} />
+            <Metric label="A traiter" value={workspaceLoading ? '...' : newCount} icon={ClockIcon} />
+            <Metric label="Livraisons" value={workspaceLoading ? '...' : handoffCount} icon={TruckIcon} />
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -439,7 +409,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
                 title="Nouvelles commandes"
                 description="Verifier, confirmer ou preparer les commandes recentes."
                 count={newCount}
-                icon={ShoppingBag}
+                icon={ShoppingBagIcon}
                 to="/seller/orders?status=new"
               />
             )}
@@ -448,7 +418,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
                 title="File livraison"
                 description="Preuves, demandes plateforme et handoff livraison."
                 count={handoffCount}
-                icon={Truck}
+                icon={TruckIcon}
                 to="/seller/orders?status=handoff"
                 tone="amber"
               />
@@ -458,7 +428,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
                 title="Problemes"
                 description="Commandes annulees, en retard ou a surveiller."
                 count={problemCount}
-                icon={AlertCircle}
+                icon={ExclamationCircleIcon}
                 to="/seller/orders?status=problems"
                 tone="red"
               />
@@ -517,7 +487,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
                       <p className="truncate text-sm font-bold text-gray-800">{ACTION_LABELS[log.action] || log.action}</p>
                       <p className="text-xs text-gray-400">{formatDate(log.createdAt)}</p>
                     </div>
-                    <Activity size={15} className="shrink-0 text-[#e85d00]" />
+                    <ChartBarIcon className="shrink-0 text-[#e85d00] h-[15px] w-[15px]" />
                   </div>
                 ))
               ) : (
@@ -601,14 +571,14 @@ function AssistantProductsView() {
             to="/seller/assistant/workspace"
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
           >
-            <ArrowLeft size={15} />
+            <ArrowLeftIcon className="h-[15px] w-[15px]" />
             Workspace
           </Link>
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
           <label className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -633,7 +603,7 @@ function AssistantProductsView() {
             disabled={loading}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-60"
           >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            <ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
             Actualiser
           </button>
         </div>
@@ -647,7 +617,7 @@ function AssistantProductsView() {
 
       {!loading && !canViewProducts ? (
         <section className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center">
-          <ShieldCheck size={28} className="mx-auto text-gray-300" />
+          <ShieldCheckIcon className="mx-auto text-gray-300 h-7 w-7" />
           <p className="mt-3 font-bold text-gray-700">Permission produits non active.</p>
           <p className="mt-1 text-sm text-gray-500">Le proprietaire doit activer "Voir produits".</p>
         </section>
@@ -672,7 +642,7 @@ function AssistantProductsView() {
                       <img src={image} alt={product?.title || 'Produit'} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-gray-300">
-                        <Package size={24} />
+                        <CubeIcon className="h-6 w-6" />
                       </div>
                     )}
                   </div>
@@ -692,7 +662,7 @@ function AssistantProductsView() {
                     to={`/product/${product?.slug || productId}`}
                     className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
                   >
-                    <Eye size={14} />
+                    <EyeIcon className="h-3.5 w-3.5" />
                     Voir
                   </Link>
                   <button
@@ -701,7 +671,7 @@ function AssistantProductsView() {
                     disabled={Boolean(requestingId)}
                     className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-bold text-[#B45309] disabled:opacity-60"
                   >
-                    {updatePending ? <Loader2 size={14} className="animate-spin" /> : <Edit3 size={14} />}
+                    {updatePending ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <PencilSquareIcon className="h-3.5 w-3.5" />}
                     Demander modification
                   </button>
                   <button
@@ -710,7 +680,7 @@ function AssistantProductsView() {
                     disabled={Boolean(requestingId)}
                     className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-60"
                   >
-                    {deletePending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    {deletePending ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <TrashIcon className="h-3.5 w-3.5" />}
                     Demander suppression
                   </button>
                 </div>
@@ -720,7 +690,7 @@ function AssistantProductsView() {
         </div>
       ) : (
         <section className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center">
-          <Package size={28} className="mx-auto text-gray-300" />
+          <CubeIcon className="mx-auto text-gray-300 h-7 w-7" />
           <p className="mt-3 font-bold text-gray-700">Aucun produit trouve.</p>
           <p className="mt-1 text-sm text-gray-500">Essayez un autre filtre ou une autre recherche.</p>
         </section>
@@ -845,7 +815,7 @@ function OwnerView({ shopId }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-[#e85d00]" size={32} />
+        <ArrowPathIcon className="animate-spin text-[#e85d00] h-8 w-8" />
       </div>
     );
   }
@@ -853,9 +823,9 @@ function OwnerView({ shopId }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label="Assistant" value={assistant ? '1' : '0'} icon={UserCheck} />
-        <Metric label="Statut" value={assistant?.status === 'active' ? 'Actif' : assistant?.status === 'pending' ? 'Attente' : 'Libre'} icon={ShieldCheck} />
-        <Metric label="Permissions" value={permissionCount} icon={SlidersHorizontal} />
+        <Metric label="Assistant" value={assistant ? '1' : '0'} icon={UserIcon} />
+        <Metric label="Statut" value={assistant?.status === 'active' ? 'Actif' : assistant?.status === 'pending' ? 'Attente' : 'Libre'} icon={ShieldCheckIcon} />
+        <Metric label="Permissions" value={permissionCount} icon={AdjustmentsHorizontalIcon} />
       </div>
 
       <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
@@ -890,7 +860,7 @@ function OwnerView({ shopId }) {
               disabled={actionLoading}
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
             >
-              {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+              {actionLoading ? <ArrowPathIcon className="animate-spin h-[15px] w-[15px]" /> : <TrashIcon className="h-[15px] w-[15px]" />}
               Retirer
             </button>
           </div>
@@ -898,7 +868,7 @@ function OwnerView({ shopId }) {
           <div className="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#e85d00] ring-1 ring-gray-100">
-                <UserPlus size={18} />
+                <UserPlusIcon className="h-[18px] w-[18px]" />
               </div>
               <div>
                 <p className="font-bold text-gray-900">Aucun assistant configure</p>
@@ -922,9 +892,9 @@ function OwnerView({ shopId }) {
               <option value="userId">ID utilisateur</option>
             </select>
             <div className="relative">
-              {lookupType === 'email' && <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
-              {lookupType === 'phone' && <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
-              {lookupType === 'userId' && <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
+              {lookupType === 'email' && <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />}
+              {lookupType === 'phone' && <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />}
+              {lookupType === 'userId' && <HashtagIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />}
               <input
                 type="text"
                 value={lookupValue}
@@ -939,7 +909,7 @@ function OwnerView({ shopId }) {
               disabled={actionLoading}
               className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#e85d00] px-4 py-2.5 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
             >
-              {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+              {actionLoading ? <ArrowPathIcon className="animate-spin h-4 w-4" /> : <UserPlusIcon className="h-4 w-4" />}
               Inviter
             </button>
           </div>
@@ -960,7 +930,7 @@ function OwnerView({ shopId }) {
               }}
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
             >
-              <SlidersHorizontal size={15} />
+              <AdjustmentsHorizontalIcon className="h-[15px] w-[15px]" />
               {editPerms ? 'Annuler' : 'Modifier'}
             </button>
           )}
@@ -1017,7 +987,7 @@ function OwnerView({ shopId }) {
                 disabled={actionLoading}
                 className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#e85d00] px-4 py-3 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50 sm:w-auto"
               >
-                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                {actionLoading ? <ArrowPathIcon className="animate-spin h-4 w-4" /> : <ShieldCheckIcon className="h-4 w-4" />}
                 Enregistrer les permissions
               </button>
             )}
@@ -1122,17 +1092,17 @@ function AssistantView() {
     const permissions = assignment?.permissions || [];
     const shop = assignment?.shop || {};
     return [
-      permissions.includes('view_shop_dashboard') && { to: `/shop/${shop.slug || shop._id}`, label: 'Boutique', icon: Store },
-      permissions.includes('view_shop_orders') && { to: '/seller/orders', label: 'Commandes', icon: ShoppingBag },
-      permissions.includes('view_shop_products') && { to: '/seller/products', label: 'Produits', icon: Package },
-      permissions.includes('view_shop_notifications') && { to: '/notifications', label: 'Notifications', icon: Bell }
+      permissions.includes('view_shop_dashboard') && { to: `/shop/${shop.slug || shop._id}`, label: 'Boutique', icon: BuildingStorefrontIcon },
+      permissions.includes('view_shop_orders') && { to: '/seller/orders', label: 'Commandes', icon: ShoppingBagIcon },
+      permissions.includes('view_shop_products') && { to: '/seller/products', label: 'Produits', icon: CubeIcon },
+      permissions.includes('view_shop_notifications') && { to: '/notifications', label: 'Notifications', icon: BellIcon }
     ].filter(Boolean);
   }, [assignment]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-[#e85d00]" size={32} />
+        <ArrowPathIcon className="animate-spin text-[#e85d00] h-8 w-8" />
       </div>
     );
   }
@@ -1143,7 +1113,7 @@ function AssistantView() {
         <section className="rounded-lg border border-amber-100 bg-amber-50 p-5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-amber-700 ring-1 ring-amber-100">
-              <Clock size={18} />
+              <ClockIcon className="h-[18px] w-[18px]" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-black text-gray-900">Invitation en attente</h2>
@@ -1167,7 +1137,7 @@ function AssistantView() {
                       disabled={actionLoading}
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >
-                      <XCircle size={15} />
+                      <XCircleIcon className="h-[15px] w-[15px]" />
                       Refuser
                     </button>
                     <button
@@ -1175,7 +1145,7 @@ function AssistantView() {
                       disabled={actionLoading}
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#e85d00] px-3 py-2 text-sm font-black text-white hover:bg-[#e05e00] disabled:opacity-50"
                     >
-                      {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+                      {actionLoading ? <ArrowPathIcon className="animate-spin h-[15px] w-[15px]" /> : <CheckCircleIcon className="h-[15px] w-[15px]" />}
                       Accepter
                     </button>
                   </div>
@@ -1194,7 +1164,7 @@ function AssistantView() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex min-w-0 gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e85d00] text-white">
-                  <Store size={22} />
+                  <BuildingStorefrontIcon className="h-[22px] w-[22px]" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-500">Vous assistez</p>
@@ -1206,9 +1176,9 @@ function AssistantView() {
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <Metric label="Permissions" value={(assignment.permissions || []).length} icon={ShieldCheck} />
-              <Metric label="Invitations" value={pendingInvites.length} icon={Clock} />
-              <Metric label="Acces" value={quickLinks.length} icon={ChevronRight} />
+              <Metric label="Permissions" value={(assignment.permissions || []).length} icon={ShieldCheckIcon} />
+              <Metric label="Invitations" value={pendingInvites.length} icon={ClockIcon} />
+              <Metric label="Acces" value={quickLinks.length} icon={ChevronRightIcon} />
             </div>
 
             <div className="mt-5">
@@ -1233,10 +1203,10 @@ function AssistantView() {
                       className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3 text-sm font-bold text-gray-800 hover:bg-gray-100 hover:text-[#e85d00]"
                     >
                       <span className="inline-flex items-center gap-2">
-                        <Icon size={16} />
+                        <Icon className="h-4 w-4" />
                         {link.label}
                       </span>
-                      <ChevronRight size={15} />
+                      <ChevronRightIcon className="h-[15px] w-[15px]" />
                     </Link>
                   );
                 })}
@@ -1249,7 +1219,7 @@ function AssistantView() {
                 disabled={actionLoading}
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
               >
-                {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
+                {actionLoading ? <ArrowPathIcon className="animate-spin h-[15px] w-[15px]" /> : <ArrowLeftOnRectangleIcon className="h-[15px] w-[15px]" />}
                 Quitter ce role
               </button>
             </div>
@@ -1259,7 +1229,7 @@ function AssistantView() {
         </>
       ) : (
         <section className="rounded-lg border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm">
-          <Store size={40} className="mx-auto text-gray-300" />
+          <BuildingStorefrontIcon className="mx-auto text-gray-300 h-10 w-10" />
           <p className="mt-3 text-base font-black text-gray-600">Vous n'etes assistant d'aucune boutique.</p>
           <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-gray-400">
             Lorsqu'un vendeur vous invite, l'invitation apparait ici avec les permissions demandees.
@@ -1283,7 +1253,7 @@ export default function ShopAssistant() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/seller/products" className="rounded-lg p-2 hover:bg-gray-100" aria-label="Retour">
-              <ArrowLeft size={20} className="text-gray-600" />
+              <ArrowLeftIcon className="text-gray-600 h-5 w-5" />
             </Link>
             <div className="min-w-0">
               <h1 className="truncate text-lg font-black text-gray-900">Assistant boutique</h1>
@@ -1293,7 +1263,7 @@ export default function ShopAssistant() {
             </div>
           </div>
           <div className="hidden items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 sm:inline-flex">
-            <ShieldCheck size={14} className="text-[#e85d00]" />
+            <ShieldCheckIcon className="text-[#e85d00] h-3.5 w-3.5" />
             Acces controle
           </div>
         </div>
@@ -1302,7 +1272,7 @@ export default function ShopAssistant() {
       <div className="mx-auto max-w-5xl px-4 py-6">
         {!user ? (
           <section className="rounded-lg border border-gray-100 bg-white p-10 text-center shadow-sm">
-            <AlertCircle size={32} className="mx-auto text-gray-300" />
+            <ExclamationCircleIcon className="mx-auto text-gray-300 h-8 w-8" />
             <p className="mt-2 font-bold text-gray-600">Connectez-vous pour acceder a cette page.</p>
           </section>
         ) : isShop ? (

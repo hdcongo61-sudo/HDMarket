@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Clock3, LockKeyhole, ShieldAlert, WalletCards } from 'lucide-react';
+import { CheckCircleIcon, ClockIcon, LockClosedIcon, ShieldExclamationIcon, WalletIcon } from '@heroicons/react/24/outline';
 import { formatPriceWithStoredSettings } from '../../utils/priceFormatter';
 
 const META = {
-  WAITING_PAYMENT: { label: 'Paiement en attente', tone: 'amber', icon: Clock3 },
-  IN_ESCROW: { label: 'Fonds protégés', tone: 'blue', icon: LockKeyhole },
-  DELIVERED: { label: 'Livraison enregistrée', tone: 'blue', icon: WalletCards },
-  WAITING_BUYER_CONFIRMATION: { label: 'Confirmation acheteur attendue', tone: 'orange', icon: Clock3 },
-  ON_HOLD: { label: 'Fonds bloqués — litige', tone: 'red', icon: ShieldAlert },
-  RELEASED: { label: 'Fonds libérés au vendeur', tone: 'green', icon: CheckCircle2 },
-  REFUNDED: { label: 'Fonds remboursés', tone: 'slate', icon: CheckCircle2 }
+  WAITING_PAYMENT: { label: 'Paiement en attente', tone: 'amber', icon: ClockIcon },
+  IN_ESCROW: { label: 'Fonds protégés', tone: 'blue', icon: LockClosedIcon },
+  DELIVERED: { label: 'Livraison enregistrée', tone: 'blue', icon: WalletIcon },
+  WAITING_BUYER_CONFIRMATION: { label: 'Confirmation acheteur attendue', tone: 'orange', icon: ClockIcon },
+  ON_HOLD: { label: 'Fonds bloqués — litige', tone: 'red', icon: ShieldExclamationIcon },
+  RELEASED: { label: 'Fonds libérés au vendeur', tone: 'green', icon: CheckCircleIcon },
+  REFUNDED: { label: 'Fonds remboursés', tone: 'slate', icon: CheckCircleIcon }
 };
 
 const TONES = {

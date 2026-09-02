@@ -1,39 +1,7 @@
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
-import {
-  Heart,
-  Star,
-  ShoppingCart,
-  MessageCircle,
-  Shield,
-  Truck,
-  ArrowLeft,
-  Share2,
-  Eye,
-  Clock,
-  Check,
-  AlertCircle,
-  MapPin,
-  Store,
-  ChevronLeft,
-  ChevronRight,
-  ZoomIn,
-  Phone,
-  Reply,
-  CornerDownLeft,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Flag,
-  Trash2,
-  Search,
-  Video,
-  Zap,
-  SlidersHorizontal,
-  ExternalLink,
-  FileText
-} from "lucide-react";
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowTopRightOnSquareIcon, ArrowTurnDownLeftIcon, ArrowUturnLeftIcon, BoltIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ClockIcon, DocumentTextIcon, ExclamationCircleIcon, EyeIcon, FlagIcon, HeartIcon, MagnifyingGlassIcon, MagnifyingGlassPlusIcon, MapPinIcon, PhoneIcon, ShareIcon, ShieldCheckIcon, ShoppingCartIcon, StarIcon, TrashIcon, TruckIcon, VideoCameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
 import FavoriteContext from "../context/FavoriteContext";
@@ -2317,7 +2285,7 @@ export default function ProductDetails() {
           <div className="animate-pulse">
             <div className="flex items-center space-x-2 mb-6">
               <div className="h-4 bg-gray-300 rounded w-24"></div>
-              <ChevronRight size={16} className="text-gray-400" />
+              <ChevronRightIcon className="text-gray-400 h-4 w-4" />
               <div className="h-4 bg-gray-300 rounded w-32"></div>
             </div>
             <div className="grid lg:grid-cols-2 gap-8">
@@ -2350,7 +2318,7 @@ export default function ProductDetails() {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
-          <AlertCircle className="w-16 h-16 text-neutral-700 mx-auto mb-4" />
+          <ExclamationCircleIcon className="w-16 h-16 text-neutral-700 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Produit non trouvé</h2>
           <p className="text-gray-600 mb-6">
             {error || "Le produit que vous recherchez n'existe pas ou a été supprimé."}
@@ -2359,7 +2327,7 @@ export default function ProductDetails() {
             to="/"
             className="inline-flex items-center px-6 py-3 bg-neutral-900 text-white font-semibold rounded-2xl hover:bg-neutral-800 transition-all"
           >
-            <ArrowLeft size={20} className="mr-2" />
+            <ArrowLeftIcon className="mr-2 h-5 w-5" />
             Retour à l'accueil
           </Link>
         </div>
@@ -2379,7 +2347,7 @@ export default function ProductDetails() {
             Vidéo {providerLabel}
           </h2>
           <span className={`inline-flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white ${brandClass}`}>
-            <Video size={11} /> {providerLabel}
+            <VideoCameraIcon className="h-[11px] w-[11px]" /> {providerLabel}
           </span>
         </div>
         {socialVideo.embeddable ? (
@@ -2401,7 +2369,7 @@ export default function ProductDetails() {
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 bg-gray-50 px-4 py-8 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#FF5000] shadow-sm">
-              <Video size={22} />
+              <VideoCameraIcon className="h-[22px] w-[22px]" />
             </span>
             <p className="text-sm font-semibold text-gray-700">Aperçu indisponible ici</p>
             <p className="text-xs text-gray-500">Ouvrez la vidéo {providerLabel} via le lien ci-dessous.</p>
@@ -2416,7 +2384,7 @@ export default function ProductDetails() {
           className="flex items-center gap-3 border-t border-gray-100 bg-gray-50 px-4 py-3 transition hover:bg-gray-100"
         >
           <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white ${brandClass}`}>
-            <ExternalLink size={16} />
+            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-xs font-black text-gray-900">Ouvrir sur {providerLabel}</span>
@@ -2447,23 +2415,23 @@ export default function ProductDetails() {
           <button type="button" onClick={handleBackNavigation}
             className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-800 active:scale-95 dark:bg-neutral-800 dark:text-neutral-100"
             aria-label="Retour">
-            <ArrowLeft size={18} />
+            <ArrowLeftIcon className="h-[18px] w-[18px]" />
           </button>
           <button type="button" onClick={() => navigate(`/products?search=${encodeURIComponent(product.title || '')}`)}
             className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-left text-sm text-gray-400 mx-2">
-            <Search size={15} className="flex-shrink-0" />
+            <MagnifyingGlassIcon className="flex-shrink-0 h-[15px] w-[15px]" />
             <span className="truncate text-[13px]">{product.title}</span>
           </button>
           <div className="flex items-center gap-1.5">
             <button type="button" onClick={handleNativeShare}
               className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:scale-95"
               aria-label="Partager">
-              <Share2 size={16} />
+              <ShareIcon className="h-4 w-4" />
             </button>
             <Link to="/cart"
               className="relative inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:scale-95"
               aria-label="Panier">
-              <ShoppingCart size={16} />
+              <ShoppingCartIcon className="h-4 w-4" />
               {cartCount > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full bg-[#FF5000] px-1 text-center text-[9px] font-black text-white leading-4">
                   {cartCount > 99 ? '99+' : cartCount}
@@ -2529,7 +2497,7 @@ export default function ProductDetails() {
             <button type="button" onClick={handleZoomButtonClick}
               className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white active:scale-95"
               aria-label="Agrandir">
-              <ZoomIn size={18} />
+              <MagnifyingGlassPlusIcon className="h-[18px] w-[18px]" />
             </button>
           </div>
           {galleryImages.length > 1 && (
@@ -2542,12 +2510,12 @@ export default function ProductDetails() {
               <button type="button" onClick={(e) => { e.stopPropagation(); goToPrevImage(); }}
                 aria-label="Image précédente"
                 className="absolute left-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white active:scale-95">
-                <ChevronLeft size={20} />
+                <ChevronLeftIcon className="h-5 w-5" />
               </button>
               <button type="button" onClick={(e) => { e.stopPropagation(); goToNextImage(); }}
                 aria-label="Image suivante"
                 className="absolute right-2 top-1/2 z-20 -translate-y-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white active:scale-95">
-                <ChevronRight size={20} />
+                <ChevronRightIcon className="h-5 w-5" />
               </button>
             </>
           )}
@@ -2597,12 +2565,12 @@ export default function ProductDetails() {
         </div>
         <h1 className="home-anim-fade-up mt-2 text-[17px] font-black leading-snug text-[#231f1b]" style={{ '--home-anim-delay': '80ms' }}>{product.title}</h1>
         <div className="home-anim-fade-up mt-2 flex items-center gap-2.5 text-[11px] text-[#8a8378]" style={{ '--home-anim-delay': '140ms' }}>
-          <span className="flex items-center gap-1"><Star size={12} className="fill-[#FF5000] text-[#FF5000]" /><strong className="text-[#44403a]">{ratingAverage}</strong> ({ratingCount})</span>
+          <span className="flex items-center gap-1"><StarIcon className="fill-[#FF5000] text-[#FF5000] h-3 w-3" /><strong className="text-[#44403a]">{ratingAverage}</strong> ({ratingCount})</span>
           <span>·</span><span>{formattedTotalOrdersQty} ventes</span>
         </div>
         {installmentOffer.available && (
           <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#f7f4ef] px-3 py-2">
-            <Clock size={14} className="text-[#FF5000]" />
+            <ClockIcon className="text-[#FF5000] h-3.5 w-3.5" />
             <span className="text-[11px] font-semibold text-[#FF5000]">
               Payable en tranches dès {formatPriceWithStoredSettings(installmentOffer.minAmount || 0)} sur {installmentOffer.duration || 0} jours
             </span>
@@ -2610,9 +2578,9 @@ export default function ProductDetails() {
         )}
         {quotationAvailable ? (
           <button type="button" onClick={openGroupQuotationModal} className="mt-3 flex min-h-[76px] w-full items-center gap-3 rounded-2xl border border-[#e7ddd0] bg-white px-4 text-left shadow-sm active:scale-[0.99]">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><Store className="h-6 w-6" /></span>
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><BuildingStorefrontIcon className="h-6 w-6" /></span>
             <span className="min-w-0 flex-1"><strong className="block text-[16px] font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span></span>
-            <ChevronRight className="h-6 w-6 shrink-0 text-[#a8a29e]" />
+            <ChevronRightIcon className="h-6 w-6 shrink-0 text-[#a8a29e]" />
           </button>
         ) : null}
         {wholesaleEnabled && <div className="mt-2">{renderWholesaleSection({ compact: true })}</div>}
@@ -2622,10 +2590,10 @@ export default function ProductDetails() {
       <section className="bg-white px-4 pt-3 pb-4">
         <div className="flex flex-col gap-2.5 text-[12px] font-semibold text-[#6b6459]">
           <span className="inline-flex items-center gap-2">
-            <Truck size={12} /> {freeDeliveryAvailable ? 'Livraison gratuite' : pickupOnly ? 'Retrait boutique' : deliveryAvailable ? 'Livraison disponible' : 'Retrait uniquement'}
+            <TruckIcon className="h-3 w-3" /> {freeDeliveryAvailable ? 'Livraison gratuite' : pickupOnly ? 'Retrait boutique' : deliveryAvailable ? 'Livraison disponible' : 'Retrait uniquement'}
           </span>
           <span className="inline-flex items-center gap-2">
-            <Shield size={12} /> Paiement sécurisé{product.warrantyEnabled ? ` · Garantie ${Number(product.warrantyPeriodValue || 0)}${warrantyPeriodUnitLabel}` : ''}{product.certified ? ' · Certifié HDMarket' : ''}
+            <ShieldCheckIcon className="h-3 w-3" /> Paiement sécurisé{product.warrantyEnabled ? ` · Garantie ${Number(product.warrantyPeriodValue || 0)}${warrantyPeriodUnitLabel}` : ''}{product.certified ? ' · Certifié HDMarket' : ''}
           </span>
           <span className="inline-flex items-center gap-2 font-bold text-[#047857]">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{stockStatus.label}
@@ -2647,7 +2615,7 @@ export default function ProductDetails() {
                   isExpired ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'
                 }`}
               >
-                <Clock size={16} className="mt-0.5 shrink-0" />
+                <ClockIcon className="mt-0.5 shrink-0 h-4 w-4" />
                 <div className="min-w-0 text-[12px] font-semibold leading-5">
                   {isExpired ? (
                     <p className="font-black">Produit périmé depuis le {endDate.toLocaleDateString('fr-FR', dateOptions)}</p>
@@ -2697,7 +2665,7 @@ export default function ProductDetails() {
                 >
                   {selectedAttributeValidation.valid ? (
                     <>
-                      <Check size={11} /> Prêt
+                      <CheckIcon className="h-[11px] w-[11px]" /> Prêt
                     </>
                   ) : (
                     'À choisir'
@@ -2833,7 +2801,7 @@ export default function ProductDetails() {
                   className="h-12 w-12 flex-shrink-0 rounded-lg border border-gray-200 object-cover" />
               ) : (
                 <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[#0a0a0a]">
-                  <Store className="h-5 w-5 text-white" />
+                  <BuildingStorefrontIcon className="h-5 w-5 text-white" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -2858,11 +2826,11 @@ export default function ProductDetails() {
             {(sellerResponseTimeLabel || showPhone) && (
               <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-gray-500">
                 {sellerResponseTimeLabel && (
-                  <span className="flex items-center gap-1"><Clock size={11} /> Répond en {sellerResponseTimeLabel}</span>
+                  <span className="flex items-center gap-1"><ClockIcon className="h-[11px] w-[11px]" /> Répond en {sellerResponseTimeLabel}</span>
                 )}
                 {showPhone && (
                   <a href={`tel:${(phoneNumber || '').replace(/\s+/g, '')}`} className="flex items-center gap-1 text-[#FF5000] font-semibold">
-                    <Phone size={11} /> {phoneNumber}
+                    <PhoneIcon className="h-[11px] w-[11px]" /> {phoneNumber}
                   </a>
                 )}
               </div>
@@ -2870,7 +2838,7 @@ export default function ProductDetails() {
             {canOpenShopProfile && (
               <Link to={buildShopPath(shopIdentifier)}
                 className="mt-3 flex min-h-11 items-center justify-center gap-2 w-full rounded-full bg-[#f7f4ef] text-gray-900 text-xs font-bold active:scale-[0.98] transition-transform">
-                <Store size={13} /> Voir la boutique
+                <BuildingStorefrontIcon className="h-[13px] w-[13px]" /> Voir la boutique
               </Link>
             )}
           </section>
@@ -2910,15 +2878,15 @@ export default function ProductDetails() {
             <div className="rounded border border-gray-100 bg-gray-50 p-3 space-y-2">
               <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Livraison & Retours</h4>
               <div className="flex items-start gap-2 text-xs text-gray-600">
-                <Truck size={13} className="mt-0.5 flex-shrink-0 text-[#FF5000]" />
+                <TruckIcon className="mt-0.5 flex-shrink-0 text-[#FF5000] h-[13px] w-[13px]" />
                 <span>{deliveryPrimaryLabel} · {deliverySecondaryLabel}</span>
               </div>
               <div className="flex items-start gap-2 text-xs text-gray-600">
-                <Clock size={13} className="mt-0.5 flex-shrink-0 text-gray-400" />
+                <ClockIcon className="mt-0.5 flex-shrink-0 text-gray-400 h-[13px] w-[13px]" />
                 <span>Délai estimé: {deliveryEtaLabel}</span>
               </div>
               <div className="flex items-start gap-2 text-xs text-gray-600">
-                <Shield size={13} className="mt-0.5 flex-shrink-0 text-gray-400" />
+                <ShieldCheckIcon className="mt-0.5 flex-shrink-0 text-gray-400 h-[13px] w-[13px]" />
                 <span>Retour: {returnPolicyLabel} · Garantie: {warrantyLabel}</span>
               </div>
             </div>
@@ -2977,7 +2945,7 @@ export default function ProductDetails() {
                 <p className="text-4xl font-black text-[#FF5000]">{ratingAverage}</p>
                 <div className="flex items-center gap-0.5 mt-1">
                   {[1,2,3,4,5].map((s) => (
-                    <Star key={s} size={13} className={s <= Math.floor(Number(ratingAverage)) ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-200'} />
+                    <StarIcon key={s}  className={s <= Math.floor(Number(ratingAverage)) ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-200'} className="h-[13px] w-[13px]" />
                   ))}
                 </div>
                 <p className="text-[11px] text-gray-400 mt-0.5">{ratingCount} avis</p>
@@ -2988,7 +2956,7 @@ export default function ProductDetails() {
                   return (
                     <div key={s} className="flex items-center gap-2 text-[11px] text-gray-500">
                       <span className="w-3 text-right">{s}</span>
-                      <Star size={10} className="fill-[#FF5000] text-[#FF5000]" />
+                      <StarIcon className="fill-[#FF5000] text-[#FF5000] h-2.5 w-2.5" />
                       <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                         <div className="h-full rounded-full bg-[#FF5000]" style={{ width: `${pct}%` }} />
                       </div>
@@ -3005,7 +2973,7 @@ export default function ProductDetails() {
                   <span className="text-xs text-gray-500">Votre note:</span>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button key={star} type="button" onClick={() => handleSubmitRating(star)} disabled={submittingRating} className="focus:outline-none">
-                      <Star size={20} className={star <= userRating ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-300'} />
+                      <StarIcon className={star <= userRating ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-300'} className="h-5 w-5" />
                     </button>
                   ))}
                   {submittingRating && <span className="text-xs text-gray-400 ml-1">...</span>}
@@ -3101,7 +3069,7 @@ export default function ProductDetails() {
               className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#FF5000]"
             >
               Voir tout
-              <ChevronRight size={13} />
+              <ChevronRightIcon className="h-[13px] w-[13px]" />
             </Link>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -3198,13 +3166,13 @@ export default function ProductDetails() {
               className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 active:bg-gray-100"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500">
-                <FileText size={20} />
+                <DocumentTextIcon className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-gray-900">Fiche produit (PDF)</span>
                 <span className="block text-xs text-gray-500">Ouvrir le document</span>
               </span>
-              <ChevronRight size={18} className="shrink-0 text-gray-300" />
+              <ChevronRightIcon className="shrink-0 text-gray-300 h-[18px] w-[18px]" />
             </a>
           </section>
         </>
@@ -3220,7 +3188,7 @@ export default function ProductDetails() {
                 <button type="button" disabled={inquiryLoading}
                   onClick={startSellerInquiry}
                   className="flex items-center justify-center gap-2 w-full rounded border border-gray-200 bg-gray-50 py-3 text-sm font-medium text-gray-700 active:scale-[0.98] transition-all disabled:opacity-60">
-                  <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#FF5000]" />
+                  <ChatBubbleLeftIcon className="w-4 h-4 flex-shrink-0 text-[#FF5000]" />
                   <span>{inquiryLoading ? 'Ouverture...' : 'Des questions ? Contacter le vendeur'}</span>
               </button>
               {inquiryError && <p className="text-xs text-red-600 mt-1.5">{inquiryError}</p>}
@@ -3228,7 +3196,7 @@ export default function ProductDetails() {
           ) : (
             <Link to="/login" state={{ from: { pathname: `/product/${product?.slug || product?._id}` } }}
               className="flex items-center justify-center gap-2 w-full rounded border border-gray-200 bg-gray-50 py-3 text-sm font-medium text-gray-700 active:scale-[0.98] transition-all">
-              <MessageCircle className="w-4 h-4 flex-shrink-0 text-[#FF5000]" />
+              <ChatBubbleLeftIcon className="w-4 h-4 flex-shrink-0 text-[#FF5000]" />
               <span>Connectez-vous pour contacter le vendeur</span>
             </Link>
           )}
@@ -3282,7 +3250,7 @@ export default function ProductDetails() {
           {quotationAvailable ? (
             <div className="border-b border-gray-100 px-2 py-1.5">
               <button type="button" onClick={openQuotationModal} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#e85d00] bg-white text-sm font-black text-[#b3480a] active:scale-[0.98]">
-                <FileText className="h-4 w-4" /> Demander un devis
+                <DocumentTextIcon className="h-4 w-4" /> Demander un devis
               </button>
             </div>
           ) : null}
@@ -3291,22 +3259,21 @@ export default function ProductDetails() {
             {whatsappLink ? (
               <a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={handleWhatsappClick}
                 className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 text-gray-600 active:bg-gray-50">
-                <MessageCircle size={19} />
+                <ChatBubbleLeftIcon className="h-[19px] w-[19px]" />
                 <span className="text-[10px] font-semibold">Chat</span>
               </a>
             ) : (
               <button type="button" onClick={() => setIsReviewsModalOpen(true)}
                 className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 text-gray-600 active:bg-gray-50">
-                <Star size={19} />
+                <StarIcon className="h-[19px] w-[19px]" />
                 <span className="text-[10px] font-semibold">Avis</span>
               </button>
             )}
             {/* Favorite icon */}
             <button type="button" onClick={handleFavoriteToggle}
               className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 active:bg-gray-50">
-              <Heart size={19}
-                className={isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}
-                fill={isInFavorites ? 'currentColor' : 'none'} />
+              <HeartIcon className={isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}
+                fill={isInFavorites ? 'currentColor' : 'none'} className="h-[19px] w-[19px]" />
               <span className={`text-[10px] font-semibold ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}>
                 {favoriteCount > 0 ? favoriteCount : 'Favori'}
               </span>
@@ -3318,7 +3285,7 @@ export default function ProductDetails() {
                 className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isPurchaseOutOfStock
                   ? 'bg-gray-100 text-gray-400'
                   : 'border border-[#FF5000] bg-[#FFEDE3] text-[#FF5000]'}`}>
-                <ShoppingCart size={16} className="flex-shrink-0" />
+                <ShoppingCartIcon className="flex-shrink-0 h-4 w-4" />
                 <span className="truncate">{addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir les options' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
               </button>
               <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
@@ -3328,7 +3295,7 @@ export default function ProductDetails() {
                   : isOptionSelectionBlocked
                     ? 'bg-black text-white'
                     : 'bg-[#FF5000] text-white shadow-sm'}`}>
-                <Zap size={16} className="flex-shrink-0" fill="currentColor" />
+                <BoltIcon className="flex-shrink-0 h-4 w-4" fill="currentColor" />
                 <span className="truncate">{addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Commander' : 'Acheter'}</span>
               </button>
             </div>
@@ -3355,7 +3322,7 @@ export default function ProductDetails() {
               </p>
               <button type="button" onClick={() => setIsVariantSheetOpen(false)}
                 className="flex-shrink-0 rounded-full p-1 text-gray-500 active:scale-95" aria-label="Fermer">
-                <X size={20} />
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             {/* Aperçu : photo courante + prix + quantité */}
@@ -3511,7 +3478,7 @@ export default function ProductDetails() {
               onClick={handleBackNavigation}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-all duration-200 active:scale-95"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeftIcon className="h-[18px] w-[18px]" />
               <span>Retour</span>
             </button>
             <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
@@ -3521,7 +3488,7 @@ export default function ProductDetails() {
                   onClick={() => setShareMenuOpen((prev) => !prev)}
                   className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  <Share2 size={20} className="text-gray-400" />
+                  <ShareIcon className="text-gray-400 h-5 w-5" />
                 </button>
                 {shareMenuOpen && (
                   <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-md z-20">
@@ -3600,14 +3567,14 @@ export default function ProductDetails() {
         {/* 🍞 BREADCRUMB ENHANCED */}
         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600 mb-6 sm:mb-8">
           <Link to="/" className="hover:text-neutral-800 transition-colors font-medium">Accueil</Link>
-          <ChevronRight size={14} className="text-gray-400" />
+          <ChevronRightIcon className="text-gray-400 h-3.5 w-3.5" />
           <Link
             to={`/products?category=${product.category}`}
             className="hover:text-neutral-800 transition-colors capitalize font-medium"
           >
             {product.category}
           </Link>
-          <ChevronRight size={14} className="text-gray-400" />
+          <ChevronRightIcon className="text-gray-400 h-3.5 w-3.5" />
           <span className="text-gray-900 font-bold truncate">{product.title}</span>
         </div>
 
@@ -3692,12 +3659,10 @@ export default function ProductDetails() {
                       }}
                       className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-white/20 shadow-sm transition-all duration-200 active:scale-90 hover:bg-white/30"
                     >
-                      <Heart
-                        size={20}
-                        className="text-white drop-shadow-md"
+                      <HeartIcon
+className="text-white drop-shadow-md h-5 w-5"
                         strokeWidth={2}
-                        fill={isInFavorites ? 'white' : 'none'}
-                      />
+                        fill={isInFavorites ? 'white' : 'none'} />
                     </button>
 
                     <div className="absolute left-4 top-4 z-20 flex flex-wrap gap-2">
@@ -3716,7 +3681,7 @@ export default function ProductDetails() {
                       </span>
                       {product.certified && (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 border border-white/40 px-3 py-2 text-xs font-black text-neutral-900 shadow-sm">
-                          <Shield className="h-4 w-4" />
+                          <ShieldCheckIcon className="h-4 w-4" />
                           Certifié HDMarket
                         </span>
                       )}
@@ -3733,7 +3698,7 @@ export default function ProductDetails() {
                           className="absolute left-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-sm transition active:scale-95 hover:bg-white/30"
                           aria-label="Image précédente"
                         >
-                          <ChevronLeft size={20} className="drop-shadow-md" />
+                          <ChevronLeftIcon className="drop-shadow-md h-5 w-5" />
                         </button>
                         <button
                           type="button"
@@ -3744,7 +3709,7 @@ export default function ProductDetails() {
                           className="absolute right-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-sm transition active:scale-95 hover:bg-white/30"
                           aria-label="Image suivante"
                         >
-                          <ChevronRight size={20} className="drop-shadow-md" />
+                          <ChevronRightIcon className="drop-shadow-md h-5 w-5" />
                         </button>
                       </div>
                     )}
@@ -3760,7 +3725,7 @@ export default function ProductDetails() {
                       onClick={handleZoomButtonClick}
                       className="absolute bottom-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white opacity-0 group-hover:opacity-100 shadow-sm transition-all duration-300 active:scale-90 hover:bg-white/30"
                     >
-                      <ZoomIn size={20} className="drop-shadow-md" />
+                      <MagnifyingGlassPlusIcon className="drop-shadow-md h-5 w-5" />
                     </button>
                   </div>
                 </div>
@@ -3771,7 +3736,7 @@ export default function ProductDetails() {
                 <div className="flex items-center justify-between gap-4 bg-[#fff2e6] px-5 py-4 dark:bg-neutral-900">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF5000] text-white shadow-sm">
-                      <Video className="h-6 w-6" />
+                      <VideoCameraIcon className="h-6 w-6" />
                     </span>
                     <div>
                       <p className="text-base font-black text-slate-950">Vidéo de présentation</p>
@@ -3809,7 +3774,7 @@ export default function ProductDetails() {
                     {product.category}
                   </span>
                   <div className="flex items-center space-x-1.5 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-full">
-                    <Clock size={14} />
+                    <ClockIcon className="h-3.5 w-3.5" />
                     <span className="font-medium">{daysSince === 0 ? "Aujourd'hui" : daysSince === 1 ? "Hier" : `Il y a ${daysSince} jours`}</span>
                   </div>
                   {pickupOnly && (
@@ -3849,7 +3814,7 @@ export default function ProductDetails() {
               </div>
               <div className="flex flex-wrap items-center gap-3 border-y border-gray-100 py-3 text-xs text-gray-600">
                 <span className="inline-flex items-center gap-1.5 font-bold text-gray-900">
-                  <Star className="h-4 w-4 text-amber-500" fill="currentColor" />
+                  <StarIcon className="h-4 w-4 text-amber-500" fill="currentColor" />
                   {ratingAverage} ({ratingCount})
                 </span>
                 <span>{commentCount} commentaires</span>
@@ -3880,9 +3845,9 @@ export default function ProductDetails() {
               )}
               {quotationAvailable ? (
                 <button type="button" onClick={openGroupQuotationModal} className="flex min-h-[92px] w-full items-center gap-4 rounded-3xl border border-[#e7ddd0] bg-white px-5 text-left shadow-sm transition hover:border-emerald-200 hover:shadow-md active:scale-[0.99]">
-                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><Store className="h-7 w-7" /></span>
+                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><BuildingStorefrontIcon className="h-7 w-7" /></span>
                   <span className="min-w-0 flex-1"><strong className="block text-xl font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-1 block text-base font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span></span>
-                  <ChevronRight className="h-7 w-7 shrink-0 text-[#a8a29e]" />
+                  <ChevronRightIcon className="h-7 w-7 shrink-0 text-[#a8a29e]" />
                 </button>
               ) : null}
               {wholesaleEnabled && renderWholesaleSection()}
@@ -3902,7 +3867,7 @@ export default function ProductDetails() {
                   <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
                     {product.certified && (
                       <span className="inline-flex items-center gap-2 rounded-full bg-neutral-50 px-3 py-1 text-xs font-semibold text-neutral-700">
-                        <Shield className="w-4 h-4 text-neutral-500" />
+                        <ShieldCheckIcon className="w-4 h-4 text-neutral-500" />
                         Produit certifié HDMarket
                       </span>
                     )}
@@ -3944,7 +3909,7 @@ export default function ProductDetails() {
                         {isProfessional ? 'Boutique' : 'Vendeur'}
                       </p>
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                        <Store size={13} />
+                        <BuildingStorefrontIcon className="h-[13px] w-[13px]" />
                         {isProfessional ? 'Vendeur professionnel' : 'Vendeur particulier'}
                       </span>
                     </div>
@@ -3959,7 +3924,7 @@ export default function ProductDetails() {
                             />
                           ) : (
                             <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[22px] bg-neutral-950 shadow-md">
-                              <Store className="h-11 w-11 text-white" />
+                              <BuildingStorefrontIcon className="h-11 w-11 text-white" />
                             </div>
                           )}
 
@@ -3984,12 +3949,12 @@ export default function ProductDetails() {
 
                             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
                               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1">
-                                <Shield size={12} />
+                                <ShieldCheckIcon className="h-3 w-3" />
                                 Profil vendeur
                               </span>
                               {isProfessional && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                                  <Check size={12} />
+                                  <CheckIcon className="h-3 w-3" />
                                   Boutique vérifiée
                                 </span>
                               )}
@@ -3997,7 +3962,7 @@ export default function ProductDetails() {
 
                             {(sellerCity || shopAddress) && (
                               <p className="flex items-center gap-2 text-sm text-slate-600">
-                                <MapPin size={16} className="flex-shrink-0 text-slate-500" />
+                                <MapPinIcon className="flex-shrink-0 text-slate-500 h-4 w-4" />
                                 <span className="line-clamp-1">
                                   {sellerCity ? `${sellerCity}, ${sellerCountry}` : ''}
                                   {shopAddress ? `${sellerCity ? ' • ' : ''}${shopAddress}` : ''}
@@ -4014,7 +3979,7 @@ export default function ProductDetails() {
                             to={buildShopPath(shopIdentifier)}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-4 py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-black active:scale-95"
                           >
-                            <Store size={18} />
+                            <BuildingStorefrontIcon className="h-[18px] w-[18px]" />
                             Voir la boutique
                           </Link>
                           {!isOwnProduct && (
@@ -4058,7 +4023,7 @@ export default function ProductDetails() {
                         href={`tel:${(phoneNumber || '').replace(/\s+/g, '')}`}
                         className="inline-flex w-full items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm transition-colors hover:bg-slate-50"
                       >
-                        <Phone size={18} className="text-slate-600" />
+                        <PhoneIcon className="text-slate-600 h-[18px] w-[18px]" />
                         <span className="font-black text-slate-900">{phoneNumber}</span>
                         <span className="ml-auto text-xs font-semibold text-slate-500">Contact direct</span>
                       </a>
@@ -4082,7 +4047,7 @@ export default function ProductDetails() {
                         }`}
                     >
                       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#FF5000]">
-                        <ShoppingCart size={16} />
+                        <ShoppingCartIcon className="h-4 w-4" />
                       </span>
                       <span className="truncate leading-tight">
                         {isOptionSelectionBlocked ? 'Choisir les options' : primaryCartButtonLabel}
@@ -4101,7 +4066,7 @@ export default function ProductDetails() {
                     >
                       <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${isPurchaseOutOfStock ? 'bg-slate-300' : 'bg-white/15 text-white'
                         }`}>
-                        <Zap size={16} fill="currentColor" />
+                        <BoltIcon fill="currentColor" className="h-4 w-4" />
                       </span>
                       <span className="truncate leading-tight">
                         {isOptionSelectionBlocked ? 'Choisir les options' : buyNowButtonLabel}
@@ -4115,7 +4080,7 @@ export default function ProductDetails() {
                         className="group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl border border-[#e85d00] bg-white px-5 py-3.5 text-sm font-bold text-[#b3480a] transition-all duration-200 active:scale-[0.98] hover:bg-[#fff5ec]"
                       >
                         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#fff0e4] text-[#e85d00]">
-                          <FileText size={15} />
+                          <DocumentTextIcon className="h-[15px] w-[15px]" />
                         </span>
                         <span className="truncate leading-tight">Demander un devis</span>
                       </button>
@@ -4130,7 +4095,7 @@ export default function ProductDetails() {
                         className="group inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-2xl border border-emerald-300/80 bg-emerald-50 px-5 py-3.5 text-sm font-bold text-emerald-700 shadow-sm transition-all duration-200 active:scale-[0.98] hover:bg-emerald-100"
                       >
                         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white">
-                          <MessageCircle size={15} />
+                          <ChatBubbleLeftIcon className="h-[15px] w-[15px]" />
                         </span>
                         <span className="truncate leading-tight">WhatsApp</span>
                       </a>
@@ -4156,7 +4121,7 @@ export default function ProductDetails() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="flex items-center space-x-2 bg-neutral-50 px-4 py-3 rounded-xl border border-neutral-100">
-                  <Shield className="w-5 h-5 text-neutral-600" />
+                  <ShieldCheckIcon className="w-5 h-5 text-neutral-600" />
                   <span className="text-sm font-semibold text-gray-700">Paiement sécurisé</span>
                 </div>
                 <div className={`flex items-center space-x-2 px-4 py-3 rounded-xl border ${pickupOnly
@@ -4165,7 +4130,7 @@ export default function ProductDetails() {
                     ? 'bg-neutral-50 border-neutral-100'
                     : 'bg-neutral-50 border-neutral-200'
                   }`}>
-                  <Truck className={`w-5 h-5 ${pickupOnly ? 'text-neutral-600' : freeDeliveryAvailable ? 'text-neutral-600' : 'text-neutral-800'
+                  <TruckIcon className={`w-5 h-5 ${pickupOnly ? 'text-neutral-600' : freeDeliveryAvailable ? 'text-neutral-600' : 'text-neutral-800'
                     }`} />
                   <span className="text-sm font-semibold text-gray-700">{deliveryPrimaryLabel}</span>
                 </div>
@@ -4181,7 +4146,7 @@ export default function ProductDetails() {
                       onClick={startSellerInquiry}
                       className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 hover:border-neutral-200 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed w-full"
                     >
-                      <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                      <ChatBubbleLeftIcon className="w-4 h-4 flex-shrink-0" />
                       <span>{inquiryLoading ? "Ouverture..." : "Des questions sur ce produit ? Contacter le vendeur"}</span>
                     </button>
                   ) : (
@@ -4190,7 +4155,7 @@ export default function ProductDetails() {
                       state={{ from: { pathname: `/product/${product?.slug || product?._id}` } }}
                       className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 hover:bg-neutral-100 hover:border-neutral-200 transition-colors text-sm font-medium w-full"
                     >
-                      <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                      <ChatBubbleLeftIcon className="w-4 h-4 flex-shrink-0" />
                       <span>Des questions sur ce produit ? Connectez-vous pour contacter le vendeur</span>
                     </Link>
                   )}
@@ -4203,7 +4168,7 @@ export default function ProductDetails() {
               {/* Boutons de partage */}
               <div className="bg-neutral-50 rounded-2xl p-4 border border-gray-200">
                 <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                  <Share2 size={16} className="text-neutral-800" />
+                  <ShareIcon className="text-neutral-800 h-4 w-4" />
                   Partager ce produit
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
@@ -4263,18 +4228,18 @@ export default function ProductDetails() {
                     <span className="hidden sm:inline">TikTok</span>
                   </a>
 
-                  {/* Twitter/X */}
+                  {/* Twitter/XMarkIcon */}
                   <a
                     href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(product?.title || 'Produit')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#000000] text-white font-black text-sm hover:brightness-110 transition-all duration-200 active:scale-95 shadow-sm"
-                    title="Partager sur X (Twitter)"
+                    title="Partager sur XMarkIcon (Twitter)"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                     </svg>
-                    <span className="hidden sm:inline">X</span>
+                    <span className="hidden sm:inline">XMarkIcon</span>
                   </a>
 
                   {/* Copy Link */}
@@ -4313,10 +4278,10 @@ export default function ProductDetails() {
             <div className="border-b border-gray-100 overflow-x-auto">
               <nav className="flex flex-wrap gap-2 sm:gap-4 min-w-full px-4 sm:px-6 pt-4">
                 {[
-                  { id: 'description', label: 'Description', icon: Eye },
-                  { id: 'specifications', label: 'Spécifications', icon: Shield },
-                  { id: 'reviews', label: `Avis (${commentCount})`, icon: Star },
-                  { id: 'shipping', label: 'Livraison', icon: Truck }
+                  { id: 'description', label: 'Description', icon: EyeIcon },
+                  { id: 'specifications', label: 'Spécifications', icon: ShieldCheckIcon },
+                  { id: 'reviews', label: `Avis (${commentCount})`, icon: StarIcon },
+                  { id: 'shipping', label: 'Livraison', icon: TruckIcon }
                 ].map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -4328,7 +4293,7 @@ export default function ProductDetails() {
                         : 'text-gray-600 hover:bg-gray-100'
                         }`}
                     >
-                      <Icon size={18} />
+                      <Icon className="h-[18px] w-[18px]" />
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -4415,14 +4380,13 @@ export default function ProductDetails() {
                         <div className="text-5xl sm:text-6xl font-black text-gray-900 mb-2">{ratingAverage}</div>
                         <div className="flex items-center justify-center lg:justify-start gap-1 mb-2">
                           {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              size={24}
+                            <StarIcon
+key={star}
+                              
                               className={`${star <= Math.floor(ratingAverage)
                                 ? 'text-neutral-500 fill-neutral-500'
                                 : 'text-gray-300'
-                                }`}
-                            />
+                                }`} className="h-6 w-6" />
                           ))}
                         </div>
                         <div className="text-sm text-gray-700 font-bold">
@@ -4455,13 +4419,11 @@ export default function ProductDetails() {
                                   disabled={submittingRating}
                                   className="focus:outline-none disabled:opacity-50 hover:scale-110 transition-transform"
                                 >
-                                  <Star
-                                    size={28}
-                                    className={`${star <= userRating
+                                  <StarIcon
+className={`${star <= userRating
                                       ? 'text-neutral-500 fill-neutral-500'
                                       : 'text-gray-300'
-                                      } hover:text-neutral-400 transition-colors`}
-                                  />
+                                      } hover:text-neutral-400 transition-colors`} className="h-7 w-7" />
                                 </button>
                               ))}
                               {submittingRating && <span className="text-sm text-gray-600 font-semibold ml-2">Envoi...</span>}
@@ -4479,7 +4441,7 @@ export default function ProductDetails() {
                   <div className="bg-neutral-50 rounded-2xl p-6 sm:p-8 border border-neutral-200 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="w-12 h-12 bg-neutral-900 rounded-2xl flex items-center justify-center shadow-sm">
-                        <MessageCircle className="w-6 h-6 text-white" />
+                        <ChatBubbleLeftIcon className="w-6 h-6 text-white" />
                       </div>
                       <div>
                         <h4 className="text-xl font-black text-gray-900">Commentaires</h4>
@@ -4538,7 +4500,7 @@ export default function ProductDetails() {
                         </div>
                       ) : comments.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
-                          <MessageCircle size={48} className="mx-auto mb-3 text-gray-300" />
+                          <ChatBubbleLeftIcon className="mx-auto mb-3 text-gray-300 h-12 w-12" />
                           <p>Aucun commentaire pour le moment.</p>
                           {!user && (
                             <p className="text-sm mt-2">
@@ -4582,7 +4544,7 @@ export default function ProductDetails() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="flex flex-col gap-3 p-5 bg-neutral-50 rounded-2xl border border-neutral-200 text-left">
                       <div className="w-11 h-11 bg-neutral-900 rounded-xl flex items-center justify-center shadow-md">
-                        <Truck className="w-5 h-5 text-white" />
+                        <TruckIcon className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <h4 className="font-black text-gray-900 text-base mb-1">Options de livraison</h4>
@@ -4592,7 +4554,7 @@ export default function ProductDetails() {
                     </div>
                     <div className="flex flex-col gap-3 p-5 bg-neutral-50 rounded-2xl border border-neutral-200 text-left">
                       <div className="w-11 h-11 bg-neutral-900 rounded-xl flex items-center justify-center shadow-md">
-                        <Clock className="w-5 h-5 text-white" />
+                        <ClockIcon className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <h4 className="font-black text-gray-900 text-base mb-1">Délai estimé</h4>
@@ -4605,11 +4567,11 @@ export default function ProductDetails() {
                     <h4 className="font-black text-gray-900 text-base mb-3">Politique client</h4>
                     <div className="space-y-2">
                       <div className="flex items-start gap-2 text-sm text-gray-700">
-                        <Shield className="w-4 h-4 mt-0.5 text-neutral-600 flex-shrink-0" />
+                        <ShieldCheckIcon className="w-4 h-4 mt-0.5 text-neutral-600 flex-shrink-0" />
                         <span><span className="font-semibold text-gray-900">Retour:</span> {returnPolicyLabel}</span>
                       </div>
                       <div className="flex items-start gap-2 text-sm text-gray-700">
-                        <Check className="w-4 h-4 mt-0.5 text-neutral-600 flex-shrink-0" />
+                        <CheckIcon className="w-4 h-4 mt-0.5 text-neutral-600 flex-shrink-0" />
                         <span><span className="font-semibold text-gray-900">Garantie:</span> {warrantyLabel}</span>
                       </div>
                     </div>
@@ -4632,13 +4594,13 @@ export default function ProductDetails() {
               className="mt-4 flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 transition hover:bg-gray-100"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500">
-                <FileText size={20} />
+                <DocumentTextIcon className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-gray-900">Fiche produit (PDF)</span>
                 <span className="block text-xs text-gray-500">Ouvrir le document dans un nouvel onglet</span>
               </span>
-              <ExternalLink size={16} className="shrink-0 text-gray-400" />
+              <ArrowTopRightOnSquareIcon className="shrink-0 text-gray-400 h-4 w-4" />
             </a>
           </section>
         )}
@@ -4749,12 +4711,12 @@ export default function ProductDetails() {
             </div>
             <div className="flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-1">
-                <Star className="h-4 w-4 text-neutral-400" />
+                <StarIcon className="h-4 w-4 text-neutral-400" />
                 <span className="font-semibold text-gray-900">{ratingAverage}</span>
                 <span>({ratingCount})</span>
               </div>
               <div className="flex items-center gap-1">
-                <MessageCircle className="h-4 w-4" />
+                <ChatBubbleLeftIcon className="h-4 w-4" />
                 <span>{commentCount} commentaires</span>
               </div>
             </div>
@@ -4818,7 +4780,7 @@ export default function ProductDetails() {
                 to={`/products?category=${product.category}`}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white font-bold rounded-xl hover:bg-neutral-800 transition-all shadow-md hover:shadow-sm text-sm"
               >
-                Voir tout <ChevronRight size={18} />
+                Voir tout <ChevronRightIcon className="h-[18px] w-[18px]" />
               </Link>
             </div>
 
@@ -4880,7 +4842,7 @@ export default function ProductDetails() {
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FF5000] text-white shadow-sm">
-            <SlidersHorizontal size={18} />
+            <AdjustmentsHorizontalIcon className="h-[18px] w-[18px]" />
           </span>
           <div className="min-w-0">
             <p className="text-sm font-black text-slate-900">Options du produit</p>
@@ -4903,7 +4865,7 @@ export default function ProductDetails() {
           >
             {selectedAttributeValidation.valid ? (
               <>
-                <Check size={12} /> Prêt
+                <CheckIcon className="h-3 w-3" /> Prêt
               </>
             ) : (
               'À choisir'
@@ -5213,12 +5175,12 @@ export default function ProductDetails() {
         <ModalBody className="space-y-4">
             <div className="mt-3 flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-1">
-                <Star className="h-4 w-4 text-neutral-400" />
+                <StarIcon className="h-4 w-4 text-neutral-400" />
                 <span className="font-semibold text-gray-900">{ratingAverage}</span>
                 <span>({ratingCount})</span>
               </div>
               <div className="flex items-center gap-1">
-                <MessageCircle className="h-4 w-4" />
+                <ChatBubbleLeftIcon className="h-4 w-4" />
                 <span>{commentCount} commentaires</span>
               </div>
             </div>
@@ -5235,10 +5197,8 @@ export default function ProductDetails() {
                         disabled={submittingRating}
                         className="focus:outline-none disabled:opacity-50"
                       >
-                        <Star
-                          size={18}
-                          className={star <= userRating ? 'text-neutral-500 fill-neutral-500' : 'text-gray-300'}
-                        />
+                        <StarIcon
+className={star <= userRating ? 'text-neutral-500 fill-neutral-500' : 'text-gray-300'} className="h-[18px] w-[18px]" />
                       </button>
                     ))}
                     {submittingRating && <span className="text-xs text-gray-500 ml-1">...</span>}
@@ -5333,7 +5293,7 @@ export default function ProductDetails() {
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-90"
                     title="Signaler cette photo"
                   >
-                    <Flag size={18} />
+                    <FlagIcon className="h-[18px] w-[18px]" />
                   </button>
                 )}
                 <button
@@ -5342,7 +5302,7 @@ export default function ProductDetails() {
                   aria-label="Fermer"
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 active:scale-90"
                 >
-                  <X size={20} />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -5392,7 +5352,7 @@ export default function ProductDetails() {
                   aria-label="Image précédente"
                   className="absolute left-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:flex"
                 >
-                  <ChevronLeft size={22} />
+                  <ChevronLeftIcon className="h-[22px] w-[22px]" />
                 </button>
                 <button
                   type="button"
@@ -5400,7 +5360,7 @@ export default function ProductDetails() {
                   aria-label="Image suivante"
                   className="absolute right-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:flex"
                 >
-                  <ChevronRight size={22} />
+                  <ChevronRightIcon className="h-[22px] w-[22px]" />
                 </button>
               </>
             )}
@@ -5537,7 +5497,7 @@ function CommentThread({
                   {deletingCommentId === comment._id ? (
                     <div className="h-4 w-4 animate-spin rounded-full border border-red-600 border-t-transparent" />
                   ) : (
-                    <Trash2 size={14} />
+                    <TrashIcon className="h-3.5 w-3.5" />
                   )}
                 </button>
               )}
@@ -5547,7 +5507,7 @@ function CommentThread({
                   className="inline-flex items-center gap-1.5 px-3 py-2 bg-neutral-50 text-neutral-800 rounded-2xl hover:bg-neutral-100 transition-all duration-200 active:scale-95 text-sm font-medium"
                   title="Signaler ce commentaire"
                 >
-                  <Flag size={14} />
+                  <FlagIcon className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Signaler</span>
                 </button>
               )}
@@ -5555,7 +5515,7 @@ function CommentThread({
                 onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-all duration-200 active:scale-95 text-sm font-medium"
               >
-                <Reply size={16} />
+                <ArrowUturnLeftIcon className="h-4 w-4" />
                 <span>Répondre</span>
               </button>
             </div>
@@ -5568,7 +5528,7 @@ function CommentThread({
         {replyingTo === comment._id && (
           <div className="mt-4 pl-4 border-l-2 border-neutral-400 bg-neutral-50/50 rounded-r-xl p-4">
             <div className="flex items-center gap-2 mb-3">
-              <CornerDownLeft size={16} className="text-neutral-800" />
+              <ArrowTurnDownLeftIcon className="text-neutral-800 h-4 w-4" />
               <span className="text-sm font-bold text-neutral-700">Réponse à {comment.user?.name}</span>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -5616,7 +5576,7 @@ function CommentThread({
               }`}
             >
               <div className="flex items-center gap-3 mb-2">
-                <CornerDownLeft size={16} className="text-neutral-700" />
+                <ArrowTurnDownLeftIcon className="text-neutral-700 h-4 w-4" />
                 {resolveUserProfileImage(reply.user) ? (
                   <img
                     src={resolveUserProfileImage(reply.user)}
@@ -5649,7 +5609,7 @@ function CommentThread({
                       {deletingCommentId === reply._id ? (
                         <div className="h-3 w-3 animate-spin rounded-full border border-red-600 border-t-transparent" />
                       ) : (
-                        <Trash2 size={14} />
+                        <TrashIcon className="h-3.5 w-3.5" />
                       )}
                     </button>
                   )}
@@ -5664,7 +5624,7 @@ function CommentThread({
                       title="Signaler cette réponse"
                       aria-label="Signaler cette réponse"
                     >
-                      <Flag size={14} />
+                      <FlagIcon className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
@@ -5693,7 +5653,7 @@ function RelatedProducts({ relatedProducts, product }) {
           to={`/products?category=${product.category}`}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white font-bold rounded-xl hover:bg-neutral-800 transition-all shadow-md hover:shadow-sm text-sm"
         >
-          Voir tout <ChevronRight size={18} />
+          Voir tout <ChevronRightIcon className="h-[18px] w-[18px]" />
         </Link>
       </div>
 

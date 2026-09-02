@@ -1,18 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ShoppingBag,
-  Truck,
-  Store,
-  CreditCard,
-  Boxes,
-  ShieldCheck,
-  MapPin,
-  Mail,
-  Phone,
-  ChevronRight,
-  Sparkles
-} from 'lucide-react';
+import { BuildingStorefrontIcon, ChevronRightIcon, CreditCardIcon, CubeIcon, EnvelopeIcon, MapPinIcon, PhoneIcon, ShieldCheckIcon, ShoppingBagIcon, SparklesIcon, TruckIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
 import useAppBrandLogo from '../hooks/useAppBrandLogo';
@@ -75,7 +63,7 @@ export default function About() {
     const list = [
       {
         key: 'marketplace',
-        icon: ShoppingBag,
+        icon: ShoppingBagIcon,
         color: 'bg-[#e85d00]',
         title: 'Achetez et vendez',
         description: 'Des milliers de produits et boutiques vérifiées, partout au Congo.',
@@ -85,7 +73,7 @@ export default function About() {
     if (parcelDeliveryEnabled) {
       list.push({
         key: 'parcels',
-        icon: Truck,
+        icon: TruckIcon,
         color: 'bg-sky-600',
         title: 'Envoyer un colis',
         description: 'Course à la demande : un livreur récupère et livre où vous voulez.',
@@ -95,7 +83,7 @@ export default function About() {
     if (buyForMeEnabled) {
       list.push({
         key: 'buy-for-me',
-        icon: ShoppingBag,
+        icon: ShoppingBagIcon,
         color: 'bg-violet-600',
         title: 'Acheter Pour Moi',
         description: 'Un livreur fait vos achats dans un magasin et vous les livre.',
@@ -105,7 +93,7 @@ export default function About() {
     list.push(
       {
         key: 'installments',
-        icon: CreditCard,
+        icon: CreditCardIcon,
         color: 'bg-neutral-800',
         title: 'Paiement en plusieurs fois',
         description: 'Payez certains produits progressivement, plus de flexibilité.',
@@ -113,7 +101,7 @@ export default function About() {
       },
       {
         key: 'wholesale',
-        icon: Boxes,
+        icon: CubeIcon,
         color: 'bg-emerald-700',
         title: 'Vente en gros',
         description: 'Des tarifs dégressifs pour les achats en grande quantité.',
@@ -121,7 +109,7 @@ export default function About() {
       },
       {
         key: 'verified-shops',
-        icon: ShieldCheck,
+        icon: ShieldCheckIcon,
         color: 'bg-neutral-900',
         title: 'Boutiques vérifiées',
         description: 'Achetez en confiance auprès de vendeurs identifiés par HDMarket.',
@@ -168,7 +156,7 @@ export default function About() {
                     {feature.description}
                   </span>
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:text-gray-500 dark:text-neutral-600" />
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:text-gray-500 dark:text-neutral-600" />
               </Link>
             ))}
           </div>
@@ -185,14 +173,14 @@ export default function About() {
           </p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <div className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-3 text-sm font-semibold text-gray-700 dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-200">
-              <MapPin className="h-4 w-4 shrink-0 text-[#e85d00]" />
+              <MapPinIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
               <span className="truncate">{location}</span>
             </div>
             <a
               href={`mailto:${supportEmail}`}
               className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-200 dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-200"
             >
-              <Mail className="h-4 w-4 shrink-0 text-[#e85d00]" />
+              <EnvelopeIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
               <span className="truncate">{supportEmail}</span>
             </a>
             {supportPhone ? (
@@ -200,7 +188,7 @@ export default function About() {
                 href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`}
                 className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-200 dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-200"
               >
-                <Phone className="h-4 w-4 shrink-0 text-[#e85d00]" />
+                <PhoneIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
                 <span className="truncate">{supportPhone}</span>
               </a>
             ) : null}
@@ -208,7 +196,7 @@ export default function About() {
               to="/shop-conversion-request"
               className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-200 dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-neutral-200"
             >
-              <Store className="h-4 w-4 shrink-0 text-[#e85d00]" />
+              <BuildingStorefrontIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
               Devenir vendeur
             </Link>
           </div>
@@ -219,7 +207,7 @@ export default function About() {
             to="/avantages"
             className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#e85d00] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#c94f00]"
           >
-            <Sparkles className="h-4 w-4" />
+            <SparklesIcon className="h-4 w-4" />
             Voir tous les avantages
           </Link>
           <Link

@@ -2,39 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import {
-  LayoutDashboard,
-  Users,
-  Package,
-  DollarSign,
-  WalletCards,
-  ClipboardList,
-  Truck,
-  MessageSquare,
-  SlidersHorizontal,
-  FileText,
-  CheckCircle,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
-  AlertCircle,
-  Ticket,
-  FolderTree,
-  Crown,
-  UserX,
-  Menu,
-  X,
-  ChevronDown,
-  Megaphone,
-  ShoppingBasket,
-  Flag,
-  Tags,
-  Clapperboard,
-  Globe2,
-  Send,
-  Workflow,
-  Share2
-} from 'lucide-react';
+import { AdjustmentsHorizontalIcon, Bars3Icon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, FilmIcon, FlagIcon, FolderIcon, GlobeAltIcon, MegaphoneIcon, PaperAirplaneIcon, ShareIcon, ShoppingBagIcon, SparklesIcon, Square3Stack3DIcon, TagIcon, TicketIcon, TrophyIcon, TruckIcon, UserMinusIcon, UsersIcon, ViewColumnsIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
 
@@ -96,7 +64,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
     to: '/admin/dashboard',
     end: true,
     label: t('nav.adminDashboard', 'Tableau de bord'),
-    icon: LayoutDashboard,
+    icon: ViewColumnsIcon,
     group: 'overview',
     show: (u) =>
       u?.role === 'admin' ||
@@ -104,27 +72,27 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
       u?.role === 'founder' ||
       hasAnyPermission(u, ['view_admin_dashboard'])
   },
-  { to: '/admin/countries', label: 'Pays & marchés', icon: Globe2, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
+  { to: '/admin/countries', label: 'Pays & marchés', icon: GlobeAltIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
   {
     to: '/admin/task-center',
     label: t('nav.taskCenter', 'Centre de tâches'),
-    icon: AlertCircle,
+    icon: ExclamationCircleIcon,
     group: 'overview',
     badge: Number(counters?.pendingTasks || 0),
     show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder'
   },
-  { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardList, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
-  { to: '/admin/quotations', label: 'Gestion des devis', icon: FileText, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' },
-  { to: '/admin/payment-verification', label: t('nav.payments', 'Paiements'), icon: DollarSign, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments === true || hasAnyPermission(u, ['verify_payments']) },
-  { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: Users, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
-  { to: '/admin/products', label: t('nav.products', 'Produits'), icon: Package, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
-  { to: '/admin/tags', label: 'Tags universels', icon: Tags, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
-  { to: '/admin/videos', label: 'HDMarket Videos', icon: Clapperboard, group: 'commerce', show: (u) => productVideosEnabled && (u?.role === 'admin' || u?.role === 'founder') },
-  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: Truck, group: 'operations', show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
+  { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardDocumentListIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
+  { to: '/admin/quotations', label: 'Gestion des devis', icon: DocumentTextIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' },
+  { to: '/admin/payment-verification', label: t('nav.payments', 'Paiements'), icon: CurrencyDollarIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments === true || hasAnyPermission(u, ['verify_payments']) },
+  { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: UsersIcon, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
+  { to: '/admin/products', label: t('nav.products', 'Produits'), icon: CubeIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
+  { to: '/admin/tags', label: 'TagIcon universels', icon: TagIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
+  { to: '/admin/videos', label: 'HDMarket Videos', icon: FilmIcon, group: 'commerce', show: (u) => productVideosEnabled && (u?.role === 'admin' || u?.role === 'founder') },
+  { to: '/admin/delivery-guys', label: t('nav.deliveryGuys', 'Livreurs'), icon: TruckIcon, group: 'operations', show: (u) => platformDeliveryEnabled && (u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageDelivery || hasAnyPermission(u, ['manage_delivery'])) },
   {
     to: '/admin/delivery-requests',
     label: t('nav.deliveryRequests', 'Demandes livraison'),
-    icon: Truck,
+    icon: TruckIcon,
     group: 'operations',
     show: (u) =>
       platformDeliveryEnabled &&
@@ -137,7 +105,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   {
     to: '/admin/parcel-requests',
     label: t('nav.parcelRequests', 'Courses colis'),
-    icon: Truck,
+    icon: TruckIcon,
     group: 'operations',
     show: (u) =>
       u?.role === 'admin' ||
@@ -149,7 +117,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   {
     to: '/admin/buy-for-me',
     label: 'Acheter Pour Moi',
-    icon: ShoppingBasket,
+    icon: ShoppingBagIcon,
     group: 'operations',
     show: (u) =>
       u?.role === 'admin' ||
@@ -161,11 +129,11 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   {
     to: '/admin/delivery-pricing',
     label: t('nav.deliveryPricing', 'Prix de livraison'),
-    icon: Truck,
+    icon: TruckIcon,
     group: 'operations',
     show: (u) => u?.role === 'admin' || u?.role === 'founder'
   },
-  { to: '/delivery/dashboard', label: t('nav.courierMode', 'Mode livreur'), icon: Truck, show: (u) => {
+  { to: '/delivery/dashboard', label: t('nav.courierMode', 'Mode livreur'), icon: TruckIcon, show: (u) => {
       const role = String(u?.role || '').toLowerCase();
       return (
         platformDeliveryEnabled &&
@@ -176,7 +144,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   {
     to: '/admin/complaints',
     label: t('nav.complaints', 'Réclamations'),
-    icon: AlertCircle,
+    icon: ExclamationCircleIcon,
     group: 'operations',
     show: (u) =>
       u?.role === 'admin' ||
@@ -185,16 +153,16 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
       u?.canManageComplaints ||
       hasAnyPermission(u, ['manage_complaints'])
   },
-  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: MessageSquare, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
-  { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: Ticket, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/seller-payouts', label: 'Versements vendeurs', icon: WalletCards, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments || hasAnyPermission(u, ['verify_payments']) },
-  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres'), icon: SlidersHorizontal, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
-  { to: '/admin/features', label: 'Gestion des fonctionnalités', icon: Flag, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
-  { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderTree, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/chat-templates', label: t('nav.chatTemplates', 'Modèles de chat'), icon: ChatBubbleLeftRightIcon, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canManageChatTemplates || hasAnyPermission(u, ['manage_chat_templates']) },
+  { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: TicketIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/seller-payouts', label: 'Versements vendeurs', icon: WalletIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments || hasAnyPermission(u, ['verify_payments']) },
+  { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres'), icon: AdjustmentsHorizontalIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/features', label: 'Gestion des fonctionnalités', icon: FlagIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
+  { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
   {
     to: '/admin/product-boosts',
     label: t('nav.productBoosts', 'Boosts'),
-    icon: Sparkles,
+    icon: SparklesIcon,
     group: 'commerce',
     show: (u) =>
       u?.role === 'admin' ||
@@ -205,37 +173,37 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   {
     to: '/admin/global-notifications',
     label: t('nav.globalNotifications', 'Notifications globales'),
-    icon: Megaphone,
+    icon: MegaphoneIcon,
     group: 'commerce',
     show: (u) => u?.role === 'admin' || u?.role === 'founder'
   },
   {
     to: '/admin/notification-campaigns',
     label: t('nav.notificationCampaigns', 'Campagnes de notifications'),
-    icon: Send,
+    icon: PaperAirplaneIcon,
     group: 'commerce',
     show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_notification_campaigns'])
   },
   {
     to: '/admin/onboarding-sequences',
     label: t('nav.onboardingSequences', 'Onboarding'),
-    icon: Workflow,
+    icon: Square3Stack3DIcon,
     group: 'commerce',
     show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_onboarding'])
   },
   {
     to: '/admin/social-commerce',
     label: t('nav.socialCommerce', 'Social Commerce'),
-    icon: Share2,
+    icon: ShareIcon,
     group: 'commerce',
     show: (u) =>
       socialCommerceEnabled &&
       (u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_social_commerce', 'manage_social_channels', 'view_social_analytics']))
   },
-  { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: FileText, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
-  { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: Crown, group: 'founder', show: (u) => u?.role === 'founder' },
-  { to: '/admin/founder-notifications-intelligence', label: t('nav.founderNotificationsIntelligence', 'Notif Intelligence'), icon: Crown, group: 'founder', badge: Number(counters?.pendingTasks || 0), show: (u) => u?.role === 'founder' },
-  { to: '/admin/founder-account-control', label: t('nav.founderAccountControl', 'Suppression définitive'), icon: UserX, group: 'founder', show: (u) => u?.role === 'founder' }
+  { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: DocumentTextIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
+  { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: TrophyIcon, group: 'founder', show: (u) => u?.role === 'founder' },
+  { to: '/admin/founder-notifications-intelligence', label: t('nav.founderNotificationsIntelligence', 'Notif Intelligence'), icon: TrophyIcon, group: 'founder', badge: Number(counters?.pendingTasks || 0), show: (u) => u?.role === 'founder' },
+  { to: '/admin/founder-account-control', label: t('nav.founderAccountControl', 'Suppression définitive'), icon: UserMinusIcon, group: 'founder', show: (u) => u?.role === 'founder' }
 ];
 
 export default function AdminLayout() {
@@ -354,7 +322,7 @@ export default function AdminLayout() {
           } ${collapsed ? 'justify-center px-2' : ''}`
         }
       >
-        <Icon size={18} className="shrink-0" />
+        <Icon className="shrink-0 h-[18px] w-[18px]" />
         {!collapsed ? <span className="truncate">{item.label}</span> : null}
         {Number(item?.badge || 0) > 0 ? (
           collapsed ? (
@@ -385,10 +353,8 @@ export default function AdminLayout() {
               aria-expanded={!sectionCollapsed}
             >
               <span>{groupLabels[groupKey]}</span>
-              <ChevronDown
-                size={14}
-                className={`transition-transform ${sectionCollapsed ? '-rotate-90' : 'rotate-0'}`}
-              />
+              <ChevronDownIcon
+className={`transition-transform ${sectionCollapsed ? '-rotate-90' : 'rotate-0'}`} className="h-3.5 w-3.5" />
             </button>
           ) : null}
           {sectionCollapsed ? null : (
@@ -409,7 +375,7 @@ export default function AdminLayout() {
           className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#e2dcd2] bg-white text-[#231f1b] hover:text-[#e85d00] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
           aria-label={mobileMenuOpen ? t('nav.closeMenu', 'Fermer le menu') : t('nav.openMenu', 'Ouvrir le menu')}
         >
-          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          {mobileMenuOpen ? <XMarkIcon className="h-[22px] w-[22px]" /> : <Bars3Icon className="h-[22px] w-[22px]" />}
         </button>
         <span className="text-sm font-black text-[#231f1b] dark:text-white">HDMarket Admin</span>
         <div className="w-10" />
@@ -439,7 +405,7 @@ export default function AdminLayout() {
               className="glass-card rounded-lg p-2 text-slate-500 hover:text-slate-800"
               aria-label={t('nav.closeMenu', 'Fermer le menu')}
             >
-              <X size={20} />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -473,7 +439,7 @@ export default function AdminLayout() {
                 className="glass-card rounded-lg p-1.5 text-slate-500 hover:text-slate-800"
                 aria-label={sidebarCollapsed ? t('nav.openMenu', 'Ouvrir le menu') : t('nav.closeMenu', 'Réduire le menu')}
               >
-                {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                {sidebarCollapsed ? <ChevronRightIcon className="h-[18px] w-[18px]" /> : <ChevronLeftIcon className="h-[18px] w-[18px]" />}
               </button>
             </div>
           </div>

@@ -1,27 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Clock3,
-  Gavel,
-  Paperclip,
-  RefreshCw,
-  Search,
-  ShieldAlert
-} from 'lucide-react';
+import { ArrowPathIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon, MagnifyingGlassIcon, PaperClipIcon, ScaleIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { AdminCommandHero, AdminSegmentedControl } from '../components/admin/AdminCommandSurface';
 
 const STATUS_OPTIONS = [
-  { value: '', label: 'Tous', icon: ShieldAlert },
-  { value: 'OPEN', label: 'Ouverts', icon: AlertCircle },
-  { value: 'SELLER_RESPONDED', label: 'Réponse vendeur', icon: Clock3 },
-  { value: 'UNDER_REVIEW', label: 'En revue', icon: Gavel },
-  { value: 'RESOLVED_CLIENT', label: 'Résolus client', icon: CheckCircle2 },
-  { value: 'RESOLVED_SELLER', label: 'Résolus vendeur', icon: CheckCircle2 },
-  { value: 'REJECTED', label: 'Rejetés', icon: ShieldAlert }
+  { value: '', label: 'Tous', icon: ShieldExclamationIcon },
+  { value: 'OPEN', label: 'Ouverts', icon: ExclamationCircleIcon },
+  { value: 'SELLER_RESPONDED', label: 'Réponse vendeur', icon: ClockIcon },
+  { value: 'UNDER_REVIEW', label: 'En revue', icon: ScaleIcon },
+  { value: 'RESOLVED_CLIENT', label: 'Résolus client', icon: CheckCircleIcon },
+  { value: 'RESOLVED_SELLER', label: 'Résolus vendeur', icon: CheckCircleIcon },
+  { value: 'REJECTED', label: 'Rejetés', icon: ShieldExclamationIcon }
 ];
 
 const STATUS_STYLES = {
@@ -247,16 +238,16 @@ export default function AdminComplaints() {
           subtitle="Arbitrez les réclamations post-livraison avec les preuves client, la réponse vendeur, les messages de commande et une décision admin traçable."
           meta={query ? `Recherche active: ${query}` : 'File opérationnelle support'}
           metrics={[
-            { label: 'Affichés', value: loading ? '...' : items.length, help: STATUS_LABELS[statusFilter] || 'Tous statuts', icon: ShieldAlert },
-            { label: 'Actifs', value: activeCount, help: 'À traiter', icon: AlertCircle },
-            { label: 'En revue', value: reviewCount, help: 'Vendeur/admin', icon: Gavel },
-            { label: 'Clôturés', value: closedCount, help: 'Décisions rendues', icon: CheckCircle2 }
+            { label: 'Affichés', value: loading ? '...' : items.length, help: STATUS_LABELS[statusFilter] || 'Tous statuts', icon: ShieldExclamationIcon },
+            { label: 'Actifs', value: activeCount, help: 'À traiter', icon: ExclamationCircleIcon },
+            { label: 'En revue', value: reviewCount, help: 'Vendeur/admin', icon: ScaleIcon },
+            { label: 'Clôturés', value: closedCount, help: 'Décisions rendues', icon: CheckCircleIcon }
           ]}
           actions={[
             {
               label: 'Deadlines',
               description: 'Vérifier les réponses vendeur',
-              icon: Clock3,
+              icon: ClockIcon,
               tone: 'amber',
               loading: refreshingDeadlines,
               onClick: triggerDeadlineCheck
@@ -264,7 +255,7 @@ export default function AdminComplaints() {
             {
               label: 'Actualiser',
               description: 'Recharger les litiges',
-              icon: RefreshCw,
+              icon: ArrowPathIcon,
               tone: 'dark',
               loading,
               onClick: loadDisputes
@@ -281,7 +272,7 @@ export default function AdminComplaints() {
               onChange={(value) => setStatusFilter(value)}
             />
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
                 value={queryDraft}
@@ -295,7 +286,7 @@ export default function AdminComplaints() {
 
         {error && (
           <div className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-            <AlertCircle className="h-4 w-4" />
+            <ExclamationCircleIcon className="h-4 w-4" />
             {error}
           </div>
         )}
@@ -309,7 +300,7 @@ export default function AdminComplaints() {
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-300">
-              <ShieldAlert className="h-5 w-5" />
+              <ShieldExclamationIcon className="h-5 w-5" />
             </div>
             <p className="mt-3 text-sm font-bold text-neutral-950 dark:text-white">Aucun litige pour ce filtre</p>
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">La file support est vide ou la recherche ne retourne aucun résultat.</p>
@@ -452,7 +443,7 @@ export default function AdminComplaints() {
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-700"
                         >
-                          <Paperclip className="h-3.5 w-3.5" />
+                          <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve client'}
                         </a>
                       ))}
@@ -476,7 +467,7 @@ export default function AdminComplaints() {
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-700"
                         >
-                          <Paperclip className="h-3.5 w-3.5" />
+                          <PaperClipIcon className="h-3.5 w-3.5" />
                           {file.originalName || file.filename || 'preuve vendeur'}
                         </a>
                       ))}
@@ -521,7 +512,7 @@ export default function AdminComplaints() {
                       )}
                       {item.resolvedAt && (
                         <p className="inline-flex items-center gap-1 text-xs text-emerald-700 mt-1">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <CheckCircleIcon className="h-3.5 w-3.5" />
                           Clôturé le {formatDate(item.resolvedAt)}
                         </p>
                       )}
@@ -531,7 +522,7 @@ export default function AdminComplaints() {
                   {!isClosed && (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
                       <p className="inline-flex items-center gap-2 text-xs font-semibold text-amber-700 mb-2">
-                        <Gavel className="h-4 w-4" />
+                        <ScaleIcon className="h-4 w-4" />
                         Décision admin
                       </p>
                       <div className="grid gap-2 md:grid-cols-[220px_180px_1fr]">
@@ -590,12 +581,12 @@ export default function AdminComplaints() {
                         >
                           {actioningId === item._id ? (
                             <>
-                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
                               Traitement...
                             </>
                           ) : (
                             <>
-                              <Gavel className="h-3.5 w-3.5" />
+                              <ScaleIcon className="h-3.5 w-3.5" />
                               Valider la décision
                             </>
                           )}

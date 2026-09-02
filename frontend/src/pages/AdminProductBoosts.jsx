@@ -1,28 +1,6 @@
 import React, { useCallback, useEffect, useState, useContext, useMemo } from 'react';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
-import {
-  Sparkles,
-  Search,
-  TrendingUp,
-  Package,
-  Users,
-  BarChart3,
-  Zap,
-  Calendar,
-  Tag,
-  Star,
-  ShoppingCart,
-  Heart,
-  ChevronRight,
-  X,
-  Check,
-  Loader2,
-  AlertCircle,
-  UserPlus,
-  UserMinus,
-  Store,
-  MapPin
-} from 'lucide-react';
+import { ArrowPathIcon, ArrowTrendingUpIcon, BoltIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, CheckIcon, ChevronRightIcon, CubeIcon, ExclamationCircleIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, ShoppingCartIcon, SparklesIcon, StarIcon, TagIcon, UserMinusIcon, UserPlusIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
@@ -134,7 +112,7 @@ export default function AdminProductBoosts() {
       const users = Array.isArray(data) ? data : data?.items || [];
       setAllUsers(users);
     } catch (err) {
-      console.error('Users load error', err);
+      console.error('UsersIcon load error', err);
     } finally {
       setUsersLoading(false);
     }
@@ -523,7 +501,7 @@ export default function AdminProductBoosts() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <Tag className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
+                <TagIcon className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                 <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate">
                   {product.category}
                 </p>
@@ -544,11 +522,11 @@ export default function AdminProductBoosts() {
           </p>
           <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1">
-              <Heart className="h-3.5 w-3.5" />
+              <HeartIcon className="h-3.5 w-3.5" />
               <span>{product.favoritesCount || 0}</span>
             </div>
             <div className="flex items-center gap-1">
-              <ShoppingCart className="h-3.5 w-3.5" />
+              <ShoppingCartIcon className="h-3.5 w-3.5" />
               <span>{product.salesCount || 0}</span>
             </div>
             {product.user?.shopName && (
@@ -560,7 +538,7 @@ export default function AdminProductBoosts() {
           {!product.boosted && (
             <div className="ui-card-soft-separator space-y-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-2">
-                <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+                <CalendarIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Période de boost (optionnel)</span>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -592,7 +570,7 @@ export default function AdminProductBoosts() {
           )}
           {product.boosted && (product.boostStartDate || product.boostEndDate) && (
             <div className="ui-card-soft-separator flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 dark:border-neutral-800">
-              <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+              <CalendarIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
               <div className="flex-1 text-xs text-neutral-700 dark:text-neutral-300">
                 {product.boostStartDate && product.boostEndDate ? (
                   <span>
@@ -637,17 +615,17 @@ export default function AdminProductBoosts() {
           >
             {savingId === product._id ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
                 <span>Chargement...</span>
               </>
             ) : product.boosted ? (
               <>
-                <X className="h-4 w-4" />
+                <XMarkIcon className="h-4 w-4" />
                 <span>Retirer le boost</span>
               </>
             ) : (
               <>
-                <Zap className="h-4 w-4" />
+                <BoltIcon className="h-4 w-4" />
                 <span>Booster ce produit</span>
               </>
             )}
@@ -680,7 +658,7 @@ export default function AdminProductBoosts() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <Store className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
+                <BuildingStorefrontIcon className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                 <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate">
                   Boutique vérifiée
                 </p>
@@ -695,22 +673,22 @@ export default function AdminProductBoosts() {
           </div>
           {shop.shopAddress && (
             <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+              <MapPinIcon className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="line-clamp-1">{shop.shopAddress}</span>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1">
-              <Heart className="h-3.5 w-3.5" />
+              <HeartIcon className="h-3.5 w-3.5" />
               <span>{shop.followersCount || 0}</span>
             </div>
             <div className="flex items-center gap-1">
-              <ShoppingCart className="h-3.5 w-3.5" />
+              <ShoppingCartIcon className="h-3.5 w-3.5" />
               <span>{shop.productCount || 0}</span>
             </div>
             {shop.ratingAverage > 0 && (
               <div className="flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                <StarIcon className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
                 <span>{Number(shop.ratingAverage).toFixed(1)}</span>
                 {shop.ratingCount > 0 && (
                   <span className="text-gray-400">({shop.ratingCount})</span>
@@ -721,7 +699,7 @@ export default function AdminProductBoosts() {
           {!isShopCurrentlyBoosted(shop) && (
             <div className="ui-card-soft-separator space-y-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-2">
-                <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+                <CalendarIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Période de boost (optionnel)</span>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -753,7 +731,7 @@ export default function AdminProductBoosts() {
           )}
           {isShopCurrentlyBoosted(shop) && (shop.shopBoostStartDate || shop.shopBoostEndDate) && (
             <div className="ui-card-soft-separator flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 dark:border-neutral-800">
-              <Calendar className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+              <CalendarIcon className="h-4 w-4 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
               <div className="flex-1 text-xs text-neutral-700 dark:text-neutral-300">
                 {shop.shopBoostStartDate && shop.shopBoostEndDate ? (
                   <span>
@@ -798,17 +776,17 @@ export default function AdminProductBoosts() {
           >
             {savingShopId === shop._id ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
                 <span>Chargement...</span>
               </>
             ) : isShopCurrentlyBoosted(shop) ? (
               <>
-                <X className="h-4 w-4" />
+                <XMarkIcon className="h-4 w-4" />
                 <span>Retirer le boost</span>
               </>
             ) : (
               <>
-                <Zap className="h-4 w-4" />
+                <BoltIcon className="h-4 w-4" />
                 <span>Booster cette boutique</span>
               </>
             )}
@@ -843,7 +821,7 @@ export default function AdminProductBoosts() {
       return true;
     }
     
-    // Check if current date is within the boost range
+    // CheckIcon if current date is within the boost range
     if (hasStartDate && now < new Date(shop.shopBoostStartDate)) {
       return false; // Boost hasn't started yet
     }
@@ -898,7 +876,7 @@ export default function AdminProductBoosts() {
       <header className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="p-3 rounded-2xl bg-neutral-500 shadow-sm">
-            <Sparkles className="h-8 w-8 text-white" />
+            <SparklesIcon className="h-8 w-8 text-white" />
           </div>
           <div>
             <h1 className="text-xl font-black text-gray-900 dark:text-white sm:text-3xl">Gestion des Boosts</h1>
@@ -913,7 +891,7 @@ export default function AdminProductBoosts() {
             onClick={() => setShowUserManager(!showUserManager)}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-600 px-4 py-2.5 font-semibold text-white shadow-md transition-all hover:bg-neutral-700 hover:shadow-sm sm:w-auto"
           >
-            <Users className="h-5 w-5" />
+            <UsersIcon className="h-5 w-5" />
             <span>Gérer les permissions</span>
           </button>
         )}
@@ -937,9 +915,9 @@ export default function AdminProductBoosts() {
           <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
-                <Zap className="h-5 w-5" />
+                <BoltIcon className="h-5 w-5" />
               </div>
-              <TrendingUp className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
+              <ArrowTrendingUpIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
             </div>
             <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
               Produits boostés
@@ -955,9 +933,9 @@ export default function AdminProductBoosts() {
           <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
-                <Package className="h-5 w-5" />
+                <CubeIcon className="h-5 w-5" />
               </div>
-              <BarChart3 className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
+              <ChartBarIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
             </div>
             <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
               Non boostés
@@ -973,9 +951,9 @@ export default function AdminProductBoosts() {
           <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-emerald-50 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-emerald-500 text-white">
-                <Calendar className="h-5 w-5" />
+                <CalendarIcon className="h-5 w-5" />
               </div>
-              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <ArrowTrendingUpIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">
               Boostés ce mois
@@ -991,9 +969,9 @@ export default function AdminProductBoosts() {
           <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-amber-50 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 rounded-xl bg-amber-500 text-white">
-                <Users className="h-5 w-5" />
+                <UsersIcon className="h-5 w-5" />
               </div>
-              <ChevronRight className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <ChevronRightIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-1">
               Gestionnaires
@@ -1012,7 +990,7 @@ export default function AdminProductBoosts() {
       {stats?.boostedByCategory && stats.boostedByCategory.length > 0 && (
         <div className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-6">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white sm:text-xl">
-            <Tag className="h-5 w-5 text-neutral-600" />
+            <TagIcon className="h-5 w-5 text-neutral-600" />
             Top catégories boostées
           </h2>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
@@ -1038,7 +1016,7 @@ export default function AdminProductBoosts() {
         <div className="ui-card ui-card-interactive ui-card-fade-in p-4 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white sm:text-xl">
-              <Users className="h-5 w-5 text-neutral-600" />
+              <UsersIcon className="h-5 w-5 text-neutral-600" />
               Gestionnaires de boosts
             </h2>
             <button
@@ -1046,13 +1024,13 @@ export default function AdminProductBoosts() {
               onClick={() => setShowUserManager(false)}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              <X className="h-5 w-5 text-gray-500" />
+              <XMarkIcon className="h-5 w-5 text-gray-500" />
             </button>
           </div>
 
           <div className="mb-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 value={userSearchQuery}
@@ -1077,7 +1055,7 @@ export default function AdminProductBoosts() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-neutral-500 text-white">
-                        <Users className="h-4 w-4" />
+                        <UsersIcon className="h-4 w-4" />
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white">
@@ -1091,7 +1069,7 @@ export default function AdminProductBoosts() {
                       onClick={() => handleToggleBoostManager(manager._id)}
                       className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 sm:w-auto"
                     >
-                      <UserMinus className="h-4 w-4" />
+                      <UserMinusIcon className="h-4 w-4" />
                       <span>Retirer</span>
                     </button>
                   </div>
@@ -1100,14 +1078,14 @@ export default function AdminProductBoosts() {
             </div>
           )}
 
-          {/* All Users */}
+          {/* All UsersIcon */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
               Tous les utilisateurs
             </h3>
             {usersLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-neutral-600" />
+                <ArrowPathIcon className="h-6 w-6 animate-spin text-neutral-600" />
               </div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -1126,7 +1104,7 @@ export default function AdminProductBoosts() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700">
-                          <Users className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                          <UsersIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                         </div>
                         <div>
                           <p className="font-semibold text-gray-900 dark:text-white">
@@ -1142,7 +1120,7 @@ export default function AdminProductBoosts() {
                         onClick={() => handleToggleBoostManager(userItem._id || userItem.id)}
                       className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 sm:w-auto"
                     >
-                        <UserPlus className="h-4 w-4" />
+                        <UserPlusIcon className="h-4 w-4" />
                         <span>Ajouter</span>
                       </button>
                     </div>
@@ -1164,11 +1142,11 @@ export default function AdminProductBoosts() {
         </div>
       )}
 
-      {/* Search Bar and Filter */}
+      {/* MagnifyingGlassIcon Bar and Filter */}
       <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-4 sm:p-5">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-neutral-100 dark:bg-neutral-900/20">
-            <Search className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
+            <MagnifyingGlassIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
           </div>
           <input
             value={searchTerm}
@@ -1226,7 +1204,7 @@ export default function AdminProductBoosts() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-neutral-500 text-white">
-                <Package className="h-6 w-6" />
+                <CubeIcon className="h-6 w-6" />
               </div>
               <div>
                 <h2 className="text-xl font-black text-gray-900 dark:text-white sm:text-2xl">
@@ -1252,14 +1230,14 @@ export default function AdminProductBoosts() {
           </div>
           {(boostedError || nonBoostedError) && (
             <div className="rounded-xl border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
+              <ExclamationCircleIcon className="h-5 w-5" />
               {boostedError || nonBoostedError}
             </div>
           )}
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
             {(boostedLoading || nonBoostedLoading) ? (
               <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
-                <Loader2 className="h-8 w-8 animate-spin text-neutral-600 mx-auto mb-3" />
+                <ArrowPathIcon className="h-8 w-8 animate-spin text-neutral-600 mx-auto mb-3" />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Chargement des produits...
                 </p>
@@ -1268,7 +1246,7 @@ export default function AdminProductBoosts() {
               filteredProducts.map((product) => renderProductCard(product))
             ) : (
               <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-gray-200 p-12 text-center dark:border-gray-700">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <CubeIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   {productFilter === 'all' && 'Aucun produit disponible pour le moment.'}
                   {productFilter === 'boosted' && 'Aucun produit boosté pour le moment.'}
@@ -1295,7 +1273,7 @@ export default function AdminProductBoosts() {
       <section className="mt-8 space-y-6 sm:mt-12 sm:space-y-8">
         <div className="mb-4 flex items-center gap-3 sm:mb-6">
           <div className="p-2 rounded-xl bg-emerald-500 text-white">
-            <Store className="h-6 w-6" />
+            <BuildingStorefrontIcon className="h-6 w-6" />
           </div>
           <div>
             <h2 className="text-xl font-black text-gray-900 dark:text-white sm:text-2xl">Boosts Boutiques Certifiées</h2>
@@ -1323,9 +1301,9 @@ export default function AdminProductBoosts() {
             <div className="ui-card ui-card-interactive ui-card-fade-in border-emerald-200 !bg-emerald-50 p-4 dark:border-emerald-800 dark:!from-emerald-900/20 dark:!to-emerald-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-emerald-500 text-white">
-                  <Zap className="h-5 w-5" />
+                  <BoltIcon className="h-5 w-5" />
                 </div>
-                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <ArrowTrendingUpIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">
                 Boutiques boostées
@@ -1341,9 +1319,9 @@ export default function AdminProductBoosts() {
             <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
-                  <Store className="h-5 w-5" />
+                  <BuildingStorefrontIcon className="h-5 w-5" />
                 </div>
-                <BarChart3 className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
+                <ChartBarIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
               </div>
               <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
                 Non boostées
@@ -1359,9 +1337,9 @@ export default function AdminProductBoosts() {
             <div className="ui-card ui-card-interactive ui-card-fade-in border-amber-200 !bg-amber-50 p-4 dark:border-amber-800 dark:!from-amber-900/20 dark:!to-amber-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-amber-500 text-white">
-                  <Calendar className="h-5 w-5" />
+                  <CalendarIcon className="h-5 w-5" />
                 </div>
-                <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <ArrowTrendingUpIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-1">
                 Boostées ce mois
@@ -1377,9 +1355,9 @@ export default function AdminProductBoosts() {
             <div className="ui-card ui-card-interactive ui-card-fade-in !bg-neutral-50 p-4 dark:!from-neutral-900/20 dark:!to-neutral-800/20 sm:p-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-xl bg-neutral-500 text-white">
-                  <Heart className="h-5 w-5" />
+                  <HeartIcon className="h-5 w-5" />
                 </div>
-                <ChevronRight className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
+                <ChevronRightIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
               </div>
               <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
                 Total followers
@@ -1394,11 +1372,11 @@ export default function AdminProductBoosts() {
           </div>
         ) : null}
 
-        {/* Shop Search Bar and Filter */}
+        {/* Shop MagnifyingGlassIcon Bar and Filter */}
         <div className="ui-card ui-card-interactive ui-card-fade-in flex flex-col gap-3 p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/20">
-              <Search className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <MagnifyingGlassIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <input
               value={shopSearchTerm}
@@ -1455,7 +1433,7 @@ export default function AdminProductBoosts() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-emerald-500 text-white">
-                <Store className="h-6 w-6" />
+                <BuildingStorefrontIcon className="h-6 w-6" />
               </div>
               <div>
                 <h2 className="text-xl font-black text-gray-900 dark:text-white sm:text-2xl">
@@ -1481,14 +1459,14 @@ export default function AdminProductBoosts() {
           </div>
           {(boostedShopsError || nonBoostedShopsError) && (
             <div className="rounded-xl border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
+              <ExclamationCircleIcon className="h-5 w-5" />
               {boostedShopsError || nonBoostedShopsError}
             </div>
           )}
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
             {(boostedShopsLoading || nonBoostedShopsLoading) ? (
               <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center dark:border-gray-700">
-                <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />
+                <ArrowPathIcon className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Chargement des boutiques...
                 </p>
@@ -1497,7 +1475,7 @@ export default function AdminProductBoosts() {
               filteredShops.map((shop) => renderShopCard(shop))
             ) : (
               <div className="ui-card-soft-separator col-span-full rounded-2xl border-2 border-gray-200 p-12 text-center dark:border-gray-700">
-                <Store className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <BuildingStorefrontIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                   {shopFilter === 'all' && 'Aucune boutique disponible pour le moment.'}
                   {shopFilter === 'boosted' && 'Aucune boutique boostée pour le moment.'}

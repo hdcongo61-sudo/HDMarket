@@ -1,16 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Clock3,
-  ExternalLink,
-  RefreshCw,
-  RotateCcw,
-  ShieldAlert,
-  WalletCards
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, ShieldExclamationIcon, WalletIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { formatPriceWithStoredSettings as formatCurrency } from '../utils/priceFormatter';
 import { buildProductPath } from '../utils/links';
@@ -125,7 +115,7 @@ export default function AdminPawaPayCenter() {
             disabled={Boolean(actionPending)}
             className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${actionPending === `${checkoutId}:refresh` ? 'animate-spin' : ''}`} />
+            <ArrowPathIcon className={`h-3.5 w-3.5 ${actionPending === `${checkoutId}:refresh` ? 'animate-spin' : ''}`} />
             Vérifier PawaPay
           </button>
         )}
@@ -136,18 +126,18 @@ export default function AdminPawaPayCenter() {
             disabled={Boolean(actionPending)}
             className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-xs font-black text-white disabled:opacity-50"
           >
-            <RotateCcw className={`h-3.5 w-3.5 ${actionPending === `${checkoutId}:retry` ? 'animate-spin' : ''}`} />
+            <ArrowUturnLeftIcon className={`h-3.5 w-3.5 ${actionPending === `${checkoutId}:retry` ? 'animate-spin' : ''}`} />
             Relancer la finalisation
           </button>
         )}
         {destination && checkout?.autoValidationState === 'COMPLETED' && (
           <Link to={destination} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-black text-white">
-            <ExternalLink className="h-3.5 w-3.5" /> {destinationLabel}
+            <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" /> {destinationLabel}
           </Link>
         )}
         {checkout?.status === 'COMPLETED' && checkout?.autoValidationState !== 'FAILED' && (
           <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-50 px-3 text-xs font-black text-emerald-700">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Paiement confirmé
+            <CheckCircleIcon className="h-3.5 w-3.5" /> Paiement confirmé
           </span>
         )}
         {checkout?.status === 'FAILED' && (
@@ -171,7 +161,7 @@ export default function AdminPawaPayCenter() {
               to="/admin/payment-verification"
               className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeftIcon className="h-4 w-4" />
               Vérification des paiements
             </Link>
             <h1 className="text-2xl font-black text-slate-950">Centre PawaPay</h1>
@@ -181,10 +171,10 @@ export default function AdminPawaPayCenter() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link to="/admin/complaints" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700">
-              <RotateCcw className="h-4 w-4" /> Remboursements
+              <ArrowUturnLeftIcon className="h-4 w-4" /> Remboursements
             </Link>
             <Link to="/admin/seller-payouts" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700">
-              <WalletCards className="h-4 w-4" /> Versements
+              <WalletIcon className="h-4 w-4" /> Versements
             </Link>
             <button
               type="button"
@@ -192,7 +182,7 @@ export default function AdminPawaPayCenter() {
               disabled={loading}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
           </div>
@@ -257,7 +247,7 @@ export default function AdminPawaPayCenter() {
         {overview?.failedCompletions?.length > 0 && (
           <section className="rounded-2xl border border-red-200 bg-white p-4">
             <div className="mb-3 flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-red-600" />
+              <ShieldExclamationIcon className="h-5 w-5 text-red-600" />
               <p className="text-sm font-black text-red-700">
                 Échecs de finalisation — paiement confirmé mais commande/action non créée
               </p>
@@ -292,7 +282,7 @@ export default function AdminPawaPayCenter() {
         {overview?.stuckCheckouts?.length > 0 && (
           <section className="rounded-2xl border border-amber-200 bg-white p-4">
             <div className="mb-3 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
               <p className="text-sm font-black text-amber-800">Paiements en attente depuis plus de 15 minutes</p>
             </div>
             <div className="divide-y divide-gray-100">
@@ -315,7 +305,7 @@ export default function AdminPawaPayCenter() {
                       </span>
                       <span className="text-sm font-black text-slate-950">{formatCurrency(checkout.amount)}</span>
                       <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                        <Clock3 className="h-3 w-3" /> {formatDate(checkout.createdAt)}
+                        <ClockIcon className="h-3 w-3" /> {formatDate(checkout.createdAt)}
                       </span>
                     </div>
                     {renderCheckoutActions(checkout)}

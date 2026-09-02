@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Check, ChevronDown, Globe2, X } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, GlobeAltIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCountry } from '../../context/CountryContext';
 import CartContext from '../../context/CartContext';
 
@@ -55,7 +55,7 @@ export default function CountrySelector({ compact = false, className = '' }) {
       >
         <span className="text-lg" aria-hidden>{country?.flagEmoji || '🌍'}</span>
         {!compact ? <span>{country?.name || 'Pays'}</span> : null}
-        <ChevronDown size={14} className="text-[#8b8177]" />
+        <ChevronDownIcon className="text-[#8b8177] h-3.5 w-3.5" />
       </button>
 
       {open ? (
@@ -63,10 +63,10 @@ export default function CountrySelector({ compact = false, className = '' }) {
           <section className="w-full max-w-md rounded-t-[28px] bg-[#f8f5f0] p-5 shadow-2xl sm:rounded-[28px]" role="dialog" aria-modal="true" aria-label="Choisir un pays">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#e85d00]"><Globe2 size={15} /> Pays</p>
+                <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#e85d00]"><GlobeAltIcon className="h-[15px] w-[15px]" /> Pays</p>
                 <h2 className="mt-1 text-2xl font-black text-[#17130f]">Explorer HDMarket</h2>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-white text-[#6f675f]"><X size={18} /></button>
+              <button type="button" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-white text-[#6f675f]"><XMarkIcon className="h-[18px] w-[18px]" /></button>
             </div>
             <div className="overflow-hidden rounded-2xl border border-[#e8ded2] bg-white">
               {countries.map((item) => {
@@ -78,7 +78,7 @@ export default function CountrySelector({ compact = false, className = '' }) {
                       <span className="block font-extrabold text-[#211c18]">{item.name}</span>
                       <span className="block text-xs font-medium text-[#8b8177]">{item.currency?.code} · {item.phoneCode}{item.status === 'TEST' ? ' · Test' : ''}</span>
                     </span>
-                    {active ? <span className="grid h-7 w-7 place-items-center rounded-full bg-[#e85d00] text-white"><Check size={15} /></span> : null}
+                    {active ? <span className="grid h-7 w-7 place-items-center rounded-full bg-[#e85d00] text-white"><CheckIcon className="h-[15px] w-[15px]" /></span> : null}
                   </button>
                 );
               })}
@@ -91,7 +91,7 @@ export default function CountrySelector({ compact = false, className = '' }) {
       {pending ? (
         <div className="fixed inset-0 z-[170] grid place-items-center bg-black/50 p-5">
           <section className="w-full max-w-sm rounded-[26px] bg-white p-6 shadow-2xl" role="alertdialog" aria-modal="true">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#fff1e6] text-[#e85d00]"><Globe2 size={23} /></div>
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#fff1e6] text-[#e85d00]"><GlobeAltIcon className="h-[23px] w-[23px]" /></div>
             <h2 className="mt-4 text-xl font-black text-[#1f1a16]">Changer de pays ?</h2>
             <p className="mt-2 text-sm leading-6 text-[#71685f]">Votre panier contient des produits de {country?.name}. Il sera conservé, mais vous devrez revenir dans ce pays pour finaliser cette commande.</p>
             <div className="mt-5 grid grid-cols-2 gap-3">

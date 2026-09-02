@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Filter, Heart } from 'lucide-react';
+import { ArrowLeftIcon, FunnelIcon, HeartIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import FavoriteContext from '../context/FavoriteContext';
 import ProductCard from '../components/ProductCard';
@@ -262,7 +262,7 @@ export default function Favorites() {
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#e2dcd2] bg-white text-[#231f1b] transition active:scale-95"
             aria-label={t('market.back', 'Retour')}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
@@ -272,7 +272,7 @@ export default function Favorites() {
             <p className="mt-0.5 truncate text-xs font-semibold text-[#8a8378] sm:text-sm">{t('market.favoritesSubtitle', 'Les produits que vous souhaitez retrouver rapidement')}</p>
           </div>
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#fff0e4] text-[#e85d00]">
-            <Heart className="h-5 w-5" fill="currentColor" />
+            <HeartIcon className="h-5 w-5" fill="currentColor" />
           </span>
         </div>
       </header>
@@ -288,7 +288,7 @@ export default function Favorites() {
           <div className="rounded-2xl border border-[#e2dcd2] bg-white p-2.5 shadow-sm">
             <div className="mb-2 flex items-center justify-between gap-3 px-1">
               <div className="flex items-center gap-2 text-sm font-black text-[#231f1b]">
-              <Filter className="w-4 h-4 text-[#e85d00]" />
+              <FunnelIcon className="w-4 h-4 text-[#e85d00]" />
               {t('market.filters', 'Filtres')}
               </div>
               <p className="text-xs font-bold text-[#8a8378]">
@@ -368,7 +368,7 @@ export default function Favorites() {
       ) : (
         <div className="rounded-2xl border border-[#e2dcd2] bg-white px-6 py-14 text-center shadow-sm">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff0e4] text-[#e85d00]">
-            <Heart className="h-7 w-7" />
+            <HeartIcon className="h-7 w-7" />
           </div>
           <p className="text-lg font-black text-[#231f1b]">{t('market.favoritesEmpty', 'Aucun favori pour le moment')}</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#8a8378]">

@@ -1,18 +1,6 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  AlertTriangle,
-  Ban,
-  Crown,
-  Loader2,
-  RefreshCcw,
-  Search,
-  ShieldAlert,
-  Store,
-  Trash2,
-  UserRound,
-  X
-} from 'lucide-react';
+import { ArrowPathIcon, BuildingStorefrontIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, NoSymbolIcon, ShieldExclamationIcon, TrashIcon, TrophyIcon, UserCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import BaseModal, { ModalBody, ModalFooter, ModalHeader } from '../components/modals/BaseModal';
@@ -204,16 +192,16 @@ export default function FounderAccountControl() {
           subtitle="Suppression définitive, blacklist téléphone et audit dans une surface unique, avec les mêmes règles de sécurité que le centre de commande."
           meta="Les actions founder restent irréversibles et demandent une confirmation explicite."
           metrics={[
-            { label: 'Comptes', value: deletionCandidates.length, help: 'Candidats affichés', icon: UserRound },
-            { label: 'Blacklist', value: blacklistEntries.length, help: showInactive ? 'Tous statuts' : 'Actifs', icon: Ban },
-            { label: 'Audit', value: auditEntries.length, help: 'Actions récentes', icon: ShieldAlert },
-            { label: 'Sécurité', value: CONFIRM_WORD, help: 'Mot requis', icon: Crown }
+            { label: 'Comptes', value: deletionCandidates.length, help: 'Candidats affichés', icon: UserCircleIcon },
+            { label: 'Blacklist', value: blacklistEntries.length, help: showInactive ? 'Tous statuts' : 'Actifs', icon: NoSymbolIcon },
+            { label: 'Audit', value: auditEntries.length, help: 'Actions récentes', icon: ShieldExclamationIcon },
+            { label: 'Sécurité', value: CONFIRM_WORD, help: 'Mot requis', icon: TrophyIcon }
           ]}
           actions={[
             {
               label: 'Actualiser',
               description: 'Recharger comptes, blacklist et audit',
-              icon: RefreshCcw,
+              icon: ArrowPathIcon,
               tone: 'dark',
               loading: deletionCandidatesQuery.isFetching || blacklistQuery.isFetching || auditQuery.isFetching,
               onClick: refreshFounderControl
@@ -237,8 +225,8 @@ export default function FounderAccountControl() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'accounts', label: 'Comptes', icon: UserRound, count: deletionCandidates.length },
-            { value: 'blacklist', label: 'Numéros blacklistés', icon: Ban, count: blacklistEntries.length }
+            { value: 'accounts', label: 'Comptes', icon: UserCircleIcon, count: deletionCandidates.length },
+            { value: 'blacklist', label: 'Numéros blacklistés', icon: NoSymbolIcon, count: blacklistEntries.length }
           ]}
         />
 
@@ -246,7 +234,7 @@ export default function FounderAccountControl() {
           <section className="space-y-3">
             <div className="rounded-2xl bg-white p-3 shadow-sm space-y-3">
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
                   value={search}
@@ -268,7 +256,7 @@ export default function FounderAccountControl() {
 
             {deletionCandidatesQuery.isLoading ? (
               <div className="rounded-2xl bg-white p-5 shadow-sm text-sm text-gray-600 inline-flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin" />
+                <ArrowPathIcon className="animate-spin h-4 w-4" />
                 Chargement des comptes...
               </div>
             ) : null}
@@ -309,7 +297,7 @@ export default function FounderAccountControl() {
 
                   {candidate.accountType === 'shop' && candidate.shopName ? (
                     <p className="mt-2 text-xs text-gray-600 inline-flex items-center gap-1">
-                      <Store size={13} />
+                      <BuildingStorefrontIcon className="h-[13px] w-[13px]" />
                       {candidate.shopName}
                     </p>
                   ) : null}
@@ -327,7 +315,7 @@ export default function FounderAccountControl() {
                     }}
                     className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700"
                   >
-                    <Trash2 size={16} />
+                    <TrashIcon className="h-4 w-4" />
                     Supprimer définitivement
                   </button>
                 </article>
@@ -340,7 +328,7 @@ export default function FounderAccountControl() {
           <section className="space-y-3">
             <div className="rounded-2xl bg-white p-3 shadow-sm space-y-3">
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
                   value={blacklistSearch}
@@ -362,7 +350,7 @@ export default function FounderAccountControl() {
 
             {blacklistQuery.isLoading ? (
               <div className="rounded-2xl bg-white p-5 shadow-sm text-sm text-gray-600 inline-flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin" />
+                <ArrowPathIcon className="animate-spin h-4 w-4" />
                 Chargement blacklist...
               </div>
             ) : null}
@@ -412,7 +400,7 @@ export default function FounderAccountControl() {
                       }}
                       className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gray-900 text-sm font-semibold text-white"
                     >
-                      <Ban size={16} />
+                      <NoSymbolIcon className="h-4 w-4" />
                       Reverse blacklist
                     </button>
                   ) : null}
@@ -452,9 +440,9 @@ export default function FounderAccountControl() {
         ariaLabel="Suppression définitive"
       >
         <ModalHeader
-          title="Suppression définitive"
+title="Suppression définitive"
           subtitle="Action irréversible"
-          icon={<AlertTriangle size={16} className="text-red-600" />}
+          icon={<ExclamationTriangleIcon  className="text-red-600 h-4 w-4" />}
           onClose={() => setDeleteModal({ open: false, target: null, reason: '', confirmValue: '' })}
         />
         <ModalBody className="space-y-3">
@@ -504,7 +492,7 @@ export default function FounderAccountControl() {
               }
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {deleteMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              {deleteMutation.isPending ? <ArrowPathIcon className="animate-spin h-4 w-4" /> : <TrashIcon className="h-4 w-4" />}
               Supprimer
             </button>
           </div>
@@ -557,7 +545,7 @@ export default function FounderAccountControl() {
               }
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gray-900 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {reverseMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <UserRound size={16} />}
+              {reverseMutation.isPending ? <ArrowPathIcon className="animate-spin h-4 w-4" /> : <UserCircleIcon className="h-4 w-4" />}
               Confirmer
             </button>
           </div>

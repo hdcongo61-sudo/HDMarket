@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, FileJson, RefreshCcw, Search } from 'lucide-react';
+import { ArrowDownTrayIcon, ArrowLeftIcon, ArrowPathIcon, DocumentDuplicateIcon, DocumentTextIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -544,7 +544,7 @@ export default function SettingsCategoriesPage() {
               to="/admin/settings"
               className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
-              <ArrowLeft size={14} /> App settings
+              <ArrowLeftIcon className="h-3.5 w-3.5" /> App settings
             </Link>
             <button
               type="button"
@@ -554,7 +554,7 @@ export default function SettingsCategoriesPage() {
               }}
               className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
             >
-              <RefreshCcw size={14} /> Refresh
+              <ArrowPathIcon className="h-3.5 w-3.5" /> Refresh
             </button>
           </>
         }
@@ -564,7 +564,7 @@ export default function SettingsCategoriesPage() {
         <div className="space-y-4 lg:col-span-7">
           <section className="ui-card ui-card-interactive ui-card-fade-in ui-card-lg p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <label className="relative block">
-              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 h-4 w-4" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -665,14 +665,14 @@ export default function SettingsCategoriesPage() {
                 onClick={() => handleCopyJson(importTemplateJson, 'Modèle JSON copié.')}
                 className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
-                <Copy size={14} /> Copier modèle
+                <DocumentDuplicateIcon className="h-3.5 w-3.5" /> Copier modèle
               </button>
               <button
                 type="button"
                 onClick={() => openImportWithPayload(importTemplatePayload)}
                 className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
               >
-                <FileJson size={14} /> Ouvrir dans import
+                <DocumentTextIcon className="h-3.5 w-3.5" /> Ouvrir dans import
               </button>
             </div>
             <pre className="ui-card-soft-separator max-h-56 overflow-auto rounded-2xl border border-neutral-200 p-3 text-[11px] leading-5 text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
@@ -691,21 +691,21 @@ export default function SettingsCategoriesPage() {
                 onClick={handleExportHardcodedLegacy}
                 className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
-                <Download size={14} /> Export JSON legacy
+                <ArrowDownTrayIcon className="h-3.5 w-3.5" /> Export JSON legacy
               </button>
               <button
                 type="button"
                 onClick={() => openImportWithPayload(legacyHardcodedPayload)}
                 className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
               >
-                <FileJson size={14} /> Charger dans import
+                <DocumentTextIcon className="h-3.5 w-3.5" /> Charger dans import
               </button>
               <button
                 type="button"
                 onClick={() => handleCopyJson(legacyHardcodedJson, 'JSON legacy copié.')}
                 className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
-                <Copy size={14} /> Copier JSON legacy
+                <DocumentDuplicateIcon className="h-3.5 w-3.5" /> Copier JSON legacy
               </button>
             </div>
             <pre className="ui-card-soft-separator max-h-56 overflow-auto rounded-2xl border border-neutral-200 p-3 text-[11px] leading-5 text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">

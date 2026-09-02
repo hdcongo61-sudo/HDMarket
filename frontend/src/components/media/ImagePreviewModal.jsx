@@ -1,16 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Flag,
-  Heart,
-  MoreHorizontal,
-  Share2,
-  X,
-  ZoomIn,
-  ZoomOut
-} from 'lucide-react';
+import { ArrowDownTrayIcon, ChevronLeftIcon, ChevronRightIcon, EllipsisHorizontalIcon, FlagIcon, HeartIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon, ShareIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, useReducedMotion } from 'framer-motion';
 import BaseModal from '../modals/BaseModal';
 import { useToast } from '../../context/ToastContext';
@@ -486,7 +475,7 @@ export default function ImagePreviewModal({
             className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
             aria-label="Fermer l'aperçu"
           >
-            <X className="h-5 w-5" />
+            <XMarkIcon className="h-5 w-5" />
           </button>
 
           <div className="min-w-0 flex-1 text-center">
@@ -504,7 +493,7 @@ export default function ImagePreviewModal({
               className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
               aria-label="Partager"
             >
-              <Share2 className="h-5 w-5" />
+              <ShareIcon className="h-5 w-5" />
             </button>
             <button
               type="button"
@@ -512,7 +501,7 @@ export default function ImagePreviewModal({
               className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
               aria-label="Actions image"
             >
-              <MoreHorizontal className="h-5 w-5" />
+              <EllipsisHorizontalIcon className="h-5 w-5" />
             </button>
             {menuOpen ? (
               <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 text-slate-900 shadow-sm">
@@ -521,7 +510,7 @@ export default function ImagePreviewModal({
                   onClick={handleShare}
                   className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-gray-100"
                 >
-                  <Share2 className="h-4 w-4 text-[#e85d00]" />
+                  <ShareIcon className="h-4 w-4 text-[#e85d00]" />
                   Partager
                 </button>
                 <button
@@ -529,7 +518,7 @@ export default function ImagePreviewModal({
                   onClick={handleDownload}
                   className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-gray-100"
                 >
-                  <Download className="h-4 w-4 text-[#e85d00]" />
+                  <ArrowDownTrayIcon className="h-4 w-4 text-[#e85d00]" />
                   Télécharger
                 </button>
                 <button
@@ -538,7 +527,7 @@ export default function ImagePreviewModal({
                   disabled={!canNativeReport}
                   className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Flag className="h-4 w-4" />
+                  <FlagIcon className="h-4 w-4" />
                   Signaler
                 </button>
               </div>
@@ -553,7 +542,7 @@ export default function ImagePreviewModal({
             className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
             aria-label="Zoom arrière"
           >
-            <ZoomOut className="h-5 w-5" />
+            <MagnifyingGlassMinusIcon className="h-5 w-5" />
           </button>
           <button
             type="button"
@@ -561,7 +550,7 @@ export default function ImagePreviewModal({
             className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95"
             aria-label="Zoom avant"
           >
-            <ZoomIn className="h-5 w-5" />
+            <MagnifyingGlassPlusIcon className="h-5 w-5" />
           </button>
         </div>
 
@@ -573,7 +562,7 @@ export default function ImagePreviewModal({
               className="absolute left-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95 sm:inline-flex"
               aria-label="Image précédente"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeftIcon className="h-5 w-5" />
             </button>
             <button
               type="button"
@@ -581,7 +570,7 @@ export default function ImagePreviewModal({
               className="absolute right-3 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/14 text-white shadow-sm ring-1 ring-white/10 transition hover:bg-white/20 active:scale-95 sm:inline-flex"
               aria-label="Image suivante"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRightIcon className="h-5 w-5" />
             </button>
           </>
         ) : null}
@@ -679,7 +668,7 @@ export default function ImagePreviewModal({
                     transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                     className="inline-flex"
                   >
-                    <Heart className="h-5 w-5" fill={favoriteActive ? 'currentColor' : 'none'} />
+                    <HeartIcon className="h-5 w-5" fill={favoriteActive ? 'currentColor' : 'none'} />
                   </motion.span>
                 </button>
               ) : null}
@@ -692,7 +681,7 @@ export default function ImagePreviewModal({
                   aria-label="Zoom arrière"
                   disabled={scale <= ZOOM_MIN}
                 >
-                  <ZoomOut className="h-5 w-5" />
+                  <MagnifyingGlassMinusIcon className="h-5 w-5" />
                 </button>
                 <button
                   type="button"
@@ -710,7 +699,7 @@ export default function ImagePreviewModal({
                   aria-label="Zoom avant"
                   disabled={scale >= ZOOM_MAX}
                 >
-                  <ZoomIn className="h-5 w-5" />
+                  <MagnifyingGlassPlusIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -738,7 +727,7 @@ export default function ImagePreviewModal({
                   className="rounded-full p-1 text-slate-500 hover:bg-slate-100"
                   aria-label="Fermer le formulaire de signalement"
                 >
-                  <X className="h-4 w-4" />
+                  <XMarkIcon className="h-4 w-4" />
                 </button>
               </div>
 

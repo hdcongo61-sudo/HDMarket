@@ -1,19 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  BarChart3,
-  Loader2,
-  Megaphone,
-  Pause,
-  Play,
-  Plus,
-  RefreshCw,
-  Send,
-  Trash2,
-  X,
-  XCircle
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, ChartBarIcon, MegaphoneIcon, PaperAirplaneIcon, PauseIcon, PlayIcon, PlusIcon, TrashIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api, { getApiErrorMessage } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -247,17 +234,17 @@ export default function AdminNotificationCampaigns() {
         <header className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link to="/admin" className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-900">
-              <ArrowLeft className="h-4 w-4" /> Admin
+              <ArrowLeftIcon className="h-4 w-4" /> Admin
             </Link>
             <h1 className="text-2xl font-black text-slate-950">Campagnes de notifications</h1>
             <p className="mt-1 text-sm text-gray-500">Annonces, promotions et notices ciblées — distinct des notifications sponsorisées vendeurs.</p>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={load} disabled={loading} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 disabled:opacity-50">
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button type="button" onClick={openComposer} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white">
-              <Plus className="h-4 w-4" /> Nouvelle campagne
+              <PlusIcon className="h-4 w-4" /> Nouvelle campagne
             </button>
           </div>
         </header>
@@ -299,7 +286,7 @@ export default function AdminNotificationCampaigns() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                     <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                      <Megaphone className="h-3 w-3" /> {item.stats?.sent || 0} / {item.stats?.targeted || 0} envoyées
+                      <MegaphoneIcon className="h-3 w-3" /> {item.stats?.sent || 0} / {item.stats?.targeted || 0} envoyées
                     </span>
                     {item.stats?.failed ? <span className="text-xs text-red-500">{item.stats.failed} échecs</span> : null}
                   </div>
@@ -313,7 +300,7 @@ export default function AdminNotificationCampaigns() {
                       disabled={actioningId === item._id}
                       className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#0b6b4f] px-3.5 text-xs font-bold text-white disabled:opacity-50"
                     >
-                      <Send className="h-3.5 w-3.5" /> Envoyer
+                      <PaperAirplaneIcon className="h-3.5 w-3.5" /> Envoyer
                     </button>
                   )}
                   {['scheduled', 'active'].includes(item.status) && (
@@ -323,7 +310,7 @@ export default function AdminNotificationCampaigns() {
                       disabled={actioningId === item._id}
                       className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-200 px-3.5 text-xs font-bold text-gray-700 disabled:opacity-50"
                     >
-                      <Pause className="h-3.5 w-3.5" /> Pause
+                      <PauseIcon className="h-3.5 w-3.5" /> PauseIcon
                     </button>
                   )}
                   {item.status === 'paused' && (
@@ -333,7 +320,7 @@ export default function AdminNotificationCampaigns() {
                       disabled={actioningId === item._id}
                       className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-200 px-3.5 text-xs font-bold text-gray-700 disabled:opacity-50"
                     >
-                      <Play className="h-3.5 w-3.5" /> Reprendre
+                      <PlayIcon className="h-3.5 w-3.5" /> Reprendre
                     </button>
                   )}
                   {!['completed', 'cancelled'].includes(item.status) && (
@@ -343,7 +330,7 @@ export default function AdminNotificationCampaigns() {
                       disabled={actioningId === item._id}
                       className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 px-3.5 text-xs font-bold text-red-700 disabled:opacity-50"
                     >
-                      <XCircle className="h-3.5 w-3.5" /> Annuler
+                      <XCircleIcon className="h-3.5 w-3.5" /> Annuler
                     </button>
                   )}
                   {['draft', 'cancelled'].includes(item.status) && (
@@ -353,7 +340,7 @@ export default function AdminNotificationCampaigns() {
                       disabled={actioningId === item._id}
                       className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-200 px-3.5 text-xs font-bold text-gray-500 disabled:opacity-50"
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                      <TrashIcon className="h-3.5 w-3.5" /> Supprimer
                     </button>
                   )}
                   <button
@@ -361,7 +348,7 @@ export default function AdminNotificationCampaigns() {
                     onClick={() => openAnalytics(item._id)}
                     className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-gray-200 px-3.5 text-xs font-bold text-gray-700"
                   >
-                    <BarChart3 className="h-3.5 w-3.5" /> Analytics
+                    <ChartBarIcon className="h-3.5 w-3.5" /> Analytics
                   </button>
                 </div>
               </article>
@@ -375,7 +362,7 @@ export default function AdminNotificationCampaigns() {
           <section className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-t-[28px] bg-white p-5 sm:rounded-[28px] sm:p-7">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-black text-slate-950">Nouvelle campagne</h2>
-              <button type="button" onClick={() => setComposerOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-gray-100"><X size={18} /></button>
+              <button type="button" onClick={() => setComposerOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-gray-100"><XMarkIcon className="h-[18px] w-[18px]" /></button>
             </div>
 
             <div className="mt-5 space-y-5">
@@ -466,7 +453,7 @@ export default function AdminNotificationCampaigns() {
                 ) : null}
                 <Toggle checked={form.audience.testerGroup} onChange={(value) => updateAudience({ testerGroup: value })} label="Uniquement les beta testeurs" />
                 <p className="rounded-xl bg-blue-50 px-3.5 py-2.5 text-sm font-bold text-blue-800">
-                  {estimating ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Estimation…</span> : `Destinataires estimés : ${estimatedRecipients ?? '—'}`}
+                  {estimating ? <span className="inline-flex items-center gap-2"><ArrowPathIcon className="h-4 w-4 animate-spin" /> Estimation…</span> : `Destinataires estimés : ${estimatedRecipients ?? '—'}`}
                 </p>
               </div>
 
@@ -506,7 +493,7 @@ export default function AdminNotificationCampaigns() {
                 Enregistrer en brouillon
               </button>
               <button type="button" disabled={!canSubmitComposer || saving} onClick={createAndSend} className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#e85d00] px-5 font-black text-white disabled:opacity-40">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Envoyer
+                {saving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PaperAirplaneIcon className="h-4 w-4" />} Envoyer
               </button>
             </div>
           </section>
@@ -524,7 +511,7 @@ export default function AdminNotificationCampaigns() {
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button type="button" onClick={() => setConfirmSend(null)} className="min-h-12 rounded-2xl border border-gray-200 font-bold">Annuler</button>
               <button type="button" disabled={actioningId === confirmSend} onClick={confirmAndSend} className="min-h-12 rounded-2xl bg-[#e85d00] font-bold text-white disabled:opacity-50">
-                {actioningId === confirmSend ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : 'Envoyer'}
+                {actioningId === confirmSend ? <ArrowPathIcon className="mx-auto h-4 w-4 animate-spin" /> : 'Envoyer'}
               </button>
             </div>
           </section>
@@ -536,10 +523,10 @@ export default function AdminNotificationCampaigns() {
           <section className="w-full max-w-md rounded-[26px] bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-black text-slate-950">Analytics</h2>
-              <button type="button" onClick={() => setAnalyticsFor(null)} className="grid h-9 w-9 place-items-center rounded-full bg-gray-100"><X size={16} /></button>
+              <button type="button" onClick={() => setAnalyticsFor(null)} className="grid h-9 w-9 place-items-center rounded-full bg-gray-100"><XMarkIcon className="h-4 w-4" /></button>
             </div>
             {!analytics ? (
-              <div className="mt-6 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
+              <div className="mt-6 flex justify-center"><ArrowPathIcon className="h-6 w-6 animate-spin text-gray-400" /></div>
             ) : (
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-gray-50 p-4 text-center"><p className="text-2xl font-black">{analytics.stats?.targeted || 0}</p><p className="text-xs font-bold text-gray-500">Ciblés</p></div>

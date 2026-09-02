@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Heart, MessageCircle, ShoppingCart, TrendingUp, BarChart3 } from 'lucide-react';
+import { ArrowTrendingUpIcon, ChartBarIcon, ChatBubbleLeftIcon, HeartIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import BaseModal, { ModalBody, ModalHeader } from './modals/BaseModal';
@@ -53,7 +53,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
         titleId={titleId}
         title="Analytics du produit"
         subtitle={productTitle}
-        icon={<BarChart3 className="w-5 h-5" />}
+        icon={<ChartBarIcon className="w-5 h-5" />}
         onClose={onClose}
       />
       <ModalBody className="space-y-6">
@@ -72,7 +72,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
                 <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 rounded-lg bg-neutral-500 text-white">
-                      <Heart className="w-4 h-4" />
+                      <HeartIcon className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">Favoris</p>
@@ -85,7 +85,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
                 <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 rounded-lg bg-green-500 text-white">
-                      <MessageCircle className="w-4 h-4" />
+                      <ChatBubbleLeftIcon className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">Clics WhatsApp</p>
@@ -98,7 +98,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
                 <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-xl p-4 border border-neutral-200 dark:border-neutral-800">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 rounded-lg bg-neutral-500 text-white">
-                      <ShoppingCart className="w-4 h-4" />
+                      <ShoppingCartIcon className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">Ventes</p>
@@ -113,7 +113,7 @@ export default function ProductAnalytics({ productId, productTitle, onClose }) {
               {viewsOverTime.length > 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+                    <ArrowTrendingUpIcon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">Vues sur les 30 derniers jours</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">

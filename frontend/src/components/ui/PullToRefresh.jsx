@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 /**
  * PullToRefresh — Wraps children and enables pull-down-to-refresh gesture.
@@ -69,11 +69,9 @@ export default function PullToRefresh({ onRefresh, children, disabled = false, c
           className="flex items-center justify-center overflow-hidden transition-all duration-200"
           style={{ height: Math.max(0, pullDistance) }}
         >
-          <RefreshCcw
-            size={20}
-            className={`text-gray-400 transition-all ${refreshing ? 'animate-spin' : ''}`}
-            style={{ opacity: Math.min(1, pullDistance / THRESHOLD) }}
-          />
+          <ArrowPathIcon
+className={`text-gray-400 transition-all ${refreshing ? 'animate-spin' : ''}`}
+            style={{ opacity: Math.min(1, pullDistance / THRESHOLD) }} className="h-5 w-5" />
         </div>
       )}
       {children}

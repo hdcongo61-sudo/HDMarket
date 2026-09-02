@@ -1,19 +1,5 @@
 import React from 'react';
-import {
-  ArrowLeft,
-  Calendar,
-  Clock,
-  Heart,
-  Loader2,
-  MapPin,
-  PackageCheck,
-  Search,
-  Share2,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Store
-} from 'lucide-react';
+import { ArrowLeftIcon, ArrowPathIcon, BuildingStorefrontIcon, CalendarIcon, ClockIcon, CubeIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, ShareIcon, ShieldCheckIcon, SparklesIcon, StarIcon } from '@heroicons/react/24/outline';
 import { formatCount, formatDate, formatRatingLabel } from './shopProfileHelpers';
 
 const isCloudinaryUrl = (url = '') =>
@@ -131,13 +117,11 @@ export default function ShopHero({
           {/* Rangée haute : retour, recherche en boutique, partage */}
           <div className="flex items-center gap-2">
             <HeroButton label={t('common.back', 'Retour')} onClick={onBack}>
-              <ArrowLeft size={19} />
+              <ArrowLeftIcon className="h-[19px] w-[19px]" />
             </HeroButton>
             <div className="relative min-w-0 flex-1">
-              <Search
-                size={16}
-                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
-              />
+              <MagnifyingGlassIcon
+className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 h-4 w-4" />
               <input
                 type="text"
                 value={productSearch}
@@ -148,7 +132,7 @@ export default function ShopHero({
               />
             </div>
             <HeroButton label={t('shop_profile.share', 'Partager')} onClick={onShare}>
-              <Share2 size={18} />
+              <ShareIcon className="h-[18px] w-[18px]" />
             </HeroButton>
           </div>
 
@@ -175,13 +159,13 @@ export default function ShopHero({
                 </h1>
                 {isCertifiedShop ? (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-emerald-700 shadow-sm">
-                    <ShieldCheck size={12} />
+                    <ShieldCheckIcon className="h-3 w-3" />
                     {t('shop_profile.verified', 'Boutique vérifiée')}
                   </span>
                 ) : null}
               </div>
               <p className="mt-1 flex min-w-0 items-center gap-1 truncate text-[11px] font-semibold text-white/85 sm:text-xs">
-                <MapPin size={12} className="shrink-0" />
+                <MapPinIcon className="shrink-0 h-3 w-3" />
                 <span className="truncate">{proofParts.join(' · ')}</span>
               </p>
             </div>
@@ -194,9 +178,9 @@ export default function ShopHero({
                 className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-black text-[#FF3D00] shadow-md transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {followPending ? (
-                  <Loader2 size={14} className="animate-spin" />
+                  <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
                 ) : (
-                  <Heart size={14} className={isFollowing ? 'fill-current' : ''} />
+                  <HeartIcon className={isFollowing ? 'fill-current' : ''} className="h-3.5 w-3.5" />
                 )}
                 {isFollowing
                   ? t('shop_profile.following', 'Suivi')
@@ -238,7 +222,7 @@ export default function ShopHero({
               {openingSummary?.statusText}
             </span>
             <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-black text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-              <Star size={13} className="fill-current" />
+              <StarIcon className="fill-current h-[13px] w-[13px]" />
               {formatRatingLabel(ratingAverage)}
               <span className="font-semibold opacity-70">
                 ({formatCount(ratingCount)})
@@ -246,18 +230,18 @@ export default function ShopHero({
             </span>
             {hasActivePromo ? (
               <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-[var(--shop-color)] px-3 text-xs font-black text-[var(--shop-color-contrast)]">
-                <Sparkles size={13} />
+                <SparklesIcon className="h-[13px] w-[13px]" />
                 {formatCount(shop?.activePromoCountNow)} promo(s)
               </span>
             ) : null}
             {hasFreeDelivery ? (
               <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-sky-50 px-3 text-xs font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
-                <PackageCheck size={13} />
+                <CubeIcon className="h-[13px] w-[13px]" />
                 Livraison offerte
               </span>
             ) : (
               <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-neutral-100 px-3 text-xs font-black text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                <Store size={13} />
+                <BuildingStorefrontIcon className="h-[13px] w-[13px]" />
                 Retrait disponible
               </span>
             )}
@@ -270,18 +254,18 @@ export default function ShopHero({
           <div className="mt-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {ratingCount > 0 && customerSatisfaction ? (
               <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
-                <Star size={12} />
+                <StarIcon className="h-3 w-3" />
                 {customerSatisfaction} satisfaction
               </span>
             ) : null}
             {yearsActiveLabel ? (
               <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
-                <Clock size={12} />
+                <ClockIcon className="h-3 w-3" />
                 Ancienneté : {yearsActiveLabel}
               </span>
             ) : null}
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
-              <Calendar size={12} />
+              <CalendarIcon className="h-3 w-3" />
               {t('shop_profile.member_since', 'Membre depuis')} {formatDate(shop?.createdAt)}
             </span>
           </div>

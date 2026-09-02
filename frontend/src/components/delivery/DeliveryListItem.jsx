@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Check, Clock3, Package, X } from 'lucide-react';
+import { CheckIcon, ClockIcon, CubeIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import {
   formatCurrency,
   getRelativeTime,
@@ -64,12 +64,12 @@ export default function DeliveryListItem({
       <div className="pointer-events-none absolute inset-0 flex">
         <div className="flex flex-1 items-center justify-start bg-emerald-50 pl-4 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
           <span className="inline-flex items-center gap-1 text-xs font-semibold">
-            <Check size={12} /> {item?.claimable ? 'Glisser pour prendre' : 'Glisser pour accepter'}
+            <CheckIcon className="h-3 w-3" /> {item?.claimable ? 'Glisser pour prendre' : 'Glisser pour accepter'}
           </span>
         </div>
         <div className="flex flex-1 items-center justify-end bg-rose-50 pr-4 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
           <span className="inline-flex items-center gap-1 text-xs font-semibold">
-            {item?.claimable ? 'Utilisez le bouton' : 'Glisser pour refuser'} <X size={12} />
+            {item?.claimable ? 'Utilisez le bouton' : 'Glisser pour refuser'} <XMarkIcon className="h-3 w-3" />
           </span>
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function DeliveryListItem({
             </p>
             <p className="mt-1 text-sm font-black text-gray-900 dark:text-white">{routeText}</p>
             <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-              <Clock3 size={12} /> {getRelativeTime(item?.updatedAt || item?.createdAt)}
+              <ClockIcon className="h-3 w-3" /> {getRelativeTime(item?.updatedAt || item?.createdAt)}
             </p>
           </div>
           <span className={`inline-flex rounded px-2.5 py-1 text-xs font-semibold ${statusPillClassOf(item)}`}>
@@ -106,7 +106,7 @@ export default function DeliveryListItem({
         <div className="mt-3 flex items-center gap-3">
           {item?.kind === 'PARCEL' ? (
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-orange-50 text-[#FF6A00] dark:bg-orange-950">
-              <Package size={14} />
+              <CubeIcon className="h-3.5 w-3.5" />
             </div>
           ) : firstItem?.imageUrl ? (
             <img
@@ -117,7 +117,7 @@ export default function DeliveryListItem({
             />
           ) : (
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-gray-50 text-gray-400 dark:bg-neutral-900 dark:text-gray-500">
-              <Package size={14} />
+              <CubeIcon className="h-3.5 w-3.5" />
             </div>
           )}
           <div className="min-w-0 flex-1">
@@ -148,7 +148,7 @@ export default function DeliveryListItem({
             disabled={!canAccept}
             className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 text-sm font-black text-white shadow-sm disabled:opacity-60"
           >
-            <Check size={15} /> Prendre cette livraison
+            <CheckIcon className="h-[15px] w-[15px]" /> Prendre cette livraison
           </button>
         ) : null}
       </div>

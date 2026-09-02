@@ -1,17 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  BadgeCheck,
-  Bike,
-  Camera,
-  CheckCircle2,
-  Clock3,
-  FileBadge,
-  Loader2,
-  ShieldCheck,
-  ShoppingBasket,
-  UserRound
-} from 'lucide-react';
+import { ArrowPathIcon, BoltIcon, CameraIcon, CheckBadgeIcon, CheckCircleIcon, ClockIcon, DocumentCheckIcon, ShieldCheckIcon, ShoppingBagIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -49,19 +38,19 @@ const fieldClass =
 
 const statusMeta = {
   pending: {
-    icon: Clock3,
+    icon: ClockIcon,
     title: 'Candidature en vérification',
     message: 'Notre équipe contrôle votre identité, votre numéro et votre véhicule.',
     tone: 'border-amber-200 bg-amber-50 text-amber-900'
   },
   approved: {
-    icon: CheckCircle2,
+    icon: CheckCircleIcon,
     title: 'Candidature approuvée',
     message: 'Votre accès livreur est activé. Reconnectez-vous si le mode livreur n’apparaît pas encore.',
     tone: 'border-emerald-200 bg-emerald-50 text-emerald-900'
   },
   rejected: {
-    icon: ShieldCheck,
+    icon: ShieldCheckIcon,
     title: 'Candidature à corriger',
     message: 'Consultez le motif ci-dessous, puis envoyez un nouveau dossier corrigé.',
     tone: 'border-red-200 bg-red-50 text-red-900'
@@ -72,7 +61,7 @@ function FileField({ name, label, help, value, onChange, required = true }) {
   return (
     <label className="block rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-3 transition hover:border-orange-300 hover:bg-orange-50/40">
       <span className="flex items-center gap-2 text-sm font-black text-neutral-900">
-        <Camera className="h-4 w-4 text-[#e85d00]" />
+        <CameraIcon className="h-4 w-4 text-[#e85d00]" />
         {label}
       </span>
       <span className="mt-1 block text-xs leading-5 text-neutral-500">{help}</span>
@@ -196,7 +185,7 @@ export default function DeliveryGuyApplication() {
   if (loading) {
     return (
       <div className="grid min-h-[60vh] place-items-center bg-[#f7f6f3]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#e85d00]" />
+        <ArrowPathIcon className="h-8 w-8 animate-spin text-[#e85d00]" />
       </div>
     );
   }
@@ -209,7 +198,7 @@ export default function DeliveryGuyApplication() {
       <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
         <section className="overflow-hidden rounded-3xl bg-neutral-950 p-5 text-white shadow-sm sm:p-8">
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black">
-            <Bike className="h-4 w-4 text-orange-400" />
+            <BoltIcon className="h-4 w-4 text-orange-400" />
             HDMarket Delivery
           </span>
           <h1 className="mt-4 text-2xl font-black tracking-tight sm:text-3xl">Devenir livreur</h1>
@@ -263,7 +252,7 @@ export default function DeliveryGuyApplication() {
           <form onSubmit={submit} className="mt-5 space-y-4" lang="fr" spellCheck="true">
             <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="flex items-center gap-3">
-                <UserRound className="h-5 w-5 text-[#e85d00]" />
+                <UserCircleIcon className="h-5 w-5 text-[#e85d00]" />
                 <div>
                   <h2 className="font-black">Identité et numéro</h2>
                   <p className="text-xs text-neutral-500">Toutes les informations doivent être au nom du candidat.</p>
@@ -304,7 +293,7 @@ export default function DeliveryGuyApplication() {
 
             <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="flex items-center gap-3">
-                <Bike className="h-5 w-5 text-[#e85d00]" />
+                <BoltIcon className="h-5 w-5 text-[#e85d00]" />
                 <div>
                   <h2 className="font-black">Véhicule et plaque</h2>
                   <p className="text-xs text-neutral-500">Le véhicule présenté sera celui utilisé pour les courses.</p>
@@ -416,7 +405,7 @@ export default function DeliveryGuyApplication() {
 
             <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="flex items-center gap-3">
-                <FileBadge className="h-5 w-5 text-[#e85d00]" />
+                <DocumentCheckIcon className="h-5 w-5 text-[#e85d00]" />
                 <h2 className="font-black">Permis et sécurité</h2>
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -484,7 +473,7 @@ export default function DeliveryGuyApplication() {
             <section className="rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700">
-                  <ShoppingBasket className="h-5 w-5" />
+                  <ShoppingBagIcon className="h-5 w-5" />
                 </span>
                 <div>
                   <h2 className="font-black">Missions « Acheter pour moi »</h2>
@@ -548,7 +537,7 @@ export default function DeliveryGuyApplication() {
               Je certifie que les documents sont authentiques, que le véhicule m’appartient ou que je suis autorisé à l’utiliser, et j’accepte leur vérification par HDMarket.
             </label>
             <button disabled={submitting} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#ff6a00] disabled:opacity-60">
-              {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <BadgeCheck className="h-5 w-5" />}
+              {submitting ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckBadgeIcon className="h-5 w-5" />}
               {submitting ? 'Envoi sécurisé…' : 'Envoyer ma candidature'}
             </button>
           </form>
