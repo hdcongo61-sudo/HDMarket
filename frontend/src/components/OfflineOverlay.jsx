@@ -124,7 +124,7 @@ export default function OfflineOverlay() {
               disabled={checking}
               className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950"
             >
-              <ArrowUturnRightIcon className={checking ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
+              <ArrowUturnRightIcon className={`h-[15px] w-[15px] ${checking ? 'animate-spin' : ''}`} />
               {checking ? 'Vérification…' : 'Vérifier la connexion'}
             </button>
           </div>

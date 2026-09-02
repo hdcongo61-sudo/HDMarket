@@ -354,7 +354,7 @@ export default function AdminLayout() {
             >
               <span>{groupLabels[groupKey]}</span>
               <ChevronDownIcon
-className={`transition-transform ${sectionCollapsed ? '-rotate-90' : 'rotate-0'}`} className="h-3.5 w-3.5" />
+className={`h-3.5 w-3.5 transition-transform ${sectionCollapsed ? '-rotate-90' : 'rotate-0'}`} />
             </button>
           ) : null}
           {sectionCollapsed ? null : (

@@ -22,7 +22,7 @@ export default function FloatingGlassButton({
       )}
       {...props}
     >
-      {Icon ? <Icon size={18} className={join('shrink-0', iconClassName)} /> : null}
+      {Icon ? <Icon className={join('h-[18px] w-[18px] shrink-0', iconClassName)} /> : null}
       {label ? <span className="truncate">{label}</span> : null}
     </button>
   );

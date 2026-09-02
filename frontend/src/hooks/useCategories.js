@@ -3,10 +3,23 @@ import api from '../services/api';
 import legacyCategoryGroups from '../data/categories';
 import { BuildingOffice2Icon, CubeIcon, DevicePhoneMobileIcon, FireIcon, GlobeAltIcon, HeartIcon, HomeIcon, ShoppingBagIcon, SparklesIcon, TruckIcon } from '@heroicons/react/24/outline';
 
-// Maps iconKey strings from the admin category model to Lucide React components
+// Maps iconKey strings from the admin category model to Heroicons components.
+// The keys are persisted values on Category documents in MongoDB — renaming a
+// key silently breaks every category already saved with it, so they stay fixed
+// even though the components they point to have changed.
 const ICON_MAP = {
-  DevicePhoneMobileIcon, ShoppingBagIcon, FireIcon, HomeIcon, BuildingOffice2Icon, HeartIcon, TruckIcon, TruckIcon,
-  CubeIcon, ShoppingBagIcon, SparklesIcon, GlobeAltIcon
+  Smartphone: DevicePhoneMobileIcon,
+  Shirt: ShoppingBagIcon,
+  Dumbbell: FireIcon,
+  Home: HomeIcon,
+  Factory: BuildingOffice2Icon,
+  HeartPulse: HeartIcon,
+  Car: TruckIcon,
+  Truck: TruckIcon,
+  Package: CubeIcon,
+  ShoppingBag: ShoppingBagIcon,
+  Sparkles: SparklesIcon,
+  Globe: GlobeAltIcon
 };
 
 const DEFAULT_ICON = CubeIcon;

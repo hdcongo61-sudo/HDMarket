@@ -270,7 +270,7 @@ function StatCard({ title, value, subtitle, highlight, icon: Icon, trend, loadin
           {subtitle && !loading && (
             <p className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-neutral-400">
               {trend && (
-                <ArrowTrendingUpIcon className={trend className="h-3 w-3"> 0 ? 'text-emerald-500' : 'text-red-500'} />
+                <ArrowTrendingUpIcon className={`h-3 w-3 ${trend > 0 ? 'text-emerald-500' : 'text-red-500'}`} />
               )}
               {subtitle}
             </p>
@@ -1661,7 +1661,7 @@ export default function AdminDashboard() {
                   className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#e2dcd2] bg-white text-gray-700 transition active:scale-[0.97] disabled:opacity-60"
                   aria-label={t('admin.dashboard.refresh', 'Actualiser')}
                 >
-                  <ArrowPathIcon className={refreshing ? 'animate-spin' : ''} className="h-4 w-4" />
+                  <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                   <span className="sr-only">{refreshing ? t('admin.dashboard.refreshing', 'Actualisation...') : t('admin.dashboard.refresh', 'Actualiser')}</span>
                 </button>
                 <Link

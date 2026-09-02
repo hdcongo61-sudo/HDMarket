@@ -180,7 +180,7 @@ className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-n
                 {followPending ? (
                   <ArrowPathIcon className="animate-spin h-3.5 w-3.5" />
                 ) : (
-                  <HeartIcon className={isFollowing ? 'fill-current' : ''} className="h-3.5 w-3.5" />
+                  <HeartIcon className={`h-3.5 w-3.5 ${isFollowing ? 'fill-current' : ''}`} />
                 )}
                 {isFollowing
                   ? t('shop_profile.following', 'Suivi')

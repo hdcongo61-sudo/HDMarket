@@ -1446,7 +1446,7 @@ export default function AdminUsers() {
             disabled={!canManageSellers || verifyingShopId === user.id}
             className={itemClass}
           >
-            <CheckCircleIcon className={user.shopVerified ? 'text-amber-500' : 'text-emerald-500'} className="h-3.5 w-3.5" />
+            <CheckCircleIcon className={`h-3.5 w-3.5 ${user.shopVerified ? 'text-amber-500' : 'text-emerald-500'}`} />
             {user.shopVerified ? 'Retirer le badge certifié' : 'Vérifier la boutique'}
           </button>
         )}
@@ -1638,7 +1638,7 @@ export default function AdminUsers() {
                 onClick={handleRefresh}
                 className="inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
               >
-                <ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-3.5 w-3.5" />
+                <ArrowPathIcon className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
                 Actualiser
               </button>
             </div>
@@ -2140,7 +2140,7 @@ export default function AdminUsers() {
                                   onClick={() => openRestrictionModal(user, rt.key)}
                                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
                                 >
-                                  <IconComponent className={isActive ? 'text-red-500' : 'text-gray-400'} className="h-3.5 w-3.5" />
+                                  <IconComponent className={`h-3.5 w-3.5 ${isActive ? 'text-red-500' : 'text-gray-400'}`} />
                                   <span className={isActive ? 'text-red-600 font-semibold' : 'text-gray-700'}>{rt.label}</span>
                                   {isActive && <span className="ml-auto text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Actif</span>}
                                 </button>
@@ -2439,7 +2439,7 @@ export default function AdminUsers() {
                                         onClick={() => openRestrictionModal(user, rt.key)}
                                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50"
                                       >
-                                        <IconComponent className={isActive ? 'text-red-500' : 'text-gray-400'} className="h-3.5 w-3.5" />
+                                        <IconComponent className={`h-3.5 w-3.5 ${isActive ? 'text-red-500' : 'text-gray-400'}`} />
                                         <span className={isActive ? 'text-red-600 font-semibold' : 'text-gray-700'}>{rt.label}</span>
                                         {isActive && <span className="ml-auto text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Actif</span>}
                                       </button>
@@ -2525,7 +2525,7 @@ export default function AdminUsers() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     <div className={`p-2.5 rounded-xl ${isActive ? 'bg-red-100' : 'bg-gray-100'}`}>
-                      <IconComponent className={isActive ? 'text-red-600' : 'text-gray-500'} className="h-6 w-6" />
+                      <IconComponent className={`h-6 w-6 ${isActive ? 'text-red-600' : 'text-gray-500'}`} />
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-gray-900 mb-1">

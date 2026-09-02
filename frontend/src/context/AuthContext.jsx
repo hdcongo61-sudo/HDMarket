@@ -8,6 +8,7 @@ import { clearUserDataOnLogout } from '../utils/clearUserDataOnLogout';
 import { queryClient } from '../lib/queryClient';
 import { normalizeUser } from '../utils/normalizeUser';
 import { appAlert } from '../utils/appDialog';
+import { setErrorTrackingUser } from '../utils/errorTracking';
 
 export const defaultAuthContextValue = {
   user: null,
@@ -75,6 +76,13 @@ export const AuthProvider = ({ children }) => {
       clearTimeout(timeout);
     };
   }, []);
+
+  // Keeps the error tracker's user in sync for login, logout, and restore of a
+  // persisted session alike. Id and role only — no name, email, or phone. No-op
+  // unless VITE_SENTRY_DSN is set.
+  useEffect(() => {
+    setErrorTrackingUser(user?.id ? { id: user.id, role: user.role } : null);
+  }, [user?.id, user?.role]);
 
   const persistUser = async (data) => {
     const { token: _token, ...rest } = data || {};

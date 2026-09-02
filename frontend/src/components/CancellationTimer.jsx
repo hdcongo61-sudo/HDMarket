@@ -69,7 +69,7 @@ export default function CancellationTimer({ deadline, remainingMs: initialRemain
       }`}
     >
       <ClockIcon
-className={`${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`} className="h-[18px] w-[18px]" />
+className={`h-[18px] w-[18px] ${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`} />
       <div className="flex-1">
         <div className="text-xs font-semibold uppercase tracking-wide mb-0.5">
           Délai d'annulation

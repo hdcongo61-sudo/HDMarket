@@ -173,7 +173,14 @@ export const globalErrorHandler = (err, req, res, _next) => {
   // Real-time alerting alongside the durable ErrorLog record above — same
   // 500-only threshold, so the two stay in sync. No-op unless SENTRY_DSN is set.
   if (mapped.status >= 500) {
-    captureServerError(err, { requestId, method: req.method, path: req.originalUrl, code: mapped.code });
+    captureServerError(err, {
+      requestId,
+      method: req.method,
+      path: req.originalUrl,
+      code: mapped.code,
+      userId: req?.user?._id ? String(req.user._id) : '',
+      role: req?.user?.role || ''
+    });
   }
 
   if (res.headersSent || res.writableEnded) {

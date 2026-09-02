@@ -26,7 +26,7 @@ const StatCard = ({ label, value, change, icon: Icon, color = 'orange' }) => (
     <div className="flex items-center justify-between">
       <span className="text-xs font-semibold text-gray-500">{label}</span>
       <div className={`rounded-lg p-1.5 bg-${color}-50`}>
-        <Icon className={`text-${color}-500`} className="h-3.5 w-3.5" />
+        <Icon className={`h-3.5 w-3.5 text-${color}-500`} />
       </div>
     </div>
     <p className="mt-2 text-xl font-black text-gray-900">{value}</p>
@@ -158,7 +158,7 @@ export default function SellerAnalyticsV2() {
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            <t.icon size={14} className="mx-auto mb-0.5" />
+            <t.icon className="mx-auto mb-0.5 h-3.5 w-3.5" />
             {t.label}
           </button>
         ))}

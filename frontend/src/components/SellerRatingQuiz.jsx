@@ -77,11 +77,9 @@ export default function SellerRatingQuiz({ shopId, orderId, onSubmitted }) {
               className="transition-transform hover:scale-110"
             >
               <StarIcon
-className={
-                  star <= (hoverOverall || overallRating)
+className={`h-6 w-6 ${star <= (hoverOverall || overallRating)
                     ? 'fill-amber-400 text-amber-400'
-                    : 'text-gray-300'
-                } className="h-6 w-6" />
+                    : 'text-gray-300'}`} />
             </button>
           ))}
         </div>
@@ -101,11 +99,9 @@ className={
               className="transition-transform hover:scale-110"
             >
               <StarIcon
-className={
-                  star <= (hoverDescription || descriptionRating)
+className={`h-[18px] w-[18px] ${star <= (hoverDescription || descriptionRating)
                     ? 'fill-blue-400 text-blue-400'
-                    : 'text-gray-200'
-                } className="h-[18px] w-[18px]" />
+                    : 'text-gray-200'}`} />
             </button>
           ))}
         </div>
@@ -125,11 +121,9 @@ className={
               className="transition-transform hover:scale-110"
             >
               <StarIcon
-className={
-                  star <= (hoverCommunication || communicationRating)
+className={`h-[18px] w-[18px] ${star <= (hoverCommunication || communicationRating)
                     ? 'fill-green-400 text-green-400'
-                    : 'text-gray-200'
-                } className="h-[18px] w-[18px]" />
+                    : 'text-gray-200'}`} />
             </button>
           ))}
         </div>
@@ -149,11 +143,9 @@ className={
               className="transition-transform hover:scale-110"
             >
               <StarIcon
-className={
-                  star <= (hoverDelivery || deliveryRating)
+className={`h-[18px] w-[18px] ${star <= (hoverDelivery || deliveryRating)
                     ? 'fill-orange-400 text-orange-400'
-                    : 'text-gray-200'
-                } className="h-[18px] w-[18px]" />
+                    : 'text-gray-200'}`} />
             </button>
           ))}
         </div>

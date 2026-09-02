@@ -2945,7 +2945,7 @@ export default function ProductDetails() {
                 <p className="text-4xl font-black text-[#FF5000]">{ratingAverage}</p>
                 <div className="flex items-center gap-0.5 mt-1">
                   {[1,2,3,4,5].map((s) => (
-                    <StarIcon key={s}  className={s <= Math.floor(Number(ratingAverage)) ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-200'} className="h-[13px] w-[13px]" />
+                    <StarIcon key={s}  className={`h-[13px] w-[13px] ${s <= Math.floor(Number(ratingAverage)) ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-200'}`} />
                   ))}
                 </div>
                 <p className="text-[11px] text-gray-400 mt-0.5">{ratingCount} avis</p>
@@ -2973,7 +2973,7 @@ export default function ProductDetails() {
                   <span className="text-xs text-gray-500">Votre note:</span>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button key={star} type="button" onClick={() => handleSubmitRating(star)} disabled={submittingRating} className="focus:outline-none">
-                      <StarIcon className={star <= userRating ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-300'} className="h-5 w-5" />
+                      <StarIcon className={`h-5 w-5 ${star <= userRating ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-300'}`} />
                     </button>
                   ))}
                   {submittingRating && <span className="text-xs text-gray-400 ml-1">...</span>}
@@ -4383,10 +4383,10 @@ className="text-white drop-shadow-md h-5 w-5"
                             <StarIcon
 key={star}
                               
-                              className={`${star <= Math.floor(ratingAverage)
+                              className={`h-6 w-6 ${star <= Math.floor(ratingAverage)
                                 ? 'text-neutral-500 fill-neutral-500'
                                 : 'text-gray-300'
-                                }`} className="h-6 w-6" />
+                                }`} />
                           ))}
                         </div>
                         <div className="text-sm text-gray-700 font-bold">
@@ -4420,10 +4420,10 @@ key={star}
                                   className="focus:outline-none disabled:opacity-50 hover:scale-110 transition-transform"
                                 >
                                   <StarIcon
-className={`${star <= userRating
+className={`h-7 w-7 ${star <= userRating
                                       ? 'text-neutral-500 fill-neutral-500'
                                       : 'text-gray-300'
-                                      } hover:text-neutral-400 transition-colors`} className="h-7 w-7" />
+                                      } hover:text-neutral-400 transition-colors`} />
                                 </button>
                               ))}
                               {submittingRating && <span className="text-sm text-gray-600 font-semibold ml-2">Envoi...</span>}
@@ -5198,7 +5198,7 @@ className={`${star <= userRating
                         className="focus:outline-none disabled:opacity-50"
                       >
                         <StarIcon
-className={star <= userRating ? 'text-neutral-500 fill-neutral-500' : 'text-gray-300'} className="h-[18px] w-[18px]" />
+className={`h-[18px] w-[18px] ${star <= userRating ? 'text-neutral-500 fill-neutral-500' : 'text-gray-300'}`} />
                       </button>
                     ))}
                     {submittingRating && <span className="text-xs text-gray-500 ml-1">...</span>}

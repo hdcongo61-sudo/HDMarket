@@ -1877,7 +1877,7 @@ export default function AdminSystemSettings() {
                             Autres paramètres ({runtimeSearch.trim() ? `${filteredOtherRuntimeCount}/${otherRuntimeCount}` : otherRuntimeCount})
                           </span>
                           <ChevronDownIcon
-className={`transition-transform duration-300 ${otherRuntimeOpen ? 'rotate-180' : ''}`} className="h-4 w-4" />
+className={`h-4 w-4 transition-transform duration-300 ${otherRuntimeOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {otherRuntimeOpen ? (
                         <div className="space-y-4 border-t border-slate-200 p-3 dark:border-neutral-700">

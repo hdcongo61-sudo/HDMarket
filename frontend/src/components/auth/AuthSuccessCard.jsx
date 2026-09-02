@@ -24,7 +24,7 @@ export default function AuthSuccessCard({
       ) : null}
 
       <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-neutral-900 dark:text-slate-200">
-        <ArrowPathIcon className={join(loading ? 'animate-spin' : 'animate-pulse')} className="h-[13px] w-[13px]" />
+        <ArrowPathIcon className={`h-[13px] w-[13px] ${join(loading ? 'animate-spin' : 'animate-pulse')}`} />
         {statusText}
       </div>
 

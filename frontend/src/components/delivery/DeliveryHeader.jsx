@@ -54,9 +54,8 @@ export default function DeliveryHeader({ title, subtitle, online = true, actions
                 >
                   {Icon ? (
                     <Icon
-                      size={17}
                       strokeWidth={2.25}
-                      className={action.loading ? 'animate-spin' : ''}
+                      className={`h-[17px] w-[17px] ${action.loading ? 'animate-spin' : ''}`}
                     />
                   ) : null}
                   {badge > 0 ? (

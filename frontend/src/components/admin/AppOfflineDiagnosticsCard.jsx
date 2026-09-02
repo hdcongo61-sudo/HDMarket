@@ -90,7 +90,7 @@ export default function AppOfflineDiagnosticsCard({
           onClick={reload}
           className="inline-flex min-h-[40px] w-full items-center justify-center gap-2 rounded-2xl border border-slate-200/80 px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800 sm:w-auto"
         >
-          <ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-3.5 w-3.5" />
+          <ArrowPathIcon className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           Vérifier
         </button>
       </div>
@@ -120,7 +120,7 @@ export default function AppOfflineDiagnosticsCard({
               className="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-2xl border border-slate-200/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               {mobileExpanded ? 'Masquer' : 'Voir'}
-              <ChevronDownIcon className={`transition-transform ${mobileExpanded ? 'rotate-180' : ''}`} className="h-3.5 w-3.5" />
+              <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${mobileExpanded ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </GlassCard>

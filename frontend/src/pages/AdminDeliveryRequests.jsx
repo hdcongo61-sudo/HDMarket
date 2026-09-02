@@ -894,7 +894,7 @@ export default function AdminDeliveryRequests() {
                   disabled={refreshing || loading}
                   className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60 sm:flex-none"
                 >
-                  <ArrowPathIcon className={refreshing ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
+                  <ArrowPathIcon className={`h-[15px] w-[15px] ${refreshing ? 'animate-spin' : ''}`} />
                   Actualiser
                 </button>
                 <Link

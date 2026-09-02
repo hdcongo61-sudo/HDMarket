@@ -123,7 +123,7 @@ const GUIDE_SECTIONS = [
     color: 'bg-sky-50 text-sky-700',
     title: '6. Où entrer ces valeurs',
     steps: [
-      <>Soit dans <Code>backend/.env</Code> (voir <Code>.env.example</Code>),</>,
+      <>Soit dans <Code>backend/.env</Code>,</>,
       <>soit directement ici, onglet <strong>Canaux → Connecter</strong> (réservé au fondateur) — chiffrées avant stockage.</>,
       <>Une fois WhatsApp renseigné, activez les flags <Code>social_commerce</Code> et <Code>social_whatsapp</Code> depuis Admin → Gestion des fonctionnalités, puis testez en envoyant un vrai message WhatsApp contenant le code d’un produit (ex. <Code>HD-8F42K</Code>) à votre numéro de test.</>
     ]

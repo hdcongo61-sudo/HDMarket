@@ -1,5 +1,5 @@
-// HDMARKET_PUBLIC_URL must be set in every environment that generates
-// outbound share links (see .env.example) — falls back to a relative path
+// HDMARKET_PUBLIC_URL must be set in backend/.env of every environment that
+// generates outbound share links — falls back to a relative path
 // (no host) rather than throwing, so a misconfigured env doesn't crash a
 // webhook reply, it just produces a link that needs the app's own origin.
 const getPublicUrl = () => String(process.env.HDMARKET_PUBLIC_URL || '').replace(/\/+$/, '');

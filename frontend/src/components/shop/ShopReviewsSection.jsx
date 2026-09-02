@@ -56,11 +56,9 @@ export default function ShopReviewsSection({
                 <StarIcon
 key={star}
                   
-                  className={
-                    star <= Math.round(ratingAverage)
+                  className={`h-[13px] w-[13px] ${star <= Math.round(ratingAverage)
                       ? 'fill-[var(--shop-color)] text-[var(--shop-color)]'
-                      : 'text-gray-200 dark:text-neutral-700'
-                  } className="h-[13px] w-[13px]" />
+                      : 'text-gray-200 dark:text-neutral-700'}`} />
               ))}
             </div>
             <p className="mt-0.5 text-[11px] text-gray-400">
@@ -112,11 +110,9 @@ key={star}
                 className="transition hover:scale-110"
               >
                 <StarIcon
-className={
-                    value <= Number(reviewForm.rating)
+className={`h-[26px] w-[26px] ${value <= Number(reviewForm.rating)
                       ? 'fill-[var(--shop-color)] text-[var(--shop-color)]'
-                      : 'text-gray-300 dark:text-neutral-700'
-                  } className="h-[26px] w-[26px]" />
+                      : 'text-gray-300 dark:text-neutral-700'}`} />
               </button>
             ))}
           </div>
@@ -195,11 +191,9 @@ className={
                           <StarIcon
 key={`${review._id}-${star}`}
                             
-                            className={
-                              star <= Number(review.rating || 0)
+                            className={`h-[11px] w-[11px] ${star <= Number(review.rating || 0)
                                 ? 'fill-amber-400 text-amber-400'
-                                : 'text-neutral-300 dark:text-neutral-700'
-                            } className="h-[11px] w-[11px]" />
+                                : 'text-neutral-300 dark:text-neutral-700'}`} />
                         ))}
                       </div>
                       <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
@@ -307,11 +301,9 @@ key={`${review._id}-${star}`}
                               <StarIcon
 key={`${review._id}-full-${star}`}
                                 
-                                className={
-                                  star <= Number(review.rating || 0)
+                                className={`h-[11px] w-[11px] ${star <= Number(review.rating || 0)
                                     ? 'fill-amber-400 text-amber-400'
-                                    : 'text-neutral-300 dark:text-neutral-700'
-                                } className="h-[11px] w-[11px]" />
+                                    : 'text-neutral-300 dark:text-neutral-700'}`} />
                             ))}
                           </div>
                           <p className="mt-2 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">

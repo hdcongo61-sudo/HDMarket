@@ -96,7 +96,7 @@ export default function FounderNotificationsIntelligence() {
                 disabled={isFetching}
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-black disabled:opacity-60"
               >
-                <ArrowPathIcon className={isFetching ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
+                <ArrowPathIcon className={`h-[15px] w-[15px] ${isFetching ? 'animate-spin' : ''}`} />
                 Rafraîchir
               </button>
               <Link

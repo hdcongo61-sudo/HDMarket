@@ -1502,7 +1502,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
               )}
             </div>
             <ChevronDownIcon
-className={`text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`} className="h-4 w-4" />
+className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </button>
         )}
 
@@ -3582,7 +3582,7 @@ className={`text-gray-500 transition-transform ${showFilters ? 'rotate-180' : ''
                 >
                   {t('nav.categories', 'Catégories')}
                   <ChevronDownIcon
-className={`transition-transform duration-200 ${isCategoryMenuOpen ? "rotate-180" : ""}`} className="h-4 w-4" />
+className={`h-4 w-4 transition-transform duration-200 ${isCategoryMenuOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {/* MEGA MENU CATÉGORIES — rail of univers + live subcategory panel */}
@@ -3633,7 +3633,7 @@ className={`transition-transform duration-200 ${isCategoryMenuOpen ? "rotate-180
                                       </span>
                                       <span className="flex-1 truncate">{group.label}</span>
                                       <ChevronRightIcon
-className={isActive ? 'text-[#e85d00]' : 'text-gray-300 dark:text-gray-600'} className="h-3.5 w-3.5" />
+className={`h-3.5 w-3.5 ${isActive ? 'text-[#e85d00]' : 'text-gray-300 dark:text-gray-600'}`} />
                                     </Link>
                                   </li>
                                 );
@@ -3706,7 +3706,7 @@ className={isActive ? 'text-[#e85d00]' : 'text-gray-300 dark:text-gray-600'} cla
                 >
                   {t('nav.shops', 'Boutiques')}
                   <ChevronDownIcon
-className={`transition-transform duration-200 ${isShopMenuOpen ? "rotate-180" : ""}`} className="h-4 w-4" />
+className={`h-4 w-4 transition-transform duration-200 ${isShopMenuOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {/* ENHANCED BOUTIQUES MENU */}
@@ -3821,7 +3821,7 @@ className={`transition-transform duration-200 ${isShopMenuOpen ? "rotate-180" : 
                 >
                   {t('nav.more', 'PlusIcon')}
                   <ChevronDownIcon
-className={`transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180' : ''}`} className="h-4 w-4" />
+className={`h-4 w-4 transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isMoreMenuOpen && (
                   <div

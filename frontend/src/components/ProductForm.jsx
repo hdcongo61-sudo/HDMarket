@@ -15,7 +15,7 @@ import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles, PRODUCT_IMAGE_ACCEPT } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
 import TagSelector from './tags/TagSelector';
-import { getListingFeeChangePreview, getMissingProductFormFields } from '../utils/productFormUx';
+import { getInstallmentEndDate, getListingFeeChangePreview, getMissingProductFormFields } from '../utils/productFormUx';
 
 const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
 
@@ -3053,12 +3053,18 @@ export default function ProductForm(props) {
                         inputMode="numeric"
                         value={form.installmentDuration}
                         onChange={(e) =>
-                          setForm((prev) => ({ ...prev, installmentDuration: e.target.value }))
+                          setForm((prev) => ({
+                            ...prev,
+                            installmentDuration: e.target.value,
+                            installmentEndDate: prev.installmentStartDate
+                              ? getInstallmentEndDate(prev.installmentStartDate, e.target.value)
+                              : prev.installmentEndDate
+                          }))
                         }
                         className={inputClass}
                         placeholder="Ex: 30"
                       />
-                      <p className="text-[11px] text-gray-400">Doit correspondre à l'écart des dates ci-dessous.</p>
+                      <p className="text-[11px] text-gray-400">La date de fin est calculée à partir de ce nombre de jours.</p>
                     </div>
                   </div>
                 </div>
@@ -3076,7 +3082,13 @@ export default function ProductForm(props) {
                         type="date"
                         value={form.installmentStartDate}
                         onChange={(e) =>
-                          setForm((prev) => ({ ...prev, installmentStartDate: e.target.value }))
+                          setForm((prev) => ({
+                            ...prev,
+                            installmentStartDate: e.target.value,
+                            installmentEndDate: prev.installmentDuration
+                              ? getInstallmentEndDate(e.target.value, prev.installmentDuration)
+                              : prev.installmentEndDate
+                          }))
                         }
                         className={inputClass}
                       />
@@ -3089,8 +3101,10 @@ export default function ProductForm(props) {
                         onChange={(e) =>
                           setForm((prev) => ({ ...prev, installmentEndDate: e.target.value }))
                         }
+                        readOnly
                         className={inputClass}
                       />
+                      <p className="text-[11px] text-gray-400">Calculée automatiquement à partir de la durée et de la date de début.</p>
                     </div>
                   </div>
                 </div>

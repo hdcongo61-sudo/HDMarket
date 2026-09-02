@@ -14,9 +14,11 @@ Mobile-first e-commerce marketplace for Brazzaville/Congo (Taobao-inspired: fast
 # backend (needs backend/.env — MONGO_URI, JWT_SECRET, CLOUDINARY_*, etc. — not committed, ask for a copy)
 cd backend && npm run dev        # nodemon, http://localhost:5001
 
-# frontend (needs frontend/.env.local — copy frontend/.env.example as a starting point)
+# frontend (needs frontend/.env.local for the API base URL and Firebase keys)
 cd frontend && npm run dev       # vite, http://localhost:5173
 ```
+
+`backend/.env` and `frontend/.env.local` are untracked and are the only env files either side uses — there are no `.env.example` templates in the repo. A fresh clone must create its own `frontend/.env.local` (see `VITE_API_URL`/timeout keys in `frontend/src/services/api.js` and Firebase keys in `frontend/src/utils/`); the backend `.env` key reference and defaults live in code, not in a committed template.
 
 If port 5001 is taken, the backend auto-retries on 5002+ and logs a warning — update `VITE_API_URL` if that happens instead of killing the stale process blind.
 

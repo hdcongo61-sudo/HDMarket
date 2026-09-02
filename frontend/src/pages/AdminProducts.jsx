@@ -133,7 +133,7 @@ const StatCard = ({ title, value, helper, icon: Icon, highlight, trend }) => (
         {helper && (
           <p className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-slate-400">
             {trend && (
-              <ArrowTrendingUpIcon className={trend className="h-3 w-3"> 0 ? 'text-emerald-500' : 'text-red-500'} />
+              <ArrowTrendingUpIcon className={`h-3 w-3 ${trend > 0 ? 'text-emerald-500' : 'text-red-500'}`} />
             )}
             {helper}
           </p>

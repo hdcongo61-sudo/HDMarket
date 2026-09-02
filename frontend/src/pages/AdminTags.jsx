@@ -276,7 +276,7 @@ export default function AdminTags() {
             <select value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} className="min-h-10 rounded-xl border border-neutral-200 px-3 text-sm"><option value="">Tous les types</option>{TYPES.map((value) => <option key={value} value={value}>{TYPE_LABELS[value]}</option>)}</select>
             <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="min-h-10 rounded-xl border border-neutral-200 px-3 text-sm"><option value="">Tous les statuts</option>{STATUSES.map((value) => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}</select>
             <label className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-neutral-200 px-3 text-xs font-bold"><input type="checkbox" checked={showDeleted} onChange={(e) => { setShowDeleted(e.target.checked); setPage(1); }} /> Corbeille</label>
-            <button type="button" onClick={load} className="rounded-xl border border-neutral-200 p-2.5"><ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-4 w-4" /></button>
+            <button type="button" onClick={load} className="rounded-xl border border-neutral-200 p-2.5"><ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
             {selected.size > 0 && <button type="button" onClick={bulkDelete} className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700"><TrashIcon className="h-3.5 w-3.5" /> Supprimer ({selected.size})</button>}
           </div>
           <div className="overflow-x-auto">

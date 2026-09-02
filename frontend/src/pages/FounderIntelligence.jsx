@@ -171,7 +171,7 @@ export default function FounderIntelligence() {
                   disabled={refreshing}
                   className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                 >
-                  <ArrowPathIcon className={refreshing ? 'animate-spin' : ''} className="h-4 w-4" />
+                  <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                   Rafraichir
                 </button>
                 <Link

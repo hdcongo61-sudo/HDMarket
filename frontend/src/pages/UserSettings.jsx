@@ -425,7 +425,7 @@ export default function UserSettings() {
               disabled={requestingBeta}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-4 text-sm font-black text-white transition active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-neutral-900"
             >
-              <BeakerIcon className={requestingBeta ? 'animate-pulse' : ''} className="h-4 w-4" />
+              <BeakerIcon className={`h-4 w-4 ${requestingBeta ? 'animate-pulse' : ''}`} />
               {requestingBeta ? 'Envoi…' : 'Devenir testeur bêta'}
             </button>
           )}
@@ -526,7 +526,7 @@ export default function UserSettings() {
               disabled={hardRefreshing || clearingPwaCache}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white transition hover:bg-[#f45f00] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <ArrowPathIcon className={hardRefreshing ? 'animate-spin' : ''} className="h-4 w-4" />
+              <ArrowPathIcon className={`h-4 w-4 ${hardRefreshing ? 'animate-spin' : ''}`} />
               {hardRefreshing
                 ? t('settings.cache.refreshing', 'Actualisation...')
                 : t('settings.cache.hardRefresh', 'Hard refresh (forcer)')}

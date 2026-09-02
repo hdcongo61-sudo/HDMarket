@@ -195,7 +195,7 @@ function PermissionSwitch({ permission, checked, onToggle, disabled }) {
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <Icon className={checked ? 'text-[#e85d00]' : 'text-gray-400'} className="h-[15px] w-[15px]" />
+          <Icon className={`h-[15px] w-[15px] ${checked ? 'text-[#e85d00]' : 'text-gray-400'}`} />
           <p className="text-sm font-bold text-gray-900">{permission.label}</p>
         </div>
         <p className="mt-1 text-xs leading-5 text-gray-500">{permission.description}</p>
@@ -377,7 +377,7 @@ function AssistantWorkspace({ assignment, auditLogs }) {
           disabled={workspaceLoading}
           className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          <ArrowPathIcon className={workspaceLoading ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
+          <ArrowPathIcon className={`h-[15px] w-[15px] ${workspaceLoading ? 'animate-spin' : ''}`} />
           Actualiser
         </button>
       </div>
@@ -603,7 +603,7 @@ function AssistantProductsView() {
             disabled={loading}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-60"
           >
-            <ArrowPathIcon className={loading ? 'animate-spin' : ''} className="h-[15px] w-[15px]" />
+            <ArrowPathIcon className={`h-[15px] w-[15px] ${loading ? 'animate-spin' : ''}`} />
             Actualiser
           </button>
         </div>
