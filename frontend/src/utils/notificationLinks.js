@@ -63,6 +63,7 @@ const DELIVERY_TYPES = new Set([
 ]);
 const PRODUCT_TYPES = new Set([
   'favorite',
+  'favorite_product_updated',
   'product_approval',
   'product_approved',
   'product_rejection',

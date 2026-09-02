@@ -118,6 +118,23 @@ const imageStudioArrayPayload = Joi.string()
     }
   }, 'Image Studio JSON array validation')
   .messages({ 'any.invalid': 'Les métadonnées Image Studio doivent être un tableau JSON valide.' });
+const imageDescriptionItem = Joi.string().trim().max(500).allow('', null);
+const imageDescriptionsPayload = Joi.alternatives()
+  .try(
+    Joi.array().items(imageDescriptionItem).max(20),
+    Joi.string()
+      .max(11_000)
+      .custom((value, helpers) => {
+        try {
+          const parsed = JSON.parse(value || '[]');
+          const { error } = Joi.array().items(imageDescriptionItem).max(20).validate(parsed);
+          return error ? helpers.error('any.invalid') : value;
+        } catch {
+          return helpers.error('any.invalid');
+        }
+      }, 'Image descriptions JSON array validation')
+  )
+  .messages({ 'any.invalid': 'Les descriptions des photos doivent être un tableau JSON valide.' });
 const transactionCodeSchema = Joi.string()
   .pattern(/^\d{10}$/)
   .messages({ 'string.pattern.base': 'Le code de transaction doit contenir exactement 10 chiffres.' });
@@ -316,6 +333,7 @@ export const schemas = {
     socialVideoUrl: Joi.string().max(500).allow('', null).optional(),
     videoMuted: Joi.boolean().truthy('true').falsy('false').optional(),
     newImageStudioMetadata: imageStudioArrayPayload.optional(),
+    imageDescriptions: imageDescriptionsPayload.optional(),
     promoCode: Joi.string().max(60).allow('', null).optional()
   }).or('category', 'categoryId', 'subcategoryId'),
   productUpdate: Joi.object({
@@ -375,6 +393,7 @@ export const schemas = {
     ),
     removeImages: Joi.array().items(Joi.string().max(500)).max(20).single(),
     newImageStudioMetadata: imageStudioArrayPayload.optional(),
+    imageDescriptions: imageDescriptionsPayload.optional(),
     imageReplacementTargets: imageStudioArrayPayload.optional(),
     imageStudioMetadata: imageStudioArrayPayload.optional(),
     removeVideo: Joi.boolean().truthy('true').falsy('false'),
@@ -1277,6 +1296,7 @@ export const schemas = {
     product_comment: Joi.boolean(),
     reply: Joi.boolean(),
     favorite: Joi.boolean(),
+    favorite_product_updated: Joi.boolean(),
     rating: Joi.boolean(),
     product_approval: Joi.boolean(),
     product_rejection: Joi.boolean(),

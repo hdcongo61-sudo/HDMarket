@@ -490,6 +490,7 @@ export default function UserSettings() {
                 onToggle={handleNotifToggle}
                 items={[
                   ['price_drop', t('settings.notifPriceDrop', '📉 Baisse de prix sur mes favoris')],
+                  ['favorite_product_updated', t('settings.notifFavoriteProductUpdated', '✏️ Modifications de mes favoris')],
                   ['back_in_stock', t('settings.notifBackInStock', '🔄 Produit de retour en stock')],
                   ['abandoned_cart', t('settings.notifAbandonedCart', '🛒 Rappel panier oublié')],
                   ['seller_new_product', t('settings.notifSellerNewProduct', '🆕 Nouveautés des boutiques suivies')],

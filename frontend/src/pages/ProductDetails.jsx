@@ -2042,16 +2042,24 @@ export default function ProductDetails() {
 
   const galleryImages = useMemo(() => {
     const base = Array.isArray(product?.images) ? product.images : [];
+    const descriptions = Array.isArray(product?.imageDescriptions) ? product.imageDescriptions : [];
     const cleaned = base
-      .map((value) => String(value || '').trim())
-      .filter(Boolean);
+      .map((value, index) => ({
+        src: String(value || '').trim(),
+        description: String(descriptions[index] || '').trim()
+      }))
+      .filter((item) => Boolean(item.src));
     // Images first, then video at the end if present
-    const items = cleaned.slice(0, 10).map((src) => ({ type: 'image', src: squareImageUrl(src) }));
+    const items = cleaned.slice(0, 10).map((item) => ({
+      type: 'image',
+      src: squareImageUrl(item.src),
+      description: item.description
+    }));
     if (product?.video && String(product.video).trim()) {
-      items.push({ type: 'video', src: String(product.video).trim() });
+      items.push({ type: 'video', src: String(product.video).trim(), description: '' });
     }
     return items;
-  }, [product?.images, product?.video]);
+  }, [product?.images, product?.imageDescriptions, product?.video]);
   const socialVideo = useMemo(() => parseSocialVideo(product?.socialVideoUrl), [product?.socialVideoUrl]);
   const shopGalleryImages = useMemo(() => {
     const pool = [];
@@ -2107,6 +2115,9 @@ export default function ProductDetails() {
   const displayedImage = galleryImages[safeSelectedImage]?.src || PLACEHOLDER_IMAGE;
   const isDisplayedVideo = galleryImages[safeSelectedImage]?.type === 'video';
   const displayedVideoSrc = isDisplayedVideo ? galleryImages[safeSelectedImage]?.src : '';
+  const displayedImageDescription = isDisplayedVideo
+    ? ''
+    : String(galleryImages[safeSelectedImage]?.description || '').trim();
   const imageCursorClass = "cursor-pointer";
   const hasMultipleGalleryImages = galleryImages.length > 1;
   const mobileMainGalleryImageClass = hasMultipleGalleryImages
@@ -2520,6 +2531,11 @@ export default function ProductDetails() {
             </>
           )}
         </div>
+        {displayedImageDescription && (
+          <p className="border-t border-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-700">
+            {displayedImageDescription}
+          </p>
+        )}
         {/* Thumbnail rail */}
         {galleryImages.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-t border-gray-50">
@@ -3730,6 +3746,11 @@ className="text-white drop-shadow-md h-5 w-5"
                   </div>
                 </div>
               </div>
+              {displayedImageDescription && (
+                <p className="mt-3 rounded-xl bg-gray-50 px-4 py-3 text-sm leading-relaxed text-gray-700">
+                  {displayedImageDescription}
+                </p>
+              )}
             </div>
             {product.video && (
               <div className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
@@ -5342,6 +5363,14 @@ className={`h-[18px] w-[18px] ${star <= userRating ? 'text-neutral-500 fill-neut
                 </SwiperSlide>
               ))}
             </Swiper>
+
+            {displayedImageDescription && (
+              <div className={`pointer-events-none absolute inset-x-4 z-20 flex justify-center ${galleryImages.length > 1 ? 'bottom-20' : 'bottom-5'}`}>
+                <p className="max-w-2xl rounded-xl bg-black/65 px-4 py-2.5 text-center text-sm leading-relaxed text-white backdrop-blur-sm">
+                  {displayedImageDescription}
+                </p>
+              </div>
+            )}
 
             {/* Desktop navigation arrows (mobile uses swipe) */}
             {galleryImages.length > 1 && (

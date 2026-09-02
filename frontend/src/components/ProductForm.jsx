@@ -44,6 +44,7 @@ const thumbImageUrl = (url = '', size = 300) => {
 };
 
 const DEFAULT_MAX_IMAGES = 3;
+const MAX_IMAGE_DESCRIPTION_LENGTH = 500;
 const MAX_VIDEO_SIZE_MB = 20;
 const BYTES_PER_MB = 1024 * 1024;
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * BYTES_PER_MB;
@@ -186,6 +187,7 @@ export default function ProductForm(props) {
   // index ([existing…, new…]); serialized into one select attribute at submit.
   const [imageVariantName, setImageVariantName] = useState('Couleur');
   const [imageVariants, setImageVariants] = useState({});
+  const [imageDescriptions, setImageDescriptions] = useState({});
   const { user } = useContext(AuthContext);
   const isBoutiqueOwner = user?.accountType === 'shop';
   const canUploadVideo = Boolean(user?.shopVerified && user?.accountType === 'shop');
@@ -418,6 +420,7 @@ export default function ProductForm(props) {
     setImageError('');
     setImageVariantName('Couleur');
     setImageVariants({});
+    setImageDescriptions({});
 
     setVideoFile(null);
     setExistingVideoUrl(null);
@@ -1462,9 +1465,28 @@ export default function ProductForm(props) {
     });
   };
 
-  // Keep option→image links valid when an image is removed: drop links to the
-  // removed slot and shift the ones after it.
+  const updateImageDescription = (combinedIndex, value) => {
+    const description = String(value || '').slice(0, MAX_IMAGE_DESCRIPTION_LENGTH);
+    setImageDescriptions((prev) => {
+      const next = { ...prev };
+      if (description) next[combinedIndex] = description;
+      else delete next[combinedIndex];
+      return next;
+    });
+  };
+
+  // Keep descriptions and option→image links aligned when an image is removed:
+  // drop the removed slot and shift every entry after it.
   const shiftAttributeOptionImages = (removedIndex) => {
+    setImageDescriptions((prev) => {
+      const next = {};
+      Object.entries(prev).forEach(([key, description]) => {
+        const index = Number(key);
+        if (!Number.isInteger(index) || index === removedIndex) return;
+        next[index > removedIndex ? index - 1 : index] = description;
+      });
+      return next;
+    });
     setImageVariants((prev) => {
       const next = {};
       Object.entries(prev).forEach(([key, entry]) => {
@@ -1532,11 +1554,28 @@ export default function ProductForm(props) {
     };
   };
 
-  // Option, price, and availability fields rendered below each photo.
+  // Description, option, price, and availability fields rendered below each photo.
   const renderImageVariantFields = (combinedIndex) => {
     const entry = imageVariants[combinedIndex] || {};
+    const imageDescription = imageDescriptions[combinedIndex] || '';
     return (
       <div className="space-y-2 border-t border-gray-200 bg-white p-2.5">
+        <label className="block">
+          <span className="mb-1 flex items-center justify-between gap-2 text-[10px] font-black text-gray-500">
+            <span>Description de cette photo</span>
+            <span className="font-semibold text-gray-400">
+              {imageDescription.length}/{MAX_IMAGE_DESCRIPTION_LENGTH}
+            </span>
+          </span>
+          <textarea
+            value={imageDescription}
+            onChange={(e) => updateImageDescription(combinedIndex, e.target.value)}
+            maxLength={MAX_IMAGE_DESCRIPTION_LENGTH}
+            rows={2}
+            placeholder="Ex : Vue de face, détail du tissu…"
+            className="w-full resize-y rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-medium focus:border-[#FF5000] focus:outline-none"
+          />
+        </label>
         {entry.label && (
           <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">
             <CheckCircleIcon className="h-3.5 w-3.5" /> Option enregistrée
@@ -1880,6 +1919,12 @@ export default function ProductForm(props) {
           data.append('images', file);
         }
       });
+      const submittedImageCount = existingImages.length + Math.min(files.length, maxImagesLimit);
+      data.append('imageDescriptions', JSON.stringify(
+        Array.from({ length: submittedImageCount }, (_, index) =>
+          String(imageDescriptions[index] || '').trim().slice(0, MAX_IMAGE_DESCRIPTION_LENGTH)
+        )
+      ));
       data.append('newImageStudioMetadata', JSON.stringify(
         files.slice(0, maxImagesLimit).map((item) => item?.studioMetadata ? {
           output: item.studioMetadata.state?.output,
@@ -2038,6 +2083,7 @@ export default function ProductForm(props) {
       setRemovedImages([]);
       setImageVariants({});
       setImageVariantName('Couleur');
+      setImageDescriptions({});
       return;
     }
     // The photo-linked attribute is edited under the image cards; explode it
@@ -2163,6 +2209,16 @@ export default function ProductForm(props) {
     setForm(hydratedForm);
     initialFormRef.current = hydratedForm;
     setExistingImages(Array.isArray(initialValues.images) ? initialValues.images : []);
+    setImageDescriptions(
+      (Array.isArray(initialValues.imageDescriptions) ? initialValues.imageDescriptions : []).reduce(
+        (descriptions, description, index) => {
+          const normalized = String(description || '').slice(0, MAX_IMAGE_DESCRIPTION_LENGTH);
+          if (normalized) descriptions[index] = normalized;
+          return descriptions;
+        },
+        {}
+      )
+    );
     setImageReplacements({});
     setVideoFile(null);
     setExistingVideoUrl(initialValues.video || null);

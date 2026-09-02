@@ -254,6 +254,7 @@ const userSchema = new mongoose.Schema(
       product_comment: { type: Boolean, default: true },
       reply: { type: Boolean, default: true },
       favorite: { type: Boolean, default: true },
+      favorite_product_updated: { type: Boolean, default: true },
       rating: { type: Boolean, default: true },
       product_approval: { type: Boolean, default: true },
       product_rejection: { type: Boolean, default: true },

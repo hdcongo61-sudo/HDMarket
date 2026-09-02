@@ -423,6 +423,11 @@ const TEMPLATES = {
     message: `${actorName} a ajouté votre annonce${snapshot.productTitle ? ` "${snapshot.productTitle}"` : ''} à ses favoris. C'est un signal d'intérêt pour ce produit.`,
     actionLabel: 'Voir l\'annonce'
   }),
+  favorite_product_updated: ({ snapshot, actorName }) => ({
+    title: 'Un favori a été modifié',
+    message: `${actorName} a mis à jour ${snapshot.productTitle ? `le produit "${snapshot.productTitle}"` : 'un produit'} enregistré dans vos favoris. Consultez les nouvelles informations.`,
+    actionLabel: 'Voir le produit'
+  }),
   product_video_like: ({ snapshot, actorName }) => ({
     title: 'Nouveau like sur votre vidéo',
     message: `${actorName} a aimé votre vidéo${snapshot.productTitle ? ` pour "${snapshot.productTitle}"` : ''}.`,

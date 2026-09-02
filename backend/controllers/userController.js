@@ -51,6 +51,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   product_comment: true,
   reply: true,
   favorite: true,
+  favorite_product_updated: true,
   rating: true,
   product_approval: true,
   product_rejection: true,
@@ -1925,6 +1926,7 @@ const NOTIFICATION_TITLES = Object.freeze({
   product_approved: 'Produit approuvé',
   product_rejection: 'Produit rejeté',
   product_rejected: 'Produit rejeté',
+  favorite_product_updated: 'Un favori a été modifié',
   boost_expired: 'Boost expiré',
   promo_expired: 'Promotion expirée',
   shop_conversion_request: 'Demande boutique à vérifier',
@@ -2043,6 +2045,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
         break;
       case 'favorite':
         message = `${actorName} a ajouté votre annonce${productLabel} à ses favoris. C'est un signal d'intérêt pour ce produit.`;
+        break;
+      case 'favorite_product_updated':
+        message = `${actorName} a mis à jour ${productLabel ? `le produit${productLabel}` : 'un produit'} enregistré dans vos favoris. Consultez les nouvelles informations.`;
         break;
       case 'rating':
         message = metadata.value

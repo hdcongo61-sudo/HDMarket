@@ -7,6 +7,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
   product_comment: true,
   reply: true,
   favorite: true,
+  favorite_product_updated: true,
   rating: true,
   product_approval: true,
   product_approved: true,

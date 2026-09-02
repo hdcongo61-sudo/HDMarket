@@ -59,6 +59,10 @@ const productSchema = new mongoose.Schema(
     discount: { type: Number, min: 0, max: 100, default: 0 },
     priceBeforeDiscount: { type: Number, min: 0 },
     images: [{ type: String }],
+    imageDescriptions: {
+      type: [{ type: String, trim: true, maxlength: 500 }],
+      default: []
+    },
     imageStudioMetadata: {
       type: [mongoose.Schema.Types.Mixed],
       default: []

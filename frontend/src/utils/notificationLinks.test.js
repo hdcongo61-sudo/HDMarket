@@ -49,6 +49,15 @@ describe('global broadcast links', () => {
   });
 });
 
+describe('favorite product update links', () => {
+  it('opens the modified product directly', () => {
+    expect(resolveNotificationLink({
+      type: 'favorite_product_updated',
+      product: { _id: ORDER_ID, slug: 'table-basse-led' }
+    })).toBe('/product/table-basse-led');
+  });
+});
+
 describe('notification actions after reading', () => {
   const actions = [
     { to: `/orders/detail/${ORDER_ID}`, label: 'Voir commande' },

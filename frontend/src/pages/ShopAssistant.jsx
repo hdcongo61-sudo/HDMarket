@@ -40,6 +40,7 @@ const PERMISSION_GROUPS = [
 
 const PERMISSIONS = PERMISSION_GROUPS.flatMap((group) => group.permissions);
 const PERMISSION_BY_KEY = Object.fromEntries(PERMISSIONS.map((permission) => [permission.key, permission]));
+const ASSISTANT_PHONE_PREFIX = '+243';
 
 const PRESETS = [
   {
@@ -758,13 +759,16 @@ function OwnerView({ shopId }) {
   const invite = async () => {
     const value = lookupValue.trim();
     if (!value) return showToast('Veuillez saisir une valeur.', 'error');
+    if (lookupType === 'phone' && value.replace(/\D/g, '').length <= 3) {
+      return showToast('Veuillez saisir le numéro après +243.', 'error');
+    }
     if (!selectedPerms.length) return showToast('Selectionnez au moins une permission.', 'error');
 
     setActionLoading(true);
     try {
       const body = { permissions: selectedPerms };
       if (lookupType === 'email') body.email = value;
-      else if (lookupType === 'phone') body.phone = value;
+      else if (lookupType === 'phone') body.phone = `+${value.replace(/\D/g, '')}`;
       else body.userId = value;
 
       await api.post(`/shops/${shopId}/assistant/invite`, body);
@@ -779,6 +783,12 @@ function OwnerView({ shopId }) {
     }
   };
 
+  const handleLookupTypeChange = (event) => {
+    const nextType = event.target.value;
+    setLookupType(nextType);
+    setLookupValue(nextType === 'phone' ? ASSISTANT_PHONE_PREFIX : '');
+  };
+
   const remove = async () => {
     if (!confirm('Retirer cet assistant ?')) return;
     setActionLoading(true);
@@ -788,6 +798,7 @@ function OwnerView({ shopId }) {
       setAssistant(null);
       setEditPerms(false);
       setSelectedPerms(PRESETS[0].permissions);
+      setLookupValue(lookupType === 'phone' ? ASSISTANT_PHONE_PREFIX : '');
       await fetchAudit();
     } catch (error) {
       showToast(error.response?.data?.message || 'Erreur.', 'error');
@@ -884,7 +895,7 @@ function OwnerView({ shopId }) {
           <div className="mt-5 grid gap-3 lg:grid-cols-[180px_1fr_auto]">
             <select
               value={lookupType}
-              onChange={(event) => setLookupType(event.target.value)}
+              onChange={handleLookupTypeChange}
               className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-[#e85d00]/25"
             >
               <option value="email">Email</option>
@@ -896,11 +907,12 @@ function OwnerView({ shopId }) {
               {lookupType === 'phone' && <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />}
               {lookupType === 'userId' && <HashtagIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />}
               <input
-                type="text"
+                type={lookupType === 'phone' ? 'tel' : 'text'}
+                inputMode={lookupType === 'phone' ? 'tel' : undefined}
                 value={lookupValue}
                 onChange={(event) => setLookupValue(event.target.value)}
                 onKeyDown={(event) => event.key === 'Enter' && invite()}
-                placeholder={lookupType === 'email' ? 'email@exemple.com' : lookupType === 'phone' ? '+243...' : 'ID utilisateur'}
+                placeholder={lookupType === 'email' ? 'email@exemple.com' : lookupType === 'phone' ? '+243 00 000 0000' : 'ID utilisateur'}
                 className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#e85d00]/25"
               />
             </div>

@@ -50,11 +50,19 @@ import {
   normalizeProductPhysical
 } from '../utils/productAttributes.js';
 import {
+  normalizeImageDescriptions,
+  removeDescriptionsForImages
+} from '../utils/imageDescriptions.js';
+import {
   calculateListingFee,
   normalizeListingFeeRate,
   roundMoney
 } from '../utils/listingFeeUtils.js';
 import imageStudioService from '../services/imageStudioService.js';
+import {
+  buildFavoriteProductSnapshot,
+  notifyFavoritersOfProductUpdate
+} from '../services/favoriteProductUpdateService.js';
 import { buildCountryDataFilter, ensureDefaultCountry, resolveCountryContext } from '../services/countryService.js';
 import {
   getEntityTags,
@@ -923,6 +931,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     attributes,
     physical,
     socialVideoUrl,
+    imageDescriptions,
     perishableStartDate,
     perishableEndDate
   } = req.body;
@@ -1235,6 +1244,7 @@ export const createProduct = asyncHandler(async (req, res) => {
       condition: safeCondition,
       priceBeforeDiscount,
       images,
+      imageDescriptions: normalizeImageDescriptions(imageDescriptions, images.length),
       imageStudioMetadata: images.flatMap((editedImage, index) => {
         const metadata = newImageStudioMetadata[index];
         return metadata && typeof metadata === 'object'
@@ -2806,6 +2816,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Forbidden' });
   const wasApproved = product.status === 'approved';
   const isProductOwner = String(product.user) === String(req.user.id);
+  const favoriteProductSnapshot = buildFavoriteProductSnapshot(product);
   const originalPriceState = {
     price: Number(product.price || 0),
     priceBeforeDiscount:
@@ -2872,6 +2883,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     attributes,
     physical,
     socialVideoUrl,
+    imageDescriptions,
     perishableStartDate,
     perishableEndDate
   } = req.body;
@@ -3235,6 +3247,11 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (removeImagesList.length) {
     const removeSet = new Set(removeImagesList);
     const currentImages = Array.isArray(product.images) ? product.images : [];
+    product.imageDescriptions = removeDescriptionsForImages(
+      currentImages,
+      product.imageDescriptions,
+      removeSet
+    );
     product.images = currentImages.filter((image) => !removeSet.has(image));
   }
 
@@ -3298,6 +3315,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
     try {
       const uploaded = await Promise.all(imageFiles.map(uploadProductMedia));
       product.images = [...existingImages, ...uploaded];
+      product.imageDescriptions = [
+        ...normalizeImageDescriptions(product.imageDescriptions, existingImages.length),
+        ...uploaded.map(() => '')
+      ];
       let newImageStudioMetadata = [];
       try {
         const parsed = JSON.parse(String(req.body?.newImageStudioMetadata || '[]'));
@@ -3408,6 +3429,13 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
   }
 
+  if (imageDescriptions !== undefined) {
+    product.imageDescriptions = normalizeImageDescriptions(
+      imageDescriptions,
+      Array.isArray(product.images) ? product.images.length : 0
+    );
+  }
+
   await product.save();
 
   if (priceChangeCancellation) {
@@ -3480,6 +3508,10 @@ export const updateProduct = asyncHandler(async (req, res) => {
       publicOnly: true
     });
   }
+  if (hasTagPayload || hasAiTagPayload) {
+    const tagProjection = await Product.findById(product._id).select('tags').lean();
+    product.tags = Array.isArray(tagProjection?.tags) ? tagProjection.tags : [];
+  }
 
   await logProductAction({
     productId: product._id,
@@ -3489,6 +3521,22 @@ export const updateProduct = asyncHandler(async (req, res) => {
       updatedFields
     }
   });
+
+  if (isProductOwner && wasApproved && product.status === 'approved') {
+    try {
+      await notifyFavoritersOfProductUpdate({
+        product,
+        actorId: req.user.id,
+        previousSnapshot: favoriteProductSnapshot,
+        // Favoriters already receive the more specific promotion notification below.
+        suppress: promotionApplied && product.discount > 0
+      });
+    } catch (error) {
+      // The product was already saved; a notification outage must not turn the
+      // successful edit into a misleading 500 response for the owner.
+      console.error('[product-update] Unable to notify favoriters', error);
+    }
+  }
 
   if (promotionApplied && product.discount > 0) {
     await createNotification({

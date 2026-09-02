@@ -26,6 +26,23 @@ describe('product Image Studio validation', () => {
   });
 });
 
+describe('product image description validation', () => {
+  it('accepts the JSON array sent by the multipart product form', () => {
+    const imageDescriptions = '["Vue de face","Détail du tissu",""]';
+    const { error, value } = schemas.productUpdate.validate({ imageDescriptions });
+
+    expect(error).toBeUndefined();
+    expect(value.imageDescriptions).toBe(imageDescriptions);
+  });
+
+  it('rejects malformed or oversized image descriptions', () => {
+    expect(schemas.productUpdate.validate({ imageDescriptions: '{bad-json' }).error).toBeDefined();
+    expect(
+      schemas.productUpdate.validate({ imageDescriptions: JSON.stringify(['x'.repeat(501)]) }).error
+    ).toBeDefined();
+  });
+});
+
 describe('profile shop color validation', () => {
   it('preserves and normalizes a valid shop color', () => {
     const { error, value } = schemas.profileUpdate.validate(

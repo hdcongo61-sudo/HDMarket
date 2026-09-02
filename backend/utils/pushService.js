@@ -409,6 +409,11 @@ const buildPushPayload = ({ notification, actorName, productTitle, shopName }) =
       body = `${actorName} a ajouté votre annonce${productLabel} à ses favoris.`;
       break;
     }
+    case 'favorite_product_updated': {
+      title = 'Un favori a été modifié';
+      body = `${actorName} a mis à jour ${productLabel ? `le produit${productLabel}` : 'un produit'} enregistré dans vos favoris.`;
+      break;
+    }
     case 'product_video_like': {
       title = 'Nouveau like sur votre vidéo';
       body = `${actorName} a aimé votre vidéo${productLabel}.`;
