@@ -37,7 +37,14 @@ const getVideoSource = (video, lite = false) => {
     const liteSource = sources.find((source) => source.quality === '720p');
     if (liteSource?.url) return liteSource.url;
   }
-  return sources.find((source) => source.quality === 'auto')?.url || video?.videoUrl || '';
+  // Normal playback prefers the highest-quality progressive source so details
+  // stay readable; adaptive HLS is chosen separately above when available.
+  return (
+    sources.find((source) => source.quality === '1080p')?.url ||
+    sources.find((source) => source.quality === 'auto')?.url ||
+    video?.videoUrl ||
+    ''
+  );
 };
 
 // Mirrors the backend rule: an attribute needs a selection when it has no
@@ -267,9 +274,12 @@ function VideoSlide({
     const element = videoRef.current;
     if (!element || !useHlsJs) return undefined;
     const hls = new Hls({
-      capLevelToPlayerSize: true,
+      capLevelToPlayerSize: false,
       maxBufferLength: 20,
-      backBufferLength: 10
+      backBufferLength: 10,
+      // Bias the ABR's initial bandwidth estimate upward (~2 Mbps) so playback
+      // starts on a higher rendition instead of the lowest 180p/360p tier.
+      abrEwmaDefaultEstimate: 2_000_000
     });
     hls.loadSource(hlsUrl);
     hls.attachMedia(element);

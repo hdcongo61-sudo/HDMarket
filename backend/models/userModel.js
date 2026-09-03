@@ -27,6 +27,15 @@ const userSchema = new mongoose.Schema(
       }
     },
     phoneVerified: { type: Boolean, default: false },
+    // Buyer credibility (Trust & Safety 2.0 foundation) — derived from order
+    // history and disputes by buyerCredibilityService; 80 = neutral baseline.
+    credibilityScore: { type: Number, min: 0, max: 100, default: 80 },
+    credibilityUpdatedAt: { type: Date, default: null },
+    credibilitySignals: {
+      deliveredOrders: { type: Number, default: 0 },
+      cancelledOrders: { type: Number, default: 0 },
+      disputesLost: { type: Number, default: 0 }
+    },
     payoutAccount: {
       provider: {
         type: String,

@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
+import { refreshBuyerCredibilityIfStale } from '../services/buyerCredibilityService.js';
 import User from '../models/userModel.js';
 import Comment from '../models/commentModel.js';
 import Product from '../models/productModel.js';
@@ -201,6 +202,18 @@ const sanitizeUser = (user) => ({
   emailVerified: Boolean(user.emailVerified),
   phone: user.phone,
   phoneVerified: Boolean(user.phoneVerified),
+  credibilityScore: Number.isFinite(Number(user.credibilityScore))
+    ? Number(user.credibilityScore)
+    : 80,
+  credibilityUpdatedAt: user.credibilityUpdatedAt || null,
+  credibilitySignals:
+    user.credibilitySignals && typeof user.credibilitySignals === 'object'
+      ? {
+          deliveredOrders: Number(user.credibilitySignals.deliveredOrders || 0),
+          cancelledOrders: Number(user.credibilitySignals.cancelledOrders || 0),
+          disputesLost: Number(user.credibilitySignals.disputesLost || 0)
+        }
+      : { deliveredOrders: 0, cancelledOrders: 0, disputesLost: 0 },
   role: user.role,
   betaTester: Boolean(user.betaTester),
   betaTesterApplication: {
@@ -651,6 +664,8 @@ const collectUserStats = async (userId) => {
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+  // Keep the credibility score fresh in the background (≤ 1 recalc/24h/user).
+  refreshBuyerCredibilityIfStale(req.user.id);
   res.json(sanitizeUser(user));
 });
 

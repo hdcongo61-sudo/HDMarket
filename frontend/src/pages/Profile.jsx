@@ -2346,6 +2346,25 @@ export default function Profile() {
                 </div>
               </section>
 
+              {/* Confiance acheteur (score dérivé de l'historique de commandes) */}
+              <section className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 sm:p-5 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center space-x-2">
+                    <ShieldCheckIcon className="w-5 h-5 text-emerald-600" />
+                    <span className="text-sm font-semibold text-gray-900">Confiance acheteur</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-900">
+                    {Number(user?.credibilityScore ?? 80)}/100
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600">
+                  Score calculé à partir de vos commandes livrées, annulations et litiges des 6 derniers mois.
+                  {user?.credibilityUpdatedAt
+                    ? ` Mis à jour le ${new Date(user.credibilityUpdatedAt).toLocaleDateString('fr-FR')}.`
+                    : ''}
+                </p>
+              </section>
+
               {/* Section boutique conditionnelle */}
               {form.accountType === 'shop' && (
                 <section className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 sm:p-5 space-y-6">

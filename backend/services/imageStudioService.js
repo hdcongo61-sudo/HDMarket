@@ -27,9 +27,14 @@ export class ImageStudioService {
       operations: {
         enhance: providerConfigured,
         'smart-crop': providerConfigured,
-        shadow: false,
-        relight: false,
-        upscale: false,
+        // Standard Cloudinary transformations (no AI add-on required) —
+        // enabled for every Cloudinary-configured deployment.
+        shadow: providerConfigured,
+        relight: providerConfigured,
+        upscale: providerConfigured,
+        // Generative AI operations need Cloudinary's AI add-on; gated by
+        // IMAGE_STUDIO_GENERATIVE_AI_ENABLED=true so accounts without the
+        // add-on never surface them.
         'background-remove': generativeEnabled,
         'object-remove': generativeEnabled
       },

@@ -65,11 +65,18 @@ const buildMediaFields = (upload) => {
     videoUrl: url,
     thumbnailUrl: cloudinaryTransform(url, 'so_1,w_720,h_1280,c_fill,g_auto,f_jpg,q_auto', 'jpg'),
     playbackSources: [
-      // Adaptive bitrate stream (HLS); the eager sp_hd transformation starts
-      // transcoding at upload time so the manifest is ready by first play.
-      { quality: 'hls', url: cloudinaryTransform(url, 'sp_hd', 'm3u8'), type: 'application/x-mpegURL' },
-      { quality: 'auto', url: cloudinaryTransform(url, 'q_auto:eco,f_auto'), type: 'video/mp4' },
-      { quality: '720p', url: cloudinaryTransform(url, 'w_720,c_limit,q_auto:eco,f_auto'), type: 'video/mp4' }
+      // Adaptive bitrate stream (HLS). The `full_hd` profile's renditions
+      // start at 360p and go up to 1080p — the `hd` profile bottomed out at
+      // 180p, which made product details unreadable. The eager sp_full_hd
+      // transformation pre-transcodes at upload so the manifest is ready
+      // for first play.
+      { quality: 'hls', url: cloudinaryTransform(url, 'sp_full_hd', 'm3u8'), type: 'application/x-mpegURL' },
+      // Full-quality progressive fallbacks for non-HLS clients. q_auto:good
+      // keeps detail (the previous q_auto:eco traded sharpness for bytes).
+      { quality: '1080p', url: cloudinaryTransform(url, 'w_1080,c_limit,q_auto:good,f_auto'), type: 'video/mp4' },
+      { quality: 'auto', url: cloudinaryTransform(url, 'q_auto:good,f_auto'), type: 'video/mp4' },
+      // 720p stays as the save-data / slow-network variant.
+      { quality: '720p', url: cloudinaryTransform(url, 'w_720,c_limit,q_auto:good,f_auto'), type: 'video/mp4' }
     ],
     publicId: upload.public_id || '',
     durationSeconds: Number(upload.duration || 0),
@@ -96,11 +103,11 @@ const uploadVideoFile = async (file) => {
     resourceType: 'video',
     folder: getCloudinaryFolder(['products', 'short-videos']),
     options: {
-      quality: 'auto:eco',
+      quality: 'auto:good',
       format: 'mp4',
-      // Pre-generate the HLS adaptive stream asynchronously so playback can
-      // start on the manifest instead of the full-resolution MP4.
-      eager: [{ streaming_profile: 'hd', format: 'm3u8' }],
+      // Pre-generate the full-hd HLS adaptive stream asynchronously so playback
+      // can start on the manifest instead of the full-resolution MP4.
+      eager: [{ streaming_profile: 'full_hd', format: 'm3u8' }],
       eager_async: true
     }
   });

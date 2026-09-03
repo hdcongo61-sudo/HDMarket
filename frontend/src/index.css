@@ -2,6 +2,13 @@
 @import "tailwindcss";
 @import "tailwindcss-safe-area";
 
+/* Light-only app. Tailwind v4's default `dark:` variant is a media query
+   (@media (prefers-color-scheme: dark)), so dark: utilities fired on every
+   device in OS dark mode even though the app has no dark theme. Redefine the
+   variant as a class selector the app never sets — all `dark:*` utilities are
+   now inert and the app always renders light. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ═══════════════════════════════════════════════════════════════════════════
    APPLE HUMAN INTERFACE GUIDELINES - Design Tokens
    Clarity, Deference, Depth
@@ -107,9 +114,7 @@
   --hd-orange-soft: var(--hd-accent-soft);
   --hd-cocoa: #5f4636;
   --hd-surface-light: #f5f5f5;
-  --hd-surface-dark: #111111;
   --hd-divider-light: #ededed;
-  --hd-divider-dark: #1f1f1f;
   --ui-card-radius: 1.05rem;
   --ui-card-radius-lg: 1.25rem;
   --ui-card-border: rgba(110, 72, 35, 0.13);
@@ -152,52 +157,6 @@ body {
   /* Horizontal safe areas: avoid notch/cutout on iOS (landscape) and Android */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
-}
-.dark body {
-  background-color: var(--hd-black);
-  color: #FFFFFF;
-}
-
-.dark {
-  --background: 0 0% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 0 0% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 0 0% 9%;
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --muted-foreground: 0 0% 63.9%;
-  --accent: 0 0% 14.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14.9%;
-  --input: 0 0% 14.9%;
-  --ring: 0 0% 83.1%;
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
-  --sidebar-background: 240 5.9% 10%;
-  --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-primary: 224.3 76.3% 48%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 240 4.8% 95.9%;
-  --sidebar-border: 240 3.7% 15.9%;
-  --sidebar-ring: 217.2 91.2% 59.8%;
-  --ui-form-bg: #111827;
-  --ui-form-border: #374151;
-  --ui-form-text: #f8fafc;
-  --ui-form-placeholder: #94a3b8;
-  --ui-form-option-bg: #0f172a;
-  --ui-surface-text: #f8fafc;
-  --ui-surface-muted: #cbd5e1;
 }
 
 button,
@@ -245,21 +204,6 @@ select optgroup {
   color: #141210 !important;
 }
 
-.dark .hd-auth-form input:-webkit-autofill,
-.dark .hd-auth-form input:-webkit-autofill:hover,
-.dark .hd-auth-form input:-webkit-autofill:focus,
-.dark .hd-auth-form input:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff;
-  -webkit-box-shadow: 0 0 0 1000px #171717 inset !important;
-  box-shadow: 0 0 0 1000px #171717 inset !important;
-}
-
-.dark .hd-auth-form input:autofill {
-  background-color: #171717 !important;
-  color: #ffffff !important;
-}
-
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):disabled,
 textarea:disabled,
 select:disabled {
@@ -283,100 +227,6 @@ select:disabled {
 .glass-modal-panel :where(p, span, small, label, dt, dd) {
   color: var(--ui-surface-muted);
 }
-
-/* Dark-mode fallback for legacy pages that still use light-only utility classes */
-.dark :where(.bg-white) {
-  background-color: #111827;
-}
-.dark :where(.bg-gray-50, .bg-slate-50, .bg-gray-100, .bg-neutral-50, .bg-neutral-100, .bg-stone-50, .bg-stone-100, .bg-zinc-50, .bg-zinc-100) {
-  background-color: #0f172a;
-}
-.dark :where(.border-gray-100, .border-gray-200, .border-slate-100, .border-slate-200, .border-neutral-100, .border-neutral-200, .border-stone-100, .border-stone-200, .border-zinc-100, .border-zinc-200) {
-  border-color: #334155;
-}
-.dark :where(.text-gray-900, .text-slate-900, .text-gray-950, .text-slate-950, .text-neutral-900, .text-neutral-950, .text-stone-900, .text-stone-950, .text-zinc-900, .text-zinc-950, .text-black) {
-  color: #f8fafc;
-}
-.dark :where(.text-gray-800, .text-slate-800, .text-neutral-800, .text-stone-800, .text-zinc-800) {
-  color: #f1f5f9;
-}
-.dark :where(.text-gray-700, .text-slate-700, .text-neutral-700, .text-stone-700, .text-zinc-700) {
-  color: #e2e8f0;
-}
-.dark :where(.text-gray-600, .text-slate-600, .text-neutral-600, .text-stone-600, .text-zinc-600) {
-  color: #cbd5e1;
-}
-.dark :where(.text-gray-500, .text-slate-500, .text-neutral-500, .text-stone-500, .text-zinc-500) {
-  color: #94a3b8;
-}
-/* Colored utility fallbacks for legacy cards/buttons without dark:* classes */
-.dark :where(
-  .bg-blue-50, .bg-blue-100, .bg-blue-200,
-  .bg-sky-50, .bg-sky-100, .bg-sky-200,
-  .bg-cyan-50, .bg-cyan-100, .bg-cyan-200,
-  .bg-indigo-50, .bg-indigo-100, .bg-indigo-200,
-  .bg-violet-50, .bg-violet-100, .bg-violet-200,
-  .bg-purple-50, .bg-purple-100, .bg-purple-200,
-  .bg-fuchsia-50, .bg-fuchsia-100, .bg-fuchsia-200
-) {
-  background-color: rgba(30, 41, 59, 0.92);
-}
-
-.dark :where(
-  .bg-emerald-50, .bg-emerald-100, .bg-emerald-200,
-  .bg-green-50, .bg-green-100, .bg-green-200,
-  .bg-teal-50, .bg-teal-100, .bg-teal-200
-) {
-  background-color: rgba(6, 78, 59, 0.38);
-}
-
-.dark :where(
-  .bg-amber-50, .bg-amber-100, .bg-amber-200,
-  .bg-orange-50, .bg-orange-100, .bg-orange-200
-) {
-  background-color: rgba(120, 53, 15, 0.45);
-}
-
-.dark :where(
-  .bg-rose-50, .bg-rose-100, .bg-rose-200,
-  .bg-red-50, .bg-red-100, .bg-red-200
-) {
-  background-color: rgba(127, 29, 29, 0.42);
-}
-
-.dark :where(
-  .border-blue-100, .border-blue-200, .border-blue-300,
-  .border-sky-100, .border-sky-200, .border-sky-300,
-  .border-cyan-100, .border-cyan-200, .border-cyan-300,
-  .border-indigo-100, .border-indigo-200, .border-indigo-300,
-  .border-violet-100, .border-violet-200, .border-violet-300,
-  .border-purple-100, .border-purple-200, .border-purple-300,
-  .border-fuchsia-100, .border-fuchsia-200, .border-fuchsia-300,
-  .border-emerald-100, .border-emerald-200, .border-emerald-300,
-  .border-green-100, .border-green-200, .border-green-300,
-  .border-teal-100, .border-teal-200, .border-teal-300,
-  .border-amber-100, .border-amber-200, .border-amber-300,
-  .border-orange-100, .border-orange-200, .border-orange-300,
-  .border-rose-100, .border-rose-200, .border-rose-300,
-  .border-red-100, .border-red-200, .border-red-300
-) {
-  border-color: rgba(71, 85, 105, 0.72);
-}
-
-.dark :where(.text-blue-600, .text-blue-700, .text-blue-800, .text-blue-900) { color: #93c5fd; }
-.dark :where(.text-sky-600, .text-sky-700, .text-sky-800, .text-sky-900) { color: #7dd3fc; }
-.dark :where(.text-cyan-600, .text-cyan-700, .text-cyan-800, .text-cyan-900) { color: #67e8f9; }
-.dark :where(.text-indigo-600, .text-indigo-700, .text-indigo-800, .text-indigo-900) { color: #a5b4fc; }
-.dark :where(.text-violet-600, .text-violet-700, .text-violet-800, .text-violet-900) { color: #c4b5fd; }
-.dark :where(.text-purple-600, .text-purple-700, .text-purple-800, .text-purple-900) { color: #d8b4fe; }
-.dark :where(.text-fuchsia-600, .text-fuchsia-700, .text-fuchsia-800, .text-fuchsia-900) { color: #f5d0fe; }
-.dark :where(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900) { color: #6ee7b7; }
-.dark :where(.text-green-600, .text-green-700, .text-green-800, .text-green-900) { color: #86efac; }
-.dark :where(.text-teal-600, .text-teal-700, .text-teal-800, .text-teal-900) { color: #5eead4; }
-.dark :where(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900) { color: #fcd34d; }
-.dark :where(.text-orange-600, .text-orange-700, .text-orange-800, .text-orange-900) { color: #fdba74; }
-.dark :where(.text-rose-600, .text-rose-700, .text-rose-800, .text-rose-900) { color: #fda4af; }
-.dark :where(.text-red-600, .text-red-700, .text-red-800, .text-red-900) { color: #fca5a5; }
 
 /* Desktop full-width pages: page containers are centered max-w-2xl…7xl columns.
    From lg up, let them span the whole viewport (they keep their own px-* padding).
@@ -415,10 +265,6 @@ select:disabled {
   outline: 2px solid var(--hd-orange);
   outline-offset: 2px;
   box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.18);
-}
-.dark :where(button, [role="button"], a, input, select, textarea):focus-visible {
-  outline-color: #f5f5f5;
-  box-shadow: 0 0 0 3px rgba(245, 245, 245, 0.18);
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -575,18 +421,6 @@ select:disabled {
   color: #332216;
 }
 
-/* No .dark variant existed for the rule above (or the bg-gray-100/bg-neutral-100
-   one below) — every link/button in the mobile menu sheet (e.g. the
-   "Connexion" profile card) stayed force-lit in dark mode regardless of its
-   own dark:bg-* class, since this unlayered rule always beats the layered
-   Tailwind utility. */
-.dark .hd-mobile-menu-sheet a:not([class*="from-[#e85d00]"]):not([class*="grid-cols-2"]):not([class*="bg-black"]),
-.dark .hd-mobile-menu-sheet button:not([class*="bg-black"]):not([class*="bg-red"]) {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(23, 23, 23, 0.9);
-  color: #f1f5f9;
-}
-
 .hd-mobile-menu-sheet a:not([class*="from-[#e85d00]"]):active,
 .hd-mobile-menu-sheet button:active {
   transform: scale(0.99);
@@ -601,11 +435,6 @@ select:disabled {
 .hd-mobile-menu-sheet [class*="bg-gray-100"],
 .hd-mobile-menu-sheet [class*="bg-neutral-100"] {
   background-color: rgba(255, 255, 255, 0.82) !important;
-}
-
-.dark .hd-mobile-menu-sheet [class*="bg-gray-100"],
-.dark .hd-mobile-menu-sheet [class*="bg-neutral-100"] {
-  background-color: rgba(23, 23, 23, 0.9) !important;
 }
 
 .hd-global-search {
@@ -1307,12 +1136,6 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
   box-shadow: 0 14px 34px rgba(117, 75, 36, 0.09);
 }
 
-.dark .hd-product-card {
-  border-color: rgba(255, 255, 255, 0.09);
-  background: #171717;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
-}
-
 .hd-product-price {
   color: var(--hd-black);
 }
@@ -1321,10 +1144,6 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
   border: 0 !important;
   border-radius: 18px !important;
   box-shadow: inset 0 0 0 1px #ece5db !important;
-}
-
-.dark .hd-home-product-card {
-  box-shadow: inset 0 0 0 1px #262626 !important;
 }
 
 .hd-home-product-title {
@@ -1423,16 +1242,6 @@ body.menu-open .verified-shops-header {
     color: #e85d00 !important;
     font-weight: 800 !important;
   }
-
-  .dark .hd-mobile-menu-list > a:not(.mobile-profile-card),
-  .dark .hd-mobile-menu-list > button {
-    color: #d6d3d1 !important;
-  }
-
-  .dark .hd-mobile-menu-list > a[aria-current='page']:not(.mobile-profile-card) {
-    background: rgba(232, 93, 0, 0.16) !important;
-    color: #fb923c !important;
-  }
 }
 
 /* Prevent iOS long-press callout (Rechercher/Annuler) on app cards/images in mobile/PWA.
@@ -1475,11 +1284,6 @@ body.menu-open .verified-shops-header {
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
 }
-.dark .apple-card {
-  background: var(--hd-surface-dark);
-  border-color: var(--hd-divider-dark);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-}
 
 /* Inset groups (list-style) */
 .apple-inset-group {
@@ -1495,9 +1299,6 @@ body.menu-open .verified-shops-header {
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-}
-.dark .apple-glass {
-  background: rgba(10, 10, 10, 0.72);
 }
 
 /* Input fields - Apple style */
@@ -1517,13 +1318,6 @@ body.menu-open .verified-shops-header {
 .apple-input::placeholder {
   color: var(--color-apple-label-tertiary);
 }
-.dark .apple-input {
-  background: rgba(118, 118, 128, 0.24);
-  color: #FFFFFF;
-}
-.dark .apple-input::placeholder {
-  color: rgba(235, 235, 245, 0.3);
-}
 
 /* Primary button - Apple blue */
 .apple-btn-primary {
@@ -1537,7 +1331,7 @@ body.menu-open .verified-shops-header {
   transition: background var(--apple-transition-fast), transform var(--apple-transition-fast);
 }
 .apple-btn-primary:hover {
-  background: var(--hd-surface-dark);
+  background: #111111;
 }
 .apple-btn-primary:active {
   transform: scale(0.98);
@@ -1560,9 +1354,6 @@ body.menu-open .verified-shops-header {
 .apple-btn-secondary:active {
   transform: scale(0.98);
 }
-.dark .apple-btn-secondary {
-  color: var(--hd-white);
-}
 
 /* Section headers */
 .apple-section-title {
@@ -1583,9 +1374,6 @@ body.menu-open .verified-shops-header {
   color: rgb(115 115 115);
   pointer-events: none;
 }
-.dark .help-rich-editor:empty:before {
-  color: rgb(163 163 163);
-}
 
 /* ==========================================================================
    HDMARKET UI SYSTEM (Monochrome + iOS Motion)
@@ -1595,10 +1383,6 @@ body.menu-open .verified-shops-header {
   -webkit-backdrop-filter: blur(16px);
   background: rgba(255, 255, 255, 0.78);
   border-bottom: 1px solid var(--hd-divider-light);
-}
-.dark .ui-glass-header {
-  background: rgba(10, 10, 10, 0.76);
-  border-bottom-color: var(--hd-divider-dark);
 }
 
 .ui-card {
@@ -1611,11 +1395,6 @@ body.menu-open .verified-shops-header {
 .ui-card:hover {
   box-shadow: var(--ui-card-shadow-hover);
   transform: translateY(-2px);
-}
-.dark .ui-card {
-  background: var(--hd-surface-dark);
-  border-color: var(--hd-divider-dark);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .ui-card-lg {
@@ -1632,10 +1411,6 @@ body.menu-open .verified-shops-header {
 
 .ui-card-soft-separator {
   border-top: 1px solid rgba(15, 23, 42, 0.06);
-}
-
-.dark .ui-card-soft-separator {
-  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .ui-page {
@@ -1779,20 +1554,6 @@ body.menu-open .verified-shops-header {
   transition: background-color 999999s ease-out 0s !important;
 }
 
-.dark .hd-auth-form input.hd-auth-autofill,
-.dark .hd-auth-form input.hd-auth-autofill:hover,
-.dark .hd-auth-form input.hd-auth-autofill:focus,
-.dark .hd-auth-form input.hd-auth-autofill:active,
-.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill,
-.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill:hover,
-.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill:focus,
-.dark .hd-auth-form input.hd-auth-autofill:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff !important;
-  box-shadow: 0 0 0 1000px #171717 inset !important;
-  -webkit-box-shadow: 0 0 0 1000px #171717 inset !important;
-}
-
 @keyframes uiModalIn {
   from {
     opacity: 0;
@@ -1819,10 +1580,6 @@ body.menu-open .verified-shops-header {
   overflow: hidden;
   border-radius: 0.95rem;
   background: linear-gradient(135deg, #f3f4f6 0%, #eef2f7 100%);
-}
-
-.dark .ui-media-frame {
-  background: linear-gradient(135deg, #171717 0%, #202020 100%);
 }
 
 .ui-media-frame-square {
@@ -1871,10 +1628,6 @@ body.menu-open .verified-shops-header {
   width: 3px;
   border-radius: 99px;
   background: #0a0a0a;
-}
-
-.dark .ui-unread-accent::before {
-  background: #f5f5f5;
 }
 
 .ui-card-fade-in {
@@ -1932,26 +1685,12 @@ body.menu-open .verified-shops-header {
   border-color: var(--hd-black);
   box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.08);
 }
-.dark .ui-input {
-  border-color: var(--hd-divider-dark);
-  background: var(--hd-surface-dark);
-  color: var(--hd-white);
-}
-.dark .ui-input:focus {
-  border-color: #d4d4d4;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
-}
 
 .ui-chip {
   border-radius: 9999px;
   border: 1px solid var(--hd-divider-light);
   background: var(--hd-white);
-  color: var(--hd-surface-dark);
-}
-.dark .ui-chip {
-  border-color: var(--hd-divider-dark);
-  background: var(--hd-surface-dark);
-  color: var(--hd-white);
+  color: #111111;
 }
 
 .ui-btn-primary {
@@ -1961,7 +1700,7 @@ body.menu-open .verified-shops-header {
   transition: transform 160ms ease, background-color 160ms ease, opacity 160ms ease;
 }
 .ui-btn-primary:hover {
-  background: var(--hd-surface-dark);
+  background: #111111;
 }
 .ui-btn-primary:active {
   transform: scale(0.97);
@@ -1980,11 +1719,6 @@ body.menu-open .verified-shops-header {
 .ui-btn-ghost:active {
   transform: scale(0.97);
 }
-.dark .ui-btn-ghost {
-  border-color: var(--hd-divider-dark);
-  background: var(--hd-surface-dark);
-  color: var(--hd-white);
-}
 
 @keyframes shimmer {
   0% { background-position: -200% 0; }
@@ -1994,10 +1728,6 @@ body.menu-open .verified-shops-header {
   background: linear-gradient(90deg, #efefef 20%, #f8f8f8 40%, #efefef 60%);
   background-size: 200% 100%;
   animation: shimmer 1.35s linear infinite;
-}
-.dark .ui-skeleton {
-  background: linear-gradient(90deg, #1a1a1a 20%, #202020 40%, #1a1a1a 60%);
-  background-size: 200% 100%;
 }
 
 @keyframes pendingPulse {
@@ -2023,11 +1753,6 @@ body.menu-open .verified-shops-header {
     radial-gradient(1200px 260px at 50% -80px, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0) 65%),
     linear-gradient(180deg, #f8fafc 0%, #f5f7fb 45%, #f3f4f8 100%);
 }
-.dark .shop-shell {
-  background:
-    radial-gradient(1200px 260px at 50% -80px, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0) 70%),
-    linear-gradient(180deg, #020617 0%, #020817 45%, #030712 100%);
-}
 
 .shop-glass-head {
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -2036,22 +1761,12 @@ body.menu-open .verified-shops-header {
   -webkit-backdrop-filter: blur(18px);
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
 }
-.dark .shop-glass-head {
-  border-color: rgba(71, 85, 105, 0.5);
-  background: rgba(15, 23, 42, 0.72);
-  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
-}
 
 .shop-panel {
   border-radius: 1.2rem;
   border: 1px solid rgba(148, 163, 184, 0.24);
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-}
-.dark .shop-panel {
-  border-color: rgba(71, 85, 105, 0.55);
-  background: rgba(15, 23, 42, 0.84);
-  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.4);
 }
 
 .shop-separator {
@@ -2071,26 +1786,12 @@ body.menu-open .verified-shops-header {
     linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%);
 }
 
-.dark .glass-page-shell {
-  background:
-    radial-gradient(960px 360px at 8% -14%, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 62%),
-    radial-gradient(860px 300px at 92% 0%, rgba(168, 85, 247, 0.18) 0%, rgba(168, 85, 247, 0) 64%),
-    radial-gradient(640px 240px at 50% 102%, rgba(236, 72, 153, 0.12) 0%, rgba(236, 72, 153, 0) 72%),
-    linear-gradient(135deg, #020617 0%, #0f172a 55%, #111827 100%);
-}
-
 .glass-card {
   border: 1px solid rgba(255, 255, 255, 0.45);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.54));
   backdrop-filter: blur(14px) saturate(130%);
   -webkit-backdrop-filter: blur(14px) saturate(130%);
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
-}
-
-.dark .glass-card {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: linear-gradient(135deg, rgba(17, 24, 39, 0.7), rgba(15, 23, 42, 0.56));
-  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.34);
 }
 
 .soft-card {
@@ -2124,36 +1825,11 @@ body.menu-open .verified-shops-header {
   border-color: rgba(252, 165, 165, 0.62);
 }
 
-.dark .soft-card-blue {
-  background: rgba(30, 64, 175, 0.38);
-}
-
-.dark .soft-card-purple {
-  background: rgba(107, 33, 168, 0.38);
-}
-
-.dark .soft-card-green {
-  background: rgba(6, 95, 70, 0.38);
-}
-
-.dark .soft-card-orange {
-  background: rgba(154, 52, 18, 0.4);
-}
-
-.dark .soft-card-red {
-  background: rgba(127, 29, 29, 0.4);
-}
-
 .glass-header {
   border: 1px solid rgba(255, 255, 255, 0.42);
   background: rgba(255, 255, 255, 0.74);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
-}
-
-.dark .glass-header {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(15, 23, 42, 0.7);
 }
 
 .floating-glass-button {
@@ -2174,12 +1850,6 @@ body.menu-open .verified-shops-header {
   backdrop-filter: blur(18px) saturate(136%);
   -webkit-backdrop-filter: blur(18px) saturate(136%);
   box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
-}
-
-.dark .glass-modal-panel {
-  border-color: rgba(148, 163, 184, 0.34);
-  background: linear-gradient(165deg, rgba(15, 23, 42, 0.88), rgba(17, 24, 39, 0.76));
-  box-shadow: 0 24px 46px rgba(2, 6, 23, 0.42);
 }
 
 @keyframes glassFadeIn {
@@ -2206,16 +1876,6 @@ body.menu-open .verified-shops-header {
   );
   background-size: 220% 100%;
   animation: shimmer 1.2s linear infinite;
-}
-
-.dark .glass-skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(30, 41, 59, 0.7) 20%,
-    rgba(51, 65, 85, 0.92) 42%,
-    rgba(30, 41, 59, 0.7) 60%
-  );
-  background-size: 220% 100%;
 }
 
 .glass-content-spacing {
@@ -2245,12 +1905,6 @@ body.menu-open .verified-shops-header {
   .glass-header,
   .glass-modal-panel {
     background: rgba(255, 255, 255, 0.96);
-  }
-
-  .dark .glass-card,
-  .dark .glass-header,
-  .dark .glass-modal-panel {
-    background: rgba(15, 23, 42, 0.96);
   }
 }
 
@@ -2311,47 +1965,12 @@ body.menu-open .verified-shops-header {
   --ui-surface-muted: var(--hd-ink-muted);
 }
 
-.dark {
-  --hd-app-bg: #080808;
-  --hd-app-bg-soft: #0d0d0d;
-  --hd-surface: rgba(18, 18, 18, 0.84);
-  --hd-surface-solid: #121212;
-  --hd-surface-raised: #171717;
-  --hd-surface-muted: rgba(255, 255, 255, 0.055);
-  --hd-ink: #f7f4ee;
-  --hd-ink-muted: #b8b2a8;
-  --hd-ink-subtle: #847e76;
-  --hd-border: rgba(255, 255, 255, 0.09);
-  --hd-border-strong: rgba(255, 255, 255, 0.14);
-  --hd-accent: #5eead4;
-  --hd-accent-soft: rgba(94, 234, 212, 0.1);
-  --hd-warning-soft: rgba(245, 158, 11, 0.14);
-  --hd-danger-soft: rgba(248, 113, 113, 0.12);
-  --hd-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24), 0 12px 34px rgba(0, 0, 0, 0.18);
-  --hd-shadow-sm: 0 18px 48px rgba(0, 0, 0, 0.28);
-  --hd-shadow-md: 0 28px 70px rgba(0, 0, 0, 0.38);
-  --hd-black: #f7f4ee;
-  --hd-surface-dark: #121212;
-  --hd-divider-dark: var(--hd-border);
-  --ui-form-bg: rgba(18, 18, 18, 0.92);
-  --ui-form-border: var(--hd-border-strong);
-  --ui-form-text: var(--hd-ink);
-  --ui-form-placeholder: var(--hd-ink-subtle);
-  --ui-surface-text: var(--hd-ink);
-  --ui-surface-muted: var(--hd-ink-muted);
-}
-
 html {
   background: var(--hd-app-bg);
 }
 
 body {
   background: linear-gradient(180deg, var(--hd-app-bg-soft), var(--hd-app-bg));
-  color: var(--hd-ink);
-}
-
-.dark body {
-  background: linear-gradient(180deg, #0b0b0b, var(--hd-app-bg));
   color: var(--hd-ink);
 }
 
@@ -2363,12 +1982,6 @@ body {
     linear-gradient(180deg, var(--hd-app-bg-soft), var(--hd-app-bg));
 }
 
-.dark .app-main-shell {
-  background:
-    radial-gradient(780px 220px at 50% -120px, rgba(94, 234, 212, 0.08), transparent 72%),
-    linear-gradient(180deg, #0b0b0b, var(--hd-app-bg));
-}
-
 .ui-glass-header,
 .hd-main-nav {
   border-bottom: 1px solid var(--hd-border);
@@ -2378,20 +1991,10 @@ body {
   -webkit-backdrop-filter: blur(18px) saturate(150%);
 }
 
-.dark .ui-glass-header,
-.dark .hd-main-nav {
-  background: rgba(10, 10, 10, 0.82);
-  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.32);
-}
-
 .hd-secondary-nav {
   border-top: 1px solid var(--hd-border);
   border-bottom: 1px solid var(--hd-border);
   background: color-mix(in srgb, var(--hd-surface-solid) 88%, transparent) !important;
-}
-
-.dark .hd-secondary-nav {
-  background: rgba(18, 18, 18, 0.92) !important;
 }
 
 .hd-secondary-nav :where(a, button) {
@@ -2417,11 +2020,6 @@ body {
   box-shadow: 0 -14px 38px rgba(28, 25, 23, 0.08) !important;
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
-}
-
-.dark .hd-mobile-tabbar {
-  background: rgba(13, 13, 13, 0.9) !important;
-  box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.44) !important;
 }
 
 .ui-card,
@@ -2452,19 +2050,6 @@ body {
   transform: translateY(-1.5px);
 }
 
-.dark .ui-card,
-.dark .apple-card,
-.dark .shop-panel,
-.dark .glass-card,
-.dark .glass-modal-panel,
-.dark .apple-inset-group {
-  border-color: var(--hd-border);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--hd-surface-solid) 88%, transparent), var(--hd-surface)),
-    var(--hd-surface);
-  box-shadow: var(--hd-shadow-xs);
-}
-
 /* Normalize older hand-written cards without touching ProductCard's custom shell. */
 :where(section, article, div).rounded-2xl.border.bg-white,
 :where(section, article, div).rounded-3xl.border.bg-white,
@@ -2490,26 +2075,12 @@ body {
     linear-gradient(180deg, var(--hd-app-bg-soft), var(--hd-app-bg));
 }
 
-.dark .glass-page-shell,
-.dark .shop-shell {
-  background:
-    radial-gradient(880px 240px at 50% -140px, rgba(94, 234, 212, 0.08), transparent 72%),
-    linear-gradient(180deg, #0b0b0b, var(--hd-app-bg));
-}
-
 .glass-header,
 .shop-glass-head,
 .floating-glass-button {
   border-color: var(--hd-border);
   background: color-mix(in srgb, var(--hd-surface-solid) 80%, transparent);
   box-shadow: var(--hd-shadow-xs);
-}
-
-.dark .glass-header,
-.dark .shop-glass-head,
-.dark .floating-glass-button {
-  border-color: var(--hd-border);
-  background: rgba(18, 18, 18, 0.78);
 }
 
 .soft-card {
@@ -2585,19 +2156,9 @@ select:focus {
   background: linear-gradient(135deg, #f3f1eb, #faf9f6);
 }
 
-.dark .ui-media-frame {
-  background: linear-gradient(135deg, #141414, #1a1a1a);
-}
-
 .ui-skeleton,
 .glass-skeleton {
   background: linear-gradient(90deg, #eeece6 20%, #faf9f6 42%, #eeece6 62%);
-  background-size: 220% 100%;
-}
-
-.dark .ui-skeleton,
-.dark .glass-skeleton {
-  background: linear-gradient(90deg, #181818 20%, #242424 42%, #181818 62%);
   background-size: 220% 100%;
 }
 
@@ -2746,26 +2307,6 @@ select {
     background-color 180ms ease;
 }
 
-/* This whole block (bare input/textarea/select tag selectors, so it applies
-   even without the .ui-input class) hardcoded a light background with no
-   dark counterpart anywhere in the file — every plain form field on the
-   site stayed white-on-dark in dark mode. Restore dark values here. */
-.dark .ui-input,
-.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
-.dark textarea,
-.dark select {
-  border-color: rgba(255, 255, 255, 0.12);
-  background-color: rgba(23, 23, 23, 0.92);
-  color: #f1f5f9;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.dark .ui-input::placeholder,
-.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])::placeholder,
-.dark textarea::placeholder {
-  color: #6b7280;
-}
-
 .ui-input:hover,
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):hover,
 textarea:hover,
@@ -2780,14 +2321,6 @@ select:focus {
   border-color: rgba(255, 106, 0, 0.56);
   background-color: #fff;
   box-shadow: 0 0 0 4px rgba(255, 106, 0, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-.dark .ui-input:focus,
-.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
-.dark textarea:focus,
-.dark select:focus {
-  background-color: rgba(23, 23, 23, 0.98);
-  box-shadow: 0 0 0 4px rgba(255, 106, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 textarea.ui-input,
@@ -2886,20 +2419,10 @@ input[type="radio"] {
     linear-gradient(180deg, var(--hd-app-bg-soft), var(--hd-app-bg));
 }
 
-.dark .product-detail-page {
-  background:
-    radial-gradient(900px 260px at 50% -150px, rgba(94, 234, 212, 0.08), transparent 72%),
-    linear-gradient(180deg, #090909, var(--hd-app-bg));
-}
-
 .product-detail-subnav {
   border-color: var(--hd-border);
   background: color-mix(in srgb, var(--hd-surface-solid) 84%, transparent);
   box-shadow: 0 12px 34px rgba(28, 25, 23, 0.055);
-}
-
-.dark .product-detail-subnav {
-  background: rgba(10, 10, 10, 0.82);
 }
 
 .product-detail-gallery,
@@ -2967,18 +2490,8 @@ input[type="radio"] {
   box-shadow: 0 16px 42px rgba(28, 25, 23, 0.07);
 }
 
-.dark .product-shop-card {
-  background:
-    linear-gradient(180deg, rgba(22, 22, 22, 0.92), rgba(14, 14, 14, 0.88)),
-    radial-gradient(420px 160px at 100% 0%, rgba(94, 234, 212, 0.08), transparent 72%);
-}
-
 .product-shop-metric {
   background: color-mix(in srgb, var(--hd-surface-solid) 88%, transparent);
-}
-
-.dark .product-shop-metric {
-  background: rgba(255, 255, 255, 0.045);
 }
 
 .product-detail-commerce {
@@ -2986,12 +2499,6 @@ input[type="radio"] {
     radial-gradient(circle at 18% 0%, rgba(255, 106, 0, 0.1), transparent 24rem),
     linear-gradient(180deg, #f5f5f5 0%, #f5f5f5 46%, #f5f5f5 100%) !important;
   color: #111827;
-}
-
-.dark .product-detail-commerce {
-  background:
-    radial-gradient(circle at 18% 0%, rgba(255, 106, 0, 0.12), transparent 24rem),
-    linear-gradient(180deg, #14110f 0%, #0f0d0c 100%) !important;
 }
 
 .product-detail-commerce .product-detail-mobile-header,
@@ -3233,18 +2740,8 @@ input[type="radio"] {
   box-shadow: 0 2px 10px rgba(117, 75, 36, 0.06) !important;
 }
 
-.dark .hd-products-flow .hd-product-card {
-  border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  background: #171717;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
-}
-
 .hd-products-flow .hd-product-card .hd-product-price {
   color: #171717 !important;
-}
-
-.dark .hd-products-flow .hd-product-card .hd-product-price {
-  color: #f7f4ee !important;
 }
 
 .hd-products-flow .hd-product-card button[class*="bg-neutral-950"],
@@ -3338,19 +2835,6 @@ input[type="radio"] {
   --ui-card-radius-lg: 16px;
   --ui-card-shadow: var(--hd-shadow-xs);
   --ui-card-shadow-hover: var(--hd-shadow-sm);
-}
-
-/* This later :root redeclared --hd-surface/--hd-app-bg etc. as plain light
-   values with no .dark counterpart, silently forcing every consumer below
-   (.ui-card, .glass-header, .hd-main-nav, and the legacy-card normalizer
-   further up) to stay light-only in dark mode. Restore dark values here. */
-.dark {
-  --hd-app-bg: #0a0a0a;
-  --hd-app-bg-soft: #0d0d0d;
-  --hd-surface: #171717;
-  --hd-surface-solid: #171717;
-  --hd-surface-raised: #1f1f1f;
-  --hd-surface-muted: #1a1a1a;
 }
 
 body,

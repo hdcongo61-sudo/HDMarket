@@ -120,7 +120,7 @@ export const FEATURE_CATALOG = Object.freeze({
     description: 'Recommandations personnalisées sur l’accueil.',
     enabled: true,
     releaseStage: 'released',
-    rolloutPercentage: 5
+    rolloutPercentage: 100
   },
   enable_coupons: {
     displayName: 'Coupons',

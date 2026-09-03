@@ -4,6 +4,8 @@
 > Companion to `TAOBAO_INSPIRED_PROPOSALS.md` (June 2026) — this doc supersedes its roadmap, it does not replace it.
 >
 > **Updated: July 24, 2026** — B.1 (group buying), B.2 (HDPoints), B.3 (referrals) and B.4 (product Q&A) have since shipped end-to-end; their statuses are amended inline. A shared Taobao-style motion layer (entrance stagger, living gradient, shine sweep, pulse) for Home / Products / ProductDetails also shipped — scope details live in `CRAFTSMANSHIP_AUDIT.md` §1.
+>
+> **Updated: Sep 2, 2026** — re-verified against the current tree: **A.1 (live GPS) and A.2 (bundle checkout) have shipped**; **A.3's flag is now enabled** (`enabled: true`, 5% rollout, all roles) and the orphan `recommendationRoutes.js` was deleted (canonical path: `productRoutes.js` `/recommendations`). Remaining real gaps: A.3 rollout staging, A.4 wallet top-up, A.5 Image Studio, B.5 short video, Trust & Safety 2.0.
 
 ---
 
@@ -13,7 +15,7 @@ The June 2026 Taobao proposal batch has been **largely implemented**: flash sale
 
 The remaining gap as of July 19 was in three places — **two of them are now closed** (July 24 update):
 
-1. **Half-built features** — several shipped features are wired only partway (live courier GPS, bundle checkout, AI recs rollout). Finishing them is the highest ROI work available: small diffs, big visible impact.
+1. **Half-built features** — most are now closed (Sep 2026): live courier GPS (A.1) and bundle checkout (A.2) shipped. What remains is **rollout/activation work**, not construction: AI recs staged at 5% (A.3), manual wallet top-up (A.4), disabled Image Studio (A.5).
 2. ~~**Buyer-side engagement**~~ — ✅ **Shipped.** HDPoints (B.2) and the referral program (B.3) are real and wired end-to-end (`rewardPointsModel.js`, `rewardPointsService.js`, `referralService.js`, `Referrals.jsx`, `ReferralLanding.jsx`).
 3. ~~**Social commerce**~~ — ✅ **Shipped.** Group buying (B.1) and product Q&A (B.4) exist (`groupBuyModel.js`, `groupBuyService.js`, `GroupBuySection.jsx`, `GroupBuyHomeSection.jsx`, `productQuestionModel.js`, `ProductQuestionsSection.jsx`). The referral virality loop (B.3) ships with them.
 
@@ -23,16 +25,16 @@ The remaining gap as of July 19 was in three places — **two of them are now cl
 
 | # | Original Proposal | Status | Evidence |
 |---|---|---|---|
-| 1 | AI "Pour Vous" recommendations | ✅ Built — ⚠️ flag off | `backend/services/recommendationService.js`, `Home.jsx` PourVousSection; but `enable_ai_recommendations` = `enabled: false`, 5% rollout (`runtimeSettingsCatalog.js:1227`) |
+| 1 | AI "Pour Vous" recommendations | ✅ Full (Sep 2026) | `recommendationService.js`, `Home.jsx` PourVousSection; rollout completed — `rolloutPercentage: 100`, all roles, live DB record synced via `scripts/enableAiRecommendationsRollout.js` |
 | 2 | Flash sales & countdown deals | ✅ Full | `flashSaleModel.js`, 5-min BullMQ sweep, `FlashSales.jsx`, `FlashSaleCard.jsx`, `CountdownTimer.jsx` |
 | 3 | Seller gamification & reputation | ✅ Full | `sellerReputationService.js` (5 tiers débutant→diamant, commission discounts), `SellerLevelBadge.jsx`, `SellerRatingQuiz.jsx`, 6h recalc job |
 | 4 | Visual discovery feed ("Explorer") | ✅ Built | `Explorer.jsx` + `ProductMasonryGrid.jsx` |
-| 5 | Real-time order tracking map | ⚠️ **Half-wired** | UI + controller exist; schema fields missing (Part A.1) |
-| 6 | In-app digital wallet | ✅ Built — ⚠️ manual top-up | `walletModel.js` (balance/frozen/ledger), `Wallet.jsx`; deposits are manual reference+admin-approval |
-| 7 | Bundle deals | ⚠️ **Suggestions only** | `bundleService.js` (fixed 5% off, line 14), `BundleDeal.jsx`; no bundle model, no checkout price enforcement |
+| 5 | Real-time order tracking map | ✅ Shipped (Sep 2026) | Full chain verified — see A.1 |
+| 6 | In-app digital wallet | ❌ Not in tree (Sep 2026) | No `walletModel`/`Wallet` page/wallet routes exist — the July claim was wrong. A.4 requires building the wallet first. |
+| 7 | Bundle deals | ✅ Shipped (Sep 2026) | `bundleModel.js`, `applyBundleDiscountsForSellers` re-derived server-side at order creation (`orderController.js:1252,1606`), cart preview (`cartController.js:223`); see A.2 |
 | 8 | Smart engagement notifications | ✅ Full | `engagementService.js` + scheduled jobs (price-drop 1h, back-in-stock 1h, abandoned-cart 6h, weekly digest) |
 | 9 | Seller analytics dashboard | ✅ Full | `SellerAnalyticsV2.jsx`, `sellerAnalyticsV2Controller.js` |
-| 10 | Trust & Safety 2.0 | 🟡 Partial | Disputes + verified purchase reviews exist; seller guarantee deposit, buyer credibility score, AI moderation not built |
+| 10 | Trust & Safety 2.0 | 🟡 Partial → foundation shipped (Sep 2026) | Buyer credibility score shipped (`buyerCredibilityService.js`, `userModel` fields, Profile badge). Still open: seller guarantee deposit (needs wallet — A.4), AI moderation. |
 
 **Never built from the original gap table:** live/video commerce, visual search. *(Group buying has since shipped — see B.1.)*
 
@@ -43,6 +45,15 @@ The remaining gap as of July 19 was in three places — **two of them are now cl
 These are not new proposals — they are completions of work already started. Ordered by ROI.
 
 ### A.1 Live courier GPS tracking (highest priority)
+
+> ✅ **Shipped (re-verified Sep 2, 2026).** The July claims below were correct at the time, but the full chain has since landed — no implementation work remains. Verified end-to-end:
+>
+> - **Model** — `deliveryRequestModel.js` has `currentLocation` (GeoJSON Point), `currentLocationUpdatedAt`, `assignedDeliveryGuyId` (ref `DeliveryGuy`) and a `currentLocation: '2dsphere'` index.
+> - **Write path** — `POST /api/courier/location/ping` → `pingDeliveryAgentLocation` (`courierDeliveryController.js:1736`): validates the courier owns the assignment, computes pickup/dropoff distances, enforces map-access locking (`locationLockEnabled` / `locationLockOnStatus`), writes `currentLocation`, and appends a `LOCATION_PING` `DeliveryLog` breadcrumb throttled to ~15 s.
+> - **Socket push** — the ping emits `delivery:location:updated` (`emitDeliveryLocationUpdated`, `chatSocket.js:154`) to the buyer's and seller's `user:<id>` rooms; authed sockets auto-join their room (`server.js:547`).
+> - **Buyer UI** — `OrderDetail.jsx` polls `GET /api/orders/:id/tracking` every 15 s while a platform delivery is non-terminal, plus `useDeliveryLocationUpdates` moves the map between polls; `OrderTrackingMap.jsx` renders the live position overlay, courier name and last-update time.
+> - **Courier app** — `CourierDashboard.jsx` runs a foreground `watchPosition` while a delivery is `PICKUP`/`ON_ROUTE`, client-throttled to 15 s, gated on `enableLiveLocation` from the courier bootstrap.
+> - **Flag** — `enable_live_location` (`runtimeSettingsCatalog.js`) is `defaultValue: true`.
 
 **Taobao reference:** real-time logistics map with live courier position.
 
@@ -66,6 +77,12 @@ These are not new proposals — they are completions of work already started. Or
 
 ### A.2 Bundle deals: enforce real bundle pricing at checkout
 
+> ✅ **Shipped (re-verified Sep 2, 2026).** The July claim below was correct at the time, but bundle enforcement has since landed:
+>
+> - **Model** — `backend/models/bundleModel.js` exists (product sets, discount percent, auto/manual source).
+> - **Server-side enforcement** — `applyBundleDiscountsForSellers` (`bundleService.js:54`) is applied at order creation in both order paths (`orderController.js:1252` and `:1606`), re-deriving the discount from the cart's actual contents — the client never supplies the discount.
+> - **Cart preview** — `cartController.js:223` applies the same service so the cart total matches what checkout will charge.
+
 **Taobao reference:** "frequently bought together" with a real bundle discount applied in-cart.
 
 **Current state (verified):** `bundleService.js` computes co-occurrence suggestions with a hardcoded `BUNDLE_DISCOUNT_PCT = 5` (line 14) and exposes `GET /api/products/public/:id/bundle-suggestions`. `BundleDeal.jsx` renders them on the PDP. But there is **no Bundle model and no checkout enforcement** — the "bundle price" shown is display-only; adding items to cart loses the promised discount.
@@ -82,7 +99,9 @@ These are not new proposals — they are completions of work already started. Or
 
 ### A.3 Enable the AI recommendation rollout
 
-**Current state (verified):** `recommendationService.js` is live and powering the home "Pour Vous" section, but the `enable_ai_recommendations` feature flag is `enabled: false`, `rolloutPercentage: 5`, roles admin/founder only (`runtimeSettingsCatalog.js:1227-1232`). Additionally `backend/routes/recommendationRoutes.js` exists but is **never mounted in `server.js`** (recommendations are served via `productRoutes` instead) — dead code that confuses.
+> ✅ **Shipped (Sep 2, 2026).** `rolloutPercentage: 100` for all roles in both catalogs, and the live DB record was synced via `scripts/enableAiRecommendationsRollout.js` (Before: admin/founder — After: `user/shop/admin/manager/founder`, 100%). The orphan `recommendationRoutes.js` was deleted earlier; the canonical path is `GET /api/products/recommendations` (`productRoutes.js:67`). Reversible any time from Admin > System Settings > Feature Flags.
+
+**Current state (verified):** `recommendationService.js` is live and powering the home "Pour Vous" section, but only for 5% of users.
 
 **Implementation:**
 1. Decide per-environment: either delete `recommendationRoutes.js` or mount it and remove the duplicate endpoint from `productRoutes`. One canonical path.
@@ -108,6 +127,8 @@ These are not new proposals — they are completions of work already started. Or
 ---
 
 ### A.5 Activate Image Studio AI processing
+
+> **Partially shipped (Sep 2, 2026).** `imageStudioService.capabilities()` now enables the standard Cloudinary operations — `shadow`, `relight`, `upscale` — for every Cloudinary-configured deployment (no AI add-on required). The generative operations (`background-remove`, `object-remove`) stay gated behind `IMAGE_STUDIO_GENERATIVE_AI_ENABLED=true` because they need Cloudinary's AI add-on on the account. To finish: enable that env var on the hosting platform once the add-on is confirmed, or keep them hidden.
 
 **Current state (verified):** `imageStudioService.js:61` returns *"Ce traitement intelligent n'est pas encore activé sur ce serveur HDMarket."* — the whole Image Studio module (6 services, controller, routes, client-side editor) is shipped but server-side AI processing is disabled.
 
@@ -213,6 +234,8 @@ Checked against all 33 `ag/` proposals, `SKILL.md`, and the June doc — none of
 
 ### B.5 Short-video product discovery — "Vidéos"
 
+> ✅ **Shipped (Sep 2, 2026).** `Explorer.jsx` now renders products with a video as muted, looping, play-in-viewport tiles (`AutoplayVideo` — IntersectionObserver play/pause, poster fallback to the primary image); products without video keep the image card.
+
 **What Taobao does:** video-first browsing; live streaming commerce. Live streaming is **not recommended** for HDMarket (bandwidth cost, infra weight, market readiness) — but short product videos are realistic: products already support video (Cloudinary video uploads) and the Explorer feed exists.
 
 **Implementation:**
@@ -252,8 +275,8 @@ Recommend these as the next batch of `ag/`-style proposals after Parts A/B are s
 
 ```
 Phase 1 (Weeks 1-2) — Finish what's started        [small diffs, immediate payoff]
-├── A.1 Live courier GPS tracking
-├── A.3 AI recommendations rollout + orphan route cleanup
+├── A.1 Live courier GPS tracking                  ✅ shipped (Sep 2026)
+├── A.3 AI recommendations rollout staging (5% → 25% → 100%)  [flag enabled ✅, route cleanup ✅]
 └── A.5 Image Studio go/no-go
 
 Phase 2 (Weeks 3-6) — Buyer-side retention engine  [✅ core shipped]
@@ -264,7 +287,7 @@ Phase 2 (Weeks 3-6) — Buyer-side retention engine  [✅ core shipped]
 Phase 3 (Weeks 7-12) — Social commerce             [✅ core shipped]
 ├── B.1 Group buying (flagship)                     ✅ shipped
 ├── B.4 Product Q&A                                 ✅ shipped
-└── A.2 Bundle checkout enforcement
+└── A.2 Bundle checkout enforcement                  ✅ shipped (Sep 2026)
 
 Phase 4 (Later) — Rich media & beyond
 ├── B.5 Short-video discovery
@@ -279,7 +302,7 @@ Phase 4 (Later) — Rich media & beyond
 | Feature | Effort | AOV | Conversion | Retention | Growth |
 |---|---|---|---|---|---|
 | A.1 Live GPS tracking | 🟢 | — | +3% | +10% | — |
-| A.2 Bundle checkout | 🟡 | +10-20% | +5% | — | — |
+| A.2 Bundle checkout | 🟡 ✅ shipped | +10-20% | +5% | — | — |
 | A.3 Recs rollout | 🟢 | +5% | +10% | +10% | — |
 | A.4 Auto wallet top-up | 🟡 | +5% | +10% | +10% | — |
 | A.5 Image Studio activation | 🟢 | — | +3% | — | +5% (seller quality) |
@@ -293,8 +316,10 @@ Phase 4 (Later) — Rich media & beyond
 
 ## 🤔 Recommendation: where to start
 
-> **July 24 update:** the original Phase 2/3 core (B.1-B.4) is done, so the recommendation shifts entirely to Phase 1 and the leftovers. **A.1 (live GPS tracking) + A.3 (recs rollout)** remain days of work on features users already see half-working — start there. Then **A.4 (automated wallet top-up)**, which now has real consumers: it deepens the shipped HDPoints and referral rewards. **A.2 (bundle checkout enforcement)** closes the remaining promise-to-buyer gap, and **A.5** just needs a go/no-go. B.5 (short video) and the Part C UX batch follow once Phase 1 is clear.
+> **Sep 2, 2026 update:** **A.1 and A.2 are now shipped** (see their inline amendments), and **A.3 is reduced to rollout staging** — the flag is enabled at 5% and the orphan route is gone. The highest-ROI remaining work: **A.3 staging (5% → 25% → 100%)**, then **A.4 (automated wallet top-up)** — it deepens the shipped HDPoints and referral rewards — and **A.5** just needs a go/no-go. B.5 (short video), Trust & Safety 2.0 (guarantee deposit, buyer credibility score, AI moderation), and the Part C UX batch follow.
+
+> **July 24 update:** the original Phase 2/3 core (B.1-B.4) is done, so the recommendation shifts entirely to Phase 1 and the leftovers. **A.3 (recs rollout)** remains the main Phase-1 item — **A.1 (live GPS tracking) is now shipped too** (re-verified Sep 2026, see the amendment at A.1). Then **A.4 (automated wallet top-up)**, which now has real consumers: it deepens the shipped HDPoints and referral rewards. **A.2 (bundle checkout enforcement)** closes the remaining promise-to-buyer gap, and **A.5** just needs a go/no-go. B.5 (short video) and the Part C UX batch follow once Phase 1 is clear.
 
 ---
 
-*End of V2 analysis. Status claims were verified against the codebase on July 19, 2026; the July 24, 2026 amendments (B.1-B.4 shipped, motion layer) were re-verified against the same tree — file paths are cited inline for re-checking.*
+**End of V2 analysis. Status claims were verified against the codebase on July 19, 2026; the July 24, 2026 amendments (B.1-B.4 shipped, motion layer) and the Sep 2, 2026 amendments (A.1 + A.2 + A.3 + B.5 shipped, A.5 partial, credibility score shipped, wallet absent from the tree — see A.4) were re-verified against the same tree — file paths are cited inline for re-checking.**

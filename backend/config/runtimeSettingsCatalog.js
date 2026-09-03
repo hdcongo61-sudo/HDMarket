@@ -1717,8 +1717,8 @@ export const FEATURE_FLAG_DEFAULTS = Object.freeze({
   enable_ai_recommendations: {
     enabled: true,
     rolesAllowed: ['user', 'shop', 'admin', 'manager', 'founder'],
-    rolloutPercentage: 5,
-    description: 'Recommandations pilotées IA sur la page d\'accueil (déploiement progressif : 5% -> 25% -> 100%).'
+    rolloutPercentage: 100,
+    description: 'Recommandations pilotées IA sur la page d\'accueil (déploiement 5% -> 25% -> 100% terminé — actif pour tous).'
   }
 });
 

@@ -35,8 +35,15 @@ import { resolveCountryContext } from '../services/countryService.js';
 import { capitalizeName } from '../utils/nameFormatting.js';
 import { enrollUserIfEligible } from '../services/onboardingService.js';
 
-const genToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+// Session tokens are deliberately short-lived by default. The `rememberMe`
+// flag ("Rester connecté") selects the longer expiry; ops can tune both via
+// JWT_EXPIRES_IN / JWT_REMEMBER_EXPIRES_IN (jsonwebtoken duration strings).
+const genToken = (user, { rememberMe = true } = {}) =>
+  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    expiresIn: rememberMe
+      ? process.env.JWT_REMEMBER_EXPIRES_IN || '7d'
+      : process.env.JWT_EXPIRES_IN || '12h'
+  });
 
 /**
  * Build the login/register response using the canonical session factory.
@@ -309,6 +316,11 @@ export const register = asyncHandler(async (req, res) => {
   if (!name || !password || !phone || !city || !gender || !address?.trim() || acceptedLegalTerms !== true || legalVersion !== '2026-07-18') {
     return res.status(400).json({ message: 'Missing fields' });
   }
+  // Enforce the same minimum as the frontend strength meter — the API must not
+  // accept weaker passwords even if the form is bypassed (API clients).
+  if (typeof password !== 'string' || String(password).length < 8) {
+    return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 8 caractères.' });
+  }
   const normalizedName = capitalizeName(name);
 
   // Email is optional — phone-first registration. When provided, it must
@@ -538,7 +550,7 @@ export const login = asyncHandler(async (req, res) => {
       code: 'ACCOUNT_LOCKED'
     });
   }
-  const token = genToken(user);
+  const token = genToken(user, { rememberMe: req.body?.rememberMe !== false });
   res.json(buildAuthResponse(user, token));
 });
 

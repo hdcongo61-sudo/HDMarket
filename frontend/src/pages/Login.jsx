@@ -260,8 +260,8 @@ export default function Login() {
     try {
       const identifier = form.phone.trim();
       const credentials = identifier.includes('@')
-        ? { email: identifier.toLowerCase(), password: form.password }
-        : { phone: identifier, password: form.password, countryId: selectedCountry?.id || selectedCountry?._id };
+        ? { email: identifier.toLowerCase(), password: form.password, rememberMe }
+        : { phone: identifier, password: form.password, countryId: selectedCountry?.id || selectedCountry?._id, rememberMe };
       const { data } = await api.post('/auth/login', credentials);
       // Redirect directly — no success interstitial
       await login(data, { rememberMe });

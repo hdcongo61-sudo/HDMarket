@@ -5,6 +5,15 @@ import User from './models/userModel.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// This script prints sensitive push tokens to stdout. Never run it inside
+// production logging pipelines — require an explicit opt-in to continue.
+if (String(process.env.ALLOW_TOKEN_DUMP || '') !== '1') {
+  console.error(
+    'check-tokens.js dumps push tokens for admins/founders. Re-run with ALLOW_TOKEN_DUMP=1 to continue.'
+  );
+  process.exit(1);
+}
+
 async function checkTokens() {
   try {
     await mongoose.connect(process.env.MONGO_URI);

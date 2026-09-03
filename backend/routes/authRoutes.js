@@ -26,9 +26,12 @@ import { protect } from '../middlewares/authMiddleware.js';
 import { upload } from '../utils/upload.js';
 import { requireAuthProvider } from '../middlewares/authProviderAvailability.js';
 
+// Stricter limiter for credential endpoints (login, register, provider auth,
+// verification codes): shared mobile-carrier IPs make very low limits unsafe,
+// so keep the default modest and let ops tune it via AUTH_RATE_LIMIT_MAX.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX ?? 20),
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) =>
@@ -36,12 +39,13 @@ const authLimiter = rateLimit({
       success: false,
       message: 'Trop de tentatives. Réessayez dans 15 minutes.',
       code: 'RATE_LIMIT_ERROR'
-    })
+    }),
+  skip: (req) => process.env.NODE_ENV === 'development' && req.ip === '::1'
 });
 
 const router = express.Router();
 
-router.post('/register', requireAuthProvider('auth_email_registration_enabled', 'La création de compte'), upload.single('shopLogo'), validate(schemas.register), register);
+router.post('/register', authLimiter, requireAuthProvider('auth_email_registration_enabled', 'La création de compte'), upload.single('shopLogo'), validate(schemas.register), register);
 router.post('/register/send-code', authLimiter, requireAuthProvider('auth_email_registration_enabled', 'La création de compte'), validate(schemas.registerSendCode), sendRegisterCode);
 router.post('/register/phone/send-code', authLimiter, requireAuthProvider('auth_email_registration_enabled', 'La création de compte'), validate(schemas.registerPhoneSendCode), sendRegisterPhoneCode);
 router.post('/register/phone/verify-code', authLimiter, requireAuthProvider('auth_email_registration_enabled', 'La création de compte'), validate(schemas.registerPhoneVerifyCode), verifyRegisterPhoneCode);

@@ -10,6 +10,44 @@ import { buildProductPath } from '../utils/links';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import useCategories from '../hooks/useCategories';
 
+// Muted, looping product video that only plays while visible in the viewport
+// (Taobao-style video discovery). Falls back to the poster image everywhere.
+const AutoplayVideo = ({ src, poster, className = '' }) => {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!node) return;
+        if (entry.isIntersecting) {
+          node.play().catch(() => {});
+        } else {
+          node.pause();
+        }
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      poster={poster}
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      aria-label="Vidéo du produit"
+      className={className}
+    />
+  );
+};
+
 const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
   const { formatPrice } = useAppSettings();
   const primaryImage = Array.isArray(product?.images) && product.images.length > 0
@@ -18,7 +56,8 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
   const shopName = product?.user?.shopName || product?.user?.name || '';
   const isShop = product?.user?.accountType === 'shop';
   const discountPercent = Number(product?.discount || 0);
-  const hasVideo = Boolean(product?.video);
+  const hasVideo = Boolean(product?.video && String(product.video).trim());
+  const videoUrl = hasVideo ? String(product.video).trim() : '';
 
   return (
     <motion.div
@@ -32,13 +71,21 @@ const DiscoveryCard = ({ product, index, onFavoriteToggle, isFavorited }) => {
         className="block overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm hover:ring-gray-200"
       >
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
-          <img
-            src={primaryImage}
-            alt={product?.title || 'Produit'}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-            loading="lazy"
-            decoding="async"
-          />
+          {hasVideo ? (
+            <AutoplayVideo
+              src={videoUrl}
+              poster={primaryImage}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <img
+              src={primaryImage}
+              alt={product?.title || 'Produit'}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+            />
+          )}
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 via-black/15 to-transparent pointer-events-none" />
           {hasVideo && (
             <div className="absolute top-2 left-2 rounded-full bg-black/50 px-2 py-0.5 text-[9px] font-extrabold text-white flex items-center gap-1">

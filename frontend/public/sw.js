@@ -5,12 +5,18 @@
  * - Auth API responses are never cached to avoid cross-user data leaks
  */
 
-const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v4-2026-03-06';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v5-2026-09-video-cache';
 const IS_NATIVE_APP = new URL(self.location.href).searchParams.get('native') === '1';
 const CACHE_NAME = `hdmarket-${SW_VERSION}`;
 const STATIC_CACHE_NAME = `hdmarket-static-${SW_VERSION}`;
 const API_CACHE_NAME = `hdmarket-api-${SW_VERSION}`;
 const SEARCH_HISTORY_CACHE = `hdmarket-search-history-${SW_VERSION}`;
+// Product-video media cache: HLS manifests, segments and progressive MP4s from
+// Cloudinary. Once a video has been played it replays from the device cache.
+// Deliberately version-independent: media URLs are content-stable, so a played
+// video keeps replaying smoothly across app releases (entry-capped below).
+const MEDIA_CACHE_NAME = 'hdmarket-media-v1';
+const MEDIA_CACHE_MAX_ENTRIES = 400;
 
 const FIREBASE_SDK_VERSION = '9.23.0';
 const DEFAULT_FIREBASE_SDK_BASES = [
@@ -66,6 +72,68 @@ const NON_CACHEABLE_API_PATTERNS = [
   /^\/api\/shops\/[^/]+\/reviews(?:\/|$)/,
   /^\/api\/shops\/[^/]+$/
 ];
+
+const CLOUDINARY_HOSTS = new Set([
+  'res.cloudinary.com',
+  'res-1.cloudinary.com',
+  'res-2.cloudinary.com',
+  'res-3.cloudinary.com',
+  'res-4.cloudinary.com',
+  'res-5.cloudinary.com'
+]);
+
+// Only full GETs are cached. Range requests are skipped: caching partial 206
+// responses per-range would bloat the cache without helping HLS playback.
+const isCloudinaryVideoRequest = (request) => {
+  if (request.method !== 'GET') return false;
+  if (String(request.headers?.get('range') || '')) return false;
+  const url = new URL(request.url);
+  if (!CLOUDINARY_HOSTS.has(url.hostname)) return false;
+  return url.pathname.includes('/video/upload/');
+};
+
+const trimMediaCache = async (cache) => {
+  const keys = await cache.keys();
+  if (keys.length <= MEDIA_CACHE_MAX_ENTRIES) return;
+  const excess = keys.slice(0, keys.length - MEDIA_CACHE_MAX_ENTRIES);
+  for (const key of excess) {
+    await cache.delete(key);
+  }
+};
+
+const handleMediaRequest = async (request, event) => {
+  const cache = await caches.open(MEDIA_CACHE_NAME);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    // HLS manifests are small and can go stale (new renditions); refresh them
+    // in the background. Segments and MP4s are derived, content-stable assets.
+    if (request.url.endsWith('.m3u8')) {
+      event.waitUntil(
+        fetchWithTimeout(request)
+          .then(async (networkResponse) => {
+            if (networkResponse.ok) {
+              await cache.put(request, networkResponse.clone());
+              await trimMediaCache(cache);
+            }
+          })
+          .catch(() => {})
+      );
+    }
+    return cached;
+  }
+
+  try {
+    const networkResponse = await fetchWithTimeout(request);
+    if (networkResponse.ok) {
+      await cache.put(request, networkResponse.clone());
+      await trimMediaCache(cache);
+    }
+    return networkResponse;
+  } catch {
+    return new Response('', { status: 503, statusText: 'Media unavailable' });
+  }
+};
 
 const normalizeNotificationUrl = (value) => {
   const raw = String(value || '').trim();
@@ -255,7 +323,7 @@ self.addEventListener('activate', (event) => {
         names
           .filter(
             (name) =>
-              ![CACHE_NAME, STATIC_CACHE_NAME, API_CACHE_NAME, SEARCH_HISTORY_CACHE].includes(name)
+              ![CACHE_NAME, STATIC_CACHE_NAME, API_CACHE_NAME, SEARCH_HISTORY_CACHE, MEDIA_CACHE_NAME].includes(name)
           )
           .map((name) => caches.delete(name))
       )
@@ -433,6 +501,11 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (isDevHost()) return;
   if (DEV_BYPASS_PATHS.some((pattern) => pattern.test(url.pathname))) return;
+
+  if (isCloudinaryVideoRequest(request)) {
+    event.respondWith(handleMediaRequest(request, event));
+    return;
+  }
 
   if (url.origin !== self.location.origin && !url.pathname.startsWith('/api')) {
     return;
