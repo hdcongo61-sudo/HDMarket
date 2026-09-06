@@ -3,14 +3,13 @@ import { getRecommendations } from '../services/recommendationService.js';
 
 /**
  * GET /api/products/recommendations
- * Returns personalized product recommendations for the authenticated user
+ * Returns personalized product recommendations for the authenticated user.
+ * When no user is present (guest), the service falls back to popular products
+ * so empty search results can always surface suggestions.
  * Query params: page, limit, exclude (comma-separated product IDs)
  */
 export const getUserRecommendations = asyncHandler(async (req, res) => {
-  const userId = req.user?.id || req.user?._id;
-  if (!userId) {
-    return res.status(401).json({ message: 'Authentification requise.' });
-  }
+  const userId = req.user?.id || req.user?._id || null;
 
   const userCity = String(req.user?.city || req.user?.preferredCity || '').trim();
   const page = Number(req.query.page || 1);

@@ -6,6 +6,8 @@ import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import useCategories from '../hooks/useCategories';
 import { recordProductView } from '../utils/recentViews';
+import { loadSearchSuggestions } from '../utils/searchSuggestions';
+import { dedupeProducts, mergeProducts } from '../utils/dedupeProducts';
 import { useToast } from '../context/ToastContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
@@ -214,7 +216,7 @@ export default function AdvancedSearch() {
       const nextTotalPages = Math.max(1, Number(pagination.pages) || 1);
 
       setItems((prev) => {
-        const nextItems = page > 1 ? [...prev, ...fetchedItems] : fetchedItems;
+        const nextItems = page > 1 ? mergeProducts(prev, fetchedItems) : dedupeProducts(fetchedItems);
         writeRouteViewCache(snapshotKey, {
           items: nextItems,
           page,
@@ -259,6 +261,46 @@ export default function AdvancedSearch() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Suggestions shown when a search returns nothing — search never ends empty.
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsSource, setSuggestionsSource] = useState('popular');
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [popularSearches, setPopularSearches] = useState([]);
+
+  const emptyResult = !loading && !error && !offlineSnapshotActive && items.length === 0;
+
+  useEffect(() => {
+    if (!emptyResult) return;
+    let active = true;
+    setSuggestionsLoading(true);
+    loadSearchSuggestions({ limit: 12 })
+      .then((result) => {
+        if (!active) return;
+        setSuggestions(result.products);
+        setSuggestionsSource(result.source);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setSuggestionsLoading(false);
+      });
+    api
+      .get('/search/popular', { params: { limit: 6 } })
+      .then(({ data }) => {
+        if (!active) return;
+        const terms = Array.isArray(data)
+          ? data
+              .map((item) => (typeof item === 'string' ? item : item?.query || item?.term))
+              .filter(Boolean)
+              .slice(0, 6)
+          : [];
+        setPopularSearches(terms);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [emptyResult]);
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return undefined;
@@ -899,20 +941,73 @@ export default function AdvancedSearch() {
                 )}
               </>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-                <MagnifyingGlassIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{t('search.noResults', 'Aucun résultat')}</h3>
-                <p className="text-sm text-gray-500 mb-6">
-                  {t('search.noResultsHint', 'Aucun produit ne correspond à vos critères de recherche.')}
-                </p>
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
-                >
-                  <ArrowPathIcon className="w-4 h-4" />
-                  {t('search.resetFilters', 'Réinitialiser les filtres')}
-                </button>
+              <div>
+                {/* No-results card (compact) */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center mb-6">
+                  <MagnifyingGlassIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{t('search.noResults', 'Aucun résultat')}</h3>
+                  <p className="text-sm text-gray-500 mb-5">
+                    {t('search.noResultsHint', 'Aucun produit ne correspond à vos critères de recherche.')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="hd-primary-button inline-flex items-center gap-2 px-6 py-3 font-bold"
+                  >
+                    <ArrowPathIcon className="w-4 h-4" />
+                    {t('search.resetFilters', 'Réinitialiser les filtres')}
+                  </button>
+                </div>
+
+                {/* Popular searches — one tap to pivot */}
+                {popularSearches.length > 0 && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <ArrowTrendingUpIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                      <p className="text-xs font-black uppercase tracking-wide text-gray-500">
+                        {t('search.popularSearches', 'Recherches populaires')}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {popularSearches.map((term) => (
+                        <button
+                          key={term}
+                          type="button"
+                          onClick={() => {
+                            setSearchDraft(term);
+                            setSearchQuery(term);
+                            setPage(1);
+                          }}
+                          className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition hover:border-[#e85d00] hover:text-[#e85d00] active:scale-95"
+                        >
+                          {term}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Suggestions for you — from browsing history */}
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <SparklesIcon className="h-5 w-5 text-[#e85d00]" aria-hidden="true" />
+                    <h2 className="text-base font-extrabold text-gray-900">
+                      {t('search.suggestionsForYou', 'Suggestions pour vous')}
+                    </h2>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {suggestionsSource === 'history'
+                      ? t('search.suggestionsBasedOnHistory', 'Basé sur votre navigation récente')
+                      : suggestionsSource === 'personalized'
+                        ? t('search.suggestionsPersonalized', 'Sélectionné selon vos goûts')
+                        : t('search.suggestionsPopular', 'Produits populaires en ce moment')}
+                  </p>
+                  {suggestionsLoading ? (
+                    <ProductCardSkeleton count={6} viewMode="masonry" homeFeed />
+                  ) : suggestions.length > 0 ? (
+                    <ProductMasonryGrid products={suggestions} onProductClick={recordProductView} />
+                  ) : null}
+                </div>
               </div>
             )}
           </div>

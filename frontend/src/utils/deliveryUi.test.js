@@ -9,8 +9,12 @@ describe('delivery file URL normalization', () => {
   });
 
   it('resolves stored relative upload paths', () => {
+    // The base URL must follow the same env the app actually uses; hardcoding
+    // 5001 breaks whenever the backend runs on another port.
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+    const expectedOrigin = apiBase.replace(/\/api\/?$/, '');
     expect(normalizeFileUrl('/uploads/proofs/photo 1.jpg')).toBe(
-      'http://localhost:5001/uploads/proofs/photo%201.jpg'
+      `${expectedOrigin}/uploads/proofs/photo%201.jpg`
     );
   });
 

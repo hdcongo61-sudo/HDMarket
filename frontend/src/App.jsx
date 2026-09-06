@@ -21,6 +21,7 @@ import AuthContext from './context/AuthContext';
 import { ShopProfileLoadProvider, useShopProfileLoad } from './context/ShopProfileLoadContext';
 import { hasAnyPermission } from './utils/permissions';
 import { applyAppBranding } from './utils/appIcon';
+import { fetchAppLogo } from './utils/appLogoStore';
 import { queryClient } from './lib/queryClient';
 import useAppBrandLogo from './hooks/useAppBrandLogo';
 import pwaInstallService from './services/pwaInstallService';
@@ -522,12 +523,11 @@ function AppContent() {
       cacheBrandIcons(branding);
     };
     window.addEventListener('hdmarket:app-logo-updated', onLogoUpdate);
-    api
-      .get('/settings/app-logo')
+    fetchAppLogo()
       .then((res) => {
-        if (!active) return;
-        branding.icon = res?.data?.appIcon || '';
-        branding.favicon = res?.data?.appFavicon || '';
+        if (!active || !res) return;
+        branding.icon = res.appIcon || '';
+        branding.favicon = res.appFavicon || '';
         if (branding.icon || branding.favicon) {
           applyAppBranding(branding);
           cacheBrandIcons(branding);
@@ -1578,9 +1578,8 @@ export default function App() {
     window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
 
     const timer = window.setTimeout(() => {
-      api
-        .get('/settings/app-logo', { silentGlobalError: true })
-        .then((res) => applyFromPayload(res?.data || {}))
+      fetchAppLogo()
+        .then((res) => (res ? applyFromPayload(res) : setHeadIcon(fallbackLogo)))
         .catch(() => setHeadIcon(fallbackLogo));
     }, 800);
 

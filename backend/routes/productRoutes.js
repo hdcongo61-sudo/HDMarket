@@ -70,6 +70,15 @@ router.get(
   getUserRecommendations
 );
 
+// Guest recommendations — same engine, popular fallback, publicly cached.
+// Used by empty search results to suggest products from browsing history.
+router.get(
+  '/recommendations/guest',
+  optionalProtect,
+  cacheMiddleware({ ttl: 300000, scope: 'public' }),
+  getUserRecommendations
+);
+
 // Public (validation query) - with caching
 router.get('/public/highlights', cacheMiddleware({ ttl: 300000 }), getPublicHighlights);
 router.get('/public/installments', cacheMiddleware({ ttl: 300000 }), getPublicInstallmentProducts);

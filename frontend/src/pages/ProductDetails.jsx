@@ -23,6 +23,7 @@ import {
   resolveProductImagePrice,
   resolveSelectedAttributesImage,
   resolveSelectedAttributesPrice,
+  resolveSelectedCombinationsTotal,
   validateSelectedAttributes
 } from "../utils/productAttributes";
 import { resolveUserProfileImage } from "../utils/userAvatar";
@@ -1737,6 +1738,20 @@ export default function ProductDetails() {
     }, null);
   }, [wholesaleEnabled, wholesaleTiers, normalizedQuantity, variantPricing.applied]);
   const appliedUnitPrice = activeWholesaleTier?.unitPrice || finalPrice;
+  // Multi-choice ("Choix multiple") selections: each selected option becomes
+  // its own cart line, so the buyer-facing price is the total of the selection.
+  const selectedCombinationsPricing = useMemo(
+    () =>
+      resolveSelectedCombinationsTotal({
+        productAttributes: productOptionDefinitions,
+        selectedCombinations: selectedAttributeCombinations,
+        basePrice: product?.price || 0
+      }),
+    [productOptionDefinitions, selectedAttributeCombinations, product?.price]
+  );
+  const hasMultiSelectionTotal =
+    selectedAttributeCombinations.length > 1 && selectedCombinationsPricing.applied;
+  const displayUnitPrice = hasMultiSelectionTotal ? selectedCombinationsPricing.total : appliedUnitPrice;
   const computedLineTotal = Number((appliedUnitPrice * normalizedQuantity).toFixed(2));
   const wholesaleSavingsAmount = Math.max(
     0,
@@ -2564,17 +2579,22 @@ export default function ProductDetails() {
 
       {/* ── PRIMARY PRODUCT INFORMATION ── */}
       <section className="bg-white px-4 pt-3.5 pb-3">
+        {hasMultiSelectionTotal && (
+          <p className="mb-1 text-[11px] font-black text-gray-500">
+            Total de la sélection ({selectedAttributeCombinations.length} éléments) :
+          </p>
+        )}
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="home-anim-pop inline-block text-[28px] font-black text-[#FF3D00] leading-tight">
-            {formatPriceWithStoredSettings(finalPrice)}
+            {formatPriceWithStoredSettings(displayUnitPrice)}
           </span>
-          {hasDiscount && (
+          {hasDiscount && Number(originalPrice) > displayUnitPrice && (
             <>
               <span className="text-sm text-gray-400 line-through">
                 {formatPriceWithStoredSettings(originalPrice)}
               </span>
               <span className="rounded-full bg-[#FFEDE3] px-2.5 py-1 text-[11px] font-black text-[#FF3D00]">
-                Économisez {formatPriceWithStoredSettings(originalPrice - finalPrice)}
+                Économisez {formatPriceWithStoredSettings(Math.max(0, Number(originalPrice) - displayUnitPrice))}
               </span>
             </>
           )}
@@ -3357,11 +3377,16 @@ export default function ProductDetails() {
                 />
               </button>
               <div className="min-w-0 flex-1">
+                {hasMultiSelectionTotal && (
+                  <p className="text-[11px] font-black text-gray-500">
+                    Total de la sélection ({selectedAttributeCombinations.length} éléments)
+                  </p>
+                )}
                 <div className="flex items-baseline gap-2">
                   <span className="text-xl font-black text-[#FF5000]">
-                    {formatPriceWithStoredSettings(appliedUnitPrice)}
+                    {formatPriceWithStoredSettings(displayUnitPrice)}
                   </span>
-                  {hasDiscount && Number(originalPrice) > appliedUnitPrice ? (
+                  {hasDiscount && Number(originalPrice) > displayUnitPrice ? (
                     <span className="text-xs text-gray-400 line-through">
                       {formatPriceWithStoredSettings(originalPrice)}
                     </span>

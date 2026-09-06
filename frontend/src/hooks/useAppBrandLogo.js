@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import api from '../services/api';
 import useIsMobile from './useIsMobile';
+import { fetchAppLogo } from '../utils/appLogoStore';
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 
 const APP_LOGO_CACHE_KEY = 'hdmarket:brand-logos';
@@ -56,14 +56,13 @@ export default function useAppBrandLogo() {
       window.addEventListener('hdmarket:app-logo-updated', onLogoUpdate);
     }
 
-    const loadLogos = () => api
-      .get('/settings/app-logo', { skipCache: true, headers: { 'x-skip-cache': '1' } })
+    const loadLogos = (force = false) => fetchAppLogo({ force })
       .then((res) => {
-        if (!active) return;
+        if (!active || !res) return;
         const next = {
-          mobile: res?.data?.appLogoMobile || '',
-          desktop: res?.data?.appLogoDesktop || '',
-          auth: res?.data?.authLogo || ''
+          mobile: res.appLogoMobile || '',
+          desktop: res.appLogoDesktop || '',
+          auth: res.authLogo || ''
         };
         cacheLogos(next);
         setLogos(next);
@@ -72,7 +71,7 @@ export default function useAppBrandLogo() {
         // silent fallback
       });
     loadLogos();
-    const unsubscribe = subscribeToSettingsRefresh(loadLogos);
+    const unsubscribe = subscribeToSettingsRefresh(() => loadLogos(true));
 
     return () => {
       active = false;

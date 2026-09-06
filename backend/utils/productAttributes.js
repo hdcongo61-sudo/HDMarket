@@ -265,6 +265,30 @@ export const resolveSelectedAttributesPrice = ({
   return { unitPrice, applied };
 };
 
+// Total across every selected combination for multi-choice ("Choix multiple")
+// selections. Each combination is priced with the single-value rule above and
+// added to its own cart line, so the buyer-facing total is the sum of the
+// selected options. With a single combination this matches the single-value
+// rule exactly.
+export const resolveSelectedCombinationsTotal = ({
+  productAttributes = [],
+  selectedCombinations = [],
+  basePrice = 0
+}) => {
+  const combinations = Array.isArray(selectedCombinations) ? selectedCombinations : [];
+  let total = 0;
+  for (const selectedAttributes of combinations) {
+    const { unitPrice } = resolveSelectedAttributesPrice({
+      productAttributes,
+      selectedAttributes,
+      basePrice
+    });
+    total += Number(unitPrice) || 0;
+  }
+  if (total <= 0) return { total: Number(basePrice) || 0, applied: false };
+  return { total, applied: true };
+};
+
 export const buildSelectedAttributesSelectionKey = (selectedAttributes = []) =>
   normalizeSelectedAttributes(selectedAttributes)
     .slice()

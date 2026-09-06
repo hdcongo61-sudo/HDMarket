@@ -16,6 +16,8 @@ import { resolveUserProfileImage } from "../utils/userAvatar";
 import { useAppSettings } from "../context/AppSettingsContext";
 import useCategories from '../hooks/useCategories';
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
+import { fetchAppLogo } from '../utils/appLogoStore';
+import { loadSearchSuggestions } from '../utils/searchSuggestions';
 import { AdjustmentsHorizontalIcon, ArrowDownIcon, ArrowDownTrayIcon, ArrowLeftOnRectangleIcon, ArrowTrendingUpIcon, Bars3Icon, BellIcon, BoltIcon, BookmarkIcon, BookmarkSquareIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, ChatBubbleLeftIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ClipboardDocumentListIcon, ClockIcon, Cog6ToothIcon, CubeIcon, DocumentTextIcon, EllipsisVerticalIcon, ExclamationCircleIcon, FilmIcon, FireIcon, FlagIcon, FunnelIcon, GiftIcon, HeartIcon, HomeIcon, MagnifyingGlassIcon, MapIcon, MapPinIcon, PencilIcon, PlusIcon, ReceiptPercentIcon, ShieldCheckIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Squares2X2Icon, StarIcon, TagIcon, TrashIcon, TruckIcon, UserCircleIcon, UserGroupIcon, UserIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import VerifiedBadge from "./VerifiedBadge";
 import CountrySelector from './settings/CountrySelector';
@@ -205,6 +207,11 @@ export default function Navbar({ hideMobileTabBar = false }) {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [showHistoryGrouped, setShowHistoryGrouped] = useState(true);
   const [relatedSearches, setRelatedSearches] = useState([]);
+  // Suggestions shown when a quick search returns nothing — never a dead end.
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [popularSearchTerms, setPopularSearchTerms] = useState([]);
+  const lastSuggestionsQueryRef = useRef('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
@@ -1770,11 +1777,68 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State — never a dead end: suggestions + popular searches */}
         {!searching && !searchError && !hasResults && searchQuery.trim() && (
-          <div className="px-4 py-6 text-center text-gray-500">
-            <p className="text-sm">{t('nav.noResultsFor', 'Aucun résultat pour')} « {searchQuery} »</p>
-            <p className="text-xs mt-2 text-gray-400">{t('nav.tryOtherKeywords', "Essayez avec d'autres mots-clés")}</p>
+          <div className="px-4 py-4">
+            <p className="text-sm text-gray-500">{t('nav.noResultsFor', 'Aucun résultat pour')} « {searchQuery} »</p>
+            <p className="text-xs mt-1 text-gray-400">{t('nav.tryOtherKeywords', "Essayez avec d'autres mots-clés")}</p>
+
+            <div className="mt-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <SparklesIcon className="h-4 w-4 text-[#e85d00]" aria-hidden="true" />
+                <span className="text-sm font-bold text-gray-800">{t('nav.suggestionsForYou', 'Suggestions pour vous')}</span>
+              </div>
+              {suggestionsLoading ? (
+                <p className="py-3 text-xs text-gray-400" aria-live="polite">Chargement des suggestions…</p>
+              ) : searchSuggestions.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+                  {searchSuggestions.map((product) => (
+                    <button
+                      key={product._id}
+                      type="button"
+                      onClick={() => handleSelectResult(product)}
+                      className="w-32 shrink-0 text-left rounded-xl border border-gray-200 bg-white overflow-hidden active:scale-95 transition"
+                    >
+                      <img
+                        src={product.image || "/api/placeholder/60/60"}
+                        alt={product.title || 'Suggestion'}
+                        className="h-24 w-full object-cover bg-gray-100"
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.src = "/api/placeholder/60/60";
+                        }}
+                      />
+                      <div className="p-2">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-snug">{product.title}</p>
+                        {product.price ? (
+                          <p className="text-xs font-bold text-[#e85d00] mt-0.5">{formatCurrency(product.price)}</p>
+                        ) : null}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {popularSearchTerms.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[11px] uppercase tracking-wide font-black text-gray-400 mb-1.5">
+                    {t('search.popularSearches', 'Recherches populaires')}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {popularSearchTerms.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => setSearchQuery(term)}
+                        className="px-2.5 py-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -2070,11 +2134,68 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State — never a dead end: suggestions + popular searches */}
         {!searching && !searchError && !hasResults && searchQuery.trim() && (
-          <div className="px-4 py-6 text-center text-gray-500">
-            <p className="text-sm">{t('nav.noResultsFor', 'Aucun résultat pour')} « {searchQuery} »</p>
-            <p className="text-xs mt-2 text-gray-400">{t('nav.tryOtherKeywords', "Essayez avec d'autres mots-clés")}</p>
+          <div className="px-4 py-4">
+            <p className="text-sm text-gray-500">{t('nav.noResultsFor', 'Aucun résultat pour')} « {searchQuery} »</p>
+            <p className="text-xs mt-1 text-gray-400">{t('nav.tryOtherKeywords', "Essayez avec d'autres mots-clés")}</p>
+
+            <div className="mt-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <SparklesIcon className="h-4 w-4 text-[#e85d00]" aria-hidden="true" />
+                <span className="text-sm font-bold text-gray-800">{t('nav.suggestionsForYou', 'Suggestions pour vous')}</span>
+              </div>
+              {suggestionsLoading ? (
+                <p className="py-3 text-xs text-gray-400" aria-live="polite">Chargement des suggestions…</p>
+              ) : searchSuggestions.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+                  {searchSuggestions.map((product) => (
+                    <button
+                      key={product._id}
+                      type="button"
+                      onClick={() => handleSelectResult(product)}
+                      className="w-32 shrink-0 text-left rounded-xl border border-gray-200 bg-white overflow-hidden active:scale-95 transition"
+                    >
+                      <img
+                        src={product.image || "/api/placeholder/60/60"}
+                        alt={product.title || 'Suggestion'}
+                        className="h-24 w-full object-cover bg-gray-100"
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.src = "/api/placeholder/60/60";
+                        }}
+                      />
+                      <div className="p-2">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-snug">{product.title}</p>
+                        {product.price ? (
+                          <p className="text-xs font-bold text-[#e85d00] mt-0.5">{formatCurrency(product.price)}</p>
+                        ) : null}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {popularSearchTerms.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[11px] uppercase tracking-wide font-black text-gray-400 mb-1.5">
+                    {t('search.popularSearches', 'Recherches populaires')}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {popularSearchTerms.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => setSearchQuery(term)}
+                        className="px-2.5 py-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -2737,13 +2858,17 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
 
   useEffect(() => {
     let cancelled = false;
-    const loadAppLogos = async () => {
+    const loadAppLogos = async (force = false) => {
       try {
-        const { data } = await api.get("/settings/app-logo", { silentGlobalError: true, skipCache: true, headers: { 'x-skip-cache': '1' } });
+        const data = await fetchAppLogo({ force });
         if (cancelled) return;
+        if (!data) {
+          setAppLogos({ desktop: "", mobile: "" });
+          return;
+        }
         setAppLogos({
-          desktop: data?.appLogoDesktop || "",
-          mobile: data?.appLogoMobile || ""
+          desktop: data.appLogoDesktop || "",
+          mobile: data.appLogoMobile || ""
         });
       } catch (error) {
         if (!cancelled) {
@@ -2765,8 +2890,8 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
       window.addEventListener('hdmarket:app-logo-updated', onAppLogoUpdated);
     }
 
-    const timer = window.setTimeout(loadAppLogos, 900);
-    const unsubscribe = subscribeToSettingsRefresh(loadAppLogos);
+    const timer = window.setTimeout(() => loadAppLogos(false), 900);
+    const unsubscribe = subscribeToSettingsRefresh(() => loadAppLogos(true));
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -2776,6 +2901,45 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
       }
     };
   }, []);
+
+  const quickSearchEmpty = !searching
+    && !searchError
+    && Boolean(searchQuery.trim())
+    && !(searchResults?.products?.length || searchResults?.shops?.length || searchResults?.categories?.length);
+
+  useEffect(() => {
+    if (!quickSearchEmpty) return;
+    const term = searchQuery.trim();
+    if (lastSuggestionsQueryRef.current === term) return;
+    lastSuggestionsQueryRef.current = term;
+    let active = true;
+    setSuggestionsLoading(true);
+    loadSearchSuggestions({ limit: 8 })
+      .then((result) => {
+        if (!active) return;
+        setSearchSuggestions(result.products.slice(0, 6));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setSuggestionsLoading(false);
+      });
+    api
+      .get('/search/popular', { params: { limit: 6 } })
+      .then(({ data }) => {
+        if (!active) return;
+        const terms = Array.isArray(data)
+          ? data
+              .map((item) => (typeof item === 'string' ? item : item?.query || item?.term))
+              .filter(Boolean)
+              .slice(0, 6)
+          : [];
+        setPopularSearchTerms(terms);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [quickSearchEmpty, searchQuery]);
 
   // Render quick action buttons (from backend quick-filters; click navigates to path)
   const handleQuickFilterClick = (template) => {

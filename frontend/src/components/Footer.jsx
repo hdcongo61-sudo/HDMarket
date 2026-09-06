@@ -12,8 +12,13 @@ const contactClassName =
   'group flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-neutral-200 transition hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hd-accent)]';
 
 const normalizePhoneHref = (value) => {
-  const digits = String(value ?? '').replace(/[^+\d]/g, '');
-  return digits ? `tel:${digits}` : '';
+  const raw = String(value ?? '').trim();
+  // Only real phone numbers get a tel: link. Admin data can (and has) contained
+  // an email address in the supportPhone field, which produced a dead tel:0 link.
+  if (!raw || raw.includes('@')) return '';
+  const digits = raw.replace(/[^+\d]/g, '');
+  if (digits.replace(/\D/g, '').length < 6) return '';
+  return `tel:${digits}`;
 };
 const normalizeExternalUrl = (value = '') => {
   try {

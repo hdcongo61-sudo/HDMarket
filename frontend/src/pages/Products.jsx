@@ -6,6 +6,7 @@ import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import useCategories from '../hooks/useCategories';
 import { recordProductView } from '../utils/recentViews';
+import { dedupeProducts, mergeProducts } from '../utils/dedupeProducts';
 import NetworkFallbackCard from '../components/ui/NetworkFallbackCard';
 import useNetworkProfile from '../hooks/useNetworkProfile';
 import { loadOfflineSnapshot, saveOfflineSnapshot } from '../utils/offlineSnapshots';
@@ -127,7 +128,7 @@ const fetchProducts = useCallback(async () => {
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
       const nextTotalPages = Math.max(1, Number(paginationMeta.pages) || 1);
       setItems((prev) => {
-        const nextItems = page > 1 ? [...prev, ...fetchedItems] : fetchedItems;
+        const nextItems = page > 1 ? mergeProducts(prev, fetchedItems) : dedupeProducts(fetchedItems);
         writeRouteViewCache(snapshotKey, {
           items: nextItems,
           page,

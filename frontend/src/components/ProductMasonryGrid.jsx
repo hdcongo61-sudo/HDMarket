@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ProductCard from './ProductCard';
+import { dedupeProducts } from '../utils/dedupeProducts';
 
 // Column counts mirror the old `columns-2 sm:columns-3 lg:columns-4 xl:columns-5`.
 const getColumnCount = (width) => {
@@ -43,7 +44,9 @@ export default function ProductMasonryGrid({
   }, []);
 
   const columns = useMemo(() => {
-    const list = Array.isArray(products) ? products : [];
+    // Paginated feeds can contain the same product twice (ordering shifts
+    // between pages) — dedupe so React never renders duplicate keys.
+    const list = dedupeProducts(products);
     const buckets = Array.from({ length: columnCount }, () => []);
     list.forEach((product, index) => {
       buckets[index % columnCount].push(product);
@@ -59,7 +62,7 @@ export default function ProductMasonryGrid({
         <div key={columnIndex} className="min-w-0 flex-1">
           {columnProducts.map((product, productIndex) => (
             <div
-              key={product._id || product.slug}
+              key={product._id || product.slug || `${columnIndex}-${productIndex}`}
               className="home-anim-fade-up mb-2 sm:mb-3"
               style={{ '--home-anim-delay': `${Math.min(productIndex, 8) * 60}ms` }}
             >

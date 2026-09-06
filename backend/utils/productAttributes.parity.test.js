@@ -73,4 +73,16 @@ describe('backend/frontend productAttributes parity', () => {
       backendAttrs.buildSelectedAttributesSelectionKey(selected)
     );
   });
+
+  it.each([
+    [[{ name: 'Taille', value: 'S' }]],
+    [[{ name: 'Taille', value: 'S' }, { name: 'Taille', value: 'XL' }]],
+    [[{ name: 'Taille', value: 'M' }, { name: 'Couleur', value: 'Noir' }]],
+    [[]]
+  ])('resolveSelectedCombinationsTotal agrees for combinations %j', (selectedCombinations) => {
+    const args = { productAttributes, selectedCombinations, basePrice: 12000 };
+    expect(frontendAttrs.resolveSelectedCombinationsTotal(args)).toEqual(
+      backendAttrs.resolveSelectedCombinationsTotal(args)
+    );
+  });
 });
