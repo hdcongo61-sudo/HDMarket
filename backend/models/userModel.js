@@ -399,6 +399,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.add({
+  shopSlugAliases: { type: [String], default: [], index: true, select: false },
   slug: { type: String, unique: true, index: true, lowercase: true, trim: true },
   referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
   referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

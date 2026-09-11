@@ -213,9 +213,9 @@ export default function ShopProfile() {
     const canonicalSlug = String(shop?.slug || '').trim();
     const routeSlug = String(slug || '').trim();
     const looksLikeObjectId = /^[a-f0-9]{24}$/i.test(routeSlug);
-    const shouldUseCanonicalRoute = looksLikeObjectId || isGeneratedTimestampSlug(routeSlug);
+    const shouldUseCanonicalRoute = looksLikeObjectId || /^\d+(?:-\d+)?$/.test(routeSlug) || isGeneratedTimestampSlug(routeSlug);
     if (!shouldUseCanonicalRoute || !canonicalSlug || canonicalSlug === routeSlug) return;
-    navigate(`/shop/${canonicalSlug}`, { replace: true });
+    navigate(`/shop/${encodeURIComponent(canonicalSlug)}${window.location.search}${window.location.hash}`, { replace: true });
   }, [navigate, shop?.slug, slug]);
 
   const shopIdentifier = shop?.slug || shop?._id || slug;
@@ -714,10 +714,8 @@ export default function ShopProfile() {
   const handleShareShop = useCallback(async () => {
     const title = shop?.shopName || 'HDMarket';
     const text = t('shop_profile.share_text', `Découvrez ${title} sur HDMarket`);
-    const url =
-      typeof window !== 'undefined'
-        ? window.location.href
-        : `https://hdmarket.app/shop/${slug}`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://hdmarket.app';
+    const url = `${origin}/shop/${encodeURIComponent(shop?.slug || slug)}`;
     try {
       if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
         await navigator.share({ title, text, url });
@@ -734,7 +732,7 @@ export default function ShopProfile() {
     } catch {
       // ignore share cancel
     }
-  }, [shop?.shopName, showToast, slug, t]);
+  }, [shop?.shopName, shop?.slug, showToast, slug, t]);
 
   const handlePrimaryAction = useCallback(() => {
     if (isOwnShop) {

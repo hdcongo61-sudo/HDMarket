@@ -10,8 +10,9 @@ import MarketplacePromoCode from '../models/marketplacePromoCodeModel.js';
 import Commune from '../models/communeModel.js';
 import { createNotification } from '../utils/notificationService.js';
 import { sanitizeShopHours } from '../utils/shopHours.js';
+import { ensureShopSlug } from '../utils/shopSlugUtils.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
-import { ensureDocumentSlug, ensureModelSlugsForItems } from '../utils/slugUtils.js';
+import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
 
 const formatShopReview = (review) => {
@@ -57,9 +58,10 @@ const loadShopByIdentifier = async (
 ) => {
   const query = buildIdentifierQuery(identifier);
   if (!Object.keys(query).length) return null;
-  const shop = await User.findOne(query).select(projection);
+  const shop = await User.findOne(query).select(projection)
+    || await User.findOne({ shopSlugAliases: identifier, accountType: 'shop' }).select(projection);
   if (!shop) return null;
-  await ensureDocumentSlug({ document: shop, sourceValue: shop.shopName || shop.name });
+  await ensureShopSlug(shop);
   return shop;
 };
 
