@@ -3436,6 +3436,32 @@ export const updateProduct = asyncHandler(async (req, res) => {
     );
   }
 
+  // Sellers can reorder photos in the form regardless of upload order. The
+  // payload carries the display permutation of the final images array; apply
+  // it last so removals, replacements, and appended uploads stay consistent.
+  if (req.body?.imageOrder) {
+    let imageOrder = [];
+    try {
+      const parsed = JSON.parse(String(req.body.imageOrder));
+      if (Array.isArray(parsed)) imageOrder = parsed.map((value) => Number(value));
+    } catch {
+      imageOrder = [];
+    }
+    const currentImages = Array.isArray(product.images) ? product.images : [];
+    const valid = imageOrder.filter(
+      (value) => Number.isInteger(value) && value >= 0 && value < currentImages.length
+    );
+    const isPermutation =
+      valid.length === currentImages.length && new Set(valid).size === currentImages.length;
+    if (isPermutation) {
+      product.images = valid.map((index) => currentImages[index]);
+      const currentDescriptions = Array.isArray(product.imageDescriptions)
+        ? product.imageDescriptions
+        : [];
+      product.imageDescriptions = valid.map((index) => currentDescriptions[index] ?? '');
+    }
+  }
+
   await product.save();
 
   if (priceChangeCancellation) {

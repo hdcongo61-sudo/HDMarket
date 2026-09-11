@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCal
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { AdjustmentsHorizontalIcon, ArrowPathIcon, ArrowRightIcon, ArrowUpTrayIcon, ArrowUturnLeftIcon, ArrowUturnRightIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BeakerIcon, CalendarIcon, CameraIcon, CheckCircleIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, EyeIcon, LockClosedIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon, MegaphoneIcon, PaperAirplaneIcon, PencilIcon, PlusIcon, ReceiptPercentIcon, ScissorsIcon, ShieldCheckIcon, SparklesIcon, SunIcon, TagIcon, TrashIcon, UsersIcon, VideoCameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, ArrowPathIcon, ArrowRightIcon, ArrowUpTrayIcon, ArrowUturnLeftIcon, ArrowUturnRightIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BeakerIcon, CalendarIcon, CameraIcon, CheckCircleIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, EyeIcon, LockClosedIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon, MegaphoneIcon, PaperAirplaneIcon, PencilIcon, PlusIcon, ReceiptPercentIcon, ScissorsIcon, ShieldCheckIcon, SparklesIcon, SunIcon, TagIcon, TrashIcon, UsersIcon, VideoCameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import useCategories from '../hooks/useCategories';
 import ProductCard from './ProductCard';
 import useIsMobile from '../hooks/useIsMobile';
@@ -14,6 +14,7 @@ import { getHighestProductPrice, hydrateImageVariantsFromAttributes, normalizePr
 import { isValidSocialVideoUrl } from '../utils/socialVideo';
 import { formatFileSize, optimizeImageFiles, PRODUCT_IMAGE_ACCEPT } from '../utils/mediaOptimizer';
 import { createIdempotencyKey } from '../utils/idempotency';
+import { applyOrder, isValidPermutation, moveInOrder, reconcileOrderAfterAdd, reconcileOrderAfterRemove } from '../utils/imageOrdering';
 import TagSelector from './tags/TagSelector';
 import { getInstallmentEndDate, getListingFeeChangePreview, getMissingProductFormFields } from '../utils/productFormUx';
 
@@ -178,6 +179,9 @@ export default function ProductForm(props) {
   const imagePreviewsRef = useRef([]);
   const imageReplacementsRef = useRef({});
   const [existingImages, setExistingImages] = useState([]);
+  // Permutation of combined image indices in display order (null = natural).
+  // Sellers can reorder photos regardless of upload order.
+  const [displayOrder, setDisplayOrder] = useState(null);
   const [removedImages, setRemovedImages] = useState([]);
   const [imageReplacements, setImageReplacements] = useState({});
   const [studioImageIndex, setStudioImageIndex] = useState(null);
@@ -421,6 +425,7 @@ export default function ProductForm(props) {
     setImageVariantName('Couleur');
     setImageVariants({});
     setImageDescriptions({});
+    setDisplayOrder(null);
 
     setVideoFile(null);
     setExistingVideoUrl(null);
@@ -592,6 +597,7 @@ export default function ProductForm(props) {
 
     setFiles((prev) => [...prev, ...newItems]);
     setImagePreviews((prev) => [...prev, ...newPreviews]);
+    reconcileImageOrderAfterAdd(newItems.length, existingImages.length + files.length);
     e.target.value = '';
   };
 
@@ -982,6 +988,7 @@ export default function ProductForm(props) {
     setImagePreviews(newPreviews);
     // Option→image links use the combined [existing…, new…] index space.
     shiftAttributeOptionImages(existingImages.length + index);
+    reconcileImageOrderAfterRemove(existingImages.length + index);
     if (newFiles.length < maxImagesLimit) setImageError('');
   };
 
@@ -1002,6 +1009,7 @@ export default function ProductForm(props) {
     setExistingImages(existingImages.filter((_, i) => i !== index));
     setRemovedImages((prev) => [...prev, target]);
     shiftAttributeOptionImages(index);
+    reconcileImageOrderAfterRemove(index);
     if (existingImages.length - 1 + files.length < maxImagesLimit) setImageError('');
   };
 
@@ -1913,16 +1921,37 @@ export default function ProductForm(props) {
       if (!unchanged('physical', form.physical)) data.append('physical', JSON.stringify(physicalPayload));
       if (!unchanged('tagIds', form.tagIds || [])) data.append('tagIds', JSON.stringify(form.tagIds || []));
       if (!unchanged('aiTagIds', form.aiTagIds || [])) data.append('aiTagIds', JSON.stringify(form.aiTagIds || []));
-      files.slice(0, maxImagesLimit).forEach((item) => {
+      // New photos are appended to the product's existing photos server-side.
+      // On create the append order IS the final order, so append in display
+      // order. On update the whole final array is permuted via `imageOrder`.
+      const appendFilesInDisplayOrder = (() => {
+        const natural = files.slice(0, maxImagesLimit);
+        if (productId) return natural;
+        const newOrder = Array.isArray(displayOrder)
+          ? displayOrder
+              .filter((index) => index >= existingImages.length)
+              .map((index) => index - existingImages.length)
+          : null;
+        if (!newOrder || newOrder.length !== natural.length) return natural;
+        return newOrder.map((index) => natural[index]).filter(Boolean);
+      })();
+      appendFilesInDisplayOrder.forEach((item) => {
         const file = item?.file || item;
         if (file instanceof File) {
           data.append('images', file);
         }
       });
       const submittedImageCount = existingImages.length + Math.min(files.length, maxImagesLimit);
+      // Permutation of the final images array in display order (updates only).
+      if (productId && isValidPermutation(displayOrder, submittedImageCount)) {
+        data.append('imageOrder', JSON.stringify(displayOrder));
+      }
+      const descriptionIndices = isValidPermutation(displayOrder, submittedImageCount) && !productId
+        ? displayOrder
+        : Array.from({ length: submittedImageCount }, (_, index) => index);
       data.append('imageDescriptions', JSON.stringify(
-        Array.from({ length: submittedImageCount }, (_, index) =>
-          String(imageDescriptions[index] || '').trim().slice(0, MAX_IMAGE_DESCRIPTION_LENGTH)
+        descriptionIndices.map((imageIndex) =>
+          String(imageDescriptions[imageIndex] || '').trim().slice(0, MAX_IMAGE_DESCRIPTION_LENGTH)
         )
       ));
       data.append('newImageStudioMetadata', JSON.stringify(
@@ -2227,6 +2256,7 @@ export default function ProductForm(props) {
     setExistingPdf(initialValues.pdf || null);
     setRemovePdf(false);
     setRemovedImages([]);
+    setDisplayOrder(null);
   }, [initialValues]);
 
   const studioImages = useMemo(() => [
@@ -2243,6 +2273,26 @@ export default function ProductForm(props) {
       existing: false
     }))
   ], [existingImages, files, imagePreviews, imageReplacements]);
+
+  // Photos in display order — the first one becomes the cover / main photo.
+  const orderedStudioImages = useMemo(
+    () => applyOrder(studioImages, displayOrder),
+    [studioImages, displayOrder]
+  );
+  const totalImageCount = studioImages.length;
+
+  const moveImage = (combinedIndex, direction) => {
+    const next = moveInOrder(displayOrder, totalImageCount, combinedIndex, direction);
+    if (next) setDisplayOrder(next);
+  };
+
+  const reconcileImageOrderAfterRemove = (combinedIndex) => {
+    setDisplayOrder((prev) => reconcileOrderAfterRemove(prev, combinedIndex));
+  };
+
+  const reconcileImageOrderAfterAdd = (addedCount, previousTotal) => {
+    setDisplayOrder((prev) => reconcileOrderAfterAdd(prev, addedCount, previousTotal));
+  };
 
   const handleStudioSave = useCallback(async ({ file, files: batchFiles, sourceIndex, state, quality }) => {
     const results = Array.isArray(batchFiles) ? batchFiles : [{ file, sourceIndex }];
@@ -3722,45 +3772,114 @@ export default function ProductForm(props) {
                   </div>
                 )}
 
-                {existingImages.length > 0 && (
+                {totalImageCount > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs text-gray-500">Images actuelles ({existingImages.length})</p>
+                    <p className="text-xs text-gray-500">
+                      {totalImageCount > 1
+                        ? 'La première photo devient la photo principale. Utilisez les flèches pour réorganiser les photos, quel que soit l’ordre d’ajout.'
+                        : 'Cette photo sera utilisée comme photo principale.'}
+                    </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {existingImages.map((src, index) => (
-                        <div key={`${src}-${index}`} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100">
-                          <div className="relative aspect-square">
-                            <img
-                              src={imageReplacements[index]?.url || thumbImageUrl(src)}
-                              alt={`Image existante ${index + 1}`}
-                              className="w-full h-full object-contain"
-                            />
-                            {imageReplacements[index] && (
-                              <span className="absolute left-2 top-2 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-black text-white">
-                                Studio appliqué
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => removeExistingImage(index)}
-                              className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                              aria-label="Supprimer l'image"
-                            >
-                              <XMarkIcon className="h-3 w-3" />
-                            </button>
+                      {orderedStudioImages.map((image, displayIndex) => {
+                        const combinedIndex =
+                          Array.isArray(displayOrder) && displayOrder.length === totalImageCount
+                            ? displayOrder[displayIndex]
+                            : displayIndex;
+                        const isExisting = combinedIndex < existingImages.length;
+                        const localIndex = isExisting
+                          ? combinedIndex
+                          : combinedIndex - existingImages.length;
+                        const previewItem = isExisting ? null : files[localIndex];
+                        return (
+                          <div key={`${isExisting ? 'existing' : 'new'}-${localIndex}`} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100">
+                            <div className="relative aspect-square">
+                              <img
+                                src={isExisting ? imageReplacements[localIndex]?.url || thumbImageUrl(image.url) : image.url}
+                                alt={`Photo ${displayIndex + 1}`}
+                                className="w-full h-full object-contain"
+                              />
+                              <div className="absolute left-1 top-1 flex flex-wrap gap-1">
+                                {displayIndex === 0 && totalImageCount > 1 && (
+                                  <span className="bg-[#FF5000] text-white text-[10px] px-2 py-0.5 rounded font-black">
+                                    Principale
+                                  </span>
+                                )}
+                                {isExisting && imageReplacements[localIndex] && (
+                                  <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded font-black">
+                                    Studio appliqué
+                                  </span>
+                                )}
+                                {!isExisting && previewItem?.cropped && (
+                                  <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
+                                    Recadré
+                                  </span>
+                                )}
+                                {!isExisting && previewItem?.leftAsIs && (
+                                  <span className="bg-slate-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
+                                    Tel quel
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => (isExisting ? removeExistingImage(localIndex) : removeImage(localIndex))}
+                                className="absolute top-1 right-1 h-6 w-6 rounded-full bg-red-500 shadow flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                aria-label="Supprimer l'image"
+                              >
+                                <XMarkIcon className="h-3 w-3" />
+                              </button>
+                              <div className="absolute bottom-1 left-1 flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveImage(combinedIndex, -1)}
+                                  disabled={displayIndex === 0}
+                                  aria-label="Déplacer la photo vers la gauche"
+                                  title="Déplacer à gauche"
+                                  className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white shadow backdrop-blur-sm transition hover:bg-black/80 disabled:cursor-default disabled:opacity-30"
+                                >
+                                  <ChevronLeftIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveImage(combinedIndex, 1)}
+                                  disabled={displayIndex === totalImageCount - 1}
+                                  aria-label="Déplacer la photo vers la droite"
+                                  title="Déplacer à droite"
+                                  className="flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white shadow backdrop-blur-sm transition hover:bg-black/80 disabled:cursor-default disabled:opacity-30"
+                                >
+                                  <ChevronRightIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="border-t border-gray-200 bg-white p-2 flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setStudioImageIndex(combinedIndex)}
+                                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-neutral-950 px-2.5 text-xs font-black text-white transition hover:bg-neutral-800"
+                                aria-label="Modifier cette image dans le Studio"
+                                title="Retoucher la photo"
+                              >
+                                <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
+                                Retoucher
+                              </button>
+                              {!isExisting && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleLeaveAsIs(localIndex)}
+                                  disabled={Boolean(previewItem?.leftAsIs)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:cursor-default disabled:opacity-60 transition-colors"
+                                  aria-label="Laisser cette image telle quelle"
+                                  title="Laisser tel quel"
+                                >
+                                  <EyeIcon className="w-3.5 h-3.5" />
+                                  Laisser tel quel
+                                </button>
+                              )}
+                            </div>
+                            {renderImageVariantFields(combinedIndex)}
                           </div>
-                          <div className="border-t border-gray-200 bg-white p-2">
-                            <button
-                              type="button"
-                              onClick={() => setStudioImageIndex(index)}
-                              className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-neutral-950 px-3 text-xs font-black text-white transition hover:bg-neutral-800"
-                            >
-                              <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
-                              Retoucher
-                            </button>
-                          </div>
-                          {renderImageVariantFields(index)}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -3782,78 +3901,6 @@ export default function ProductForm(props) {
                 </label>
                 {imageError && (
                   <p className="text-xs text-red-500">{imageError}</p>
-                )}
-
-                {/* Previews des images – choisir Recadrer ou Laisser tel quel pour chaque photo */}
-                {imagePreviews.length > 0 && (
-                  <div className="space-y-3">
-                    <p className="text-xs text-gray-500">
-                      Pour chaque photo : <strong>Recadrer</strong> pour ajuster le cadre, ou <strong>Laisser tel quel</strong> pour garder l&apos;originale.
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {imagePreviews.map((preview, index) => {
-                        const item = files[index];
-                        const cropped = item?.cropped;
-                        const leftAsIs = item?.leftAsIs;
-                        return (
-                          <div key={index} className="relative group rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-                            <img
-                              src={preview.url}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-28 sm:h-32 object-cover"
-                            />
-                            <div className="absolute top-1 left-1 flex flex-wrap gap-1">
-                              {cropped && (
-                                <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
-                                  Recadré
-                                </span>
-                              )}
-                              {leftAsIs && (
-                                <span className="bg-slate-500 text-white text-[10px] px-2 py-0.5 rounded font-semibold">
-                                  Tel quel
-                                </span>
-                              )}
-                            </div>
-                            <div className="absolute top-1 right-1">
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="bg-red-500 text-white p-1.5 rounded-full shadow-sm hover:bg-red-600 transition-all"
-                                aria-label="Supprimer l'image"
-                                title="Supprimer"
-                              >
-                                <DeleteIcon className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            <div className="p-2 flex flex-wrap gap-1.5 border-t border-gray-200 bg-white">
-                              <button
-                                type="button"
-                                onClick={() => setStudioImageIndex(existingImages.length + index)}
-                                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-neutral-950 px-2.5 text-xs font-black text-white transition-colors hover:bg-neutral-800"
-                                aria-label="Modifier cette image dans le Studio"
-                                title="Retoucher la photo"
-                              >
-                                <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
-                                Retoucher
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleLeaveAsIs(index)}
-                                disabled={leftAsIs}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-default transition-colors"
-                                aria-label="Laisser cette image telle quelle"
-                                title="Laisser tel quel"
-                              >
-                                <EyeIcon className="w-3.5 h-3.5" />
-                                Laisser tel quel
-                              </button>
-                            </div>
-                            {renderImageVariantFields(existingImages.length + index)}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 )}
               </div>
             </div>
@@ -4345,7 +4392,7 @@ export default function ProductForm(props) {
                       warrantyEnabled: Boolean(form.warrantyEnabled),
                       warrantyPeriodValue: form.warrantyPeriodValue || null,
                       warrantyPeriodUnit: form.warrantyPeriodUnit || 'months',
-                      images: studioImages.map((image) => image.url).filter(Boolean),
+                      images: orderedStudioImages.map((image) => image.url).filter(Boolean),
                       user: user ? {
                         _id: user.id,
                         name: user.name,
