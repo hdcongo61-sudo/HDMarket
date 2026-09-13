@@ -29,8 +29,35 @@ import {
   archiveConversation,
   unarchiveConversation,
   deleteConversationForUser,
+  delegateConversationToAssistant,
   touchConversationLastMessage
 } from '../services/conversationService.js';
+
+// Attachments/voice URLs are client-supplied; only accept media from the
+// platform's own hosting (Cloudinary + the API host itself) to block
+// phishing URLs injected into message cards.
+const isTrustedMediaUrl = (value) => {
+  if (typeof value !== 'string' || !value) return false;
+  let parsed;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    return false;
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'res.cloudinary.com') return true;
+  if (host === 'localhost' || host === '127.0.0.1') return true;
+  const apiOrigin = process.env.FRONTEND_URL || process.env.APP_URL || '';
+  if (apiOrigin) {
+    try {
+      return new URL(apiOrigin).hostname.toLowerCase() === host;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
 
 const sanitizeMessagePreview = (value, maxLength = 160) =>
   String(value || '')
@@ -242,6 +269,14 @@ export const sendConversationMessage = asyncHandler(async (req, res) => {
 
   if (!hasText && !hasEncrypted && !hasAttachments && !hasVoice) {
     return res.status(400).json({ message: 'Le message ne peut pas être vide.' });
+  }
+
+  // Trusted-media check: attachment and voice URLs must point at the
+  // platform's own hosting — blocks phishing links disguised as files.
+  const attachmentUrls = (attachments || []).map((entry) => String(entry?.url || ''));
+  if (hasVoice) attachmentUrls.push(String(voiceMessage?.url || ''));
+  if (attachmentUrls.length && attachmentUrls.some((url) => !isTrustedMediaUrl(url))) {
+    return res.status(400).json({ message: 'Pièce jointe invalide. Seuls les médias hébergés par HDMarket sont acceptés.' });
   }
 
   const { conversation, access } = await getConversationForUser({
@@ -555,6 +590,13 @@ export const getAllOrderConversations = asyncHandler(async (req, res) => {
             createdAt: conversation.lastMessageAt
           }
         : null,
+      assignee: conversation.assigneeId
+        ? {
+            id: conversation.assigneeId._id,
+            name: conversation.assigneeId.name || null,
+            profileImage: conversation.assigneeId.profileImage || ''
+          }
+        : null,
       unreadCount: Number(byConversation[String(conversation._id)] || 0)
     };
   });
@@ -746,4 +788,65 @@ export const updateOrderMessage = asyncHandler(async (req, res) => {
   emitOrderMessageUpdated({ conversationId, message: populated });
 
   res.json(populated);
+});
+
+/**
+ * Delegation: the shop owner assigns (or clears) the assistant in charge of
+ * a conversation. `assistantId` null → clears the delegation. The assistant
+ * already has message access through their `respond_to_buyer_messages`
+ * permission — this only records WHO is in charge and surfaces it in the UI.
+ */
+export const delegateOrderConversation = asyncHandler(async (req, res) => {
+  const conversationId = req.params.conversationId || req.params.id;
+  const userId = req.user?.id || req.user?._id;
+  const rawAssistantId = req.body?.assistantId ?? null;
+
+  if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+    return res.status(400).json({ message: 'Conversation invalide.' });
+  }
+  if (rawAssistantId && !mongoose.Types.ObjectId.isValid(String(rawAssistantId))) {
+    return res.status(400).json({ message: 'Assistant invalide.' });
+  }
+
+  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user });
+  const isSellerSide = access.isSeller && !access.isAssistant;
+  if (!isSellerSide && !access.isAdmin) {
+    return res.status(403).json({ message: 'Seul le propriétaire de la boutique peut déléguer cette conversation.' });
+  }
+
+  const assistantId = rawAssistantId ? String(rawAssistantId) : null;
+  const { conversation: updated, cleared } = await delegateConversationToAssistant({
+    conversationId,
+    ownerId: conversation.sellerId,
+    assistantId
+  });
+
+  const populated = await Conversation.findById(updated._id)
+    .populate('assigneeId', 'name profileImage shopLogo')
+    .lean();
+
+  if (!access.isAdmin && !access.isAssistant) {
+    try {
+      await AssistantAuditLog.create({
+        shop: conversation.sellerId,
+        actor: userId,
+        actorRole: 'owner',
+        action: cleared ? 'assistant_conversation_delegation_cleared' : 'assistant_conversation_delegated',
+        targetType: conversation.orderId ? 'order' : 'conversation',
+        targetId: String(conversation.orderId || conversation._id || ''),
+        metadata: { assistantId: assistantId || '' }
+      });
+    } catch {
+      // Non-blocking.
+    }
+  }
+
+  res.json({
+    conversationId: String(updated._id),
+    assignee: populated?.assigneeId
+      ? { _id: populated.assigneeId._id, name: populated.assigneeId.name, profileImage: populated.assigneeId.profileImage || populated.assigneeId.shopLogo || '' }
+      : null,
+    assignedAt: updated.assignedAt,
+    cleared
+  });
 });

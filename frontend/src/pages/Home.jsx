@@ -8,6 +8,9 @@ import PreviewableImage from "../components/media/PreviewableImage";
 import NetworkFallbackCard from "../components/ui/NetworkFallbackCard";
 import ShimmerSkeleton from "../components/ui/ShimmerSkeleton";
 import GroupBuyHomeSection from "../components/GroupBuyHomeSection";
+import DailyDealsStrip from "../components/DailyDealsStrip";
+import RecentlyViewedShelf from "../components/RecentlyViewedShelf";
+import OnboardingChecklistCard from "../components/OnboardingChecklistCard";
 import useCategories from '../hooks/useCategories';
 import { ArrowPathIcon, BoltIcon, BuildingStorefrontIcon, ChevronRightIcon, ClockIcon, CreditCardIcon, CubeIcon, FilmIcon, FireIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, MoonIcon, PlayIcon, ShieldCheckIcon, ShoppingBagIcon, SparklesIcon, Squares2X2Icon, StarIcon, SunIcon, TagIcon, TrophyIcon, TruckIcon, UserIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -1461,6 +1464,12 @@ const loadDiscountProducts = async () => {
         </div>
 
         <ProductVideosHomeSection enabled={productVideosEnabled} />
+
+        <OnboardingChecklistCard />
+
+        <DailyDealsStrip />
+
+        <RecentlyViewedShelf />
 
         {(showFullPaymentHomeBanner || showPayForOtherBanner || buyForMeEnabled || parcelDeliveryEnabled) ? (
           <section className="hidden order-[-20] overflow-hidden rounded-2xl border border-[#eee8e0] bg-white shadow-sm">

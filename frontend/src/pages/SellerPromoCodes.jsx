@@ -14,15 +14,15 @@ const FILTERS = [
   { key: 'expired', label: 'Expirés', icon: ClockIcon, color: 'text-red-500' }
 ];
 
-const STAT_CARD = ({ label, value, icon: Icon, color }) => (
-  <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-semibold text-gray-500">{label}</span>
-      <div className={`rounded-lg p-1.5 ${color}`}>
-        <Icon className="text-white h-3.5 w-3.5" />
-      </div>
+const STAT_CARD = ({ label, value, icon: Icon }) => (
+  <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2dcd2]">
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[11px] font-bold text-[#8a8378]">{label}</span>
+      <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#fff0e4] text-[#e85d00]">
+        <Icon className="h-4 w-4" />
+      </span>
     </div>
-    <p className="mt-2 text-xl font-black text-gray-900">{value}</p>
+    <p className="mt-2 text-xl font-black text-[#231f1b]">{value}</p>
   </div>
 );
 
@@ -179,47 +179,47 @@ export default function SellerPromoCodes() {
 
   if (!isShopUser) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-gray-500">Réservé aux boutiques.</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f2ee]">
+        <p className="text-sm font-bold text-[#8a8378]">Réservé aux boutiques.</p>
       </div>
     );
   }
 
   return (
-    <div className="hd-profile-flow min-h-screen">
+    <div className="min-h-screen bg-[#f5f2ee] pb-20 text-[#231f1b]">
       {/* Header */}
-      <header className="ui-glass-header border-b border-purple-100">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
-          <Link to="/seller/products" className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center">
+      <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-3 sm:px-6">
+          <Link to="/seller/products" className="grid h-10 w-10 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] transition active:bg-[#f5f2ee]">
             <ArrowLeftIcon className="h-[18px] w-[18px]" />
           </Link>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500">
-              <TagIcon className="text-white h-4 w-4" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#e85d00] text-white">
+              <TagIcon className="h-4 w-4" />
+            </span>
             <div>
-              <h1 className="text-base font-bold">Codes promo</h1>
-              <p className="text-xs text-gray-500">{promos.length} codes</p>
+              <h1 className="text-base font-black">Codes promo</h1>
+              <p className="text-[11px] font-bold text-[#8a8378]">{promos.length} codes</p>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-3xl px-4 pb-20 pt-4 space-y-4">
+      <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-20 pt-4 sm:px-6">
         {/* ── Analytics ── */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <STAT_CARD label="Actifs" value={analytics?.activeCount || promos.filter(p => p.isActive).length} icon={CheckCircleIcon} color="bg-green-500" />
-          <STAT_CARD label="Utilisations" value={analytics?.totalUsage || promos.reduce((s, p) => s + (p.usedCount || 0), 0)} icon={ArrowTrendingUpIcon} color="bg-blue-500" />
-          <STAT_CARD label="Total codes" value={promos.length} icon={HashtagIcon} color="bg-purple-500" />
-          <STAT_CARD label="Expirés" value={analytics?.expiredCount || promos.filter(p => new Date(p.endDate) < new Date()).length} icon={ClockIcon} color="bg-red-500" />
+          <STAT_CARD label="Actifs" value={analytics?.activeCount || promos.filter(p => p.isActive).length} icon={CheckCircleIcon} />
+          <STAT_CARD label="Utilisations" value={analytics?.totalUsage || promos.reduce((s, p) => s + (p.usedCount || 0), 0)} icon={ArrowTrendingUpIcon} />
+          <STAT_CARD label="Total codes" value={promos.length} icon={HashtagIcon} />
+          <STAT_CARD label="Expirés" value={analytics?.expiredCount || promos.filter(p => new Date(p.endDate) < new Date()).length} icon={ClockIcon} />
         </div>
 
         {/* ── Actions bar ── */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => { loadProducts(); setShowForm(!showForm); }}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
-              showForm ? 'bg-gray-200 text-gray-700' : 'bg-purple-500 text-white hover:bg-purple-600'
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition ${
+              showForm ? 'bg-[#e2dcd2] text-[#6b6459]' : 'bg-[#e85d00] text-white shadow-sm active:scale-95'
             }`}
           >
             <PlusIcon className="h-3.5 w-3.5" />
@@ -233,10 +233,10 @@ export default function SellerPromoCodes() {
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                className={`inline-flex min-h-9 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black transition ${
                   filter === f.key
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-[#231f1b] text-white'
+                    : 'bg-white text-[#6b6459] ring-1 ring-[#e2dcd2] active:scale-95'
                 }`}
               >
                 <Icon className="h-3 w-3" />
@@ -248,9 +248,9 @@ export default function SellerPromoCodes() {
 
         {/* ── Creation form ── */}
         {showForm && (
-          <form onSubmit={handleCreate} className="rounded-2xl border border-purple-100 bg-purple-50/30 p-4 space-y-3">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <SparklesIcon className="text-purple-500 h-3.5 w-3.5" />
+          <form onSubmit={handleCreate} className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-[#e2dcd2]">
+            <h3 className="flex items-center gap-2 text-sm font-black">
+              <SparklesIcon className="h-3.5 w-3.5 text-[#e85d00]" />
               Nouveau code promo
             </h3>
 
@@ -340,13 +340,13 @@ export default function SellerPromoCodes() {
             </div>
 
             <div className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+              <label className="inline-flex items-center gap-2 text-xs font-bold text-[#6b6459]">
                 <input type="checkbox" checked={form.isActive} onChange={e => setForm(p => ({ ...p, isActive: e.target.checked }))}
                   className="rounded" />
                 Activer immédiatement
               </label>
               <button type="submit" disabled={submitting}
-                className="ml-auto rounded-xl bg-purple-500 px-4 py-2 text-xs font-bold text-white hover:bg-purple-600 disabled:opacity-50">
+                className="ml-auto min-h-10 rounded-xl bg-[#e85d00] px-4 py-2 text-xs font-black text-white disabled:opacity-50">
                 {submitting ? 'Création...' : 'Créer le code promo'}
               </button>
             </div>
@@ -357,14 +357,14 @@ export default function SellerPromoCodes() {
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-2xl bg-gray-100" />
+              <div key={i} className="h-24 animate-pulse rounded-2xl bg-[#e2dcd2]" />
             ))}
           </div>
         ) : promos.length === 0 ? (
-          <div className="flex flex-col items-center py-12 text-center">
-            <TagIcon className="mb-4 text-gray-300 h-12 w-12" />
-            <p className="text-sm font-medium text-gray-600">Aucun code promo</p>
-            <p className="mt-1 text-xs text-gray-400">Créez votre premier code pour attirer plus de clients.</p>
+          <div className="flex flex-col items-center rounded-2xl bg-white py-12 text-center ring-1 ring-[#e2dcd2]">
+            <TagIcon className="mb-4 h-12 w-12 text-[#d8cfc4]" />
+            <p className="text-sm font-black text-[#6b6459]">Aucun code promo</p>
+            <p className="mt-1 text-xs font-bold text-[#8a8378]">Créez votre premier code pour attirer plus de clients.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -373,24 +373,24 @@ export default function SellerPromoCodes() {
               const isActive = promo.isActive && !isExpired;
               return (
                 <div key={promo.id}
-                  className={`rounded-2xl border p-4 transition ${
-                    isActive ? 'border-purple-200 bg-white shadow-sm' :
-                    isExpired ? 'border-red-100 bg-red-50/30' : 'border-gray-100 bg-gray-50'
+                  className={`rounded-2xl bg-white p-4 ring-1 transition ${
+                    isActive ? 'ring-[#f0c7aa]' :
+                    isExpired ? 'ring-red-100' : 'ring-[#e2dcd2]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-base font-black text-purple-700">{promo.code}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          isActive ? 'bg-green-100 text-green-700' :
-                          isExpired ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+                        <span className="font-mono text-base font-black text-[#e85d00]">{promo.code}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          isActive ? 'bg-emerald-100 text-emerald-700' :
+                          isExpired ? 'bg-red-100 text-red-600' : 'bg-[#f5f2ee] text-[#8a8378]'
                         }`}>
                           {isActive ? 'Actif' : isExpired ? 'Expiré' : 'Inactif'}
                         </span>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[#8a8378]">
                         <span className="flex items-center gap-1">
                           {promo.discountType === 'percentage' ? <ReceiptPercentIcon className="h-3 w-3" /> : <TagIcon className="h-3 w-3" />}
                           {promo.discountType === 'percentage'
@@ -414,16 +414,16 @@ export default function SellerPromoCodes() {
                               <img
                                 src={getProductCardImageUrl(promo.product.images[0])}
                                 alt={promo.product.title || ''}
-                                className="h-10 w-10 rounded-lg object-cover border border-gray-100"
+                                className="h-10 w-10 rounded-lg border border-[#e2dcd2] object-cover"
                                 loading="lazy"
                               />
                             )}
-                            <span className="text-xs text-gray-500 truncate max-w-[180px]">
+                            <span className="max-w-[180px] truncate text-xs font-bold text-[#8a8378]">
                               📦 {promo.product.title || 'Produit'}
                             </span>
                           </>
                         ) : (
-                          <span className="text-xs text-gray-400">🏪 Toute la boutique</span>
+                          <span className="text-xs font-bold text-[#8a8378]">🏪 Toute la boutique</span>
                         )}
                       </div>
                     </div>
@@ -432,22 +432,21 @@ export default function SellerPromoCodes() {
                     <div className="flex shrink-0 items-center gap-1">
                       <button onClick={() => handleToggle(promo)} disabled={toggleId === promo.id}
                         className={`rounded-lg p-2 transition ${
-                          promo.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'
+                          promo.isActive ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
                         } disabled:opacity-50`}
                         title={promo.isActive ? 'Désactiver' : 'Activer'}
                       >
-                        {toggleId === promo.id ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> :
-                         promo.isActive ? <PowerIcon className="h-3.5 w-3.5" /> : <PowerIcon className="h-3.5 w-3.5" />}
+                        {toggleId === promo.id ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <PowerIcon className="h-3.5 w-3.5" />}
                       </button>
                       <button onClick={() => handleDuplicate(promo)} disabled={duplicatingId === promo.id}
-                        className="rounded-lg p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 transition disabled:opacity-50"
+                        className="rounded-lg bg-sky-50 p-2 text-sky-600 transition disabled:opacity-50"
                         title="Dupliquer">
-                        {duplicatingId === promo.id ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <DocumentDuplicateIcon className="h-3.5 w-3.5" />}
+                        {duplicatingId === promo.id ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <DocumentDuplicateIcon className="h-3.5 w-3.5" />}
                       </button>
                       <button onClick={() => handleDelete(promo)} disabled={deletingId === promo.id}
-                        className="rounded-lg p-2 bg-red-50 text-red-500 hover:bg-red-100 transition disabled:opacity-50"
+                        className="rounded-lg bg-red-50 p-2 text-red-500 transition disabled:opacity-50"
                         title="Supprimer">
-                        {deletingId === promo.id ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <TrashIcon className="h-3.5 w-3.5" />}
+                        {deletingId === promo.id ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <TrashIcon className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </div>

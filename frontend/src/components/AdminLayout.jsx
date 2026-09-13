@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { AdjustmentsHorizontalIcon, Bars3Icon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, FilmIcon, FlagIcon, FolderIcon, GlobeAltIcon, MegaphoneIcon, PaperAirplaneIcon, ShareIcon, ShoppingBagIcon, SparklesIcon, Square3Stack3DIcon, TagIcon, TicketIcon, TrophyIcon, TruckIcon, UserMinusIcon, UsersIcon, ViewColumnsIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, Bars3Icon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, FilmIcon, FlagIcon, FolderIcon, GlobeAltIcon, HomeIcon, MegaphoneIcon, PaperAirplaneIcon, ShareIcon, ShoppingBagIcon, SparklesIcon, Square3Stack3DIcon, TagIcon, TicketIcon, TrophyIcon, TruckIcon, UserMinusIcon, UsersIcon, ViewColumnsIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
 
@@ -378,7 +378,12 @@ className={`h-3.5 w-3.5 transition-transform ${sectionCollapsed ? '-rotate-90' :
           {mobileMenuOpen ? <XMarkIcon className="h-[22px] w-[22px]" /> : <Bars3Icon className="h-[22px] w-[22px]" />}
         </button>
         <span className="text-sm font-black text-[#231f1b] dark:text-white">HDMarket Admin</span>
-        <div className="w-10" />
+        <Link
+          to="/"
+          className="flex h-10 items-center gap-1.5 rounded-full bg-[#fff0e4] px-3 text-xs font-black text-[#e85d00] transition active:scale-95"
+        >
+          <HomeIcon className="h-4 w-4" /> Marketplace
+        </Link>
       </header>
 
       {mobileMenuOpen && (
@@ -442,6 +447,16 @@ className={`h-3.5 w-3.5 transition-transform ${sectionCollapsed ? '-rotate-90' :
                 {sidebarCollapsed ? <ChevronRightIcon className="h-[18px] w-[18px]" /> : <ChevronLeftIcon className="h-[18px] w-[18px]" />}
               </button>
             </div>
+          </div>
+          <div className={`px-2.5 pb-3 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
+            <Link
+              to="/"
+              title={t('nav.marketplace', 'Marketplace')}
+              className={`inline-flex items-center gap-2 rounded-xl bg-[#fff0e4] px-3 py-2 text-xs font-black text-[#e85d00] transition hover:bg-[#ffe2c8] active:scale-95 ${sidebarCollapsed ? 'justify-center px-0 py-2.5 w-10' : 'w-full'}`}
+            >
+              <HomeIcon className="h-4 w-4 shrink-0" />
+              {!sidebarCollapsed ? t('nav.marketplace', 'Voir la marketplace') : null}
+            </Link>
           </div>
           <nav aria-label="Navigation d’administration" className={`flex-1 overflow-y-auto overscroll-contain ${sidebarCollapsed ? 'px-2 py-3 space-y-2' : 'px-2.5 py-3 space-y-4'}`}>
             {renderSectionList(sidebarCollapsed)}

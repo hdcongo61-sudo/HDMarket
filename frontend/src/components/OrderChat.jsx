@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } 
 import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArchiveBoxIcon, ArrowDownTrayIcon, ArrowLeftIcon, ArrowPathIcon, ArrowTopRightOnSquareIcon, ArrowUpIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, CheckIcon, DocumentIcon, EllipsisVerticalIcon, ExclamationTriangleIcon, LockClosedIcon, MagnifyingGlassIcon, MicrophoneIcon, PencilIcon, PlusIcon, ShieldCheckIcon, TrashIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArchiveBoxIcon, ArrowDownTrayIcon, ArrowLeftIcon, ArrowPathIcon, ArrowTopRightOnSquareIcon, ArrowUpIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, CheckIcon, DocumentIcon, EllipsisVerticalIcon, ExclamationTriangleIcon, LockClosedIcon, MagnifyingGlassIcon, MicrophoneIcon, PauseIcon, PencilIcon, PlayIcon, PlusIcon, ShieldCheckIcon, TrashIcon, UserGroupIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import AuthContext from '../context/AuthContext';
 import api from '../services/api';
 import storage from '../utils/storage';
@@ -43,6 +43,133 @@ const formatDate = (value) => {
     return 'Hier';
   }
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+const formatVoiceDuration = (seconds) => {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
+// Only one voice note plays at a time across the whole chat.
+let activeVoiceAudio = null;
+
+const VoiceNotePlayer = ({ url, duration = 0, isOwn = false, filename = '' }) => {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  const getAudio = useCallback(() => {
+    if (!audioRef.current) {
+      const audio = new Audio(url);
+      audio.preload = 'metadata';
+      audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime || 0));
+      audio.addEventListener('ended', () => {
+        setPlaying(false);
+        setCurrentTime(0);
+      });
+      audio.addEventListener('play', () => setPlaying(true));
+      audio.addEventListener('pause', () => setPlaying(false));
+      audio.addEventListener('error', () => {
+        setPlaying(false);
+        setFailed(true);
+      });
+      audioRef.current = audio;
+    }
+    return audioRef.current;
+  }, [url]);
+
+  useEffect(
+    () => () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+        if (activeVoiceAudio === audioRef.current) activeVoiceAudio = null;
+      }
+    },
+    []
+  );
+
+  const togglePlay = () => {
+    const audio = getAudio();
+    if (!audio.paused) {
+      audio.pause();
+      return;
+    }
+    if (activeVoiceAudio && activeVoiceAudio !== audio) {
+      try {
+        activeVoiceAudio.pause();
+      } catch {
+        // Ignore — the new note takes over.
+      }
+    }
+    activeVoiceAudio = audio;
+    if (audio.ended || audio.currentTime >= (audio.duration || Infinity)) {
+      audio.currentTime = 0;
+    }
+    audio.play().catch(() => {
+      setPlaying(false);
+      setFailed(true);
+    });
+  };
+
+  const totalSeconds = Number(duration || audioRef.current?.duration || 0);
+  const progress = totalSeconds > 0 ? Math.min(100, (currentTime / totalSeconds) * 100) : 0;
+
+  const handleSeek = (event) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * audio.duration;
+    setCurrentTime(audio.currentTime);
+  };
+
+  const trackClass = isOwn ? 'bg-white/30' : 'bg-[#e2dcd2]';
+  const fillClass = isOwn ? 'bg-white' : 'bg-[#e85d00]';
+  const textClass = isOwn ? 'text-white/90' : 'text-[#6b6459]';
+  const buttonClass = isOwn
+    ? 'bg-white/25 text-white hover:bg-white/35'
+    : 'bg-[#e85d00] text-white hover:bg-[#c94e00]';
+
+  return (
+    <div className="flex w-full min-w-[190px] max-w-[250px] items-center gap-2.5 py-0.5">
+      <button
+        type="button"
+        onClick={togglePlay}
+        aria-label={playing ? 'Mettre en pause' : 'Écouter le message vocal'}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${buttonClass}`}
+      >
+        {failed ? (
+          <ArrowPathIcon className="h-4 w-4" />
+        ) : playing ? (
+          <PauseIcon className="h-4 w-4" />
+        ) : (
+          <PlayIcon className="h-4 w-4 pl-0.5" />
+        )}
+      </button>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <div
+            role="slider"
+            aria-label="Position du message vocal"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(1, Math.round(totalSeconds))}
+            aria-valuenow={Math.round(currentTime)}
+            className={`relative h-[5px] flex-1 cursor-pointer overflow-hidden rounded-full ${trackClass}`}
+            onClick={handleSeek}
+          >
+            <div className={`absolute inset-y-0 left-0 rounded-full ${fillClass}`} style={{ width: `${progress}%` }} />
+          </div>
+          <span className={`shrink-0 text-[11px] font-semibold tabular-nums ${textClass}`}>
+            {failed ? 'Lecture impossible' : `${formatVoiceDuration(currentTime)} / ${formatVoiceDuration(totalSeconds)}`}
+          </span>
+        </div>
+        {filename && <p className={`mt-0.5 truncate text-[11px] opacity-70 ${textClass}`}>{filename}</p>}
+      </div>
+    </div>
+  );
 };
 
 // Normalize message so _id and sender/recipient._id are always set (API may return id vs _id)
@@ -146,7 +273,7 @@ const CHAT_STATUS_LABELS = {
 
 const CHAT_PAGE_SIZE = 20;
 
-export default function OrderChat({ order, conversationId: conversationIdProp = null, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete }) {
+export default function OrderChat({ order, conversationId: conversationIdProp = null, onClose, unreadCount = 0, buttonText = 'Contacter le vendeur', defaultOpen = false, onArchive, onDelete, delegation = null }) {
   const { user } = useContext(AuthContext);
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -187,6 +314,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
+  const recordingTimeRef = useRef(0);
   const audioChunksRef = useRef([]);
 
   // Get seller info from order
@@ -855,7 +983,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
 
           const voiceMessage = {
             url: data.url,
-            duration: recordingTime,
+            duration: recordingTimeRef.current,
             type: 'audio'
           };
 
@@ -873,6 +1001,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
 
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = chunks;
+      recordingTimeRef.current = 0;
       setIsRecording(true);
       setRecordingTime(0);
 
@@ -881,7 +1010,8 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
 
       // Update recording time
       const interval = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
+        recordingTimeRef.current += 1;
+        setRecordingTime(recordingTimeRef.current);
       }, 1000);
       recordingIntervalRef.current = interval;
     } catch (error) {
@@ -1490,6 +1620,30 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                           Supprimer la conversation
                         </button>
                       )}
+                      {delegation?.show && (
+                        <button
+                          type="button"
+                          disabled={delegation.busy}
+                          onClick={async () => {
+                            setShowChatMenu(false);
+                            try {
+                              await (delegation.assignee ? delegation.onClear() : delegation.onDelegate());
+                            } catch (err) {
+                              setError(err.response?.data?.message || 'Impossible de mettre à jour la délégation.');
+                            }
+                          }}
+                          className="flex w-full items-center gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#57534e] hover:bg-[#f6f3ee] disabled:opacity-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        >
+                          {delegation.busy ? (
+                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserGroupIcon className="h-4 w-4" />
+                          )}
+                          {delegation.assignee
+                            ? `Retirer la délégation (${delegation.assignee.name || 'assistant'})`
+                            : 'Déléguer à mon assistant'}
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
@@ -1519,6 +1673,15 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
             </button>
           </div>
         </header>
+
+        {delegation?.assignee ? (
+          <div className="flex-shrink-0 flex items-center gap-2 border-b border-[#ffe2c8] bg-[#fff8f1] px-4 py-2 text-xs font-bold text-[#8a5a2b] dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
+            <UserGroupIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
+            <span className="truncate">
+              Géré par {delegation.assignee.name || 'votre assistant'} — vous restez informé de la conversation.
+            </span>
+          </div>
+        ) : null}
 
         {(offlineSnapshotActive || rapid3GActive) && (
           <div
@@ -1756,6 +1919,15 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                             </div>
                           ) : (
                             <>
+                          {/* Voice note */}
+                          {message.voiceMessage?.url ? (
+                            <VoiceNotePlayer
+                              url={message.voiceMessage.url}
+                              duration={Number(message.voiceMessage.duration || 0)}
+                              isOwn={isOwnMessage}
+                            />
+                          ) : null}
+
                           {/* Attachments */}
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mb-1.5 flex flex-wrap gap-2">
@@ -1769,12 +1941,12 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                                       onClick={() => setSelectedImage(att.url)}
                                     />
                                   ) : att.type === 'audio' ? (
-                                    <div className={`flex items-center gap-2 rounded-[16px] px-3 py-2 ${isOwnMessage ? 'bg-white/20' : 'bg-gray-50 dark:bg-neutral-800'}`}>
-                                      <span className="text-xs">{att.filename}</span>
-                                      {message.voiceMessage?.duration && (
-                                        <span className="text-[11px] opacity-80">{Math.round(message.voiceMessage.duration)}s</span>
-                                      )}
-                                    </div>
+                                    <VoiceNotePlayer
+                                      url={att.url}
+                                      duration={Number(message.voiceMessage?.duration || att.duration || 0)}
+                                      isOwn={isOwnMessage}
+                                      filename={att.filename}
+                                    />
                                   ) : (
                                     <a
                                       href={att.url}
@@ -1790,7 +1962,9 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                               ))}
                             </div>
                           )}
-                          
+
+                          {/* Text body — hidden for voice-only / attachment-only messages */}
+                          {(message.text || message.encryptedText) && (
                           <p className="whitespace-pre-wrap break-words text-[15px] font-medium leading-[1.5]">
                             {searchQuery ? (
                               (() => {
@@ -1812,6 +1986,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
                               message.isDecrypted ? message.text : message.text || '[Message chiffré]'
                             )}
                           </p>
+                          )}
 
                           {message.safetyFlag === 'off_platform_payment' && (
                             <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] font-semibold leading-snug text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowLeftOnRectangleIcon, ArrowPathIcon, BellIcon, BuildingStorefrontIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronRightIcon, ClockIcon, CubeIcon, EnvelopeIcon, ExclamationCircleIcon, EyeIcon, HashtagIcon, MagnifyingGlassIcon, PencilSquareIcon, PhoneIcon, ShieldCheckIcon, ShoppingBagIcon, TrashIcon, TruckIcon, UserIcon, UserMinusIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowLeftOnRectangleIcon, ArrowPathIcon, BellIcon, BuildingStorefrontIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronRightIcon, ClockIcon, CubeIcon, EnvelopeIcon, ExclamationCircleIcon, EyeIcon, HashtagIcon, MagnifyingGlassIcon, PencilSquareIcon, PhoneIcon, ShieldCheckIcon, ShoppingBagIcon, TrashIcon, TruckIcon, UserGroupIcon, UserIcon, UserMinusIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -78,20 +78,30 @@ const PRESETS = [
 ];
 
 const ACTION_LABELS = {
-  assistant_invited: 'Invitation envoyee',
-  assistant_accepted: 'Invitation acceptee',
-  assistant_rejected: 'Invitation refusee',
-  assistant_removed: 'Assistant retire',
+  assistant_invited: 'Invitation envoyée',
+  assistant_accepted: 'Invitation acceptée',
+  assistant_rejected: 'Invitation refusée',
+  assistant_removed: 'Assistant retiré',
   assistant_left: 'Assistant parti',
-  assistant_permissions_updated: 'Permissions modifiees',
-  assistant_order_confirmed: 'Commande confirmee',
-  assistant_order_rejected: 'Commande rejetee',
-  assistant_order_status_updated: 'Statut commande modifie',
-  assistant_comment_replied: 'Commentaire traite',
-  assistant_message_replied: 'Message acheteur traite',
-  assistant_products_viewed: 'Catalogue consulte',
-  assistant_product_update_requested: 'Modification produit demandee',
-  assistant_product_delete_requested: 'Suppression produit demandee'
+  assistant_permissions_updated: 'Permissions modifiées',
+  assistant_order_confirmed: 'Commande confirmée',
+  assistant_order_rejected: 'Commande rejetée',
+  assistant_order_status_updated: 'Statut commande modifié',
+  assistant_order_viewed: 'Commande consultée',
+  assistant_comment_replied: 'Commentaire traité',
+  assistant_message_replied: 'Message acheteur traité',
+  assistant_conversation_viewed: 'Conversation consultée',
+  assistant_conversation_archived: 'Conversation archivée',
+  assistant_conversation_unarchived: 'Conversation désarchivée',
+  assistant_conversation_deleted: 'Conversation supprimée',
+  assistant_conversation_delegated: 'Conversation déléguée',
+  assistant_conversation_delegation_cleared: 'Délégation retirée',
+  assistant_message_reaction_added: 'Réaction ajoutée',
+  assistant_message_reaction_removed: 'Réaction retirée',
+  assistant_message_deleted: 'Message supprimé',
+  assistant_products_viewed: 'Catalogue consulté',
+  assistant_product_update_requested: 'Modification produit demandée',
+  assistant_product_delete_requested: 'Suppression produit demandée'
 };
 
 const getProductImage = (product) => {
@@ -161,12 +171,14 @@ function StatusBadge({ status }) {
 
 function Metric({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-lg border border-gray-100 bg-white px-4 py-3 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2dcd2]">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</p>
-        <Icon className="text-[#e85d00] h-4 w-4" />
+        <p className="text-[11px] font-black uppercase tracking-wide text-[#8a8378]">{label}</p>
+        <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#fff0e4] text-[#e85d00]">
+          <Icon className="h-4 w-4" />
+        </span>
       </div>
-      <p className="mt-2 text-2xl font-black text-gray-900">{value}</p>
+      <p className="mt-2 text-2xl font-black text-[#231f1b]">{value}</p>
     </div>
   );
 }
@@ -176,7 +188,7 @@ function PermissionPill({ permissionKey }) {
   if (!permission) return null;
   const Icon = permission.icon;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f5f2ee] px-2.5 py-1 text-[11px] font-bold text-[#6b6459]">
       <Icon className="h-3 w-3" />
       {permission.label}
     </span>
@@ -205,32 +217,75 @@ function PermissionSwitch({ permission, checked, onToggle, disabled }) {
   );
 }
 
+const HISTORY_FILTERS = [
+  { key: 'all', label: 'Toutes' },
+  { key: 'invitations', label: 'Invitations', match: ['assistant_invited', 'assistant_accepted', 'assistant_rejected', 'assistant_removed', 'assistant_left', 'assistant_permissions_updated'] },
+  { key: 'messages', label: 'Messages', match: ['assistant_message_replied', 'assistant_conversation_viewed', 'assistant_conversation_archived', 'assistant_conversation_unarchived', 'assistant_conversation_deleted', 'assistant_conversation_delegated', 'assistant_conversation_delegation_cleared', 'assistant_message_reaction_added', 'assistant_message_reaction_removed', 'assistant_message_deleted'] },
+  { key: 'orders', label: 'Commandes', match: ['assistant_order_confirmed', 'assistant_order_rejected', 'assistant_order_status_updated', 'assistant_order_viewed'] },
+  { key: 'products', label: 'Produits', match: ['assistant_products_viewed', 'assistant_product_update_requested', 'assistant_product_delete_requested', 'assistant_comment_replied'] }
+];
+
 function ActivityLog({ logs, loading }) {
+  const [filter, setFilter] = React.useState('all');
+  const filteredLogs = useMemo(() => {
+    const activeFilter = HISTORY_FILTERS.find((entry) => entry.key === filter);
+    if (!activeFilter?.match) return logs;
+    return (logs || []).filter((log) => activeFilter.match.includes(log.action));
+  }, [filter, logs]);
+
   return (
-    <section className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl bg-white p-4 ring-1 ring-[#e2dcd2] sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-black text-gray-900">Journal d'activite</h2>
-          <p className="text-sm text-gray-500">Historique des invitations, permissions et actions assistant.</p>
+          <h2 className="text-base font-black text-[#231f1b]">Journal d'activité</h2>
+          <p className="text-xs font-semibold text-[#8a8378]">Historique complet des invitations, permissions et actions de l'assistant.</p>
         </div>
-        <ChartBarIcon className="text-[#e85d00] h-[18px] w-[18px]" />
+        <ChartBarIcon className="h-[18px] w-[18px] shrink-0 text-[#e85d00]" />
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {HISTORY_FILTERS.map((entry) => (
+          <button
+            key={entry.key}
+            type="button"
+            onClick={() => setFilter(entry.key)}
+            className={`inline-flex min-h-8 shrink-0 items-center rounded-full px-3 text-[11px] font-black transition ${
+              filter === entry.key
+                ? 'bg-[#231f1b] text-white'
+                : 'bg-[#f5f2ee] text-[#6b6459] ring-1 ring-[#e2dcd2] active:scale-95'
+            }`}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 space-y-2">
         {loading ? (
-          <div className="flex items-center justify-center py-8 text-sm text-gray-500">
-            <ArrowPathIcon className="mr-2 animate-spin text-[#e85d00] h-[18px] w-[18px]" />
+          <div className="flex items-center justify-center py-8 text-sm font-bold text-[#8a8378]">
+            <ArrowPathIcon className="mr-2 h-[18px] w-[18px] animate-spin text-[#e85d00]" />
             Chargement du journal...
           </div>
-        ) : logs.length ? (
-          logs.map((log) => (
-            <div key={log._id} className="flex gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3">
-              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#e85d00] ring-1 ring-gray-100">
-                <ChartBarIcon className="h-[15px] w-[15px]" />
+        ) : filteredLogs.length ? (
+          filteredLogs.map((log) => (
+            <div key={log._id} className="flex gap-3 rounded-xl bg-[#faf7f2] px-3 py-3">
+              <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ${
+                log.actorRole === 'assistant'
+                  ? 'bg-[#fff0e4] text-[#e85d00] ring-[#f0c7aa]'
+                  : 'bg-white text-[#6b6459] ring-[#e2dcd2]'
+              }`}>
+                {log.actorRole === 'assistant' ? <UserGroupIcon className="h-4 w-4" /> : <ChartBarIcon className="h-[15px] w-[15px]" />}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-gray-900">{ACTION_LABELS[log.action] || log.action}</p>
-                <p className="text-xs text-gray-500">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="text-sm font-black text-[#231f1b]">{ACTION_LABELS[log.action] || log.action}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${
+                    log.actorRole === 'assistant' ? 'bg-[#fff0e4] text-[#e85d00]' : 'bg-[#f5f2ee] text-[#6b6459]'
+                  }`}>
+                    {log.actorRole === 'assistant' ? 'Assistant' : 'Propriétaire'}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs font-semibold text-[#8a8378]">
                   {getDisplayName(log.actor, log.actorRole === 'owner' ? 'Vendeur' : 'Assistant')} · {formatDate(log.createdAt)}
                 </p>
                 {Array.isArray(log.metadata?.permissions) && (
@@ -244,9 +299,9 @@ function ActivityLog({ logs, loading }) {
             </div>
           ))
         ) : (
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
-            <p className="text-sm font-semibold text-gray-600">Aucune activite pour le moment.</p>
-            <p className="mt-1 text-xs text-gray-400">Les invitations et modifications apparaitront ici.</p>
+          <div className="rounded-xl border border-dashed border-[#e2dcd2] bg-[#faf7f2] px-4 py-6 text-center">
+            <p className="text-sm font-black text-[#6b6459]">Aucune activité pour le moment.</p>
+            <p className="mt-1 text-xs font-semibold text-[#8a8378]">Les invitations et modifications apparaîtront ici.</p>
           </div>
         )}
       </div>
@@ -719,7 +774,7 @@ function OwnerView({ shopId }) {
     if (!shopId) return;
     setAuditLoading(true);
     try {
-      const { data } = await api.get(`/shops/${shopId}/assistant/audit?limit=12`);
+      const { data } = await api.get(`/shops/${shopId}/assistant/audit?limit=50`);
       setAuditLogs(Array.isArray(data.data) ? data.data : []);
     } catch {
       setAuditLogs([]);
@@ -1260,23 +1315,23 @@ export default function ShopAssistant() {
   const isAssistantProductsRoute = String(location.pathname || '') === '/seller/products';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-100 bg-white/95">
+    <div className="min-h-screen bg-[#f5f2ee] pb-16 dark:bg-neutral-950">
+      <div className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <Link to="/seller/products" className="rounded-lg p-2 hover:bg-gray-100" aria-label="Retour">
-              <ArrowLeftIcon className="text-gray-600 h-5 w-5" />
+            <Link to="/seller/products" className="grid h-10 w-10 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] transition active:bg-[#f5f2ee] dark:border-neutral-800" aria-label="Retour">
+              <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-black text-gray-900">Assistant boutique</h1>
-              <p className="truncate text-xs text-gray-500">
-                {isShop ? 'Delegation professionnelle de votre boutique' : "Votre role d'assistant HDMarket"}
+              <h1 className="truncate text-lg font-black text-[#231f1b] dark:text-white">Assistant boutique</h1>
+              <p className="truncate text-xs font-semibold text-[#8a8378]">
+                {isShop ? 'Délégation professionnelle de votre boutique' : "Votre rôle d'assistant HDMarket"}
               </p>
             </div>
           </div>
-          <div className="hidden items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 sm:inline-flex">
-            <ShieldCheckIcon className="text-[#e85d00] h-3.5 w-3.5" />
-            Acces controle
+          <div className="hidden items-center gap-2 rounded-full bg-[#fff0e4] px-3 py-1.5 text-xs font-black text-[#e85d00] sm:inline-flex">
+            <ShieldCheckIcon className="h-3.5 w-3.5" />
+            Accès contrôlé
           </div>
         </div>
       </div>

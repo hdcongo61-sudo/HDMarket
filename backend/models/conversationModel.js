@@ -19,6 +19,10 @@ const conversationSchema = new mongoose.Schema(
     lastMessageAt: { type: Date, default: null, index: true },
     lastMessagePreview: { type: String, trim: true, default: '' },
     lastMessageSenderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    // Delegation: the shop assistant currently assigned to handle this
+    // conversation (set by the shop owner from the messaging UI).
+    assigneeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    assignedAt: { type: Date, default: null },
     archivedBy: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default: [] },
     deletedBy: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default: [] }
   },

@@ -1132,6 +1132,20 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
     defaultValue: true,
     isPublic: true
   },
+  enable_voice_search: {
+    category: 'search',
+    description: 'Activer la recherche vocale (microphone dans la barre de recherche).',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
+  enable_image_search: {
+    category: 'search',
+    description: 'Activer la recherche par image (photo → produits visuellement similaires).',
+    valueType: 'boolean',
+    defaultValue: false,
+    isPublic: true
+  },
   enable_product_card_image_carousel: {
     category: 'product_cards',
     description: 'Active l’aperçu multi-images sur les cartes produit.',

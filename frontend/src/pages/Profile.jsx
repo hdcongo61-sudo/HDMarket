@@ -19,6 +19,9 @@ import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import ProfileEmailSection from '../components/profile/ProfileEmailSection';
 import ProfileEmailCompletionCard from '../components/profile/ProfileEmailCompletionCard';
+import TaobaoProfileHeader from '../components/profile/TaobaoProfileHeader';
+import ProfileCompletionChecklist from '../components/profile/ProfileCompletionChecklist';
+import { getProfileCompletion } from '../utils/profileCompletion';
 import ProfilePhoneSection from '../components/profile/ProfilePhoneSection';
 import ProfilePhoneCompletionCard from '../components/profile/ProfilePhoneCompletionCard';
 import { storage } from '../utils/storage';
@@ -608,21 +611,11 @@ export default function Profile() {
     return base;
   }, [user?.accountType]);
 
-  // Email is intentionally excluded — it's optional (see the dedicated Email
-  // section + completion card) and shouldn't cap this generic score.
-  const profileCompletionPercent = useMemo(() => {
-    let filled = 0;
-    let total = 3;
-    if (form.name?.trim()) filled++;
-    if (form.phone?.trim()) filled++;
-    if (user?.accountType === 'shop') {
-      total = 4;
-      if (form.shopName?.trim()) filled++;
-    } else {
-      filled++; // non-shop counts as "complete" for 3rd field
-    }
-    return total > 0 ? Math.round((filled / total) * 100) : 0;
-  }, [form.name, form.phone, form.shopName, user?.accountType]);
+  // Single source of truth for the "Profil complété à X%" score and the
+  // per-field checklist — see utils/profileCompletion.js (differentiates
+  // simple user vs shop criteria).
+  const profileCompletion = useMemo(() => getProfileCompletion({ user, form }), [user, form]);
+  const profileCompletionPercent = profileCompletion.percent;
 
   const mobileHighlights = [
     { label: 'Annonces', value: stats.listings?.total || 0 },
@@ -1766,6 +1759,29 @@ export default function Profile() {
     }, 80);
   };
 
+  // Jumps the user straight to the section that would complete a missing field.
+  const handleCompletionFix = (id) => {
+    if (id === 'phone') {
+      scrollToPhoneSection();
+      return;
+    }
+    if (id === 'email') {
+      scrollToEmailSection();
+      return;
+    }
+    if (id === 'shopName' || id === 'shopDescription' || id === 'shopLogo') {
+      setActiveTab('shop');
+      setTimeout(() => {
+        document.getElementById('profile-shop-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+      return;
+    }
+    setActiveTab('profile');
+    setTimeout(() => {
+      document.getElementById('profile-edit-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
   if (!user) {
     return (
       <div className="hd-profile-flow hd-commerce-shell min-h-screen flex items-center justify-center">
@@ -1787,170 +1803,16 @@ export default function Profile() {
           <ProfileEmailCompletionCard user={user} onAddEmail={scrollToEmailSection} />
         </div>
 
-        {/* En-tête */}
-        <section className="mb-5 overflow-hidden rounded-2xl border border-gray-200 bg-[#fff7ed] p-4 shadow-sm sm:mb-8 sm:p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              {profileImagePreview ? (
-                <img
-                  src={profileImagePreview}
-                  alt={form.name || 'Profil'}
-                  className="h-[72px] w-[72px] flex-shrink-0 rounded-2xl border-2 border-white object-cover shadow-sm"
-                />
-              ) : (
-                <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-2xl border-2 border-white bg-[#e85d00] shadow-sm">
-                  <UserIcon className="h-9 w-9 text-white" />
-                </div>
-              )}
-              <div className="min-w-0">
-                <div className="inline-flex max-w-full items-center rounded-xl border border-gray-200 bg-white/85 px-3 py-1.5 shadow-sm">
-                  <span className="truncate text-sm font-bold text-slate-900">
-                    {form.name ? `Salut, ${form.name}` : 'Compléter votre profil'}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold text-slate-700">
-                  <span className="inline-flex items-center gap-1">
-                    <MapPinIcon className="h-3.5 w-3.5 text-[#e85d00]" />
-                    {(user?.city || 'Ville')}{user?.commune ? ` · ${user.commune}` : ''}
-                  </span>
-                  <span className="text-slate-300">|</span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('security')}
-                    className="inline-flex items-center gap-1 text-slate-700"
-                  >
-                    <ShieldCheckIcon className="h-3.5 w-3.5 text-[#e85d00]" />
-                    Compte sécurisé
-                  </button>
-                  {!user?.email ? (
-                    <>
-                      <span className="text-slate-300">|</span>
-                      <button
-                        type="button"
-                        onClick={scrollToEmailSection}
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800"
-                      >
-                        <EnvelopeIcon className="h-3.5 w-3.5" />
-                        Compléter mon profil
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('notifications')}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-slate-900 shadow-sm active:scale-95"
-                aria-label="Notifications"
-              >
-                <BellIcon className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('security')}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/90 text-slate-900 shadow-sm active:scale-95"
-                aria-label="Paramètres"
-              >
-                <Cog6ToothIcon className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-2xl bg-[#ff8a1f] p-4 text-white shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xl font-black leading-none">HD VIP</p>
-                <p className="mt-1 truncate text-sm font-semibold text-white/90">
-                  Profil complété à {profileCompletionPercent}% · plus de confiance pour vendre
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab('profile')}
-                className="flex-shrink-0 rounded-full bg-white px-4 py-2 text-sm font-black text-[#e85d00] active:scale-95"
-              >
-                Voir
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl bg-white/90 p-3 shadow-sm">
-            {[
-              { label: 'Favoris', icon: HeartIcon, value: stats.engagement?.favoritesReceived || 0, tab: 'stats' },
-              { label: 'Boutique', icon: BuildingStorefrontIcon, value: stats.listings?.total || 0, tab: user?.accountType === 'shop' ? 'shop' : 'profile' },
-              { label: 'Vues', icon: ClockIcon, value: stats.performance?.views || 0, tab: 'stats' },
-              { label: 'Avis', icon: StarIcon, value: stats.reviews?.total || 0, tab: 'stats' }
-            ].map(({ label, icon: Icon, value, tab }) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-center active:scale-95"
-              >
-                <Icon className="h-6 w-6 text-slate-900" />
-                <span className="text-[11px] font-bold text-slate-800">{label}</span>
-                <span className="text-[10px] font-black text-[#e85d00]">{formatNumber(value)}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 rounded-2xl bg-white/95 p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-black text-slate-950">Mes commandes</h1>
-              <button
-                type="button"
-                onClick={() => setActiveTab('orders')}
-                className="inline-flex items-center text-sm font-bold text-slate-500"
-              >
-                Tout <ChevronRightIcon className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              {[
-                { label: 'À payer', icon: CurrencyDollarIcon, value: stats.orders?.purchases?.byStatus?.pending?.count || 0 },
-                { label: 'Acceptées', icon: CubeIcon, value: stats.orders?.purchases?.byStatus?.confirmed?.count || 0 },
-                { label: 'Livraison', icon: TruckIcon, value: stats.orders?.purchases?.byStatus?.delivering?.count || 0 },
-                { label: 'Avis', icon: ChatBubbleLeftIcon, value: stats.orders?.purchases?.byStatus?.delivered?.count || 0 }
-              ].map(({ label, icon: Icon, value }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setActiveTab('orders')}
-                  className="relative flex min-w-0 flex-col items-center gap-1.5 rounded-2xl py-2 text-center active:scale-95"
-                >
-                  <Icon className="h-6 w-6 text-slate-900" />
-                  {value > 0 ? (
-                    <span className="absolute right-2 top-0 rounded-full bg-[#e85d00] px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
-                      {formatNumber(value)}
-                    </span>
-                  ) : null}
-                  <span className="text-[11px] font-bold text-slate-800">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {userShopLink && (
-            <Link
-              to={userShopLink}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition-colors hover:bg-gray-100"
-            >
-              <BuildingStorefrontIcon className="h-4 w-4 text-[#e85d00]" />
-              Voir ma boutique publique
-            </Link>
-          )}
-          <Link
-            to={String(user?.role || '').toLowerCase() === 'delivery_agent' ? '/delivery/dashboard' : '/delivery/apply'}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-black text-orange-900 shadow-sm transition-colors hover:bg-orange-100"
-          >
-            <TruckIcon className="h-4 w-4 text-[#e85d00]" />
-            {String(user?.role || '').toLowerCase() === 'delivery_agent'
-              ? 'Ouvrir mon espace livreur'
-              : 'Demander à devenir livreur'}
-          </Link>
-        </section>
+        {/* En-tête — style Taobao 我的淘宝, différencié Particulier / Boutique */}
+        <TaobaoProfileHeader
+          user={user}
+          profileImagePreview={profileImagePreview}
+          stats={stats}
+          formatNumber={formatNumber}
+          profileCompletionPercent={profileCompletionPercent}
+          userShopLink={userShopLink}
+          onTab={setActiveTab}
+        />
 
         {/* Navigation par onglets — mobile: sticky horizontal avec indicateur animé + progression */}
         {isMobile ? (
@@ -2021,8 +1883,14 @@ export default function Profile() {
         {/* Section Profil */}
         {activeTab === 'profile' && (
           <>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
+            <div id="profile-edit-form" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <ProfileCompletionChecklist
+              checks={profileCompletion.checks}
+              percent={profileCompletion.percent}
+              isComplete={profileCompletion.isComplete}
+              onFix={handleCompletionFix}
+            />
+            <div className="mt-6 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 mb-6">
               <div className="w-2 h-6 bg-neutral-900 rounded-full"></div>
               <h2 className="text-xl font-semibold text-gray-900">Informations personnelles</h2>
             </div>
@@ -3876,7 +3744,7 @@ export default function Profile() {
 
         {/* Onglet Boutique — Section Boutique (proposal §7) */}
         {activeTab === 'shop' && user?.accountType === 'shop' && (
-          <div className="space-y-6">
+          <div id="profile-shop-section" className="space-y-6">
             {/* Prévisualisation — Aperçu de la boutique publique */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">

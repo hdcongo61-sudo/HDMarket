@@ -17,6 +17,7 @@ import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import { createNotification } from '../utils/notificationService.js';
+import { clearProductDraft } from '../services/productDraftReminderService.js';
 import { invalidateProductCache } from '../utils/cache.js';
 import {
   uploadToCloudinary,
@@ -1331,6 +1332,11 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   // Invalidate product cache after creation
   invalidateProductCache();
+
+  // The listing is published — the 24h draft reminder no longer applies.
+  clearProductDraft(req.user.id).catch((error) => {
+    console.warn('[product-draft] clear on publish failed:', error?.message || error);
+  });
 
   res.status(201).json(withCategoryCompatibility(product));
 });

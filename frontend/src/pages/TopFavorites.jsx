@@ -1,7 +1,9 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { HeartIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import EmptyState from '../components/ui/EmptyState';
 import { readRouteViewCache, writeRouteViewCache } from '../utils/routeViewCache';
 
 const LIMIT = 60;
@@ -152,9 +154,13 @@ export default function TopFavorites() {
           )}
         </>
       ) : (
-        <p className="text-sm text-gray-500">
-          Aucun favori pour le moment. Ajoutez des produits à vos favoris pour les voir ici !
-        </p>
+        <EmptyState
+          icon={HeartIcon}
+          title="Aucun favori pour le moment"
+          hint="Ajoutez des produits à vos favoris pour les retrouver ici."
+          to="/products"
+          actionLabel="Découvrir les produits"
+        />
       )}
       </div>
     </div>

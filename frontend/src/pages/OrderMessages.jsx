@@ -35,6 +35,7 @@ export default function OrderMessages() {
   const [offlineSnapshot, setOfflineSnapshot] = useState(null);
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [delegation, setDelegation] = useState({ show: false, assignee: null, assistant: null, busy: false });
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // all, unread, archived
   const socketRef = useRef(null);
@@ -346,6 +347,7 @@ export default function OrderMessages() {
 
   const closeChat = () => {
     setSelectedOrder(null);
+    setDelegation({ show: false, assignee: null, assistant: null, busy: false });
     queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
     queryClient.invalidateQueries({ queryKey: orderChatKeys.unread(userScopeId) });
   };
@@ -376,6 +378,76 @@ export default function OrderMessages() {
   const openConversation = (conversation) => {
     setSelectedOrder(buildOrderFromConversation(conversation));
     setError('');
+  };
+
+  // ── Delegation: shop owner can hand this conversation to their assistant ──
+  const selectedConversation = useMemo(() => {
+    if (!selectedOrder?.conversationId) return null;
+    return effectiveConversations.find(
+      (conversation) => String(conversation?.conversationId || '') === String(selectedOrder.conversationId)
+    ) || null;
+  }, [selectedOrder?.conversationId, effectiveConversations]);
+
+  const isShopOwnerOfConversation = Boolean(
+    user?._id && selectedConversation?.sellerId && String(selectedConversation.sellerId) === String(user._id)
+  );
+
+  useEffect(() => {
+    if (!selectedConversation || !isShopOwnerOfConversation) {
+      setDelegation({ show: false, assignee: null, assistant: null, busy: false });
+      return undefined;
+    }
+    let cancelled = false;
+    const shopId = user?._id || user?.id;
+    api
+      .get(`/shops/${shopId}/assistant`)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const assignment = data?.data;
+        const canReply = Array.isArray(assignment?.permissions) && assignment.permissions.includes('respond_to_buyer_messages');
+        const active = assignment?.status === 'active';
+        setDelegation({
+          show: Boolean(active && canReply),
+          assignee: selectedConversation.assignee || null,
+          assistant: assignment || null,
+          busy: false
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setDelegation({ show: false, assignee: null, assistant: null, busy: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedConversation, isShopOwnerOfConversation, user?._id, user?.id]);
+
+  const handleDelegateConversation = async () => {
+    const conversationId = selectedOrder?.conversationId;
+    const assistantId = delegation.assistant?.assistant?._id || delegation.assistant?.assistant;
+    if (!conversationId || !assistantId) return;
+    setDelegation((prev) => ({ ...prev, busy: true }));
+    try {
+      const { data } = await api.post(`/conversations/${String(conversationId)}/delegate`, { assistantId: String(assistantId) });
+      setDelegation((prev) => ({ ...prev, assignee: data?.assignee || prev.assignee, busy: false }));
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+    } catch (err) {
+      setDelegation((prev) => ({ ...prev, busy: false }));
+      setError(err.response?.data?.message || 'Impossible de déléguer cette conversation.');
+    }
+  };
+
+  const handleClearDelegation = async () => {
+    const conversationId = selectedOrder?.conversationId;
+    if (!conversationId) return;
+    setDelegation((prev) => ({ ...prev, busy: true }));
+    try {
+      await api.post(`/conversations/${String(conversationId)}/delegate`, { assistantId: null });
+      setDelegation((prev) => ({ ...prev, assignee: null, busy: false }));
+      queryClient.invalidateQueries({ queryKey: orderChatKeys.conversationsRoot(userScopeId) });
+    } catch (err) {
+      setDelegation((prev) => ({ ...prev, busy: false }));
+      setError(err.response?.data?.message || 'Impossible de retirer la délégation.');
+    }
   };
 
   useEffect(() => {
@@ -841,6 +913,13 @@ export default function OrderMessages() {
           unreadCount={0}
           onArchive={handleArchive}
           onDelete={handleDelete}
+          delegation={{
+            show: delegation.show,
+            assignee: delegation.assignee,
+            busy: delegation.busy,
+            onDelegate: handleDelegateConversation,
+            onClear: handleClearDelegation
+          }}
         />
       )}
     </div>

@@ -13,6 +13,7 @@ import {
   archiveOrderConversation,
   unarchiveOrderConversation,
   deleteOrderConversation,
+  delegateOrderConversation,
   uploadOrderMessageAttachment,
   addOrderMessageReaction,
   removeOrderMessageReaction,
@@ -52,5 +53,6 @@ router.delete('/:id/messages/:messageId', idempotencyMiddleware(), deleteOrderMe
 router.post('/:id/archive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), archiveOrderConversation);
 router.post('/:id/unarchive', validate(schemas.idParam, 'params'), idempotencyMiddleware(), unarchiveOrderConversation);
 router.post('/:id/delete', validate(schemas.idParam, 'params'), idempotencyMiddleware(), deleteOrderConversation);
+router.post('/:id/delegate', validate(schemas.idParam, 'params'), delegateOrderConversation);
 
 export default router;

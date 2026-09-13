@@ -1,7 +1,7 @@
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
-import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowTopRightOnSquareIcon, ArrowTurnDownLeftIcon, ArrowUturnLeftIcon, BoltIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ClockIcon, DocumentTextIcon, ExclamationCircleIcon, EyeIcon, FlagIcon, HeartIcon, MagnifyingGlassIcon, MagnifyingGlassPlusIcon, MapPinIcon, PhoneIcon, ShareIcon, ShieldCheckIcon, ShoppingCartIcon, StarIcon, TrashIcon, TruckIcon, VideoCameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowTopRightOnSquareIcon, ArrowTurnDownLeftIcon, ArrowUturnLeftIcon, BellIcon, BoltIcon, BuildingStorefrontIcon, ChatBubbleLeftIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ClockIcon, DocumentTextIcon, ExclamationCircleIcon, EyeIcon, FlagIcon, HeartIcon, MagnifyingGlassIcon, MagnifyingGlassPlusIcon, MapPinIcon, PhoneIcon, ShareIcon, ShieldCheckIcon, ShoppingCartIcon, StarIcon, TrashIcon, TruckIcon, VideoCameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import AuthContext from "../context/AuthContext";
 import CartContext from "../context/CartContext";
 import FavoriteContext from "../context/FavoriteContext";
@@ -11,6 +11,8 @@ import { buildWhatsappLink } from "../utils/whatsapp";
 import { parseSocialVideo } from "../utils/socialVideo";
 import { buildProductShareUrl, buildProductPath, buildShopPath } from "../utils/links";
 import { recordProductView } from "../utils/recentViews";
+import { trackRecentlyViewed } from "../utils/recentlyViewed";
+import ShareProductPosterModal from '../components/ShareProductPosterModal';
 import { setPendingAction } from "../utils/pendingAction";
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
@@ -102,6 +104,7 @@ export default function ProductDetails() {
   const [replyText, setReplyText] = useState("");
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [shareFeedback, setShareFeedback] = useState("");
+  const [posterOpen, setPosterOpen] = useState(false);
   const [isCertifying, setIsCertifying] = useState(false);
   const [certifyMessage, setCertifyMessage] = useState("");
   const [certifyError, setCertifyError] = useState("");
@@ -661,6 +664,8 @@ export default function ProductDetails() {
         setOfflineSnapshotActive(false);
         setWhatsappClicks(data.whatsappClicks || 0);
         setFavoriteCount(data.favoritesCount || 0);
+        // Device-local footprint ("Vus récemment" shelf + /recent page).
+        trackRecentlyViewed(data);
         // Fetch bundle suggestions
         const pid = data._id || data.id;
         if (pid) {
@@ -1621,6 +1626,25 @@ export default function ProductDetails() {
       }
       console.error("Erreur favori:", err);
     }
+  };
+
+  // 🔔 "Me prévenir" — reuses the favorite subscription the engagement
+  // service already sweeps (price drops + back in stock notifications).
+  const handleNotifyMe = async () => {
+    if (!product) return;
+    if (!user) {
+      setPendingAction({ type: 'addFavorite', payload: { product } });
+      navigate('/login', { state: { from: `/product/${slug}` } });
+      return;
+    }
+    const wasFavorite = isInFavorites;
+    await toggleFavorite(product);
+    showToast(
+      wasFavorite
+        ? 'Suivi désactivé pour ce produit.'
+        : 'Vous serez notifié·e du retour en stock et des baisses de prix.',
+      { variant: 'success' }
+    );
   };
 
   // Gestion WhatsApp
@@ -3314,6 +3338,17 @@ export default function ProductDetails() {
                 {favoriteCount > 0 ? favoriteCount : 'Favori'}
               </span>
             </button>
+            {/* Me prévenir — price drop / restock alert (out of stock only) */}
+            {isPurchaseOutOfStock ? (
+              <button type="button" onClick={handleNotifyMe}
+                className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 active:bg-gray-50">
+                <BellIcon className={`h-[19px] w-[19px] ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}
+                  fill={isInFavorites ? 'currentColor' : 'none'} />
+                <span className={`text-[10px] font-semibold ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}>
+                  {isInFavorites ? 'Suivi' : 'Me prévenir'}
+                </span>
+              </button>
+            ) : null}
             {/* Add to Cart + Buy Now */}
             <div className="flex flex-1 items-center gap-2 px-2">
               <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleAddToCart}
@@ -3555,6 +3590,16 @@ export default function ProductDetails() {
                         className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         Copier le lien
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShareMenuOpen(false);
+                          setPosterOpen(true);
+                        }}
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Affiche à partager (WhatsApp)
                       </button>
                       <a
                         href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`}
@@ -5153,8 +5198,7 @@ className={`h-7 w-7 ${star <= userRating
         mobileSheet
         ariaLabel="Partager ce produit"
         panelClassName="product-detail-modal-panel"
-      >
-        <ModalHeader
+      >        <ModalHeader
           title="Partager ce produit"
           onClose={() => setShareMenuOpen(false)}
         />
@@ -5168,6 +5212,16 @@ className={`h-7 w-7 ${star <= userRating
           >
             Envoyer sur WhatsApp
           </a>
+          <button
+            type="button"
+            onClick={() => {
+              setShareMenuOpen(false);
+              setPosterOpen(true);
+            }}
+            className="flex min-h-12 w-full items-center rounded-xl border border-[#e85d00] bg-white px-4 text-left text-sm font-black text-[#e85d00]"
+          >
+            Affiche à partager (WhatsApp)
+          </button>
           <a
             href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`}
             target="_blank"
@@ -5205,6 +5259,12 @@ className={`h-7 w-7 ${star <= userRating
           </button>
         </ModalBody>
       </BaseModal>
+
+      <ShareProductPosterModal
+        open={posterOpen}
+        onClose={() => setPosterOpen(false)}
+        product={product}
+      />
 
       <BaseModal
         isOpen={isReviewsModalOpen}

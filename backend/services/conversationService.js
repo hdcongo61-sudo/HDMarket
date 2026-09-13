@@ -194,6 +194,7 @@ export const listConversationsForUser = async ({ user, page = 1, limit = 20, arc
       .populate('sellerId', 'name shopName profileImage shopLogo')
       .populate('orderId', 'status deliveryCode')
       .populate('productId', 'title images slug')
+      .populate('assigneeId', 'name profileImage')
       .lean(),
     Conversation.countDocuments(filter)
   ]);
@@ -211,6 +212,47 @@ export const unarchiveConversation = async ({ id, userId }) => {
 
 export const deleteConversationForUser = async ({ id, userId }) => {
   await Conversation.updateOne({ _id: id }, { $addToSet: { deletedBy: userId } });
+};
+
+/**
+ * Delegation: the shop owner hands a conversation to their active assistant
+ * (who must have the `respond_to_buyer_messages` permission). Only the
+ * seller side of the conversation can delegate, and only to an assistant of
+ * their own shop.
+ */
+export const delegateConversationToAssistant = async ({ conversationId, ownerId, assistantId }) => {
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation) throw createHttpError('Conversation introuvable.', 404);
+  if (String(conversation.sellerId) !== String(ownerId)) {
+    throw createHttpError('Seul le propriétaire de la boutique peut déléguer cette conversation.', 403);
+  }
+
+  if (!assistantId) {
+    conversation.assigneeId = null;
+    conversation.assignedAt = null;
+    await conversation.save();
+    return { conversation, cleared: true };
+  }
+
+  const assignment = await ShopAssistant.findOne({
+    assistant: assistantId,
+    shop: ownerId,
+    status: 'active',
+    permissions: 'respond_to_buyer_messages'
+  })
+    .select('_id')
+    .lean();
+  if (!assignment) {
+    throw createHttpError(
+      'Cet assistant n’est pas actif pour votre boutique ou n’a pas la permission de répondre aux messages.',
+      403
+    );
+  }
+
+  conversation.assigneeId = assistantId;
+  conversation.assignedAt = new Date();
+  await conversation.save();
+  return { conversation, cleared: false };
 };
 
 export const touchConversationLastMessage = async ({ id, preview, senderId, at = new Date() }) => {

@@ -207,4 +207,47 @@ export const deliverDueSteps = async ({ limit = 200 } = {}) => {
   return { processed, matched: due.length };
 };
 
-export default { resolveEligibleSequence, enrollUserIfEligible, processEnrollmentStep, deliverDueSteps };
+/**
+ * Read-only view of the user's active onboarding enrollment, for the in-app
+ * checklist card (routes/onboardingUserRoutes.js → GET /api/onboarding/me).
+ */
+export const getUserOnboardingState = async (userId) => {
+  if (!userId) return null;
+  const enrollment = await UserOnboardingEnrollment.findOne({
+    userId,
+    status: 'active'
+  }).lean();
+  if (!enrollment) return null;
+
+  const sequence = await OnboardingSequence.findById(enrollment.sequenceId).lean();
+  if (!sequence) return null;
+
+  const steps = orderedSteps(sequence);
+  const nextStep = steps.find((step) => step.order === enrollment.currentStep) || null;
+  const doneCount = steps.filter((step) => step.order < enrollment.currentStep).length;
+
+  return {
+    enrollmentId: String(enrollment._id),
+    sequenceId: String(enrollment.sequenceId),
+    sequenceName: sequence.name || '',
+    currentStep: enrollment.currentStep,
+    totalSteps: steps.length,
+    doneSteps: doneCount,
+    deliveredSteps: (enrollment.deliveredSteps || []).map(Number),
+    skippedSteps: (enrollment.skippedSteps || []).map(Number),
+    progressPercent: steps.length
+      ? Math.min(100, Math.round((doneCount / steps.length) * 100))
+      : 100,
+    nextStep: nextStep
+      ? {
+          order: nextStep.order,
+          title: nextStep.title || '',
+          message: nextStep.message || '',
+          icon: nextStep.icon || '',
+          action: nextStep.action || {}
+        }
+      : null
+  };
+};
+
+export default { resolveEligibleSequence, enrollUserIfEligible, processEnrollmentStep, deliverDueSteps, getUserOnboardingState };

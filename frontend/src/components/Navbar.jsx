@@ -18,9 +18,11 @@ import useCategories from '../hooks/useCategories';
 import { subscribeToSettingsRefresh } from '../utils/settingsRefresh';
 import { fetchAppLogo } from '../utils/appLogoStore';
 import { loadSearchSuggestions } from '../utils/searchSuggestions';
-import { AdjustmentsHorizontalIcon, ArrowDownIcon, ArrowDownTrayIcon, ArrowLeftOnRectangleIcon, ArrowTrendingUpIcon, Bars3Icon, BellIcon, BoltIcon, BookmarkIcon, BookmarkSquareIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, ChatBubbleLeftIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ClipboardDocumentListIcon, ClockIcon, Cog6ToothIcon, CubeIcon, DocumentTextIcon, EllipsisVerticalIcon, ExclamationCircleIcon, FilmIcon, FireIcon, FlagIcon, FunnelIcon, GiftIcon, HeartIcon, HomeIcon, MagnifyingGlassIcon, MapIcon, MapPinIcon, PencilIcon, PlusIcon, ReceiptPercentIcon, ShieldCheckIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Squares2X2Icon, StarIcon, TagIcon, TrashIcon, TruckIcon, UserCircleIcon, UserGroupIcon, UserIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, ArrowDownIcon, ArrowDownTrayIcon, ArrowLeftOnRectangleIcon, ArrowTrendingUpIcon, Bars3Icon, BellIcon, BoltIcon, BookmarkIcon, BookmarkSquareIcon, BuildingStorefrontIcon, CalendarIcon, CameraIcon, ChartBarIcon, ChatBubbleLeftIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ClipboardDocumentListIcon, ClockIcon, Cog6ToothIcon, CubeIcon, DocumentTextIcon, EllipsisVerticalIcon, ExclamationCircleIcon, FilmIcon, FireIcon, FlagIcon, FunnelIcon, GiftIcon, HeartIcon, HomeIcon, MagnifyingGlassIcon, MapIcon, MapPinIcon, PencilIcon, PlusIcon, ReceiptPercentIcon, ShieldCheckIcon, ShoppingBagIcon, ShoppingCartIcon, SparklesIcon, Squares2X2Icon, StarIcon, TagIcon, TrashIcon, TruckIcon, UserCircleIcon, UserGroupIcon, UserIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import VerifiedBadge from "./VerifiedBadge";
 import CountrySelector from './settings/CountrySelector';
+import VoiceSearchButton from './search/VoiceSearchButton';
+import ImageSearchModal from './search/ImageSearchModal';
 
 /**
  * 🎨 NAVBAR PREMIUM HDMarket - Version Mobile First
@@ -114,6 +116,10 @@ export default function Navbar({ hideMobileTabBar = false }) {
   const shopConversionEnabled = isTruthyFlag(getRuntimeValue('enable_shop_conversion', true));
   const referralProgramEnabled = isTruthyFlag(getRuntimeValue('enable_referral_program', false));
   const parcelDeliveryEnabled = isTruthyFlag(getRuntimeValue('enable_parcel_delivery', true));
+  // Admin-controlled search upgrades (Runtime settings → search category).
+  const voiceSearchEnabled = isTruthyFlag(getRuntimeValue('enable_voice_search', false));
+  const imageSearchEnabled = isTruthyFlag(getRuntimeValue('enable_image_search', false));
+  const [imageSearchOpen, setImageSearchOpen] = useState(false);
   const [buyForMeEnabled, setBuyForMeEnabled] = useState(false);
   const { cart } = useContext(CartContext);
   const { favorites } = useContext(FavoriteContext);
@@ -1398,6 +1404,18 @@ export default function Navbar({ hideMobileTabBar = false }) {
   const openFullSearch = () => {
     const term = searchQuery.trim();
     if (!term) return;
+    setShowResults(false);
+    setIsSearchFullScreen(false);
+    setIsHistoryPanelOpen(false);
+    navigate(`/search?q=${encodeURIComponent(term)}`);
+  };
+
+  // Voice search result → straight to the full search page.
+  const handleVoiceResult = (text) => {
+    const term = String(text || '').trim();
+    if (!term) return;
+    triggerHaptic(50);
+    setSearchQuery(term);
     setShowResults(false);
     setIsSearchFullScreen(false);
     setIsHistoryPanelOpen(false);
@@ -3051,22 +3069,39 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.search', 'Rechercher')}
-                  className="hd-global-search w-full rounded-full py-3 pl-11 pr-10 text-sm transition-all placeholder:text-gray-400"
+                  className={`hd-global-search w-full rounded-full py-3 pl-11 ${voiceSearchEnabled || imageSearchEnabled ? 'pr-24' : 'pr-10'} text-sm transition-all placeholder:text-gray-400`}
                   onKeyDown={handleSearchKeyDown}
                   autoFocus
                 />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      triggerHaptic(50);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:text-gray-700"
-                  >
-                    <XMarkIcon className="h-[18px] w-[18px]" />
-                  </button>
-                )}
+                <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                  {imageSearchEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageSearchOpen(true);
+                        triggerHaptic(30);
+                      }}
+                      aria-label={t('search.imageSearch', 'Recherche par image')}
+                      title={t('search.imageSearch', 'Recherche par image')}
+                      className="grid h-7 w-7 place-items-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+                    >
+                      <CameraIcon className="h-[18px] w-[18px]" />
+                    </button>
+                  ) : null}
+                  {voiceSearchEnabled ? <VoiceSearchButton onResult={handleVoiceResult} /> : null}
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        triggerHaptic(50);
+                      }}
+                      className="rounded-full p-1 text-gray-400 hover:text-gray-700"
+                    >
+                      <XMarkIcon className="h-[18px] w-[18px]" />
+                    </button>
+                  )}
+                </div>
               </div>
               {searchQuery.trim() ? (
                 <div className="flex shrink-0 items-center gap-2">
@@ -3203,6 +3238,19 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                   onBlur={() => setTimeout(() => setShowResults(false), 250)}
                 />
                 <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                  {imageSearchEnabled ? (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setImageSearchOpen(true)}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+                      aria-label={t('search.imageSearch', 'Recherche par image')}
+                      title={t('search.imageSearch', 'Recherche par image')}
+                    >
+                      <CameraIcon className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                  {voiceSearchEnabled ? <VoiceSearchButton onResult={handleVoiceResult} /> : null}
                   {searchQuery ? (
                     <button
                       type="button"
@@ -4178,6 +4226,21 @@ className={`h-4 w-4 transition-transform duration-200 ${isMoreMenuOpen ? 'rotate
               </NavLink>
 
               <NavLink
+                to="/recent"
+                onClick={() => setIsMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-[#e85d00] text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                  }`
+                }
+              >
+                <ClockIcon className="h-5 w-5" />
+                {t('nav.recentlyViewed', 'Vus récemment')}
+              </NavLink>
+
+              <NavLink
                 to="/plans"
                 onClick={() => setIsMenuOpen(false)}
                 className={({ isActive }) =>
@@ -5012,6 +5075,8 @@ className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
         </div>
       </div>
       ) : null}
+
+      <ImageSearchModal open={imageSearchOpen} onClose={() => setImageSearchOpen(false)} />
 
     </>
   );

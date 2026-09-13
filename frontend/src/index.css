@@ -1730,6 +1730,18 @@ body.menu-open .verified-shops-header {
   animation: shimmer 1.35s linear infinite;
 }
 
+/* Taobao-style shop announcement marquee */
+@keyframes shop-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.shop-marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation: shop-marquee 18s linear infinite;
+}
+
 @keyframes pendingPulse {
   0%,100% { opacity: 0.55; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.14); }

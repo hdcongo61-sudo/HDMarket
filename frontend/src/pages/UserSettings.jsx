@@ -40,10 +40,10 @@ const NotifToggle = React.memo(({ label, checked, onChange }) => (
 
 // ── Settings card with an accent icon chip + heading ──
 const SectionCard = ({ id, icon: Icon, title, subtitle, action, children }) => (
-  <section id={id} className="ui-card scroll-mt-28 rounded-2xl p-4">
+  <section id={id} className="scroll-mt-28 rounded-2xl bg-white p-4 ring-1 ring-[#e2dcd2] dark:bg-neutral-950 dark:ring-neutral-800">
     <div className="flex items-center gap-2.5">
       {Icon && (
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e85d00]/10 text-[#e85d00]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fff0e4] text-[#e85d00]">
           <Icon className="h-[17px] w-[17px]" />
         </span>
       )}
@@ -314,30 +314,48 @@ export default function UserSettings() {
   }, [hardRefreshing, queryClient, refreshSettings, showToast, softRefreshCurrentRoute, t]);
 
   return (
-    <div className="hd-profile-flow hd-commerce-shell min-h-screen">
-      <header className="ui-glass-header">
+    <div className="min-h-screen bg-[#f5f2ee] pb-24 dark:bg-neutral-950">
+      <header className="sticky top-0 z-30 border-b border-[#e2dcd2] bg-white/95 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/95">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
           <Link
             to="/profile"
-            className="ui-btn-ghost inline-flex h-10 w-10 items-center justify-center"
+            className="grid h-10 w-10 place-items-center rounded-full border border-[#e2dcd2] text-[#6b6459] transition active:bg-[#f5f2ee] dark:border-neutral-800"
             aria-label={t('settings.back', 'Retour')}
           >
             <ArrowLeftIcon className="h-[18px] w-[18px]" />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-black text-gray-900 dark:text-white">{t('settings.title', 'Parametres')}</h1>
+            <h1 className="text-lg font-black text-gray-900 dark:text-white">{t('settings.title', 'Paramètres')}</h1>
             <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-neutral-400">
               <span className={`h-1.5 w-1.5 rounded-full ${savingPreferences ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'}`} />
-              {savingPreferences ? t('settings.syncing', 'Synchronisation en cours...') : t('settings.saved', 'Enregistre')}
+              {savingPreferences ? t('settings.syncing', 'Synchronisation en cours...') : t('settings.saved', 'Enregistré')}
             </p>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pb-24 pt-5">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 pt-4">
+        {/* Quick section nav */}
+        <nav className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Sections des paramètres">
+          {[
+            { href: '#region', label: t('settings.localization', 'Région & langue') },
+            { href: '#assistant', label: t('settings.assistantChat', 'Assistant') },
+            { href: '#notifications', label: t('settings.notifications', 'Notifications') },
+            { href: '#cache', label: t('settings.cache.title', 'Maintenance') }
+          ].map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-white px-3.5 text-[11px] font-black text-[#6b6459] ring-1 ring-[#e2dcd2] transition active:scale-95 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800"
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
         <Link
           to="/profile"
-          className="ui-card flex items-center gap-3 rounded-2xl p-3.5 transition active:scale-[0.99]"
+          className="flex items-center gap-3 rounded-2xl bg-white p-3.5 ring-1 ring-[#e2dcd2] transition active:scale-[0.99] dark:bg-neutral-950 dark:ring-neutral-800"
         >
           {resolveUserProfileImage(user) ? (
             <img
@@ -365,6 +383,7 @@ export default function UserSettings() {
         </Link>
 
         <SectionCard
+          id="region"
           icon={GlobeAltIcon}
           title={t('settings.localization', 'Région & langue')}
           subtitle={t('settings.localizationDescription', 'Langue, devise et ville de livraison.')}
@@ -387,6 +406,7 @@ export default function UserSettings() {
         </SectionCard>
 
         <SectionCard
+          id="assistant"
           icon={CpuChipIcon}
           title={t('settings.assistantChat', 'Assistant chat')}
           subtitle={t(
@@ -513,6 +533,7 @@ export default function UserSettings() {
         </SectionCard>
 
         <SectionCard
+          id="cache"
           icon={ShieldExclamationIcon}
           title={t('settings.cache.title', 'Maintenance cache')}
           subtitle={t(

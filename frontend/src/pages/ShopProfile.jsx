@@ -15,6 +15,8 @@ import { setPendingAction } from '../utils/pendingAction';
 import { isGeneratedTimestampSlug } from '../utils/links';
 import { buildShopWhatsappLink } from '../utils/whatsapp';
 import ShopHero from '../components/shop/ShopHero';
+import ShopStickyHeader from '../components/shop/ShopStickyHeader';
+import ShopAnnouncementBar from '../components/shop/ShopAnnouncementBar';
 import ShopPromoBanner from '../components/shop/ShopPromoBanner';
 import ShopQuickInfo from '../components/shop/ShopQuickInfo';
 import ShopOpeningHoursCard from '../components/shop/ShopOpeningHoursCard';
@@ -965,6 +967,18 @@ export default function ShopProfile() {
     }
   ];
 
+  // Taobao-style announcement marquee — facts derived from live shop data.
+  const announcementFacts = useMemo(() => {
+    const facts = [];
+    if (openingSummary?.statusText) facts.push(openingSummary.statusText);
+    if (isCertifiedShop) facts.push(t('shop_profile.verified', 'Boutique vérifiée'));
+    facts.push(hasFreeDelivery ? t('shop_profile.free_delivery', 'Livraison offerte') : t('shop_profile.pickup_available', 'Retrait disponible'));
+    if (hasActivePromo) facts.push(`${formatCount(shop?.activePromoCountNow || 0)} ${t('shop_profile.tab_promos', 'promos').toLowerCase()} en cours`);
+    const location = [shop?.commune, shop?.city].filter(Boolean).join(', ');
+    if (location) facts.push(location);
+    return facts;
+  }, [hasActivePromo, hasFreeDelivery, isCertifiedShop, openingSummary?.statusText, shop?.activePromoCountNow, shop?.city, shop?.commune, t]);
+
   const followPending = followMutation.isPending;
   const followDisabled = !shop?._id || !shopVerifiedFlag || isOwnShop;
 
@@ -1062,6 +1076,8 @@ export default function ShopProfile() {
             onShare={handleShareShop}
             t={t}
           />
+
+          <ShopAnnouncementBar items={announcementFacts} t={t} />
 
           <ShopPromoBanner
             shop={shop}
@@ -1202,6 +1218,22 @@ export default function ShopProfile() {
           </div>
         </div>
       </div>
+
+      {isMobile && (
+        <ShopStickyHeader
+          shop={shop}
+          isCertifiedShop={isCertifiedShop}
+          followersCount={followersCount}
+          isOwnShop={isOwnShop}
+          isFollowing={isFollowing}
+          followDisabled={followDisabled}
+          followPending={followPending}
+          onFollowToggle={handleFollowToggle}
+          onBack={() => navigate(-1)}
+          onShare={handleShareShop}
+          t={t}
+        />
+      )}
 
       {isMobile && (
         <ShopBottomActions

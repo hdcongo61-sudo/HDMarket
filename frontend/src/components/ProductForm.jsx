@@ -57,6 +57,9 @@ const VIDEO_MIN_BITRATE = 550_000;
 const VIDEO_MAX_BITRATE = 2_200_000;
 const VIDEO_AUDIO_BITRATE = 64_000;
 const MAX_PDF_SIZE_MB = 10;
+// Minimum gap between backend draft heartbeats (the local autosave runs every 5s,
+// but the server only needs ~1 activity tick per minute for the 24h reminder).
+const DRAFT_SYNC_MIN_MS = 60_000;
 const ATTRIBUTE_TYPE_OPTIONS = [
   'Color',
   'Size',
@@ -257,6 +260,9 @@ export default function ProductForm(props) {
   // send only the fields the seller actually changed.
   const initialFormRef = useRef(null);
   const draftGenerationRef = useRef(0);
+  // Server-side draft heartbeat throttle — keeps the 24h inactivity reminder from
+  // firing while the seller is actively working on the form (max 1 request/min).
+  const draftSyncAtRef = useRef(0);
   // New: pinch-to-zoom tracking refs
   const pinchDistRef = useRef(null);
   const pinchScaleRef = useRef(null);
@@ -389,17 +395,29 @@ export default function ProductForm(props) {
         }));
         setDraftSavedAt(savedAt);
       } catch { /* ignore */ }
+      // Heartbeat the backend draft tracker (new listings only) so the 24h
+      // inactivity reminder measures real abandonment, not app restarts.
+      const now = Date.now();
+      if (!isEditing && now - draftSyncAtRef.current >= DRAFT_SYNC_MIN_MS) {
+        draftSyncAtRef.current = now;
+        api
+          .post('/products/draft', { title: String(form.title || '').trim().slice(0, 200) })
+          .catch(() => { /* draft tracking is best-effort */ });
+      }
     }, 5000);
     return () => clearInterval(interval);
-  }, [draftKey, form, expandedSections]);
+  }, [draftKey, form, expandedSections, isEditing]);
 
   // Clear draft on successful submit
   const clearDraft = useCallback(() => {
     if (!draftKey) return;
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    if (!isEditing) {
+      api.delete('/products/draft').catch(() => { /* best-effort */ });
+    }
     setDraftOffer(null);
     setDraftSavedAt(null);
-  }, [draftKey]);
+  }, [draftKey, isEditing]);
 
   const resetPublishedForm = useCallback(() => {
     draftGenerationRef.current += 1;

@@ -37,6 +37,8 @@ const assistantAuditLogSchema = new mongoose.Schema(
         'assistant_conversation_archived',
         'assistant_conversation_unarchived',
         'assistant_conversation_deleted',
+        'assistant_conversation_delegated',
+        'assistant_conversation_delegation_cleared',
         'assistant_message_reaction_added',
         'assistant_message_reaction_removed',
         'assistant_message_deleted',

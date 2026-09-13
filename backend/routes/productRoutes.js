@@ -38,6 +38,10 @@ import {
 } from '../controllers/productController.js';
 import { addComment, deleteCommentAdmin, deleteMyComment, getCommentsForProduct } from '../controllers/commentController.js';
 import {
+  clearProductDraftActivity,
+  saveProductDraftActivity
+} from '../controllers/productDraftController.js';
+import {
   deleteRating,
   getRatingSummary,
   getUserRating,
@@ -143,6 +147,11 @@ router.post(
   generateProductSpecSheet
 );
 router.get('/', protect, getMyProducts);
+
+// Product form draft heartbeat — powers the 24h inactivity reminder.
+router.post('/draft', protect, saveProductDraftActivity);
+router.delete('/draft', protect, clearProductDraftActivity);
+
 router.put(
   '/:id',
   protect,

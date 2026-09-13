@@ -23,6 +23,7 @@ import cartRoutes from './routes/cartRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import shopRoutes from './routes/shopRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
+import onboardingUserRoutes from './routes/onboardingUserRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -98,6 +99,7 @@ import { globalErrorHandler, notFoundApiHandler } from './middlewares/globalErro
 import { protect, admin } from './middlewares/authMiddleware.js';
 import { sendReviewReminders } from './utils/reviewReminder.js';
 import { processInstallmentReminders } from './utils/installmentReminder.js';
+import { runProductDraftReminderSweep } from './services/productDraftReminderService.js';
 import { expireBoostRequests } from './utils/boostService.js';
 import { expireStaleSponsorships } from './controllers/orderController.js';
 import { startCacheSnapshotScheduler } from './utils/cache.js';
@@ -432,6 +434,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/shops', shopAssistantRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/onboarding', onboardingUserRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
@@ -917,6 +920,37 @@ httpServer.listen(port, () => {
     message: 'Installment scheduler started (runs every hour).',
     metadata: {
       scheduler: 'installment',
+      intervalMinutes: 60
+    }
+  });
+
+  // Remind sellers who abandoned a half-finished new-product draft for 24h+.
+  const PRODUCT_DRAFT_REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour
+  const runProductDraftReminders = async () => {
+    try {
+      const result = await runProductDraftReminderSweep();
+      if (result.reminded > 0) {
+        await notifyBackoffice({
+          title: 'Rappels brouillon produit exécutés',
+          message: `Rappels envoyés: ${result.notificationsSent}. Brouillons relancés: ${result.reminded}. Nettoyés: ${result.clearedStale}.`,
+          metadata: {
+            scheduler: 'product_draft_reminder',
+            ...result
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error running product draft reminders:', error);
+    }
+  };
+
+  setTimeout(runProductDraftReminders, 8 * 60 * 1000);
+  setInterval(runProductDraftReminders, PRODUCT_DRAFT_REMINDER_INTERVAL);
+  notifyBackoffice({
+    title: 'Scheduler démarré',
+    message: 'Product draft reminder scheduler started (runs every hour).',
+    metadata: {
+      scheduler: 'product_draft_reminder',
       intervalMinutes: 60
     }
   });
