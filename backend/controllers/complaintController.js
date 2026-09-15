@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import Complaint from '../models/complaintModel.js';
 import User from '../models/userModel.js';
 import { createNotification } from '../utils/notificationService.js';
+import { getAdminCountryFilter } from '../services/countryService.js';
 
 const ALLOWED_STATUSES = new Set(['pending', 'in_review', 'resolved']);
 
@@ -54,6 +55,8 @@ export const createComplaint = asyncHandler(async (req, res) => {
 
 export const listComplaintsAdmin = asyncHandler(async (req, res) => {
   const filter = {};
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
   const { status } = req.query;
   if (status && ALLOWED_STATUSES.has(status)) {
     filter.status = status;

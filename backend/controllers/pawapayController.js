@@ -10,6 +10,7 @@ import User from '../models/userModel.js';
 import Order from '../models/orderModel.js';
 import {
   getPawaPayCheckoutStatus,
+  getPawaPayConfigCheck,
   getPawaPayPublicKeys,
   getPawaPayRefundStatus,
   initiatePawaPayCheckout
@@ -25,6 +26,11 @@ import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promo
 import { getRuntimeConfig } from '../services/configService.js';
 import { recordEscrowAudit } from '../services/escrowService.js';
 import { resolvePaymentProvider } from '../services/paymentService.js';
+
+/** Founder/admin diagnostic: report PawaPay config without any financial call. */
+export const getPawaPayConfigCheckHandler = asyncHandler(async (_req, res) => {
+  res.json(getPawaPayConfigCheck());
+});
 import { getHighestProductPrice } from '../utils/productAttributes.js';
 import {
   paySelfSponsorship,
@@ -209,7 +215,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     resourceCountryId = order.countryId || null;
     resourceCurrency = order.currency || order.quotationSnapshot?.currency || null;
     if (!order.quotationSnapshot?.applied) {
-      return sendPawaPayError(res, 400, 'PAWAPAY_ORDER_PAYMENT_INVALID', 'Cette commande ne provient pas d’un devis.');
+      return sendPawaPayError(res, 400, 'PAWAPAY_ORDER_PAYMENT_INVALID', 'Cette commande ne provient pas d’un prix à débattre.');
     }
     if (String(order.paymentStatus || '').toUpperCase() === 'PAID_FULL') {
       return sendPawaPayError(res, 409, 'PAWAPAY_ORDER_ALREADY_PAID', 'Cette commande est déjà payée.');
@@ -1020,7 +1026,7 @@ const autoCompleteCheckoutAction = async (checkout) => {
             actionLink: `/seller/orders/detail/${order._id}`,
             entityType: 'order',
             entityId: String(order._id),
-            title: 'Devis payé avec PawaPay',
+            title: 'Prix à débattre payé avec PawaPay',
             message: 'La commande négociée est payée et les fonds sont en séquestre.',
             actionLabel: 'Voir la commande',
             metadata: { orderId: order._id, quotationRequest: order.quotationRequest, paymentSource: 'pawapay' }

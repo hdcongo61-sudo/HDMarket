@@ -3461,7 +3461,7 @@ export default function ProductForm(props) {
                   <DocumentTextIcon className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-gray-900">Autoriser les demandes de devis</p>
+                  <p className="text-sm font-black text-gray-900">Autoriser les demandes de prix à débattre</p>
                   <p className="mt-0.5 text-xs leading-snug text-gray-500">
                     Les acheteurs peuvent négocier un prix privé sans modifier le prix public.
                   </p>
@@ -3469,7 +3469,7 @@ export default function ProductForm(props) {
               </div>
               {renderSwitchButton({
                 checked: Boolean(form.quotationEnabled),
-                label: 'Autoriser les demandes de devis',
+                label: 'Autoriser les demandes de prix à débattre',
                 onChange: (enabled) => setForm((previous) => ({ ...previous, quotationEnabled: enabled }))
               })}
             </div>

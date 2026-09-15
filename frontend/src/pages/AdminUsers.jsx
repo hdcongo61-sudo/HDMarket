@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, ArrowPathIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, EllipsisVerticalIcon, EnvelopeIcon, ExclamationCircleIcon, EyeSlashIcon, HashtagIcon, HeartIcon, KeyIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, NoSymbolIcon, PhoneIcon, PhotoIcon, ShieldExclamationIcon, ShoppingCartIcon, TrophyIcon, TruckIcon, UserIcon, UserMinusIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowLeftOnRectangleIcon, ArrowPathIcon, BuildingStorefrontIcon, CalendarIcon, ChartBarIcon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, EllipsisVerticalIcon, EnvelopeIcon, ExclamationCircleIcon, EyeSlashIcon, GlobeAltIcon, HashtagIcon, HeartIcon, KeyIcon, LockClosedIcon, LockOpenIcon, MagnifyingGlassIcon, MapPinIcon, NoSymbolIcon, PhoneIcon, PhotoIcon, ShieldExclamationIcon, ShoppingCartIcon, TrophyIcon, TruckIcon, UserIcon, UserMinusIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { buildShopPath } from '../utils/links';
 import api from '../services/api';
 import useIsMobile from '../hooks/useIsMobile';
@@ -237,6 +237,11 @@ export default function AdminUsers() {
   const [securityActionKey, setSecurityActionKey] = useState('');
   const isMobileView = useIsMobile(1023);
   const isFounder = authUser?.role === 'founder';
+  const isScopedCountryAdmin =
+    authUser?.role === 'admin' &&
+    Array.isArray(authUser?.adminCountryIds) &&
+    authUser.adminCountryIds.length > 0;
+  const canEditCountryScope = isFounder;
   const canManageUsers = hasAnyPermission(authUser, ['manage_users']);
   const canManagePermissions = hasAnyPermission(authUser, ['manage_permissions']);
   const canManageSellers = hasAnyPermission(authUser, ['manage_sellers']);
@@ -296,6 +301,34 @@ export default function AdminUsers() {
   });
   const [locationTimelineEntries, setLocationTimelineEntries] = useState([]);
   const [locationTimelineLoading, setLocationTimelineLoading] = useState(false);
+
+  // Country scope modal state (which countries an 'admin' may manage)
+  const [countryScopeModal, setCountryScopeModal] = useState({ open: false, user: null });
+  const [countryScopeOptions, setCountryScopeOptions] = useState([]);
+  const [countryScopeSelected, setCountryScopeSelected] = useState([]);
+  const [countryScopeSaving, setCountryScopeSaving] = useState(false);
+
+  // Country admins only see users of their assigned country(ies).
+  const [assignedCountries, setAssignedCountries] = useState([]);
+  useEffect(() => {
+    if (!isScopedCountryAdmin) return;
+    let active = true;
+    api
+      .get('/admin/countries')
+      .then(({ data }) => {
+        if (!active) return;
+        const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+        setAssignedCountries(items);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isScopedCountryAdmin]);
+  const assignedCountryLabel = assignedCountries
+    .map((country) => country?.name || country?.code || '')
+    .filter(Boolean)
+    .join(', ');
 
   useEffect(() => {
     const requestedStatus = searchParams.get('status');
@@ -974,6 +1007,52 @@ export default function AdminUsers() {
     });
   };
 
+  const openCountryScopeModal = async (user) => {
+    if (!user?.id) return;
+    setCountryScopeModal({ open: true, user });
+    setCountryScopeSelected(
+      Array.isArray(user.adminCountryIds) ? user.adminCountryIds.map(String) : []
+    );
+    try {
+      const { data } = await api.get('/admin/countries');
+      setCountryScopeOptions(
+        (data?.items || []).map((country) => ({
+          id: String(country._id || country.id),
+          name: country.name,
+          flag: country.flagEmoji
+        }))
+      );
+    } catch {
+      setCountryScopeOptions([]);
+    }
+  };
+
+  const closeCountryScopeModal = () => setCountryScopeModal({ open: false, user: null });
+
+  const toggleCountryScope = (countryId) =>
+    setCountryScopeSelected((prev) =>
+      prev.includes(countryId) ? prev.filter((item) => item !== countryId) : [...prev, countryId]
+    );
+
+  const saveCountryScope = async () => {
+    const target = countryScopeModal.user;
+    if (!target?.id) return;
+    setCountryScopeSaving(true);
+    setActionError('');
+    try {
+      const { data } = await api.patch(`/admin/users/${target.id}/admin-countries`, {
+        adminCountryIds: countryScopeSelected
+      });
+      upsertUser({ id: target.id, adminCountryIds: data?.adminCountryIds || countryScopeSelected });
+      setActionSuccess(data?.message || 'Pays assignés mis à jour.');
+      closeCountryScopeModal();
+    } catch (requestError) {
+      setActionError(requestError?.response?.data?.message || 'Mise à jour impossible.');
+    } finally {
+      setCountryScopeSaving(false);
+    }
+  };
+
   const handleForcePasswordReset = async (user) => {
     if (!user?.id) return;
     const mode = await appPrompt(
@@ -1510,6 +1589,16 @@ export default function AdminUsers() {
             <ShieldExclamationIcon className="text-purple-500 h-3.5 w-3.5" /> Révoquer admin
           </button>
         )}
+        {canEditCountryScope && targetRole === 'admin' && (
+          <button
+            type="button"
+            onClick={run(() => openCountryScopeModal(user))}
+            disabled={!canTarget}
+            className={itemClass}
+          >
+            <GlobeAltIcon className="text-[#e85d00] h-3.5 w-3.5" /> Pays assignés
+          </button>
+        )}
         {canLockAccounts && (
           isTargetLocked ? (
             <button
@@ -1563,6 +1652,7 @@ export default function AdminUsers() {
   }, [
     canActOnTargetUser,
     canAssignRoles,
+    canEditCountryScope,
     canForceLogout,
     canLockAccounts,
     canManageOrders,
@@ -1590,6 +1680,7 @@ export default function AdminUsers() {
     locationTimelineLoading,
     openAuditModal,
     openConversionModal,
+    openCountryScopeModal,
     openLocationReviewModal,
     openLocationTimelineModal,
     openOrdersModal,
@@ -1658,6 +1749,12 @@ export default function AdminUsers() {
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
                 <MagnifyingGlassIcon className="h-3 w-3" />
                 &quot;{searchTerm}&quot;
+              </span>
+            )}
+            {isScopedCountryAdmin && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF0E4] px-2.5 py-1 text-[11px] font-bold text-[#e85d00]">
+                <GlobeAltIcon className="h-3 w-3" />
+                Pays assigné{assignedCountries.length > 1 ? 's' : ''} : {assignedCountryLabel || '…'}
               </span>
             )}
           </div>
@@ -3171,6 +3268,86 @@ export default function AdminUsers() {
                 })}
               </div>
             )}
+          </div>
+        </BaseModal>
+      )}
+
+      {/* Country Scope Modal */}
+      {countryScopeModal.open && countryScopeModal.user && (
+        <BaseModal
+          isOpen={countryScopeModal.open}
+          onClose={closeCountryScopeModal}
+          size="md"
+          panelClassName="max-h-[90dvh] sm:max-w-lg p-0"
+          ariaLabel="Pays assignés à l'administrateur"
+        >
+          <div className="bg-[#fffaf5] border-b border-[#f0d9c6] px-6 py-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-[#ffe9d6]">
+                  <GlobeAltIcon className="h-6 w-6 text-[#e85d00]" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 mb-1">Pays assignés</h3>
+                  <p className="text-sm text-gray-600">{countryScopeModal.user.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{countryScopeModal.user.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeCountryScopeModal}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-colors"
+                aria-label="Fermer"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <p className="text-sm font-semibold text-gray-600">
+              Cochez les pays que cet admin peut gérer. Sans aucune sélection, il garde l’accès global à toute l’application.
+            </p>
+            <label className="flex items-center justify-between rounded-xl bg-gray-50 p-4 border border-gray-200 cursor-pointer">
+              <span className="font-bold text-gray-800">Accès global — tous les pays</span>
+              <input
+                type="checkbox"
+                checked={countryScopeSelected.length === 0}
+                onChange={() => setCountryScopeSelected([])}
+                className="h-5 w-5 accent-[#e85d00]"
+              />
+            </label>
+            <div className="space-y-2">
+              {countryScopeOptions.map((country) => (
+                <label key={country.id} className="flex items-center justify-between rounded-xl border border-gray-200 p-3 cursor-pointer transition hover:border-[#e85d00]">
+                  <span className="font-semibold text-gray-800">{country.flag} {country.name}</span>
+                  <input
+                    type="checkbox"
+                    checked={countryScopeSelected.includes(country.id)}
+                    onChange={() => toggleCountryScope(country.id)}
+                    className="h-5 w-5 accent-[#e85d00]"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+            <button
+              type="button"
+              onClick={closeCountryScopeModal}
+              className="min-h-11 rounded-xl border border-gray-200 px-4 font-bold text-gray-600"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={saveCountryScope}
+              disabled={countryScopeSaving}
+              className="min-h-11 rounded-xl bg-[#e85d00] px-5 font-black text-white disabled:opacity-50"
+            >
+              {countryScopeSaving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
           </div>
         </BaseModal>
       )}

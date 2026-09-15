@@ -17,6 +17,7 @@ export const SOCIAL_CAMPAIGN_CHANNELS = Object.freeze(['TIKTOK', 'WHATSAPP', 'IN
 // to that specific push, not just the channel in general.
 const socialCampaignSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     name: { type: String, trim: true, required: true, maxlength: 120 },
     shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },

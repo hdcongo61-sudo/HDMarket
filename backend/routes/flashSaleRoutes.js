@@ -1,5 +1,6 @@
 import express from 'express';
-import { protect, admin } from '../middlewares/authMiddleware.js';
+import { optionalProtect, protect, admin } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import {
   listActiveFlashSales,
   getFlashSaleById,
@@ -12,8 +13,8 @@ import {
 const router = express.Router();
 
 // ─── PUBLIC ─────────────────────────────────────────────────
-router.get('/', listActiveFlashSales);
-router.get('/:id', getFlashSaleById);
+router.get('/', optionalProtect, attachCountryContext, listActiveFlashSales);
+router.get('/:id', optionalProtect, attachCountryContext, getFlashSaleById);
 
 // ─── ADMIN ──────────────────────────────────────────────────
 router.get('/admin/list', protect, admin, adminListFlashSales);

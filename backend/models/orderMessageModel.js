@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const orderMessageSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     // Every message now belongs to a Conversation first — `order` is kept as
     // optional denormalized context (still handy for order-scoped queries)
     // rather than the required anchor it used to be. See conversationModel.js.

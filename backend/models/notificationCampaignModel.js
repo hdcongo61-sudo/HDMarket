@@ -80,6 +80,9 @@ const statsSchema = new mongoose.Schema(
 const notificationCampaignSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 120 },
+    // Owning market: each country runs its own campaigns. Null only for legacy
+    // records created before the per-country model (migrated by scripts).
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     message: { type: String, required: true, trim: true, maxlength: 500 },
     shortDescription: { type: String, trim: true, maxlength: 160, default: '' },
     imageUrl: { type: String, trim: true, default: '' },
@@ -113,6 +116,7 @@ const notificationCampaignSchema = new mongoose.Schema(
 );
 
 notificationCampaignSchema.index({ status: 1, createdAt: -1 });
+notificationCampaignSchema.index({ countryId: 1, status: 1, createdAt: -1 });
 notificationCampaignSchema.index({ 'schedule.startAt': 1, status: 1 });
 notificationCampaignSchema.index({ createdAt: -1 });
 

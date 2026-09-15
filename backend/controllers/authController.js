@@ -32,6 +32,7 @@ import {
 } from '../utils/notificationService.js';
 import { resolveCanonicalLocation } from '../services/locationSelectionService.js';
 import { resolveCountryContext } from '../services/countryService.js';
+import { findPhoneLoginUser } from '../services/loginUserService.js';
 import { capitalizeName } from '../utils/nameFormatting.js';
 import { enrollUserIfEligible } from '../services/onboardingService.js';
 
@@ -478,12 +479,9 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
   const isEmailIdentifier = rawIdentifier.includes('@');
-  const loginCountry = !isEmailIdentifier
-    ? await resolveCountryContext({ requestedCountry: req.body?.countryId || req.body?.countryCode || null, user: null })
-    : null;
   const user = isEmailIdentifier
     ? await User.findOne({ email: rawIdentifier.toLowerCase() })
-    : await User.findOne({ phone: { $in: buildPhoneCandidates(rawIdentifier, loginCountry.country.phoneCode) } });
+    : await findPhoneLoginUser(rawIdentifier, req.body?.countryId || req.body?.countryCode || null);
 
   // Temporary brute-force cooldown — checked before the password itself so a
   // locked-out attacker learns nothing about whether their guess was right.

@@ -48,7 +48,7 @@ export const CountryProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.selectedCountryId]);
+  }, [user?.selectedCountryId, user?.role, user?.id, user?._id]);
 
   useEffect(() => {
     loadCountries();
@@ -110,12 +110,12 @@ export const CountryProvider = ({ children }) => {
     currency: country?.currency || null,
     loading,
     error,
-    needsConfirmation,
+    needsConfirmation: user?.role === 'founder' ? false : needsConfirmation,
     confirmCountry,
     changeCountry,
     reloadCountries: loadCountries,
     isCountryFeatureEnabled
-  }), [changeCountry, confirmCountry, countries, country, error, isCountryFeatureEnabled, loadCountries, loading, needsConfirmation]);
+  }), [changeCountry, confirmCountry, countries, country, error, isCountryFeatureEnabled, loadCountries, loading, needsConfirmation, user?.role]);
 
   return <CountryContext.Provider value={value}>{children}</CountryContext.Provider>;
 };

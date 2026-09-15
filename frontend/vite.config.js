@@ -23,6 +23,13 @@ export default defineConfig({
     __HDMARKET_BUILD_ID__: JSON.stringify(buildId)
   },
   plugins: [
+    {
+      name: 'local-development-manifest',
+      apply: 'serve',
+      transformIndexHtml(html) {
+        return html.replace(/<link rel="manifest"[^>]*>/, '<link rel="manifest" href="/manifest.webmanifest" />');
+      }
+    },
     tailwindcss(),
     ...(sentryUploadEnabled
       ? [
@@ -54,6 +61,7 @@ export default defineConfig({
     // Only emitted for release builds, where the plugin above uploads and then
     // deletes them. Left off locally to keep dist/ small and build times down.
     sourcemap: sentryUploadEnabled,
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -66,6 +74,9 @@ export default defineConfig({
           if (id.includes('@tanstack/react-query')) return 'vendor-query';
           if (id.includes('socket.io-client')) return 'vendor-socket';
           if (id.includes('firebase')) return 'vendor-firebase';
+          // Heavy optional libraries — only loaded when their feature opens.
+          if (id.includes('@huggingface') || id.includes('transformers') || id.includes('onnxruntime')) return 'vendor-ml';
+          if (id.includes('heic2any') || id.includes('hls.js') || id.includes('/hls/')) return 'vendor-media';
           if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
             return 'vendor-react';
           }

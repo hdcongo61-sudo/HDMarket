@@ -39,6 +39,7 @@ import {
   invalidateUserCache
 } from '../utils/cache.js';
 import { buildAdminOrderFilter as buildAdvancedAdminOrderFilter } from '../services/adminOrderAutomationService.js';
+import { getAdminCountryFilter } from '../services/countryService.js';
 import { getRuntimeConfig } from '../services/configService.js';
 import {
   assertSellerCanSubmitDeliveryProof,
@@ -2783,6 +2784,9 @@ export const adminListOrders = asyncHandler(async (req, res) => {
     delayed,
     priority
   });
+  // Country admins only see their market's orders.
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
 
   const pageNumber = Math.max(1, Number(page) || 1);
   const pageSize = Math.max(1, Math.min(Number(limit) || 20, 100));

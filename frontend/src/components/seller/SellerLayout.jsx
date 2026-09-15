@@ -9,7 +9,7 @@ const groups = [
     items: [
       { to: '/seller/products', label: 'Mes annonces', short: 'Annonces', icon: CubeIcon },
       { to: '/seller/orders', label: 'Commandes', short: 'Commandes', icon: ShoppingBagIcon },
-      { to: '/seller/quotations', label: 'Demandes de devis', short: 'Devis', icon: DocumentTextIcon },
+      { to: '/seller/quotations', label: 'Demandes de prix à débattre', short: 'Prix à débattre', icon: DocumentTextIcon },
       { to: '/seller/analytics', label: 'Statistiques', short: 'Stats', icon: ChartBarIcon }
     ]
   },

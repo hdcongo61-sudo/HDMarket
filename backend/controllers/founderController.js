@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
 import User from '../models/userModel.js';
 import AuditLog from '../models/auditLogModel.js';
@@ -22,9 +23,10 @@ import AccountTypeChange from '../models/accountTypeChangeModel.js';
 import PhoneBlacklist from '../models/phoneBlacklistModel.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
 import { issuePasswordResetLinkForUser } from '../services/passwordResetService.js';
-import { resolvePermissionsForUser } from '../services/rbacService.js';
+import { ALL_PERMISSIONS, getRolePermissions, resolvePermissionsForUser } from '../services/rbacService.js';
 import { createNotification } from '../utils/notificationService.js';
 import { buildPhoneCandidates, isEmailConfigured, normalizePhone } from '../utils/firebaseVerification.js';
+import { ensureDefaultCountry } from '../services/countryService.js';
 
 const toManagedUser = (user) => ({
   _id: user._id,
@@ -333,6 +335,83 @@ const hardDeleteAccountAndReferences = async ({ targetUser }) => {
   return { deletedCounts, productIdsCount: productIds.length };
 };
 
+/** Founder page: list every admin with their permission set. */
+export const listAdminPermissions = asyncHandler(async (req, res) => {
+  const admins = await User.find({ role: 'admin' })
+    .select('name email phone role permissions permissionMode adminCountryIds isActive createdAt')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  res.json({
+    items: admins.map((admin) => ({
+      id: String(admin._id),
+      name: admin.name,
+      email: admin.email || '',
+      phone: admin.phone,
+      isActive: admin.isActive !== false,
+      adminCountryIds: (admin.adminCountryIds || []).map(String),
+      permissionMode: admin.permissionMode || 'role',
+      permissions: admin.permissions || [],
+      effectivePermissions: resolvePermissionsForUser(admin)
+    })),
+    availablePermissions: ALL_PERMISSIONS,
+    roleDefaults: { admin: getRolePermissions('admin') }
+  });
+});
+
+/** Founder page: set an admin's permission mode and, in custom mode, the exact set. */
+export const updateAdminPermissions = asyncHandler(async (req, res) => {
+  const targetUser = await User.findById(req.params?.id);
+  if (!targetUser) {
+    return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  }
+  if (String(targetUser.role || '') !== 'admin') {
+    return res.status(400).json({ message: 'Seuls les comptes administrateurs peuvent recevoir des permissions.' });
+  }
+
+  const mode = req.body?.permissionMode === 'custom' ? 'custom' : 'role';
+  let permissions = [];
+  if (mode === 'custom') {
+    if (!Array.isArray(req.body?.permissions)) {
+      return res.status(400).json({ message: 'La liste permissions est requise en mode personnalisé.' });
+    }
+    permissions = Array.from(
+      new Set(req.body.permissions.filter((item) => ALL_PERMISSIONS.includes(item)))
+    );
+  }
+
+  const previousValue = {
+    permissionMode: targetUser.permissionMode || 'role',
+    permissions: Array.isArray(targetUser.permissions) ? targetUser.permissions : []
+  };
+  targetUser.permissionMode = mode;
+  targetUser.permissions = permissions;
+  targetUser.sessionsInvalidatedAt = new Date();
+  targetUser.updatedBy = req.user.id;
+  targetUser.lastModifiedBy = req.user.id;
+  await targetUser.save();
+
+  await createAuditLogEntry({
+    performedBy: req.user.id,
+    targetUser: targetUser._id,
+    actionType: 'admin_permissions_updated',
+    previousValue,
+    newValue: { permissionMode: mode, permissions },
+    req
+  });
+
+  res.json({
+    success: true,
+    item: {
+      id: String(targetUser._id),
+      name: targetUser.name,
+      permissionMode: mode,
+      permissions,
+      effectivePermissions: resolvePermissionsForUser(targetUser)
+    }
+  });
+});
+
 export const promoteAdmin = asyncHandler(async (req, res) => {
   const targetUser = await User.findById(getTargetUserId(req));
   if (!targetUser) {
@@ -349,6 +428,19 @@ export const promoteAdmin = asyncHandler(async (req, res) => {
     targetUser.role = 'admin';
     targetUser.updatedBy = req.user.id;
     targetUser.lastModifiedBy = req.user.id;
+    await targetUser.save();
+  }
+
+  // Admins are embedded in a country. A promoted admin without any country is
+  // registered to the default market (or the requested one) so they can work.
+  const scopedIds = (targetUser.adminCountryIds || []).map(String);
+  if (!scopedIds.length) {
+    const requested = String(req.body?.countryId || '').trim();
+    const fallback = mongoose.isValidObjectId(requested)
+      ? requested
+      : String((await ensureDefaultCountry())._id);
+    targetUser.adminCountryIds = [...scopedIds, fallback];
+    targetUser.sessionsInvalidatedAt = new Date();
     await targetUser.save();
   }
 

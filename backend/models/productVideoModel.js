@@ -39,6 +39,7 @@ const countersSchema = new mongoose.Schema(
 
 const productVideoSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
     uploadSessionId: { type: String, trim: true },
     productPins: { type: [productPinSchema], default: [] },

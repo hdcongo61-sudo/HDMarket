@@ -27,6 +27,7 @@ import {
   verifyPawaPaySignature
 } from '../controllers/pawapayController.js';
 import { getPawaPayConfig } from '../services/pawapayService.js';
+import { getPawaPayConfigCheckHandler } from '../controllers/pawapayController.js';
 import {
   listSellerPayoutsAdmin,
   refreshSellerPayoutAdmin,
@@ -87,6 +88,8 @@ router.post(
 );
 router.get('/pawapay/checkouts/by-code/:checkoutCode', protect, getMyPawaPayCheckoutByCode);
 router.get('/pawapay/checkouts/:checkoutId', protect, getMyPawaPayCheckout);
+// Diagnostic (no financial call): config, signing status and public-key fingerprint.
+router.get('/pawapay/config-check', protect, requirePaymentVerification, getPawaPayConfigCheckHandler);
 router.get('/pawapay/admin/overview', protect, getAdminPawaPayOverview);
 router.post('/pawapay/admin/checkouts/:checkoutId/refresh', protect, requirePaymentVerification, refreshPawaPayCheckoutAdmin);
 router.post('/pawapay/admin/checkouts/:checkoutId/retry-completion', protect, requirePaymentVerification, retryPawaPayCheckoutCompletionAdmin);

@@ -32,6 +32,7 @@ const disputeFileSchema = new mongoose.Schema(
 
 const disputeSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, unique: true },
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },

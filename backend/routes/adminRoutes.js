@@ -16,6 +16,7 @@ import {
   updateShopVerification,
   listVerifiedShopsAdmin,
   updateUserRole,
+  updateUserAdminCountries,
   updateAllProductSalesCount,
   listPaymentVerifiers,
   togglePaymentVerifier,
@@ -147,6 +148,7 @@ import {
   getAdminFeatureFlags,
   patchAdminRuntimeSetting,
   patchAdminRuntimeSettingsBulk,
+  deleteAdminRuntimeSettingCountryOverride,
   patchAdminFeatureFlag
 } from '../controllers/configController.js';
 import {
@@ -190,6 +192,20 @@ import {
 
 const router = express.Router();
 const adminMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
+
+// Country-scoped admins (role 'admin' with assigned adminCountryIds) may only
+// manage their countries. `/countries*` is served by the adminCountryRoutes
+// router mounted after this one, so those paths fall through; the city and
+// commune endpoints are needed by the country detail page and enforce their
+// own country checks inside the controllers.
+//
+// Authentication must run first so the gate can inspect req.user — every route
+// in this router is admin-only anyway, so an early protect is harmless.
+// Country admins get full admin-page access. Every admin route keeps its own
+// role/permission middleware, and country-owned data endpoints (stats, users,
+// orders, products, campaigns, promo codes…) apply the admin's country filter.
+// Founder-only surfaces stay guarded by requireGlobalAdmin / founder routes.
+router.use(protect);
 
 // Online presence stats - must be registered early (same access as dashboard)
 router.get('/online-stats', protect, (req, res, next) => {
@@ -416,6 +432,18 @@ router.patch(
   adminMutationIdempotency,
   updateUserRole
 );
+router.patch(
+  '/users/:id/admin-countries',
+  validate(schemas.idParam, 'params'),
+  validate(
+    Joi.object({
+      adminCountryIds: Joi.array().items(Joi.string().trim().min(1).max(60)).max(100).default([])
+    }),
+    'body'
+  ),
+  adminMutationIdempotency,
+  updateUserAdminCountries
+);
 router.post(
   '/users/:id/promote-delivery-guy',
   validate(schemas.idParam, 'params'),
@@ -506,6 +534,7 @@ router.patch('/settings/:key', adminMutationIdempotency, updateAdminSetting);
 router.get('/config/runtime', getAdminRuntimeSettings);
 router.get('/config/feature-flags', getAdminFeatureFlags);
 router.patch('/config/runtime', adminMutationIdempotency, patchAdminRuntimeSettingsBulk);
+router.delete('/config/runtime/:key', adminMutationIdempotency, deleteAdminRuntimeSettingCountryOverride);
 router.patch('/config/runtime/:key', adminMutationIdempotency, patchAdminRuntimeSetting);
 router.patch('/config/feature-flags/:featureName', adminMutationIdempotency, patchAdminFeatureFlag);
 router.get('/categories/tree', getAdminCategoryTree);

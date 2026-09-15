@@ -66,6 +66,10 @@ const userSchema = new mongoose.Schema(
       reviewNote: { type: String, trim: true, default: '' }
     },
     permissions: { type: [String], default: [], index: true },
+    // 'role' → effective permissions = role defaults + permissions (legacy
+    // additive). 'custom' → permissions is the exact effective set, managed
+    // by the founder from the admin permissions page.
+    permissionMode: { type: String, enum: ['role', 'custom'], default: 'role' },
     isActive: { type: Boolean, default: true, index: true },
     deactivatedAt: { type: Date, default: null },
     deactivationSource: {

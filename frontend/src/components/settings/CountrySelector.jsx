@@ -2,17 +2,20 @@ import React, { useContext, useEffect, useState } from 'react';
 import { CheckIcon, ChevronDownIcon, GlobeAltIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCountry } from '../../context/CountryContext';
 import CartContext from '../../context/CartContext';
+import AuthContext from '../../context/AuthContext';
 
 export default function CountrySelector({ compact = false, className = '' }) {
   const { country, countries, changeCountry, confirmCountry, needsConfirmation, loading } = useCountry();
   const { cart } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (user?.role === 'founder') { setOpen(false); return; }
     if (needsConfirmation && country) setOpen(true);
-  }, [country, needsConfirmation]);
+  }, [country, needsConfirmation, user?.role]);
 
   const choose = async (next) => {
     if (String(next.id || next._id) === String(country?.id || country?._id)) {

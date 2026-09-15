@@ -9,6 +9,12 @@ import {
   previewMarketplacePromoForOrder
 } from '../utils/marketplacePromoCodeService.js';
 import { getWholesalePricing } from '../utils/wholesaleUtils.js';
+import {
+  assertCountryRecordAccess,
+  buildCountryDataFilter,
+  getAdminCountryFilter,
+  resolveAdminCountryScope
+} from '../services/countryService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -520,6 +526,8 @@ export const getMarketplacePromoHomeData = asyncHandler(async (req, res) => {
   const weekEnd = getEndOfWeek(now);
   const shopLimit = Math.max(1, Math.min(Number(req.query?.shopLimit) || 8, 20));
   const flashLimit = Math.max(1, Math.min(Number(req.query?.flashLimit) || 8, 20));
+  // Users only see promos from the country they are registered in.
+  const countryFilter = req.countryContext ? buildCountryDataFilter(req.countryContext) : null;
 
   const [shopPromos, productPromos, boutiquePromos] = await Promise.all([
     MarketplacePromoCode.aggregate([
@@ -527,7 +535,8 @@ export const getMarketplacePromoHomeData = asyncHandler(async (req, res) => {
         $match: {
           isActive: true,
           startDate: { $lte: weekEnd },
-          endDate: { $gte: weekStart }
+          endDate: { $gte: weekStart },
+          ...(countryFilter || {})
         }
       },
       {
@@ -557,7 +566,8 @@ export const getMarketplacePromoHomeData = asyncHandler(async (req, res) => {
       appliesTo: 'product',
       startDate: { $lte: now },
       endDate: { $gte: now },
-      productId: { $ne: null }
+      productId: { $ne: null },
+      ...(countryFilter || {})
     })
       .select('code discountType discountValue endDate startDate productId boutiqueId appliesTo')
       .sort({ endDate: 1, createdAt: -1 })
@@ -567,7 +577,8 @@ export const getMarketplacePromoHomeData = asyncHandler(async (req, res) => {
       isActive: true,
       appliesTo: 'boutique',
       startDate: { $lte: now },
-      endDate: { $gte: now }
+      endDate: { $gte: now },
+      ...(countryFilter || {})
     })
       .select('code discountType discountValue endDate startDate boutiqueId appliesTo')
       .sort({ endDate: 1, createdAt: -1 })
@@ -628,7 +639,7 @@ export const getMarketplacePromoHomeData = asyncHandler(async (req, res) => {
 
   const [productPromoProducts, boutiqueProducts] = await Promise.all([
     candidateProductIds.length
-      ? Product.find({ _id: { $in: candidateProductIds }, status: 'approved' })
+      ? Product.find({ _id: { $in: candidateProductIds }, status: 'approved', ...(countryFilter || {}) })
           .select('title price priceBeforeDiscount discount images user slug category condition')
           .populate('user', 'name shopName shopLogo slug accountType')
           .lean()
@@ -638,7 +649,8 @@ export const getMarketplacePromoHomeData = asyncHandler(async (req, res) => {
           {
             $match: {
               status: 'approved',
-              user: { $in: boutiqueIds.map((id) => new mongoose.Types.ObjectId(id)) }
+              user: { $in: boutiqueIds.map((id) => new mongoose.Types.ObjectId(id)) },
+              ...(countryFilter || {})
             }
           },
           { $sort: { discount: -1, createdAt: -1 } },
@@ -846,6 +858,10 @@ export const listAdminPromoCodes = asyncHandler(async (req, res) => {
   const now = new Date();
 
   const filter = {};
+  // Country scope: scoped admins only see their countries' codes; the founder
+  // sees everything unless a countryId is requested.
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
   const searchTerm = String(search || '').trim();
   if (searchTerm) {
     const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -899,9 +915,11 @@ export const listAdminPromoCodes = asyncHandler(async (req, res) => {
 export const getAdminPromoAnalytics = asyncHandler(async (req, res) => {
   ensureAdminPromoAccess(req);
   const now = new Date();
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   const [overview, topCodes] = await Promise.all([
     MarketplacePromoCode.aggregate([
+      ...(countryFilter ? [{ $match: countryFilter }] : []),
       {
         $group: {
           _id: null,
@@ -929,7 +947,8 @@ export const getAdminPromoAnalytics = asyncHandler(async (req, res) => {
       {
         $match: {
           isDraft: { $ne: true },
-          'appliedPromoCode.code': { $exists: true, $ne: '' }
+          'appliedPromoCode.code': { $exists: true, $ne: '' },
+          ...(countryFilter || {})
         }
       },
       {
@@ -962,12 +981,14 @@ export const getAdminPromoAnalytics = asyncHandler(async (req, res) => {
 export const getAdminPromoUsage = asyncHandler(async (req, res) => {
   ensureAdminPromoAccess(req);
   const limit = Math.min(50, Math.max(1, Number(req.query?.limit) || 10));
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   const items = await Order.aggregate([
     {
       $match: {
         isDraft: { $ne: true },
-        'appliedPromoCode.code': { $exists: true, $ne: '' }
+        'appliedPromoCode.code': { $exists: true, $ne: '' },
+        ...(countryFilter || {})
       }
     },
     {
@@ -1009,6 +1030,9 @@ export const createAdminPromoCode = asyncHandler(async (req, res) => {
   if (!boutiqueId) {
     return res.status(400).json({ message: 'boutiqueId est requis pour créer un code promo.' });
   }
+  // Codes are country-owned: scoped admins write to their market, the founder
+  // defaults to the platform's default country when none is given.
+  const { countryId } = await resolveAdminCountryScope(req, { defaultToDefaultCountry: true });
 
   const rawCode = req.body?.code || req.body?.codePrefix;
   const normalizedCode = normalizeMarketplacePromoCode(rawCode);
@@ -1033,6 +1057,7 @@ export const createAdminPromoCode = asyncHandler(async (req, res) => {
   const promo = await MarketplacePromoCode.create({
     code: normalizedCode,
     boutiqueId,
+    countryId,
     appliesTo: req.body?.appliesTo === 'product' ? 'product' : 'boutique',
     productId: req.body?.appliesTo === 'product' ? toObjectId(req.body?.productId) : null,
     discountType,
@@ -1057,6 +1082,7 @@ export const updateAdminPromoCode = asyncHandler(async (req, res) => {
 
   const promo = await MarketplacePromoCode.findById(id);
   if (!promo) return res.status(404).json({ message: 'Code promo introuvable.' });
+  assertCountryRecordAccess(promo, req);
 
   if (req.body?.code !== undefined) {
     const normalizedCode = normalizeMarketplacePromoCode(req.body.code);
@@ -1094,6 +1120,7 @@ export const toggleAdminPromoCode = asyncHandler(async (req, res) => {
 
   const promo = await MarketplacePromoCode.findById(id);
   if (!promo) return res.status(404).json({ message: 'Code promo introuvable.' });
+  assertCountryRecordAccess(promo, req);
 
   promo.isActive = typeof req.body?.isActive === 'boolean' ? req.body.isActive : !promo.isActive;
   await promo.save();

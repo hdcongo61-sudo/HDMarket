@@ -13,7 +13,7 @@ const isSseEndpoint = (req) =>
   SSE_PATHS.some((p) => req.originalUrl?.includes(p));
 
 const USER_SESSION_FIELDS =
-  'name email phone phoneVerified role permissions accountType profileImage gender ' +
+  'name email phone phoneVerified role permissions permissionMode accountType profileImage gender ' +
   'isActive isBlocked blockedReason isLocked lockReason sessionsInvalidatedAt ' +
   'canReadFeedback canVerifyPayments canManageBoosts canManageComplaints ' +
   'canManageProducts canManageDelivery canManageChatTemplates canManageHelpCenter ' +

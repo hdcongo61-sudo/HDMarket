@@ -30,6 +30,7 @@ import {
   uploadProductVideos
 } from '../controllers/productVideoController.js';
 import { admin, optionalProtect, protect } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import { requireFeatureAccess } from '../middlewares/featureFlagMiddleware.js';
 import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
 import { upload } from '../utils/upload.js';
@@ -37,7 +38,7 @@ import { upload } from '../utils/upload.js';
 const router = express.Router();
 const productVideoMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
 
-router.use(optionalProtect, requireFeatureAccess('product_videos'));
+router.use(optionalProtect, attachCountryContext, requireFeatureAccess('product_videos'));
 
 router.get('/capabilities', getProductVideoCapabilities);
 router.get('/feed', getProductVideoFeed);

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const refundSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     refundId: { type: String, required: true, unique: true, trim: true },
     depositId: { type: String, required: true, trim: true, index: true },
     checkoutId: { type: String, trim: true, default: '', index: true },

@@ -32,9 +32,19 @@ const makeScopedStorageKey = (key, environment = 'all') => {
   return `${env}:${key}`;
 };
 
-const makeCacheKey = ({ type = 'setting', environment = 'all', key = '' }) => {
+// Country-scoped runtime settings live under `country:{countryId}:{env}:{key}`
+// in the same AppSetting collection — deterministic keys, no schema migration.
+const makeCountryScopedStorageKey = (key, environment = 'all', countryId = '') => {
+  const country = String(countryId || '').trim();
+  if (!country) return makeScopedStorageKey(key, environment);
   const env = normalizeEnv(environment);
-  return `${CACHE_PREFIX}${type}:${env}:${String(key || '').trim()}`;
+  return `country:${country}:${env}:${key}`;
+};
+
+const makeCacheKey = ({ type = 'setting', environment = 'all', key = '', countryId = '' }) => {
+  const env = normalizeEnv(environment);
+  const country = String(countryId || '').trim() || 'global';
+  return `${CACHE_PREFIX}${type}:${env}:${country}:${String(key || '').trim()}`;
 };
 
 const getHot = (cacheKey) => {
@@ -143,21 +153,33 @@ const buildSettingResponse = ({ key, value, environment = 'all' }) => {
   };
 };
 
-const fetchSettingFromDb = async ({ key, environment = 'all' }) => {
+const fetchSettingFromDb = async ({ key, environment = 'all', countryId = '' }) => {
   const canonicalKey = resolveAliasKey(key);
   const env = normalizeEnv(environment);
+  const country = String(countryId || '').trim();
 
+  const countryEnvKey = country ? makeCountryScopedStorageKey(canonicalKey, env, country) : '';
+  const countryAllKey = country ? makeCountryScopedStorageKey(canonicalKey, 'all', country) : '';
   const primaryScopedKey = makeScopedStorageKey(canonicalKey, env);
   const fallbackScopedKey = makeScopedStorageKey(canonicalKey, 'all');
   const legacyMirrorKey = RUNTIME_SETTING_LEGACY_MIRRORS[canonicalKey] || String(key || '').trim();
 
-  const candidates = [primaryScopedKey, fallbackScopedKey, canonicalKey, legacyMirrorKey].filter(Boolean);
+  const candidates = [
+    countryEnvKey,
+    countryAllKey,
+    primaryScopedKey,
+    fallbackScopedKey,
+    canonicalKey,
+    legacyMirrorKey
+  ].filter(Boolean);
   const docs = await AppSetting.find({ key: { $in: candidates } })
     .sort({ updatedAt: -1 })
     .lean();
 
   const byKey = new Map(docs.map((entry) => [entry.key, entry]));
   return (
+    byKey.get(countryEnvKey) ||
+    byKey.get(countryAllKey) ||
     byKey.get(primaryScopedKey) ||
     byKey.get(fallbackScopedKey) ||
     byKey.get(canonicalKey) ||
@@ -171,7 +193,8 @@ export const getRuntimeConfig = async (key, options = {}) => {
   if (!canonicalKey) return options.fallback ?? null;
 
   const env = normalizeEnv(options.environment);
-  const cacheKey = makeCacheKey({ type: 'setting', environment: env, key: canonicalKey });
+  const countryId = String(options.countryId || '').trim();
+  const cacheKey = makeCacheKey({ type: 'setting', environment: env, key: canonicalKey, countryId });
 
   const hot = getHot(cacheKey);
   if (hot !== null) return hot;
@@ -181,7 +204,7 @@ export const getRuntimeConfig = async (key, options = {}) => {
     return setHot(cacheKey, redisValue);
   }
 
-  const record = await fetchSettingFromDb({ key: canonicalKey, environment: env });
+  const record = await fetchSettingFromDb({ key: canonicalKey, environment: env, countryId });
   const metadata = getRuntimeSettingMetadata(canonicalKey);
   const fallbackFromCatalog = metadata ? metadata.defaultValue : undefined;
   const fallback =
@@ -224,8 +247,11 @@ export const setRuntimeConfig = async (key, value, options = {}) => {
 
   const metadata = validation.metadata || getRuntimeSettingMetadata(canonicalKey) || {};
   const env = normalizeEnv(options.environment);
+  const country = String(options.countryId || '').trim();
   const actorId = options.updatedBy || null;
-  const storageKey = makeScopedStorageKey(canonicalKey, env);
+  const storageKey = country
+    ? makeCountryScopedStorageKey(canonicalKey, env, country)
+    : makeScopedStorageKey(canonicalKey, env);
 
   const payload = {
     key: storageKey,
@@ -245,7 +271,7 @@ export const setRuntimeConfig = async (key, value, options = {}) => {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  if (options.syncLegacyAlias && RUNTIME_SETTING_LEGACY_MIRRORS[canonicalKey]) {
+  if (options.syncLegacyAlias && !country && RUNTIME_SETTING_LEGACY_MIRRORS[canonicalKey]) {
     const legacyKey = RUNTIME_SETTING_LEGACY_MIRRORS[canonicalKey];
     await AppSetting.findOneAndUpdate(
       { key: legacyKey },
@@ -282,10 +308,28 @@ export const setRuntimeConfig = async (key, value, options = {}) => {
   return buildSettingResponse({ key: canonicalKey, value: validation.value, environment: env });
 };
 
+// Removes the country-scoped override for a key so it falls back to the
+// platform-wide value again. Returns the number of deleted records.
+export const deleteRuntimeConfigCountryOverride = async (key, options = {}) => {
+  const canonicalKey = resolveAliasKey(key);
+  if (!canonicalKey) return 0;
+  const country = String(options.countryId || '').trim();
+  if (!country) return 0;
+  const env = normalizeEnv(options.environment);
+  const storageKeys = [
+    makeCountryScopedStorageKey(canonicalKey, env, country),
+    makeCountryScopedStorageKey(canonicalKey, 'all', country)
+  ];
+  const result = await AppSetting.deleteMany({ key: { $in: storageKeys } });
+  await invalidateRuntimeConfigCache(canonicalKey);
+  return Number(result?.deletedCount || 0);
+};
+
 export const listRuntimeConfigs = async (options = {}) => {
   const env = normalizeEnv(options.environment);
   const includeHidden = Boolean(options.includeHidden);
   const categoryFilter = String(options.category || '').trim();
+  const country = String(options.countryId || '').trim();
 
   const keysInCatalog = Object.keys(RUNTIME_SETTINGS_CATALOG);
   const scopedKeys = [
@@ -293,8 +337,14 @@ export const listRuntimeConfigs = async (options = {}) => {
     ...keysInCatalog,
     ...keysInCatalog.map((key) => makeScopedStorageKey(key, 'all'))
   ];
+  if (country) {
+    scopedKeys.push(
+      ...keysInCatalog.map((key) => makeCountryScopedStorageKey(key, env, country)),
+      ...keysInCatalog.map((key) => makeCountryScopedStorageKey(key, 'all', country))
+    );
+  }
 
-  const records = await AppSetting.find({ key: { $in: scopedKeys } }).lean();
+  const records = await AppSetting.find({ key: { $in: Array.from(new Set(scopedKeys)) } }).lean();
   const byStorageKey = new Map(records.map((record) => [record.key, record]));
 
   const payload = keysInCatalog
@@ -303,9 +353,16 @@ export const listRuntimeConfigs = async (options = {}) => {
       if (!includeHidden && metadata.hidden) return null;
       if (categoryFilter && metadata.category !== categoryFilter) return null;
 
+      const countryEnvKey = country ? makeCountryScopedStorageKey(key, env, country) : '';
+      const countryAllKey = country ? makeCountryScopedStorageKey(key, 'all', country) : '';
       const scopedKey = makeScopedStorageKey(key, env);
       const fallbackKey = makeScopedStorageKey(key, 'all');
-      const found = byStorageKey.get(scopedKey) || byStorageKey.get(fallbackKey) || byStorageKey.get(key);
+      const found =
+        (countryEnvKey && byStorageKey.get(countryEnvKey)) ||
+        (countryAllKey && byStorageKey.get(countryAllKey)) ||
+        byStorageKey.get(scopedKey) ||
+        byStorageKey.get(fallbackKey) ||
+        byStorageKey.get(key);
       const resolvedValue = coerceSettingValue(
         key,
         found?.value !== undefined ? found.value : metadata.defaultValue
@@ -326,7 +383,8 @@ export const listRuntimeConfigs = async (options = {}) => {
         environment: found?.environment || env,
         updatedAt: found?.updatedAt || null,
         updatedBy: found?.updatedBy || null,
-        defaultValue: metadata.defaultValue
+        defaultValue: metadata.defaultValue,
+        countryOverride: Boolean(country && (countryEnvKey && byStorageKey.get(countryEnvKey) || countryAllKey && byStorageKey.get(countryAllKey)))
       };
     })
     .filter(Boolean)
@@ -338,6 +396,7 @@ export const listRuntimeConfigs = async (options = {}) => {
 
   return {
     environment: env,
+    countryId: country || null,
     total: payload.length,
     items: payload
   };
@@ -878,7 +937,11 @@ export const refreshConfigCache = async (keys = []) => {
 
 export const getPublicRuntimeConfig = async (options = {}) => {
   const env = normalizeEnv(options.environment);
-  const settingsPayload = await listRuntimeConfigs({ environment: env, includeHidden: false });
+  const settingsPayload = await listRuntimeConfigs({
+    environment: env,
+    includeHidden: false,
+    countryId: options.countryId
+  });
   const items = Array.isArray(settingsPayload.items) ? settingsPayload.items : [];
 
   const publicItems = items.filter((item) => item.isPublic === true);

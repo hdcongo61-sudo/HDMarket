@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const promoCodeUsageSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     promoCode: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PromoCode',

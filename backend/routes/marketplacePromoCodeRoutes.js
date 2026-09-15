@@ -1,6 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { protect } from '../middlewares/authMiddleware.js';
+import { optionalProtect, protect } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import {
   createMarketplacePromoCode,
@@ -14,7 +15,7 @@ import {
 
 const router = express.Router();
 
-router.get('/public/home', getMarketplacePromoHomeData);
+router.get('/public/home', optionalProtect, attachCountryContext, getMarketplacePromoHomeData);
 
 const promoPreviewLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

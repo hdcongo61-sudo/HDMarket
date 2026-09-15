@@ -12,6 +12,7 @@ import {
 } from '../services/notificationCampaignService.js';
 import { enqueueCampaignDelivery } from '../queues/notificationCampaignQueue.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
+import { getAdminCountryFilter, resolveAdminCountryScope, assertCountryRecordAccess } from '../services/countryService.js';
 
 const actorId = (req) => req.user?.id || req.user?._id || null;
 
@@ -75,6 +76,10 @@ const buildCampaignPayload = (body = {}, actor) => {
 export const listNotificationCampaigns = asyncHandler(async (req, res) => {
   const status = clean(req.query?.status).toLowerCase();
   const filter = NOTIFICATION_CAMPAIGN_STATUSES.includes(status) ? { status } : {};
+  // Campaigns belong to a country. Country admins see their own; the founder
+  // sees everything or one country via ?countryId=.
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
   const page = Math.max(1, Number(req.query?.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query?.limit) || 20));
 
@@ -94,6 +99,7 @@ export const listNotificationCampaigns = asyncHandler(async (req, res) => {
 export const getNotificationCampaign = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id).populate('createdBy', 'name email').lean();
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   res.json({ item: campaign });
 });
 
@@ -110,8 +116,12 @@ export const previewNotificationCampaignAudience = asyncHandler(async (req, res)
 
 export const createNotificationCampaign = asyncHandler(async (req, res) => {
   const payload = buildCampaignPayload(req.body, actorId(req));
+  // Each country owns its campaigns: country admins write to their own market,
+  // the founder defaults to the platform's default country when none is given.
+  const { countryId } = await resolveAdminCountryScope(req, { defaultToDefaultCountry: true });
   const campaign = await NotificationCampaign.create({
     ...payload,
+    countryId,
     createdBy: actorId(req)
   });
   await createAuditLogEntry({
@@ -128,6 +138,7 @@ export const createNotificationCampaign = asyncHandler(async (req, res) => {
 export const updateNotificationCampaign = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id);
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   if (!['draft', 'scheduled', 'paused'].includes(campaign.status)) {
     return res.status(409).json({ message: 'Cette campagne ne peut plus être modifiée.' });
   }
@@ -140,6 +151,7 @@ export const updateNotificationCampaign = asyncHandler(async (req, res) => {
 export const deleteNotificationCampaign = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id);
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   if (!['draft', 'cancelled'].includes(campaign.status)) {
     return res.status(409).json({ message: 'Seules les campagnes brouillon ou annulées peuvent être supprimées.' });
   }
@@ -151,6 +163,7 @@ export const deleteNotificationCampaign = asyncHandler(async (req, res) => {
 export const sendNotificationCampaign = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id);
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   if (!['draft', 'paused'].includes(campaign.status)) {
     return res.status(409).json({
       message: 'Cette campagne a déjà été envoyée ou planifiée.',
@@ -190,6 +203,7 @@ export const sendNotificationCampaign = asyncHandler(async (req, res) => {
 export const pauseNotificationCampaign = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id);
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   if (!['scheduled', 'active'].includes(campaign.status)) {
     return res.status(409).json({ message: 'Seule une campagne planifiée ou active peut être mise en pause.' });
   }
@@ -201,6 +215,7 @@ export const pauseNotificationCampaign = asyncHandler(async (req, res) => {
 export const resumeNotificationCampaign = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id);
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   if (campaign.status !== 'paused') {
     return res.status(409).json({ message: 'Seule une campagne en pause peut être reprise.' });
   }
@@ -213,6 +228,7 @@ export const resumeNotificationCampaign = asyncHandler(async (req, res) => {
 export const cancelNotificationCampaign = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id);
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   if (['completed', 'cancelled'].includes(campaign.status)) {
     return res.status(409).json({ message: 'Cette campagne est déjà terminée ou annulée.' });
   }
@@ -225,6 +241,7 @@ export const cancelNotificationCampaign = asyncHandler(async (req, res) => {
 export const getNotificationCampaignAnalytics = asyncHandler(async (req, res) => {
   const campaign = await NotificationCampaign.findById(req.params.id).lean();
   if (!campaign) return res.status(404).json({ message: 'Campagne introuvable.' });
+  assertCountryRecordAccess(campaign, req);
   const analytics = await computeCampaignAnalytics(req.params.id);
   res.json({
     stats: campaign.stats,

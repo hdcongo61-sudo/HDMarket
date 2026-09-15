@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
+import { buildCountryDataFilter } from '../services/countryService.js';
 import {
   createGroupBuy,
   joinGroupBuy,
@@ -72,6 +73,7 @@ export const getGroupBuysForProduct = asyncHandler(async (req, res) => {
 
 export const getActiveGroupBuys = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, Number(req.query?.limit || 20)));
-  const items = await listActiveGroupBuys({ limit });
+  const countryFilter = req.countryContext ? buildCountryDataFilter(req.countryContext) : null;
+  const items = await listActiveGroupBuys({ limit, countryFilter });
   return res.json({ items });
 });

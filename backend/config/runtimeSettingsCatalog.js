@@ -111,10 +111,10 @@ export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
   },
   pay_for_other_payment_instructions: {
     category: 'checkout',
-    description: 'Instructions Mobile Money affichées au proche qui règle une commande (numéro de dépôt, opérateur…).',
+    description: 'Instructions de paiement PawaPay destinées au proche qui règle une commande.',
     valueType: 'string',
     defaultValue:
-      'Effectuez le dépôt Mobile Money du montant indiqué, puis saisissez le code de transaction (10 chiffres) reçu par SMS.',
+      'Cliquez sur « Continuer avec PawaPay », puis suivez les étapes pour payer avec votre compte Mobile Money. Autorisez le paiement sur votre téléphone. La commande sera réglée automatiquement après confirmation du paiement par PawaPay.',
     isPublic: true,
     maxLength: 300
   },

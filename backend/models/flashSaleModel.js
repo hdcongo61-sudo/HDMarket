@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const flashSaleSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',

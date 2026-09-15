@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getPawaPayCancelPath,
   getPawaPayCheckoutStatusPath,
   getPawaPayErrorPath,
   getPawaPaySuccessPath
@@ -78,5 +79,25 @@ describe('PawaPay error destinations', () => {
         returnPath: 'https://example.com/phishing'
       })
     ).toBe('/orders');
+  });
+});
+
+describe('PawaPay cancel destinations', () => {
+  it('brings a cancelled shopping payment back to the cart', () => {
+    expect(
+      getPawaPayCancelPath({ status: 'CANCELLED', purpose: 'CHECKOUT_FUNDING' })
+    ).toBe('/cart');
+    expect(
+      getPawaPayCancelPath({ status: 'CANCELLED', purpose: 'INSTALLMENT_FUNDING' })
+    ).toBe('/cart');
+  });
+
+  it('keeps non-shopping payments on their own flow', () => {
+    expect(
+      getPawaPayCancelPath({ status: 'CANCELLED', purpose: 'LISTING_FEE_FUNDING' })
+    ).toBeNull();
+    expect(
+      getPawaPayCancelPath({ status: 'FAILED', purpose: 'CHECKOUT_FUNDING' })
+    ).toBeNull();
   });
 });

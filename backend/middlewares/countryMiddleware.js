@@ -15,6 +15,16 @@ export const attachCountryContext = async (req, _res, next) => {
     });
   } catch (error) {
     req.countryContextError = error;
+    // A registered user whose country cannot be resolved must never fall
+    // back to seeing another market's content — deny immediately instead of
+    // letting consumers run unfiltered queries.
+    const registeredUser = Boolean(req.user);
+    if (
+      registeredUser &&
+      ['COUNTRY_UNRESOLVED', 'COUNTRY_ACCESS_DENIED', 'COUNTRY_DISABLED'].includes(error?.code)
+    ) {
+      return next(error);
+    }
   }
   next();
 };

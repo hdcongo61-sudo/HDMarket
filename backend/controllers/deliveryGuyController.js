@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import DeliveryGuy from '../models/deliveryGuyModel.js';
 import Order from '../models/orderModel.js';
 import DeliveryRequest from '../models/deliveryRequestModel.js';
+import { getAdminCountryFilter } from '../services/countryService.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
 const toObjectId = (value = '') => {
@@ -44,6 +45,8 @@ export const listDeliveryGuysAdmin = asyncHandler(async (req, res) => {
 
   const { search = '', page = 1, limit = 20, cityId = '', communeId = '', active = '' } = req.query;
   const filter = {};
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
   const normalizedSearch = normalizeText(search);
   if (normalizedSearch) {
     const regex = new RegExp(normalizedSearch, 'i');

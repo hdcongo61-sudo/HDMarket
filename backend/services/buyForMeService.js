@@ -284,7 +284,7 @@ export const createPaidBuyForMeOrder = async ({ customerId, checkoutId, amountPa
   });
   const estimatedShoppingValue = quote.estimatedShoppingValue;
   if (Math.abs(Number(amountPaid || 0) - quote.total) > 0.01) {
-    throw createHttpError('Le montant payé ne correspond plus au devis. Veuillez réessayer.', 409);
+    throw createHttpError('Le montant payé ne correspond plus au prix à débattre. Veuillez réessayer.', 409);
   }
   const balancePreference = BALANCE_PREFERENCES.includes(String(payload?.balancePreference || '').toUpperCase())
     ? String(payload.balancePreference).toUpperCase()

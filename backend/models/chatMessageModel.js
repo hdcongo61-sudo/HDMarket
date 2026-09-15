@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const chatMessageSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     user: { type: mongoose.Schema.Types.Mixed, ref: 'User', required: false },
     username: { type: String, default: 'Utilisateur' },
     from: {

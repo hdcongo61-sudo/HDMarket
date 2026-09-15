@@ -2639,7 +2639,7 @@ export default function ProductDetails() {
         {quotationAvailable ? (
           <button type="button" onClick={openGroupQuotationModal} className="mt-3 flex min-h-[76px] w-full items-center gap-3 rounded-2xl border border-[#e7ddd0] bg-white px-4 text-left shadow-sm active:scale-[0.99]">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><BuildingStorefrontIcon className="h-6 w-6" /></span>
-            <span className="min-w-0 flex-1"><strong className="block text-[16px] font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span></span>
+            <span className="min-w-0 flex-1"><strong className="block text-[16px] font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378]">Demandez un prix à débattre groupé au vendeur.</span></span>
             <ChevronRightIcon className="h-6 w-6 shrink-0 text-[#a8a29e]" />
           </button>
         ) : null}
@@ -3310,7 +3310,7 @@ export default function ProductDetails() {
           {quotationAvailable ? (
             <div className="border-b border-gray-100 px-2 py-1.5">
               <button type="button" onClick={openQuotationModal} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#e85d00] bg-white text-sm font-black text-[#b3480a] active:scale-[0.98]">
-                <DocumentTextIcon className="h-4 w-4" /> Demander un devis
+                <DocumentTextIcon className="h-4 w-4" /> Demander un prix à débattre
               </button>
             </div>
           ) : null}
@@ -3937,7 +3937,7 @@ className="text-white drop-shadow-md h-5 w-5"
               {quotationAvailable ? (
                 <button type="button" onClick={openGroupQuotationModal} className="flex min-h-[92px] w-full items-center gap-4 rounded-3xl border border-[#e7ddd0] bg-white px-5 text-left shadow-sm transition hover:border-emerald-200 hover:shadow-md active:scale-[0.99]">
                   <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><BuildingStorefrontIcon className="h-7 w-7" /></span>
-                  <span className="min-w-0 flex-1"><strong className="block text-xl font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-1 block text-base font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-xl font-black text-[#231f1b]">Vous revendez ?</strong><span className="mt-1 block text-base font-semibold text-[#8a8378]">Demandez un prix à débattre groupé au vendeur.</span></span>
                   <ChevronRightIcon className="h-7 w-7 shrink-0 text-[#a8a29e]" />
                 </button>
               ) : null}
@@ -4173,7 +4173,7 @@ className="text-white drop-shadow-md h-5 w-5"
                         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#fff0e4] text-[#e85d00]">
                           <DocumentTextIcon className="h-[15px] w-[15px]" />
                         </span>
-                        <span className="truncate leading-tight">Demander un devis</span>
+                        <span className="truncate leading-tight">Demander un prix à débattre</span>
                       </button>
                     ) : null}
 
@@ -5185,7 +5185,7 @@ className={`h-7 w-7 ${star <= userRating
           grouped={quotationMode === 'group'}
           defaultCity={user?.city || product?.city || 'Brazzaville'}
           onCreated={() => {
-            showToast('Demande de devis envoyée au vendeur.', { variant: 'success' });
+            showToast('Demande de prix à débattre envoyée au vendeur.', { variant: 'success' });
             navigate('/my-quotations');
           }}
         />

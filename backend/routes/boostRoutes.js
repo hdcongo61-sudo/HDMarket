@@ -1,5 +1,6 @@
 import express from 'express';
-import { protect } from '../middlewares/authMiddleware.js';
+import { optionalProtect, protect } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { upload } from '../utils/upload.js';
 import {
@@ -13,7 +14,7 @@ import {
 
 const router = express.Router();
 
-router.get('/pricing', listBoostPricingPublic);
+router.get('/pricing', optionalProtect, attachCountryContext, listBoostPricingPublic);
 router.get(
   '/pricing/preview',
   protect,

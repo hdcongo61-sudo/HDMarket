@@ -20,6 +20,21 @@ export const requireFounder = (req, res, next) => {
   return next();
 };
 
+// Founder-only. Country admins (role 'admin') are embedded in their countries
+// and can never act globally.
+export const requireGlobalAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  if (String(req.user.role || '').toLowerCase() === 'founder') {
+    return next();
+  }
+  return res.status(403).json({
+    message: 'Réservé au fondateur (accès global).',
+    code: 'GLOBAL_ADMIN_ONLY'
+  });
+};
+
 export const requirePermission = (permission) => (req, res, next) => {
   if (!req.user) {
     return res.status(403).json({ message: 'Forbidden' });

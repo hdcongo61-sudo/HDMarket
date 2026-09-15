@@ -57,7 +57,7 @@ const notify = ({ quotation, recipientId, actorId, type, title, message, deepLin
     message,
     deepLink,
     actionLink: deepLink,
-    actionLabel: 'Ouvrir le devis',
+    actionLabel: 'Ouvrir le prix à débattre',
     entityType: 'quotation',
     entityId: objectId(quotation),
     metadata: { quotationId: objectId(quotation), deepLink },
@@ -83,8 +83,8 @@ export const expireDueQuotations = async () => {
       recipientId: entry.buyer,
       actorId: entry.seller,
       type: 'quotation_expired',
-      title: 'Devis expiré',
-      message: 'Ce devis ne peut plus être utilisé pour commander.',
+      title: 'Prix à débattre expiré',
+      message: 'Ce prix à débattre ne peut plus être utilisé pour commander.',
       deepLink: '/my-quotations'
     });
     await QuotationRequest.updateOne({ _id: entry._id }, { $set: { expiredNotifiedAt: new Date() } });
@@ -125,7 +125,7 @@ const normalizeRequestedItems = (body = {}) => {
 
 export const createQuotation = asyncHandler(async (req, res) => {
   const requestedItems = normalizeRequestedItems(req.body);
-  if (!requestedItems.length) return res.status(400).json({ message: 'Ajoutez au moins un produit au devis.' });
+  if (!requestedItems.length) return res.status(400).json({ message: 'Ajoutez au moins un produit au prix à débattre.' });
   if (requestedItems.some((entry) => entry.requestedPrice != null && !(entry.requestedPrice > 0))) {
     return res.status(400).json({ message: 'Le prix unitaire souhaité doit être supérieur à zéro.' });
   }
@@ -142,21 +142,21 @@ export const createQuotation = asyncHandler(async (req, res) => {
     .select('title slug images price currency countryId user quotationEnabled status attributes')
     .lean();
   const uniqueRequestedProductIds = new Set(requestedItems.map((entry) => entry.productId));
-  if (products.length !== uniqueRequestedProductIds.size) return res.status(404).json({ message: 'Un produit du devis est introuvable.' });
+  if (products.length !== uniqueRequestedProductIds.size) return res.status(404).json({ message: 'Un produit du prix à débattre est introuvable.' });
   if (products.some((product) => product.status !== 'approved')) {
     return res.status(400).json({ message: 'Tous les produits doivent être disponibles à la vente.' });
   }
   if (products.some((product) => product.quotationEnabled === false)) {
-    return res.status(400).json({ message: 'Un produit ne permet pas les demandes de devis.' });
+    return res.status(400).json({ message: 'Un produit ne permet pas les demandes de prix à débattre.' });
   }
   const sellerIds = new Set(products.map((product) => objectId(product.user)));
-  if (sellerIds.size !== 1) return res.status(400).json({ message: 'Un devis groupé doit concerner une seule boutique.' });
+  if (sellerIds.size !== 1) return res.status(400).json({ message: 'Un prix à débattre groupé doit concerner une seule boutique.' });
   const sellerId = Array.from(sellerIds)[0];
-  if (sellerId === objectId(req.user.id)) return res.status(400).json({ message: 'Vous ne pouvez pas demander un devis à votre propre boutique.' });
+  if (sellerId === objectId(req.user.id)) return res.status(400).json({ message: 'Vous ne pouvez pas demander un prix à débattre à votre propre boutique.' });
   const fallbackCountry = await ensureDefaultCountry();
   const countryIds = new Set(products.map((product) => objectId(product.countryId || fallbackCountry._id)));
   const currencies = new Set(products.map((product) => cleanText(product.currency || fallbackCountry.currency.code, 8).toUpperCase()));
-  if (countryIds.size !== 1) return res.status(409).json({ message: 'Un devis ne peut pas mélanger plusieurs pays.', code: 'CROSS_BORDER_NOT_SUPPORTED' });
+  if (countryIds.size !== 1) return res.status(409).json({ message: 'Un prix à débattre ne peut pas mélanger plusieurs pays.', code: 'CROSS_BORDER_NOT_SUPPORTED' });
   if (currencies.size !== 1) return res.status(409).json({ message: 'Un devis ne peut pas mélanger plusieurs devises.', code: 'CURRENCY_NOT_SUPPORTED' });
   const quotationCountryId = Array.from(countryIds)[0];
   const quotationCurrency = Array.from(currencies)[0];
@@ -220,7 +220,7 @@ export const createQuotation = asyncHandler(async (req, res) => {
     recipientId: sellerId,
     actorId: req.user.id,
     type: 'quotation_request_received',
-    title: 'Nouvelle demande de devis',
+    title: 'Nouvelle demande de prix à débattre',
     message: `${items.length} produit${items.length > 1 ? 's' : ''} à négocier.`,
     deepLink: `/seller/quotations/${quotation._id}`
   });
@@ -250,9 +250,9 @@ export const listSellerQuotations = asyncHandler(async (req, res) => {
 export const getQuotation = asyncHandler(async (req, res) => {
   await expireDueQuotations();
   const quotation = await hydrateQuotation(req.params.id);
-  if (!quotation) return res.status(404).json({ message: 'Devis introuvable.' });
+  if (!quotation) return res.status(404).json({ message: 'Prix à débattre introuvable.' });
   const allowed = isAdmin(req.user) || [objectId(quotation.buyer), objectId(quotation.seller)].includes(objectId(req.user.id));
-  if (!allowed) return res.status(403).json({ message: 'Ce devis ne vous appartient pas.' });
+  if (!allowed) return res.status(403).json({ message: 'Ce prix à débattre ne vous appartient pas.' });
   res.json(quotation);
 });
 
@@ -266,21 +266,21 @@ const resolveValidity = (body = {}) => {
 
 export const sellerRespondQuotation = asyncHandler(async (req, res) => {
   const action = cleanText(req.body?.action, 30).toUpperCase();
-  if (!['ACCEPT', 'REJECT', 'COUNTER'].includes(action)) return res.status(400).json({ message: 'Action de devis invalide.' });
+  if (!['ACCEPT', 'REJECT', 'COUNTER'].includes(action)) return res.status(400).json({ message: 'Action de prix à débattre invalide.' });
   const current = await QuotationRequest.findOne({
     _id: req.params.id,
     seller: req.user.id,
     status: { $in: QUOTATION_SELLER_RESPONSE_STATUSES },
     responseUpdating: { $ne: true }
   });
-  if (!current) return res.status(409).json({ message: 'Ce devis a déjà été traité ou a expiré.' });
+  if (!current) return res.status(409).json({ message: 'Ce prix à débattre a déjà été traité ou a expiré.' });
   if (current.expirationDate && current.expirationDate <= new Date()) {
     current.status = 'EXPIRED';
     await current.save();
-    return res.status(409).json({ message: 'Ce devis est expiré.' });
+    return res.status(409).json({ message: 'Ce prix à débattre est expiré.' });
   }
   const items = await QuotationItem.find({ quotation: current._id });
-  if (!items.length) return res.status(409).json({ message: 'Le devis ne contient aucun produit.' });
+  if (!items.length) return res.status(409).json({ message: 'Le prix à débattre ne contient aucun produit.' });
 
   if (action === 'REJECT') {
     const updated = await QuotationRequest.findOneAndUpdate(
@@ -288,8 +288,8 @@ export const sellerRespondQuotation = asyncHandler(async (req, res) => {
       { $set: { status: 'REJECTED', sellerMessage: cleanText(req.body?.message), rejectedAt: new Date(), respondedAt: new Date() } },
       { new: true }
     );
-    if (!updated) return res.status(409).json({ message: 'Le devis a été modifié. Actualisez la page.' });
-    await notify({ quotation: updated, recipientId: updated.buyer, actorId: req.user.id, type: 'quotation_rejected', title: 'Devis refusé', message: updated.sellerMessage || 'Le vendeur ne peut pas donner suite.', deepLink: '/my-quotations' });
+    if (!updated) return res.status(409).json({ message: 'Le prix à débattre a été modifié. Actualisez la page.' });
+    await notify({ quotation: updated, recipientId: updated.buyer, actorId: req.user.id, type: 'quotation_rejected', title: 'Prix à débattre refusé', message: updated.sellerMessage || 'Le vendeur ne peut pas donner suite.', deepLink: '/my-quotations' });
     return res.json(await hydrateQuotation(updated._id));
   }
 
@@ -323,7 +323,7 @@ export const sellerRespondQuotation = asyncHandler(async (req, res) => {
     { $set: { responseUpdating: true } },
     { new: true }
   );
-  if (!updateLock) return res.status(409).json({ message: 'Le devis est déjà en cours de modification.' });
+  if (!updateLock) return res.status(409).json({ message: 'Le prix à débattre est déjà en cours de modification.' });
   try {
     await Promise.all(items.map((item) => item.save()));
   } catch (error) {
@@ -353,15 +353,15 @@ export const sellerRespondQuotation = asyncHandler(async (req, res) => {
   );
   if (!updated) {
     await QuotationRequest.updateOne({ _id: current._id, responseUpdating: true }, { $set: { responseUpdating: false } });
-    return res.status(409).json({ message: 'Le devis a été modifié. Actualisez la page.' });
+    return res.status(409).json({ message: 'Le prix à débattre a été modifié. Actualisez la page.' });
   }
   await notify({
     quotation: updated,
     recipientId: updated.buyer,
     actorId: req.user.id,
     type: action === 'ACCEPT' ? 'quotation_accepted' : 'quotation_countered',
-    title: action === 'ACCEPT' ? 'Devis accepté par le vendeur' : 'Nouvelle contre-offre',
-    message: updated.sellerMessage || (action === 'ACCEPT' ? 'Votre devis est prêt.' : 'Le vendeur vous propose un nouveau prix.'),
+    title: action === 'ACCEPT' ? 'Prix à débattre accepté par le vendeur' : 'Nouvelle contre-offre',
+    message: updated.sellerMessage || (action === 'ACCEPT' ? 'Votre prix à débattre est prêt.' : 'Le vendeur vous propose un nouveau prix.'),
     deepLink: `/my-quotations/${updated._id}`
   });
   res.json(await hydrateQuotation(updated._id));
@@ -373,7 +373,7 @@ export const buyerRejectQuotation = asyncHandler(async (req, res) => {
     { $set: { status: 'REJECTED', rejectedAt: new Date() } },
     { new: true }
   );
-  if (!updated) return res.status(409).json({ message: 'Ce devis ne peut plus être refusé.' });
+  if (!updated) return res.status(409).json({ message: 'Ce prix à débattre ne peut plus être refusé.' });
   await notify({ quotation: updated, recipientId: updated.seller, actorId: req.user.id, type: 'quotation_rejected', title: 'Offre refusée par l’acheteur', message: 'L’acheteur a décliné votre offre.', deepLink: `/seller/quotations/${updated._id}` });
   res.json(await hydrateQuotation(updated._id));
 });
@@ -391,16 +391,16 @@ export const buyerAcceptCounter = asyncHandler(async (req, res) => {
 
 export const createQuotationOrder = asyncHandler(async (req, res) => {
   const quotation = await QuotationRequest.findOne({ _id: req.params.id, buyer: req.user.id });
-  if (!quotation) return res.status(404).json({ message: 'Devis introuvable.' });
+  if (!quotation) return res.status(404).json({ message: 'Prix à débattre introuvable.' });
   if (quotation.status === 'ORDER_CREATED' && quotation.order) {
     return res.json({ orderId: quotation.order, quotationId: quotation._id, alreadyCreated: true });
   }
   if (!quotationCanCreateOrder(quotation)) {
-    if (quotation.status !== 'ACCEPTED') return res.status(409).json({ message: 'Seul un devis accepté peut créer une commande.' });
-    if (!quotation.pricesLockedAt) return res.status(409).json({ message: 'Les prix de ce devis ne sont pas verrouillés.' });
+    if (quotation.status !== 'ACCEPTED') return res.status(409).json({ message: 'Seul un prix à débattre accepté peut créer une commande.' });
+    if (!quotation.pricesLockedAt) return res.status(409).json({ message: 'Ce prix à débattre n’est pas verrouillé.' });
     quotation.status = 'EXPIRED';
     await quotation.save();
-    return res.status(409).json({ message: 'Ce devis est expiré.' });
+    return res.status(409).json({ message: 'Ce prix à débattre est expiré.' });
   }
   const items = await QuotationItem.find({ quotation: quotation._id });
   const products = await Product.find({ _id: { $in: items.map((item) => item.product) } }).lean();
@@ -412,7 +412,7 @@ export const createQuotationOrder = asyncHandler(async (req, res) => {
     products.some((product) => String(product.user) !== String(quotation.seller) || product.status !== 'approved') ||
     items.some((item) => !(Number(item.quotedPrice) > 0))
   ) {
-    return res.status(409).json({ message: 'Les lignes du devis ne sont pas valides.' });
+    return res.status(409).json({ message: 'Les lignes du prix à débattre ne sont pas valides.' });
   }
   const orderItems = items.map((item) => {
     const product = byId.get(objectId(item.product));
@@ -492,9 +492,9 @@ export const createQuotationOrder = asyncHandler(async (req, res) => {
   );
   if (!finalized) {
     await Order.deleteOne({ _id: order._id, paymentStatus: 'PENDING' });
-    return res.status(409).json({ message: 'Une commande existe déjà pour ce devis.' });
+    return res.status(409).json({ message: 'Une commande existe déjà pour ce prix à débattre.' });
   }
-  await notify({ quotation: finalized, recipientId: finalized.seller, actorId: req.user.id, type: 'quotation_order_created', title: 'Commande issue d’un devis', message: 'L’acheteur a créé sa commande au prix négocié.', deepLink: `/seller/orders/detail/${order._id}` });
+  await notify({ quotation: finalized, recipientId: finalized.seller, actorId: req.user.id, type: 'quotation_order_created', title: 'Commande issue d’un prix à débattre', message: 'L’acheteur a créé sa commande au prix négocié.', deepLink: `/seller/orders/detail/${order._id}` });
   res.status(201).json({ orderId: order._id, quotationId: quotation._id, totalAmount: total });
 });
 

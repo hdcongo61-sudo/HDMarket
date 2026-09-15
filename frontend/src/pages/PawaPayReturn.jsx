@@ -49,6 +49,16 @@ export const getPawaPaySuccessPath = (checkout) => {
 export const getPawaPayErrorPath = (checkout) =>
   safeInternalPath(checkout?.returnPath, '/orders');
 
+const SHOPPING_CANCEL_PURPOSES = new Set(['CHECKOUT_FUNDING', 'INSTALLMENT_FUNDING']);
+
+// When the buyer cancels a cart/checkout payment at PawaPay, send them back to
+// their cart so nothing is lost. Non-shopping payments keep their own flow.
+export const getPawaPayCancelPath = (checkout) => {
+  if (String(checkout?.status || '').toUpperCase() !== 'CANCELLED') return null;
+  const purpose = String(checkout?.purpose || '').toUpperCase();
+  return SHOPPING_CANCEL_PURPOSES.has(purpose) ? '/cart' : null;
+};
+
 export const getPawaPayCheckoutStatusPath = ({ checkoutCode = '', checkoutId = '' } = {}) => {
   const normalizedCode = String(checkoutCode || '').trim();
   if (normalizedCode) {
@@ -156,10 +166,14 @@ export default function PawaPayReturn() {
       : 'Le paiement n’a pas pu être finalisé.'
   );
   const successPath = getPawaPaySuccessPath(checkout);
-  const errorPath = getPawaPayErrorPath(checkout);
-  const failureMessage = creditFailed
-    ? failure.message
-    : checkout?.autoValidationError || failure.message || 'Le paiement PawaPay a échoué.';
+  const cancelled = checkout?.status === 'CANCELLED';
+  const cancelPath = cancelled ? getPawaPayCancelPath(checkout) : null;
+  const errorPath = cancelPath || getPawaPayErrorPath(checkout);
+  const failureMessage = cancelled
+    ? 'Paiement annulé. Vous pouvez reprendre votre panier.'
+    : creditFailed
+      ? failure.message
+      : checkout?.autoValidationError || failure.message || 'Le paiement PawaPay a échoué.';
 
   useEffect(() => {
     if (!completed) return undefined;
@@ -224,11 +238,13 @@ export default function PawaPayReturn() {
             ? 'Vérification du paiement'
             : completed
               ? 'Paiement reçu'
-              : failed || error
-                ? creditFailed
-                  ? 'Paiement à vérifier'
-                  : 'Paiement non finalisé'
-                : 'Paiement en cours'}
+              : cancelled
+                ? 'Paiement annulé'
+                : failed || error
+                  ? creditFailed
+                    ? 'Paiement à vérifier'
+                    : 'Paiement non finalisé'
+                  : 'Paiement en cours'}
         </h1>
         <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
           {error ||
@@ -267,7 +283,7 @@ export default function PawaPayReturn() {
               }
               className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#0b6b4f] px-4 text-sm font-black text-white"
             >
-              {completed ? 'Continuer dans HDMarket' : creditFailed ? 'Retourner dans HDMarket' : 'Réessayer le paiement'}
+              {completed ? 'Continuer dans HDMarket' : creditFailed ? 'Retourner dans HDMarket' : cancelled && cancelPath ? 'Retourner au panier' : 'Réessayer le paiement'}
             </Link>
           ) : (
             <button

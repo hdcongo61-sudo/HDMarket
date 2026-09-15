@@ -158,8 +158,8 @@ export const listActiveGroupBuysForProduct = async (productId) =>
     .populate('members.userId', 'name')
     .lean();
 
-export const listActiveGroupBuys = async ({ limit = 20 } = {}) =>
-  GroupBuy.find({ status: 'open' })
+export const listActiveGroupBuys = async ({ limit = 20, countryFilter = null } = {}) =>
+  GroupBuy.find({ status: 'open', ...(countryFilter || {}) })
     .sort({ createdAt: -1 })
     .limit(limit)
     .populate('productId', 'title price images slug')

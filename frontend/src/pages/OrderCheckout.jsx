@@ -1585,11 +1585,15 @@ export default function OrderCheckout() {
               </span>
             </div>
             {isPawaPayPayment && !isInstallmentPayment && (
-              <div className="rounded-2xl border border-[#e2dcd2] bg-white px-5 py-4">
-                <p className="text-sm font-black text-[#231f1b]">
+              <div className="rounded-2xl bg-[#231f1b] px-5 py-4 text-white shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">Paiement</p>
+                <p className="mt-1.5 text-lg font-black text-white">
                   {t('checkout.paymentPercent', 'Combien payer maintenant ?')}
                 </p>
-                <div className="mt-2 grid grid-cols-3 gap-2">
+                <p className="mt-2 text-[32px] font-black leading-none tracking-tight text-white">
+                  {formatCurrency(pawaPayRequiredAmount)}
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
                   {escrowPaymentChoices.map((percent) => (
                     <button
                       key={percent}
@@ -1597,15 +1601,15 @@ export default function OrderCheckout() {
                       onClick={() => setPaymentPercent(percent)}
                       className={`min-h-11 rounded-xl border text-sm font-black transition ${
                         paymentPercent === percent
-                          ? 'border-[#e85d00] bg-[#fff3ea] text-[#e85d00]'
-                          : 'border-[#e2dcd2] text-[#6b6459]'
+                          ? 'border-white bg-white text-[#231f1b]'
+                          : 'border-white/25 text-white/80 hover:border-white/60'
                       }`}
                     >
                       {percent}%
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-xs font-semibold text-[#8a8378]">
+                <p className="mt-2 text-xs font-semibold text-white/70">
                   {paymentPercent >= 100
                     ? t('checkout.paymentPercentFullHint', 'Paiement intégral — livraison offerte.')
                     : `${t('checkout.remaining', 'Reste à payer')} : ${formatCurrency(pawaPayRemainingAmount)} ${
@@ -1981,7 +1985,7 @@ export default function OrderCheckout() {
                       className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#e85d00] bg-[#fff8f1] px-4 text-sm font-black text-[#d95400]"
                     >
                       <DocumentTextIcon className="h-4 w-4" />
-                      {group.items.length > 1 ? 'Demander un devis groupé' : 'Demander un devis'}
+                      {group.items.length > 1 ? 'Demander un prix à débattre groupé' : 'Demander un prix à débattre'}
                     </button>
                   ) : null}
                   
@@ -2302,47 +2306,53 @@ export default function OrderCheckout() {
           </form>
         </section>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-slate-200 bg-white/95 px-5 py-5 shadow-sm lg:hidden safe-area-bottom">
-        <div className="mx-auto flex max-w-7xl items-center gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-500">
-              {paysWithPawaPay ? 'Paiement PawaPay' : summaryPrimaryPaymentLabel}
-            </p>
-            <p className="truncate text-2xl font-black text-neutral-950">
-              {formatCurrency(pawaPayRequiredAmount)}
-            </p>
-          </div>
-          {paysWithPawaPay ? (
-            <div className="min-w-[184px] shrink-0">
-              <PawaPayButton
-                amount={Math.max(10, Math.ceil(pawaPayRequiredAmount))}
-                purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
-                actionContext={pawaPayActionContext}
-                returnPath="/orders/checkout"
-                label="Payer avec PawaPay"
-                onBeforeStart={validatePawaPayCheckout}
-                className="min-h-[56px] rounded-2xl px-5 text-sm"
-              />
-            </div>
-          ) : (
-            <button
-              type="submit"
-              form="order-checkout-form"
-              disabled={loading}
-              className={`inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl px-7 text-lg font-black text-white active:scale-[0.97] disabled:opacity-60 ${
-                paysWithPawaPay
-                  ? 'bg-emerald-600 shadow-sm'
-                  : 'bg-[#e85d00] shadow-sm'
-              }`}
-            >
-              {loading ? (
-                <div className="h-6 w-6 rounded-full border-[3px] border-white border-t-transparent animate-spin" />
-              ) : (
-                <LockClosedIcon className="h-5 w-5" />
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e2dcd2] bg-white px-4 pb-4 pt-3 shadow-[0_-10px_30px_rgba(35,31,27,0.10)] lg:hidden safe-area-bottom">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8a8378]">
+            {paysWithPawaPay ? 'Paiement · PawaPay' : summaryPrimaryPaymentLabel}
+          </p>
+          <div className="mt-1.5 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold text-[#6b6459]">
+                {t('checkout.paymentPercent', 'Combien payer maintenant ?')}
+              </p>
+              <p className="mt-0.5 truncate text-[28px] font-black leading-none tracking-tight text-[#231f1b]">
+                {formatCurrency(pawaPayRequiredAmount)}
+              </p>
+              {summaryRemainingAmount > 0 && (
+                <p className="mt-1 truncate text-[11px] font-semibold text-[#8a8378]">
+                  {t('checkout.remaining', 'Reste à payer')} : {formatCurrency(summaryRemainingAmount)}
+                </p>
               )}
-              {loading ? t('checkout.validating', 'Validation...') : t('checkout.confirm', 'Confirmer la commande')}
-            </button>
-          )}
+            </div>
+            {paysWithPawaPay ? (
+              <div className="shrink-0">
+                <PawaPayButton
+                  amount={Math.max(10, Math.ceil(pawaPayRequiredAmount))}
+                  purpose={isInstallmentPayment ? 'INSTALLMENT_FUNDING' : 'CHECKOUT_FUNDING'}
+                  actionContext={pawaPayActionContext}
+                  returnPath="/orders/checkout"
+                  label="Payer avec PawaPay"
+                  onBeforeStart={validatePawaPayCheckout}
+                  className="min-h-[56px] rounded-2xl px-5 text-sm"
+                />
+              </div>
+            ) : (
+              <button
+                type="submit"
+                form="order-checkout-form"
+                disabled={loading}
+                className="inline-flex min-h-[56px] min-w-[160px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#e85d00] px-7 text-lg font-black text-white shadow-sm active:scale-[0.97] disabled:opacity-60"
+              >
+                {loading ? (
+                  <div className="h-6 w-6 rounded-full border-[3px] border-white border-t-transparent animate-spin" />
+                ) : (
+                  <LockClosedIcon className="h-5 w-5" />
+                )}
+                {loading ? t('checkout.validating', 'Validation...') : t('checkout.confirm', 'Confirmer la commande')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
       </div>
@@ -2354,7 +2364,7 @@ export default function OrderCheckout() {
         defaultCity={selectedCity?.name || user?.city || 'Brazzaville'}
         onCreated={() => {
           setQuotationProducts([]);
-          showToast('Demande de devis envoyée.', { variant: 'success' });
+          showToast('Demande de prix à débattre envoyée.', { variant: 'success' });
           navigate('/my-quotations');
         }}
       />

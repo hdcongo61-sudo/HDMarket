@@ -33,7 +33,7 @@ export default function MyQuotations() {
       const { data } = await api.get('/quotations/mine', { params: activeTab === 'ALL' ? {} : { status: activeTab } });
       setRows(Array.isArray(data?.items) ? data.items : []);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Impossible de charger vos devis.');
+      setError(requestError.response?.data?.message || 'Impossible de charger vos prix à débattre.');
     } finally {
       setLoading(false);
     }
@@ -84,23 +84,23 @@ export default function MyQuotations() {
           <Link to="/orders" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#ded6ca] bg-white dark:border-neutral-800 dark:bg-neutral-900"><ArrowLeftIcon className="h-5 w-5" /></Link>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#e85d00]">Achats négociés</p>
-            <h1 className="mt-1 text-2xl font-black sm:text-4xl">Mes devis</h1>
+            <h1 className="mt-1 text-2xl font-black sm:text-4xl">Mes prix à débattre</h1>
             <p className="mt-1 text-sm font-medium text-[#797166]">Suivez les propositions et commandez sans modifier le prix public.</p>
           </div>
           {totalPending ? <span className="rounded-full bg-[#e85d00] px-3 py-1.5 text-xs font-black text-white">{totalPending} actif{totalPending > 1 ? 's' : ''}</span> : null}
         </header>
 
-        <nav className="mt-6 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]" aria-label="Statuts des devis">
+        <nav className="mt-6 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]" aria-label="Statuts des prix à débattre">
           {tabs.map(([value, label]) => <button key={value} type="button" onClick={() => setActiveTab(value)} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-black ${activeTab === value ? 'bg-[#231f1b] text-white dark:bg-white dark:text-black' : 'border border-[#ded6ca] bg-white text-[#6b6459] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300'}`}>{label}</button>)}
         </nav>
 
         {error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
-        {loading ? <div className="mt-5 space-y-3" aria-label="Chargement des devis">{[1, 2, 3].map((key) => <div key={key} className="h-44 animate-pulse rounded-3xl bg-white dark:bg-neutral-900" />)}</div> : null}
+        {loading ? <div className="mt-5 space-y-3" aria-label="Chargement des prix à débattre">{[1, 2, 3].map((key) => <div key={key} className="h-44 animate-pulse rounded-3xl bg-white dark:bg-neutral-900" />)}</div> : null}
         {!loading && !rows.length ? (
           <section className="mt-8 rounded-3xl border border-[#e2dcd2] bg-white px-6 py-14 text-center dark:border-neutral-800 dark:bg-neutral-900">
             <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#fff0e4] text-[#e85d00]"><DocumentTextIcon className="h-7 w-7" /></span>
-            <h2 className="mt-5 text-xl font-black">Aucun devis ici</h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-[#797166]">Ouvrez un produit éligible et choisissez « Demander un devis ».</p>
+            <h2 className="mt-5 text-xl font-black">Aucun prix à débattre ici</h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-[#797166]">Ouvrez un produit éligible et choisissez « Demander un prix à débattre ».</p>
             <Link to="/products" className="mt-6 inline-flex min-h-12 items-center justify-center rounded-xl bg-[#e85d00] px-6 text-sm font-black text-white">Explorer les produits</Link>
           </section>
         ) : null}

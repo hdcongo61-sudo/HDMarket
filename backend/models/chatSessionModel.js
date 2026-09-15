@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const chatSessionSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     startedAt: { type: Date, default: Date.now },
     lastStepId: { type: mongoose.Schema.Types.ObjectId, ref: 'ChatTemplate', default: null },

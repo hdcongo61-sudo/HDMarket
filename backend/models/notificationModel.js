@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     audience: {

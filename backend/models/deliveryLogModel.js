@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const deliveryLogSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     timestamp: { type: Date, default: Date.now, index: true },

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const sellerSettlementSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, unique: true },
     seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     grossAmount: { type: Number, required: true, min: 0 },

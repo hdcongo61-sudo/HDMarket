@@ -138,7 +138,7 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
       onCreated?.(data);
       onClose?.();
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Impossible d’envoyer la demande de devis.');
+      setError(requestError.response?.data?.message || 'Impossible d’envoyer la demande de prix à débattre.');
     } finally {
       setSubmitting(false);
     }
@@ -146,7 +146,7 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
 
   return (
     <BaseModal isOpen={isOpen} onClose={submitting ? undefined : onClose} panelClassName="sm:max-w-xl">
-      <ModalHeader title={grouped || items.length > 1 ? 'Demander un devis groupé' : 'Demander un devis'} subtitle="Le prix public restera inchangé." onClose={submitting ? undefined : onClose} />
+      <ModalHeader title={grouped || items.length > 1 ? 'Demander un prix à débattre groupé' : 'Demander un prix à débattre'} subtitle="Le prix public restera inchangé." onClose={submitting ? undefined : onClose} />
       <ModalBody className="pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">
         <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-2">
@@ -211,7 +211,7 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
             <section className="rounded-2xl border border-[#e6dfd5] bg-white p-3 dark:border-neutral-700 dark:bg-neutral-950">
               <div className="mb-3">
                 <p className="text-sm font-black text-[#231f1b] dark:text-white">Ajouter des produits de la boutique</p>
-                <p className="text-xs font-medium text-[#8a8378]">Un seul devis sera envoyé au vendeur.</p>
+                <p className="text-xs font-medium text-[#8a8378]">Un seul prix à débattre sera envoyé au vendeur.</p>
               </div>
               <div className="space-y-2">
                 {productsToAdd.map((entry) => {
@@ -237,7 +237,7 @@ export default function QuotationRequestModal({ isOpen, onClose, products = [], 
           <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><CalendarDaysIcon className="mr-1 inline h-4 w-4" />Date souhaitée <span className="font-medium text-[#a8a29e]">(optionnel)</span><input type="date" min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)} value={expectedDeliveryDate} onChange={(event) => setExpectedDeliveryDate(event.target.value)} className={`${fieldClass} mt-1.5`} /></label>
           <label className="block text-xs font-bold text-[#57534e] dark:text-neutral-300"><DocumentTextIcon className="mr-1 inline h-4 w-4" />Message<textarea value={message} onChange={(event) => setMessage(event.target.value)} className={`${fieldClass} mt-1.5 min-h-28 py-3`} maxLength={2000} /></label>
           {error ? <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p> : null}
-          <button type="submit" disabled={submitting || !items.length} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-60">{submitting ? 'Envoi…' : grouped || items.length > 1 ? 'Demander le devis groupé' : 'Envoyer la demande'}</button>
+          <button type="submit" disabled={submitting || !items.length} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e85d00] px-4 text-sm font-black text-white disabled:opacity-60">{submitting ? 'Envoi…' : grouped || items.length > 1 ? 'Demander le prix à débattre groupé' : 'Envoyer la demande'}</button>
         </form>
       </ModalBody>
     </BaseModal>

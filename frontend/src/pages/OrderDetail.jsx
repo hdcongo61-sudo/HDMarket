@@ -1704,7 +1704,7 @@ export default function OrderDetail() {
             <motion.section {...riseIn(reduceMotion, 0.1)} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
               {order.quotationSnapshot?.applied ? (
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-3">
-                  <div><span className="inline-flex rounded-full bg-[#e85d00] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">Devis vendeur</span><p className="mt-1 text-xs font-bold text-orange-900">Prix négocié réservé à cette commande</p></div>
+                  <div><span className="inline-flex rounded-full bg-[#e85d00] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">Prix à débattre vendeur</span><p className="mt-1 text-xs font-bold text-orange-900">Prix négocié réservé à cette commande</p></div>
                   <div className="text-right"><p className="text-[10px] font-bold uppercase text-orange-700">Économie</p><p className="font-black text-emerald-700">{formatCurrency(order.quotationSnapshot.savings || 0)}</p></div>
                 </div>
               ) : null}

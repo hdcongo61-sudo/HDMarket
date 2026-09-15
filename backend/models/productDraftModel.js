@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
  */
 const productDraftSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, optionalProtect } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import { requireFeatureAccess } from '../middlewares/featureFlagMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import {
@@ -17,8 +18,8 @@ const router = express.Router();
 
 // Public — no auth required, but SOCIAL_COMMERCE must be on. A 404 here
 // correctly hides the whole feature when the flag is off (spec §26).
-router.get('/product/:socialCode', requireFeatureAccess('social_commerce'), getProductBySocialCode);
-router.get('/resolve/:socialCode', requireFeatureAccess('social_commerce'), optionalProtect, resolveSocialClick);
+router.get('/product/:socialCode', requireFeatureAccess('social_commerce'), optionalProtect, attachCountryContext, getProductBySocialCode);
+router.get('/resolve/:socialCode', requireFeatureAccess('social_commerce'), optionalProtect, attachCountryContext, resolveSocialClick);
 
 // Seller-scoped — every route below requires auth + the feature flag.
 router.use(protect, requireFeatureAccess('social_commerce'));

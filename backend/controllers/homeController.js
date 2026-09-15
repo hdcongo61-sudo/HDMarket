@@ -85,7 +85,8 @@ const getPromoHomeData = async ({ shopLimit = 8, flashLimit = 8, countryFilter =
           isActive: true,
           startDate: { $lte: weekEnd },
           endDate: { $gte: weekStart },
-          boutiqueId: { $ne: null }
+          boutiqueId: { $ne: null },
+          ...countryFilter
         }
       },
       {
@@ -109,7 +110,8 @@ const getPromoHomeData = async ({ shopLimit = 8, flashLimit = 8, countryFilter =
       appliesTo: 'product',
       startDate: { $lte: now },
       endDate: { $gte: now },
-      productId: { $ne: null }
+      productId: { $ne: null },
+      ...countryFilter
     })
       .select('discountType discountValue endDate productId')
       .sort({ endDate: 1, createdAt: -1 })
@@ -238,7 +240,7 @@ export const getHomeFeed = asyncHandler(async (req, res) => {
     listProducts({ countryFilter, filter: { discount: { $gt: 0 } }, sort: { discount: -1, createdAt: -1 }, limit: secondaryLimit }),
     listVerifiedShops(secondaryLimit, countryFilter),
     getPromoHomeData({ shopLimit: secondaryLimit, flashLimit: secondaryLimit, countryFilter }),
-    FlashSale.find({ status: 'active', isVisible: { $ne: false }, endDate: { $gte: now } })
+    FlashSale.find({ status: 'active', isVisible: { $ne: false }, endDate: { $gte: now }, ...countryFilter })
       .sort({ endDate: 1 })
       .limit(secondaryLimit)
       .populate('product', PRODUCT_SELECT_FIELDS)

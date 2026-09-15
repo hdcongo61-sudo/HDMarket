@@ -1,12 +1,14 @@
 import asyncHandler from 'express-async-handler';
 import City from '../models/cityModel.js';
 import { invalidatePricingContext } from '../modules/delivery/cache/PricingContextCache.js';
-import { canAdminCountry, ensureDefaultCountry, findCountry } from '../services/countryService.js';
+import { canAdminCountry, ensureDefaultCountry, findCountry, getScopedAdminCountryIds } from '../services/countryService.js';
 
 export const listCitiesAdmin = asyncHandler(async (req, res) => {
+  const scopedIds = getScopedAdminCountryIds(req.user); // null for global admins
   const country = req.query?.countryId ? await findCountry(req.query.countryId) : null;
   if (country && !canAdminCountry(country, req.user)) return res.status(403).json({ message: 'Accès pays refusé.' });
-  const cities = await City.find(country ? { countryId: country._id } : {})
+  const filter = country ? { countryId: country._id } : scopedIds ? { countryId: { $in: scopedIds } } : {};
+  const cities = await City.find(filter)
     .sort({ order: 1, name: 1 })
     .lean();
   res.json(cities);

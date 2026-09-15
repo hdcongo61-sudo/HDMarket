@@ -19,6 +19,7 @@ import {
   resolvePlatformDeliveryPrice
 } from '../services/platformDeliveryService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getAdminCountryFilter } from '../services/countryService.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
 import { applyDeliveryFeeToOrder } from '../services/orderDeliveryFeeService.js';
 import {
@@ -1047,6 +1048,8 @@ export const listAdminDeliveryRequests = asyncHandler(async (req, res) => {
 
   const { page = 1, limit = 20 } = req.query || {};
   const filter = buildDeliveryRequestFilter(req.query, { forAnalytics: false });
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
 
   const pageNumber = Math.max(1, Number(page) || 1);
   const pageSize = Math.max(1, Math.min(Number(limit) || 20, 100));
@@ -1070,7 +1073,8 @@ export const listAdminDeliveryRequests = asyncHandler(async (req, res) => {
     (async () => {
       const requested = await Order.find({
         platformDeliveryStatus: 'REQUESTED',
-        deliveryMode: 'DELIVERY'
+        deliveryMode: 'DELIVERY',
+        ...(countryFilter || {})
       })
         .select('_id platformDeliveryRequestId customer deliveryAddress deliveryCity shippingAddressSnapshot createdAt items')
         .populate('customer', 'name phone city commune address')

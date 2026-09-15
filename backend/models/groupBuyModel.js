@@ -11,6 +11,7 @@ const groupBuyMemberSchema = new mongoose.Schema(
 
 const groupBuySchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     groupPrice: { type: Number, required: true, min: 0 },

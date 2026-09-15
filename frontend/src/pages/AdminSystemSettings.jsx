@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowPathIcon, Bars2Icon, BuildingLibraryIcon, CheckIcon, ChevronDownIcon, CurrencyDollarIcon, LanguageIcon, MagnifyingGlassIcon, MapPinIcon, PencilIcon, PlusIcon, QuestionMarkCircleIcon, TrashIcon, TruckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Link, useSearchParams } from 'react-router-dom';
+import { AdjustmentsHorizontalIcon, ArrowLeftIcon, ArrowPathIcon, Bars2Icon, BuildingLibraryIcon, CheckIcon, ChevronDownIcon, CurrencyDollarIcon, GlobeAltIcon, LanguageIcon, MagnifyingGlassIcon, MapPinIcon, PlusIcon, QuestionMarkCircleIcon, TrashIcon, TruckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import AuthContext from '../context/AuthContext';
@@ -202,24 +202,6 @@ const emptyCurrencyForm = {
   exchangeRateToDefault: 1,
   isDefault: false,
   isActive: true
-};
-
-const emptyCityForm = {
-  name: '',
-  isActive: true,
-  isDefault: false,
-  deliveryAvailable: true,
-  boostMultiplier: 1,
-  order: 0
-};
-
-const emptyCommuneForm = {
-  name: '',
-  cityId: '',
-  deliveryPolicy: 'DEFAULT_RULE',
-  fixedFee: 0,
-  isActive: true,
-  order: 0
 };
 
 const buildEmptyLanguage = () => ({
@@ -473,6 +455,7 @@ const RuntimeFlagGroup = ({
   runtimeSavingKey,
   onDraftChange,
   onSave,
+  onResetOverride,
   tSetting,
   keyLabel
 }) => {
@@ -538,6 +521,19 @@ const RuntimeFlagGroup = ({
                   Clé runtime introuvable côté API.
                 </p>
               )}
+              {setting?.countryOverride ? (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-[#fff3e6] px-2 py-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-wide text-[#c84d00]">Valeur propre à ce pays</span>
+                  <button
+                    type="button"
+                    onClick={() => onResetOverride?.(setting)}
+                    disabled={isSaving}
+                    className="text-[11px] font-bold text-[#c84d00] underline disabled:opacity-50"
+                  >
+                    Réinitialiser
+                  </button>
+                </div>
+              ) : null}
             </div>
           );
         })}
@@ -551,6 +547,7 @@ export default function AdminSystemSettings() {
   const { user } = useContext(AuthContext);
   const { t, language } = useAppSettings();
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Translate a runtime setting label or description
   const tSetting = useCallback((key, fallback, type = 'settings') => {
@@ -558,6 +555,10 @@ export default function AdminSystemSettings() {
     return result && result !== `admin.${type}.${key}` ? result : (fallback || key);
   }, [t]);
   const isFounder = user?.role === 'founder';
+  const isScopedCountryAdmin =
+    user?.role === 'admin' && Array.isArray(user?.adminCountryIds) && user.adminCountryIds.length > 0;
+  const [countryScope, setCountryScope] = useState('');
+  const [adminCountries, setAdminCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fees, setFees] = useState({});
   const [initialFees, setInitialFees] = useState({});
@@ -567,29 +568,13 @@ export default function AdminSystemSettings() {
   const [currencyForm, setCurrencyForm] = useState(emptyCurrencyForm);
   const [creatingCurrency, setCreatingCurrency] = useState(false);
   const [cities, setCities] = useState([]);
-  const [cityForm, setCityForm] = useState(emptyCityForm);
-  const [creatingCity, setCreatingCity] = useState(false);
-  const [editingCityId, setEditingCityId] = useState('');
-  const [editingCityDraft, setEditingCityDraft] = useState(emptyCityForm);
-  const [savingCityEdit, setSavingCityEdit] = useState(false);
   const [communes, setCommunes] = useState([]);
-  const [communeForm, setCommuneForm] = useState(emptyCommuneForm);
-  const [creatingCommune, setCreatingCommune] = useState(false);
-  const [editingCommuneId, setEditingCommuneId] = useState('');
-  const [editingCommuneDraft, setEditingCommuneDraft] = useState({
-    cityId: '',
-    deliveryPolicy: 'DEFAULT_RULE',
-    fixedFee: 0
-  });
-  const [savingCommuneEdit, setSavingCommuneEdit] = useState(false);
   const [languages, setLanguages] = useState([]);
   const [defaultLanguage, setDefaultLanguage] = useState('fr');
   const [initialLanguagesSignature, setInitialLanguagesSignature] = useState('');
   const [savingLanguages, setSavingLanguages] = useState(false);
   const [currencyRateDrafts, setCurrencyRateDrafts] = useState({});
   const [savingCurrencyCode, setSavingCurrencyCode] = useState('');
-  const [deletingCityId, setDeletingCityId] = useState('');
-  const [deletingCommuneId, setDeletingCommuneId] = useState('');
   const [runtimeSettings, setRuntimeSettings] = useState([]);
   const [runtimeDrafts, setRuntimeDrafts] = useState({});
   const [runtimeSavingKey, setRuntimeSavingKey] = useState('');
@@ -604,17 +589,20 @@ export default function AdminSystemSettings() {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [settingsResponse, runtimeResponse, featureFlagsResponse] = await Promise.all([
-        api.get('/admin/settings'),
+      const [settingsResponse, runtimeResponse, featureFlagsResponse, countriesResponse] = await Promise.all([
+        api.get('/admin/settings').catch(() => ({ data: {} })),
         api
           .get('/admin/config/runtime', {
             params: {
-              includeHidden: isFounder ? 'true' : 'false'
+              includeHidden: isFounder ? 'true' : 'false',
+              ...(countryScope ? { countryId: countryScope } : {})
             }
           })
           .catch(() => ({ data: { items: [] } })),
-        api.get('/admin/config/feature-flags').catch(() => ({ data: { items: [] } }))
+        api.get('/admin/config/feature-flags').catch(() => ({ data: { items: [] } })),
+        api.get('/admin/countries').catch(() => ({ data: { items: [] } }))
       ]);
+      setAdminCountries(Array.isArray(countriesResponse?.data?.items) ? countriesResponse.data.items : []);
       const data = settingsResponse?.data || {};
       const feeSource = data?.feesAndRules || data?.app || data?.fees || {};
       const runtimeItems = Array.isArray(runtimeResponse?.data?.items) ? runtimeResponse.data.items : [];
@@ -663,11 +651,35 @@ export default function AdminSystemSettings() {
     } finally {
       setLoading(false);
     }
-  }, [showToast, isFounder]);
+  }, [showToast, isFounder, countryScope]);
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  // Lock scoped admins to their assigned country; keep URL param for others.
+  useEffect(() => {
+    if (isScopedCountryAdmin) {
+      const ownCountry = String(user?.adminCountryIds?.[0] || '');
+      if (ownCountry && countryScope !== ownCountry) setCountryScope(ownCountry);
+      return;
+    }
+    const fromUrl = String(searchParams.get('countryId') || '');
+    if (fromUrl !== countryScope) setCountryScope(fromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isScopedCountryAdmin, user?.adminCountryIds]);
+
+  const selectCountryScope = (value) => {
+    setCountryScope(String(value || ''));
+    if (value) setSearchParams({ countryId: String(value) }, { replace: true });
+    else setSearchParams({}, { replace: true });
+  };
+
+  const scopeCountryName = useMemo(() => {
+    if (!countryScope) return 'Global';
+    const found = adminCountries.find((country) => String(country._id) === String(countryScope));
+    return found?.name || countryScope;
+  }, [adminCountries, countryScope]);
 
   useEffect(() => {
     const nextDrafts = {};
@@ -915,6 +927,7 @@ export default function AdminSystemSettings() {
     try {
       const payload = { value };
       if (runtimeEnvironment) payload.environment = runtimeEnvironment;
+      if (countryScope) payload.countryId = countryScope;
       const { data } = await api.patch(`/admin/config/runtime/${encodeURIComponent(key)}`, payload);
       const updatedValue = data?.item?.value ?? value;
       setRuntimeSettings((prev) =>
@@ -923,6 +936,7 @@ export default function AdminSystemSettings() {
             ? {
                 ...entry,
                 value: updatedValue,
+                countryOverride: true,
                 updatedAt: new Date().toISOString()
               }
             : entry
@@ -957,6 +971,41 @@ export default function AdminSystemSettings() {
       showToast(error.response?.data?.message || 'Erreur mise à jour configuration.', {
         variant: 'error'
       });
+    } finally {
+      setRuntimeSavingKey('');
+    }
+  };
+
+  const resetRuntimeOverride = async (setting) => {
+    const key = String(setting?.key || '');
+    if (!key || !countryScope) return;
+    setRuntimeSavingKey(key);
+    try {
+      await api.delete(`/admin/config/runtime/${encodeURIComponent(key)}`, {
+        params: { countryId: countryScope }
+      });
+      const { data } = await api.get('/admin/config/runtime', {
+        params: {
+          includeHidden: isFounder ? 'true' : 'false',
+          countryId: countryScope
+        }
+      });
+      const nextItems = Array.isArray(data?.items) ? data.items : [];
+      setRuntimeSettings(nextItems);
+      setRuntimeDrafts(
+        nextItems.reduce((acc, item) => {
+          if (item?.valueType === 'array' || item?.valueType === 'json') {
+            acc[item.key] = JSON.stringify(item.value ?? (item.valueType === 'array' ? [] : {}), null, 2);
+          } else {
+            acc[item.key] = item.value;
+          }
+          return acc;
+        }, {})
+      );
+      showToast('Valeur réinitialisée sur la valeur globale.', { variant: 'success' });
+      emitSettingsRefresh();
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Réinitialisation impossible.', { variant: 'error' });
     } finally {
       setRuntimeSavingKey('');
     }
@@ -1037,427 +1086,6 @@ export default function AdminSystemSettings() {
       showToast('Taux de change mis a jour.', { variant: 'success' });
     }
     setSavingCurrencyCode('');
-  };
-
-  const createCity = async (e) => {
-    e.preventDefault();
-    const trimmedName = String(cityForm.name || '').trim();
-    if (!trimmedName) {
-      showToast('Nom de ville requis.', { variant: 'error' });
-      return;
-    }
-    if (cities.some((entry) => normalizeLabel(entry?.name) === normalizeLabel(trimmedName))) {
-      showToast('Cette ville existe déjà.', { variant: 'error' });
-      return;
-    }
-
-    setCreatingCity(true);
-    const optimisticId = `tmp-city-${Date.now()}`;
-    const optimisticCity = {
-      _id: optimisticId,
-      name: trimmedName,
-      isActive: cityForm.isActive !== false,
-      isDefault: Boolean(cityForm.isDefault),
-      deliveryAvailable: cityForm.deliveryAvailable !== false,
-      boostMultiplier: Number.isFinite(Number(cityForm.boostMultiplier))
-        ? Number(cityForm.boostMultiplier)
-        : 1,
-      order: Number.isFinite(Number(cityForm.order)) ? Number(cityForm.order) : 0
-    };
-    setCities((prev) => sortCities([...prev, optimisticCity]));
-    try {
-      const { data } = await api.post('/admin/cities', { ...cityForm, name: trimmedName });
-      const persistedCity = data || {};
-      setCities((prev) =>
-        sortCities(
-          prev.map((entry) => {
-            if (String(entry?._id) !== String(optimisticId)) return entry;
-            return {
-              ...entry,
-              ...persistedCity
-            };
-          })
-        )
-      );
-      showToast('Ville creee.', { variant: 'success' });
-      setCityForm(emptyCityForm);
-      emitSettingsRefresh();
-    } catch (error) {
-      setCities((prev) => prev.filter((entry) => String(entry?._id) !== String(optimisticId)));
-      showToast(error.response?.data?.message || 'Erreur creation ville.', { variant: 'error' });
-    } finally {
-      setCreatingCity(false);
-    }
-  };
-
-  const patchCity = async (cityId, patch) => {
-    const cityIdStr = String(cityId || '');
-    const previousCities = cities;
-    setCities((prev) => {
-      const next = prev.map((entry) => {
-        if (String(entry?._id) !== cityIdStr) return entry;
-        return { ...entry, ...patch };
-      });
-      if (patch?.isDefault === true) {
-        return sortCities(
-          next.map((entry) => ({ ...entry, isDefault: String(entry?._id) === cityIdStr }))
-        );
-      }
-      return sortCities(next);
-    });
-    try {
-      const { data } = await api.patch(`/admin/cities/${cityId}`, patch);
-      setCities((prev) =>
-        sortCities(
-          prev.map((entry) => {
-            if (String(entry?._id) !== cityIdStr) return patch?.isDefault === true ? { ...entry, isDefault: false } : entry;
-            return {
-              ...entry,
-              ...(data || {}),
-              ...(patch?.isDefault === true ? { isDefault: true } : {})
-            };
-          })
-        )
-      );
-      emitSettingsRefresh();
-    } catch (error) {
-      setCities(previousCities);
-      showToast(error.response?.data?.message || 'Erreur mise a jour ville.', { variant: 'error' });
-    }
-  };
-
-  const startCityEdit = (city) => {
-    setEditingCityId(String(city?._id || ''));
-    setEditingCityDraft({
-      name: String(city?.name || ''),
-      isActive: city?.isActive !== false,
-      isDefault: Boolean(city?.isDefault),
-      deliveryAvailable: city?.deliveryAvailable !== false,
-      boostMultiplier: Number.isFinite(Number(city?.boostMultiplier)) ? Number(city.boostMultiplier) : 1,
-      order: Number.isFinite(Number(city?.order)) ? Number(city.order) : 0
-    });
-  };
-
-  const cancelCityEdit = () => {
-    setEditingCityId('');
-    setEditingCityDraft(emptyCityForm);
-  };
-
-  const saveCityEdit = async () => {
-    const cityId = String(editingCityId || '');
-    const trimmedName = String(editingCityDraft.name || '').trim();
-    const boostMultiplier = Number(editingCityDraft.boostMultiplier);
-    const order = Number(editingCityDraft.order);
-    if (!cityId || !trimmedName) {
-      showToast('Nom de ville requis.', { variant: 'error' });
-      return;
-    }
-    if (cities.some((entry) =>
-      String(entry?._id || '') !== cityId &&
-      normalizeLabel(entry?.name) === normalizeLabel(trimmedName)
-    )) {
-      showToast('Cette ville existe déjà.', { variant: 'error' });
-      return;
-    }
-    if (!Number.isFinite(boostMultiplier) || boostMultiplier < 0) {
-      showToast('Le multiplicateur boost doit être positif ou égal à zéro.', { variant: 'error' });
-      return;
-    }
-    if (!Number.isFinite(order) || order < 0) {
-      showToast('L’ordre doit être positif ou égal à zéro.', { variant: 'error' });
-      return;
-    }
-
-    const previousCities = cities;
-    const currentCity = cities.find((entry) => String(entry?._id || '') === cityId);
-    const patch = {
-      name: trimmedName,
-      isActive: editingCityDraft.isActive !== false,
-      isDefault: currentCity?.isDefault ? true : Boolean(editingCityDraft.isDefault),
-      deliveryAvailable: editingCityDraft.deliveryAvailable !== false,
-      boostMultiplier,
-      order
-    };
-    setSavingCityEdit(true);
-    setCities((prev) => sortCities(prev.map((entry) => {
-      if (String(entry?._id || '') !== cityId) {
-        return patch.isDefault ? { ...entry, isDefault: false } : entry;
-      }
-      return { ...entry, ...patch };
-    })));
-    try {
-      const { data } = await api.patch(`/admin/cities/${cityId}`, patch);
-      const savedCity = { ...(currentCity || {}), ...patch, ...(data || {}) };
-      setCities((prev) => sortCities(prev.map((entry) => {
-        if (String(entry?._id || '') !== cityId) {
-          return savedCity.isDefault ? { ...entry, isDefault: false } : entry;
-        }
-        return savedCity;
-      })));
-      setCommunes((prev) => prev.map((commune) =>
-        String(commune?.cityId || '') === cityId
-          ? { ...commune, cityName: savedCity.name }
-          : commune
-      ));
-      cancelCityEdit();
-      emitSettingsRefresh();
-      showToast('Ville mise à jour.', { variant: 'success' });
-    } catch (error) {
-      setCities(previousCities);
-      showToast(error.response?.data?.message || 'Erreur mise à jour ville.', { variant: 'error' });
-    } finally {
-      setSavingCityEdit(false);
-    }
-  };
-
-  const deleteCity = async (city) => {
-    const cityId = String(city?._id || '');
-    if (!cityId) return;
-    if (editingCityId === cityId) cancelCityEdit();
-    const linkedCommunes = communes.filter(
-      (entry) => String(entry?.cityId || '') === cityId
-    ).length;
-    if (linkedCommunes > 0) {
-      showToast('Supprimez d\'abord les communes rattachées à cette ville.', { variant: 'error' });
-      return;
-    }
-    const accepted = await appConfirm(`Supprimer la ville "${city?.name || ''}" ?`);
-    if (!accepted) return;
-
-    const previousCities = cities;
-    setDeletingCityId(cityId);
-    setCities((prev) => prev.filter((entry) => String(entry?._id || '') !== cityId));
-    try {
-      const { data } = await api.delete(`/admin/cities/${cityId}`);
-      const replacementCityId = String(data?.replacementCity?._id || '');
-      if (replacementCityId) {
-        setCities((prev) =>
-          sortCities(
-            prev.map((entry) => ({
-              ...entry,
-              isDefault: String(entry?._id || '') === replacementCityId
-            }))
-          )
-        );
-      }
-      if (communeForm.cityId === cityId) {
-        const fallbackCityId = String(
-          cities.find((entry) => String(entry?._id || '') !== cityId)?._id || ''
-        );
-        setCommuneForm((prev) => ({ ...prev, cityId: fallbackCityId }));
-      }
-      if (editingCommuneDraft.cityId === cityId) {
-        setEditingCommuneDraft((prev) => ({ ...prev, cityId: '' }));
-      }
-      showToast('Ville supprimée.', { variant: 'success' });
-      emitSettingsRefresh();
-    } catch (error) {
-      setCities(previousCities);
-      showToast(error.response?.data?.message || 'Erreur suppression ville.', { variant: 'error' });
-    } finally {
-      setDeletingCityId('');
-    }
-  };
-
-  const createCommune = async (event) => {
-    event.preventDefault();
-    if (!communeForm.cityId) {
-      showToast('Selectionnez une ville pour la commune.', { variant: 'error' });
-      return;
-    }
-    const trimmedName = String(communeForm.name || '').trim();
-    if (!trimmedName) {
-      showToast('Nom commune requis.', { variant: 'error' });
-      return;
-    }
-    if (communeForm.deliveryPolicy === 'FIXED_FEE' && Number(communeForm.fixedFee || 0) < 0) {
-      showToast('Le frais fixe doit etre superieur ou egal a 0.', { variant: 'error' });
-      return;
-    }
-    const selectedCity = cities.find((city) => String(city?._id || '') === String(communeForm.cityId || ''));
-    if (!selectedCity) {
-      showToast('Ville invalide.', { variant: 'error' });
-      return;
-    }
-    const duplicate = communes.some(
-      (entry) =>
-        String(entry?.cityId || '') === String(communeForm.cityId || '') &&
-        normalizeLabel(entry?.name) === normalizeLabel(trimmedName)
-    );
-    if (duplicate) {
-      showToast('Cette commune existe déjà pour cette ville.', { variant: 'error' });
-      return;
-    }
-    setCreatingCommune(true);
-    const optimisticId = `tmp-commune-${Date.now()}`;
-    const optimisticCommune = normalizeCommuneWithCities(
-      {
-        _id: optimisticId,
-        name: trimmedName,
-        cityId: String(communeForm.cityId || ''),
-        cityName: selectedCity.name || '',
-        deliveryPolicy: communeForm.deliveryPolicy || 'DEFAULT_RULE',
-        fixedFee:
-          communeForm.deliveryPolicy === 'FIXED_FEE'
-            ? Math.max(0, Number(communeForm.fixedFee || 0))
-            : 0,
-        isActive: communeForm.isActive !== false,
-        order: Number.isFinite(Number(communeForm.order)) ? Number(communeForm.order) : 0
-      },
-      cities
-    );
-    setCommunes((prev) => sortCommunes([...prev, optimisticCommune]));
-    try {
-      const { data } = await api.post('/admin/communes', {
-        ...communeForm,
-        name: trimmedName,
-        fixedFee: Number(communeForm.fixedFee || 0),
-        order: Number(communeForm.order || 0)
-      });
-      setCommunes((prev) =>
-        sortCommunes(
-          prev.map((entry) => {
-            if (String(entry?._id) !== String(optimisticId)) return entry;
-            return normalizeCommuneWithCities({ ...entry, ...(data || {}) }, cities);
-          })
-        )
-      );
-      showToast('Commune creee.', { variant: 'success' });
-      setCommuneForm((prev) => ({ ...emptyCommuneForm, cityId: prev.cityId || '' }));
-      emitSettingsRefresh();
-    } catch (error) {
-      setCommunes((prev) => prev.filter((entry) => String(entry?._id) !== String(optimisticId)));
-      showToast(error.response?.data?.message || 'Erreur creation commune.', { variant: 'error' });
-    } finally {
-      setCreatingCommune(false);
-    }
-  };
-
-  const patchCommune = async (communeId, patch) => {
-    const communeIdStr = String(communeId || '');
-    const previousCommunes = communes;
-    setCommunes((prev) =>
-      sortCommunes(
-        prev.map((entry) => {
-          if (String(entry?._id) !== communeIdStr) return entry;
-          return normalizeCommuneWithCities({ ...entry, ...patch }, cities);
-        })
-      )
-    );
-    try {
-      const { data } = await api.patch(`/admin/communes/${communeId}`, patch);
-      setCommunes((prev) =>
-        sortCommunes(
-          prev.map((entry) => {
-            if (String(entry?._id) !== communeIdStr) return entry;
-            return normalizeCommuneWithCities({ ...entry, ...(data || {}) }, cities);
-          })
-        )
-      );
-      emitSettingsRefresh();
-    } catch (error) {
-      setCommunes(previousCommunes);
-      showToast(error.response?.data?.message || 'Erreur mise a jour commune.', { variant: 'error' });
-    }
-  };
-
-  const deleteCommune = async (commune) => {
-    const communeId = String(commune?._id || '');
-    if (!communeId) return;
-    const accepted = await appConfirm(`Supprimer la commune "${commune?.name || ''}" ?`);
-    if (!accepted) return;
-
-    const previousCommunes = communes;
-    setDeletingCommuneId(communeId);
-    setCommunes((prev) => prev.filter((entry) => String(entry?._id || '') !== communeId));
-    if (editingCommuneId === communeId) {
-      cancelCommuneEdit();
-    }
-    try {
-      await api.delete(`/admin/communes/${communeId}`);
-      showToast('Commune supprimée.', { variant: 'success' });
-      emitSettingsRefresh();
-    } catch (error) {
-      setCommunes(previousCommunes);
-      showToast(error.response?.data?.message || 'Erreur suppression commune.', { variant: 'error' });
-    } finally {
-      setDeletingCommuneId('');
-    }
-  };
-
-  const startCommuneEdit = (commune) => {
-    setEditingCommuneId(String(commune?._id || ''));
-    setEditingCommuneDraft({
-      cityId: String(commune?.cityId?._id || commune?.cityId || ''),
-      deliveryPolicy: String(commune?.deliveryPolicy || 'DEFAULT_RULE'),
-      fixedFee: Number(commune?.fixedFee || 0)
-    });
-  };
-
-  const cancelCommuneEdit = () => {
-    setEditingCommuneId('');
-    setEditingCommuneDraft({
-      cityId: '',
-      deliveryPolicy: 'DEFAULT_RULE',
-      fixedFee: 0
-    });
-    setSavingCommuneEdit(false);
-  };
-
-  const saveCommuneEdit = async () => {
-    if (!editingCommuneId) return;
-    const nextPolicy = String(editingCommuneDraft.deliveryPolicy || 'DEFAULT_RULE');
-    const nextFee = Number(editingCommuneDraft.fixedFee || 0);
-    const nextCityId = String(editingCommuneDraft.cityId || '').trim();
-    if (!nextCityId) {
-      showToast('Selectionnez une ville.', { variant: 'error' });
-      return;
-    }
-    if (nextPolicy === 'FIXED_FEE' && (!Number.isFinite(nextFee) || nextFee < 0)) {
-      showToast('Le frais fixe doit etre superieur ou egal a 0.', { variant: 'error' });
-      return;
-    }
-    const previousCommunes = communes;
-    setCommunes((prev) =>
-      sortCommunes(
-        prev.map((entry) => {
-          if (String(entry?._id) !== String(editingCommuneId)) return entry;
-          return normalizeCommuneWithCities(
-            {
-              ...entry,
-              cityId: nextCityId,
-              deliveryPolicy: nextPolicy,
-              fixedFee: nextPolicy === 'FIXED_FEE' ? Math.max(0, nextFee) : 0
-            },
-            cities
-          );
-        })
-      )
-    );
-    setSavingCommuneEdit(true);
-    try {
-      const { data } = await api.patch(`/admin/communes/${editingCommuneId}`, {
-        cityId: nextCityId,
-        deliveryPolicy: nextPolicy,
-        fixedFee: nextPolicy === 'FIXED_FEE' ? Math.max(0, nextFee) : 0
-      });
-      setCommunes((prev) =>
-        sortCommunes(
-          prev.map((entry) => {
-            if (String(entry?._id) !== String(editingCommuneId)) return entry;
-            return normalizeCommuneWithCities({ ...entry, ...(data || {}) }, cities);
-          })
-        )
-      );
-      showToast('Commune mise a jour.', { variant: 'success' });
-      emitSettingsRefresh();
-      cancelCommuneEdit();
-    } catch (error) {
-      setCommunes(previousCommunes);
-      showToast(error.response?.data?.message || 'Erreur mise a jour commune.', { variant: 'error' });
-    } finally {
-      setSavingCommuneEdit(false);
-    }
   };
 
   const saveLanguages = async () => {
@@ -1588,12 +1216,6 @@ export default function AdminSystemSettings() {
     });
   };
 
-  useEffect(() => {
-    if (communeForm.cityId) return;
-    if (!cities.length) return;
-    setCommuneForm((prev) => ({ ...prev, cityId: String(cities[0]._id || '') }));
-  }, [cities, communeForm.cityId]);
-
   const publicRuntimeCount = useMemo(
     () => (runtimeSettings || []).filter((item) => item?.isPublic).length,
     [runtimeSettings]
@@ -1620,6 +1242,27 @@ export default function AdminSystemSettings() {
   return (
     <div className={`min-h-screen bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-50 ${isMobile ? 'pb-24' : ''}`}>
       <div className="mx-auto w-full max-w-6xl space-y-4 px-3 py-4 sm:px-4 sm:py-6">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#f0d9c6] bg-[#fffaf5] px-4 py-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#e85d00] ring-1 ring-[#f0d9c6]"><GlobeAltIcon className="h-5 w-5" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black uppercase tracking-wide text-[#8a7263]">Portée des paramètres runtime</p>
+            <p className="text-sm font-bold text-[#211b16]">
+              {countryScope ? `Vous modifiez les paramètres de ${scopeCountryName}` : 'Vous modifiez les paramètres globaux (tous les pays)'}
+            </p>
+          </div>
+          <select
+            value={countryScope}
+            onChange={(event) => selectCountryScope(event.target.value)}
+            disabled={isScopedCountryAdmin}
+            className="min-h-11 rounded-xl border border-[#e2d8cd] bg-white px-3 font-bold text-[#211b16] outline-none focus:border-[#e85d00] disabled:opacity-60"
+          >
+            {!isScopedCountryAdmin ? <option value="">🌍 Global — tous les pays</option> : null}
+            {adminCountries.map((country) => (
+              <option key={String(country._id)} value={String(country._id)}>{country.flagEmoji} {country.name}</option>
+            ))}
+          </select>
+        </div>
+
         <AdminCommandHero
           eyebrow={isFounder ? 'Founder system control' : 'Admin system control'}
           title="Paramètres système"
@@ -1817,10 +1460,10 @@ export default function AdminSystemSettings() {
               <SectionShell
                 icon={AdjustmentsHorizontalIcon}
                 title="Configuration"
-                description="Interrupteurs runtime diffusés à toute la plateforme."
+                description={countryScope ? `Interrupteurs runtime du pays ${scopeCountryName}. Les valeurs non modifiées ici utilisent la valeur globale.` : 'Interrupteurs runtime diffusés à toute la plateforme.'}
                 badge={(
                   <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
-                    Environnement: {runtimeEnvironment || 'auto'}
+                    Environnement: {runtimeEnvironment || 'auto'} · Portée: {scopeCountryName}
                   </span>
                 )}
               >
@@ -1838,6 +1481,7 @@ export default function AdminSystemSettings() {
                       runtimeSavingKey={runtimeSavingKey}
                       onDraftChange={handleRuntimeDraftChange}
                       onSave={saveRuntimeSetting}
+                      onResetOverride={resetRuntimeOverride}
                       tSetting={tSetting}
                       keyLabel={runtimeKeyLabel}
                     />
@@ -1850,6 +1494,7 @@ export default function AdminSystemSettings() {
                       runtimeSavingKey={runtimeSavingKey}
                       onDraftChange={handleRuntimeDraftChange}
                       onSave={saveRuntimeSetting}
+                      onResetOverride={resetRuntimeOverride}
                       tSetting={tSetting}
                       keyLabel={runtimeKeyLabel}
                     />
@@ -1862,6 +1507,7 @@ export default function AdminSystemSettings() {
                       runtimeSavingKey={runtimeSavingKey}
                       onDraftChange={handleRuntimeDraftChange}
                       onSave={saveRuntimeSetting}
+                      onResetOverride={resetRuntimeOverride}
                       tSetting={tSetting}
                       keyLabel={runtimeKeyLabel}
                     />
@@ -2318,354 +1964,22 @@ className={`h-4 w-4 transition-transform duration-300 ${otherRuntimeOpen ? 'rota
               </SectionShell>
             ) : null}
 
-            {activeSystemSection === 'cities' ? (
+            {(activeSystemSection === 'cities' || activeSystemSection === 'communes') ? (
               <SectionShell
                 icon={MapPinIcon}
-                title="Villes"
-                description="Villes couvertes, boost et disponibilité de livraison."
+                title="Villes & communes"
+                description="La gestion des villes et communes se fait dans Pays et marchés."
               >
-                <form onSubmit={createCity} className="mb-4 grid gap-2 sm:grid-cols-2">
-                  <input
-                    value={cityForm.name}
-                    onChange={(e) => setCityForm((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nom ville"
-                    className={INPUT_CLASS}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={creatingCity}
-                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
-                  >
-                    Ajouter
-                  </button>
-                </form>
-                <div className="space-y-2">
-                  {cities.map((item) => (
-                    <div
-                      key={item._id}
-                      className="flex flex-col gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm dark:border-neutral-700"
-                    >
-                      {editingCityId === String(item._id) ? (
-                        <div className="grid gap-3">
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-neutral-300 sm:col-span-2">
-                              Nom de la ville
-                              <input
-                                value={editingCityDraft.name}
-                                onChange={(e) => setEditingCityDraft((prev) => ({ ...prev, name: e.target.value }))}
-                                className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
-                                autoFocus
-                              />
-                            </label>
-                            <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-neutral-300">
-                              Ordre d’affichage
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={editingCityDraft.order}
-                                onChange={(e) => setEditingCityDraft((prev) => ({ ...prev, order: e.target.value }))}
-                                className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
-                              />
-                            </label>
-                          </div>
-                          <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-neutral-300 sm:max-w-xs">
-                            Multiplicateur boost
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.1"
-                              value={editingCityDraft.boostMultiplier}
-                              onChange={(e) => setEditingCityDraft((prev) => ({ ...prev, boostMultiplier: e.target.value }))}
-                              className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
-                            />
-                          </label>
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            {[
-                              ['isActive', 'Ville active'],
-                              ['deliveryAvailable', 'Livraison disponible'],
-                              ['isDefault', 'Ville par défaut']
-                            ].map(([key, label]) => (
-                              <div key={key} className="flex min-h-10 items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-neutral-700 dark:text-neutral-300">
-                                <span>{label}</span>
-                                <Switch
-                                  checked={Boolean(editingCityDraft[key])}
-                                  disabled={key === 'isDefault' && item.isDefault}
-                                  onChange={(next) => setEditingCityDraft((prev) => ({ ...prev, [key]: next }))}
-                                  ariaLabel={label}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                            <button
-                              type="button"
-                              onClick={cancelCityEdit}
-                              disabled={savingCityEdit}
-                              className="min-h-10 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-60 dark:bg-neutral-800 dark:text-neutral-200"
-                            >
-                              Annuler
-                            </button>
-                            <button
-                              type="button"
-                              onClick={saveCityEdit}
-                              disabled={savingCityEdit}
-                              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#e85d00] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
-                            >
-                              {savingCityEdit ? <ArrowPathIcon className="animate-spin h-3.5 w-3.5" /> : <CheckIcon className="h-3.5 w-3.5" />}
-                              {savingCityEdit ? 'Enregistrement…' : 'Enregistrer'}
-                            </button>
-                          </div>
-                        </div>
-                      ) : <>
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-xs text-slate-500 dark:text-neutral-400">
-                          Livraison {item.deliveryAvailable ? 'active' : 'off'} | boost x
-                          {Number.isFinite(Number(item.boostMultiplier)) ? item.boostMultiplier : 1} | ordre {item.order || 0}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => startCityEdit(item)}
-                          disabled={deletingCityId === String(item._id)}
-                          className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
-                        >
-                          <PencilIcon className="h-3 w-3" />
-                          Modifier
-                        </button>
-                        <div className="flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 px-2 dark:border-neutral-700">
-                          <Switch
-                            checked={Boolean(item.isDefault)}
-                            onChange={(next) => {
-                              if (next) patchCity(item._id, { isDefault: true });
-                            }}
-                            disabled={Boolean(item.isDefault) || deletingCityId === String(item._id)}
-                            ariaLabel="Ville par défaut"
-                          />
-                          <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">Défaut</span>
-                        </div>
-                        <div className="flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 px-2 dark:border-neutral-700">
-                          <Switch
-                            checked={Boolean(item.isActive)}
-                            onChange={(next) => patchCity(item._id, { isActive: next })}
-                            disabled={deletingCityId === String(item._id)}
-                            ariaLabel="Ville active"
-                          />
-                          <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
-                            {item.isActive ? 'Actif' : 'Inactif'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => deleteCity(item)}
-                          disabled={deletingCityId === String(item._id)}
-                          className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200"
-                        >
-                          <TrashIcon className="h-3 w-3" />
-                          {deletingCityId === String(item._id) ? 'Suppression…' : 'Supprimer'}
-                        </button>
-                      </div>
-                      </>}
-                    </div>
-                  ))}
-                </div>
-              </SectionShell>
-            ) : null}
-
-            {activeSystemSection === 'communes' ? (
-              <SectionShell
-                icon={TruckIcon}
-                title="Communes"
-                description="Communes et règles de livraison associées."
-              >
-                <form onSubmit={createCommune} className="mb-4 grid gap-2 sm:grid-cols-2">
-                  <input
-                    value={communeForm.name}
-                    onChange={(e) => setCommuneForm((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nom commune"
-                    className={INPUT_CLASS}
-                    required
-                  />
-                  <select
-                    value={communeForm.cityId}
-                    onChange={(e) => setCommuneForm((prev) => ({ ...prev, cityId: e.target.value }))}
-                    className={INPUT_CLASS}
-                    required
-                  >
-                    <option value="">Ville</option>
-                    {cities.map((city) => (
-                      <option key={city._id} value={city._id}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={communeForm.deliveryPolicy}
-                    onChange={(e) =>
-                      setCommuneForm((prev) => ({
-                        ...prev,
-                        deliveryPolicy: e.target.value
-                      }))
-                    }
-                    className={INPUT_CLASS}
-                  >
-                    <option value="DEFAULT_RULE">DEFAULT_RULE</option>
-                    <option value="FREE">FREE</option>
-                    <option value="FIXED_FEE">FIXED_FEE</option>
-                  </select>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={communeForm.fixedFee}
-                    onChange={(e) =>
-                      setCommuneForm((prev) => ({
-                        ...prev,
-                        fixedFee: Number.isFinite(Number(e.target.value)) ? Number(e.target.value) : 0
-                      }))
-                    }
-                    placeholder="Frais fixe"
-                    className={`${INPUT_CLASS} disabled:bg-slate-100 dark:disabled:bg-neutral-900`}
-                    disabled={communeForm.deliveryPolicy !== 'FIXED_FEE'}
-                  />
-                  <button
-                    type="submit"
-                    disabled={creatingCommune}
-                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-200"
-                  >
-                    Ajouter
-                  </button>
-                </form>
-                <div className="space-y-2">
-                  {communes.map((item) => (
-                    <div
-                      key={item._id}
-                      className="flex flex-col gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm dark:border-neutral-700"
-                    >
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="font-medium">
-                            {item.name}
-                            <span className="ml-2 text-xs text-slate-500 dark:text-neutral-400">
-                              ({item.cityName || 'Ville inconnue'})
-                            </span>
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-neutral-400">
-                            Politique: {item.deliveryPolicy}
-                            {item.deliveryPolicy === 'FIXED_FEE'
-                              ? ` | Frais: ${Number(item.fixedFee || 0).toLocaleString('fr-FR')}`
-                              : ''}
-                          </p>
-                        </div>
-                        {editingCommuneId === String(item._id) ? (
-                          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                            <select
-                              value={editingCommuneDraft.cityId}
-                              onChange={(e) =>
-                                setEditingCommuneDraft((prev) => ({
-                                  ...prev,
-                                  cityId: e.target.value
-                                }))
-                              }
-                              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-neutral-700 dark:bg-neutral-950"
-                            >
-                              <option value="">Ville</option>
-                              {cities.map((city) => (
-                                <option key={city._id} value={city._id}>
-                                  {city.name}
-                                </option>
-                              ))}
-                            </select>
-                            <select
-                              value={editingCommuneDraft.deliveryPolicy}
-                              onChange={(e) =>
-                                setEditingCommuneDraft((prev) => ({
-                                  ...prev,
-                                  deliveryPolicy: e.target.value
-                                }))
-                              }
-                              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-neutral-700 dark:bg-neutral-950"
-                            >
-                              <option value="DEFAULT_RULE">DEFAULT_RULE</option>
-                              <option value="FREE">FREE</option>
-                              <option value="FIXED_FEE">FIXED_FEE</option>
-                            </select>
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={editingCommuneDraft.fixedFee}
-                              onChange={(e) =>
-                                setEditingCommuneDraft((prev) => ({
-                                  ...prev,
-                                  fixedFee: Number.isFinite(Number(e.target.value))
-                                    ? Number(e.target.value)
-                                    : 0
-                                }))
-                              }
-                              disabled={editingCommuneDraft.deliveryPolicy !== 'FIXED_FEE'}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs disabled:bg-slate-100 sm:w-28 dark:border-neutral-700 dark:bg-neutral-950 dark:disabled:bg-neutral-900"
-                            />
-                            <button
-                              type="button"
-                              onClick={saveCommuneEdit}
-                              disabled={savingCommuneEdit}
-                              className="inline-flex min-h-9 items-center justify-center rounded-lg bg-neutral-100 px-2 py-1.5 text-xs font-medium text-neutral-700 disabled:opacity-60 dark:bg-neutral-900/30 dark:text-neutral-200"
-                            >
-                              {savingCommuneEdit ? '…' : 'Enregistrer'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={cancelCommuneEdit}
-                              disabled={savingCommuneEdit}
-                              className="inline-flex min-h-9 items-center justify-center rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-60 dark:bg-neutral-800 dark:text-neutral-200"
-                            >
-                              Annuler
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 px-2 dark:border-neutral-700">
-                              <Switch
-                                checked={Boolean(item.isActive)}
-                                onChange={(next) =>
-                                  patchCommune(item._id, {
-                                    isActive: next
-                                  })
-                                }
-                                disabled={deletingCommuneId === String(item._id)}
-                                ariaLabel="Commune active"
-                              />
-                              <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
-                                {item.isActive ? 'Actif' : 'Inactif'}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => startCommuneEdit(item)}
-                              disabled={deletingCommuneId === String(item._id)}
-                              className="inline-flex min-h-9 items-center rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-medium text-slate-700 dark:bg-neutral-800 dark:text-neutral-200"
-                            >
-                              Changer politique
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteCommune(item)}
-                              disabled={deletingCommuneId === String(item._id)}
-                              className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200"
-                            >
-                              <TrashIcon className="h-3 w-3" />
-                              {deletingCommuneId === String(item._id) ? 'Suppression…' : 'Supprimer'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm leading-6 text-slate-600 dark:text-neutral-300">
+                  Les villes et communes d’un pays se créent et se gèrent uniquement depuis{' '}
+                  <strong>Administration → Pays et marchés → onglet Localisations</strong>.
+                </p>
+                <Link
+                  to="/admin/countries"
+                  className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#e85d00] px-4 text-sm font-bold text-white"
+                >
+                  Ouvrir Pays et marchés
+                </Link>
               </SectionShell>
             ) : null}
           </div>

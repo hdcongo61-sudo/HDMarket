@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const quotationItemSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     quotation: { type: mongoose.Schema.Types.ObjectId, ref: 'QuotationRequest', required: true, index: true },
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
     selectedAttributes: {

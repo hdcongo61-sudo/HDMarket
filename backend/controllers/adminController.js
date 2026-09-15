@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import User from '../models/userModel.js';
+import Country from '../models/countryModel.js';
 import Product from '../models/productModel.js';
 import Payment from '../models/paymentModel.js';
 import Comment from '../models/commentModel.js';
@@ -31,6 +32,7 @@ import {
   invalidateUserCache
 } from '../utils/cache.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
+import { getAdminCountryFilter } from '../services/countryService.js';
 import { findShopNameConflict, normalizeShopName } from '../utils/shopNameUtils.js';
 import {
   buildBroadcastRecipientFilter,
@@ -251,6 +253,9 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  // Country admins see their market's stats only; the founder sees everything
+  // or one country via ?countryId=.
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   const [
     totalUsers,
@@ -287,26 +292,26 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     cityStatsRawProducts,
     genderStatsRawProducts
   ] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ accountType: 'shop' }),
-    User.countDocuments({ role: 'admin' }),
-    User.countDocuments({ role: 'manager' }),
-    User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-    Product.countDocuments(),
-    Product.countDocuments({ status: 'pending' }),
-    Product.countDocuments({ status: 'approved' }),
-    Product.countDocuments({ status: 'rejected' }),
-    Product.countDocuments({ status: 'disabled' }),
-    Payment.countDocuments(),
-    Payment.countDocuments({ status: 'waiting' }),
-    Payment.countDocuments({ status: 'verified' }),
-    Payment.countDocuments({ status: 'rejected' }),
+    User.countDocuments({ ...(countryFilter || {}) }),
+    User.countDocuments({ accountType: 'shop', ...(countryFilter || {}) }),
+    User.countDocuments({ role: 'admin', ...(countryFilter || {}) }),
+    User.countDocuments({ role: 'manager', ...(countryFilter || {}) }),
+    User.countDocuments({ createdAt: { $gte: thirtyDaysAgo }, ...(countryFilter || {}) }),
+    Product.countDocuments({ ...(countryFilter || {}) }),
+    Product.countDocuments({ status: 'pending', ...(countryFilter || {}) }),
+    Product.countDocuments({ status: 'approved', ...(countryFilter || {}) }),
+    Product.countDocuments({ status: 'rejected', ...(countryFilter || {}) }),
+    Product.countDocuments({ status: 'disabled', ...(countryFilter || {}) }),
+    Payment.countDocuments({ ...(countryFilter || {}) }),
+    Payment.countDocuments({ status: 'waiting', ...(countryFilter || {}) }),
+    Payment.countDocuments({ status: 'verified', ...(countryFilter || {}) }),
+    Payment.countDocuments({ status: 'rejected', ...(countryFilter || {}) }),
     Payment.aggregate([
-      { $match: { status: 'verified' } },
+      { $match: { status: 'verified', ...(countryFilter || {}) } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]),
     Payment.aggregate([
-      { $match: { status: 'verified', createdAt: { $gte: thirtyDaysAgo } } },
+      { $match: { status: 'verified', createdAt: { $gte: thirtyDaysAgo }, ...(countryFilter || {}) } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]),
     Payment.aggregate([
@@ -315,7 +320,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
           $or: [
             { paymentType: 'LISTING_FEE' },
             { product: { $exists: true, $ne: null } }
-          ]
+          ],
+          ...(countryFilter || {})
         }
       },
       {
@@ -353,6 +359,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     ]),
     Order.aggregate([
       {
+        $match: {
+          ...(countryFilter || {})
+        }
+      },
+      {
         $group: {
           _id: '$status',
           count: { $sum: 1 },
@@ -362,12 +373,12 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         }
       }
     ]),
-    Product.aggregate([{ $group: { _id: null, total: { $sum: '$favoritesCount' } } }]),
-    Comment.countDocuments(),
-    Rating.countDocuments(),
+    Product.aggregate([{ $match: { ...(countryFilter || {}) } }, { $group: { _id: null, total: { $sum: '$favoritesCount' } } }]),
+    Comment.countDocuments({ ...(countryFilter || {}) }),
+    Rating.countDocuments({ ...(countryFilter || {}) }),
     ImprovementFeedback.countDocuments({ readAt: null }),
     Product.aggregate([
-      { $match: { status: 'approved' } },
+      { $match: { status: 'approved', ...(countryFilter || {}) } },
       {
         $group: {
           _id: '$category',
@@ -378,18 +389,18 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       { $sort: { count: -1 } },
       { $limit: 5 }
     ]),
-    User.find()
+    User.find({ ...(countryFilter || {}) })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('name email accountType role createdAt profileImage shopLogo')
       .lean(),
-    Product.find()
+    Product.find({ ...(countryFilter || {}) })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('title price status createdAt')
       .populate('user', 'name')
       .lean(),
-    Payment.find()
+    Payment.find({ ...(countryFilter || {}) })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('payerName amount status operator paymentMethod createdAt validatedAt')
@@ -398,7 +409,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       .populate('validatedBy', 'name')
       .lean(),
     User.aggregate([
-      { $match: { createdAt: { $gte: sixMonthsAgo } } },
+      { $match: { createdAt: { $gte: sixMonthsAgo }, ...(countryFilter || {}) } },
       {
         $group: {
           _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
@@ -407,7 +418,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       }
     ]),
     Product.aggregate([
-      { $match: { createdAt: { $gte: sixMonthsAgo } } },
+      { $match: { createdAt: { $gte: sixMonthsAgo }, ...(countryFilter || {}) } },
       {
         $group: {
           _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
@@ -416,7 +427,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       }
     ]),
     Payment.aggregate([
-      { $match: { status: 'verified', createdAt: { $gte: sixMonthsAgo } } },
+      { $match: { status: 'verified', createdAt: { $gte: sixMonthsAgo }, ...(countryFilter || {}) } },
       {
         $group: {
           _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
@@ -426,6 +437,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     ]),
     User.aggregate([
       {
+        $match: {
+          ...(countryFilter || {})
+        }
+      },
+      {
         $group: {
           _id: '$city',
           count: { $sum: 1 }
@@ -434,6 +450,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       { $sort: { count: -1, _id: 1 } }
     ]),
     User.aggregate([
+      {
+        $match: {
+          ...(countryFilter || {})
+        }
+      },
       {
         $group: {
           _id: '$gender',
@@ -444,6 +465,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     ]),
     Product.aggregate([
       {
+        $match: {
+          ...(countryFilter || {})
+        }
+      },
+      {
         $group: {
           _id: '$city',
           count: { $sum: 1 }
@@ -452,6 +478,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       { $sort: { count: -1, _id: 1 } }
     ]),
     Product.aggregate([
+      {
+        $match: {
+          ...(countryFilter || {})
+        }
+      },
       {
         $lookup: {
           from: 'users',
@@ -729,6 +760,7 @@ export const getSalesTrends = asyncHandler(async (req, res) => {
   const { days = 30 } = req.query;
   const daysNum = Number(days);
   const validDays = [7, 30, 90].includes(daysNum) ? daysNum : 30;
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   const now = new Date();
   const startDate = new Date(now);
@@ -739,7 +771,8 @@ export const getSalesTrends = asyncHandler(async (req, res) => {
     {
       $match: {
         createdAt: { $gte: startDate, $lte: now },
-        status: { $ne: 'cancelled' }
+        status: { $ne: 'cancelled' },
+        ...(countryFilter || {})
       }
     },
     {
@@ -777,12 +810,14 @@ export const getOrderHeatmap = asyncHandler(async (req, res) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   // Get orders grouped by hour of day
   const heatmapData = await Order.aggregate([
     {
       $match: {
-        createdAt: { $gte: thirtyDaysAgo, $lte: now }
+        createdAt: { $gte: thirtyDaysAgo, $lte: now },
+        ...(countryFilter || {})
       }
     },
     {
@@ -814,9 +849,15 @@ export const getConversionMetrics = asyncHandler(async (req, res) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   // Get product views (approximated by viewsCount)
   const totalViews = await Product.aggregate([
+    {
+      $match: {
+        ...(countryFilter || {})
+      }
+    },
     {
       $group: {
         _id: null,
@@ -827,14 +868,16 @@ export const getConversionMetrics = asyncHandler(async (req, res) => {
 
   // Get unique visitors (users who viewed products)
   const uniqueVisitors = await User.countDocuments({
-    createdAt: { $gte: thirtyDaysAgo }
+    createdAt: { $gte: thirtyDaysAgo },
+    ...(countryFilter || {})
   });
 
   // Get orders
   const ordersData = await Order.aggregate([
     {
       $match: {
-        createdAt: { $gte: thirtyDaysAgo, $lte: now }
+        createdAt: { $gte: thirtyDaysAgo, $lte: now },
+        ...(countryFilter || {})
       }
     },
     {
@@ -862,7 +905,8 @@ export const getConversionMetrics = asyncHandler(async (req, res) => {
   const funnel = await Order.aggregate([
     {
       $match: {
-        createdAt: { $gte: thirtyDaysAgo, $lte: now }
+        createdAt: { $gte: thirtyDaysAgo, $lte: now },
+        ...(countryFilter || {})
       }
     },
     {
@@ -894,12 +938,14 @@ export const getCohortAnalysis = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
   const now = new Date();
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   // Get users grouped by signup month
   const userCohorts = await User.aggregate([
     {
       $match: {
-        createdAt: { $gte: sixMonthsAgo, $lte: now }
+        createdAt: { $gte: sixMonthsAgo, $lte: now },
+        ...(countryFilter || {})
       }
     },
     {
@@ -923,7 +969,8 @@ export const getCohortAnalysis = asyncHandler(async (req, res) => {
       // Count users who made at least one order
       const activeUsers = await Order.distinct('customer', {
         customer: { $in: cohort.users },
-        createdAt: { $gte: cohortDate }
+        createdAt: { $gte: cohortDate },
+        ...(countryFilter || {})
       });
 
       // Get orders by month for this cohort
@@ -931,7 +978,8 @@ export const getCohortAnalysis = asyncHandler(async (req, res) => {
         {
           $match: {
             customer: { $in: cohort.users },
-            createdAt: { $gte: cohortDate }
+            createdAt: { $gte: cohortDate },
+            ...(countryFilter || {})
           }
         },
         {
@@ -979,6 +1027,7 @@ export const getOrdersByHour = asyncHandler(async (req, res) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
 
   // Get orders created at the specified hour in the last 30 days using aggregation
   const ordersAgg = await Order.aggregate([
@@ -987,7 +1036,8 @@ export const getOrdersByHour = asyncHandler(async (req, res) => {
         createdAt: {
           $gte: thirtyDaysAgo,
           $lte: now
-        }
+        },
+        ...(countryFilter || {})
       }
     },
     {
@@ -1201,6 +1251,10 @@ export const listUsers = asyncHandler(async (req, res) => {
   const { search = '', accountType, reactivationStatus, role, betaTester, limit = 25 } = req.query;
 
   const query = {};
+  // Country admins only see users of their assigned country(ies); the founder
+  // sees everyone or one country via ?countryId=.
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(query, countryFilter);
   if (accountType && ['person', 'shop'].includes(accountType)) {
     query.accountType = accountType;
   }
@@ -1929,7 +1983,6 @@ export const updateUserRole = asyncHandler(async (req, res) => {
   ensureAdminRole(req);
   const { id } = req.params;
   const { role } = req.body || {};
-
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
   }
@@ -1978,6 +2031,65 @@ export const updateUserRole = asyncHandler(async (req, res) => {
 
   const populated = await user.populate('shopVerifiedBy', 'name email');
   res.json(toAdminUserResponse(populated));
+});
+
+// Assign which countries an 'admin' account may manage. An empty list means
+// the admin is platform-wide (no country restriction). Reachable only through
+// the global-admin-only path in adminRoutes (scoped admins are blocked there).
+export const updateUserAdminCountries = asyncHandler(async (req, res) => {
+  ensureAdminRole(req);
+  const { id } = req.params;
+  const requested = Array.isArray(req.body?.adminCountryIds) ? req.body.adminCountryIds : [];
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Identifiant utilisateur invalide.' });
+  }
+  if (req.user?.id && id === req.user.id) {
+    return res.status(400).json({ message: 'Vous ne pouvez pas restreindre votre propre accès pays.' });
+  }
+
+  const user = await User.findById(id);
+  if (!user) return res.status(404).json({ message: 'Utilisateur introuvable.' });
+  if (String(user.role || '').toLowerCase() !== 'admin') {
+    return res.status(400).json({ message: 'Seuls les comptes admin peuvent être limités à des pays.' });
+  }
+
+  const uniqueIds = [
+    ...new Set(
+      requested
+        .map((value) => String(value || '').trim())
+        .filter((value) => mongoose.Types.ObjectId.isValid(value))
+    )
+  ];
+  if (uniqueIds.length) {
+    const existing = await Country.countDocuments({ _id: { $in: uniqueIds } });
+    if (existing !== uniqueIds.length) {
+      return res.status(400).json({ message: 'Un ou plusieurs pays sont introuvables.' });
+    }
+  }
+
+  const previous = (user.adminCountryIds || []).map(String);
+  user.adminCountryIds = uniqueIds.map((value) => new mongoose.Types.ObjectId(value));
+  user.sessionsInvalidatedAt = new Date();
+  await user.save();
+
+  await createAuditLog({
+    action: 'admin_country_scope_changed',
+    targetUser: user._id,
+    performedBy: req.user.id,
+    details: {
+      userName: user.name,
+      userEmail: user.email,
+      previousAdminCountryIds: previous,
+      newAdminCountryIds: uniqueIds
+    },
+    ipAddress: req.ip || req.connection?.remoteAddress
+  });
+
+  res.json({
+    message: uniqueIds.length ? 'Pays administrés mis à jour.' : 'Accès global : cet admin gère tous les pays.',
+    adminCountryIds: uniqueIds
+  });
 });
 
 export const promoteUserToDeliveryGuy = asyncHandler(async (req, res) => {

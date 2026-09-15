@@ -10,6 +10,7 @@ import {
   founderHardDeleteAccount,
   forceLogoutUser,
   forcePasswordResetUser,
+  listAdminPermissions,
   listFounderDeletionCandidates,
   listFounderAuditLogs,
   listFounderPhoneBlacklist,
@@ -17,7 +18,8 @@ import {
   promoteAdmin,
   reverseFounderPhoneBlacklist,
   revokeAdmin,
-  unlockUserAccount
+  unlockUserAccount,
+  updateAdminPermissions
 } from '../controllers/founderController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireFounder, requirePermission } from '../middlewares/roleMiddleware.js';
@@ -112,6 +114,9 @@ router.post(
 );
 router.post('/promote-admin/:id', protect, requireFounder, requirePermission('assign_roles'), validate(schemas.idParam, 'params'), promoteAdmin);
 router.post('/revoke-admin/:id', protect, requireFounder, requirePermission('revoke_roles'), validate(schemas.idParam, 'params'), revokeAdmin);
+// Founder-only admin permission management (grant / remove what each admin can do).
+router.get('/admins/permissions', founderLimiter, protect, requireFounder, requirePermission('manage_permissions'), listAdminPermissions);
+router.patch('/admins/:id/permissions', protect, requireFounder, requirePermission('manage_permissions'), validate(schemas.idParam, 'params'), updateAdminPermissions);
 router.post('/lock-user/:id', protect, requireFounder, requirePermission('lock_accounts'), validate(schemas.idParam, 'params'), lockUserAccount);
 router.post('/unlock-user/:id', protect, requireFounder, requirePermission('lock_accounts'), validate(schemas.idParam, 'params'), unlockUserAccount);
 router.post(

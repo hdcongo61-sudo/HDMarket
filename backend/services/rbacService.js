@@ -129,15 +129,17 @@ export const getRolePermissions = (role = 'user') => {
 
 export const resolvePermissionsForUser = (user = {}) => {
   const role = normalizeRole(user.role);
+  if (role === 'founder') return Array.from(ALL_PERMISSIONS);
+  // Founder-managed exact set: the permissions array is authoritative.
+  if (String(user.permissionMode || 'role') === 'custom') {
+    return Array.from(toPermissionSet(user.permissions));
+  }
   const merged = toPermissionSet(getRolePermissions(role));
   for (const permission of toPermissionSet(user.permissions)) {
     merged.add(permission);
   }
   for (const [legacyFlag, permission] of Object.entries(LEGACY_FLAG_TO_PERMISSION)) {
     if (user?.[legacyFlag] === true) merged.add(permission);
-  }
-  if (role === 'founder') {
-    for (const permission of ALL_PERMISSIONS) merged.add(permission);
   }
   return Array.from(merged);
 };

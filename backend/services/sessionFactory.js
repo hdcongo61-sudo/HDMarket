@@ -73,6 +73,7 @@ export function buildSession(user, decoded = {}, token = '') {
 
     // ── Permissions ──
     permissions,
+    permissionMode: user.permissionMode === 'custom' ? 'custom' : 'role',
     // Convenience flags (pre-resolved for middleware-less checks)
     canReadFeedback:      toBool(user.canReadFeedback)      || permissions.includes('read_feedback'),
     canVerifyPayments:    toBool(user.canVerifyPayments)    || permissions.includes('verify_payments'),

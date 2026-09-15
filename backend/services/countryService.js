@@ -75,12 +75,108 @@ export const canAccessCountry = (country, user, { historical = false } = {}) => 
 
 export const canAdminCountry = (country, user) => {
   if (!country || !user) return false;
+  // Only the founder stays global. Admins are embedded in the countries they
+  // are registered at (adminCountryIds / countryAdminUserIds).
   if (String(user.role || '').toLowerCase() === 'founder') return true;
   const userId = normalizeId(user.id || user._id);
   const scopedIds = (user.adminCountryIds || []).map(normalizeId);
   const countryAdminIds = (country.countryAdminUserIds || []).map(normalizeId);
-  if (String(user.role || '').toLowerCase() === 'admin' && scopedIds.length === 0) return true;
   return scopedIds.includes(normalizeId(country)) || countryAdminIds.includes(userId);
+};
+
+// Founder-only global access. Country admins are never global, even with an
+// empty adminCountryIds list (migration guarantees every admin has a country).
+export const isGlobalCountryAdmin = (user) => String(user?.role || '').toLowerCase() === 'founder';
+
+// Returns null for global admins, otherwise the list of country ids the
+// scoped admin is allowed to manage.
+export const getScopedAdminCountryIds = (user) => {
+  if (!user) return [];
+  if (isGlobalCountryAdmin(user)) return null;
+  return (user.adminCountryIds || []).map(normalizeId).filter(Boolean);
+};
+
+// Resolves the country scope for an admin request (shared by every admin
+// controller that manages country-owned data).
+// - Founder: explicit countryId (query/body/header), otherwise either the
+//   default country (create time) or '' = "all countries" (list time).
+// - Scoped admins: locked to their assigned countries; the first one is used
+//   when none is requested. An admin with no assigned country is denied.
+export const resolveAdminCountryScope = async (req, { defaultToDefaultCountry = false } = {}) => {
+  const raw = String(
+    req.query?.countryId || req.body?.countryId || req.headers?.['x-admin-country-id'] || ''
+  ).trim();
+  const scopedIds = getScopedAdminCountryIds(req.user); // null for founder
+  let countryId = raw;
+  if (!countryId && scopedIds && scopedIds.length) countryId = scopedIds[0];
+  if (!countryId) {
+    if (scopedIds && !scopedIds.length) {
+      const error = new Error('Aucun pays assigné à cet admin.');
+      error.status = 403;
+      error.code = 'NO_COUNTRY_ASSIGNED';
+      throw error;
+    }
+    if (defaultToDefaultCountry) {
+      const country = await ensureDefaultCountry();
+      return { countryId: String(country._id), country };
+    }
+    return { countryId: '', country: null };
+  }
+
+  const country = await findCountry(countryId);
+  if (!country) {
+    const error = new Error('Pays introuvable.');
+    error.status = 400;
+    error.code = 'COUNTRY_NOT_FOUND';
+    throw error;
+  }
+  if (!canAdminCountry(country, req.user)) {
+    const error = new Error('Accès pays refusé.');
+    error.status = 403;
+    error.code = 'COUNTRY_ACCESS_DENIED';
+    throw error;
+  }
+  return { countryId: String(country._id), country };
+};
+
+// Builds a country filter for admin listings. Pure (unit-testable).
+// - Founder without countryId: null → no filter (global view).
+// - Founder with countryId / scoped admin: { [field]: id | { $in: [...] } }.
+// - Other roles (managers) keep their legacy global view (null).
+export const getAdminCountryFilter = (user, { countryId = null, field = 'countryId' } = {}) => {
+  const role = String(user?.role || '').toLowerCase();
+  if (role !== 'admin' && role !== 'founder') return null;
+  if (isGlobalCountryAdmin(user)) {
+    const raw = String(countryId || '').trim();
+    if (!raw) return null;
+    return mongoose.isValidObjectId(raw) ? { [field]: raw } : null;
+  }
+  const scopedIds = getScopedAdminCountryIds(user) || [];
+  if (!scopedIds.length) {
+    const error = new Error('Aucun pays assigné à cet admin.');
+    error.status = 403;
+    error.code = 'NO_COUNTRY_ASSIGNED';
+    throw error;
+  }
+  const requested = String(countryId || '').trim();
+  if (requested && scopedIds.includes(requested)) return { [field]: requested };
+  return scopedIds.length === 1 ? { [field]: scopedIds[0] } : { [field]: { $in: scopedIds } };
+};
+
+// Asserts that a record belongs to the requesting admin's country before
+// read/write. Founder passes; scoped admins are denied for foreign records.
+export const assertCountryRecordAccess = (record, req, { field = 'countryId' } = {}) => {
+  const user = req?.user;
+  if (!user || isGlobalCountryAdmin(user)) return;
+  if (String(user?.role || '').toLowerCase() !== 'admin') return;
+  const scopedIds = getScopedAdminCountryIds(user) || [];
+  const recordCountry = String(record?.[field] || '').trim();
+  if (!scopedIds.length || !recordCountry || !scopedIds.includes(recordCountry)) {
+    const error = new Error('Ce contenu appartient à un autre pays.');
+    error.status = 403;
+    error.code = 'COUNTRY_ACCESS_DENIED';
+    throw error;
+  }
 };
 
 export const serializePublicCountry = (country, { includeSettings = true } = {}) => {
@@ -141,7 +237,19 @@ export const resolveCountryContext = async ({
     country = await findCountry(candidate);
     if (country) break;
   }
-  if (!country) country = await ensureDefaultCountry();
+  // Guests resolve to the default country. Registered users NEVER fall back
+  // silently: a user whose country cannot be resolved would otherwise see
+  // another market's data, which violates per-country isolation.
+  if (!country) {
+    const userHasCountry = Boolean(user && (user.selectedCountryId || user.countryId));
+    if (userHasCountry) {
+      const error = new Error("Votre compte n'est rattaché à aucun pays actif.");
+      error.status = 403;
+      error.code = 'COUNTRY_UNRESOLVED';
+      throw error;
+    }
+    country = await ensureDefaultCountry();
+  }
   if (!canAccessCountry(country, user, { historical })) {
     const error = new Error(
       country?.status === 'DISABLED'
@@ -151,6 +259,23 @@ export const resolveCountryContext = async ({
     error.status = 403;
     error.code = country?.status === 'DISABLED' ? 'COUNTRY_DISABLED' : 'COUNTRY_ACCESS_DENIED';
     throw error;
+  }
+  // Strict per-country isolation: a registered user operates only within
+  // their own market. Cross-border content is allowed only when their own
+  // country's settings explicitly enable it (founder stays global).
+  if (user && (user.selectedCountryId || user.countryId) && !isGlobalCountryAdmin(user)) {
+    const ownCountryId = normalizeId(user.selectedCountryId || user.countryId);
+    const resolvedId = normalizeId(country);
+    if (ownCountryId && ownCountryId !== resolvedId) {
+      const ownCountry = await findCountry(ownCountryId);
+      const crossBorderEnabled = Boolean(ownCountry?.settings?.crossBorder?.enabled);
+      if (!crossBorderEnabled) {
+        const error = new Error('Ce contenu appartient à un autre pays.');
+        error.status = 403;
+        error.code = 'COUNTRY_ACCESS_DENIED';
+        throw error;
+      }
+    }
   }
   return {
     country,
@@ -243,6 +368,8 @@ export default {
   findCountry,
   canAccessCountry,
   canAdminCountry,
+  isGlobalCountryAdmin,
+  getScopedAdminCountryIds,
   listAccessibleCountries,
   resolveCountryContext,
   assertCurrencySupported,
@@ -250,4 +377,7 @@ export default {
   getCountryReadiness,
   buildCountryFinancialSnapshot
   ,buildCountryDataFilter
+  ,resolveAdminCountryScope
+  ,getAdminCountryFilter
+  ,assertCountryRecordAccess
 };

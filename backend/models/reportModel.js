@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const reportSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     reporter: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

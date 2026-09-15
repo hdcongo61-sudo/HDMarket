@@ -1,5 +1,6 @@
 import express from 'express';
-import { protect } from '../middlewares/authMiddleware.js';
+import { optionalProtect, protect } from '../middlewares/authMiddleware.js';
+import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import {
   postCreateGroupBuy,
   postJoinGroupBuy,
@@ -9,6 +10,9 @@ import {
 } from '../controllers/groupBuyController.js';
 
 const router = express.Router();
+
+// Users only see group buys from the country they are registered in.
+router.use(optionalProtect, attachCountryContext);
 
 router.get('/active', getActiveGroupBuys);
 router.get('/product/:productId', getGroupBuysForProduct);

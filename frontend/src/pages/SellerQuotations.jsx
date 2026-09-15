@@ -28,7 +28,7 @@ export default function SellerQuotations() {
       const items = Array.isArray(data?.items) ? data.items : [];
       setRows(items);
       if (quotationId) setSelected(items.find((row) => row._id === quotationId) || null);
-    } catch (requestError) { setError(requestError.response?.data?.message || 'Impossible de charger les devis.'); }
+    } catch (requestError) { setError(requestError.response?.data?.message || 'Impossible de charger les prix à débattre.'); }
     finally { setLoading(false); }
   }, [activeTab, quotationId]);
   useEffect(() => { load(); }, [load]);
@@ -76,7 +76,7 @@ export default function SellerQuotations() {
   return (
     <main className="min-h-screen bg-[#f5f2ee] px-3 pb-28 pt-5 text-[#231f1b] sm:px-6 lg:px-8 lg:py-8 dark:bg-neutral-950 dark:text-white">
       <div className="mx-auto max-w-6xl">
-        <header className="flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.16em] text-[#e85d00]">Négociation</p><h1 className="mt-1 text-2xl font-black sm:text-4xl">Demandes de devis</h1><p className="mt-1 text-sm font-medium text-[#797166]">Répondez rapidement sans changer vos prix publics.</p></div><button onClick={load} aria-label="Actualiser" className="grid h-11 w-11 place-items-center rounded-full border border-[#ded6ca] bg-white dark:border-neutral-800 dark:bg-neutral-900"><ArrowPathIcon className="h-4 w-4" /></button></header>
+        <header className="flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.16em] text-[#e85d00]">Négociation</p><h1 className="mt-1 text-2xl font-black sm:text-4xl">Demandes de prix à débattre</h1><p className="mt-1 text-sm font-medium text-[#797166]">Répondez rapidement sans changer vos prix publics.</p></div><button onClick={load} aria-label="Actualiser" className="grid h-11 w-11 place-items-center rounded-full border border-[#ded6ca] bg-white dark:border-neutral-800 dark:bg-neutral-900"><ArrowPathIcon className="h-4 w-4" /></button></header>
         <nav className="mt-6 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">{tabs.map(([value, label]) => <button key={value} onClick={() => { setActiveTab(value); navigate('/seller/quotations'); }} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-black ${activeTab === value ? 'bg-[#231f1b] text-white dark:bg-white dark:text-black' : 'border border-[#ded6ca] bg-white text-[#6b6459] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300'}`}>{label}{value === 'PENDING' && pendingCount ? ` · ${pendingCount}` : ''}</button>)}</nav>
         {error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
         {loading ? <div className="mt-5 grid gap-4 lg:grid-cols-2">{[1, 2, 3, 4].map((key) => <div className="h-64 animate-pulse rounded-3xl bg-white dark:bg-neutral-900" key={key} />)}</div> : null}

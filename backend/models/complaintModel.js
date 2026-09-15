@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const complaintSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     subject: { type: String, trim: true, maxlength: 150, default: '' },
     message: { type: String, required: true, maxlength: 1500 },

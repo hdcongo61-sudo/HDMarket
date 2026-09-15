@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const platformDailyAnalyticsSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     day: { type: String, required: true, unique: true, index: true }, // YYYY-MM-DD
     date: { type: Date, required: true, index: true },
     dau: { type: Number, default: 0, min: 0 },

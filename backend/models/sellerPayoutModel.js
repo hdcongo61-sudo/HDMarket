@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const sellerPayoutSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     payoutId: { type: String, required: true, unique: true, trim: true },
     batchKey: { type: String, required: true, unique: true, trim: true },
     seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },

@@ -11,6 +11,7 @@ import ProductVideoEngagement from '../models/productVideoEngagementModel.js';
 import ProductVideoReport from '../models/productVideoReportModel.js';
 import User from '../models/userModel.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { buildCountryDataFilter } from '../services/countryService.js';
 import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import {
   destroyCloudinaryAsset,
@@ -341,6 +342,8 @@ export const getProductVideoFeed = asyncHandler(async (req, res) => {
   const search = String(req.query.search || '').trim();
   const verifiedIds = await getVerifiedProductIds();
   const productFilter = { _id: { $in: verifiedIds }, status: 'approved' };
+  // Users only see videos from their country's products.
+  if (req.countryContext) Object.assign(productFilter, buildCountryDataFilter(req.countryContext));
   if (filter === 'nearby' && req.user?.city) productFilter.city = req.user.city;
   if (filter === 'discounts') productFilter.discount = { $gt: 0 };
   if (filter === 'free_delivery') productFilter.deliveryFee = 0;
@@ -434,18 +437,34 @@ export const getSavedProductVideos = asyncHandler(async (req, res) => {
   res.json({ items: items.map((video) => serializeVideo(video, { saved: true })), page, hasMore: saved.length === limit });
 });
 
+// Country check for a populated product: legacy null-country products stay
+// visible (they belong to the Congo market's historical pool).
+const videoMatchesCountryFilter = (product, filter) => {
+  const productCountry = String(product?.countryId || '');
+  const raw = filter?.countryId;
+  if (!raw) return true;
+  if (typeof raw === 'string') return !productCountry || productCountry === raw;
+  if (raw?.$in) return !productCountry || raw.$in.map(String).includes(productCountry);
+  return true;
+};
+
 export const listShopProductVideos = asyncHandler(async (req, res) => {
   const { sellerId } = req.params;
   if (!isValidId(sellerId)) return res.status(400).json({ message: 'Boutique invalide.' });
   const page = clamp(req.query.page, 1, 10000, 1);
   const limit = clamp(req.query.limit, 1, MAX_PAGE_SIZE, 12);
+  const productFilter = req.countryContext ? buildCountryDataFilter(req.countryContext) : null;
   const videos = await populateVideoQuery(
     ProductVideo.find({ seller: sellerId, status: 'approved' })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
   ).lean();
-  const items = videos.filter((video) => video.product?.status === 'approved');
+  const items = videos.filter(
+    (video) =>
+      video.product?.status === 'approved' &&
+      (!productFilter || videoMatchesCountryFilter(video.product, productFilter))
+  );
   const engagementMap = await getEngagementMap(items, req);
   res.json({
     items: items.map((video) => serializeVideo(video, engagementMap.get(String(video._id)))),

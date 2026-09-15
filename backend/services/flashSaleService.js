@@ -25,7 +25,8 @@ export const createFlashSale = async ({
   flashPrice,
   startDate,
   endDate,
-  createdBy
+  createdBy,
+  countryId
 }) => {
   const product = await Product.findById(productId)
     .select('title slug price discount user')
@@ -55,6 +56,7 @@ export const createFlashSale = async ({
   const flashSale = await FlashSale.create({
     product: productId,
     seller: product.user,
+    countryId: countryId || product.countryId || null,
     flashPrice,
     originalPrice,
     discountPercent,
@@ -97,37 +99,34 @@ export const cancelFlashSale = async (flashSaleId, cancelledBy, reason = '') => 
   return flashSale;
 };
 
-export const getActiveFlashSales = async ({ page = 1, limit = 20 } = {}) => {
+export const getActiveFlashSales = async ({ page = 1, limit = 20, countryFilter = null } = {}) => {
   const now = new Date();
   const skip = (page - 1) * limit;
+  const baseQuery = {
+    status: 'active',
+    isVisible: true,
+    startDate: { $lte: now },
+    endDate: { $gt: now },
+    ...(countryFilter || {})
+  };
 
   const [items, total] = await Promise.all([
-    FlashSale.find({
-      status: 'active',
-      isVisible: true,
-      startDate: { $lte: now },
-      endDate: { $gt: now }
-    })
+    FlashSale.find(baseQuery)
       .sort({ endDate: 1 }) // ending soonest first
       .skip(skip)
       .limit(limit)
       .populate('product', 'title slug price images category')
       .populate('seller', 'shopName name')
       .lean(),
-    FlashSale.countDocuments({
-      status: 'active',
-      isVisible: true,
-      startDate: { $lte: now },
-      endDate: { $gt: now }
-    })
+    FlashSale.countDocuments(baseQuery)
   ]);
 
   return { items, total, page, pages: Math.ceil(total / limit) };
 };
 
-export const getAllFlashSales = async ({ page = 1, limit = 20, status = '', sellerId = '' } = {}) => {
+export const getAllFlashSales = async ({ page = 1, limit = 20, status = '', sellerId = '', countryFilter = null } = {}) => {
   const skip = (page - 1) * limit;
-  const query = {};
+  const query = { ...(countryFilter || {}) };
   if (status && ['scheduled', 'active', 'ended', 'cancelled'].includes(status)) {
     query.status = status;
   }

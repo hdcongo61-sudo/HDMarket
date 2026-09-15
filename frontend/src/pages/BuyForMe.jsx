@@ -172,7 +172,7 @@ export default function BuyForMe() {
     const timer = setTimeout(() => {
       api.post('/buy-for-me/estimate', { storeType, pickup: pickupPayload, dropoff: dropoffPayload, items: cleanItems, authorizationMode, shoppingBudget: authorizedShoppingValue })
         .then(({ data }) => { if (!cancelled) { setQuote(data); setQuoteError(''); } })
-        .catch((error) => { if (!cancelled) { setQuote(null); setQuoteError(getApiErrorMessage(error, 'Devis indisponible.')); } })
+        .catch((error) => { if (!cancelled) { setQuote(null); setQuoteError(getApiErrorMessage(error, 'Prix à débattre indisponible.')); } })
         .finally(() => { if (!cancelled) setQuoting(false); });
     }, 450);
     return () => { cancelled = true; clearTimeout(timer); };
@@ -231,8 +231,8 @@ export default function BuyForMe() {
   const beforePay = () => {
     if (imageUploadInProgress) return 'Attendez la fin de l’envoi des images.';
     if (!canPay) return authorizationMode === 'SHOPPING_BUDGET'
-      ? 'Complétez le nom et la quantité de chaque article, indiquez le budget autorisé, puis attendez le devis.'
-      : 'Complétez le nom, la quantité et le prix estimé de chaque article, puis attendez le devis.';
+      ? 'Complétez le nom et la quantité de chaque article, indiquez le budget autorisé, puis attendez le prix à débattre.'
+      : 'Complétez le nom, la quantité et le prix estimé de chaque article, puis attendez le prix à débattre.';
     if (pickup.address.trim()) saveAddressToHistory(pickup);
     setAddressHistory(saveAddressToHistory(dropoff));
     return {

@@ -2,9 +2,16 @@ import asyncHandler from 'express-async-handler';
 import Commune from '../models/communeModel.js';
 import City from '../models/cityModel.js';
 import { invalidatePricingContext } from '../modules/delivery/cache/PricingContextCache.js';
+import { canAdminCountry, findCountry, getScopedAdminCountryIds } from '../services/countryService.js';
 
 export const listCommunesAdmin = asyncHandler(async (req, res) => {
-  const communes = await Commune.find()
+  const scopedIds = getScopedAdminCountryIds(req.user); // null for global admins
+  let filter = {};
+  if (scopedIds) {
+    const scopedCityIds = await City.find({ countryId: { $in: scopedIds } }).distinct('_id');
+    filter = { cityId: { $in: scopedCityIds } };
+  }
+  const communes = await Commune.find(filter)
     .sort({ order: 1, name: 1 })
     .lean();
   const cityIds = [...new Set(communes.map((c) => String(c.cityId)))];
@@ -33,6 +40,10 @@ export const createCommuneAdmin = asyncHandler(async (req, res) => {
   const city = await City.findById(cityId).lean();
   if (!city) {
     return res.status(400).json({ message: 'Ville introuvable.' });
+  }
+  if (city.countryId) {
+    const country = await findCountry(city.countryId);
+    if (!canAdminCountry(country, req.user)) return res.status(403).json({ message: 'Accès pays refusé.' });
   }
 
   const existing = await Commune.findOne({ cityId, name: { $regex: new RegExp(`^${trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });

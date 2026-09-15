@@ -28,6 +28,9 @@ const swapManifestIcon = async (iconUrl) => {
   const res = await fetch(manifestLink.dataset.originalHref, { credentials: 'same-origin' });
   if (!res.ok) return;
   const manifest = await res.json();
+  // Blob manifests need absolute navigation URLs on the current app origin.
+  manifest.start_url = new URL('/', window.location.origin).href;
+  manifest.scope = new URL('/', window.location.origin).href;
 
   manifest.icons = [
     { src: iconUrl, sizes: '192x192', type: 'image/png', purpose: 'any' },

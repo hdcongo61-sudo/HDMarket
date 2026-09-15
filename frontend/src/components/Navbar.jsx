@@ -3493,7 +3493,7 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                           className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/60"
                         >
                           <DocumentTextIcon className="shrink-0 text-gray-500 dark:text-gray-400 h-[18px] w-[18px]" />
-                          <span className="text-sm font-medium">Mes devis</span>
+                          <span className="text-sm font-medium">Mes prix à débattre</span>
                         </Link>
                         <Link
                           to="/seller/orders"
@@ -4451,7 +4451,7 @@ className={`h-4 w-4 transition-transform duration-200 ${isMoreMenuOpen ? 'rotate
                     className="flex items-center gap-3 rounded-xl bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                   >
                     <DocumentTextIcon className="h-5 w-5" />
-                    Mes devis
+                    Mes prix à débattre
                   </NavLink>
                   {chatEnabled && (
                     <NavLink

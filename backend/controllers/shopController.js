@@ -14,6 +14,7 @@ import { ensureShopSlug } from '../utils/shopSlugUtils.js';
 import { buildIdentifierQuery } from '../utils/idResolver.js';
 import { ensureModelSlugsForItems } from '../utils/slugUtils.js';
 import { withVerifiedPublicProductFilter } from '../utils/publicProductVisibility.js';
+import { buildCountryDataFilter } from '../services/countryService.js';
 
 const formatShopReview = (review) => {
   if (!review) return null;
@@ -95,6 +96,8 @@ const SHOP_CITIES = ['Brazzaville', 'Pointe-Noire', 'Ouesso', 'Oyo'];
 export const listShops = asyncHandler(async (req, res) => {
   try {
     const filters = { accountType: 'shop', isActive: true };
+    // Users only see shops from the country they are registered in.
+    if (req.countryContext) Object.assign(filters, buildCountryDataFilter(req.countryContext));
     if (req.query?.verified === 'true') {
       filters.shopVerified = true;
     }
@@ -266,6 +269,8 @@ export const listFreeDeliveryShops = asyncHandler(async (req, res) => {
   const communeForcesFree = String(commune?.deliveryPolicy || '').toUpperCase() === 'FREE';
 
   const filter = { accountType: 'shop', isActive: true };
+  // Users only see shops from the country they are registered in.
+  if (req.countryContext) Object.assign(filter, buildCountryDataFilter(req.countryContext));
   if (city) {
     filter.city = city;
   }
@@ -318,6 +323,16 @@ export const getShopProfile = asyncHandler(async (req, res) => {
     'name shopName phone accountType createdAt shopLogo shopBanner shopBannerMobile shopColor shopAddress shopLocationAddress shopVerified shopDescription shopHours freeDeliveryEnabled freeDeliveryNote shopLocation shopLocationVerified shopLocationUpdatedAt shopLocationTrustScore shopLocationNeedsReview shopLocationReviewStatus shopLocationReviewFlags isActive isBlocked followersCount slug'
   ].join(' '));
   if (!shop || shop.accountType !== 'shop' || shop.isActive === false) {
+    return res.status(404).json({ message: 'Boutique introuvable.' });
+  }
+
+  // Users only view shops from the country they are registered in (legacy
+  // null-country shops stay visible — Congo's historical pool).
+  if (
+    req.countryContext?.countryId &&
+    shop.countryId &&
+    String(shop.countryId) !== String(req.countryContext.countryId)
+  ) {
     return res.status(404).json({ message: 'Boutique introuvable.' });
   }
 

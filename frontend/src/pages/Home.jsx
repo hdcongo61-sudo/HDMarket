@@ -2526,7 +2526,7 @@ const loadDiscountProducts = async () => {
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><BuildingStorefrontIcon className="h-6 w-6" /></span>
           <span className="min-w-0 flex-1">
             <strong className="block text-[16px] font-black text-[#141210] dark:text-white">Vous revendez ?</strong>
-            <span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378] dark:text-neutral-400">Demandez un devis groupé au vendeur.</span>
+            <span className="mt-0.5 block text-[13px] font-semibold text-[#8a8378] dark:text-neutral-400">Demandez un prix à débattre groupé au vendeur.</span>
           </span>
           <ChevronRightIcon className="h-6 w-6 shrink-0 text-[#a8a29e]" />
         </Link>
@@ -3475,7 +3475,7 @@ const loadDiscountProducts = async () => {
             <span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-[#e7f8ef] text-[#00814a]"><BuildingStorefrontIcon className="h-6 w-6" /></span>
             <span className="min-w-0 flex-1">
               <strong className="block text-lg font-black text-[#141210]">Vous revendez ?</strong>
-              <span className="mt-0.5 block text-sm font-semibold text-[#8a8378]">Demandez un devis groupé au vendeur.</span>
+              <span className="mt-0.5 block text-sm font-semibold text-[#8a8378]">Demandez un prix à débattre groupé au vendeur.</span>
             </span>
             <ChevronRightIcon className="h-6 w-6 shrink-0 text-[#a8a29e]" />
           </Link>

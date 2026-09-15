@@ -17,6 +17,7 @@ const pointsTransactionSchema = new mongoose.Schema(
 
 const rewardPointsSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
     balance: { type: Number, default: 0, min: 0 },
     lifetimeEarned: { type: Number, default: 0, min: 0 },

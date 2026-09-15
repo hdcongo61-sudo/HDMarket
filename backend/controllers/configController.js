@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import {
+  deleteRuntimeConfigCountryOverride,
   getPublicRuntimeConfig,
   getRuntimeConfig,
   invalidateConfigCache,
@@ -13,6 +14,7 @@ import { normalizeConfigEnvironment } from '../config/runtimeSettingsCatalog.js'
 import { invalidateSettingsCache } from '../utils/cache.js';
 import { invalidateSettingsResolverCache } from '../utils/settingsResolver.js';
 import { createAuditLogEntry } from '../services/auditLogService.js';
+import { resolveAdminCountryScope } from '../services/countryService.js';
 
 const normalizeText = (value = '') => String(value || '').trim();
 const decodeTargetingHeader = (value) => {
@@ -39,6 +41,15 @@ const resolveEnvironmentFromRequest = (req) => {
 };
 
 const isFounderRequest = (req) => req.user?.role === 'founder';
+
+// Resolves the country scope for runtime settings edits — shared helper from
+// countryService (also used by campaigns, promo codes and flash sales).
+// - Founder may pass countryId to edit one market, or omit it to edit
+//   platform-wide values.
+// - Country-scoped admins are locked to their assigned countries (the first
+//   one is used when none is requested).
+
+export { resolveAdminCountryScope };
 
 const invalidatePublicSettingsProjection = async () => {
   await Promise.all([
@@ -68,14 +79,16 @@ const writeConfigAudit = async (
 export const getAdminRuntimeSettings = asyncHandler(async (req, res) => {
   const includeHidden =
     String(req.query?.includeHidden || '').toLowerCase() === 'true' || isFounderRequest(req);
+  const { countryId } = await resolveAdminCountryScope(req);
 
   const payload = await listRuntimeConfigs({
     environment: resolveEnvironmentFromRequest(req),
     category: normalizeText(req.query?.category || ''),
+    countryId,
     includeHidden
   });
 
-  return res.json(payload);
+  return res.json({ ...payload, countryId: payload.countryId || null });
 });
 
 export const getAdminRuntimeSetting = asyncHandler(async (req, res) => {
@@ -83,12 +96,14 @@ export const getAdminRuntimeSetting = asyncHandler(async (req, res) => {
   if (!key) {
     return res.status(400).json({ message: 'Setting key is required.' });
   }
+  const { countryId } = await resolveAdminCountryScope(req);
 
   const value = await getRuntimeConfig(key, {
-    environment: resolveEnvironmentFromRequest(req)
+    environment: resolveEnvironmentFromRequest(req),
+    countryId
   });
 
-  return res.json({ key, value });
+  return res.json({ key, value, countryId: countryId || null });
 });
 
 export const patchAdminRuntimeSetting = asyncHandler(async (req, res) => {
@@ -97,10 +112,12 @@ export const patchAdminRuntimeSetting = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Setting key is required.' });
   }
   const environment = resolveEnvironmentFromRequest(req);
-  const previousValue = await getRuntimeConfig(key, { environment });
+  const { countryId } = await resolveAdminCountryScope(req);
+  const previousValue = await getRuntimeConfig(key, { environment, countryId });
 
   const result = await setRuntimeConfig(key, req.body?.value, {
     environment,
+    countryId,
     description: normalizeText(req.body?.description || ''),
     updatedBy: req.user?.id || null,
     syncLegacyAlias: true
@@ -109,7 +126,7 @@ export const patchAdminRuntimeSetting = asyncHandler(async (req, res) => {
   // app_information is the canonical identity editor. Keep the legacy public
   // app_name setting aligned so older surfaces update during the same save.
   let synchronizedAppName = null;
-  if (result?.key === 'app_information' && result?.value?.appName) {
+  if (!countryId && result?.key === 'app_information' && result?.value?.appName) {
     synchronizedAppName = await setRuntimeConfig('app_name', result.value.appName, {
       environment,
       updatedBy: req.user?.id || null,
@@ -125,15 +142,50 @@ export const patchAdminRuntimeSetting = asyncHandler(async (req, res) => {
     meta: {
       section: 'runtime',
       key: result?.key || key,
-      environment
+      environment,
+      countryId: countryId || 'global'
     }
   });
 
   return res.json({
     message: 'Setting updated.',
     item: result,
+    countryId: countryId || null,
     synchronized: synchronizedAppName ? [synchronizedAppName] : []
   });
+});
+
+// DELETE /api/admin/config/runtime/:key?countryId=... removes the country
+// override so the key falls back to the platform-wide value.
+export const deleteAdminRuntimeSettingCountryOverride = asyncHandler(async (req, res) => {
+  const key = normalizeText(req.params?.key);
+  if (!key) {
+    return res.status(400).json({ message: 'Setting key is required.' });
+  }
+  const { countryId } = await resolveAdminCountryScope(req);
+  if (!countryId) {
+    return res.status(400).json({ message: 'countryId is required to reset a country override.' });
+  }
+
+  const deleted = await deleteRuntimeConfigCountryOverride(key, {
+    environment: resolveEnvironmentFromRequest(req),
+    countryId
+  });
+
+  await invalidatePublicSettingsProjection();
+  await writeConfigAudit(req, {
+    actionType: 'admin_system_settings_runtime_override_reset',
+    previousValue: null,
+    newValue: { key, deleted },
+    meta: {
+      section: 'runtime',
+      key,
+      environment: resolveEnvironmentFromRequest(req),
+      countryId
+    }
+  });
+
+  return res.json({ message: 'Valeur du pays réinitialisée sur la valeur globale.', deleted });
 });
 
 export const patchAdminRuntimeSettingsBulk = asyncHandler(async (req, res) => {
@@ -143,6 +195,7 @@ export const patchAdminRuntimeSettingsBulk = asyncHandler(async (req, res) => {
   }
 
   const environment = resolveEnvironmentFromRequest(req);
+  const { countryId } = await resolveAdminCountryScope(req);
   const updated = [];
   const changes = [];
 
@@ -152,10 +205,11 @@ export const patchAdminRuntimeSettingsBulk = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Each item requires a key.' });
     }
     // eslint-disable-next-line no-await-in-loop
-    const previousValue = await getRuntimeConfig(key, { environment });
+    const previousValue = await getRuntimeConfig(key, { environment, countryId });
     // eslint-disable-next-line no-await-in-loop
     const result = await setRuntimeConfig(key, item?.value, {
       environment,
+      countryId,
       description: normalizeText(item?.description || ''),
       updatedBy: req.user?.id || null,
       syncLegacyAlias: true
@@ -183,12 +237,13 @@ export const patchAdminRuntimeSettingsBulk = asyncHandler(async (req, res) => {
       meta: {
         section: 'runtime',
         environment,
+        countryId: countryId || 'global',
         count: changes.length
       }
     });
   }
 
-  return res.json({ message: 'Settings bulk-updated.', updated });
+  return res.json({ message: 'Settings bulk-updated.', updated, countryId: countryId || null });
 });
 
 export const getAdminFeatureFlags = asyncHandler(async (req, res) => {

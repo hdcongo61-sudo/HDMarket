@@ -26,6 +26,7 @@ import {
   createNotification,
   resolveValidationTaskNotifications
 } from '../utils/notificationService.js';
+import { buildCountryDataFilter, getAdminCountryFilter } from '../services/countryService.js';
 import {
   isTransactionCodeAlreadyUsed,
   TRANSACTION_CODE_REUSED_MESSAGE
@@ -298,8 +299,10 @@ export const getBoostPricePreview = asyncHandler(async (req, res) => {
   });
 });
 
-export const listBoostPricingPublic = asyncHandler(async (_req, res) => {
-  const pricingItems = await BoostPricing.find({ isActive: true })
+export const listBoostPricingPublic = asyncHandler(async (req, res) => {
+  // Users only see boost pricing for the country they are registered in.
+  const countryFilter = req.countryContext ? buildCountryDataFilter(req.countryContext) : null;
+  const pricingItems = await BoostPricing.find({ isActive: true, ...(countryFilter || {}) })
     .select('type city basePrice priceType multiplier updatedAt')
     .sort({ type: 1, city: 1, updatedAt: -1 })
     .lean();
@@ -908,6 +911,8 @@ export const listBoostRequestsAdmin = asyncHandler(async (req, res) => {
     : null;
 
   const filter = {};
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
   if (Object.values(BOOST_REQUEST_STATUSES).includes(status)) filter.status = status;
   if (boostType) filter.boostType = boostType;
   if (city) filter.city = city;

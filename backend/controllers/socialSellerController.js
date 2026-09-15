@@ -10,6 +10,15 @@ import { computeSellerSocialAnalytics } from '../services/socialCommerce/socialA
 
 const isValidId = (value) => Boolean(value) && mongoose.Types.ObjectId.isValid(String(value));
 
+// Users only resolve products from the country they are registered in.
+// Legacy null-country products remain visible (Congo's historical pool).
+const productBelongsToViewerCountry = (product, req) => {
+  const ctxCountry = String(req?.countryContext?.countryId || '');
+  const productCountry = String(product?.countryId || '');
+  if (!ctxCountry || !productCountry) return true;
+  return productCountry === ctxCountry;
+};
+
 const requireOwnedProduct = async (productId, sellerId) => {
   if (!isValidId(productId)) return null;
   const product = await Product.findById(productId).select(
@@ -24,7 +33,7 @@ const requireOwnedProduct = async (productId, sellerId) => {
 // Never exposes the Mongo _id.
 export const getProductBySocialCode = asyncHandler(async (req, res) => {
   const resolution = await resolveProductBySocialCode(req.params.socialCode);
-  if (!resolution.found) {
+  if (!resolution.found || !productBelongsToViewerCountry(resolution.product, req)) {
     return res.status(404).json({ success: false, code: 'SOCIAL_PRODUCT_NOT_FOUND', message: 'Produit introuvable.' });
   }
   const { product, shop, socialCode } = resolution;
@@ -48,7 +57,7 @@ export const getProductBySocialCode = asyncHandler(async (req, res) => {
 // (optionalProtect) — never invasive tracking beyond that.
 export const resolveSocialClick = asyncHandler(async (req, res) => {
   const resolution = await resolveProductBySocialCode(req.params.socialCode);
-  if (!resolution.found) {
+  if (!resolution.found || !productBelongsToViewerCountry(resolution.product, req)) {
     return res.status(404).json({ success: false, code: 'SOCIAL_PRODUCT_NOT_FOUND', message: 'Produit introuvable.' });
   }
 

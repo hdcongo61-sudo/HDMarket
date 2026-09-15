@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
-import { AdjustmentsHorizontalIcon, Bars3Icon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, FilmIcon, FlagIcon, FolderIcon, GlobeAltIcon, HomeIcon, MegaphoneIcon, PaperAirplaneIcon, ShareIcon, ShoppingBagIcon, SparklesIcon, Square3Stack3DIcon, TagIcon, TicketIcon, TrophyIcon, TruckIcon, UserMinusIcon, UsersIcon, ViewColumnsIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon, Bars3Icon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, FilmIcon, FlagIcon, FolderIcon, GlobeAltIcon, HomeIcon, KeyIcon, MegaphoneIcon, PaperAirplaneIcon, ShareIcon, ShoppingBagIcon, SparklesIcon, Square3Stack3DIcon, TagIcon, TicketIcon, TrophyIcon, TruckIcon, UserMinusIcon, UsersIcon, ViewColumnsIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { hasAnyPermission } from '../utils/permissions';
 import useAdminCounts from '../hooks/useAdminCounts';
 
@@ -74,6 +74,13 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   },
   { to: '/admin/countries', label: 'Pays & marchés', icon: GlobeAltIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
   {
+    to: '/admin/global',
+    label: 'Vue globale',
+    icon: Square3Stack3DIcon,
+    group: 'overview',
+    show: (u) => u?.role === 'founder'
+  },
+  {
     to: '/admin/task-center',
     label: t('nav.taskCenter', 'Centre de tâches'),
     icon: ExclamationCircleIcon,
@@ -82,7 +89,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
     show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder'
   },
   { to: '/admin/orders', label: t('nav.orders', 'Commandes'), icon: ClipboardDocumentListIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || hasAnyPermission(u, ['manage_orders']) },
-  { to: '/admin/quotations', label: 'Gestion des devis', icon: DocumentTextIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' },
+  { to: '/admin/quotations', label: 'Gestion des prix à débattre', icon: DocumentTextIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' },
   { to: '/admin/payment-verification', label: t('nav.payments', 'Paiements'), icon: CurrencyDollarIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments === true || hasAnyPermission(u, ['verify_payments']) },
   { to: '/admin/users', label: t('nav.users', 'Utilisateurs'), icon: UsersIcon, group: 'operations', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_users']) },
   { to: '/admin/products', label: t('nav.products', 'Produits'), icon: CubeIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'manager' || u?.role === 'founder' || u?.canManageProducts || hasAnyPermission(u, ['manage_products']) },
@@ -157,6 +164,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   { to: '/admin/promo-codes', label: t('nav.promoCodes', 'Codes promo'), icon: TicketIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
   { to: '/admin/seller-payouts', label: 'Versements vendeurs', icon: WalletIcon, group: 'commerce', show: (u) => u?.role === 'admin' || u?.role === 'founder' || u?.canVerifyPayments || hasAnyPermission(u, ['verify_payments']) },
   { to: '/admin/settings', label: t('nav.appSettings', 'Paramètres'), icon: AdjustmentsHorizontalIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
+  { to: '/admin/system-settings', label: 'Paramètres pays', icon: AdjustmentsHorizontalIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
   { to: '/admin/features', label: 'Gestion des fonctionnalités', icon: FlagIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
   { to: '/admin/settings/categories', label: t('nav.categories', 'Catégories'), icon: FolderIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_settings']) },
   {
@@ -203,7 +211,8 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
   { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: DocumentTextIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
   { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: TrophyIcon, group: 'founder', show: (u) => u?.role === 'founder' },
   { to: '/admin/founder-notifications-intelligence', label: t('nav.founderNotificationsIntelligence', 'Notif Intelligence'), icon: TrophyIcon, group: 'founder', badge: Number(counters?.pendingTasks || 0), show: (u) => u?.role === 'founder' },
-  { to: '/admin/founder-account-control', label: t('nav.founderAccountControl', 'Suppression définitive'), icon: UserMinusIcon, group: 'founder', show: (u) => u?.role === 'founder' }
+  { to: '/admin/founder-account-control', label: t('nav.founderAccountControl', 'Suppression définitive'), icon: UserMinusIcon, group: 'founder', show: (u) => u?.role === 'founder' },
+  { to: '/admin/founder-admin-permissions', label: t('nav.founderAdminPermissions', 'Permissions admins'), icon: KeyIcon, group: 'founder', show: (u) => u?.role === 'founder' }
 ];
 
 export default function AdminLayout() {
@@ -226,6 +235,8 @@ export default function AdminLayout() {
   const [collapsedSections, setCollapsedSections] = useState({ ...DEFAULT_COLLAPSED_SECTIONS });
   const isManager = user?.role === 'manager';
   const isFounder = user?.role === 'founder';
+  const isScopedCountryAdmin =
+    user?.role === 'admin' && Array.isArray(user?.adminCountryIds) && user.adminCountryIds.length > 0;
   const platformDeliveryEnabled =
     ['true', '1', 'yes', 'on'].includes(
       String(getRuntimeValue('enable_platform_delivery', false)).trim().toLowerCase()
@@ -270,7 +281,9 @@ export default function AdminLayout() {
     system: t('nav.sectionSystem', 'Système'),
     founder: t('nav.sectionFounder', 'Founder')
   };
-  const roleLabel = isFounder
+  const roleLabel = isScopedCountryAdmin
+    ? t('nav.countryAdmin', 'Admin pays')
+    : isFounder
     ? t('nav.founder', 'Founder')
     : isManager
     ? t('nav.management', 'Gestion')
@@ -365,6 +378,10 @@ className={`h-3.5 w-3.5 transition-transform ${sectionCollapsed ? '-rotate-90' :
         </section>
       );
     });
+
+  // Country admins browse the full admin (data is country-filtered server-side;
+  // founder-only surfaces are hidden from the nav and guarded on the backend).
+  const pathname = location.pathname;
 
   return (
     <div className="hd-admin-flow hd-commerce-shell min-h-[100dvh] flex flex-col bg-neutral-50 text-neutral-950 dark:bg-neutral-950 dark:text-white lg:h-[100dvh] lg:min-h-0 lg:flex-row lg:overflow-hidden">

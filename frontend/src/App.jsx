@@ -141,6 +141,7 @@ const AdminSystemSettings = lazy(() => import('./pages/AdminSystemSettings'));
 const AdminFeatureManagement = lazy(() => import('./pages/AdminFeatureManagement'));
 const AdminCountries = lazy(() => import('./pages/AdminCountries'));
 const AdminCountryDetail = lazy(() => import('./pages/AdminCountryDetail'));
+const AdminGlobalOverview = lazy(() => import('./pages/AdminGlobalOverview'));
 const AdminComplaints = lazy(() => import('./pages/AdminComplaints'));
 const AdminPromoCodes = lazy(() => import('./pages/AdminPromoCodes'));
 const AdminTags = lazy(() => import('./pages/AdminTags'));
@@ -152,6 +153,7 @@ const RecentlyViewedPage = lazy(() => import('./pages/RecentlyViewedPage'));
 const AdminLayout = lazy(() => import('./components/AdminLayout'));
 const FounderIntelligence = lazy(() => import('./pages/FounderIntelligence'));
 const FounderAccountControl = lazy(() => import('./pages/FounderAccountControl'));
+const FounderAdminPermissions = lazy(() => import('./pages/FounderAdminPermissions'));
 const FounderNotificationsIntelligence = lazy(() => import('./pages/FounderNotificationsIntelligence'));
 const CertifiedProducts = lazy(() => import('./pages/CertifiedProducts'));
 const Suggestions = lazy(() => import('./pages/Suggestions'));
@@ -1223,6 +1225,14 @@ function AppContent() {
             <Route index element={<AdminIndexRedirect />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route
+              path="global"
+              element={
+                <ProtectedRoute roles={['founder']}>
+                  <AdminGlobalOverview />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="videos"
               element={
                 <ProtectedRoute roles={['admin', 'founder']}>
@@ -1464,6 +1474,14 @@ function AppContent() {
               element={
                 <ProtectedRoute roles={['founder']}>
                   <FounderNotificationsIntelligence />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="founder-admin-permissions"
+              element={
+                <ProtectedRoute roles={['founder']}>
+                  <FounderAdminPermissions />
                 </ProtectedRoute>
               }
             />

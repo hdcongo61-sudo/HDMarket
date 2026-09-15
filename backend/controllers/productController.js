@@ -64,7 +64,7 @@ import {
   buildFavoriteProductSnapshot,
   notifyFavoritersOfProductUpdate
 } from '../services/favoriteProductUpdateService.js';
-import { buildCountryDataFilter, ensureDefaultCountry, resolveCountryContext } from '../services/countryService.js';
+import { buildCountryDataFilter, ensureDefaultCountry, getAdminCountryFilter, resolveCountryContext } from '../services/countryService.js';
 import {
   getEntityTags,
   removeAllEntityTags,
@@ -2674,6 +2674,9 @@ export const listAdminProducts = asyncHandler(async (req, res) => {
   } = req.query;
 
   const filter = {};
+  // Country admins only see their market's products.
+  const countryFilter = getAdminCountryFilter(req.user, { countryId: req.query?.countryId });
+  if (countryFilter) Object.assign(filter, countryFilter);
   if (status) filter.status = status;
   if (category) filter.category = new RegExp(`^${category.trim()}$`, 'i');
   if (certified === 'true') filter.certified = true;
@@ -2708,10 +2711,11 @@ export const listAdminProducts = asyncHandler(async (req, res) => {
         .populate('certifiedBy', 'name email')
         .lean(),
       Product.countDocuments(filter),
-      Product.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-      Product.countDocuments({ certified: true }),
-      Product.countDocuments(),
+      Product.aggregate([{ $match: { ...(countryFilter || {}) } }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Product.countDocuments({ certified: true, ...(countryFilter || {}) }),
+      Product.countDocuments({ ...(countryFilter || {}) }),
       Product.aggregate([
+        { $match: { ...(countryFilter || {}) } },
         { $group: { _id: '$category', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 6 }

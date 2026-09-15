@@ -13,6 +13,7 @@ const answerSchema = new mongoose.Schema(
 
 const productQuestionSchema = new mongoose.Schema(
   {
+    countryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Country', default: null, index: true },
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
     sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     askedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

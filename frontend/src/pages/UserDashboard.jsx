@@ -121,12 +121,34 @@ export default function UserDashboard() {
       const hasContent = Boolean(
         String(form.title || '').trim() || String(form.description || '').trim() || Number(form.price) > 0
       );
-      setPendingDraft(hasContent ? { savedAt: saved.savedAt || null } : null);
+      if (!hasContent) { setPendingDraft(null); return; }
+
+      // Mutual exclusion: a product cannot be a brouillon AND an "annonce à
+      // finaliser" at the same time. If a pending listing was created after
+      // this draft was last saved, the draft is the pre-submission snapshot
+      // of that same product (submit cleared it late, the app was killed
+      // mid-flow, …) — discard it instead of showing both reminders for the
+      // same product. Mirrors the backend reminder sweep's stale-draft check.
+      const draftSavedAt = Number(saved?.savedAt) || 0;
+      const latestPendingCreatedAt = items.reduce((latest, product) => {
+        if (product?.status !== 'pending') return latest;
+        const created = new Date(product?.createdAt || product?.created_at || 0).getTime();
+        return Number.isFinite(created) ? Math.max(latest, created) : latest;
+      }, 0);
+      if (draftSavedAt && latestPendingCreatedAt > draftSavedAt) {
+        try { localStorage.removeItem(draftReminderKey); } catch { /* ignore */ }
+        setPendingDraft(null);
+        return;
+      }
+
+      setPendingDraft({ savedAt: saved.savedAt || null });
     } catch { setPendingDraft(null); }
-  }, [draftReminderKey]);
+  }, [draftReminderKey, items]);
   useEffect(() => {
-    // Runs on mount and every time the form modal closes — publishing
-    // clears the draft, so the reminder disappears once the work is done.
+    // Runs on mount, whenever the product list reloads, and every time the
+    // form modal closes — publishing clears the draft, so the reminder
+    // disappears once the work is done (stale pre-submission drafts are
+    // discarded here too).
     if (!isProductModalOpen) refreshDraftReminder();
   }, [isProductModalOpen, refreshDraftReminder]);
   const discardDraft = useCallback(() => {
