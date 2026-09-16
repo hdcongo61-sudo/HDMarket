@@ -37,7 +37,7 @@
     "embla-carousel-react": "^8.6.0",
     "exceljs": "^4.4.0",
     "firebase": "^10.12.5",
-    "framer-motion": "^12.23.24",
+    "framer-motion": "^13.2.0",
     "heic2any": "^0.0.4",
     "hls.js": "^1.6.16",
     "jspdf": "^4.0.0",
