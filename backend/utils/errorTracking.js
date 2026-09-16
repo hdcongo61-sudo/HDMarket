@@ -84,7 +84,9 @@ export const initErrorTracking = () => {
           if (isSensitiveKey(key)) event.request.headers[key] = '[REDACTED]';
         }
       }
-      if (event.request?.data) event.request.data = redact(event.request.data);
+      // Do not forward HTTP bodies or user profiles to the external service.
+      if (event.request) delete event.request.data;
+      delete event.user;
       return event;
     }
   });
