@@ -12,7 +12,7 @@ export default {
   imageName: 'Nom de la photo', invalidImageError: 'Impossible de charger cette photo. Essayez de la téléverser à nouveau.',
   uploadImageError: 'Impossible d’importer la photo.', areNotImages: 'ne sont pas des images',
   isNotImage: 'n’est pas une image', toBeUploaded: 'à importer', cropTool: 'Recadrer',
-  original: 'Original', custom: 'Personnalisé', square: 'Carré', landscape: 'Paysage',
+  original: 'Original', custom: 'Forme libre', square: 'Carré', landscape: 'Paysage',
   portrait: 'Portrait', ellipse: 'Ovale', classicTv: 'Écran 4:3', cinemascope: 'Panoramique',
   arrowTool: 'Flèche', blurTool: 'Flou', brightnessTool: 'Luminosité', contrastTool: 'Contraste',
   ellipseTool: 'Ellipse', unFlipX: 'Annuler le miroir horizontal', flipX: 'Miroir horizontal',

@@ -19,3 +19,9 @@ backend/uploads/
 # Logs and OS/editor noise
 *.log
 .DS_Store
+
+# Browser testing and performance reports
+frontend/playwright-report/
+frontend/test-results/
+frontend/.lighthouseci/
+frontend/lighthouse-reports/

@@ -1,3 +1,4 @@
+import { captureMonitoring } from '../services/productMonitoring';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../services/api';
 import AuthContext from './AuthContext';
@@ -92,6 +93,7 @@ export const CartProvider = ({ children }) => {
           selectedAttributes
         });
         handleResponse(data);
+        captureMonitoring('cart_item_added', { quantity: Number(quantity) || 1 });
         setError('');
       } catch (e) {
         setError(e.response?.data?.message || e.message || 'Impossible d’ajouter l’article au panier.');

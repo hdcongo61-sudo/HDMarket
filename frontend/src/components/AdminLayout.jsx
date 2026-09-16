@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
+import FounderToolsReminder from './FounderToolsReminder';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { AdjustmentsHorizontalIcon, Bars3Icon, ChatBubbleLeftRightIcon, CheckCircleIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon, CubeIcon, CurrencyDollarIcon, DocumentTextIcon, ExclamationCircleIcon, FilmIcon, FlagIcon, FolderIcon, GlobeAltIcon, HomeIcon, KeyIcon, MegaphoneIcon, PaperAirplaneIcon, ShareIcon, ShoppingBagIcon, SparklesIcon, Square3Stack3DIcon, TagIcon, TicketIcon, TrophyIcon, TruckIcon, UserMinusIcon, UsersIcon, ViewColumnsIcon, WalletIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -209,6 +210,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
       (u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['manage_social_commerce', 'manage_social_channels', 'view_social_analytics']))
   },
   { to: '/admin/reports', label: t('nav.reports', 'Rapports'), icon: DocumentTextIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' || hasAnyPermission(u, ['view_logs']) },
+  { to: '/admin/founder-tools', label: 'Mes outils & rappels', icon: ClipboardDocumentListIcon, group: 'founder', show: (u) => u?.role === 'founder' },
   { to: '/admin/founder-intelligence', label: t('nav.founderIntelligence', 'Founder Intelligence'), icon: TrophyIcon, group: 'founder', show: (u) => u?.role === 'founder' },
   { to: '/admin/founder-notifications-intelligence', label: t('nav.founderNotificationsIntelligence', 'Notif Intelligence'), icon: TrophyIcon, group: 'founder', badge: Number(counters?.pendingTasks || 0), show: (u) => u?.role === 'founder' },
   { to: '/admin/founder-account-control', label: t('nav.founderAccountControl', 'Suppression définitive'), icon: UserMinusIcon, group: 'founder', show: (u) => u?.role === 'founder' },
@@ -488,6 +490,7 @@ className={`h-3.5 w-3.5 transition-transform ${sectionCollapsed ? '-rotate-90' :
             <div className="h-full w-1/4 animate-pulse rounded-full bg-[#e85d00]" />
           </div>
         )}
+        <FounderToolsReminder />
         <Outlet />
       </div>
     </div>

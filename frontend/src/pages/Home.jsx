@@ -457,9 +457,7 @@ const sellingEnabled = normalizeSettingBoolean(getRuntimeValue('enable_selling',
 const commerceCallout = sellingEnabled
   ? t('home.buyOrSellPrefix', 'Achetez ou vendez sur HDMarket —')
   : t('home.buyOnlyPrefix', 'Achetez sur HDMarket —');
-const desktopHeroDescription = sellingEnabled
-  ? t('home.heroDesktopSellEnabled', 'Découvrez {count} produits vérifiés. Vendez et achetez en toute confiance.').replace('{count}', formatCount(totalProducts))
-  : t('home.heroDesktopBuyOnly', 'Découvrez {count} produits vérifiés près de vous.').replace('{count}', formatCount(totalProducts));
+
 const fullPaymentBannerText =
   String(
     getRuntimeValue(
@@ -2801,7 +2799,145 @@ const loadDiscountProducts = async () => {
           : 'grid-cols-1';
 
     return (
-      <div className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-6 lg:px-8 py-4 space-y-5">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-6 space-y-7">
+        <div className="flex items-center justify-between gap-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+          <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Votre prochaine trouvaille commence ici.</p>
+          <div className="flex items-center gap-5 text-sm font-semibold">
+            <Link to="/top-new" className="hover:text-orange-600">Nouveautés</Link>
+            <Link to="/shops/verified" className="hover:text-orange-600">Boutiques vérifiées</Link>
+            {sellingEnabled && <Link to="/seller/products" className="text-orange-700 dark:text-orange-300">Vendre sur HDMarket ↗</Link>}
+          </div>
+        </div>
+        <div className="grid items-stretch gap-4 md:grid-cols-[190px_minmax(0,1fr)] lg:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_300px]">
+          <nav aria-label="Catégories de produits" className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
+            <h2 className="flex items-center gap-2 px-2 pb-3 pt-1 text-sm font-bold"><Squares2X2Icon className="h-5 w-5 text-orange-600" />Toutes les catégories</h2>
+            <div className="space-y-0.5">
+              {categoryGroups.slice(0, 8).map((group) => {
+                const Icon = group.icon;
+                return <Link key={group.id} to={`/categories/${group.options?.[0]?.value || ''}`} className="group flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-neutral-700 transition hover:bg-orange-50 hover:text-orange-700 dark:text-neutral-300 dark:hover:bg-neutral-900">
+                  {Icon && <Icon className="h-4 w-4 shrink-0 text-neutral-400 group-hover:text-orange-600" />}
+                  <span className="min-w-0 flex-1 truncate">{group.label}</span><ChevronRightIcon className="h-3 w-3 shrink-0" />
+                </Link>;
+              })}
+            </div>
+            <button type="button" onClick={() => setCategoryModalOpen(true)} className="mt-3 w-full rounded-lg bg-neutral-100 px-3 py-2.5 text-left text-xs font-bold transition hover:bg-orange-100 dark:bg-neutral-800 dark:hover:bg-neutral-700">Explorer toutes les catégories →</button>
+          </nav>
+          {/* Hero Banner */}
+          <div className="flex min-w-0 flex-col gap-4">
+            <section className="relative flex flex-1 items-center overflow-hidden rounded-2xl bg-[#fff0e3]" style={{ minHeight: '340px' }}>
+              {heroBanner && (
+                <div className="absolute inset-0">
+                  <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="eager" fetchPriority="high" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#fff0e3] via-[#fff0e3]/95 to-[#fff0e3]/50" />
+                </div>
+              )}
+              <div className="relative z-10 flex min-h-[340px] flex-col items-start justify-center p-7 xl:p-8">
+                <span className="mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#a84212]"><SparklesIcon className="h-4 w-4" />La sélection HDMarket</span>
+                <h1 className="max-w-lg text-4xl font-black leading-[1.12] tracking-tight text-[#392316]">De belles trouvailles.<br /><span className="text-[#c34b10]">Tout près de vous.</span></h1>
+                <p className="mb-6 mt-4 max-w-sm text-sm leading-6 text-[#785643]">Explorez les produits et les boutiques{effectiveUserCity ? ` à ${effectiveUserCity}` : ' de votre ville'}. Comparez, choisissez et trouvez ce qui vous plaît.</p>
+                <Link to="/products" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#c34b10] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#a33c0a]">Explorer les produits <ChevronRightIcon className="h-4 w-4" /></Link>
+              </div>
+            </section>
+
+            {/* Promo Banner (below hero, full width of left column) */}
+            {promoBanner && (() => {
+              const bannerSrc = isPromoActive ? (promoBanner || defaultPromoBanner) : defaultPromoBanner;
+              const bannerLink = isPromoActive ? promoBannerLink : '/products';
+              const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-contain bg-white p-1" loading="lazy" />;
+              const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[21/7]";
+              if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
+              if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
+              return <div className={cls}>{img}</div>;
+            })()}
+          </div>
+
+          {/* Flash Deals Panel */}
+          <section className="flex min-w-0 flex-col rounded-2xl border border-orange-100 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950 md:col-span-2 xl:col-span-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="home-anim-pulse w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
+                  <BoltIcon className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900">{t('home.flashDeals', 'Flash Deals')}</h2>
+              </div>
+              <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-neutral-800 flex items-center hover:text-neutral-700">
+                Voir tout <ChevronRightIcon className="w-3 h-3 ml-0.5" />
+              </Link>
+            </div>
+            {highlightLoading && flashDealsLoading ? (
+              <div className="grid grid-cols-4 xl:grid-cols-2 gap-3 flex-1">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-square" />
+                ))}
+              </div>
+            ) : displayFlashDeals.length > 0 ? (
+              <div className="grid grid-cols-4 xl:grid-cols-2 gap-3 flex-1">
+                {displayFlashDeals.map((product, idx) => (
+                  <Link
+                    key={`deal-panel-${product._id}-${idx}`}
+                    to={buildHomeProductLink(product)}
+                    {...externalLinkProps}
+                    className="home-anim-fade-up group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
+                    style={{ '--home-anim-delay': `${idx * 80}ms` }}
+                  >
+                    <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
+                      <PreviewableImage
+                        product={product}
+                        src={resolveProductPrimaryImage(product)}
+                        images={resolveProductImageSet(product)}
+                        alt={product.title}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                        reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
+                        showHint={false}
+                      />
+                      {product.flashPromo?.endDate && (
+                        <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+                          {formatCountdown(product.flashPromo.endDate, flashNow)}
+                        </span>
+                      )}
+                      {product.discount > 0 && (
+                        <span className="absolute top-1.5 left-1.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
+                      )}
+                      {isInstallmentOfferActive(product) && (
+                        <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
+                          <ClockIcon className="h-2.5 w-2.5" />
+                          Tranche
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2.5 flex flex-col flex-1 min-h-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F</p>
+                      {product.priceBeforeDiscount > product.price && (
+                        <p className="text-[10px] text-gray-400 line-through">{Number(product.priceBeforeDiscount).toLocaleString()} F</p>
+                      )}
+                      {Number(product.promoSavedAmount || 0) > 0 && (
+                        <p className="text-[10px] text-neutral-600 font-semibold mt-0.5">
+                          Éco: {Number(product.promoSavedAmount).toLocaleString()} F
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                <BoltIcon className="w-6 h-6 mr-2 text-gray-300" /> Aucun deal en cours
+              </div>
+            )}
+          </section>
+        </div>
+
+        <section aria-labelledby="desktop-discovery-title" className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div><p className="mb-1 text-xs font-bold uppercase tracking-widest text-orange-700 dark:text-orange-300">À découvrir</p><h2 id="desktop-discovery-title" className="text-2xl font-bold tracking-tight">Pour vous</h2><p className="mt-1 text-sm text-neutral-500">Une sélection à explorer, renouvelée à chaque visite.</p></div>
+            <Link to="/products" className="inline-flex min-h-11 items-center gap-1 text-sm font-bold text-orange-700 dark:text-orange-300">Tout voir <ChevronRightIcon className="h-4 w-4" /></Link>
+          </div>
+          {productsError ? <NetworkFallbackCard title="Impossible de charger les produits" message={productsError} onRetry={loadProducts} retryLabel="Réessayer" refreshLabel="Actualiser la page" />
+            : loading && !items.length ? <ProductCardSkeleton count={12} homeFeed className="grid grid-cols-4 gap-4 xl:grid-cols-6" />
+            : items.length ? <div className="grid grid-cols-4 gap-4 xl:grid-cols-6">{seededShuffle(items, heroShuffleSeedRef.current).slice(0, 12).map(product => <ProductCard key={product._id} p={product} productLink={buildHomeProductLink(product)} homeFeed />)}</div>
+            : <div className="rounded-xl bg-neutral-50 p-8 text-center text-sm text-neutral-500 dark:bg-neutral-900">Aucun produit disponible pour le moment. <Link to="/products" className="font-semibold text-orange-700">Explorer le catalogue</Link></div>}
+        </section>
         {greeting ? (
           <section className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:flex-row lg:items-stretch lg:divide-x lg:divide-y-0 dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-950">
             <div className="flex min-w-0 items-center gap-3 px-5 py-3.5">
@@ -2881,176 +3017,6 @@ const loadDiscountProducts = async () => {
             ))}
           </section>
         ) : null}
-        {/* Category Pills Bar */}
-        <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar items-center">
-          <Link
-            to="/products"
-            {...externalLinkProps}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#e85d00] text-white text-sm font-black whitespace-nowrap shadow-sm hover:bg-[#e85f00] transition-colors"
-          >
-            <Squares2X2Icon className="w-4 h-4" />
-            Tout
-          </Link>
-          {categoryGroups.map((group) => {
-            const Icon = group.icon;
-            return (
-              <Link
-                key={group.id}
-                to={`/categories/${group.options?.[0]?.value || ''}`}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 bg-white text-sm font-black text-gray-800 whitespace-nowrap shadow-sm transition-colors hover:bg-gray-100"
-              >
-                {Icon && (
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[#e85d00] flex-shrink-0 mx-auto">
-                    <Icon className="w-4 h-4" />
-                  </span>
-                )}
-                <span>{group.label.split(' & ')[0]}</span>
-              </Link>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setCategoryModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-sm font-black text-gray-500 whitespace-nowrap ring-1 ring-gray-200 hover:bg-orange-100 transition-colors"
-          >
-            Tout voir <ChevronRightIcon className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Buyer or Seller callout */}
-        <div className="flex items-center justify-center gap-3 py-3 px-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
-          <ShoppingBagIcon className="w-5 h-5 text-neutral-800 flex-shrink-0" />
-          <span className="text-sm text-gray-700 text-center">
-            {commerceCallout} <span className="font-semibold text-neutral-700">{t('home.youChoose', 'vous choisissez')}</span>.
-          </span>
-          <TagIcon className="w-5 h-5 text-neutral-800 flex-shrink-0" />
-        </div>
-
-        {/* Zone 1: Hero (65%) + Flash Deals Panel (35%) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
-          {/* Hero Banner */}
-          <div className="flex flex-col gap-4">
-            <section className="home-shine-host relative bg-neutral-900 rounded-2xl overflow-hidden shadow-sm" style={{ minHeight: '220px' }}>
-              {heroBanner && (
-                <div className="absolute inset-0">
-                  <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="lazy" />
-                  <div className="absolute inset-0 bg-neutral-950/70" />
-                </div>
-              )}
-              <div className="relative z-10 px-6 py-5 lg:py-6 text-left">
-                <div className="home-anim-fade-up inline-flex items-center px-3 py-1.5 bg-white/15 rounded-full border border-white/30 mb-4 shadow-sm">
-                  <StarIcon className="w-3.5 h-3.5 text-neutral-300 mr-1.5" fill="currentColor" />
-                  <span className="text-xs text-white font-semibold">{t('nav.marketplacePremium', 'Marketplace HDMarket')}</span>
-                </div>
-                <h1 className="home-anim-fade-up text-2xl lg:text-3xl font-black text-white mb-3 leading-tight" style={{ '--home-anim-delay': '90ms' }}>
-                  Votre Marché
-                  <span className="block bg-neutral-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
-                </h1>
-                <p className="home-anim-fade-up text-sm text-neutral-200 mb-5 max-w-md leading-relaxed" style={{ '--home-anim-delay': '160ms' }}>
-                  {desktopHeroDescription}
-                </p>
-                <div className="home-anim-fade-up flex gap-3" style={{ '--home-anim-delay': '240ms' }}>
-                  {sellingEnabled && (
-                    <Link to="/seller/products" className="inline-flex items-center px-4 py-2.5 border border-white/25 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-all text-sm shadow-sm active:scale-[0.99]">
-                      <BoltIcon className="w-4 h-4 mr-1.5" /> Publier
-                    </Link>
-                  )}
-                  <Link to="/products" {...externalLinkProps} className="inline-flex items-center px-4 py-2.5 bg-white text-neutral-950 font-semibold rounded-xl hover:bg-neutral-100 transition-all text-sm shadow-sm active:scale-[0.99]">
-                    Explorer <ChevronRightIcon className="w-4 h-4 ml-1" />
-                  </Link>
-                </div>
-              </div>
-            </section>
-
-            {/* Promo Banner (below hero, full width of left column) */}
-            {promoBanner && (() => {
-              const bannerSrc = isPromoActive ? (promoBanner || defaultPromoBanner) : defaultPromoBanner;
-              const bannerLink = isPromoActive ? promoBannerLink : '/products';
-              const img = <img src={bannerSrc} alt="Promo" className="h-full w-full object-contain bg-white p-1" loading="lazy" />;
-              const cls = "block w-full overflow-hidden rounded-xl shadow-sm aspect-[21/7]";
-              if (bannerLink?.startsWith('/')) return <Link to={bannerLink} {...externalLinkProps} className={cls}>{img}</Link>;
-              if (bannerLink) return <a href={bannerLink} target="_blank" rel="noopener noreferrer" className={cls}>{img}</a>;
-              return <div className={cls}>{img}</div>;
-            })()}
-          </div>
-
-          {/* Flash Deals Panel */}
-          <section className="apple-card p-4 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="home-anim-pulse w-8 h-8 bg-neutral-900 rounded-lg flex items-center justify-center">
-                  <BoltIcon className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-base font-bold text-gray-900">{t('home.flashDeals', 'Flash Deals')}</h2>
-              </div>
-              <Link to="/top-deals" {...externalLinkProps} className="text-xs font-semibold text-neutral-800 flex items-center hover:text-neutral-700">
-                Voir tout <ChevronRightIcon className="w-3 h-3 ml-0.5" />
-              </Link>
-            </div>
-            {highlightLoading && flashDealsLoading ? (
-              <div className="grid grid-cols-2 gap-3 flex-1">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="animate-pulse bg-gray-100 rounded-xl aspect-square" />
-                ))}
-              </div>
-            ) : displayFlashDeals.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 flex-1">
-                {displayFlashDeals.map((product, idx) => (
-                  <Link
-                    key={`deal-panel-${product._id}-${idx}`}
-                    to={buildHomeProductLink(product)}
-                    {...externalLinkProps}
-                    className="home-anim-fade-up group flex flex-col bg-gray-50 rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-neutral-200 transition-all"
-                    style={{ '--home-anim-delay': `${idx * 80}ms` }}
-                  >
-                    <div className="relative w-full aspect-square min-h-0 overflow-hidden bg-gray-100 rounded-t-xl">
-                      <PreviewableImage
-                        product={product}
-                        src={resolveProductPrimaryImage(product)}
-                        images={resolveProductImageSet(product)}
-                        alt={product.title}
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                        reportContext={buildImageReportContext(product, buildHomeProductLink(product))}
-                        showHint={false}
-                      />
-                      {product.flashPromo?.endDate && (
-                        <span className="absolute bottom-1.5 left-1.5 bg-black/75 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-                          {formatCountdown(product.flashPromo.endDate, flashNow)}
-                        </span>
-                      )}
-                      {product.discount > 0 && (
-                        <span className="absolute top-1.5 left-1.5 bg-neutral-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow">-{product.discount}%</span>
-                      )}
-                      {isInstallmentOfferActive(product) && (
-                        <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
-                          <ClockIcon className="h-2.5 w-2.5" />
-                          Tranche
-                        </span>
-                      )}
-                    </div>
-                    <div className="p-2.5 flex flex-col flex-1 min-h-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{Number(product.promoPrice ?? product.price ?? 0).toLocaleString()} F</p>
-                      {product.priceBeforeDiscount > product.price && (
-                        <p className="text-[10px] text-gray-400 line-through">{Number(product.priceBeforeDiscount).toLocaleString()} F</p>
-                      )}
-                      {Number(product.promoSavedAmount || 0) > 0 && (
-                        <p className="text-[10px] text-neutral-600 font-semibold mt-0.5">
-                          Éco: {Number(product.promoSavedAmount).toLocaleString()} F
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-                <BoltIcon className="w-6 h-6 mr-2 text-gray-300" /> Aucun deal en cours
-              </div>
-            )}
-          </section>
-        </div>
-
         {/* Zone 2: Top ventes à votre ville (aujourd'hui) */}
         {shouldLoadSecondarySections && hasUserCity && effectiveUserCity && (
           <section>

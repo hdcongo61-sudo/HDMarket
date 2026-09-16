@@ -13,7 +13,10 @@
     "build:ios": "npm run build && npx cap sync ios",
     "build:android": "npm run build && npx cap sync android",
     "ios": "npm run build && npx cap sync ios && npx cap open ios",
-    "android": "npm run build && npx cap sync android && npx cap open android"
+    "android": "npm run build && npx cap sync android && npx cap open android",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report",
+    "audit:lighthouse": "lhci autorun"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",
@@ -43,6 +46,7 @@
     "konva": "^9.3.6",
     "lucide-react": "^0.548.0",
     "motion": "^12.35.2",
+    "posthog-js": "^1.433.5",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -57,6 +61,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.1",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.63.0",
     "@sentry/vite-plugin": "5.4.0",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^20.10.5",

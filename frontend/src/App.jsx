@@ -1,3 +1,4 @@
+import ProductMonitoring from './components/ProductMonitoring';
 import React, { lazy, Suspense, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -150,6 +151,7 @@ const SettingsCategoriesPage = lazy(() => import('./pages/SettingsCategoriesPage
 const CategoryGuidePage = lazy(() => import('./pages/CategoryGuidePage'));
 const RecentlyViewedPage = lazy(() => import('./pages/RecentlyViewedPage'));
 const AdminLayout = lazy(() => import('./components/AdminLayout'));
+const FounderTools = lazy(() => import('./pages/FounderTools'));
 const FounderIntelligence = lazy(() => import('./pages/FounderIntelligence'));
 const FounderAccountControl = lazy(() => import('./pages/FounderAccountControl'));
 const FounderAdminPermissions = lazy(() => import('./pages/FounderAdminPermissions'));
@@ -725,6 +727,7 @@ function AppContent() {
         <PushNotificationsManager />
       </Suspense>
       <AnalyticsTracker />
+      <ProductMonitoring />
       <PrivacyPreferencesBanner />
       <ScrollToTop />
       {routeHierarchy.showGlobalNav ? (
@@ -1459,6 +1462,10 @@ function AppContent() {
                   <AdminTaskCenter />
                 </ProtectedRoute>
               }
+            />
+            <Route
+              path="founder-tools"
+              element={<ProtectedRoute roles={['founder']}><FounderTools /></ProtectedRoute>}
             />
             <Route
               path="founder-intelligence"

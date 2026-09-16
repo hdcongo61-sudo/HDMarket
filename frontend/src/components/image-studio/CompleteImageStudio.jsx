@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FilerobotImageEditor, { TABS, TOOLS } from 'react-filerobot-image-editor';
+import Konva from 'konva';
+import { preserveEditorResolution } from './editorResolution';
 import BaseModal from '../modals/BaseModal';
 import { editorOutputToFile } from './editorExport';
 import translations from './editorTranslationsFr';
 import { removeBackgroundLocally } from './backgroundRemoval';
 
 export default function CompleteImageStudio({ image, sourceIndex, onSave, onClose }) {
+  useEffect(() => preserveEditorResolution(Konva), []);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -114,10 +117,11 @@ export default function CompleteImageStudio({ image, sourceIndex, onSave, onClos
           onModify={() => { dirty.current = true; }} useBackendTranslations={false} translations={translations}
           defaultSavedImageName={(image?.name || 'produit').replace(/\.[^.]+$/, '')}
           observePluginContainerSize
-          defaultSavedImageType={backgroundRemoved ? 'png' : 'webp'} defaultSavedImageQuality={0.9} savingPixelRatio={1} previewPixelRatio={1}
+          defaultSavedImageType={backgroundRemoved ? 'png' : 'webp'} defaultSavedImageQuality={1} savingPixelRatio={1} previewPixelRatio={1}
           tabsIds={[TABS.ADJUST, TABS.FINETUNE, TABS.FILTERS, TABS.ANNOTATE, TABS.RESIZE, TABS.WATERMARK]}
           defaultTabId={TABS.FINETUNE} defaultToolId={TOOLS.BRIGHTNESS}
           Text={{ text: 'Votre texte', fontFamily: 'Arial', fonts: ['Arial', 'Verdana', 'Georgia'] }}
+          Crop={{ presetsItems: [{ titleKey: 'square', descriptionKey: '1:1', ratio: 1 }] }}
           annotationsCommon={{ fill: '#e85d00' }} Rotate={{ angle: 90, componentType: 'buttons' }}
         />
       </div>
