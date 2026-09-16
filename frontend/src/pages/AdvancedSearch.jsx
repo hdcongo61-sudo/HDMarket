@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdjustmentsHorizontalIcon, ArrowPathIcon, ArrowTrendingUpIcon, BuildingStorefrontIcon, CheckCircleIcon, ChevronDownIcon, ChevronUpIcon, CurrencyDollarIcon, FunnelIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, SparklesIcon, StarIcon, TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import api from '../services/api';
+import api, { isApiCanceledError } from '../services/api';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
 import useCategories from '../hooks/useCategories';
@@ -53,6 +53,35 @@ export default function AdvancedSearch() {
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
   const loadMoreSentinelRef = useRef(null);
   const infiniteScrollLockRef = useRef(0);
+
+  const syncedUrlRef = useRef(searchParams.toString());
+  const restoringUrlRef = useRef(false);
+  const requestRef = useRef(null);
+  useLayoutEffect(() => {
+    const url = searchParams.toString();
+    if (url === syncedUrlRef.current) return;
+    syncedUrlRef.current = url;
+    restoringUrlRef.current = true;
+    requestRef.current?.abort();
+    const query = searchParams.get('q') || searchParams.get('search') || '';
+    setSearchQuery(query);
+    setSearchDraft(query);
+    setCategory(searchParams.get('category') || '');
+    setCity(searchParams.get('city') || '');
+    setCondition(searchParams.get('condition') || '');
+    setMinPrice(searchParams.get('minPrice') || '');
+    setMaxPrice(searchParams.get('maxPrice') || '');
+    setCertified(searchParams.get('certified') || '');
+    setShopVerified(searchParams.get('shopVerified') || '');
+    setMinRating(searchParams.get('minRating') || '');
+    setMinFavorites(searchParams.get('minFavorites') || '');
+    setMinSales(searchParams.get('minSales') || '');
+    setSort(searchParams.get('sort') || 'new');
+    setHasDiscount(searchParams.get('hasDiscount') === 'true');
+    setSelectedTags((searchParams.get('tags') || '').split(',').map(tag => tag.trim()).filter(Boolean));
+    setPage(Math.max(1, Number(searchParams.get('page')) || 1));
+    setItems([]);
+  }, [searchParams]);
 
   // UI states
   const [showFilters, setShowFilters] = useState(false);
@@ -141,7 +170,12 @@ export default function AdvancedSearch() {
   // Restore cached view instantly on back-navigation
   useLayoutEffect(() => {
     const cached = readRouteViewCache(snapshotKey);
-    if (!cached) return;
+    if (!cached) {
+      setItems([]);
+      setTotalResults(0);
+      setTotalPages(1);
+      return;
+    }
     setItems(Array.isArray(cached.items) ? cached.items : []);
     setPage(Math.max(1, Number(cached.page) || 1));
     setTotalPages(Math.max(1, Number(cached.totalPages) || 1));
@@ -174,8 +208,13 @@ export default function AdvancedSearch() {
 
   // Update URL when filters change
   useEffect(() => {
+    if (restoringUrlRef.current) {
+      restoringUrlRef.current = false;
+      return;
+    }
     const params = buildQueryParams();
     if (params.toString() === searchParams.toString()) return;
+    syncedUrlRef.current = params.toString();
     setSearchParams(params, { replace: true });
   }, [buildQueryParams, searchParams, setSearchParams]);
 
@@ -191,8 +230,16 @@ export default function AdvancedSearch() {
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     const cachedView = readRouteViewCache(snapshotKey);
     if (cachedView && Number(cachedView.page || 1) >= page) {
+      setItems(Array.isArray(cachedView.items) ? cachedView.items : []);
+      setTotalResults(Number(cachedView.totalResults) || 0);
+      setTotalPages(Math.max(1, Number(cachedView.totalPages) || 1));
+      setOfflineSnapshotActive(Boolean(cachedView.offlineSnapshotActive));
+      setError('');
       setLoading(false);
       return;
     }
@@ -209,7 +256,8 @@ export default function AdvancedSearch() {
       apiParams.page = page;
       apiParams.limit = pageSize;
 
-      const { data } = await api.get('/products/public', { params: apiParams });
+      const { data } = await api.get('/products/public', { params: apiParams, signal: controller.signal });
+      if (controller.signal.aborted) return;
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const pagination = data?.pagination || {};
       const nextTotalResults = pagination.total || fetchedItems.length;
@@ -230,8 +278,10 @@ export default function AdvancedSearch() {
       setTotalPages(nextTotalPages);
       setOfflineSnapshotActive(false);
     } catch (e) {
+      if (controller.signal.aborted || isApiCanceledError(e)) return;
       if (shouldUseOfflineSnapshot) {
         const snapshot = await loadOfflineSnapshot(snapshotKey);
+        if (controller.signal.aborted) return;
         if (snapshot && typeof snapshot === 'object') {
           const snapshotItems = Array.isArray(snapshot.items) ? snapshot.items : [];
           const snapshotTotalResults = Number(snapshot.totalResults) || 0;
@@ -254,12 +304,13 @@ export default function AdvancedSearch() {
       setError(e.response?.data?.message || e.message || t('search.loadError', 'Impossible de charger les produits.'));
       showToast(t('search.searchError', 'Erreur lors de la recherche'), { variant: 'error' });
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [buildQueryParams, page, pageSize, shouldUseOfflineSnapshot, showToast, snapshotKey, t]);
 
   useEffect(() => {
     fetchProducts();
+    return () => requestRef.current?.abort();
   }, [fetchProducts]);
 
   // Suggestions shown when a search returns nothing — search never ends empty.

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftIcon, ArrowPathIcon, ArrowTrendingUpIcon, BuildingStorefrontIcon, CalendarIcon, ChatBubbleLeftIcon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ClipboardDocumentListIcon, ClockIcon, CreditCardIcon, CubeIcon, CurrencyDollarIcon, EllipsisHorizontalIcon, EnvelopeIcon, ExclamationCircleIcon, InformationCircleIcon, MapPinIcon, PhoneIcon, ReceiptPercentIcon, ShieldCheckIcon, SparklesIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import useIsMobile from '../hooks/useIsMobile';
@@ -1099,6 +1099,7 @@ export default function SellerOrders() {
   const [installmentAnalyticsLoading, setInstallmentAnalyticsLoading] = useState(false);
   const [orderUnreadCounts, setOrderUnreadCounts] = useState({});
   const { status: statusParam } = useParams();
+  const navigate = useNavigate();
   const [activeStatus, setActiveStatus] = useState(() => normalizeStatusFilter(statusParam));
   const previousActiveStatusRef = useRef(activeStatus);
   const [initialLoadingDone, setInitialLoadingDone] = useState(false);
@@ -1770,8 +1771,7 @@ export default function SellerOrders() {
       label: t('orders.installmentSales', 'Ventes en tranche'),
       description: t('orders.installmentSalesHelp', 'Suivre les paiements'),
       onClick: () => {
-        setActiveStatus('installments');
-        setPage(1);
+        navigate('/seller/orders/installments');
       },
       icon: CreditCardIcon,
       tone: 'soft'
@@ -1863,12 +1863,6 @@ export default function SellerOrders() {
                   <CreditCardIcon className="w-5 h-5 text-white" />
                 </div>
 
-                {Number(cancelOrder?.paidAmount || 0) > 0 && (
-                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900">
-                    Cette commande est payée. Le remboursement intégral de <strong>{formatCurrency(cancelOrder.paidAmount)}</strong> sera lancé automatiquement par PawaPay.
-                    <Link to={`/seller/orders/detail/${cancelOrderId}`} onClick={closeCancelModal} className="mt-2 inline-flex rounded-lg bg-[#e85d00] px-3 py-2 font-black text-white">Ouvrir le détail et annuler</Link>
-                  </div>
-                )}
                 <span className="text-2xl font-bold text-gray-900">
                   {installmentAnalytics.totalInstallmentSales}
                 </span>
@@ -1915,24 +1909,29 @@ export default function SellerOrders() {
             mobile={isMobile}
             onChange={(key) => {
               if (key === activeStatus) return;
-              setActiveStatus(key);
-              setPage(1);
+              navigate(`/seller/orders/${encodeURIComponent(key)}`);
             }}
           />
         </div>
 
         {/* Orders List */}
-        {error ? (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+        {error && (
+          <div role="alert" className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-6">
             <div className="flex items-center gap-3">
               <ExclamationCircleIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
                 <h3 className="text-sm font-bold text-red-800 mb-1">{t('orders.loadErrorTitle', 'Erreur de chargement')}</h3>
                 <p className="text-sm text-red-600">{error}</p>
+                <button type="button" onClick={() => sellerOrdersListQuery.refetch()}
+                  disabled={sellerOrdersListQuery.isFetching}
+                  className="mt-3 min-h-11 rounded-full bg-white px-4 text-sm font-bold text-red-800 ring-1 ring-red-200 disabled:opacity-50">
+                  {sellerOrdersListQuery.isFetching ? 'Chargement…' : 'Réessayer'}
+                </button>
               </div>
             </div>
           </div>
-        ) : orders.length === 0 ? (
+        )}
+        {orders.length === 0 ? !error && (
           <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
               <ClipboardDocumentListIcon className="w-10 h-10 text-[#e85d00]" />
@@ -1971,6 +1970,12 @@ export default function SellerOrders() {
                 closeLabel={t('common.cancel', 'Fermer')}
               />
               <ModalBody className="space-y-4">
+                {Number(cancelOrder?.paidAmount || 0) > 0 && (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900">
+                    Cette commande est payée. Le remboursement intégral de <strong>{formatCurrency(cancelOrder.paidAmount)}</strong> sera lancé automatiquement par PawaPay.
+                    <Link to={`/seller/orders/detail/${cancelOrderId}`} onClick={closeCancelModal} className="mt-2 inline-flex rounded-lg bg-[#e85d00] px-3 py-2 font-black text-white">Ouvrir le détail et annuler</Link>
+                  </div>
+                )}
                 <div className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 p-3">
                   <p className="text-xs font-semibold text-neutral-800 dark:text-neutral-100 mb-1">⚠️ {t('orders.warning', 'Attention')}</p>
                   <p className="text-xs text-neutral-700">

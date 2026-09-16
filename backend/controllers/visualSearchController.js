@@ -1,3 +1,6 @@
+import { parseVisualSearchFilters } from '../utils/visualSearchFilters.js';
+import { buildCountryDataFilter } from '../services/countryService.js';
+import { getVerifiedProductIds } from '../utils/publicProductVisibility.js';
 import asyncHandler from 'express-async-handler';
 import { isVisualSearchEnabled, searchByColor } from '../services/visualSearchService.js';
 
@@ -14,6 +17,8 @@ export const searchByImageColor = asyncHandler(async (req, res) => {
   }
 
   const limit = Math.min(24, Math.max(1, Number(req.body?.limit) || 12));
-  const result = await searchByColor({ color: req.body?.color, limit });
+  const filters = parseVisualSearchFilters(req.body);
+  const productFilter = { $and: [filters.productFilter, req.countryContext ? buildCountryDataFilter(req.countryContext) : {}], _id: { $in: await getVerifiedProductIds() } };
+  const result = await searchByColor({ color: req.body?.color, limit, productFilter, sort: filters.sort, offset: filters.offset });
   res.json(result);
 });

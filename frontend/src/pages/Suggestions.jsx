@@ -1,9 +1,8 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { createSuggestionPager } from '../utils/suggestionPager';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowPathIcon, ArrowRightIcon, ArrowTrendingUpIcon, BoltIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon, EyeIcon, FunnelIcon, HeartIcon, MagnifyingGlassIcon, ShoppingBagIcon, SparklesIcon, StarIcon, TrophyIcon, ViewfinderCircleIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
-import useIsMobile from '../hooks/useIsMobile';
 import { buildCategoryPreferences, fetchRecentProductViews, loadRecentProductViews } from '../utils/recentViews';
 import ProductMasonryGrid from '../components/ProductMasonryGrid';
 
@@ -30,169 +29,76 @@ const CATEGORY_LABELS = {
 };
 
 export default function Suggestions() {
-  const isMobileView = useIsMobile();
-  const { user } = useContext(AuthContext);
+  const { user, loading: authLoading } = useContext(AuthContext);
+  const currentUserId = user?._id || user?.id || null;
   const [views, setViews] = useState([]);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState('');
-  const [categoryPages, setCategoryPages] = useState({});
-  const [categoryDone, setCategoryDone] = useState({});
-  const [hasMore, setHasMore] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    const loadViews = async () => {
-      if (!user) {
-        if (active) setViews(loadRecentProductViews());
-        return;
-      }
-      try {
-        const remote = await fetchRecentProductViews();
-        if (active) {
-          setViews(remote.length ? remote : loadRecentProductViews());
-        }
-      } catch (error) {
-        if (active) setViews(loadRecentProductViews());
-      }
-    };
-    loadViews();
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
-  const preferredCategories = useMemo(
-    () => buildCategoryPreferences(views, MAX_CATEGORIES),
-    [views]
-  );
-
-  const visitedIds = useMemo(() => buildVisitedIdSet(views), [views]);
-  const currentUserId = user?._id || user?.id || null;
-
-  useEffect(() => {
-    setItems([]);
-    setError('');
-    setCategoryPages({});
-    setCategoryDone({});
-    setHasMore(preferredCategories.length > 0);
-  }, [preferredCategories]);
+  const [hasMore, setHasMore] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const requestRef = useRef(null);
+  const preferredCategories = useMemo(() => buildCategoryPreferences(views, MAX_CATEGORIES), [views]);
 
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
-    if (!preferredCategories.length) return;
+    const request = requestRef.current;
+    if (!request || request.busy || request.controller.signal.aborted || !request.hasMore) return;
+    request.busy = true;
     setLoading(true);
     setError('');
-
-    const existingIds = new Set(items.map((item) => String(item?._id)));
-    const nextPages = { ...categoryPages };
-    const nextDone = { ...categoryDone };
-    const collected = [];
-
-    for (const category of preferredCategories) {
-      if (collected.length >= PAGE_SIZE) break;
-      if (nextDone[category]) continue;
-
-      const page = nextPages[category] || 1;
-      try {
-        const { data } = await api.get('/products/public', {
-          params: {
-            category,
-            page,
-            limit: PAGE_SIZE,
-            sort: 'new'
-          }
-        });
-        const responseItems = Array.isArray(data) ? data : data?.items || [];
-        const totalPages = Array.isArray(data) ? 1 : data?.pagination?.pages || 1;
-
-        responseItems.forEach((item) => {
-          if (collected.length >= PAGE_SIZE) return;
-          if (!item?._id) return;
-          const id = String(item._id);
-          const ownerId = item.user?._id || item.user?.id || item.user;
-          if (currentUserId && ownerId && String(ownerId) === String(currentUserId)) return;
-          if (visitedIds.has(id)) return;
-          if (existingIds.has(id)) return;
-          if (collected.some((entry) => String(entry._id) === id)) return;
-          collected.push(item);
-        });
-
-        if (page >= totalPages) {
-          nextDone[category] = true;
-        } else {
-          nextPages[category] = page + 1;
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || err.message || 'Erreur de chargement.');
-        break;
-      }
+    try {
+      const result = await request.next(request.controller.signal);
+      if (requestRef.current !== request || request.controller.signal.aborted) return;
+      request.hasMore = result.hasMore;
+      setItems(previous => [...previous, ...result.items]);
+      setHasMore(result.hasMore);
+    } catch (err) {
+      if (request.controller.signal.aborted || requestRef.current !== request) return;
+      setError(err.response?.data?.message || 'Impossible de charger les suggestions. Réessayez.');
+    } finally {
+      request.busy = false;
+      if (requestRef.current === request && !request.controller.signal.aborted) setLoading(false);
     }
-
-    setItems((prev) => [...prev, ...collected]);
-    setCategoryPages(nextPages);
-    setCategoryDone(nextDone);
-
-    const hasRemaining = preferredCategories.some((category) => !nextDone[category]);
-    if (!hasRemaining) {
-      setHasMore(false);
-    }
-    setLoading(false);
-  }, [
-    loading,
-    hasMore,
-    preferredCategories,
-    items,
-    categoryPages,
-    categoryDone,
-    visitedIds,
-    currentUserId
-  ]);
+  }, []);
 
   useEffect(() => {
-    if (!preferredCategories.length) return;
-    loadMore();
-  }, [preferredCategories, loadMore]);
-
-  useEffect(() => {
-    if (!isMobileView) return;
-    if (loading) return;
-    if (!hasMore) return;
-    const handleScroll = () => {
-      const threshold = 200;
-      if (
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - threshold
-      ) {
-        loadMore();
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobileView, loading, hasMore, loadMore]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
+    requestRef.current?.controller.abort();
+    requestRef.current = null;
     setItems([]);
-    setCategoryPages({});
-    setCategoryDone({});
-    setHasMore(true);
+    setViews([]);
     setError('');
-    
-    // Reload views
-    if (user) {
-      try {
-        const remote = await fetchRecentProductViews();
-        setViews(remote.length ? remote : loadRecentProductViews());
-      } catch {
-        setViews(loadRecentProductViews());
+    setHistoryLoading(true);
+    setLoading(true);
+    setHasMore(false);
+    if (authLoading) return;
+    const controller = new AbortController();
+    const initialize = async () => {
+      let history = loadRecentProductViews(currentUserId);
+      if (currentUserId) {
+        try {
+          const remote = await fetchRecentProductViews(50, { signal: controller.signal });
+          history = remote.length ? remote : history;
+        } catch { /* Only this account's local history is a valid fallback. */ }
       }
-    } else {
-      setViews(loadRecentProductViews());
-    }
-    
-    setRefreshing(false);
+      if (controller.signal.aborted) return;
+      setViews(history);
+      setHistoryLoading(false);
+      const next = createSuggestionPager({
+        categories: buildCategoryPreferences(history, MAX_CATEGORIES),
+        visitedIds: buildVisitedIdSet(history), userId: currentUserId, pageSize: PAGE_SIZE,
+        fetchPage: async ({ signal, ...params }) => (await api.get('/products/public', { params, signal, skipCache: true })).data
+      });
+      requestRef.current = { controller, next, busy: false, hasMore: true };
+      await loadMore();
+    };
+    initialize();
+    return () => controller.abort();
+  }, [currentUserId, authLoading, refreshKey, loadMore]);
+
+  const handleRefresh = () => {
+    requestRef.current?.controller.abort();
+    setRefreshKey(value => value + 1);
   };
 
   const categoryStats = useMemo(() => {
@@ -204,7 +110,7 @@ export default function Suggestions() {
     return stats;
   }, [preferredCategories, items]);
 
-  if (loading && items.length === 0) {
+  if ((authLoading || historyLoading || loading) && items.length === 0) {
     return (
       <div className="hd-products-flow min-h-screen">
         <div className="max-w-7xl mx-auto px-3 py-6 pb-24 sm:px-6 lg:px-8">
@@ -237,16 +143,16 @@ export default function Suggestions() {
               </div>
               <h1 className="text-2xl font-black tracking-tight text-white sm:text-4xl">Découvrez pour vous</h1>
               <p className="mt-2 text-sm font-semibold leading-6 text-white/86">
-                Des produits sélectionnés spécialement pour vous, basés sur vos recherches et consultations récentes.
+                {preferredCategories.length ? 'Des produits sélectionnés selon vos consultations récentes.' : 'Découvrez les produits populaires pour commencer.'}
               </p>
             </div>
             <button
               type="button"
               onClick={handleRefresh}
-              disabled={refreshing || loading}
+              disabled={historyLoading || loading}
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-white/28 bg-white/16 px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/24 disabled:opacity-50"
             >
-              <ArrowPathIcon className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </button>
           </div>
@@ -322,42 +228,14 @@ export default function Suggestions() {
               <div>
                 <h3 className="text-sm font-bold text-red-800 mb-1">Erreur de chargement</h3>
                 <p className="text-sm text-red-600">{error}</p>
+                <button type="button" onClick={loadMore} className="mt-3 font-bold underline">Réessayer</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Empty State - No Views */}
-        {!preferredCategories.length && !loading && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
-            <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
-              <MagnifyingGlassIcon className="w-10 h-10 text-[#e85d00]" />
-            </div>
-            <h3 className="text-lg font-black text-gray-900 mb-2">Aucune suggestion disponible</h3>
-            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              Consultez quelques produits pour obtenir des suggestions personnalisées basées sur vos intérêts.
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link
-                to="/products"
-                className="hd-primary-button inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
-              >
-                <ShoppingBagIcon className="w-4 h-4" />
-                Explorer les produits
-              </Link>
-              <Link
-                to="/shops/verified"
-                className="hd-products-chip inline-flex items-center gap-2 rounded-full px-6 py-3 font-black"
-              >
-                <TrophyIcon className="w-4 h-4" />
-                Boutiques vérifiées
-              </Link>
-            </div>
-          </div>
-        )}
-
         {/* Empty State - No Items but has Categories */}
-        {!loading && items.length === 0 && preferredCategories.length > 0 && (
+        {!loading && !historyLoading && !error && items.length === 0 && !hasMore && (
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ring-1 ring-gray-200">
               <BoltIcon className="w-10 h-10 text-[#e85d00]" />
@@ -401,8 +279,8 @@ export default function Suggestions() {
           </div>
         )}
 
-        {/* Load More Button (Desktop) */}
-        {!isMobileView && hasMore && !loading && items.length > 0 && (
+        {/* Explicit pagination is available on every screen size. */}
+        {hasMore && !loading && !error && (
           <div className="mt-8 text-center">
             <button
               type="button"

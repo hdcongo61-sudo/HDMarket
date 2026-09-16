@@ -918,6 +918,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
         formData.append('file', file);
 
         const { data } = await api.post('/conversations/messages/upload', formData, {
+          params: { conversationId: orderId },
           headers: {
             'Content-Type': 'multipart/form-data'
           },
@@ -976,6 +977,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
 
         try {
           const { data } = await api.post('/conversations/messages/upload', formData, {
+          params: { conversationId: orderId },
             headers: {
               'Content-Type': 'multipart/form-data'
             }
@@ -1776,7 +1778,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
               </span>
               <span className="flex items-center gap-1.5">
                 <ShieldCheckIcon className="w-4 h-4 text-neutral-500" />
-                Données sécurisées
+                Conversation privée
               </span>
             </div>
           </div>
@@ -1828,7 +1830,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
               </div>
               <h3 className="mb-1 font-black text-slate-950 dark:text-white">Démarrez la conversation</h3>
               <p className="mb-5 max-w-xs text-sm font-semibold text-slate-500 dark:text-gray-400">
-                Posez vos questions concernant cette commande. Vos messages sont sécurisés.
+                Posez vos questions concernant cette commande. Accès réservé aux participants et au personnel autorisé.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {QUICK_REPLIES.slice(0, 2).map((reply, index) => (

@@ -1,3 +1,4 @@
+import { canAccessSupportMessage, supportHistoryFilter, supportRoom, escapeChatSearch, validChatReaction } from '../utils/chatSecurity.js';
 import asyncHandler from 'express-async-handler';
 import mongoose from 'mongoose';
 import ChatMessage from '../models/chatMessageModel.js';
@@ -316,11 +317,12 @@ const getChildrenCountMap = async (rootIds = [], user) => {
 
 export const listChatHistory = asyncHandler(async (req, res) => {
   const limit = Math.min(200, Math.max(20, Number(req.query.limit) || 100));
-  const search = req.query.search;
+  const search = escapeChatSearch(req.query.search);
 
-  let query = {};
+  let query = supportHistoryFilter(req.user, req.query.userId);
   if (search && search.trim()) {
     query = {
+      ...query,
       $or: [
         { text: { $regex: search.trim(), $options: 'i' } },
         { 'attachments.filename': { $regex: search.trim(), $options: 'i' } }
@@ -628,9 +630,11 @@ export const deleteChatTemplate = asyncHandler(async (req, res) => {
 });
 
 export const sendSupportMessage = asyncHandler(async (req, res) => {
-  const { text } = req.body || {};
-  if (!text) return res.status(400).json({ message: 'Texte requis.' });
+  const { text, userId } = req.body || {};
+  if (!mongoose.isValidObjectId(userId)) return res.status(400).json({ message: 'Destinataire requis.' });
+  if (typeof text !== 'string' || !text.trim() || text.length > 1000) return res.status(400).json({ message: 'Texte requis.' });
   const message = await ChatMessage.create({
+    user: userId,
     from: 'support',
     username: 'Support HDMarket',
     text
@@ -643,7 +647,7 @@ export const sendSupportMessage = asyncHandler(async (req, res) => {
   };
   const io = getChatSocket();
   if (io) {
-    io.to('support').emit('message', payload);
+    io.to(supportRoom(userId)).to('support:staff').emit('message', { ...payload, userId });
   }
   res.status(201).json(payload);
 });
@@ -688,7 +692,7 @@ export const addReaction = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Identifiant de message invalide.' });
   }
 
-  if (!emoji) {
+  if (!validChatReaction(emoji)) {
     return res.status(400).json({ message: 'Emoji requis.' });
   }
 
@@ -696,6 +700,8 @@ export const addReaction = asyncHandler(async (req, res) => {
   if (!message) {
     return res.status(404).json({ message: 'Message introuvable.' });
   }
+
+  if (!canAccessSupportMessage(req.user, message)) return res.status(403).json({ message: 'Accès non autorisé.' });
 
   message.reactions = message.reactions.filter((item) => item.userId.toString() !== req.user.id.toString());
   message.reactions.push({
@@ -707,7 +713,7 @@ export const addReaction = asyncHandler(async (req, res) => {
 
   const io = getChatSocket();
   if (io) {
-    io.emit('messageReaction', {
+    io.to(supportRoom(message.user)).to('support:staff').emit('messageReaction', {
       messageId: message._id.toString(),
       reactions: message.reactions
     });
@@ -728,12 +734,14 @@ export const removeReaction = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Message introuvable.' });
   }
 
+  if (!canAccessSupportMessage(req.user, message)) return res.status(403).json({ message: 'Accès non autorisé.' });
+
   message.reactions = message.reactions.filter((item) => item.userId.toString() !== req.user.id.toString());
   await message.save();
 
   const io = getChatSocket();
   if (io) {
-    io.emit('messageReaction', {
+    io.to(supportRoom(message.user)).to('support:staff').emit('messageReaction', {
       messageId: message._id.toString(),
       reactions: message.reactions
     });
@@ -745,13 +753,14 @@ export const removeReaction = asyncHandler(async (req, res) => {
 export const searchMessages = asyncHandler(async (req, res) => {
   const { query } = req.query;
 
-  if (!query || !query.trim()) {
+  if (typeof query !== 'string' || !query.trim()) {
     return res.status(400).json({ message: 'Terme de recherche requis.' });
   }
 
-  const searchTerm = query.trim();
+  const searchTerm = escapeChatSearch(query);
 
   const messages = await ChatMessage.find({
+    ...supportHistoryFilter(req.user, req.query.userId),
     $or: [
       { text: { $regex: searchTerm, $options: 'i' } },
       { 'attachments.filename': { $regex: searchTerm, $options: 'i' } }

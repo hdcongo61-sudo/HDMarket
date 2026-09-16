@@ -1,3 +1,4 @@
+import { chatWriteLimiter, chatUploadLimiter, requireMessagingEnabled } from '../middlewares/chatSecurity.js';
 import express from 'express';
 import {
   listChatHistory,
@@ -18,9 +19,10 @@ import {
 } from '../controllers/chatController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { requireChatTemplateAccess } from '../middlewares/roleMiddleware.js';
-import { chatUpload } from '../utils/chatUpload.js';
+import { chatUpload, validateChatUpload } from '../utils/chatUpload.js';
 
 const router = express.Router();
+router.use((req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
 
 router.get('/history', protect, listChatHistory);
 router.get('/templates', listChatTemplates);
@@ -34,9 +36,9 @@ router.post('/session/start', protect, startChatSession);
 router.patch('/session/update', protect, updateChatSession);
 router.get('/session/:userId', protect, getChatSessionByUserId);
 router.get('/search', protect, searchMessages);
-router.post('/upload', protect, chatUpload.single('file'), uploadChatAttachment);
-router.post('/messages/:messageId/reactions', protect, addReaction);
-router.delete('/messages/:messageId/reactions', protect, removeReaction);
+router.post('/upload', protect, requireMessagingEnabled, chatUploadLimiter, chatUpload.single('file'), validateChatUpload, uploadChatAttachment);
+router.post('/messages/:messageId/reactions', protect, chatWriteLimiter, requireMessagingEnabled, addReaction);
+router.delete('/messages/:messageId/reactions', protect, chatWriteLimiter, requireMessagingEnabled, removeReaction);
 router.patch('/templates/:id', protect, requireChatTemplateAccess, updateChatTemplate);
 router.delete('/templates/:id', protect, requireChatTemplateAccess, deleteChatTemplate);
 

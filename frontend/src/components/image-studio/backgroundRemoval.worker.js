@@ -13,11 +13,15 @@ const getSegmenter = (onProgress) => {
   if (!segmenterPromise) {
     segmenterPromise = pipeline('background-removal', MODEL_ID, {
       dtype: 'q8',
+      device: 'wasm',
       progress_callback: (data) => {
         if (data?.status === 'progress' && typeof data.progress === 'number') {
           onProgress?.(Math.round(data.progress));
         }
       }
+    }).catch((error) => {
+      segmenterPromise = null;
+      throw error;
     });
   }
   return segmenterPromise;
@@ -32,7 +36,7 @@ self.onmessage = async (event) => {
     });
     self.postMessage({ id, status: 'processing' });
     const image = await RawImage.fromBlob(blob);
-    const output = await segmenter(image);
+    const output = await segmenter([image]);
     const resultBlob = await output[0].toBlob();
     self.postMessage({ id, status: 'done', blob: resultBlob });
   } catch (error) {

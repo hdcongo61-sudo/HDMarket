@@ -836,7 +836,7 @@ export default function ShopProfile() {
   );
   const hasActivePromo = Boolean(shop?.hasActivePromo && Number(shop?.activePromoCountNow || 0) > 0);
   const hasFreeDelivery = Boolean(shop?.freeDeliveryEnabled);
-  const completedOrders = useMemo(
+  const unitsSold = useMemo(
     () =>
       products.reduce((total, product) => {
         const count = Number(product?.salesCount || 0);
@@ -853,10 +853,6 @@ export default function ShopProfile() {
     if (yearDiff <= 0) return t('shop_profile.new', 'Nouveau');
     return `${yearDiff} ${yearDiff > 1 ? t('shop_profile.years', 'ans') : t('shop_profile.year', 'an')}`;
   }, [shop?.createdAt, t]);
-  const customerSatisfaction =
-    ratingCount > 0
-      ? `${Math.round((ratingAverage / 5) * 100)}%`
-      : t('shop_profile.new', 'Nouveau');
   const responseRateLabel = useMemo(
     () => formatPercentLabel(shop?.responseRate ?? shop?.replyRate ?? shop?.messageResponseRate),
     [shop?.messageResponseRate, shop?.replyRate, shop?.responseRate]
@@ -952,8 +948,8 @@ export default function ShopProfile() {
     },
     {
       icon: <ArrowTrendingUpIcon className="text-neutral-600 h-4 w-4" />,
-      label: t('shop_profile.orders', 'Commandes'),
-      value: formatCount(completedOrders)
+      label: t('shop_profile.units_sold', 'Articles vendus'),
+      value: formatCount(unitsSold)
     },
     {
       icon: <StarIcon className="text-amber-500 h-4 w-4" />,
@@ -1062,9 +1058,8 @@ export default function ShopProfile() {
             hasActivePromo={hasActivePromo}
             hasFreeDelivery={hasFreeDelivery}
             yearsActiveLabel={yearsActiveLabel}
-            customerSatisfaction={customerSatisfaction}
             followersCount={followersCount}
-            completedOrders={completedOrders}
+            unitsSold={unitsSold}
             isOwnShop={isOwnShop}
             isFollowing={isFollowing}
             followDisabled={followDisabled}
@@ -1077,8 +1072,6 @@ export default function ShopProfile() {
             t={t}
           />
 
-          <ShopAnnouncementBar items={announcementFacts} t={t} />
-
           <ShopPromoBanner
             shop={shop}
             hasActivePromo={hasActivePromo}
@@ -1089,23 +1082,7 @@ export default function ShopProfile() {
 
           <div className="grid min-w-0 gap-2 overflow-x-clip sm:gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0 space-y-2 overflow-x-clip sm:space-y-4">
-              <ShopActionsCard
-                isOwnShop={isOwnShop}
-                slug={slug}
-                user={user}
-                shopPhone={shop.phone}
-                whatsappLink={whatsappLink}
-                isCertifiedShop={isCertifiedShop}
-                isFollowing={isFollowing}
-                followDisabled={followDisabled}
-                followPending={followPending}
-                onPrimaryAction={handlePrimaryAction}
-                onShare={handleShareShop}
-                onMessage={goToMessage}
-                onDirections={handleDirections}
-                onFollowToggle={handleFollowToggle}
-                t={t}
-              />
+
 
               <ShopProductsSection
                 products={products}
@@ -1132,6 +1109,27 @@ export default function ShopProfile() {
                   if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               />
+
+              <ShopAnnouncementBar items={announcementFacts} t={t} />
+              <div className="lg:hidden">
+              <ShopActionsCard
+                isOwnShop={isOwnShop}
+                slug={slug}
+                user={user}
+                shopPhone={shop.phone}
+                whatsappLink={whatsappLink}
+                isCertifiedShop={isCertifiedShop}
+                isFollowing={isFollowing}
+                followDisabled={followDisabled}
+                followPending={followPending}
+                onPrimaryAction={handlePrimaryAction}
+                onShare={handleShareShop}
+                onMessage={goToMessage}
+                onDirections={handleDirections}
+                onFollowToggle={handleFollowToggle}
+                t={t}
+              />
+              </div>
 
               <ShopVideosSection shopId={shop?._id} t={t} />
 

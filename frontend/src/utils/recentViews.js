@@ -1,6 +1,9 @@
 import api from '../services/api';
 
-const STORAGE_KEY = 'hdmarket:recent-product-views';
+const STORAGE_KEY = 'hdmarket:recent-product-views:v2';
+let activeUserId = null;
+export const setRecentViewsUser = (userId) => { activeUserId = userId ? String(userId) : null; };
+const storageKey = (userId = activeUserId) => `${STORAGE_KEY}:${userId || 'guest'}`;
 const MAX_VIEWS = 50;
 const OBJECT_ID_REGEX = /^[a-fA-F0-9]{24}$/;
 
@@ -14,14 +17,14 @@ const safeParse = (value) => {
   }
 };
 
-export const loadRecentProductViews = () => {
+export const loadRecentProductViews = (userId = activeUserId) => {
   if (typeof window === 'undefined') return [];
-  return safeParse(window.localStorage.getItem(STORAGE_KEY));
+  try { return safeParse(window.localStorage.getItem(storageKey(userId))); } catch { return []; }
 };
 
-export const saveRecentProductViews = (views) => {
+export const saveRecentProductViews = (views, userId = activeUserId) => {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(views));
+  try { window.localStorage.setItem(storageKey(userId), JSON.stringify(views)); } catch { /* Storage may be disabled. */ }
 };
 
 export const recordProductView = (product) => {
@@ -39,8 +42,7 @@ export const recordProductView = (product) => {
   saveRecentProductViews(next);
 
   if (typeof window !== 'undefined') {
-    const token = window.localStorage.getItem('qm_token');
-    if (token) {
+    if (activeUserId) {
       if (product?.status && product.status !== 'approved') return;
       const identifier = OBJECT_ID_REGEX.test(rawId) ? rawId : rawSlug;
       if (!identifier) return;
@@ -49,8 +51,8 @@ export const recordProductView = (product) => {
   }
 };
 
-export const fetchRecentProductViews = async (limit = 50) => {
-  const { data } = await api.get('/users/product-views', { params: { limit } });
+export const fetchRecentProductViews = async (limit = 50, options = {}) => {
+  const { data } = await api.get('/users/product-views', { ...options, params: { limit }, skipCache: true });
   return Array.isArray(data) ? data : [];
 };
 

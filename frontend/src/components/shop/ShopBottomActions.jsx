@@ -28,7 +28,7 @@ export default function ShopBottomActions({
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-100 bg-white/96 px-2 py-1.5 [padding-bottom:calc(env(safe-area-inset-bottom)+0.375rem)] dark:border-neutral-800 dark:bg-neutral-950/96">
-      <div className="grid grid-cols-4 gap-1">
+      <div className={`grid gap-1 ${isOwnShop || whatsappLink ? 'grid-cols-4' : 'grid-cols-3'}`}>
         {isOwnShop ? (
           <button type="button" onClick={onPrimaryAction} className={`${slot} ${neutral}`}>
             <PencilIcon className="h-[17px] w-[17px]" />
@@ -56,12 +56,12 @@ export default function ShopBottomActions({
             <ChatBubbleLeftIcon className="h-[17px] w-[17px]" />
             <span className="truncate">WhatsApp</span>
           </a>
-        ) : (
+        ) : whatsappLink ? (
           <Link to="/login" state={{ from: `/shop/${slug}` }} className={`${slot} ${neutral}`}>
             <ChatBubbleLeftIcon className="h-[17px] w-[17px]" />
             <span className="truncate">WhatsApp</span>
           </Link>
-        )}
+        ) : null}
 
         {isOwnShop ? (
           <Link to="/my/settlements" className={`${slot} ${neutral}`}>

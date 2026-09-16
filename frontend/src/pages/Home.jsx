@@ -1,3 +1,4 @@
+import SearchMediaControls from '../components/search/SearchMediaControls';
 import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api, { isApiCanceledError } from "../services/api";
@@ -317,6 +318,15 @@ export default function Home() {
   const productVideosEnabled = isFeatureEnabled('product_videos', { defaultValue: false });
   // === ÉTATS PRINCIPAUX ===
   const [items, setItems] = useState([]);
+  // Keep the discovery sample stable through unrelated renders.
+  const forYouProducts = useMemo(() => {
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+    }
+    return shuffled.slice(0, 6);
+  }, [items]);
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState("new");
@@ -327,7 +337,6 @@ export default function Home() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [productsError, setProductsError] = useState('');
-  const [loadMoreError, setLoadMoreError] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = Number(searchParams.get('page'));
   const initialPageRef = useRef(Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1);
@@ -390,8 +399,6 @@ export default function Home() {
   const [shouldLoadInstallment, setShouldLoadInstallment] = useState(false);
   const secondarySectionsRef = useRef(null);
   const installmentSectionRef = useRef(null);
-  const infiniteScrollLockRef = useRef(0);
-  const loadMoreSentinelRef = useRef(null);
   const homeProductsAbortRef = useRef(null);
   const productsNextCursorRef = useRef('');
   // Stable per-mount seed so "Sélection du jour" shows a random set of photos
@@ -564,7 +571,6 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
       setProductsError('');
       productsNextCursorRef.current = '';
     }
-    setLoadMoreError('');
     try {
       const requestParams = { page, limit: primaryPageLimit, sort };
       if (
@@ -637,16 +643,11 @@ const formatCountdown = (endDate, nowMs = Date.now()) => {
           });
           setOfflineSnapshotActive(true);
           setProductsError('');
-          setLoadMoreError('');
           return;
         }
       }
       const slowNetworkMessage = 'Chargement prolongé. Réessayez dans un instant.';
-      if (isMobileView && page > 1) {
-        setLoadMoreError(slowNetworkMessage);
-      } else {
-        setProductsError(slowNetworkMessage);
-      }
+      setProductsError(slowNetworkMessage);
     } finally {
       if (!controller || homeProductsAbortRef.current === controller) {
         setLoading(false);
@@ -956,7 +957,6 @@ const loadDiscountProducts = async () => {
     setTotalProducts(Number(cached.totalProducts) || 0);
     productsNextCursorRef.current = String(cached.nextCursor || '');
     setProductsError('');
-    setLoadMoreError('');
     setLoading(false);
   }, [homeSnapshotKey]);
 
@@ -1013,34 +1013,6 @@ const loadDiscountProducts = async () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Triggers "load more" as the user nears the end of the PRODUCT GRID
-  // itself, via a sentinel placed right after it — not the bottom of the
-  // whole document. The previous scroll-based check measured against
-  // document.documentElement.scrollHeight, which includes the footer, so it
-  // only fired once the user scrolled almost all the way past the footer.
-  useEffect(() => {
-    if (!isMobileView) return undefined;
-    if (loading) return undefined;
-    if (loadMoreError) return undefined;
-    if (page >= totalPages) return undefined;
-    const node = loadMoreSentinelRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        const now = Date.now();
-        if (entry?.isIntersecting && now - infiniteScrollLockRef.current >= 400) {
-          infiniteScrollLockRef.current = now;
-          setPage((prev) => Math.min(prev + 1, totalPages));
-        }
-      },
-      { rootMargin: '400px' }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [isMobileView, loading, loadMoreError, page, totalPages]);
 
   useEffect(() => {
     if (!shouldLoadSecondarySections) return undefined;
@@ -1447,7 +1419,7 @@ const loadDiscountProducts = async () => {
     const stopPromoAutoplay = () => setPromoInteracted(true);
 
     return (
-      <div className="mx-auto flex max-w-7xl flex-col gap-5 bg-[#f7f8fa] px-5 pb-24 pt-0 text-[#1b1d22] max-[375px]:gap-4 max-[375px]:px-4">
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 bg-[#f5f5f5] px-5 pb-24 pt-0 text-[#1b1d22] max-[375px]:gap-4 max-[375px]:px-4">
         {/* Pour Vous — AI Recommendations (placed prominently at top) */}
         <div className="hidden">
           <PourVousSection
@@ -1587,8 +1559,8 @@ const loadDiscountProducts = async () => {
         ) : null}
 
 
-        <section className="home-anim-gradient order-[-30] -mx-5 overflow-hidden rounded-b-[26px] bg-[linear-gradient(160deg,#ff8a1e_0%,#f26522_55%,#eb5a14_100%)] text-white max-[375px]:-mx-4">
-          <div className="relative px-5 pb-[22px] pt-[max(58px,env(safe-area-inset-top))] max-[375px]:px-4">
+        <section className="home-anim-gradient order-[-30] -mx-5 overflow-hidden rounded-b-[26px] bg-[#e85d00] text-white max-[375px]:-mx-4">
+          <div className="relative px-5 pb-4 pt-[max(58px,env(safe-area-inset-top))] max-[375px]:px-4">
             <div className="home-anim-float pointer-events-none absolute left-32 -top-8 h-16 w-16 rounded-full bg-amber-200/20 blur-xl" />
             <div className="home-anim-float pointer-events-none absolute -right-6 top-10 h-20 w-20 rounded-full bg-white/10 blur-xl" style={{ animationDelay: '2.4s' }} />
             <div className="home-anim-fade-up relative">
@@ -1657,23 +1629,77 @@ const loadDiscountProducts = async () => {
               >
                 <Squares2X2Icon className="h-5 w-5" />
               </button>
-              <Link
-                to="/products"
-                {...externalLinkProps}
-                className="min-w-0 flex-1 truncate text-left text-[14.5px] font-bold text-[#3a3e46]"
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event('hdmarket:open-search'))}
+                className="flex min-h-[42px] min-w-0 flex-1 items-center gap-2 rounded-full text-left text-[14px] font-semibold text-gray-600"
+                aria-label={t('nav.search', 'Rechercher')}
               >
-                Rechercher produits, boutiques, ville...
-              </Link>
-              <Link
-                to="/products"
-                {...externalLinkProps}
-                className="inline-flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-full bg-[#e05a0f] text-white active:scale-95"
-                aria-label="Rechercher"
-              >
-                <MagnifyingGlassIcon className="h-6 w-6" />
-              </Link>
+                <span className="min-w-0 flex-1 truncate">Rechercher sur HDMarket</span>
+                <span className="inline-flex h-[42px] shrink-0 items-center gap-1 rounded-full bg-[#e85d00] px-3 text-white">
+                  <MagnifyingGlassIcon className="h-5 w-5" />
+                  <span className="hidden sm:inline">Rechercher</span>
+                </span>
+              </button>
+              <SearchMediaControls />
             </div>
           </div>
+        </section>
+
+        {/* All Products Grid */}
+        <section className="order-[-25]">
+          <div className="mb-3.5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#141210]">{t('home.forYou', 'Pour vous')}</h2>
+                <p className="mt-0.5 truncate text-[12.5px] font-medium text-[#8a8378]">
+                  <span className="tabular-nums">{formatCount(totalProducts)}</span> {t('home.listings', 'annonces')}{hasUserCity ? ' · près de vous' : ''}
+                </p>
+              </div>
+            <Link
+              to="/products"
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-[0.98]"
+            >
+              Voir tout
+              <ChevronRightIcon className="h-4 w-4 flex-shrink-0" />
+            </Link>
+          </div>
+
+          {productsError ? (
+            <NetworkFallbackCard
+              title="Impossible de charger les produits"
+              message={productsError}
+              onRetry={loadProducts}
+              retryLabel="Réessayer"
+              refreshLabel="Actualiser la page"
+            />
+          ) : loading && items.length === 0 ? (
+            <ProductCardSkeleton count={6} homeFeed className="grid grid-cols-2 gap-3" />
+          ) : items.length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {forYouProducts.map((product, index) => (
+                  <div
+                    key={`product-${product._id}-${index}`}
+                    className="home-anim-fade-up w-full h-full"
+                    style={{ '--home-anim-delay': `${(index % 8) * 45}ms` }}
+                  >
+                    <ProductCard p={product} productLink={buildHomeProductLink(product)} homeFeed />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <MagnifyingGlassIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500 mb-3">{t('home.noProductsFound', 'Aucun produit trouvé')}</p>
+              <button
+                onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
+                className="px-4 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-full active:scale-95"
+              >
+                {t('home.reset', 'Réinitialiser')}
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="order-[-20] -mx-5 pt-[14px] max-[375px]:-mx-4" aria-label="Promotions HDMarket">
@@ -1865,6 +1891,117 @@ const loadDiscountProducts = async () => {
               )}
             </div>
           </div>
+        </section>
+
+        {/* Zone 4: Inline Filters + Product Grid */}
+        <section>
+          {/* Inline filter bar */}
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Tous les produits
+                <span className="text-sm font-normal text-gray-500 ml-2">({formatCount(totalProducts)})</span>
+              </h2>
+              {hasUserCity && (
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
+                  <MapPinIcon className="h-3.5 w-3.5" />
+                  {t('home.nearYou', 'Produits près de vous')}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={installmentOnlyFilter}
+                  onChange={(e) => {
+                    setInstallmentOnlyFilter(e.target.checked);
+                    setPage(1);
+                  }}
+                  className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
+                />
+                Afficher uniquement les produits en tranche
+              </label>
+              {hasUserCity && (
+                <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={nearMeOnlyFilter}
+                    onChange={(e) => {
+                      setNearMeOnlyFilter(e.target.checked);
+                      setPage(1);
+                    }}
+                    className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
+                  />
+                  {t('home.onlyMyCity', 'Voir uniquement dans ma ville')}
+                </label>
+              )}
+              {/* Sort dropdown */}
+              <select
+                value={sort}
+                onChange={(e) => { setSort(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 cursor-pointer"
+              >
+                <option value="new">{t('home.sortNew', 'Nouveautés')}</option>
+                <option value="price_asc">{t('home.sortPriceAsc', 'Prix croissant')}</option>
+                <option value="price_desc">{t('home.sortPriceDesc', 'Prix décroissant')}</option>
+                <option value="discount">{t('home.sortDiscount', 'Remises')}</option>
+              </select>
+              {/* Category filter */}
+              <select
+                value={category}
+                onChange={(e) => { setCategory(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 cursor-pointer"
+              >
+                <option value="">{t('home.allCategories', 'Toutes catégories')}</option>
+                {allCategoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Product grid - 4-5 columns */}
+          {productsError ? (
+            <NetworkFallbackCard
+              title="Impossible de charger les produits"
+              message={productsError}
+              onRetry={loadProducts}
+              retryLabel="Réessayer"
+              refreshLabel="Actualiser la page"
+            />
+          ) : loading ? (
+            <ShimmerSkeleton rows={4} />
+          ) : items.length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {items.map((product, index) => (
+                  <div
+                    key={`product-d-${product._id}-${index}`}
+                    className="home-anim-fade-up hover:shadow-md transition-shadow rounded-xl overflow-hidden"
+                    style={{ '--home-anim-delay': `${(index % 10) * 40}ms` }}
+                  >
+                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
+                  </div>
+                ))}
+              </div>
+              {renderPagination()}
+            </>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-200">
+              <MagnifyingGlassIcon className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('home.noProductsFound', 'Aucun produit trouvé')}</h3>
+              <p className="text-gray-500 text-sm mb-4">{t('home.adjustFilters', 'Modifiez vos critères de filtrage')}</p>
+              <button
+                onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
+                className="apple-btn-primary px-4 py-2.5 text-sm"
+              >
+                {t('home.resetFilters', 'Réinitialiser les filtres')}
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Buyer or Seller callout */}
@@ -2531,80 +2668,6 @@ const loadDiscountProducts = async () => {
           <ChevronRightIcon className="h-6 w-6 shrink-0 text-[#a8a29e]" />
         </Link>
 
-        {/* All Products Grid */}
-        <section className="order-[4]">
-          <div className="mb-3.5 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#141210]">{t('home.forYou', 'Pour vous')}</h2>
-                <p className="mt-0.5 truncate text-[12.5px] font-medium text-[#8a8378]">
-                  <span className="tabular-nums">{formatCount(totalProducts)}</span> {t('home.listings', 'annonces')}{hasUserCity ? ' · près de vous' : ''}
-                </p>
-              </div>
-            <Link
-              to="/products"
-              className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-[#b3480a] transition hover:text-[#e85d00] active:scale-[0.98]"
-            >
-              Voir tout
-              <ChevronRightIcon className="h-4 w-4 flex-shrink-0" />
-            </Link>
-          </div>
-
-          {productsError ? (
-            <NetworkFallbackCard
-              title="Impossible de charger les produits"
-              message={productsError}
-              onRetry={loadProducts}
-              retryLabel="Réessayer"
-              refreshLabel="Actualiser la page"
-            />
-          ) : loading && items.length === 0 ? (
-            <ProductCardSkeleton count={6} homeFeed className="grid grid-cols-2 gap-3" />
-          ) : items.length > 0 ? (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                {items.map((product, index) => (
-                  <div
-                    key={`product-${product._id}-${index}`}
-                    className="home-anim-fade-up w-full h-full"
-                    style={{ '--home-anim-delay': `${(index % 8) * 45}ms` }}
-                  >
-                    <ProductCard p={product} productLink={buildHomeProductLink(product)} homeFeed />
-                  </div>
-                ))}
-              </div>
-              <div ref={loadMoreSentinelRef} aria-hidden="true" className="h-px w-full" />
-              {loading && page > 1 && (
-                <div className="flex justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              {loadMoreError && !loading && (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center">
-                  <p className="text-xs font-medium text-amber-800">{loadMoreError}</p>
-                  <button
-                    type="button"
-                    onClick={loadProducts}
-                    className="mt-2 inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 active:scale-95"
-                  >
-                    Réessayer
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <MagnifyingGlassIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500 mb-3">{t('home.noProductsFound', 'Aucun produit trouvé')}</p>
-              <button
-                onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
-                className="px-4 py-2 bg-neutral-900 text-white text-xs font-semibold rounded-full active:scale-95"
-              >
-                {t('home.reset', 'Réinitialiser')}
-              </button>
-            </div>
-          )}
-        </section>
-
         {/* Discover More Quick Links */}
         <section className="order-[4] pb-2">
           <h3 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#1b1d22]">{t('home.discoverMore', 'Découvrir plus')}</h3>
@@ -2867,19 +2930,19 @@ const loadDiscountProducts = async () => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
           {/* Hero Banner */}
           <div className="flex flex-col gap-4">
-            <section className="home-shine-host relative bg-neutral-900 rounded-2xl overflow-hidden shadow-sm" style={{ minHeight: '300px' }}>
+            <section className="home-shine-host relative bg-neutral-900 rounded-2xl overflow-hidden shadow-sm" style={{ minHeight: '220px' }}>
               {heroBanner && (
                 <div className="absolute inset-0">
                   <img src={heroBanner} alt="Bannière HDMarket" className="h-full w-full object-cover" loading="lazy" />
                   <div className="absolute inset-0 bg-neutral-950/70" />
                 </div>
               )}
-              <div className="relative z-10 px-6 py-8 lg:py-10 text-left">
+              <div className="relative z-10 px-6 py-5 lg:py-6 text-left">
                 <div className="home-anim-fade-up inline-flex items-center px-3 py-1.5 bg-white/15 rounded-full border border-white/30 mb-4 shadow-sm">
                   <StarIcon className="w-3.5 h-3.5 text-neutral-300 mr-1.5" fill="currentColor" />
                   <span className="text-xs text-white font-semibold">{t('nav.marketplacePremium', 'Marketplace HDMarket')}</span>
                 </div>
-                <h1 className="home-anim-fade-up text-3xl lg:text-4xl font-black text-white mb-3 leading-tight" style={{ '--home-anim-delay': '90ms' }}>
+                <h1 className="home-anim-fade-up text-2xl lg:text-3xl font-black text-white mb-3 leading-tight" style={{ '--home-anim-delay': '90ms' }}>
                   Votre Marché
                   <span className="block bg-neutral-300 bg-clip-text text-transparent">{t('home.digital', 'Digital')}</span>
                 </h1>
@@ -3538,116 +3601,7 @@ const loadDiscountProducts = async () => {
           </div>
         </section>
 
-        {/* Zone 4: Inline Filters + Product Grid */}
-        <section>
-          {/* Inline filter bar */}
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                Tous les produits
-                <span className="text-sm font-normal text-gray-500 ml-2">({formatCount(totalProducts)})</span>
-              </h2>
-              {hasUserCity && (
-                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
-                  <MapPinIcon className="h-3.5 w-3.5" />
-                  {t('home.nearYou', 'Produits près de vous')}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
-                <input
-                  type="checkbox"
-                  checked={installmentOnlyFilter}
-                  onChange={(e) => {
-                    setInstallmentOnlyFilter(e.target.checked);
-                    setPage(1);
-                  }}
-                  className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
-                />
-                Afficher uniquement les produits en tranche
-              </label>
-              {hasUserCity && (
-                <label className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700">
-                  <input
-                    type="checkbox"
-                    checked={nearMeOnlyFilter}
-                    onChange={(e) => {
-                      setNearMeOnlyFilter(e.target.checked);
-                      setPage(1);
-                    }}
-                    className="h-4 w-4 rounded border-neutral-300 text-neutral-800 focus:ring-neutral-500"
-                  />
-                  {t('home.onlyMyCity', 'Voir uniquement dans ma ville')}
-                </label>
-              )}
-              {/* Sort dropdown */}
-              <select
-                value={sort}
-                onChange={(e) => { setSort(e.target.value); setPage(1); }}
-                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 cursor-pointer"
-              >
-                <option value="new">{t('home.sortNew', 'Nouveautés')}</option>
-                <option value="price_asc">{t('home.sortPriceAsc', 'Prix croissant')}</option>
-                <option value="price_desc">{t('home.sortPriceDesc', 'Prix décroissant')}</option>
-                <option value="discount">{t('home.sortDiscount', 'Remises')}</option>
-              </select>
-              {/* Category filter */}
-              <select
-                value={category}
-                onChange={(e) => { setCategory(e.target.value); setPage(1); }}
-                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500 cursor-pointer"
-              >
-                <option value="">{t('home.allCategories', 'Toutes catégories')}</option>
-                {allCategoryOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          {/* Product grid - 4-5 columns */}
-          {productsError ? (
-            <NetworkFallbackCard
-              title="Impossible de charger les produits"
-              message={productsError}
-              onRetry={loadProducts}
-              retryLabel="Réessayer"
-              refreshLabel="Actualiser la page"
-            />
-          ) : loading ? (
-            <ShimmerSkeleton rows={4} />
-          ) : items.length > 0 ? (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {items.map((product, index) => (
-                  <div
-                    key={`product-d-${product._id}-${index}`}
-                    className="home-anim-fade-up hover:shadow-md transition-shadow rounded-xl overflow-hidden"
-                    style={{ '--home-anim-delay': `${(index % 10) * 40}ms` }}
-                  >
-                    <ProductCard p={product} productLink={buildHomeProductLink(product)} />
-                  </div>
-                ))}
-              </div>
-              {renderPagination()}
-            </>
-          ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-200">
-              <MagnifyingGlassIcon className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('home.noProductsFound', 'Aucun produit trouvé')}</h3>
-              <p className="text-gray-500 text-sm mb-4">{t('home.adjustFilters', 'Modifiez vos critères de filtrage')}</p>
-              <button
-                onClick={() => { setCategory(''); setSort('new'); setPage(1); }}
-                className="apple-btn-primary px-4 py-2.5 text-sm"
-              >
-                {t('home.resetFilters', 'Réinitialiser les filtres')}
-              </button>
-            </div>
-          )}
-        </section>
       </div>
     );
   };

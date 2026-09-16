@@ -1,3 +1,4 @@
+import { startVideoWatch, stopVideoWatch } from '../utils/videoWatchTracker';
 import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Hls from 'hls.js';
@@ -83,6 +84,7 @@ function VideoAction({ label, value, active = false, onClick, children }) {
 function VideoSlide({
   video,
   active,
+  covered = false,
   defaultMuted,
   autoplay,
   formatPrice,
@@ -102,7 +104,9 @@ function VideoSlide({
   onOpenCart
 }) {
   const videoRef = useRef(null);
-  const viewedRef = useRef({ startedAt: 0, watchedMs: 0, sent: false });
+  const viewedRef = useRef({ startedAt: null, watchedMs: 0, sent: false });
+  const resumeOverlayRef = useRef(false);
+  const stopWatch = () => stopVideoWatch(viewedRef.current, performance.now());
   const longPressRef = useRef(null);
   const pointerStartRef = useRef({ x: 0, y: 0 });
   const lastTapRef = useRef(0);
@@ -117,10 +121,7 @@ function VideoSlide({
     const tracker = viewedRef.current;
     // Count the in-progress segment too, otherwise a view is lost whenever
     // the slide unmounts while still active (page change, tab close).
-    if (tracker.startedAt) {
-      tracker.watchedMs += performance.now() - tracker.startedAt;
-      tracker.startedAt = 0;
-    }
+    stopVideoWatch(tracker, performance.now());
     if (tracker.sent || tracker.watchedMs < 500) return;
     tracker.sent = true;
     api
@@ -144,15 +145,12 @@ function VideoSlide({
     const element = videoRef.current;
     if (!element) return undefined;
     if (active) {
-      viewedRef.current = { startedAt: performance.now(), watchedMs: 0, sent: false };
+      viewedRef.current = { startedAt: null, watchedMs: 0, sent: false };
       if (autoplay) {
         element.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       }
     } else {
-      if (viewedRef.current.startedAt) {
-        viewedRef.current.watchedMs += performance.now() - viewedRef.current.startedAt;
-        viewedRef.current.startedAt = 0;
-      }
+      stopVideoWatch(viewedRef.current, performance.now());
       element.pause();
       setPlaying(false);
       recordView();
@@ -170,13 +168,26 @@ function VideoSlide({
         element.pause();
         setPlaying(false);
         recordView();
-      } else if (active && autoplay) {
+      } else if (active && autoplay && !covered) {
         element.play().then(() => setPlaying(true)).catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [active, autoplay, recordView]);
+  }, [active, autoplay, covered, recordView]);
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element) return;
+    if (covered) {
+      resumeOverlayRef.current = !element.paused;
+      stopVideoWatch(viewedRef.current, performance.now());
+      element.pause();
+    } else if (resumeOverlayRef.current && active && !document.hidden) {
+      resumeOverlayRef.current = false;
+      element.play().catch(() => {});
+    }
+  }, [covered, active]);
 
   // Pause while the navbar's mobile menu covers the feed; resume on close.
   useEffect(() => {
@@ -186,13 +197,13 @@ function VideoSlide({
       if (event.detail?.open) {
         element.pause();
         setPlaying(false);
-      } else if (active && autoplay && !document.hidden) {
+      } else if (active && autoplay && !covered && !document.hidden) {
         element.play().then(() => setPlaying(true)).catch(() => {});
       }
     };
     window.addEventListener('hdmarket:mobile-menu', handleMenuToggle);
     return () => window.removeEventListener('hdmarket:mobile-menu', handleMenuToggle);
-  }, [active, autoplay]);
+  }, [active, autoplay, covered]);
 
   const togglePlayback = () => {
     const element = videoRef.current;
@@ -311,7 +322,10 @@ function VideoSlide({
           loop={false}
           className="h-full w-full object-cover"
           onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+          onPlaying={() => { startVideoWatch(viewedRef.current, performance.now()); }}
+          onWaiting={stopWatch}
+          onSeeking={stopWatch}
+          onPause={() => { stopWatch(); setPlaying(false); }}
           onTimeUpdate={(event) => {
             const element = event.currentTarget;
             setProgress(element.duration ? element.currentTime / element.duration : 0);
@@ -654,6 +668,10 @@ function CartOptionsSheet({ video, formatPrice, submitting, onClose, onConfirm }
 }
 
 function CommentsSheet({ video, onClose, onCountChange }) {
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [comments, setComments] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -663,15 +681,16 @@ function CommentsSheet({ video, onClose, onCountChange }) {
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setLoadError(false);
     api
-      .get(`/product-videos/${video._id}/comments`, { silentGlobalError: true })
-      .then(({ data }) => active && setComments(data?.items || []))
-      .catch(() => active && showToast('Impossible de charger les commentaires.', { variant: 'error' }))
+      .get(`/product-videos/${video._id}/comments`, { params: { page }, silentGlobalError: true })
+      .then(({ data }) => { if (!active) return; setComments(current => [...current, ...(data?.items || []).filter(item => !current.some(old => old._id === item._id))]); setHasMore(Boolean(data?.hasMore)); })
+      .catch(() => { if (active) { setLoadError(true); showToast('Impossible de charger les commentaires.', { variant: 'error' }); } })
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [showToast, video._id]);
+  }, [showToast, video._id, page, retry]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -740,6 +759,7 @@ function CommentsSheet({ video, onClose, onCountChange }) {
           </div>
         ))}
       </div>
+      {loadError ? <button onClick={() => setRetry(retry + 1)}>Réessayer</button> : hasMore ? <button disabled={loading} onClick={() => setPage(page + 1)}>Charger plus de commentaires</button> : null}
       <form onSubmit={submit} className="border-t border-neutral-200 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] dark:border-white/10">
         {replyTo ? <p className="mb-2 text-xs text-neutral-500">Réponse à {replyTo.user?.name} · <button type="button" onClick={() => setReplyTo(null)}>annuler</button></p> : null}
         <div className="flex gap-2">
@@ -764,6 +784,9 @@ export default function ProductVideos() {
   const location = useLocation();
   const containerRef = useRef(null);
   const loadingRef = useRef(false);
+  const requestRef = useRef(null);
+  const engagementPending = useRef(new Set());
+  const [feedError, setFeedError] = useState(false);
   const [items, setItems] = useState([]);
   const [cursor, setCursor] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -808,15 +831,21 @@ export default function ProductVideos() {
 
   const loadPage = useCallback(
     async ({ reset = false } = {}) => {
-      if (loadingRef.current || (!reset && !hasMore)) return;
+      if ((!reset && loadingRef.current) || (!reset && (!hasMore || feedError))) return;
+      requestRef.current?.abort();
+      const controller = new AbortController();
+      requestRef.current = controller;
+      setFeedError(false);
       loadingRef.current = true;
       if (reset) setLoading(true);
       try {
         const pageCursor = reset ? 0 : cursor;
         const { data } = await api.get('/product-videos/feed', {
+          signal: controller.signal,
           params: { cursor: pageCursor, limit: 8, filter, search: submittedSearch || undefined },
           silentGlobalError: true
         });
+        if (controller.signal.aborted) return;
         const nextItems = data?.items || [];
         const nextCursor = data?.nextCursor ?? pageCursor + nextItems.length;
         const nextHasMore = Boolean(data?.hasMore);
@@ -839,19 +868,26 @@ export default function ProductVideos() {
           containerRef.current?.scrollTo({ top: 0 });
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
+        setFeedError(true);
         if (error.response?.status !== 404) showToast('Le flux vidéo est momentanément indisponible.', { variant: 'error' });
-        setHasMore(false);
       } finally {
-        loadingRef.current = false;
-        setLoading(false);
+        if (requestRef.current === controller) {
+          loadingRef.current = false;
+          setLoading(false);
+        }
       }
     },
-    [cursor, feedCacheKey, filter, hasMore, showToast, submittedSearch]
+    [cursor, feedCacheKey, filter, hasMore, feedError, showToast, submittedSearch]
   );
 
   useLayoutEffect(() => {
     // Instant restore: show the cached feed exactly as it was left (including
     // the slide position) instead of refetching and blanking the page.
+    requestRef.current?.abort();
+    requestRef.current = null;
+    loadingRef.current = false;
+    setFeedError(false);
     const cached = readRouteViewCache(feedCacheKey);
     if (cached && Array.isArray(cached.items) && cached.items.length) {
       setItems(cached.items);
@@ -861,6 +897,7 @@ export default function ProductVideos() {
       setLoading(false);
       return;
     }
+    setItems([]);
     setHasMore(true);
     setCursor(0);
     loadPage({ reset: true });
@@ -907,6 +944,8 @@ export default function ProductVideos() {
     if (currentIndex >= items.length - 3) loadPage();
   }, [currentIndex, items.length, loadPage]);
 
+  useEffect(() => () => requestRef.current?.abort(), []);
+
   const patchItem = useCallback((id, updater) => {
     setItems((current) => current.map((item) => (item._id === id ? updater(item) : item)));
   }, []);
@@ -920,6 +959,9 @@ export default function ProductVideos() {
 
   const toggle = async (video, field) => {
     if (!requireLogin()) return;
+    const pendingKey = `${video._id}:${field}`;
+    if (engagementPending.current.has(pendingKey)) return;
+    engagementPending.current.add(pendingKey);
     const endpoint = field === 'liked' ? 'like' : 'save';
     const counter = field === 'liked' ? 'likes' : 'saves';
     const previous = Boolean(video.viewer?.[field]);
@@ -929,7 +971,8 @@ export default function ProductVideos() {
       counters: { ...item.counters, [counter]: Math.max(0, Number(item.counters?.[counter] || 0) + (previous ? -1 : 1)) }
     }));
     try {
-      await api.post(`/product-videos/${video._id}/${endpoint}`);
+      const { data } = await api.post(`/product-videos/${video._id}/${endpoint}`);
+      patchItem(video._id, (item) => ({ ...item, viewer: { ...item.viewer, [field]: data.active }, counters: { ...item.counters, [counter]: data.count ?? item.counters?.[counter] } }));
     } catch (error) {
       if (error.response?.status === 404) {
         removeUnavailableVideo(video._id);
@@ -941,7 +984,7 @@ export default function ProductVideos() {
         counters: { ...item.counters, [counter]: Math.max(0, Number(item.counters?.[counter] || 0) + (previous ? 1 : -1)) }
       }));
       showToast(error.response?.data?.message || 'Action impossible.', { variant: 'error' });
-    }
+    } finally { engagementPending.current.delete(pendingKey); }
   };
 
   const recordAction = (video, action) =>
@@ -1119,6 +1162,7 @@ export default function ProductVideos() {
         ) : null}
       </header>
 
+      {feedError ? <div role="alert" className="absolute left-4 right-4 top-24 z-30 rounded-xl bg-black/90 p-4 text-center text-white">Chargement interrompu. <button className="underline" onClick={() => loadPage({ reset: true })}>Réessayer</button></div> : null}
       {!items.length ? (
         <div className="grid h-full place-items-center px-8 text-center text-white">
           <div>
@@ -1148,6 +1192,7 @@ export default function ProductVideos() {
                 <VideoSlide
                   video={video}
                   active={index === currentIndex}
+                  covered={Boolean(commentsVideo || reportVideo || cartSheetVideo)}
                   defaultMuted={defaultMuted}
                   autoplay={autoplay}
                   formatPrice={formatPrice}
@@ -1184,7 +1229,7 @@ export default function ProductVideos() {
         {commentsVideo ? (
           <>
             <motion.button type="button" aria-label="Fermer les commentaires" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCommentsVideo(null)} className="fixed inset-0 z-[240] bg-black/55" />
-            <CommentsSheet video={commentsVideo} onClose={() => setCommentsVideo(null)} onCountChange={(change) => patchItem(commentsVideo._id, (item) => ({ ...item, counters: { ...item.counters, comments: Number(item.counters?.comments || 0) + change } }))} />
+            <CommentsSheet key={commentsVideo._id} video={commentsVideo} onClose={() => setCommentsVideo(null)} onCountChange={(change) => patchItem(commentsVideo._id, (item) => ({ ...item, counters: { ...item.counters, comments: Number(item.counters?.comments || 0) + change } }))} />
           </>
         ) : null}
       </AnimatePresence>

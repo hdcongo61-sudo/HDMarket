@@ -1,8 +1,9 @@
+import { chatWriteLimiter, chatUploadLimiter, requireMessagingEnabled, requireUploadConversation } from '../middlewares/chatSecurity.js';
 import express from 'express';
 import { protect } from '../middlewares/authMiddleware.js';
 import { validate, schemas } from '../middlewares/validate.js';
 import { idempotencyMiddleware } from '../middlewares/idempotencyMiddleware.js';
-import { chatUpload } from '../utils/chatUpload.js';
+import { chatUpload, validateChatUpload } from '../utils/chatUpload.js';
 import {
   postStartConversation,
   getConversationMessages,
@@ -24,13 +25,15 @@ import {
 const router = express.Router();
 
 router.use(protect);
+router.use((req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
+router.use((req, res, next) => ['POST', 'PATCH', 'DELETE'].includes(req.method) ? chatWriteLimiter(req, res, () => requireMessagingEnabled(req, res, next)) : next());
 
 router.get('/unread/orders', getUnreadCountsByOrder);
 router.get('/unread', getUnreadCount);
 router.get('/', getAllOrderConversations);
 router.post('/', idempotencyMiddleware(), validate(schemas.startConversation), postStartConversation);
 
-router.post('/messages/upload', chatUpload.single('file'), uploadOrderMessageAttachment);
+router.post('/messages/upload', requireUploadConversation, chatUploadLimiter, chatUpload.single('file'), validateChatUpload, uploadOrderMessageAttachment);
 router.post('/messages/:messageId/reactions', idempotencyMiddleware(), addOrderMessageReaction);
 router.delete('/messages/:messageId/reactions', idempotencyMiddleware(), removeOrderMessageReaction);
 

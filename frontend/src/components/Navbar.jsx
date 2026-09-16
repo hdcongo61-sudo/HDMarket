@@ -1,3 +1,4 @@
+import SearchMediaControls from './search/SearchMediaControls';
 import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -3033,6 +3034,15 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
     );
   };
 
+  useEffect(() => {
+    const openSearch = () => {
+      setIsSearchFullScreen(true);
+      setShowResults(true);
+    };
+    window.addEventListener('hdmarket:open-search', openSearch);
+    return () => window.removeEventListener('hdmarket:open-search', openSearch);
+  }, []);
+
   return (
     <>
       {/* Full-screen search overlay for mobile */}
@@ -3069,7 +3079,7 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.search', 'Rechercher')}
-                  className={`hd-global-search w-full rounded-full py-3 pl-11 ${voiceSearchEnabled || imageSearchEnabled ? 'pr-24' : 'pr-10'} text-sm transition-all placeholder:text-gray-400`}
+                  className={`hd-global-search w-full rounded-full py-3 pl-11 ${voiceSearchEnabled || imageSearchEnabled ? 'pr-36' : 'pr-10'} text-sm transition-all placeholder:text-gray-400`}
                   onKeyDown={handleSearchKeyDown}
                   autoFocus
                 />
@@ -3083,12 +3093,12 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                       }}
                       aria-label={t('search.imageSearch', 'Recherche par image')}
                       title={t('search.imageSearch', 'Recherche par image')}
-                      className="grid h-7 w-7 place-items-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+                      className="grid h-9 w-9 place-items-center rounded-full bg-orange-50 text-[#e85d00] hover:bg-orange-100"
                     >
                       <CameraIcon className="h-[18px] w-[18px]" />
                     </button>
                   ) : null}
-                  {voiceSearchEnabled ? <VoiceSearchButton onResult={handleVoiceResult} /> : null}
+                  {voiceSearchEnabled ? <VoiceSearchButton onResult={handleVoiceResult} className="bg-orange-50" /> : null}
                   {searchQuery && (
                     <button
                       type="button"
@@ -3219,7 +3229,7 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
             </div>
 
             {/* === SEARCH BAR (Centered in Top Bar) === */}
-            <div className="hd-search-flow hidden lg:flex flex-1 max-w-xl mx-4">
+            <div className="hd-search-flow hidden lg:flex flex-1 min-w-0 max-w-3xl mx-4">
               <div className="relative w-full">
                 <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e85d00] h-5 w-5" />
                 <input
@@ -3228,7 +3238,7 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('nav.searchPlaceholderFull', 'Rechercher produits, boutiques, catégories...')}
-                  className="hd-global-search w-full rounded-xl py-3 pl-12 pr-24 text-sm font-semibold transition-all duration-200 placeholder:font-medium placeholder:text-gray-500"
+                  className="hd-global-search w-full rounded-full py-3.5 pl-12 pr-44 text-sm font-semibold transition-all duration-200 placeholder:font-medium placeholder:text-gray-500"
                   onFocus={() => {
                     setShowResults(true);
                     if (isMobileLayout) setIsSearchFullScreen(true);
@@ -3243,14 +3253,14 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                       type="button"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => setImageSearchOpen(true)}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+                      className="grid h-8 w-8 place-items-center rounded-full bg-orange-50 text-[#e85d00] hover:bg-orange-100"
                       aria-label={t('search.imageSearch', 'Recherche par image')}
                       title={t('search.imageSearch', 'Recherche par image')}
                     >
                       <CameraIcon className="h-4 w-4" />
                     </button>
                   ) : null}
-                  {voiceSearchEnabled ? <VoiceSearchButton onResult={handleVoiceResult} /> : null}
+                  {voiceSearchEnabled ? <VoiceSearchButton onResult={handleVoiceResult} className="bg-orange-50" /> : null}
                   {searchQuery ? (
                     <button
                       type="button"
@@ -3266,7 +3276,7 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={handleOpenHistoryPanel}
-                    className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+                    className="grid h-8 w-8 place-items-center rounded-full bg-orange-50 text-[#e85d00] hover:bg-orange-100"
                     aria-label={t('nav.history', 'Historique')}
                     title={t('nav.history', 'Historique')}
                   >
@@ -3751,7 +3761,7 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
           </div>
 
           {/* === SEARCH BAR MOBILE (Row 2) === */}
-          <div className="pb-3 lg:hidden">
+          <div className="flex items-center gap-1 pb-3 lg:hidden">
             <button
               type="button"
               onClick={() => {
@@ -3760,12 +3770,13 @@ className={`h-4 w-4 text-gray-500 transition-transform ${showFilters ? 'rotate-1
                 setTimeout(() => searchInputRef.current?.focus?.(), 60);
                 triggerHaptic('light');
               }}
-              className="hd-mobile-search-pill flex w-full items-center gap-2 rounded-full px-3.5 py-2.5 text-left text-sm font-medium text-gray-500"
+              className="hd-mobile-search-pill flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-full px-3.5 py-2.5 text-left text-sm font-medium text-gray-500"
               aria-label={t('nav.search', 'Rechercher')}
             >
               <MagnifyingGlassIcon className="h-4 w-4 shrink-0 text-[#e85d00]" />
               <span className="min-w-0 flex-1 truncate">{t('nav.searchMobile', `Rechercher sur ${mobileBrandText}`)}</span>
             </button>
+            <SearchMediaControls />
           </div>
         </div>
 
@@ -4920,9 +4931,10 @@ className={`h-4 w-4 transition-transform duration-200 ${isMoreMenuOpen ? 'rotate
                     <>
                       <div className={`relative flex h-8 min-w-10 items-center justify-center rounded-full px-2 transition ${navIsActive ? 'bg-[#fff2e6]' : ''}`}>
                         <Icon
-className={navIsActive ? 'text-[#e85d00]' : ''}
+                          className={`h-[22px] w-[22px] ${navIsActive ? 'text-[#e85d00]' : ''}`}
                           strokeWidth={navIsActive ? 2.5 : 2}
-                          fill={item.id === 'favorites' && navIsActive ? 'currentColor' : 'none'} className="h-[22px] w-[22px]" />
+                          fill={item.id === 'favorites' && navIsActive ? 'currentColor' : 'none'}
+                        />
                       </div>
                       <span className={`text-[11px] leading-4 transition ${navIsActive ? 'font-extrabold text-[#e85d00]' : 'font-semibold'}`}>
                         {item.label}
@@ -5016,8 +5028,9 @@ className={navIsActive ? 'text-[#e85d00]' : ''}
                           <>
                             <div className="relative">
                               <Icon
-className={navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}
-                                strokeWidth={navIsActive ? 2.5 : 2} className="h-[18px] w-[18px]" />
+                                className={`h-[18px] w-[18px] ${navIsActive ? 'text-neutral-900 dark:text-neutral-300' : ''}`}
+                                strokeWidth={navIsActive ? 2.5 : 2}
+                              />
                               {badge > 0 && (
                                 <span className={`absolute -top-1 -right-1 text-white text-[9px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center shadow-sm ${
                                   navIsActive ? 'bg-black' : 'bg-neutral-900'

@@ -645,6 +645,10 @@ export default function Cart() {
                   </div>
                 )}
 
+                {(totalSavings > 0 || totalWholesaleSavings > 0) && (
+                  <p className="text-xs text-gray-500">Économies déjà incluses dans le sous-total.</p>
+                )}
+
                 {/* Shipping Estimate Enhanced */}
                 <div className="flex items-center justify-between gap-4">
                   <span className="font-semibold text-[#6b6459]">{t('cartPage.delivery', 'Livraison')}</span>
@@ -654,7 +658,7 @@ export default function Cart() {
                 {/* Divider Enhanced */}
                 <div className="border-t border-[#e2dcd2] pt-5">
                   <div className="flex justify-between items-center">
-                    <span className="text-xl font-black text-gray-900">{t('cartPage.total', 'Total')}</span>
+                    <span className="text-xl font-black text-gray-900">{t('cartPage.totalExcludingDelivery', 'Total hors livraison')}</span>
                     <span className="text-3xl font-black text-neutral-950">{formatPrice(totals.subtotal)}</span>
                   </div>
                 </div>

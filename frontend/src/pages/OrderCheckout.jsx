@@ -1,3 +1,4 @@
+import { getSellerDeliveryPreview } from '../utils/checkoutDeliveryPreview';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -303,31 +304,7 @@ export default function OrderCheckout() {
         result[group.sellerId] = { fee: 0, source: 'PICKUP' };
         return;
       }
-      const policy = String(selectedCommune?.deliveryPolicy || 'DEFAULT_RULE').toUpperCase();
-      if (policy === 'FREE') {
-        result[group.sellerId] = { fee: 0, source: 'COMMUNE_FREE' };
-        return;
-      }
-      if (policy === 'FIXED_FEE') {
-        result[group.sellerId] = {
-          fee: Math.max(0, Number(selectedCommune?.fixedFee || 0)),
-          source: 'COMMUNE_FIXED'
-        };
-        return;
-      }
-      const sellerHasFree = Boolean(group?.items?.[0]?.product?.user?.freeDeliveryEnabled);
-      if (sellerHasFree) {
-        result[group.sellerId] = { fee: 0, source: 'SHOP_FREE' };
-        return;
-      }
-      const maxDeliveryFee = (group.items || []).reduce((max, item) => {
-        const product = item?.product || {};
-        if (normalizeBoolean(product.deliveryAvailable, true) === false) return max;
-        if (normalizeBoolean(product.deliveryFeeEnabled, true) === false) return max;
-        const fee = Math.max(0, Number(product.deliveryFee || 0));
-        return fee > max ? fee : max;
-      }, 0);
-      result[group.sellerId] = { fee: maxDeliveryFee, source: 'PRODUCT_FEE' };
+      result[group.sellerId] = getSellerDeliveryPreview(group, selectedCommune);
     });
     return result;
   }, [deliveryMode, hasPickupOnlyProducts, selectedCommune, sellerGroups]);
@@ -408,6 +385,10 @@ export default function OrderCheckout() {
     if (isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100)) return 0;
     return Number(deliveryFeePreviewTotal || 0);
   }, [deliveryMode, isFullPaymentSelected, isPawaPayPayment, paymentPercent, deliveryFeePreviewTotal]);
+
+  const deliveryEstimatePending = !isInstallmentPayment && deliveryMode === 'DELIVERY' &&
+    !isFullPaymentSelected && !(isPawaPayPayment && paymentPercent >= 100) &&
+    Object.values(deliveryPreviewBySeller).some((entry) => entry.pending);
 
   const checkoutTotalWithDelivery = useMemo(
     () =>
@@ -1614,7 +1595,7 @@ export default function OrderCheckout() {
                     ? t('checkout.paymentPercentFullHint', 'Paiement intégral — livraison offerte.')
                     : `${t('checkout.remaining', 'Reste à payer')} : ${formatCurrency(pawaPayRemainingAmount)} ${
                         deliveryMode === 'PICKUP' ? 'au retrait en boutique' : 'à la livraison'
-                      } (frais de livraison inclus).`}
+                      } (${deliveryEstimatePending ? 'hors frais de livraison à confirmer' : 'frais de livraison inclus'}).`}
                 </p>
               </div>
             )}
@@ -1624,9 +1605,14 @@ export default function OrderCheckout() {
                 <span className="text-lg font-black text-[#231f1b]">
                   {(isFullPaymentSelected || (isPawaPayPayment && paymentPercent >= 100))
                     ? t('checkout.offered', 'Offerte')
-                    : formatCurrency(effectiveDeliveryFeePreviewTotal)}
+                    : deliveryEstimatePending ? 'À confirmer' : formatCurrency(effectiveDeliveryFeePreviewTotal)}
                 </span>
               </div>
+            )}
+            {deliveryEstimatePending && (
+              <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Certains frais de livraison restent à confirmer. Les montants affichés sont estimatifs et excluent ces frais inconnus.
+              </p>
             )}
             {!isInstallmentPayment && checkoutSavings > 0 && (
               <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">

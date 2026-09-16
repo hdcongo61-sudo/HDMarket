@@ -33,31 +33,7 @@ import {
   touchConversationLastMessage
 } from '../services/conversationService.js';
 
-// Attachments/voice URLs are client-supplied; only accept media from the
-// platform's own hosting (Cloudinary + the API host itself) to block
-// phishing URLs injected into message cards.
-const isTrustedMediaUrl = (value) => {
-  if (typeof value !== 'string' || !value) return false;
-  let parsed;
-  try {
-    parsed = new URL(value.trim());
-  } catch {
-    return false;
-  }
-  if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-  const host = parsed.hostname.toLowerCase();
-  if (host === 'res.cloudinary.com') return true;
-  if (host === 'localhost' || host === '127.0.0.1') return true;
-  const apiOrigin = process.env.FRONTEND_URL || process.env.APP_URL || '';
-  if (apiOrigin) {
-    try {
-      return new URL(apiOrigin).hostname.toLowerCase() === host;
-    } catch {
-      return false;
-    }
-  }
-  return false;
-};
+import { isTrustedMediaUrl, validChatReaction } from '../utils/chatSecurity.js';
 
 const sanitizeMessagePreview = (value, maxLength = 160) =>
   String(value || '')
@@ -506,7 +482,7 @@ export const archiveOrderConversation = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Conversation invalide.' });
   }
 
-  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user });
+  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user, requireMessagePermission: true });
   await archiveConversation({ id: conversationId, userId });
   await auditAssistantMessageAction({ access, conversation, action: 'assistant_conversation_archived' });
 
@@ -520,7 +496,7 @@ export const unarchiveOrderConversation = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Conversation invalide.' });
   }
 
-  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user });
+  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user, requireMessagePermission: true });
   await unarchiveConversation({ id: conversationId, userId });
   await auditAssistantMessageAction({ access, conversation, action: 'assistant_conversation_unarchived' });
 
@@ -534,7 +510,7 @@ export const deleteOrderConversation = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Conversation invalide.' });
   }
 
-  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user });
+  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user, requireMessagePermission: true });
   await deleteConversationForUser({ id: conversationId, userId });
   await auditAssistantMessageAction({ access, conversation, action: 'assistant_conversation_deleted' });
 
@@ -643,7 +619,7 @@ export const addOrderMessageReaction = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(messageId)) {
     return res.status(400).json({ message: 'Identifiant de message invalide.' });
   }
-  if (!emoji) {
+  if (!validChatReaction(emoji)) {
     return res.status(400).json({ message: 'Emoji requis.' });
   }
 
@@ -652,7 +628,7 @@ export const addOrderMessageReaction = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Message introuvable.' });
   }
 
-  const { conversation, access } = await getConversationForUser({ id: message.conversation, user: req.user });
+  const { conversation, access } = await getConversationForUser({ id: message.conversation, user: req.user, requireMessagePermission: true });
 
   message.reactions = message.reactions.filter((r) => r.userId.toString() !== userId.toString());
   message.reactions.push({ emoji, userId });
@@ -682,7 +658,7 @@ export const removeOrderMessageReaction = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Message introuvable.' });
   }
 
-  const { conversation, access } = await getConversationForUser({ id: message.conversation, user: req.user });
+  const { conversation, access } = await getConversationForUser({ id: message.conversation, user: req.user, requireMessagePermission: true });
 
   message.reactions = message.reactions.filter((r) => r.userId.toString() !== userId.toString());
   await message.save();
@@ -707,7 +683,7 @@ export const deleteOrderMessage = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Identifiant invalide.' });
   }
 
-  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user });
+  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user, requireMessagePermission: true });
   const { isAdmin } = access;
 
   const message = await OrderMessage.findOne({ _id: messageId, conversation: conversationId });
@@ -755,7 +731,7 @@ export const updateOrderMessage = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Identifiant invalide.' });
   }
 
-  await getConversationForUser({ id: conversationId, user: req.user });
+  await getConversationForUser({ id: conversationId, user: req.user, requireMessagePermission: true });
 
   const message = await OrderMessage.findOne({ _id: messageId, conversation: conversationId });
   if (!message) {
@@ -777,6 +753,7 @@ export const updateOrderMessage = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Le message ne doit pas dépasser 1000 caractères.' });
   }
 
+  message.safetyFlag = detectOffPlatformPaymentRisk(newText) ? 'off_platform_payment' : undefined;
   message.text = newText;
   await message.save();
 
@@ -808,7 +785,7 @@ export const delegateOrderConversation = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Assistant invalide.' });
   }
 
-  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user });
+  const { conversation, access } = await getConversationForUser({ id: conversationId, user: req.user, requireMessagePermission: true });
   const isSellerSide = access.isSeller && !access.isAssistant;
   if (!isSellerSide && !access.isAdmin) {
     return res.status(403).json({ message: 'Seul le propriétaire de la boutique peut déléguer cette conversation.' });

@@ -40,9 +40,8 @@ export default function ShopHero({
   hasActivePromo,
   hasFreeDelivery,
   yearsActiveLabel,
-  customerSatisfaction,
   followersCount,
-  completedOrders,
+  unitsSold,
   isOwnShop,
   isFollowing,
   followDisabled,
@@ -69,7 +68,7 @@ export default function ShopHero({
 
   const proofParts = [
     `${formatCount(followersCount)} ${t('shop_profile.followers', 'Abonnés')}`,
-    `${formatCount(completedOrders)} ${t('shop_profile.orders', 'Commandes')}`
+    `${formatCount(unitsSold)} ${t('shop_profile.units_sold', 'Articles vendus')}`
   ];
   if (location) proofParts.push(location);
 
@@ -193,7 +192,7 @@ className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-n
 
       {/* ── Carte stats blanche chevauchant l'en-tête ───────────────── */}
       <div className="relative z-20 -mt-9 px-3 sm:-mt-10 sm:px-5">
-        <div className="grid grid-cols-4 rounded-2xl bg-white px-1 py-3 shadow-lg ring-1 ring-black/5 sm:py-4 dark:bg-neutral-900 dark:ring-white/10">
+        <div className="grid grid-cols-4 rounded-2xl bg-white px-1 py-2 shadow-sm ring-1 ring-black/5 sm:py-3 dark:bg-neutral-900 dark:ring-white/10">
           {stats.map((item) => (
             <div key={item.label} className="min-w-0 px-1 text-center sm:px-2">
               <p className="truncate text-base font-black text-[#FF3D00] sm:text-xl">
@@ -208,8 +207,8 @@ className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-n
       </div>
 
       {/* ── Informations détaillées ─────────────────────────────────── */}
-      <div className="mt-3 px-3 pb-4 sm:px-5">
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-5 dark:bg-neutral-900 dark:ring-white/10">
+      <div className="mt-2 px-3 pb-2 sm:px-5">
+        <div className="rounded-2xl bg-white p-3 ring-1 ring-black/5 sm:p-3 dark:bg-neutral-900 dark:ring-white/10">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-black ${
@@ -223,10 +222,9 @@ className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-n
             </span>
             <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-black text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
               <StarIcon className="fill-current h-[13px] w-[13px]" />
-              {formatRatingLabel(ratingAverage)}
-              <span className="font-semibold opacity-70">
-                ({formatCount(ratingCount)})
-              </span>
+              {ratingCount > 0
+                ? `${formatRatingLabel(ratingAverage)}/5 · ${formatCount(ratingCount)} ${t('shop_profile.reviews_count', 'Avis')}`
+                : t('shop_profile.no_reviews_yet', 'Aucun avis pour le moment')}
             </span>
             {hasActivePromo ? (
               <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-[var(--shop-color)] px-3 text-xs font-black text-[var(--shop-color-contrast)]">
@@ -247,17 +245,15 @@ className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-n
             )}
           </div>
 
+          <details className="mt-2">
+            <summary className="cursor-pointer py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+              {t('shop_profile.about_shop', 'À propos de la boutique')}
+            </summary>
           <p className="mt-3 text-sm font-medium leading-6 text-neutral-600 sm:text-[15px] dark:text-neutral-300">
             {description}
           </p>
 
           <div className="mt-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {ratingCount > 0 && customerSatisfaction ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
-                <StarIcon className="h-3 w-3" />
-                {customerSatisfaction} satisfaction
-              </span>
-            ) : null}
             {yearsActiveLabel ? (
               <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-[11px] font-bold text-neutral-600 dark:border-neutral-800 dark:text-neutral-300">
                 <ClockIcon className="h-3 w-3" />
@@ -269,6 +265,7 @@ className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-n
               {t('shop_profile.member_since', 'Membre depuis')} {formatDate(shop?.createdAt)}
             </span>
           </div>
+          </details>
         </div>
       </div>
     </section>

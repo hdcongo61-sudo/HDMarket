@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import React, { lazy, Suspense, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatPriceWithStoredSettings } from "../utils/priceFormatter";
 import {
@@ -122,6 +122,8 @@ const buildSalesStatusDefaults = () => ({
   delivered: { count: 0, totalAmount: 0 },
   cancelled: { count: 0, totalAmount: 0 }
 });
+
+const EmbeddedUserStats = lazy(() => import('./UserStats'));
 
 const createDefaultStats = () => ({
   listings: { total: 0, approved: 0, pending: 0, rejected: 0, disabled: 0 },
@@ -528,7 +530,10 @@ export default function Profile() {
   const [passwordCodeSending, setPasswordCodeSending] = useState(false);
   const [passwordCodeError, setPasswordCodeError] = useState('');
   const [passwordCodeMessage, setPasswordCodeMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('profile');
+  const location = useLocation();
+  const navigateProfile = useNavigate();
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(location.search).get('tab') === 'stats' ? 'stats' : 'profile');
+  useEffect(() => { if (new URLSearchParams(location.search).get('tab') === 'stats') setActiveTab('stats'); }, [location.search]);
   const [deactivationModalOpen, setDeactivationModalOpen] = useState(false);
   const [deactivationConfirmation, setDeactivationConfirmation] = useState('');
   const [deactivationReason, setDeactivationReason] = useState('');
@@ -1839,7 +1844,7 @@ export default function Profile() {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => { setActiveTab(tab.id); navigateProfile({ pathname: '/profile', search: tab.id === 'stats' ? '?tab=stats' : '' }, { replace: true }); }}
                     className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all touch-manipulation min-h-[44px] ${
                       isActive
                         ? 'bg-neutral-900 text-white shadow-md'
@@ -1865,7 +1870,7 @@ export default function Profile() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => { setActiveTab(tab.id); navigateProfile({ pathname: '/profile', search: tab.id === 'stats' ? '?tab=stats' : '' }, { replace: true }); }}
                   className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all flex-1 w-full text-left sm:text-center ${
                     activeTab === tab.id
                       ? 'bg-neutral-900 text-white shadow-sm'
@@ -2890,232 +2895,10 @@ export default function Profile() {
         </>
         )}
 
-        {/* Section Statistiques - Dashboard Analytique (proposal §4) */}
         {activeTab === 'stats' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-6 bg-neutral-900 rounded-full" />
-                  <h2 className="text-xl font-semibold text-gray-900">Vue d'ensemble</h2>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-gray-500">Période :</span>
-                  {STATS_PERIOD_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setStatsPeriod(opt.value)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                        statsPeriod === opt.value
-                          ? 'bg-neutral-900 text-white shadow'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {statsLoading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-600 border-t-transparent" />
-                </div>
-              ) : statsError ? (
-                <div className="text-center py-8 text-red-600">
-                  <XCircleIcon className="w-12 h-12 mx-auto mb-3" />
-                  <p>{statsError}</p>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowOrdersModal(true);
-                        if (!ordersLoaded && !ordersLoading) fetchOrders();
-                      }}
-                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm text-left hover:bg-neutral-800 active:scale-[0.98] transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <ClipboardDocumentListIcon className="w-7 h-7 opacity-90" />
-                        <span className="text-xl font-bold">{formatNumber(stats.orders?.purchases?.totalCount || 0)}</span>
-                      </div>
-                      <p className="text-white/90 text-sm font-medium">Commandes</p>
-                      <p className="text-white/70 text-xs mt-1">Attente: {formatNumber(stats.orders?.purchases?.byStatus?.pending?.count || 0)} · Livrées: {formatNumber(stats.orders?.purchases?.byStatus?.delivered?.count || 0)}</p>
-                    </button>
-                    {user?.accountType === 'shop' ? (
-                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
-                          <CurrencyDollarIcon className="w-7 h-7 opacity-90" />
-                          <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.sales?.totalAmount || 0) / 1000)}k</span>
-                        </div>
-                        <p className="text-white/90 text-sm font-medium">Revenus</p>
-                        <p className="text-white/70 text-xs mt-1">{formatCurrency(stats.orders?.sales?.totalAmount || 0)}</p>
-                      </div>
-                    ) : (
-                      <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
-                          <CurrencyDollarIcon className="w-7 h-7 opacity-90" />
-                          <span className="text-lg font-bold truncate ml-1">{formatNumber((stats.orders?.purchases?.totalAmount || 0) / 1000)}k</span>
-                        </div>
-                        <p className="text-white/90 text-sm font-medium">Montant achats</p>
-                        <p className="text-white/70 text-xs mt-1">{formatCurrency(stats.orders?.purchases?.totalAmount || 0)}</p>
-                      </div>
-                    )}
-                    <Link
-                      to="/seller/products"
-                      className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm block hover:bg-neutral-800 active:scale-[0.98] transition-all"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <CubeIcon className="w-7 h-7 opacity-90" />
-                        <span className="text-xl font-bold">{formatNumber(stats.listings.total)}</span>
-                      </div>
-                      <p className="text-white/90 text-sm font-medium">Produits</p>
-                      <p className="text-white/70 text-xs mt-1">Actifs: {formatNumber(stats.listings.approved)} · Attente: {formatNumber(stats.listings.pending)}</p>
-                    </Link>
-                    <div className="bg-neutral-900 text-white rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <ArrowTrendingUpIcon className="w-7 h-7 opacity-90" />
-                        <span className="text-xl font-bold">{formatNumber(stats.performance.views)}</span>
-                      </div>
-                      <p className="text-white/90 text-sm font-medium">Vues</p>
-                      <p className="text-white/70 text-xs mt-1">Vues totales</p>
-                    </div>
-                    <div className="bg-neutral-600 text-white rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <HeartIcon className="w-7 h-7 opacity-90" />
-                        <span className="text-xl font-bold">{formatNumber(stats.engagement.favoritesReceived)}</span>
-                      </div>
-                      <p className="text-white/90 text-sm font-medium">Engagement</p>
-                      <p className="text-white/70 text-xs mt-1">Favoris · WhatsApp: {formatNumber(stats.performance.clicks)}</p>
-                    </div>
-                    <div className="bg-amber-600 text-white rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <TrophyIcon className="w-7 h-7 opacity-90" />
-                        <span className="text-xl font-bold">
-                          {stats.listings.approved > 0
-                            ? Math.round((stats.engagement.favoritesReceived + stats.engagement.commentsReceived) / stats.listings.approved)
-                            : '0'}
-                        </span>
-                      </div>
-                      <p className="text-white/90 text-sm font-medium">Score</p>
-                      <p className="text-white/70 text-xs mt-1">Conversion: {stats.performance.conversion ?? 0}%</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
-                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-600" />
-                        Évolution des revenus
-                      </h3>
-                      {user?.accountType === 'shop' && (stats.orders?.sales?.totalAmount || 0) > 0 ? (
-                        <ResponsiveContainer width="100%" height={220}>
-                          <LineChart
-                            data={[
-                              { label: 'Période', revenue: stats.orders?.sales?.totalAmount || 0 }
-                            ]}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis dataKey="label" stroke="#6b7280" fontSize={12} />
-                            <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                            <Tooltip formatter={(value) => [formatCurrency(value), 'Revenus']} contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                            <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenus" dot={{ r: 4 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-[220px] flex items-center justify-center text-gray-500 text-sm">Aucune donnée de revenus sur la période</div>
-                      )}
-                    </div>
-
-                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
-                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <ClipboardDocumentListIcon className="w-5 h-5 text-neutral-800" />
-                        Commandes par statut
-                      </h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart
-                          data={[
-                            { label: 'En attente', count: stats.orders?.purchases?.byStatus?.pending?.count || 0, fill: '#f59e0b' },
-                            { label: 'Confirmées', count: stats.orders?.purchases?.byStatus?.confirmed?.count || 0, fill: '#0a0a0a' },
-                            { label: 'Livraison', count: stats.orders?.purchases?.byStatus?.delivering?.count || 0, fill: '#0a0a0a' },
-                            { label: 'Livrées', count: stats.orders?.purchases?.byStatus?.delivered?.count || 0, fill: '#10b981' },
-                            { label: 'Annulées', count: stats.orders?.purchases?.byStatus?.cancelled?.count || 0, fill: '#ef4444' }
-                          ]}
-                          margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis dataKey="label" stroke="#6b7280" fontSize={11} />
-                          <YAxis stroke="#6b7280" fontSize={12} />
-                          <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} formatter={(value) => [formatNumber(value), 'Commandes']} />
-                          <Bar dataKey="count" name="Commandes" radius={[6, 6, 0, 0]}>
-                            {[
-                              { fill: '#f59e0b' },
-                              { fill: '#0a0a0a' },
-                              { fill: '#0a0a0a' },
-                              { fill: '#10b981' },
-                              { fill: '#ef4444' }
-                            ].map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
-                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <CubeIcon className="w-5 h-5 text-neutral-800" />
-                        Répartition des produits
-                      </h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart
-                          data={[
-                            { label: 'Approuvées', count: stats.listings.approved, fill: '#10b981' },
-                            { label: 'En attente', count: stats.listings.pending, fill: '#f59e0b' },
-                            { label: 'Rejetées', count: stats.listings.rejected, fill: '#ef4444' },
-                            { label: 'Désactivées', count: stats.listings.disabled, fill: '#6b7280' }
-                          ]}
-                          layout="vertical"
-                          margin={{ top: 8, right: 24, left: 60, bottom: 8 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-                          <XAxis type="number" stroke="#6b7280" fontSize={12} />
-                          <YAxis type="category" dataKey="label" stroke="#6b7280" fontSize={11} width={56} />
-                          <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} formatter={(value) => [formatNumber(value), '']} />
-                          <Bar dataKey="count" radius={[0, 6, 6, 0]}>
-                            {[
-                              { fill: '#10b981' },
-                              { fill: '#f59e0b' },
-                              { fill: '#ef4444' },
-                              { fill: '#6b7280' }
-                            ].map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
-                      <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <ChartBarIcon className="w-5 h-5 text-neutral-800" />
-                        Activité par jour
-                      </h3>
-                      <div className="h-[220px] flex items-center justify-center rounded-xl bg-white border border-gray-100">
-                        <div className="text-center text-gray-500 text-sm">
-                          <ChartBarIcon className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                          <p>Données d'activité par jour à venir</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+          <Suspense fallback={<p role="status" className="p-6">Chargement des statistiques…</p>}>
+            <EmbeddedUserStats embedded />
+          </Suspense>
         )}
 
         {/* Section Performance (Nouvelle fonctionnalité) */}

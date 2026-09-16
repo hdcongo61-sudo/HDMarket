@@ -1031,23 +1031,23 @@ export const schemas = {
     text: Joi.string().trim().min(0).max(1000).allow('', null).optional(),
     recipientId: Joi.any().optional().allow(null, ''),
     clientMessageId: Joi.string().trim().min(8).max(120).allow('', null).optional(),
-    encryptedText: Joi.string().allow('', null).optional(),
+    encryptedText: Joi.string().max(16000).allow('', null).optional(),
     encryptionData: Joi.object({
-      iv: Joi.string(),
-      tag: Joi.string(),
-      salt: Joi.string(),
-      key: Joi.string()
+      iv: Joi.string().max(256),
+      tag: Joi.string().max(256),
+      salt: Joi.string().max(256),
+      key: Joi.string().max(256)
     }).allow(null).optional(),
-    attachments: Joi.array().items(Joi.object({
+    attachments: Joi.array().max(5).items(Joi.object({
       type: Joi.string().valid('image', 'document', 'audio'),
-      url: Joi.string(),
-      filename: Joi.string(),
-      size: Joi.number(),
-      mimeType: Joi.string()
+      url: Joi.string().uri({ scheme: ['https'] }).max(2048).required(),
+      filename: Joi.string().max(255).required(),
+      size: Joi.number().min(0).max(10485760),
+      mimeType: Joi.string().max(120)
     }).unknown(true)).optional().allow(null),
     voiceMessage: Joi.object({
-      url: Joi.string(),
-      duration: Joi.number(),
+      url: Joi.string().uri({ scheme: ['https'] }).max(2048).required(),
+      duration: Joi.number().min(0).max(600),
       type: Joi.string()
     }).unknown(true).allow(null).optional()
   }).optional(),

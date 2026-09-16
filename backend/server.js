@@ -1,3 +1,7 @@
+import mongoose from 'mongoose';
+import { isChatStaff, supportRoom, isTrustedMediaUrl } from './utils/chatSecurity.js';
+import { schemas } from './middlewares/validate.js';
+import { isRestricted } from './utils/restrictionCheck.js';
 import 'dotenv/config';
 import { initErrorTracking } from './utils/errorTracking.js';
 
@@ -530,6 +534,8 @@ io.use(async (socket, next) => {
     if (!user || user.isBlocked || !user.isActive || user.isLocked || wasSessionInvalidated(user, decoded)) {
       return next(new Error('Not authorized'));
     }
+    socket.data.authToken = token;
+    socket.data.authIssuedAt = decoded.iat;
     socket.data.user = {
       id: user._id.toString(),
       name: user.name || 'Utilisateur',
@@ -542,25 +548,26 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  socket.join('support');
+  if (isChatStaff(socket.data.user)) socket.join('support:staff');
   const socketUserId = socket?.data?.user?.id;
   const socketRole = socket?.data?.user?.role;
   const isGuest = String(socketUserId || '').startsWith('guest-');
   if (!isGuest && socketUserId) {
     socket.join(buildOrderUserRoom(socketUserId));
+    socket.join(supportRoom(socketUserId));
   }
   socket.data.orderConversationIds = new Set();
   socket.emit('connected', { user: socket.data.user });
 
-  socket.on('orders:conversation:join', async ({ conversationId }) => {
-    const targetId = String(conversationId || '').trim();
-    if (!targetId || isGuest) return;
+  socket.on('orders:conversation:join', async (payload) => {
+    const targetId = typeof payload?.conversationId === 'string' ? payload.conversationId.trim() : '';
+    if (!targetId || isGuest || socket.data.orderConversationIds.size >= 20) return;
 
     try {
       const conversation = await Conversation.findById(targetId).select('buyerId sellerId').lean();
       if (!conversation) return;
 
-      const isAdmin = socketRole === 'admin' || socketRole === 'manager';
+      const isAdmin = isChatStaff({ role: socketRole });
       if (!isAdmin) {
         const access = await resolveConversationAccess({ userId: socketUserId, conversation });
         if (!access.canAccess) return;
@@ -575,15 +582,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('orders:conversation:leave', ({ conversationId }) => {
-    const targetId = String(conversationId || '').trim();
+  socket.on('orders:conversation:leave', (payload) => {
+    const targetId = typeof payload?.conversationId === 'string' ? payload.conversationId.trim() : '';
     if (!targetId) return;
     socket.leave(buildOrderConversationRoom(targetId));
     socket.data.orderConversationIds?.delete(String(targetId));
   });
 
-  socket.on('orders:typing', ({ conversationId, isTyping }) => {
-    const targetId = String(conversationId || '').trim();
+  socket.on('orders:typing', (payload) => {
+    const isTyping = payload?.isTyping === true;
+    const targetId = typeof payload?.conversationId === 'string' ? payload.conversationId.trim() : '';
     if (!targetId || isGuest) return;
     if (!socket.data.orderConversationIds?.has(targetId)) return;
     socket.to(buildOrderConversationRoom(targetId)).emit('orders:typing', {
@@ -594,59 +602,67 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('sendMessage', async ({ text, encryptedText, encryptionData, attachments, voiceMessage, metadata }) => {
-    if (!text && !encryptedText && !attachments?.length && !voiceMessage) return;
-    const isGuestSender = String(socket.data.user.id || '').startsWith('guest-');
-    
-    const messageData = {
-      user: isGuestSender ? undefined : socket.data.user.id,
-      username: socket.data.user.name,
-      from: (socket.data.user.role === 'admin' || socket.data.user.role === 'founder') ? 'support' : 'user',
-      metadata: metadata || {}
-    };
-    
-    // Handle encrypted messages
-    if (encryptedText && encryptionData) {
-      messageData.encryptedText = encryptedText;
-      messageData.encryptionKey = encryptionData.key;
-      messageData.metadata = {
-        ...messageData.metadata,
-        iv: encryptionData.iv,
-        tag: encryptionData.tag,
-        salt: encryptionData.salt
-      };
-    } else if (text) {
-      messageData.text = text;
+  let sendWindow = { started: Date.now(), count: 0 };
+  socket.on('sendMessage', async (input = {}) => {
+    try {
+      if (isGuest) return socket.emit('chat:error', { message: 'Connectez-vous pour envoyer un message.' });
+      if (Date.now() - sendWindow.started > 60_000) sendWindow = { started: Date.now(), count: 0 };
+      if (++sendWindow.count > 30) return socket.emit('chat:error', { message: 'Trop de messages. Réessayez dans une minute.' });
+      const sender = await User.findById(socketUserId).select('name role restrictions isBlocked isActive isLocked');
+      if (!sender || sender.isBlocked || !sender.isActive || sender.isLocked || isRestricted(sender, 'canMessage')) {
+        return socket.emit('chat:error', { message: 'Envoi de messages non autorisé.' });
+      }
+      const { error, value } = schemas.orderMessage.validate(input, { stripUnknown: true });
+      if (error || !value || !(value.text?.trim() || value.encryptedText || value.attachments?.length || value.voiceMessage?.url)) {
+        return socket.emit('chat:error', { message: 'Message invalide.' });
+      }
+      const urls = (value.attachments || []).map(item => item.url);
+      if (value.voiceMessage?.url) urls.push(value.voiceMessage.url);
+      if (urls.some(url => !isTrustedMediaUrl(url))) return socket.emit('chat:error', { message: 'Pièce jointe invalide.' });
+      const staff = isChatStaff(sender);
+      const target = staff ? value.recipientId : socketUserId;
+      if (typeof target !== 'string' || !mongoose.isValidObjectId(target)) return socket.emit('chat:error', { message: 'Destinataire requis.' });
+      const message = await ChatMessage.create({
+        user: target, username: sender.name, from: staff ? 'support' : 'user',
+        text: value.text, encryptedText: value.encryptedText,
+        encryptionKey: value.encryptionData?.key,
+        metadata: value.encryptionData ? { iv: value.encryptionData.iv, tag: value.encryptionData.tag, salt: value.encryptionData.salt } : {},
+        attachments: value.attachments, voiceMessage: value.voiceMessage
+      });
+      const payload = { ...message.toObject(), id: String(message._id), userId: target };
+      io.to(supportRoom(target)).to('support:staff').emit('message', payload);
+    } catch {
+      socket.emit('chat:error', { message: 'Impossible d’envoyer le message. Réessayez.' });
     }
-    
-    // Handle attachments
-    if (attachments && attachments.length > 0) {
-      messageData.attachments = attachments;
-    }
-    
-    // Handle voice messages
-    if (voiceMessage) {
-      messageData.voiceMessage = voiceMessage;
-    }
-    
-    const message = await ChatMessage.create(messageData);
-    const payload = {
-      id: message._id.toString(),
-      from: message.from,
-      text: message.text || (encryptedText ? '[Message chiffré]' : ''),
-      encryptedText: message.encryptedText,
-      encryptionKey: message.encryptionKey,
-      attachments: message.attachments,
-      voiceMessage: message.voiceMessage,
-      reactions: message.reactions,
-      username: message.username,
-      metadata: message.metadata,
-      createdAt: message.createdAt
-    };
-    io.emit('message', payload);
   });
 
+  // Revoke existing room subscriptions after account/assistant permissions change.
+  let accessCheckRunning = false;
+  const accessTimer = isGuest ? null : setInterval(async () => {
+    if (accessCheckRunning) return;
+    accessCheckRunning = true;
+    try {
+      const current = await User.findById(socketUserId).select('role isBlocked isActive isLocked sessionsInvalidatedAt');
+      if (!current || current.isBlocked || !current.isActive || current.isLocked || current.role !== socketRole ||
+          wasSessionInvalidated(current, { iat: socket.data.authIssuedAt }) ||
+          await isTokenBlacklisted(socket.data.authToken)) return socket.disconnect(true);
+      // jwt.verify also closes connections whose access token expired while open.
+      jwt.verify(socket.data.authToken, process.env.JWT_SECRET);
+      for (const id of socket.data.orderConversationIds || []) {
+        const conversation = await Conversation.findById(id).select('buyerId sellerId').lean();
+        const allowed = conversation && (isChatStaff(current) || (await resolveConversationAccess({ userId: socketUserId, conversation })).canAccess);
+        if (!allowed) {
+          socket.leave(buildOrderConversationRoom(id));
+          socket.data.orderConversationIds.delete(id);
+        }
+      }
+    } catch { socket.disconnect(true); }
+    finally { accessCheckRunning = false; }
+  }, 30_000);
+  accessTimer?.unref?.();
+
   socket.on('disconnect', () => {
+    if (accessTimer) clearInterval(accessTimer);
     socket.data.orderConversationIds?.clear?.();
   });
 });

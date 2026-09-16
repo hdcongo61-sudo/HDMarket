@@ -1,3 +1,4 @@
+import StudioErrorBoundary from './image-studio/StudioErrorBoundary';
 import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import api, { isApiPossiblyCommittedError } from '../services/api';
 import AuthContext from '../context/AuthContext';
@@ -19,6 +20,7 @@ import TagSelector from './tags/TagSelector';
 import { getInstallmentEndDate, getListingFeeChangePreview, getMissingProductFormFields } from '../utils/productFormUx';
 
 const ProductImageStudio = React.lazy(() => import('./image-studio/ProductImageStudio'));
+const CompleteImageStudio = React.lazy(() => import('./image-studio/CompleteImageStudio'));
 
 // Categories are admin-managed free text, not a fixed enum — mirrors the
 // same keyword list used server-side in productController.js so both sides
@@ -188,6 +190,7 @@ export default function ProductForm(props) {
   const [removedImages, setRemovedImages] = useState([]);
   const [imageReplacements, setImageReplacements] = useState({});
   const [studioImageIndex, setStudioImageIndex] = useState(null);
+  const [completeStudioIndex, setCompleteStudioIndex] = useState(null);
   const [imageError, setImageError] = useState('');
   // Image-first variants (Taobao style): each photo can carry an option label
   // and its price, edited right below the image. Keyed by the combined image
@@ -439,6 +442,7 @@ export default function ProductForm(props) {
     setRemovedImages([]);
     setImageReplacements({});
     setStudioImageIndex(null);
+    setCompleteStudioIndex(null);
     setImageError('');
     setImageVariantName('Couleur');
     setImageVariants({});
@@ -3880,6 +3884,11 @@ export default function ProductForm(props) {
                                 <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
                                 Retoucher
                               </button>
+                              <button type="button" onClick={() => setCompleteStudioIndex(combinedIndex)}
+                                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-[#e85d00] px-2.5 text-xs font-black text-white hover:bg-orange-700"
+                                aria-label="Ouvrir le studio photo complet">
+                                Studio complet
+                              </button>
                               {!isExisting && (
                                 <button
                                   type="button"
@@ -4774,6 +4783,21 @@ export default function ProductForm(props) {
           </BaseModal>
         );
       })()}
+      {completeStudioIndex !== null && (
+        <StudioErrorBoundary onClose={() => setCompleteStudioIndex(null)}>
+        <React.Suspense fallback={
+          <BaseModal isOpen fullscreen onClose={() => setCompleteStudioIndex(null)} ariaLabel="Chargement du studio photo">
+            <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
+              <p role="status">Chargement du studio photo…</p>
+              <button type="button" onClick={() => setCompleteStudioIndex(null)} className="min-h-11 rounded-full border px-5">Annuler</button>
+            </div>
+          </BaseModal>
+        }>
+          <CompleteImageStudio image={studioImages[completeStudioIndex]} sourceIndex={completeStudioIndex}
+            onSave={handleStudioSave} onClose={() => setCompleteStudioIndex(null)} />
+        </React.Suspense>
+        </StudioErrorBoundary>
+      )}
       {studioImageIndex !== null && (
         <React.Suspense fallback={null}>
           <ProductImageStudio

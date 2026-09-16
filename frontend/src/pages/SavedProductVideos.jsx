@@ -10,6 +10,10 @@ const getPlayableSource = (video) =>
   video?.playbackSources?.find((source) => source.quality === 'auto')?.url || video?.videoUrl || '';
 
 export default function SavedProductVideos() {
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeVideo, setActiveVideo] = useState(null);
@@ -17,12 +21,14 @@ export default function SavedProductVideos() {
 
   useEffect(() => {
     let active = true;
-    api.get('/product-videos/saved', { silentGlobalError: true })
-      .then(({ data }) => active && setItems(data?.items || []))
-      .catch((error) => active && showToast(error.response?.data?.message || 'Vidéos enregistrées indisponibles.', { variant: 'error' }))
+    setLoading(true);
+    setError(false);
+    api.get('/product-videos/saved', { params: { page }, silentGlobalError: true })
+      .then(({ data }) => { if (!active) return; setItems(data?.items || []); setHasMore(Boolean(data?.hasMore)); })
+      .catch((error) => { if (active) { setError(true); showToast(error.response?.data?.message || 'Vidéos enregistrées indisponibles.', { variant: 'error' }); } })
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [showToast]);
+  }, [showToast, page, retry]);
 
   // Lock page scroll and allow Escape to close while the player is open.
   useEffect(() => {
@@ -43,7 +49,7 @@ export default function SavedProductVideos() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-neutral-950 text-white dark:bg-white dark:text-neutral-950"><BookmarkIcon /></span><div><h1 className="text-2xl font-black">Vidéos enregistrées</h1><p className="text-sm text-neutral-500">Retrouvez les produits que vous voulez revoir.</p></div></div>
       {loading ? <div className="grid min-h-64 place-items-center"><ArrowPathIcon className="animate-spin" /></div> : null}
-      {!loading && !items.length ? <div className="mt-10 rounded-3xl border border-dashed border-neutral-300 p-12 text-center dark:border-white/15"><BookmarkIcon className="mx-auto text-neutral-400 h-9 w-9" /><p className="mt-4 font-bold">Aucune vidéo enregistrée</p><Link to="/videos" className="mt-4 inline-flex rounded-xl bg-emerald-500 px-5 py-3 font-bold text-white">Découvrir HDMarket Videos</Link></div> : null}
+      {!loading && !error && !items.length ? <div className="mt-10 rounded-3xl border border-dashed border-neutral-300 p-12 text-center dark:border-white/15"><BookmarkIcon className="mx-auto text-neutral-400 h-9 w-9" /><p className="mt-4 font-bold">Aucune vidéo enregistrée</p><Link to="/videos" className="mt-4 inline-flex rounded-xl bg-emerald-500 px-5 py-3 font-bold text-white">Découvrir HDMarket Videos</Link></div> : null}
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((video) => (
           <button
@@ -68,6 +74,12 @@ export default function SavedProductVideos() {
         ))}
       </div>
 
+      <div className="my-5 flex justify-center gap-4">
+        <button disabled={loading || page === 1} onClick={() => setPage(page - 1)}>Précédent</button>
+        <span>Page {page}</span>
+        <button disabled={loading || !hasMore} onClick={() => setPage(page + 1)}>Suivant</button>
+        {error ? <button onClick={() => setRetry(retry + 1)}>Réessayer</button> : null}
+      </div>
       <AnimatePresence>
         {activeVideo ? (
           <motion.div

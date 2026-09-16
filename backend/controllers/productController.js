@@ -2452,7 +2452,14 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
     Comment.countDocuments({ product: productDoc._id }),
     Rating.aggregate([
       { $match: { product: productDoc._id } },
-      { $group: { _id: '$product', average: { $avg: '$value' }, count: { $sum: 1 } } }
+      { $group: {
+        _id: '$product',
+        average: { $avg: '$value' },
+        count: { $sum: 1 },
+        ...Object.fromEntries([1, 2, 3, 4, 5].map((value) => [
+          `stars${value}`, { $sum: { $cond: [{ $eq: ['$value', value] }, 1, 0] } }
+        ]))
+      } }
     ])
   ]);
 
@@ -2465,6 +2472,9 @@ export const getPublicProductById = asyncHandler(async (req, res) => {
   product.commentCount = commentCount;
   product.ratingAverage = rating.average;
   product.ratingCount = rating.count;
+  product.ratingDistribution = Object.fromEntries(
+    [1, 2, 3, 4, 5].map((value) => [value, Number(ratingData[0]?.[`stars${value}`] || 0)])
+  );
   product.installmentAvailable = isProductInstallmentActive(productDoc);
   product.viewsCount = Number(product.viewsCount || 0);
   product.uniqueViewsCount = Number(product.uniqueViewsCount || 0);

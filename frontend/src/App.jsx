@@ -103,7 +103,6 @@ const LegalPage = lazy(() => import('./pages/LegalPage'));
 const UserSettings = lazy(() => import('./pages/UserSettings'));
 const VerifiedShops = lazy(() => import('./pages/VerifiedShops'));
 const FreeDeliveryShops = lazy(() => import('./pages/FreeDeliveryShops'));
-const UserStats = lazy(() => import('./pages/UserStats'));
 const UserOrders = lazy(() => import('./pages/UserOrders'));
 const OrderDetail = lazy(() => import('./pages/OrderDetail'));
 const OrderReview = lazy(() => import('./pages/OrderReview'));
@@ -1011,7 +1010,7 @@ function AppContent() {
             path="/stats"
             element={
               <ProtectedRoute>
-                <UserStats />
+                <Navigate to="/profile?tab=stats" replace />
               </ProtectedRoute>
             }
           />
@@ -1019,7 +1018,7 @@ function AppContent() {
             path="/stats/*"
             element={
               <ProtectedRoute>
-                <UserStats />
+                <Navigate to="/profile?tab=stats" replace />
               </ProtectedRoute>
             }
           />

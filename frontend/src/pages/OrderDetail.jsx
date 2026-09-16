@@ -2257,7 +2257,7 @@ export default function OrderDetail() {
                 {order.cancelledAt && <p className="text-xs text-red-600">Annulée le {formatOrderTimestamp(order.cancelledAt)}</p>}
                 {Number(order.refundAmount || 0) > 0 && (
                   <div className="space-y-2 rounded-xl border border-emerald-200 bg-white p-3 text-sm text-emerald-900">
-                    <p className="font-bold">Remboursement intégral: {formatCurrency(order.refundAmount)}</p>
+                    <p className="font-bold">Montant du remboursement: {formatCurrency(order.refundAmount)}</p>
                     <p>Mode: PawaPay vers le compte Mobile Money utilisé lors du paiement</p>
                     <p>Statut: {order.refundStatus === 'processed' ? 'Confirmé' : order.refundStatus === 'failed' ? 'Échec — assistance requise' : 'En cours'}</p>
                     {order.refundId && <p>Référence: {order.refundId}</p>}

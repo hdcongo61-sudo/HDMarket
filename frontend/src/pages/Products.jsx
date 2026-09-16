@@ -28,7 +28,8 @@ const { getCategoryMeta } = useCategories();
 const categoryParam = (searchParams.get('category') || '').trim();
 const sortParam = searchParams.get('sort') || '';
 const shopVerifiedParam = searchParams.get('shopVerified') === 'true';
-const installmentOnlyParam = searchParams.get('installmentOnly') === 'true';
+const installmentOnlyParam = searchParams.has('installmentOnly') && ['', 'true', '1'].includes(searchParams.get('installmentOnly'));
+const wholesaleOnly = searchParams.has('wholesaleOnly') && ['', 'true', '1'].includes(searchParams.get('wholesaleOnly'));
 const quotationOnlyParam = searchParams.get('quotationOnly') === 'true';
 const [items, setItems] = useState([]);
   const [offlineSnapshotActive, setOfflineSnapshotActive] = useState(false);
@@ -73,9 +74,10 @@ const [showBackToTop, setShowBackToTop] = useState(false);
         searchTerm || 'none',
         shopVerified ? 'verified' : 'all',
         installmentOnly ? 'installment' : 'standard',
+        wholesaleOnly ? 'wholesale' : 'retail',
         quotationOnly ? 'quotation' : 'all-quotes'
       ].join(':'),
-    [categoryFilter, installmentOnly, isMobileView, quotationOnly, searchTerm, shopVerified, sort]
+    [categoryFilter, installmentOnly, wholesaleOnly, isMobileView, quotationOnly, searchTerm, shopVerified, sort]
   );
   const [activeSnapshotKey, setActiveSnapshotKey] = useState(snapshotKey);
 
@@ -100,7 +102,9 @@ const [showBackToTop, setShowBackToTop] = useState(false);
     }
   }, [searchParam]);
 
-const fetchProducts = useCallback(async () => {
+const fetchProducts = useCallback(async (signal) => {
+  // Retry buttons may pass a click event rather than an AbortSignal.
+  const requestSignal = signal instanceof AbortSignal ? signal : undefined;
   if (activeSnapshotKey !== snapshotKey) return;
   const cachedView = readRouteViewCache(snapshotKey);
   if (cachedView && Number(cachedView.page || 1) >= page) {
@@ -122,8 +126,10 @@ const fetchProducts = useCallback(async () => {
       if (categoryFilter) params.category = categoryFilter;
       if (shopVerified) params.shopVerified = 'true';
       if (installmentOnly) params.installmentOnly = 'true';
+      if (wholesaleOnly) params.wholesaleOnly = 'true';
       if (quotationOnly) params.quotationOnly = 'true';
-      const { data } = await api.get('/products/public', { params });
+      const { data } = await api.get('/products/public', { params, signal: requestSignal });
+      if (requestSignal?.aborted) return;
       const fetchedItems = Array.isArray(data) ? data : data?.items || [];
       const paginationMeta = Array.isArray(data) ? { pages: 1 } : data?.pagination || {};
       const nextTotalPages = Math.max(1, Number(paginationMeta.pages) || 1);
@@ -140,11 +146,12 @@ const fetchProducts = useCallback(async () => {
       setTotalPages(nextTotalPages);
       setOfflineSnapshotActive(false);
     } catch (e) {
-      if (isApiCanceledError(e)) {
+      if (requestSignal?.aborted || isApiCanceledError(e)) {
         return;
       }
       if (shouldUseOfflineSnapshot) {
         const snapshot = await loadOfflineSnapshot(snapshotKey);
+        if (requestSignal?.aborted) return;
         if (snapshot && typeof snapshot === 'object') {
           const snapshotItems = Array.isArray(snapshot.items) ? snapshot.items : [];
           const snapshotTotalPages = Math.max(1, Number(snapshot.totalPages) || 1);
@@ -169,7 +176,7 @@ const fetchProducts = useCallback(async () => {
         setError(message);
       }
     } finally {
-      setLoading(false);
+      if (!requestSignal?.aborted) setLoading(false);
     }
   }, [
     activeSnapshotKey,
@@ -179,6 +186,7 @@ const fetchProducts = useCallback(async () => {
     categoryFilter,
     shopVerified,
     installmentOnly,
+    wholesaleOnly,
     quotationOnly,
     isMobileView,
     pageSize,
@@ -291,7 +299,9 @@ const fetchProducts = useCallback(async () => {
   }, [page, searchParams, setSearchParams]);
 
   useEffect(() => {
-    fetchProducts();
+    const controller = new AbortController();
+    fetchProducts(controller.signal);
+    return () => controller.abort();
   }, [fetchProducts]);
 
   useEffect(() => {
@@ -477,6 +487,20 @@ const fetchProducts = useCallback(async () => {
               </button>
             ))}
             <span className="mx-0.5 my-1 w-px flex-shrink-0 self-stretch bg-gray-200" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => setSearchParams((prev) => {
+                const params = new URLSearchParams(prev);
+                if (wholesaleOnly) params.delete('wholesaleOnly');
+                else params.set('wholesaleOnly', 'true');
+                params.delete('page');
+                return params;
+              }, { replace: true })}
+              className={`${wholesaleOnly ? 'hd-products-chip-active' : 'hd-products-chip'} inline-flex flex-shrink-0 items-center rounded-full px-3.5 py-2 text-xs font-black`}
+              aria-pressed={wholesaleOnly}
+            >
+              Vente en gros
+            </button>
             <button
               type="button"
               onClick={() => handleInstallmentFilterChange(!installmentOnly)}

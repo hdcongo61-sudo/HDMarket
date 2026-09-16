@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { imageSearchCrop } from '../../utils/imageSearchCrop';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CameraIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import BaseModal, { ModalBody, ModalHeader } from '../modals/BaseModal';
@@ -7,18 +8,23 @@ import { formatPriceWithStoredSettings } from '../../utils/priceFormatter';
 import { buildProductPath } from '../../utils/links';
 
 /** Extracts the photo's average color locally (canvas) — nothing is uploaded. */
-const extractDominantColor = (file) =>
+const extractDominantColor = (file, selection) =>
   new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
+    const timer = setTimeout(() => { image.onload = image.onerror = null; URL.revokeObjectURL(url); reject(new Error('Image trop longue à décoder. Essayez une image plus petite.')); }, 10000);
     image.onload = () => {
+      clearTimeout(timer);
       try {
         const size = 64;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const context = canvas.getContext('2d');
-        context.drawImage(image, 0, 0, size, size);
+        context.fillStyle = "white";
+        context.fillRect(0, 0, size, size);
+        const crop = imageSearchCrop(image.naturalWidth, image.naturalHeight, selection);
+        context.drawImage(image, crop.sx, crop.sy, crop.size, crop.size, 0, 0, size, size);
         const { data } = context.getImageData(0, 0, size, size);
         let r = 0;
         let g = 0;
@@ -30,7 +36,10 @@ const extractDominantColor = (file) =>
           b += data[i + 2];
           count += 1;
         }
-        resolve({ r: Math.round(r / count), g: Math.round(g / count), b: Math.round(b / count) });
+        const thumbnail = document.createElement('canvas');
+        thumbnail.width = thumbnail.height = 320;
+        thumbnail.getContext('2d').drawImage(image, crop.sx, crop.sy, crop.size, crop.size, 0, 0, 320, 320);
+        resolve({ r: Math.round(r / count), g: Math.round(g / count), b: Math.round(b / count), preview: thumbnail.toDataURL('image/jpeg', 0.8) });
       } catch (error) {
         reject(error);
       } finally {
@@ -38,6 +47,7 @@ const extractDominantColor = (file) =>
       }
     };
     image.onerror = () => {
+      clearTimeout(timer);
       URL.revokeObjectURL(url);
       reject(new Error('Image illisible.'));
     };
@@ -45,14 +55,30 @@ const extractDominantColor = (file) =>
   });
 
 export default function ImageSearchModal({ open, onClose }) {
+  const requestRef = useRef(null);
+  const [selection, setSelection] = useState({ zoom: 1, x: 50, y: 50 });
+  const [filters, setFilters] = useState({ query: '', minPrice: '', maxPrice: '', sort: 'similarity' });
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [applied, setApplied] = useState(null);
+  const [cropPreview, setCropPreview] = useState('');
+  const [lastFile, setLastFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState([]);
+  const [partial, setPartial] = useState(false);
   const [scanned, setScanned] = useState(0);
 
   useEffect(() => {
     if (!open) {
+      requestRef.current?.abort();
+      setLastFile(null);
+      setCropPreview('');
+      setApplied(null);
+      setHasMore(false);
+      setPartial(false);
+    setScanned(0);
       setPreview('');
       setError('');
       setResults([]);
@@ -60,26 +86,68 @@ export default function ImageSearchModal({ open, onClose }) {
     }
   }, [open]);
 
-  const handleFile = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
+  useEffect(() => () => requestRef.current?.abort(), []);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  useEffect(() => {
+    if (!open || !lastFile) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      extractDominantColor(lastFile, selection).then(result => { if (active) setCropPreview(result.preview); }).catch(() => {});
+    }, 200);
+    return () => { active = false; clearTimeout(timer); };
+  }, [lastFile, selection, open]);
+
+  const searchFile = async (file, append = false, cropOverride = selection) => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setPartial(false);
+    setScanned(0);
+    if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+      setError('Choisissez une image de moins de 10 Mo.');
+      setLoading(false);
+      setResults([]);
+      return;
+    }
+    setLastFile(file);
     setError('');
-    setResults([]);
-    setPreview(URL.createObjectURL(file));
+    if (!append) setResults([]);
+    if (!append) setPreview(URL.createObjectURL(file));
     setLoading(true);
     try {
-      const color = await extractDominantColor(file);
-      const { data } = await api.post('/search/by-color', { color: [color.r, color.g, color.b], limit: 12 });
-      setResults(Array.isArray(data?.results) ? data.results : []);
+      const color = append ? applied.color : await extractDominantColor(file, cropOverride);
+      if (controller.signal.aborted) return;
+      if (!append) setCropPreview(color.preview);
+      const searchFilters = append ? applied.filters : filters;
+      if (controller.signal.aborted) return;
+      const { data } = await api.post('/search/by-color', { color: [color.r, color.g, color.b], ...searchFilters, minPrice: searchFilters.minPrice === '' ? undefined : Number(searchFilters.minPrice), maxPrice: searchFilters.maxPrice === '' ? undefined : Number(searchFilters.maxPrice), offset: append ? nextOffset : 0, limit: 12 }, { signal: controller.signal, timeout: 20000 });
+      if (controller.signal.aborted) return;
+      const incoming = Array.isArray(data?.results) ? data.results : [];
+      setResults(previous => append ? [...previous, ...incoming.filter(item => !previous.some(old => old.id === item.id))] : incoming);
+      setApplied({ color, filters: { ...searchFilters } });
+      setHasMore(Boolean(data?.hasMore));
+      setNextOffset(Number(data?.nextOffset || 0));
       setScanned(Number(data?.scanned || 0));
+      setPartial(Boolean(data?.partial));
       if (!data?.results?.length) {
-        setError('Aucun produit visuellement proche trouvé. Essayez une autre photo.');
+        setError('Aucun produit trouvé avec ces critères. Élargissez les prix, changez les mots-clés ou essayez une autre photo.');
       }
     } catch (err) {
+      if (controller.signal.aborted) return;
       setError(err.response?.data?.message || err.message || 'Recherche par image impossible.');
     } finally {
-      setLoading(false);
+      if (requestRef.current === controller && !controller.signal.aborted) setLoading(false);
+    }
+  };
+
+  const handleFile = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) {
+      const reset = { zoom: 1, x: 50, y: 50 };
+      setSelection(reset);
+      searchFile(file, false, reset);
     }
   };
 
@@ -87,7 +155,7 @@ export default function ImageSearchModal({ open, onClose }) {
     <BaseModal isOpen={open} onClose={onClose} size="lg" mobileSheet>
       <ModalHeader
         title="Recherche par image"
-        subtitle="Photographiez un article pour trouver des produits visuellement similaires."
+        subtitle="Trouvez des produits aux couleurs proches. Ajoutez une photo nette : cette recherche ne reconnaît pas les objets."
         onClose={onClose}
       />
       <ModalBody>
@@ -102,12 +170,26 @@ export default function ImageSearchModal({ open, onClose }) {
 
         {preview ? (
           <div className="mt-4 flex items-center gap-3">
-            <img src={preview} alt="Aperçu" className="h-20 w-20 rounded-2xl object-cover ring-1 ring-neutral-200" />
+            <img src={cropPreview || preview} alt="Zone à rechercher" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-neutral-200" />
             <p className="text-xs text-neutral-500">
-              {loading ? 'Recherche de produits similaires…' : scanned ? `${scanned} produits comparés.` : ''}
+              {loading ? 'Recherche de produits aux couleurs proches…' : scanned ? `${scanned} produits comparés.${partial ? ' Résultats partiels : réessayez pour élargir la recherche.' : ''}` : ''}
             </p>
           </div>
         ) : null}
+
+        {lastFile ? <form onSubmit={event => { event.preventDefault(); searchFile(lastFile); }} className="mt-4 space-y-4 rounded-2xl border border-orange-100 bg-orange-50/40 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+          <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-3"><legend className="mb-2 text-sm font-bold">Cadrer l’article</legend>
+            {[['zoom', 'Zoom', 1, 4, 0.1], ['x', 'Position horizontale', 0, 100, 1], ['y', 'Position verticale', 0, 100, 1]].map(([key, label, min, max, step]) => <label key={key} className="text-xs font-medium">{label}<input type="range" min={min} max={max} step={step} value={selection[key]} onChange={event => setSelection(previous => ({ ...previous, [key]: Number(event.target.value) }))} className="mt-2 block w-full accent-orange-600" /></label>)}
+          </fieldset>
+          <label className="block text-xs font-bold">Préciser le produit<input value={filters.query} maxLength={100} onChange={event => setFilters(previous => ({ ...previous, query: event.target.value }))} placeholder="Ex. sac, chaussures, robe…" className="mt-1 w-full rounded-xl border p-3 text-sm dark:bg-neutral-950" /></label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-xs">Prix minimum<input type="number" min="0" value={filters.minPrice} onChange={event => setFilters(previous => ({ ...previous, minPrice: event.target.value }))} className="mt-1 w-full rounded-lg border p-2 dark:bg-neutral-950" /></label>
+            <label className="text-xs">Prix maximum<input type="number" min={filters.minPrice || 0} value={filters.maxPrice} onChange={event => setFilters(previous => ({ ...previous, maxPrice: event.target.value }))} className="mt-1 w-full rounded-lg border p-2 dark:bg-neutral-950" /></label>
+          </div>
+          <label className="block text-xs">Trier par<select value={filters.sort} onChange={event => setFilters(previous => ({ ...previous, sort: event.target.value }))} className="ml-2 rounded-lg border p-2 dark:bg-neutral-950"><option value="similarity">Couleurs proches</option><option value="price_asc">Prix croissant</option><option value="price_desc">Prix décroissant</option><option value="newest">Nouveautés</option></select></label>
+          <button disabled={loading} className="min-h-11 w-full rounded-xl bg-[#e85d00] px-4 text-sm font-bold text-white disabled:opacity-50">Appliquer le cadrage et les filtres</button>
+          <p className="text-xs text-neutral-500">Centrez l’article dans l’aperçu, puis appliquez pour rechercher cette zone.</p>
+        </form> : null}
 
         {loading ? (
           <div className="mt-5 grid grid-cols-3 gap-2" aria-hidden="true">
@@ -120,7 +202,7 @@ export default function ImageSearchModal({ open, onClose }) {
           </div>
         ) : null}
 
-        {error ? <p className="mt-4 text-xs font-medium text-red-600">{error}</p> : null}
+        {error ? <div role="alert" className="mt-4 text-xs font-medium text-red-600"><p>{error}</p>{lastFile && !loading ? <button type="button" className="mt-2 underline" onClick={() => searchFile(lastFile)}>Réessayer</button> : null}</div> : null}
 
         {results.length ? (
           <div className="mt-5">
@@ -153,6 +235,7 @@ export default function ImageSearchModal({ open, onClose }) {
             </div>
           </div>
         ) : null}
+        {hasMore && !loading && !error ? <button type="button" onClick={() => searchFile(lastFile, true)} className="mt-4 min-h-11 w-full rounded-xl border border-orange-200 font-bold text-[#e85d00]">Voir plus de produits</button> : null}
       </ModalBody>
     </BaseModal>
   );

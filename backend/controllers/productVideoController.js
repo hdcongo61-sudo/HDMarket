@@ -378,11 +378,20 @@ export const getProductVideoFeed = asyncHandler(async (req, res) => {
       }
     ];
   }
-  const candidateLimit = Math.min(160, Math.max(48, offset + limit * 5));
+  if (filter === 'following') videoFilter.seller = { $in: req.user?.followingShops || [] };
+  if (filter === 'verified') {
+    const sellers = await User.find({ shopVerified: true }).distinct('_id');
+    videoFilter.seller = { $in: sellers };
+  }
+  if (filter !== 'sponsored') videoFilter.$and = [...(videoFilter.$and || []), { $or: [{ sponsored: { $ne: true } }, { sponsoredUntil: null }, { sponsoredUntil: { $gt: new Date() } }] }];
+  const feedSort = filter === 'trending'
+    ? { 'counters.views': -1, createdAt: -1, _id: -1 }
+    : { createdAt: -1, _id: -1 };
   let videos = await populateVideoQuery(
-    ProductVideo.find(videoFilter).sort({ sponsored: -1, featured: -1, createdAt: -1 }).limit(candidateLimit)
+    ProductVideo.find(videoFilter).sort(feedSort).skip(offset).limit(limit + 1)
   ).lean();
-  videos = videos.filter((video) => video.product && video.seller);
+  const hasMore = videos.length > limit;
+  videos = videos.slice(0, limit).filter((video) => video.product && video.seller);
   if (filter === 'verified') videos = videos.filter((video) => video.seller?.shopVerified);
   if (filter === 'following') {
     // Anonymous viewers follow nothing: an empty feed is honest, the
@@ -411,9 +420,9 @@ export const getProductVideoFeed = asyncHandler(async (req, res) => {
     });
     videos = organic;
   }
-  const selected = videos.slice(offset, offset + limit);
+  const selected = videos;
   const engagementMap = await getEngagementMap(selected, req);
-  const hasMore = offset + limit < videos.length;
+
   res.json({
     items: selected.map((video) => serializeVideo(video, engagementMap.get(String(video._id)))),
     nextCursor: hasMore ? offset + limit : null,
@@ -545,7 +554,8 @@ const toggleEngagement = (field, counter) =>
         }
       });
     }
-    res.json({ active });
+    const latest = await ProductVideo.findById(video._id).select(`counters.${counter}`).lean();
+    res.json({ active, count: Math.max(0, Number(latest?.counters?.[counter] || 0)) });
   });
 
 export const toggleProductVideoLike = toggleEngagement('liked', 'likes');

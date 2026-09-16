@@ -165,14 +165,14 @@ const DEFAULT_DELIVERY_STATS_OVERVIEW = {
 
 const StatCard = ({ icon: Icon, label, value, subtitle, accent = 'default', trend }) => {
   const accentMap = {
-    default: 'bg-neutral-950 text-white',
-    good: 'bg-emerald-700 text-white',
-    warning: 'bg-amber-600 text-white',
+    default: 'bg-orange-50 text-[#e85d00]',
+    good: 'bg-emerald-50 text-emerald-700',
+    warning: 'bg-amber-50 text-amber-700',
     danger: 'bg-rose-700 text-white'
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-sm">
+    <div className="stats-kpi min-w-0 rounded-2xl border border-neutral-200 bg-white p-4 transition-colors hover:border-orange-200 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${accentMap[accent] || accentMap.default}`}>
           <Icon className="h-4 w-4" />
@@ -184,9 +184,9 @@ const StatCard = ({ icon: Icon, label, value, subtitle, accent = 'default', tren
           </span>
         ) : null}
       </div>
-      <div className="mt-5">
+      <div className="mt-3">
         <p className="text-[13px] font-medium text-neutral-500">{label}</p>
-        <p className="mt-1 text-2xl font-semibold text-neutral-950 sm:text-3xl">{value}</p>
+        <p className="mt-1 break-words text-xl font-black tracking-tight text-neutral-950 sm:text-2xl">{value}</p>
         {subtitle ? <p className="mt-2 text-xs leading-5 text-neutral-500">{subtitle}</p> : null}
       </div>
     </div>
@@ -245,7 +245,7 @@ const InsightCard = ({ icon: Icon, title, children, actionLabel, to }) => (
   </div>
 );
 
-export default function UserStats() {
+export default function UserStats({ embedded = false }) {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -784,7 +784,8 @@ export default function UserStats() {
     const completionRate = salesCount ? (deliveredSales / salesCount) * 100 : 0;
     const cancellationRate = salesCount ? (cancelledSales / salesCount) * 100 : 0;
     const freeDeliveryRate = deliveryOrders ? (freeDeliveryOrders / deliveryOrders) * 100 : 0;
-    const revenue = Number(sellerAnalytics.summary.revenue || salesStats.totalAmount || 0);
+    // Summary cards use lifetime totals; the date range applies to the sales report below.
+    const revenue = Number(salesStats.totalAmount || 0);
     const avgOrderValue = salesCount ? revenue / salesCount : 0;
     const healthScore = Math.round(
       Math.max(
@@ -898,7 +899,7 @@ export default function UserStats() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f7f5f0]">
+      <div className={embedded ? "rounded-2xl bg-[#f7f5f0]" : "min-h-screen bg-[#f7f5f0]"}>
         <div className="border-b border-neutral-200 bg-[#f7f5f0]/90">
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
@@ -972,84 +973,69 @@ export default function UserStats() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f5f0]">
+    <div className="profile-statistics min-w-0 space-y-5">
       <DebugPanel />
-      <div className="border-b border-neutral-200 bg-[#f7f5f0]/90">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="mb-5 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50"
-              >
-                <ArrowLeftIcon className="h-4 w-4" />
-                Retour
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-950 text-white shadow-sm">
-                  <ChartBarIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-neutral-500">Centre de performance</p>
-                  <h1 className="text-3xl font-semibold text-neutral-950 sm:text-4xl">Statistiques</h1>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-neutral-600 sm:text-base">
-                Une lecture simple de ce qui compte: visibilité, commandes, revenu, santé vendeur et actions à faire maintenant.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50 disabled:opacity-60"
-              >
-                <ArrowPathIcon className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                {refreshing ? 'Actualisation...' : 'Actualiser'}
-              </button>
-              {lastFetchAt && (
-                <span className="text-xs text-neutral-400">
-                  Mis à jour {formatRelativeTime(lastFetchAt)}
-                </span>
-              )}
-              <Link
-                to="/seller/products"
-                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
-              >
-                <CubeIcon className="w-4 h-4" />
-                Mes annonces
-              </Link>
-              {userShopLink && (
-                <Link
-                  to={userShopLink}
-                  className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-50"
-                >
-                  <BuildingStorefrontIcon className="w-4 h-4" />
-                  Ma boutique
-                </Link>
-              )}
-              <Link
-                to="/profile"
-                className="inline-flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800"
-              >
-                <UsersIcon className="w-4 h-4" />
-                Mon profil
-              </Link>
-            </div>
+      <header className="stats-overview relative overflow-hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-amber-50 p-5 sm:p-7">
+        <div className="pointer-events-none absolute -right-12 -top-16 h-52 w-52 rounded-full border-[32px] border-orange-100/50" aria-hidden="true" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#c94e00]"><ChartBarIcon className="h-4 w-4" /> Mon activité</span>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-neutral-950 sm:text-3xl">Vos chiffres, en un coup d’œil</h2>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-neutral-600">Suivez vos résultats et repérez vos prochaines opportunités.</p>
+            <p className="mt-3 text-xs text-neutral-500">{lastFetchAt ? `Mis à jour ${formatRelativeTime(lastFetchAt)}` : 'Vue d’ensemble de votre activité'}</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button type="button" onClick={handleRefresh} disabled={refreshing} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-white px-4 text-sm font-bold text-neutral-800 transition hover:bg-orange-50 disabled:opacity-50">
+              <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Actualisation…' : 'Actualiser'}
+            </button>
+            <Link to="/seller/products" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e85d00] px-4 text-sm font-bold text-white transition hover:bg-[#c94e00]"><CubeIcon className="h-4 w-4" />Mes annonces</Link>
           </div>
         </div>
-      </div>
-
-      <div className="mx-auto max-w-7xl px-4 py-6 pb-12 sm:px-6 lg:px-8">
+      </header>
+      <nav aria-label="Sections des statistiques" className="flex gap-2 overflow-x-auto pb-1">
+        {[['stats-summary', 'Vue d’ensemble'], ...(isSellerAnalyticsEnabled ? [['stats-analytics', 'Analyse des ventes']] : []), ['stats-orders', 'Achats & ventes'], ['stats-activity', 'Activité']].map(([id, label]) => <a key={id} href={`#${id}`} className="shrink-0 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-bold text-neutral-600 transition hover:border-orange-300 hover:text-[#e85d00]">{label}</a>)}
+      </nav>
+      <div className="min-w-0 pb-6">
+        <section id="stats-summary" className="scroll-mt-28">
+          <div className="mb-3 flex items-center justify-between gap-3"><h3 className="text-sm font-bold text-neutral-900">L’essentiel</h3><span className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-500">Depuis le début</span></div>
+        <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard
+            icon={CubeIcon}
+            label="Annonces"
+            value={formatNumber(stats.listings.total)}
+            subtitle={`${formatNumber(stats.listings.approved)} approuvées`}
+            accent="default"
+          />
+          <StatCard
+            icon={ShoppingBagIcon}
+            label="Commandes"
+            value={formatNumber(purchaseStats.totalCount + salesStats.totalCount)}
+            subtitle={`${formatNumber(salesStats.totalCount)} ventes · ${formatNumber(purchaseStats.totalCount)} achats`}
+            accent="good"
+          />
+          <StatCard
+            icon={EyeIcon}
+            label="Visibilité"
+            value={formatNumber(stats.performance.views)}
+            subtitle={`${Number(performanceModel.clickRate || 0).toFixed(1)}% clics / vues`}
+            accent="warning"
+          />
+          <StatCard
+            icon={CurrencyDollarIcon}
+            label="Panier moyen"
+            value={formatCurrency(performanceModel.avgOrderValue)}
+            subtitle="Montant moyen par commande"
+            accent="default"
+          />
+        </div>
+        </section>
         <section className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_0.75fr]">
           <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm font-semibold text-neutral-500">Score de santé</p>
+                <p className="text-sm font-semibold text-neutral-500">Santé de votre activité</p>
                 <div className="mt-2 flex items-end gap-3">
-                  <span className="text-5xl font-semibold text-neutral-950">{performanceModel.healthScore}</span>
+                  <span className="text-4xl font-black tracking-tight text-neutral-950">{performanceModel.healthScore}</span>
                   <span className="pb-2 text-sm font-medium text-neutral-500">/100</span>
                 </div>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-600">
@@ -1095,45 +1081,15 @@ export default function UserStats() {
           </InsightCard>
         </section>
 
-        <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
-            icon={CubeIcon}
-            label="Annonces"
-            value={formatNumber(stats.listings.total)}
-            subtitle={`${formatNumber(stats.listings.approved)} approuvées`}
-            accent="default"
-          />
-          <StatCard
-            icon={ShoppingBagIcon}
-            label="Commandes"
-            value={formatNumber(purchaseStats.totalCount + salesStats.totalCount)}
-            subtitle={`${formatNumber(salesStats.totalCount)} ventes · ${formatNumber(purchaseStats.totalCount)} achats`}
-            accent="good"
-          />
-          <StatCard
-            icon={EyeIcon}
-            label="Visibilité"
-            value={formatNumber(stats.performance.views)}
-            subtitle={`${Number(performanceModel.clickRate || 0).toFixed(1)}% clics / vues`}
-            accent="warning"
-          />
-          <StatCard
-            icon={CurrencyDollarIcon}
-            label="Revenu moyen"
-            value={formatCurrency(performanceModel.avgOrderValue)}
-            subtitle={`${formatCurrency(sellerAnalytics.summary.revenue || salesStats.totalAmount)} générés`}
-            accent="default"
-          />
-        </div>
 
         {isSellerAnalyticsEnabled && (
-          <section className="mb-8 space-y-5">
+          <section id="stats-analytics" className="mb-8 scroll-mt-28 space-y-5">
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Analytics vendeur avancée</h2>
+                  <h2 className="text-lg font-bold text-gray-900">Analyse des ventes</h2>
                   <p className="text-sm text-gray-500">
-                    Revenus, conversions, boost, promo, tranches et recommandations.
+                    Choisissez une période pour explorer vos ventes et vos revenus.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
@@ -1161,7 +1117,7 @@ export default function UserStats() {
                           }
                           className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
                             isActive
-                              ? 'bg-neutral-900 text-white shadow-sm'
+                              ? 'bg-[#e85d00] text-white shadow-sm'
                               : 'text-gray-500 hover:bg-white hover:text-gray-700'
                           }`}
                         >
@@ -1419,7 +1375,7 @@ export default function UserStats() {
         )}
 
         {/* Orders & Sales Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div id="stats-orders" className="scroll-mt-28 grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Purchases */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="bg-neutral-50 border-b border-gray-100 px-6 py-4">
@@ -1715,7 +1671,7 @@ export default function UserStats() {
                   <ChartBarIcon className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Catégories actives</h2>
+                  <h2 id="stats-activity" className="scroll-mt-28 text-lg font-bold text-gray-900">Catégories actives</h2>
                   <p className="text-sm text-gray-600">Répartition de vos annonces</p>
                 </div>
               </div>

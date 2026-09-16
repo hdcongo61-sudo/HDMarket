@@ -383,6 +383,7 @@ function ProductCard({
       Object.keys(attribute.optionImages).some((key) => Number(attribute.optionPrices?.[key]) > 0)
   );
   const discountedPrice = formatPrice(lowestAvailablePrice);
+  const priceDisplay = String(discountedPrice).split(/(FCFA|XAF|XOF)/g).map((part, index) => /^(FCFA|XAF|XOF)$/.test(part) ? <span key={index} className="text-[0.6em] font-bold">{part}</span> : part);
   const originalPrice = hasDiscount && !hasPhotoPrices && p.priceBeforeDiscount
     ? formatPrice(p.priceBeforeDiscount)
     : null;
@@ -701,10 +702,10 @@ function ProductCard({
         ? 'line-clamp-2 min-h-[2rem] text-xs'
         : 'line-clamp-2 min-h-[2.5rem] text-sm';
     const priceClass = isShopProfileCompact
-      ? 'text-[13px]'
+      ? 'text-[17px]'
       : useCompactMobile
-        ? 'text-[15px]'
-        : 'text-[17px]';
+        ? 'text-[18px]'
+        : 'text-[20px]';
     const trustLabel = freeDeliveryAvailable
       ? 'Livraison offerte'
       : pickupOnly
@@ -896,8 +897,8 @@ function ProductCard({
             )}
 
             <div className={`flex flex-wrap items-baseline gap-1.5 ${useCommerceMobileCard && !useHomeFeed ? '-mt-0.5' : ''}`}>
-              <span className={`${useHomeFeed ? 'whitespace-nowrap text-[17px] leading-none tracking-[-0.02em]' : useCommerceMobileCard ? 'text-[15px] leading-none' : priceClass} hd-product-price font-black ${useHomeFeed ? 'text-[#141210] dark:text-white' : taobaoStyle ? 'text-[#FF3D00]' : 'tracking-tight text-neutral-950 dark:text-white'}`}>
-                {discountedPrice}
+              <span className={`${useHomeFeed ? 'text-[20px] leading-tight tracking-[-0.02em]' : useCommerceMobileCard ? 'text-[18px] leading-tight' : priceClass} hd-product-price font-black tracking-tight text-[#e85d00] dark:text-orange-400`}>
+                {priceDisplay}
               </span>
               {originalPrice && !isShopProfileCompact && (!useCommerceMobileCard || useHomeFeed) ? (
                 <span className={`${useHomeFeed ? 'text-[11.5px]' : 'text-xs'} font-medium text-[#a8a29e] line-through`}>{originalPrice}</span>
@@ -1380,13 +1381,14 @@ function ProductCard({
             aria-label={favoriteActive ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
             <HeartIcon
-className={`sm:w-4 sm:h-4 transition-all duration-300 ${
+              className={`h-3.5 w-3.5 sm:w-4 sm:h-4 transition-all duration-300 ${
                 favoriteActive
                   ? 'scale-110 text-white'
                   : 'text-current'
               }`}
               strokeWidth={2}
-              fill={favoriteActive ? 'currentColor' : 'none'} className="h-3.5 w-3.5" />
+              fill={favoriteActive ? 'currentColor' : 'none'}
+            />
           </button>
         )}
 
@@ -1445,8 +1447,8 @@ className={`sm:w-4 sm:h-4 transition-all duration-300 ${
 
         {/* Prix avec réduction */}
         <div className={`flex items-baseline flex-wrap ${isShopProfileCompact ? 'gap-0.5' : useCompactMobile ? 'gap-1' : 'gap-1.5 sm:gap-2'}`}>
-          <span className={`${isShopProfileCompact ? 'text-[12px]' : useCompactMobile ? 'text-[11px]' : 'text-base sm:text-lg'} font-black text-neutral-950 dark:text-white`}>
-            {discountedPrice}
+          <span className={`${isShopProfileCompact ? 'text-[17px]' : useCompactMobile ? 'text-[18px]' : 'text-lg sm:text-xl'} font-black text-[#e85d00] dark:text-orange-400`}>
+            {priceDisplay}
           </span>
           {originalPrice && (
             <span className="text-[10px] sm:text-xs text-gray-400 line-through">{originalPrice}</span>

@@ -1715,24 +1715,29 @@ export default function UserOrders() {
             mobile={isMobile}
             onChange={(key) => {
               if (key === activeStatus) return;
-              setActiveStatus(key);
-              setPage(1);
+              navigate(`/orders/${encodeURIComponent(key)}`);
             }}
           />
         </div>
 
         {/* Orders ListBulletIcon */}
-        {error ? (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+        {error && (
+          <div role="alert" className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-6">
             <div className="flex items-center gap-3">
               <ExclamationCircleIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div>
                 <h3 className="text-sm font-bold text-red-800 mb-1">{t('orders.loadErrorTitle', 'Erreur de chargement')}</h3>
                 <p className="text-sm text-red-600">{error}</p>
+                <button type="button" onClick={() => ordersListQuery.refetch()}
+                  disabled={ordersListQuery.isFetching}
+                  className="mt-3 min-h-11 rounded-full bg-white px-4 text-sm font-bold text-red-800 ring-1 ring-red-200 disabled:opacity-50">
+                  {ordersListQuery.isFetching ? 'Chargement…' : 'Réessayer'}
+                </button>
               </div>
             </div>
           </div>
-        ) : orders.length === 0 ? (
+        )}
+        {orders.length === 0 ? !error && (
           <div className="rounded-2xl border border-gray-200 bg-white/90 p-8 text-center shadow-sm sm:p-12">
             <div className="mx-auto w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
               <ClipboardDocumentListIcon className="w-10 h-10 text-[#e85d00]" />

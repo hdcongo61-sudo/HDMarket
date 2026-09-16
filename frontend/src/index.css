@@ -324,9 +324,7 @@ select:disabled {
 
 /* HDMarket commerce design system: discovery flow + refined hierarchy + restrained surfaces */
 .hd-commerce-shell {
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255, 106, 0, 0.09), transparent 28rem),
-    linear-gradient(180deg, #f5f5f5 0%, #f5f5f5 42%, #f5f5f5 100%);
+  background: #f5f5f5;
   color: var(--hd-ink);
 }
 
@@ -396,9 +394,9 @@ select:disabled {
 }
 
 .hd-mobile-search-pill {
-  border: 1px solid rgba(255, 106, 0, 0.18);
+  border: 2px solid #e85d00;
   background: #fff;
-  box-shadow: 0 10px 26px rgba(117, 75, 36, 0.08);
+  box-shadow: none;
 }
 
 .hd-mobile-tabbar {
@@ -438,9 +436,9 @@ select:disabled {
 }
 
 .hd-global-search {
-  border: 1px solid rgba(255, 106, 0, 0.2);
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 30px rgba(117, 75, 36, 0.08);
+  border: 2px solid #e85d00;
+  background: #fff;
+  box-shadow: none;
 }
 
 .hd-global-search:focus,
@@ -1137,13 +1135,13 @@ body.hd-admin-modal-scope .ui-modal-panel .bg-slate-900 {
 }
 
 .hd-product-price {
-  color: var(--hd-black);
+  color: #e85d00;
 }
 
 .hd-home-product-card {
   border: 0 !important;
   border-radius: 18px !important;
-  box-shadow: inset 0 0 0 1px #ece5db !important;
+  box-shadow: inset 0 0 0 1px #e5e7eb !important;
 }
 
 .hd-home-product-title {
@@ -2753,7 +2751,7 @@ input[type="radio"] {
 }
 
 .hd-products-flow .hd-product-card .hd-product-price {
-  color: #171717 !important;
+  color: #e85d00 !important;
 }
 
 .hd-products-flow .hd-product-card button[class*="bg-neutral-950"],
@@ -2997,3 +2995,17 @@ body :where(.blur-2xl, .blur-3xl) {
     animation-delay: var(--home-anim-delay, 0ms);
   }
 }
+
+/* Profile statistics: contain reports and match the profile's dark surfaces. */
+.profile-statistics :where(input, select, button, a):focus-visible {
+  outline: 2px solid #e85d00;
+  outline-offset: 3px;
+}
+.profile-statistics :where(input[type="date"], select) { max-width: 100%; min-width: 0; }
+.dark .profile-statistics :where(.bg-white) { background-color: #171717; }
+.dark .profile-statistics :where(.bg-neutral-50, .bg-gray-50, .bg-neutral-100) { background-color: #262626; }
+.dark .profile-statistics :where(.text-neutral-950, .text-neutral-900, .text-gray-900, .text-neutral-800) { color: #f5f5f5; }
+.dark .profile-statistics :where(.text-neutral-500, .text-neutral-600, .text-neutral-700, .text-gray-500, .text-gray-600) { color: #a3a3a3; }
+.dark .profile-statistics :where(.border-neutral-200, .border-gray-100, .border-gray-200) { border-color: #333; }
+.dark .profile-statistics .stats-overview { background: linear-gradient(120deg, #302116, #171717); border-color: #53331c; }
+.profile-statistics .stats-kpi { box-shadow: 0 2px 8px rgb(0 0 0 / 0.025); }

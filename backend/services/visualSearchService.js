@@ -18,8 +18,12 @@ const normalizeBoolean = (value) =>
 export const isVisualSearchEnabled = async () =>
   normalizeBoolean(await getRuntimeConfig('enable_image_search', { fallback: false }));
 
-const isCloudinaryUrl = (url = '') =>
-  typeof url === 'string' && url.includes('res.cloudinary.com') && /\/image\/upload\/|\/upload\//.test(url);
+export const isCloudinaryUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'res.cloudinary.com' && !url.username && !url.password && !url.port && /\/image\/upload\//.test(url.pathname);
+  } catch { return false; }
+};
 
 /**
  * Cloudinary trick without any add-on: `e_pixelate:400` + a 1×1 crop returns a
@@ -34,7 +38,7 @@ const buildAverageColorUrl = (url) => {
 };
 
 /** Decodes the color of a (typically 1×1) PNG buffer without any dependency. */
-const decodePngColor = (buffer) => {
+export const decodePngColor = (buffer) => {
   if (!Buffer.isBuffer(buffer) || buffer.length < 33) return null;
   if (buffer.toString('ascii', 1, 4) !== 'PNG') return null;
 
@@ -46,11 +50,13 @@ const decodePngColor = (buffer) => {
   const idat = [];
   let offset = 8;
 
-  while (offset < buffer.length) {
+  while (offset + 12 <= buffer.length) {
     const length = buffer.readUInt32BE(offset);
+    if (length > buffer.length - offset - 12) return null;
     const type = buffer.toString('ascii', offset + 4, offset + 8);
     const data = buffer.subarray(offset + 8, offset + 8 + length);
     if (type === 'IHDR') {
+      if (data.length !== 13) return null;
       width = data.readUInt32BE(0);
       height = data.readUInt32BE(4);
       bitDepth = data[8];
@@ -65,13 +71,13 @@ const decodePngColor = (buffer) => {
     offset += 12 + length;
   }
 
-  if (!width || !height || bitDepth !== 8) return null;
+  if (width !== 1 || height !== 1 || bitDepth !== 8) return null;
   const channels = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[colorType];
   if (!channels) return null;
 
   let raw;
   try {
-    raw = zlib.inflateSync(Buffer.concat(idat));
+    raw = zlib.inflateSync(Buffer.concat(idat), { maxOutputLength: 16 });
   } catch {
     return null;
   }
@@ -112,6 +118,7 @@ const decodePngColor = (buffer) => {
   const px = (index) => row[index];
   if (colorType === 3 && palette && palette.length >= 3) {
     const index = px(0);
+    if (index * 3 + 2 >= palette.length) return null;
     return { r: palette[index * 3], g: palette[index * 3 + 1], b: palette[index * 3 + 2] };
   }
   if (colorType === 0 || colorType === 4) {
@@ -128,9 +135,16 @@ const fetchAverageColor = async (imageUrl) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(buildAverageColorUrl(imageUrl), { signal: controller.signal });
+    const response = await fetch(buildAverageColorUrl(imageUrl), { signal: controller.signal, redirect: 'error' });
     if (!response.ok) return null;
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of response.body) {
+      size += chunk.length;
+      if (size > 65536) { controller.abort(); return null; }
+      chunks.push(Buffer.from(chunk));
+    }
+    const buffer = Buffer.concat(chunks);
     return decodePngColor(buffer);
   } catch {
     return null;
@@ -162,8 +176,8 @@ const colorDistance = (a, b) => {
   return Math.sqrt(0.3 * dr * dr + 0.59 * dg * dg + 0.11 * db * db);
 };
 
-const normalizeInputColor = (color) => {
-  if (!Array.isArray(color)) return null;
+export const normalizeInputColor = (color) => {
+  if (!Array.isArray(color) || color.length !== 3 || color.some(value => typeof value !== 'number')) return null;
   const [r, g, b] = color.map((value) => Math.round(Number(value)));
   if ([r, g, b].some((value) => !Number.isFinite(value) || value < 0 || value > 255)) return null;
   return { r, g, b };
@@ -174,7 +188,7 @@ const normalizeInputColor = (color) => {
  * user picked and sends RGB; we compare it against the cached average color of
  * recent products' primary images and return the visually closest matches.
  */
-export const searchByColor = async ({ color: rawColor, limit = 12 } = {}) => {
+export const searchByColor = async ({ color: rawColor, limit = 12, productFilter = {}, sort = 'similarity', offset = 0 } = {}) => {
   const color = normalizeInputColor(rawColor);
   if (!color) {
     const error = new Error('Couleur invalide.');
@@ -183,6 +197,7 @@ export const searchByColor = async ({ color: rawColor, limit = 12 } = {}) => {
   }
 
   const candidates = await Product.find({
+    ...productFilter,
     status: 'approved',
     isActive: { $ne: false },
     'images.0': { $exists: true, $type: 'string', $ne: '' }
@@ -192,6 +207,12 @@ export const searchByColor = async ({ color: rawColor, limit = 12 } = {}) => {
     .limit(CANDIDATE_LIMIT)
     .lean();
 
+  const cachedRows = await ProductImageColor.find({ productId: { $in: candidates.map(item => item._id) }, fetchedAt: { $gte: new Date(Date.now() - COLOR_CACHE_TTL_MS) } }).lean();
+  const cachedColors = new Map(cachedRows.map(row => [`${row.productId}:${row.imageUrl}`, row.color]));
+  const deadline = Date.now() + 10000;
+  let misses = 0;
+  let scanned = 0;
+  let partial = false;
   const matches = [];
   let index = 0;
   const work = async () => {
@@ -200,8 +221,14 @@ export const searchByColor = async ({ color: rawColor, limit = 12 } = {}) => {
       index += 1;
       const imageUrl = candidate.images?.[0];
       if (!isCloudinaryUrl(imageUrl)) continue;
-      const avg = await getCachedColor(candidate._id, imageUrl);
+      let avg = cachedColors.get(`${candidate._id}:${imageUrl}`);
+      if (!avg) {
+        if (misses >= 16 || Date.now() >= deadline) { partial = true; continue; }
+        misses += 1;
+        avg = await getCachedColor(candidate._id, imageUrl);
+      }
       if (!avg) continue;
+      scanned += 1;
       const distance = colorDistance(color, avg);
       if (distance > MAX_COLOR_DISTANCE) continue;
       matches.push({ product: candidate, distance });
@@ -210,9 +237,16 @@ export const searchByColor = async ({ color: rawColor, limit = 12 } = {}) => {
 
   await Promise.all(Array.from({ length: CONCURRENCY }, () => work()));
 
-  matches.sort((a, b) => a.distance - b.distance);
+  matches.sort((a, b) => {
+    const difference = sort === 'price_asc' ? Number(a.product.price) - Number(b.product.price)
+      : sort === 'price_desc' ? Number(b.product.price) - Number(a.product.price)
+      : sort === 'newest' ? new Date(b.product.createdAt) - new Date(a.product.createdAt)
+      : a.distance - b.distance;
+    return difference || String(a.product._id).localeCompare(String(b.product._id));
+  });
 
-  const results = matches.slice(0, Math.max(1, Number(limit) || 12)).map(({ product, distance }) => ({
+  const pageSize = Math.max(1, Math.min(24, Number(limit) || 12));
+  const results = matches.slice(offset, offset + pageSize).map(({ product, distance }) => ({
     id: String(product._id),
     slug: product.slug || '',
     title: product.title || '',
@@ -223,5 +257,5 @@ export const searchByColor = async ({ color: rawColor, limit = 12 } = {}) => {
     matchScore: Math.max(0, Math.round(100 - distance))
   }));
 
-  return { color, results, scanned: candidates.length };
+  return { color, results, scanned, partial, hasMore: offset + pageSize < matches.length, nextOffset: offset + pageSize };
 };

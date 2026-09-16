@@ -1,3 +1,4 @@
+import { getProductDeliveryFee } from '../utils/productDeliveryFee';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
@@ -1132,7 +1133,8 @@ export default function ProductDetails() {
       return {
         ...prev,
         ratingAverage: Number(nextAvg.toFixed(2)),
-        ratingCount: nextCount
+        ratingCount: nextCount,
+        ratingDistribution: null
       };
     });
   };
@@ -1430,6 +1432,7 @@ export default function ProductDetails() {
     const previousRating = userRating || 0;
     const previousRatingAverage = Number(product?.ratingAverage || 0);
     const previousRatingCount = Number(product?.ratingCount || 0);
+    const previousRatingDistribution = product?.ratingDistribution;
     setSubmittingRating(true);
     setUserRating(newRating);
     setRating(newRating);
@@ -1441,6 +1444,7 @@ export default function ProductDetails() {
       }, {
         silentGlobalError: true
       });
+      await refreshProductEngagement();
 
     } catch (error) {
       if (error.response?.status === 401) {
@@ -1451,7 +1455,8 @@ export default function ProductDetails() {
             ? {
               ...prev,
               ratingAverage: previousRatingAverage,
-              ratingCount: previousRatingCount
+              ratingCount: previousRatingCount,
+              ratingDistribution: previousRatingDistribution
             }
             : prev
         );
@@ -1474,7 +1479,8 @@ export default function ProductDetails() {
           ? {
             ...prev,
             ratingAverage: previousRatingAverage,
-            ratingCount: previousRatingCount
+            ratingCount: previousRatingCount,
+              ratingDistribution: previousRatingDistribution
           }
           : prev
       );
@@ -1810,13 +1816,7 @@ export default function ProductDetails() {
   const pickupOnly = product?.deliveryAvailable === false && product?.pickupAvailable !== false;
   const deliveryAvailable = product?.deliveryAvailable !== false;
   const pickupAvailable = product?.pickupAvailable !== false;
-  const deliveryFeeEnabled = product?.deliveryFeeEnabled !== false;
-  const deliveryFeeValue = Number(product?.deliveryFee || 0);
-  const normalizedDeliveryFee = Number.isFinite(deliveryFeeValue) && deliveryFeeValue > 0 ? deliveryFeeValue : 0;
-  const freeDeliveryAvailable = Boolean(
-    (deliveryAvailable && (product?.user?.freeDeliveryEnabled || product?.shopFreeDeliveryEnabled)) ||
-    (deliveryAvailable && (!deliveryFeeEnabled || normalizedDeliveryFee <= 0))
-  );
+  const { fee: normalizedDeliveryFee, free: freeDeliveryAvailable } = getProductDeliveryFee(product);
   const deliveryPrimaryLabel = pickupOnly
     ? 'Retrait boutique uniquement'
     : freeDeliveryAvailable
@@ -1833,7 +1833,7 @@ export default function ProductDetails() {
       : deliveryAvailable && normalizedDeliveryFee > 0
         ? `Frais vendeur: ${formatPriceWithStoredSettings(normalizedDeliveryFee)}`
         : deliveryAvailable
-          ? 'Contactez le vendeur pour confirmer les modalités.'
+          ? 'Frais de livraison à confirmer avec le vendeur.'
           : 'Contactez le vendeur pour les options disponibles.';
   const physicalSpecRows = useMemo(
     () => formatPhysicalSpecs(product?.physical),
@@ -1843,6 +1843,10 @@ export default function ProductDetails() {
   const ratingAverage = Number(product?.ratingAverage || 0).toFixed(1);
   const ratingCount = product?.ratingCount || 0;
   const commentCount = product?.commentCount || 0;
+  const ratingLabel = ratingCount > 0 ? `${ratingAverage}/5` : 'Aucun avis pour le moment';
+  const ratingDistribution = product?.ratingDistribution;
+  const hasRatingDistribution = ratingCount > 0 && ratingDistribution &&
+    [1, 2, 3, 4, 5].reduce((sum, star) => sum + Number(ratingDistribution[star] || 0), 0) === Number(ratingCount);
 
   useEffect(() => {
     if (!product?._id) return;
@@ -2623,9 +2627,20 @@ export default function ProductDetails() {
             </>
           )}
         </div>
-        <h1 className="home-anim-fade-up mt-2 text-[17px] font-black leading-snug text-[#231f1b]" style={{ '--home-anim-delay': '80ms' }}>{product.title}</h1>
-        <div className="home-anim-fade-up mt-2 flex items-center gap-2.5 text-[11px] text-[#8a8378]" style={{ '--home-anim-delay': '140ms' }}>
-          <span className="flex items-center gap-1"><StarIcon className="fill-[#FF5000] text-[#FF5000] h-3 w-3" /><strong className="text-[#44403a]">{ratingAverage}</strong> ({ratingCount})</span>
+        <div className="flex items-start gap-2">
+        <h1 className="home-anim-fade-up min-w-0 flex-1 mt-2 text-[17px] font-black leading-snug text-[#231f1b]" style={{ '--home-anim-delay': '80ms' }}>{product.title}</h1>
+            {/* Favorite icon */}
+            <button type="button" onClick={handleFavoriteToggle} aria-label={isInFavorites ? "Retirer des favoris" : "Ajouter aux favoris"} aria-pressed={isInFavorites}
+              className="flex min-h-11 w-14 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-gray-100 active:bg-gray-50">
+              <HeartIcon className={`h-[19px] w-[19px] ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}
+                fill={isInFavorites ? 'currentColor' : 'none'} />
+              <span className={`text-[10px] font-semibold ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}>
+                {favoriteCount > 0 ? favoriteCount : 'Favori'}
+              </span>
+            </button>
+        </div>
+        <div className="home-anim-fade-up mt-2 flex flex-wrap items-center gap-2.5 text-[11px] text-[#8a8378]" style={{ '--home-anim-delay': '140ms' }}>
+          <span className="flex items-center gap-1"><StarIcon className="fill-[#FF5000] text-[#FF5000] h-3 w-3" /><strong className="text-[#44403a]">{ratingLabel}</strong> {ratingCount > 0 ? `(${ratingCount})` : ''}</span>
           <span>·</span><span>{formattedTotalOrdersQty} ventes</span>
         </div>
         {installmentOffer.available && (
@@ -2646,17 +2661,24 @@ export default function ProductDetails() {
         {wholesaleEnabled && <div className="mt-2">{renderWholesaleSection({ compact: true })}</div>}
       </section>
 
+          {quotationAvailable ? (
+            <div className="border-b border-gray-100 px-2 py-1.5">
+              <button type="button" onClick={openQuotationModal} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#e85d00] bg-white text-sm font-black text-[#b3480a] active:scale-[0.98]">
+                <DocumentTextIcon className="h-4 w-4" /> Demander un prix à débattre
+              </button>
+            </div>
+          ) : null}
       {/* ── REASSURANCE ── */}
       <section className="bg-white px-4 pt-3 pb-4">
         <div className="flex flex-col gap-2.5 text-[12px] font-semibold text-[#6b6459]">
           <span className="inline-flex items-center gap-2">
-            <TruckIcon className="h-3 w-3" /> {freeDeliveryAvailable ? 'Livraison gratuite' : pickupOnly ? 'Retrait boutique' : deliveryAvailable ? 'Livraison disponible' : 'Retrait uniquement'}
+            <TruckIcon className="h-4 w-4 shrink-0" /><span>{deliveryPrimaryLabel} · {deliverySecondaryLabel}</span>
           </span>
           <span className="inline-flex items-center gap-2">
             <ShieldCheckIcon className="h-3 w-3" /> Paiement sécurisé{product.warrantyEnabled ? ` · Garantie ${Number(product.warrantyPeriodValue || 0)}${warrantyPeriodUnitLabel}` : ''}{product.certified ? ' · Certifié HDMarket' : ''}
           </span>
-          <span className="inline-flex items-center gap-2 font-bold text-[#047857]">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{stockStatus.label}
+          <span className={`inline-flex w-fit items-center gap-2 rounded-full px-2 py-1 font-bold ${stockStatus.className}`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />{stockStatus.label}
           </span>
         </div>
       </section>
@@ -3002,7 +3024,7 @@ export default function ProductDetails() {
             {/* Rating summary */}
             <div className="flex items-center gap-4 pb-3 border-b border-gray-100">
               <div className="text-center">
-                <p className="text-4xl font-black text-[#FF5000]">{ratingAverage}</p>
+                <p className={`${ratingCount > 0 ? 'text-4xl' : 'text-sm'} font-black text-[#FF5000]`}>{ratingLabel}</p>
                 <div className="flex items-center gap-0.5 mt-1">
                   {[1,2,3,4,5].map((s) => (
                     <StarIcon key={s}  className={`h-[13px] w-[13px] ${s <= Math.floor(Number(ratingAverage)) ? 'fill-[#FF5000] text-[#FF5000]' : 'text-gray-200'}`} />
@@ -3010,9 +3032,9 @@ export default function ProductDetails() {
                 </div>
                 <p className="text-[11px] text-gray-400 mt-0.5">{ratingCount} avis</p>
               </div>
-              <div className="flex-1 space-y-1">
+              {hasRatingDistribution && <div className="flex-1 space-y-1">
                 {[5,4,3,2,1].map((s) => {
-                  const pct = ratingCount > 0 ? Math.round((comments.filter(c => Math.round(Number(c.rating || 0)) === s).length / Math.max(1, ratingCount)) * 100) : 0;
+                  const pct = Math.round((Number(ratingDistribution[s] || 0) / Number(ratingCount)) * 100);
                   return (
                     <div key={s} className="flex items-center gap-2 text-[11px] text-gray-500">
                       <span className="w-3 text-right">{s}</span>
@@ -3024,7 +3046,7 @@ export default function ProductDetails() {
                     </div>
                   );
                 })}
-              </div>
+              </div>}
             </div>
             {/* Rate + Comment input */}
             {user && !isOwnProduct && (
@@ -3307,13 +3329,6 @@ export default function ProductDetails() {
       {!isOwnProduct && (
         <div className="home-anim-fade-up fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)', '--home-anim-delay': '220ms' }}>
-          {quotationAvailable ? (
-            <div className="border-b border-gray-100 px-2 py-1.5">
-              <button type="button" onClick={openQuotationModal} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#e85d00] bg-white text-sm font-black text-[#b3480a] active:scale-[0.98]">
-                <DocumentTextIcon className="h-4 w-4" /> Demander un prix à débattre
-              </button>
-            </div>
-          ) : null}
           <div className="flex items-stretch h-[58px]">
             {/* Chat / WhatsApp icon */}
             {whatsappLink ? (
@@ -3329,45 +3344,19 @@ export default function ProductDetails() {
                 <span className="text-[10px] font-semibold">Avis</span>
               </button>
             )}
-            {/* Favorite icon */}
-            <button type="button" onClick={handleFavoriteToggle}
-              className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 active:bg-gray-50">
-              <HeartIcon className={isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}
-                fill={isInFavorites ? 'currentColor' : 'none'} className="h-[19px] w-[19px]" />
-              <span className={`text-[10px] font-semibold ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}>
-                {favoriteCount > 0 ? favoriteCount : 'Favori'}
-              </span>
-            </button>
-            {/* Me prévenir — price drop / restock alert (out of stock only) */}
-            {isPurchaseOutOfStock ? (
-              <button type="button" onClick={handleNotifyMe}
-                className="flex w-14 flex-col items-center justify-center gap-0.5 border-r border-gray-100 active:bg-gray-50">
-                <BellIcon className={`h-[19px] w-[19px] ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}
-                  fill={isInFavorites ? 'currentColor' : 'none'} />
-                <span className={`text-[10px] font-semibold ${isInFavorites ? 'text-[#FF5000]' : 'text-gray-600'}`}>
-                  {isInFavorites ? 'Suivi' : 'Me prévenir'}
-                </span>
-              </button>
-            ) : null}
-            {/* Add to Cart + Buy Now */}
-            <div className="flex flex-1 items-center gap-2 px-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 px-2">
               <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleAddToCart}
+                aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
                 disabled={addingToCart || inCart || isPurchaseOutOfStock}
-                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${inCart || isPurchaseOutOfStock
-                  ? 'bg-gray-100 text-gray-400'
-                  : 'border border-[#FF5000] bg-[#FFEDE3] text-[#FF5000]'}`}>
-                <ShoppingCartIcon className="flex-shrink-0 h-4 w-4" />
-                <span className="truncate">{addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir les options' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Dans le panier' : 'Ajouter au panier'}</span>
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#e85d00] bg-orange-50 text-[#e85d00] disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400">
+                <ShoppingCartIcon className="h-5 w-5" />
               </button>
-              <button type="button" onClick={isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
-                disabled={addingToCart || isPurchaseOutOfStock}
-                className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-black transition active:scale-[0.97] disabled:active:scale-100 ${isPurchaseOutOfStock
-                  ? 'bg-gray-200 text-gray-400'
-                  : isOptionSelectionBlocked
-                    ? 'bg-black text-white'
-                    : 'bg-[#FF5000] text-white shadow-sm'}`}>
-                <BoltIcon className="flex-shrink-0 h-4 w-4" fill="currentColor" />
-                <span className="truncate">{addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir' : isPurchaseOutOfStock ? 'Rupture' : inCart ? 'Commander' : 'Acheter'}</span>
+              <button type="button"
+                onClick={isPurchaseOutOfStock ? handleNotifyMe : isOptionSelectionBlocked ? promptProductOptionSelection : handleBuyNow}
+                disabled={addingToCart}
+                className="flex min-h-12 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#e85d00] px-3 text-sm font-black text-white disabled:opacity-50">
+                {isPurchaseOutOfStock ? <BellIcon className="h-4 w-4 shrink-0" /> : <BoltIcon className="h-4 w-4 shrink-0" />}
+                <span>{isPurchaseOutOfStock ? (isInFavorites ? 'Suivi' : 'Me prévenir') : addingToCart ? 'Ajout...' : isOptionSelectionBlocked ? 'Choisir les options' : inCart ? 'Commander' : 'Acheter maintenant'}</span>
               </button>
             </div>
           </div>
@@ -3878,6 +3867,11 @@ className="text-white drop-shadow-md h-5 w-5"
                       Livraison gratuite
                     </span>
                   )}
+                  {deliveryAvailable && !freeDeliveryAvailable && normalizedDeliveryFee === null && (
+                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-600">
+                      Frais de livraison à confirmer
+                    </span>
+                  )}
                   {!pickupOnly && deliveryAvailable && !freeDeliveryAvailable && normalizedDeliveryFee > 0 && (
                     <span className="inline-flex items-center bg-neutral-100 px-3 py-1.5 rounded-full text-sm font-bold text-neutral-700 border border-neutral-200">
                       Livraison vendeur: {formatPriceWithStoredSettings(normalizedDeliveryFee)}
@@ -3906,7 +3900,7 @@ className="text-white drop-shadow-md h-5 w-5"
               <div className="flex flex-wrap items-center gap-3 border-y border-gray-100 py-3 text-xs text-gray-600">
                 <span className="inline-flex items-center gap-1.5 font-bold text-gray-900">
                   <StarIcon className="h-4 w-4 text-amber-500" fill="currentColor" />
-                  {ratingAverage} ({ratingCount})
+                  {ratingLabel} {ratingCount > 0 ? `(${ratingCount})` : ''}
                 </span>
                 <span>{commentCount} commentaires</span>
                 <span>{formattedTotalOrdersQty} commandes</span>
@@ -4468,7 +4462,7 @@ className="text-white drop-shadow-md h-5 w-5"
                   <div className="bg-neutral-50 rounded-2xl p-6 sm:p-8 border border-neutral-200 shadow-md">
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                       <div className="text-center lg:text-left">
-                        <div className="text-5xl sm:text-6xl font-black text-gray-900 mb-2">{ratingAverage}</div>
+                        <div className={`${ratingCount > 0 ? 'text-5xl sm:text-6xl' : 'text-base'} font-black text-gray-900 mb-2`}>{ratingLabel}</div>
                         <div className="flex items-center justify-center lg:justify-start gap-1 mb-2">
                           {[1, 2, 3, 4, 5].map((star) => (
                             <StarIcon
@@ -4803,8 +4797,8 @@ className={`h-7 w-7 ${star <= userRating
             <div className="flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-1">
                 <StarIcon className="h-4 w-4 text-neutral-400" />
-                <span className="font-semibold text-gray-900">{ratingAverage}</span>
-                <span>({ratingCount})</span>
+                <span className="font-semibold text-gray-900">{ratingLabel}</span>
+                <span>{ratingCount > 0 ? `(${ratingCount})` : ''}</span>
               </div>
               <div className="flex items-center gap-1">
                 <ChatBubbleLeftIcon className="h-4 w-4" />
@@ -5282,8 +5276,8 @@ className={`h-7 w-7 ${star <= userRating
             <div className="mt-3 flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-1">
                 <StarIcon className="h-4 w-4 text-neutral-400" />
-                <span className="font-semibold text-gray-900">{ratingAverage}</span>
-                <span>({ratingCount})</span>
+                <span className="font-semibold text-gray-900">{ratingLabel}</span>
+                <span>{ratingCount > 0 ? `(${ratingCount})` : ''}</span>
               </div>
               <div className="flex items-center gap-1">
                 <ChatBubbleLeftIcon className="h-4 w-4" />

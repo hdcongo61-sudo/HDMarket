@@ -1,4 +1,5 @@
-import React, { createContext, useEffect, useState } from 'react';
+import { setRecentViewsUser } from '../utils/recentViews';
+import React, { createContext, useEffect, useLayoutEffect, useState } from 'react';
 import api, { abortPendingRequests, clearAllCache } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 import storage from '../utils/storage';
@@ -49,6 +50,7 @@ const readPersistedUser = async () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  useLayoutEffect(() => { setRecentViewsUser(user?._id || user?.id || null); }, [user?._id, user?.id]);
   const [loading, setLoading] = useState(true);
 
   // Load persisted user on mount
