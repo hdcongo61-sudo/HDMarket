@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import {
   getNextVideoChunkRange,
+  runSequentialVideoUploadQueue,
   uploadResumableProductVideo
 } from './resumableProductVideoUpload';
 
@@ -29,6 +30,41 @@ describe('resumable video chunk ranges', () => {
 
   it('does not restart when the confirmed offset is already complete', () => {
     expect(getNextVideoChunkRange(4096, 4096, 1024)).toEqual({ start: 4096, end: 4096 });
+  });
+});
+
+describe('sequential video upload queue', () => {
+  it('finishes each video before starting the next one', async () => {
+    const events = [];
+    let activeUploads = 0;
+    let maximumConcurrentUploads = 0;
+
+    const outcomes = await runSequentialVideoUploadQueue([2, 0, 1], async (index) => {
+      events.push(`start-${index}`);
+      activeUploads += 1;
+      maximumConcurrentUploads = Math.max(maximumConcurrentUploads, activeUploads);
+      await Promise.resolve();
+      activeUploads -= 1;
+      events.push(`end-${index}`);
+      return { status: 'completed' };
+    });
+
+    expect(maximumConcurrentUploads).toBe(1);
+    expect(events).toEqual(['start-2', 'end-2', 'start-0', 'end-0', 'start-1', 'end-1']);
+    expect(Array.from(outcomes.keys())).toEqual([2, 0, 1]);
+  });
+
+  it('does not start another video after cancellation', async () => {
+    const controller = new AbortController();
+    const attempted = [];
+
+    await runSequentialVideoUploadQueue([0, 1], async (index) => {
+      attempted.push(index);
+      controller.abort();
+      return { status: 'cancelled' };
+    }, controller.signal);
+
+    expect(attempted).toEqual([0]);
   });
 });
 

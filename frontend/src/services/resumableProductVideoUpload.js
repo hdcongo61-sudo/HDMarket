@@ -3,6 +3,15 @@ import { createIdempotencyKey } from '../utils/idempotency';
 
 export const DEFAULT_VIDEO_CHUNK_SIZE = 1024 * 1024;
 
+export const runSequentialVideoUploadQueue = async (indexes, task, signal) => {
+  const outcomes = new Map();
+  for (const index of indexes) {
+    if (signal?.aborted) break;
+    outcomes.set(index, await task(index));
+  }
+  return outcomes;
+};
+
 export const getNextVideoChunkRange = (offset, fileSize, chunkSize = DEFAULT_VIDEO_CHUNK_SIZE) => {
   const safeSize = Math.max(0, Number(fileSize || 0));
   const start = Math.min(safeSize, Math.max(0, Number(offset || 0)));

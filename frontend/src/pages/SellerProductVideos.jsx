@@ -11,6 +11,7 @@ import {
 } from '../utils/videoUploadErrors';
 import {
   discardResumableProductVideoUpload,
+  runSequentialVideoUploadQueue,
   uploadResumableProductVideo
 } from '../services/resumableProductVideoUpload';
 
@@ -330,7 +331,7 @@ export default function SellerProductVideos() {
     uploadControllerRef.current?.abort('VIDEO_UPLOAD_USER_CANCELED');
   };
 
-  const upload = async (event) => {
+  const upload = async (event, requestedIndexes = null) => {
     event?.preventDefault?.();
     if (uploading) return;
     if (!productId || !files.length) {
@@ -342,9 +343,12 @@ export default function SellerProductVideos() {
       setUploadFeedback({ type: 'error', message: 'Vous êtes hors connexion. Reconnectez-vous puis appuyez sur Réessayer.' });
       return;
     }
+    const requested = Array.isArray(requestedIndexes)
+      ? new Set(requestedIndexes.filter((index) => Number.isInteger(index)))
+      : null;
     const pendingIndexes = files
       .map((_, index) => index)
-      .filter((index) => fileUploadStates[index]?.status !== 'completed');
+      .filter((index) => (!requested || requested.has(index)) && fileUploadStates[index]?.status !== 'completed');
     if (!pendingIndexes.length) {
       setUploadFeedback({ type: 'success', message: 'Toutes les vidéos sont déjà envoyées.' });
       return;
@@ -353,8 +357,6 @@ export default function SellerProductVideos() {
     setUploadAttemptStatus('uploading');
     const controller = new AbortController();
     uploadControllerRef.current = controller;
-    const outcomes = new Map();
-    let nextPendingPosition = 0;
     const totalBytes = files.reduce((sum, file) => sum + Number(file?.size || 0), 0);
     const updateFileState = (index, patch) => {
       setFileUploadStates((current) => {
@@ -384,47 +386,45 @@ export default function SellerProductVideos() {
     );
     setUploadFeedback({
       type: 'info',
-      message: `${pendingIndexes.length} vidéo${pendingIndexes.length > 1 ? 's' : ''} dans la file. Jusqu’à 2 transferts sont effectués en parallèle.`
+      message: pendingIndexes.length > 1
+        ? `${pendingIndexes.length} vidéos dans la file. Elles sont envoyées une par une.`
+        : `Envoi de ${files[pendingIndexes[0]]?.name || 'la vidéo'}…`
     });
     try {
-      const worker = async () => {
-        while (nextPendingPosition < pendingIndexes.length && !controller.signal.aborted) {
-          const index = pendingIndexes[nextPendingPosition];
-          nextPendingPosition += 1;
-          const file = files[index];
-          const existingState = fileUploadStates[index] || {};
-          updateFileState(index, { status: 'uploading', error: '' });
-          try {
-            const result = await uploadResumableProductVideo({
-              file,
-              productId,
-              caption,
-              session: existingState.session || {},
-              signal: controller.signal,
-              onSession: (session) => updateFileState(index, { session }),
-              onProgress: ({ progress, state }) => {
-                updateFileProgress(index, progress);
-                updateFileState(index, { status: state === 'processing' ? 'processing' : state });
-              }
-            });
-            updateFileProgress(index, 100);
-            updateFileState(index, { status: 'completed', session: result.session, error: '' });
-            outcomes.set(index, { status: 'completed', result });
-          } catch (error) {
-            if (controller.signal.aborted || isApiCanceledError(error)) {
-              updateFileState(index, { status: 'cancelled', error: '' });
-              outcomes.set(index, { status: 'cancelled', error });
-            } else {
-              const message = getVideoUploadErrorMessage(error);
-              updateFileState(index, { status: 'error', error: message });
-              outcomes.set(index, { status: 'error', error, message });
+      const outcomes = await runSequentialVideoUploadQueue(pendingIndexes, async (index) => {
+        const file = files[index];
+        const existingState = fileUploadStates[index] || {};
+        updateFileState(index, { status: 'uploading', error: '' });
+        try {
+          const result = await uploadResumableProductVideo({
+            file,
+            productId,
+            caption,
+            session: existingState.session || {},
+            signal: controller.signal,
+            onSession: (session) => updateFileState(index, { session }),
+            onProgress: ({ progress, state }) => {
+              updateFileProgress(index, progress);
+              updateFileState(index, { status: state === 'processing' ? 'processing' : state });
             }
+          });
+          updateFileProgress(index, 100);
+          updateFileState(index, { status: 'completed', session: result.session, error: '' });
+          return { status: 'completed', result };
+        } catch (error) {
+          if (controller.signal.aborted || isApiCanceledError(error)) {
+            updateFileState(index, { status: 'cancelled', error: '' });
+            return { status: 'cancelled', error };
           }
+          const message = getVideoUploadErrorMessage(error);
+          updateFileState(index, { status: 'error', error: message });
+          return { status: 'error', error, message };
         }
-      };
-      await Promise.all(
-        Array.from({ length: Math.min(2, pendingIndexes.length) }, () => worker())
-      );
+      }, controller.signal);
+
+      pendingIndexes
+        .filter((index) => !outcomes.has(index))
+        .forEach((index) => updateFileState(index, { status: 'ready', error: '' }));
 
       const completedCount = Array.from(outcomes.values()).filter((item) => item.status === 'completed').length;
       const failedCount = Array.from(outcomes.values()).filter((item) => item.status === 'error').length;
@@ -449,11 +449,17 @@ export default function SellerProductVideos() {
         setUploadAttemptStatus('cancelled');
         setUploadFeedback({ type: 'info', message });
         showToast(message, { variant: 'info' });
-      } else {
+      } else if (failedCount) {
         const message = `${completedCount} vidéo${completedCount > 1 ? 's terminées' : ' terminée'}, ${failedCount} à réessayer. La reprise continuera au dernier bloc reçu.`;
         setUploadAttemptStatus('error');
         setUploadFeedback({ type: 'error', message });
         showToast(message, { variant: 'error' });
+      } else {
+        const remainingCount = files.length - previouslyCompletedCount - completedCount;
+        const message = `${completedCount} vidéo${completedCount > 1 ? 's envoyées' : ' envoyée'}. ${remainingCount} reste${remainingCount > 1 ? 'nt' : ''} à envoyer.`;
+        setUploadAttemptStatus('ready');
+        setUploadFeedback({ type: 'success', message });
+        showToast(message, { variant: 'success' });
       }
     } finally {
       if (uploadControllerRef.current === controller) uploadControllerRef.current = null;
@@ -610,11 +616,24 @@ export default function SellerProductVideos() {
                 }[fileStatus] || 'Prête à envoyer';
                 return (
                   <div key={`${file.name}-${file.size}-${file.lastModified || index}`} className="rounded-xl bg-neutral-100 px-3 py-2.5 text-xs dark:bg-white/10">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="min-w-0 flex-1 truncate font-bold">{file.name}</span>
                       <span className="shrink-0 text-neutral-500">
                         {fileStatus !== 'ready' || progress > 0 ? `${progress}%` : `${Math.max(1, Math.round(file.size / 1024 / 1024))} Mo`}
                       </span>
+                      {['ready', 'error', 'cancelled'].includes(fileStatus) ? (
+                        <button
+                          type="button"
+                          disabled={uploading || !isOnline}
+                          onClick={() => upload(null, [index])}
+                          className="flex h-7 shrink-0 items-center gap-1 rounded-lg border border-emerald-200 px-2 font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                          aria-label={`${fileStatus === 'ready' ? 'Envoyer' : 'Réessayer'} ${file.name}`}
+                          title={fileStatus === 'ready' ? 'Envoyer uniquement cette vidéo' : 'Réessayer uniquement cette vidéo'}
+                        >
+                          {fileStatus === 'ready' ? <ArrowUpTrayIcon className="h-3.5 w-3.5" /> : <ArrowPathIcon className="h-3.5 w-3.5" />}
+                          <span className="hidden sm:inline">{fileStatus === 'ready' ? 'Envoyer' : 'Réessayer'}</span>
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         disabled={uploading}
