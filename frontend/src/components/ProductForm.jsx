@@ -1,3 +1,5 @@
+import MarketingPackLauncher from './commerce-ai/MarketingPackLauncher';
+import ProductWritingAssistant from './ProductWritingAssistant';
 import StudioErrorBoundary from './image-studio/StudioErrorBoundary';
 import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import api, { isApiPossiblyCommittedError } from '../services/api';
@@ -2653,6 +2655,8 @@ export default function ProductForm(props) {
           })}
           {(!isMobile || expandedSections.info) && (
                 <div className="space-y-4 pt-1">
+          <ProductWritingAssistant form={form} onApply={(suggestion) => { setForm(prev => ({ ...prev, ...suggestion })); Object.keys(suggestion).forEach(clearFieldIssue); }} />
+          <MarketingPackLauncher productFacts={form} />
           {/* Titre */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-medium text-gray-700">

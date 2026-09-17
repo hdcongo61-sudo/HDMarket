@@ -1,3 +1,4 @@
+import ComplementaryProducts from '../components/commerce-ai/ComplementaryProducts';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -382,6 +383,7 @@ export default function Cart() {
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_400px] xl:gap-7">
           {/* Cart Items Enhanced */}
           <div className="space-y-3 sm:space-y-4">
+            {items.length > 0 && <ComplementaryProducts key={items.map(item => item.product?._id || item.product).join(',')} productId={items[0]?.product?._id || items[0]?.product} exclude={items.map(item => item.product?._id || item.product).filter(Boolean)} />}
             {/* Undo banner — one-tap restore after a removal */}
             {lastRemoved && (
               <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 shadow-sm">

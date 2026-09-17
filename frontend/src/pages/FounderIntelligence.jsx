@@ -1,3 +1,5 @@
+import FounderFinance from '../components/commerce-ai/FounderFinance';
+import { AiReportPanel } from '../components/commerce-ai/AiPanel';
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowPathIcon, ArrowTrendingUpIcon, ArrowUpRightIcon, ChartBarIcon, ExclamationTriangleIcon, ShieldExclamationIcon, SparklesIcon, TrophyIcon, UsersIcon } from '@heroicons/react/24/outline';
@@ -7,6 +9,7 @@ import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import GlassCard from '../components/ui/GlassCard';
 import AppOfflineDiagnosticsCard from '../components/admin/AppOfflineDiagnosticsCard';
 
+const currencyRows = rows => (rows || []).map(row => `${Number(row.amount).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${row.currency}`).join(' · ') || '—';
 const formatNumber = (value) => Number(value || 0).toLocaleString('fr-FR');
 const formatPercent = (value) => `${Number(value || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`;
 const formatCurrency = (value) => formatPriceWithStoredSettings(Number(value || 0));
@@ -210,6 +213,8 @@ export default function FounderIntelligence() {
           </div>
         </section>
 
+        <FounderFinance />
+        <AiReportPanel founder />
         <AppOfflineDiagnosticsCard title="Diagnostic local founder" className="overflow-hidden" />
 
         {error ? (
@@ -223,9 +228,9 @@ export default function FounderIntelligence() {
           <>
             <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard
-                label="Revenue / Active User"
-                value={formatCurrency(data?.kpis?.revenuePerActiveUser)}
-                helper={`AOV ${formatCurrency(data?.kpis?.averageOrderValue)}`}
+                label="Volume marchand / actif"
+                value={(data?.kpis?.merchandiseVolumePerActiveUserByCurrency || []).map(row => `${Number(row.amount).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${row.currency}`).join(' · ') || '—'}
+                helper={`Panier moyen ${currencyRows(data?.kpis?.averageOrderValueByCurrency)}`}
                 icon={ArrowTrendingUpIcon}
               />
               <KpiCard
@@ -258,13 +263,13 @@ export default function FounderIntelligence() {
               <KpiCard
                 label="Livraisons offertes"
                 value={formatNumber(data?.kpis?.fullPaymentConversion?.deliveryFeesWaivedCount)}
-                helper={`Montant offert ${formatCurrency(data?.kpis?.fullPaymentConversion?.waivedDeliveryAmount)}`}
+                helper={`Montant offert ${currencyRows(data?.kpis?.fullPaymentConversion?.waivedDeliveryByCurrency)}`}
                 icon={SparklesIcon}
               />
               <KpiCard
-                label="Impact revenu"
-                value={formatCurrency(data?.kpis?.fullPaymentConversion?.revenueImpact)}
-                helper="GMV associé aux commandes full payment"
+                label="Volume · option paiement intégral"
+                value={currencyRows(data?.kpis?.fullPaymentConversion?.merchandiseVolumeByCurrency)}
+                helper="Option sélectionnée dans les commandes; ne prouve pas l’encaissement."
                 icon={ArrowTrendingUpIcon}
               />
             </section>

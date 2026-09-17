@@ -1,3 +1,4 @@
+import ComplementaryProducts from '../components/commerce-ai/ComplementaryProducts';
 import { getProductDeliveryFee } from '../utils/productDeliveryFee';
 import { PLACEHOLDER_IMAGE } from '../utils/placeholderImage';
 import React, { useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -3185,6 +3186,7 @@ export default function ProductDetails() {
         </>
       )}
 
+      <ComplementaryProducts key={product._id} productId={product._id} />
       {/* ── BUNDLE DEALS ── */}
       {bundleData && bundleData.bundle && bundleData.bundle.length > 0 && (
         <>

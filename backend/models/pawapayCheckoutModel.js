@@ -11,6 +11,7 @@ const pawapayCheckoutSchema = new mongoose.Schema(
     purpose: {
       type: String,
       enum: [
+        'IMAGE_EDIT_FUNDING',
         'CHECKOUT_FUNDING',
         'LISTING_FEE_FUNDING',
         'INSTALLMENT_FUNDING',
@@ -23,6 +24,7 @@ const pawapayCheckoutSchema = new mongoose.Schema(
       ],
       default: 'CHECKOUT_FUNDING'
     },
+    imageEditJob: { type: mongoose.Schema.Types.ObjectId, ref: 'ImageEditJob', default: null },
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',

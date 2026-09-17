@@ -1,4 +1,7 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
+import ImageEditJob from '../models/imageEditJobModel.js';
+import { imageEditPricing } from '../services/paidImageEditService.js';
 import asyncHandler from 'express-async-handler';
 import Payment from '../models/paymentModel.js';
 import PawaPayEvent from '../models/pawapayEventModel.js';
@@ -70,6 +73,7 @@ export const normalizePawaPayCheckoutStatus = (value, fallback = 'WAITING_PAYMEN
   return fallback;
 };
 const CHECKOUT_PURPOSES = new Set([
+  'IMAGE_EDIT_FUNDING',
   'CHECKOUT_FUNDING',
   'LISTING_FEE_FUNDING',
   'INSTALLMENT_FUNDING',
@@ -226,6 +230,22 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     }
     actionContext.amount = amountDue;
   }
+  let imageEditJob = null;
+  if (purpose === 'IMAGE_EDIT_FUNDING') {
+    if (actionContext || !mongoose.isValidObjectId(req.body?.imageEditJobId)) return sendPawaPayError(res, 400, 'IMAGE_EDIT_INVALID', 'Référence de retouche invalide.');
+    imageEditJob = await ImageEditJob.findOne({ _id: req.body.imageEditJobId, user: req.user._id });
+    if (!imageEditJob || imageEditJob.state !== 'AWAITING_PAYMENT' || imageEditJob.amount !== amount) return sendPawaPayError(res, 409, 'IMAGE_EDIT_INVALID', 'Retouche ou montant invalide.');
+    if (!(await imageEditPricing(imageEditJob.countryId)).enabled) return sendPawaPayError(res, 503, 'IMAGE_EDIT_DISABLED', 'Le service est temporairement indisponible.');
+    if (imageEditJob.checkoutId) {
+      const previous = await PawaPayCheckout.findOne({ checkoutId: imageEditJob.checkoutId });
+      if (!previous) return sendPawaPayError(res, 409, 'IMAGE_EDIT_PAYMENT_PENDING', 'Paiement en préparation. Réessayez dans un instant.');
+      if (!['FAILED', 'EXPIRED', 'CANCELLED'].includes(previous.status)) {
+        return res.status(202).json({ checkoutId: previous.checkoutId, status: previous.status, pending: true, verificationUrl: checkoutVerificationUrl(previous) });
+      }
+    }
+    resourceCountryId = imageEditJob.countryId;
+    resourceCurrency = imageEditJob.currency;
+  }
   let product = null;
   if (purpose === 'LISTING_FEE_FUNDING') {
     if (!productId) {
@@ -343,8 +363,15 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
   }
 
   const checkoutId = crypto.randomUUID();
-  const checkout = await PawaPayCheckout.create({
+  if (imageEditJob) {
+    const locked = await ImageEditJob.findOneAndUpdate({ _id: imageEditJob._id, checkoutId: imageEditJob.checkoutId, state: 'AWAITING_PAYMENT' }, { $set: { checkoutId } });
+    if (!locked) return sendPawaPayError(res, 409, 'IMAGE_EDIT_PAYMENT_PENDING', 'Un paiement est déjà en cours pour cette retouche.');
+  }
+  let checkout;
+  try {
+    checkout = await PawaPayCheckout.create({
     checkoutId,
+    imageEditJob: imageEditJob?._id || null,
     user: req.user._id,
     amount,
     currency: paymentProvider.currency,
@@ -357,6 +384,10 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     actionContext,
     autoValidationState: product || actionContext ? 'PENDING' : 'NOT_APPLICABLE'
   });
+  } catch (error) {
+    if (imageEditJob) await ImageEditJob.updateOne({ _id: imageEditJob._id, checkoutId }, { $set: { checkoutId: imageEditJob.checkoutId } });
+    throw error;
+  }
 
   try {
     const result = await initiatePawaPayCheckout({

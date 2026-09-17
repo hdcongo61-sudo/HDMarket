@@ -1,3 +1,4 @@
+import { searchIntentPath } from '../../utils/aiSearchIntent';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CameraIcon } from '@heroicons/react/24/outline';
@@ -17,7 +18,7 @@ export default function SearchMediaControls() {
   return (
     <div className="flex shrink-0 items-center gap-1">
       {imageEnabled ? <button type="button" aria-label="Recherche par image" title="Recherche par image" onClick={() => setImageOpen(true)} className="grid h-9 w-9 place-items-center rounded-full bg-orange-50 text-[#e85d00] hover:bg-orange-100"><CameraIcon className="h-5 w-5" /></button> : null}
-      {voiceEnabled ? <VoiceSearchButton className="!h-9 !w-9 rounded-full bg-orange-50" onResult={(text) => navigate(`/search?q=${encodeURIComponent(text)}`)} /> : null}
+      {voiceEnabled ? <VoiceSearchButton className="!h-9 !w-9 rounded-full bg-orange-50" onResult={(text, intent) => navigate(searchIntentPath(text, intent))} /> : null}
       {imageEnabled ? <ImageSearchModal open={imageOpen} onClose={() => setImageOpen(false)} /> : null}
     </div>
   );

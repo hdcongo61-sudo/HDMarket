@@ -1,3 +1,4 @@
+import SellerReplyAssistant from './commerce-ai/SellerReplyAssistant';
 import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { io } from 'socket.io-client';
@@ -2252,6 +2253,7 @@ export default function OrderChat({ order, conversationId: conversationIdProp = 
           </div>
         )}
 
+        {isSeller && orderId && <SellerReplyAssistant key={orderId} conversationId={orderId} onApply={setMessageText} />}
         {/* Composer */}
         <form
           onSubmit={sendMessage}

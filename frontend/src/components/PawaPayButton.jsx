@@ -20,6 +20,7 @@ export default function PawaPayButton({
   returnPath = '/orders',
   label = 'Payer avec PawaPay',
   onBeforeStart = null,
+  onResult = null,
   className = ''
 }) {
   const navigate = useNavigate();
@@ -46,10 +47,11 @@ export default function PawaPayButton({
     expectedCheckoutIdRef.current = '';
     setLoading(false);
 
+    if (onResult) { onResult(result); return; }
     navigate(result.path, {
       state: createPawaPayRouteState(result)
     });
-  }), [navigate]);
+  }), [navigate, onResult]);
 
   useEffect(() => {
     if (!loading || !paymentWindowRef.current) return undefined;

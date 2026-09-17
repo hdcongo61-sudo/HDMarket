@@ -151,6 +151,8 @@ const SettingsCategoriesPage = lazy(() => import('./pages/SettingsCategoriesPage
 const CategoryGuidePage = lazy(() => import('./pages/CategoryGuidePage'));
 const RecentlyViewedPage = lazy(() => import('./pages/RecentlyViewedPage'));
 const AdminLayout = lazy(() => import('./components/AdminLayout'));
+const AdminImageEdits = lazy(() => import('./pages/AdminImageEdits'));
+const SellerImageEdits = lazy(() => import('./pages/SellerImageEdits'));
 const FounderTools = lazy(() => import('./pages/FounderTools'));
 const FounderIntelligence = lazy(() => import('./pages/FounderIntelligence'));
 const FounderAccountControl = lazy(() => import('./pages/FounderAccountControl'));
@@ -773,6 +775,7 @@ function AppContent() {
             }
           />
           <Route path="/avantages" element={<Benefits />} />
+          <Route path="/seller/image-edits" element={<ProtectedRoute><SellerImageEdits /></ProtectedRoute>} />
           <Route path="/benefits" element={<Benefits />} />
           <Route path="/a-propos" element={<About />} />
           <Route path="/about" element={<About />} />
@@ -1406,6 +1409,10 @@ function AppContent() {
                   <AdminAppSettings />
                 </ProtectedRoute>
               }
+            />
+            <Route
+              path="image-edits"
+              element={<ProtectedRoute roles={['admin', 'founder']}><AdminImageEdits /></ProtectedRoute>}
             />
             <Route
               path="system-settings"

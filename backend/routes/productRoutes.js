@@ -1,4 +1,5 @@
 import express from 'express';
+import { writeProduct } from '../controllers/productWritingController.js';
 import { optionalProtect } from '../middlewares/authMiddleware.js';
 import { attachCountryContext } from '../middlewares/countryMiddleware.js';
 import rateLimit from 'express-rate-limit';
@@ -51,6 +52,11 @@ import { getUserRecommendations } from '../controllers/recommendationController.
 
 const router = express.Router();
 router.use(optionalProtect, attachCountryContext);
+router.post('/writing-assistant', protect, rateLimit({
+  windowMs: 60 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => String(req.user._id || req.user.id),
+  message: { message: 'Limite de 20 générations par heure atteinte. Réessayez plus tard.' }
+}), writeProduct);
 const productMutationIdempotency = idempotencyMiddleware({ ttlMs: 10 * 60 * 1000 });
 const productViewRateLimiter = rateLimit({
   windowMs: Math.max(30_000, Number(process.env.PRODUCT_VIEW_RATE_WINDOW_MS || 60_000)),

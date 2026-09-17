@@ -1,3 +1,4 @@
+import ShoppingAssistant from '../components/commerce-ai/ShoppingAssistant';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { AdjustmentsHorizontalIcon, CreditCardIcon, MagnifyingGlassIcon, ShieldCheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -415,6 +416,7 @@ const fetchProducts = useCallback(async (signal) => {
   return (
     <div className="hd-products-flow">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
+        <ShoppingAssistant />
         {/* Hero compact : le catalogue est une page outil, pas une page vitrine */}
         <header className="hd-products-hero home-shine-host home-anim-fade-up overflow-hidden rounded-2xl p-4 text-white sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

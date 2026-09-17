@@ -162,3 +162,24 @@ describe('PawaPay admin checkout refresh', () => {
     );
   });
 });
+
+// These checks never call a payment provider or a database.
+describe('paid image checkout validation', () => {
+  it('rejects a client-supplied price that differs from the stored quote', async () => {
+    const { createPawaPayCheckout } = await import('./pawapayController.js');
+    const { default: ImageEditJob } = await import('../models/imageEditJobModel.js');
+    const find = vi.spyOn(ImageEditJob, 'findOne').mockResolvedValue({ state: 'AWAITING_PAYMENT', amount: 500 });
+    const res = makeResponse();
+    await createPawaPayCheckout({ user: { _id: 'owner' }, body: { amount: 10, purpose: 'IMAGE_EDIT_FUNDING', imageEditJobId: '507f1f77bcf86cd799439011' } }, res, vi.fn());
+    expect(find).toHaveBeenCalledWith({ _id: '507f1f77bcf86cd799439011', user: 'owner' });
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
+  it('rejects a payment without an owned quote', async () => {
+    const { createPawaPayCheckout } = await import('./pawapayController.js');
+    const { default: ImageEditJob } = await import('../models/imageEditJobModel.js');
+    vi.spyOn(ImageEditJob, 'findOne').mockResolvedValue(null);
+    const res = makeResponse();
+    await createPawaPayCheckout({ user: { _id: 'owner' }, body: { amount: 500, purpose: 'IMAGE_EDIT_FUNDING', imageEditJobId: '507f1f77bcf86cd799439011' } }, res, vi.fn());
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
+});

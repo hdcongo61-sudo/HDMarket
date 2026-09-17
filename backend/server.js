@@ -1,3 +1,4 @@
+import commerceAiRoutes from './routes/commerceAiRoutes.js';
 import mongoose from 'mongoose';
 import { isChatStaff, supportRoom, isTrustedMediaUrl } from './utils/chatSecurity.js';
 import { schemas } from './middlewares/validate.js';
@@ -438,6 +439,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/shops', shopAssistantRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/commerce-ai', commerceAiRoutes);
 app.use('/api/onboarding', onboardingUserRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/categories', categoryRoutes);

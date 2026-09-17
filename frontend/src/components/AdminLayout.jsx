@@ -73,6 +73,7 @@ const buildNavItems = (t, platformDeliveryEnabled, counters = {}, productVideosE
       u?.role === 'founder' ||
       hasAnyPermission(u, ['view_admin_dashboard'])
   },
+  { to: '/admin/image-edits', label: 'Retouches IA payantes', icon: SparklesIcon, group: 'commerce', show: u => ['admin', 'founder'].includes(u?.role) },
   { to: '/admin/countries', label: 'Pays & marchés', icon: GlobeAltIcon, group: 'system', show: (u) => u?.role === 'admin' || u?.role === 'founder' },
   {
     to: '/admin/global',

@@ -147,9 +147,10 @@ export const getBundleSuggestions = async (productId, { limit = 4 } = {}) => {
   const relatedOrders = await Order.find({
     seller: sellerId,
     status: { $in: completedStatuses },
-    'items.product': { $ne: productId }
+    'items.product': productId
   })
     .select('items.product')
+    .sort({ createdAt: -1 })
     .limit(500)
     .lean();
 
@@ -206,6 +207,8 @@ export const getBundleSuggestions = async (productId, { limit = 4 } = {}) => {
   // Maintain frequency sort order
   const idToFreq = Object.fromEntries(sorted);
   coProducts.sort((a, b) => (idToFreq[String(b._id)] || 0) - (idToFreq[String(a._id)] || 0));
+
+  if (!coProducts.length) return { product: formatProductBundle(product), bundle: [], totalPrice: product.price, bundlePrice: product.price, savings: 0 };
 
   const mainProduct = formatProductBundle(product);
   const bundleItems = coProducts.slice(0, 3).map(formatProductBundle);

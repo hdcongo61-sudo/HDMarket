@@ -1,3 +1,4 @@
+import ShoppingAssistant from '../components/commerce-ai/ShoppingAssistant';
 import React, { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdjustmentsHorizontalIcon, ArrowPathIcon, ArrowTrendingUpIcon, BuildingStorefrontIcon, CheckCircleIcon, ChevronDownIcon, ChevronUpIcon, CurrencyDollarIcon, FunnelIcon, HeartIcon, MagnifyingGlassIcon, MapPinIcon, SparklesIcon, StarIcon, TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -503,6 +504,7 @@ export default function AdvancedSearch() {
 
   return (
     <div className="hd-search-flow hd-products-flow hd-commerce-shell min-h-screen">
+      <div className="mx-auto max-w-7xl px-4"><ShoppingAssistant /></div>
       {/* Header */}
       <div className="border-b border-neutral-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">

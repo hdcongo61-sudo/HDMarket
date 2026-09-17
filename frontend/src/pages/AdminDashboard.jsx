@@ -1799,9 +1799,9 @@ export default function AdminDashboard() {
           ) : null}
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <SectionStatCard
-              label="Revenue / actif"
-              value={formatCurrency(founderMini?.kpis?.revenuePerActiveUser)}
-              helper={founderMiniLoading ? 'Mise à jour…' : `AOV ${formatCurrency(founderMini?.kpis?.averageOrderValue)}`}
+              label="Volume marchand / actif"
+              value={(founderMini?.kpis?.merchandiseVolumePerActiveUserByCurrency || []).map(row => `${Math.round(row.amount).toLocaleString('fr-FR')} ${row.currency}`).join(' · ') || '—'}
+              helper={founderMiniLoading ? 'Mise à jour…' : 'Ventes marchandes, hors recettes plateforme'}
               icon={ArrowTrendingUpIcon}
             />
             <SectionStatCard
@@ -1825,7 +1825,7 @@ export default function AdminDashboard() {
             <SectionStatCard
               label="Paiement comptant"
               value={`${Number(founderMini?.kpis?.fullPaymentConversion?.adoptionRate || 0).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`}
-              helper={`${formatNumber(founderMini?.kpis?.fullPaymentConversion?.ordersPaidInFull)} commandes · ${formatCurrency(founderMini?.kpis?.fullPaymentConversion?.waivedDeliveryAmount)}`}
+              helper={`${formatNumber(founderMini?.kpis?.fullPaymentConversion?.ordersPaidInFull)} commandes · ${((founderMini?.kpis?.fullPaymentConversion?.waivedDeliveryByCurrency || []).map(row => `${Math.round(row.amount).toLocaleString('fr-FR')} ${row.currency}`).join(' · ') || 'livraison offerte')}`}
               icon={SparklesIcon}
             />
           </div>

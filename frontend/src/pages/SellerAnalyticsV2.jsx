@@ -1,3 +1,4 @@
+import { AiReportPanel } from '../components/commerce-ai/AiPanel';
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeftIcon, ArrowTrendingUpIcon, ChartBarIcon, CubeIcon, CurrencyDollarIcon, EyeIcon, ShoppingCartIcon, UsersIcon } from '@heroicons/react/24/outline';
@@ -177,6 +178,7 @@ export default function SellerAnalyticsV2() {
             </Link>
           </div>
         )}
+        {!isAssistant && <AiReportPanel />}
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && overview && (
           <div className="space-y-4">

@@ -23,7 +23,7 @@ export const globalSearch = asyncHandler(async (req, res) => {
     condition: conditionFilter
   } = req.query;
 
-  if (!q || !q.trim()) {
+  if (!q || typeof q === 'string' && !q.trim()) {
     return res.json({ 
       products: [],
       shops: [],
@@ -37,7 +37,8 @@ export const globalSearch = asyncHandler(async (req, res) => {
     });
   }
 
-  const regex = new RegExp(q.trim(), 'i');
+  if (typeof q !== 'string' || q.length > 200) return res.status(400).json({ message: 'Recherche invalide.' });
+  const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
   const query = q.trim();
   const matchingTags = await Tag.find({
     status: 'active',

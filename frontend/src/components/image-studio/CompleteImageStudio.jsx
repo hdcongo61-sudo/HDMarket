@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import FilerobotImageEditor, { TABS, TOOLS } from 'react-filerobot-image-editor';
 import Konva from 'konva';
 import { preserveEditorResolution } from './editorResolution';
+import PaidImageEditor from './PaidImageEditor';
 import BaseModal from '../modals/BaseModal';
 import { editorOutputToFile } from './editorExport';
 import translations from './editorTranslationsFr';
@@ -9,6 +10,7 @@ import { removeBackgroundLocally } from './backgroundRemoval';
 
 export default function CompleteImageStudio({ image, sourceIndex, onSave, onClose }) {
   useEffect(() => preserveEditorResolution(Konva), []);
+  const [paidOpen, setPaidOpen] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -105,6 +107,14 @@ export default function CompleteImageStudio({ image, sourceIndex, onSave, onClos
               : 'Traitement sur votre appareil. Le premier usage télécharge le modèle ; cela peut prendre quelques minutes.'}
         </p>
       </div>
+      <div className="shrink-0 border-b px-4 py-2"><button type="button" disabled={saving || removing} onClick={() => setPaidOpen(!paidOpen)} aria-expanded={paidOpen} className="min-h-11 rounded-full border border-orange-300 px-4 text-sm font-bold text-orange-800">Retouche IA · Paiement par photo</button></div>
+      {paidOpen && <div className="max-h-[60vh] shrink-0 overflow-y-auto border-b p-4"><PaidImageEditor getImageFile={async () => {
+        if (!imageDataRef.current) throw new Error('Attendez le chargement de la photo.');
+        const { imageData } = imageDataRef.current({ extension: 'png', quality: 1 }, 1);
+        return editorOutputToFile(imageData, image?.name);
+      }} onApply={async file => {
+        const url = URL.createObjectURL(file); objectUrls.current.push(url); setSource(url); dirty.current = true; setPaidOpen(false);
+      }} /></div>}
       {error && <p role="alert" className="shrink-0 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       {saving && <p role="status" className="shrink-0 bg-orange-50 px-4 py-2 text-sm">Enregistrement de la photo…</p>}
       {confirmClose && <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 bg-amber-50 px-4 py-3 text-sm">

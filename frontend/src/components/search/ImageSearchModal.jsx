@@ -56,6 +56,17 @@ const extractDominantColor = (file, selection) =>
 
 export default function ImageSearchModal({ open, onClose }) {
   const requestRef = useRef(null);
+  const aiRequest = useRef(null);
+  const aiCache = useRef(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const controller = new AbortController();
+    api.get('/search/ai/capabilities', { signal: controller.signal }).then(({ data }) => setAiEnabled(Boolean(data.image))).catch(() => setAiEnabled(false));
+    return () => { controller.abort(); aiRequest.current?.abort(); };
+  }, [open]);
   const [selection, setSelection] = useState({ zoom: 1, x: 50, y: 50 });
   const [filters, setFilters] = useState({ query: '', minPrice: '', maxPrice: '', sort: 'similarity' });
   const [hasMore, setHasMore] = useState(false);
@@ -73,6 +84,7 @@ export default function ImageSearchModal({ open, onClose }) {
   useEffect(() => {
     if (!open) {
       requestRef.current?.abort();
+      aiRequest.current?.abort(); aiCache.current = null; setAiBusy(false); setAiSuggestion(null);
       setLastFile(null);
       setCropPreview('');
       setApplied(null);
@@ -141,10 +153,32 @@ export default function ImageSearchModal({ open, onClose }) {
     }
   };
 
+  const identifyProduct = async () => {
+    if (!lastFile || aiBusy) return;
+    const controller = new AbortController(); aiRequest.current = controller;
+    setAiBusy(true); setError(''); setAiSuggestion(null);
+    try {
+      const crop = await extractDominantColor(lastFile, selection);
+      if (controller.signal.aborted) return;
+      let suggestion;
+      if (aiCache.current?.preview === crop.preview) suggestion = aiCache.current.result;
+      else {
+        const { data } = await api.post('/search/ai/image', { image: crop.preview }, { signal: controller.signal, timeout: 30000 });
+        suggestion = data;
+        if (!controller.signal.aborted) aiCache.current = { preview: crop.preview, result: data };
+      }
+      if (!controller.signal.aborted) {
+        if (suggestion.query) setAiSuggestion(suggestion);
+        else setError('L’IA ne reconnaît pas de produit. Recadrez la photo ou saisissez un mot-clé.');
+      }
+    } catch (e) { if (!controller.signal.aborted) setError(e.response?.data?.message || 'Reconnaissance indisponible. La recherche par couleur reste disponible.'); }
+    finally { if (!controller.signal.aborted) setAiBusy(false); }
+  };
   const handleFile = (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (file) {
+      aiRequest.current?.abort(); aiCache.current = null; setAiBusy(false); setAiSuggestion(null);
       const reset = { zoom: 1, x: 50, y: 50 };
       setSelection(reset);
       searchFile(file, false, reset);
@@ -155,7 +189,7 @@ export default function ImageSearchModal({ open, onClose }) {
     <BaseModal isOpen={open} onClose={onClose} size="lg" mobileSheet>
       <ModalHeader
         title="Recherche par image"
-        subtitle="Trouvez des produits aux couleurs proches. Ajoutez une photo nette : cette recherche ne reconnaît pas les objets."
+        subtitle={aiEnabled ? "Reconnaissez un article avec l’IA, puis recherchez des produits de ce type et de couleurs proches." : "Trouvez des produits aux couleurs proches, ou précisez le type de produit."}
         onClose={onClose}
       />
       <ModalBody>
@@ -179,8 +213,10 @@ export default function ImageSearchModal({ open, onClose }) {
 
         {lastFile ? <form onSubmit={event => { event.preventDefault(); searchFile(lastFile); }} className="mt-4 space-y-4 rounded-2xl border border-orange-100 bg-orange-50/40 p-4 dark:border-neutral-700 dark:bg-neutral-900">
           <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-3"><legend className="mb-2 text-sm font-bold">Cadrer l’article</legend>
-            {[['zoom', 'Zoom', 1, 4, 0.1], ['x', 'Position horizontale', 0, 100, 1], ['y', 'Position verticale', 0, 100, 1]].map(([key, label, min, max, step]) => <label key={key} className="text-xs font-medium">{label}<input type="range" min={min} max={max} step={step} value={selection[key]} onChange={event => setSelection(previous => ({ ...previous, [key]: Number(event.target.value) }))} className="mt-2 block w-full accent-orange-600" /></label>)}
+            {[['zoom', 'Zoom', 1, 4, 0.1], ['x', 'Position horizontale', 0, 100, 1], ['y', 'Position verticale', 0, 100, 1]].map(([key, label, min, max, step]) => <label key={key} className="text-xs font-medium">{label}<input type="range" min={min} max={max} step={step} value={selection[key]} onChange={event => { aiRequest.current?.abort(); setAiBusy(false); setAiSuggestion(null); setSelection(previous => ({ ...previous, [key]: Number(event.target.value) })); }} className="mt-2 block w-full accent-orange-600" /></label>)}
           </fieldset>
+          {aiEnabled && <div className="space-y-2"><button type="button" disabled={aiBusy || loading} onClick={identifyProduct} className="min-h-11 rounded-xl border border-orange-300 bg-white px-4 text-sm font-bold text-orange-800">{aiBusy ? 'Reconnaissance…' : 'Identifier cet article avec l’IA'}</button><p className="text-xs text-neutral-500">Seul l’aperçu recadré est envoyé à OpenAI. La reconnaissance peut se tromper : vérifiez le mot-clé proposé.</p></div>}
+          {aiSuggestion && <div className="space-y-2 rounded-xl border p-3"><p className="text-sm font-semibold">Article proposé : {aiSuggestion.query}</p><p className="text-xs">{aiSuggestion.label}</p><button type="button" onClick={() => { setFilters(previous => ({ ...previous, query: aiSuggestion.query })); setAiSuggestion(null); }} className="min-h-11 rounded-lg border px-3 text-xs font-bold">Utiliser ce mot-clé, puis appliquer les filtres</button></div>}
           <label className="block text-xs font-bold">Préciser le produit<input value={filters.query} maxLength={100} onChange={event => setFilters(previous => ({ ...previous, query: event.target.value }))} placeholder="Ex. sac, chaussures, robe…" className="mt-1 w-full rounded-xl border p-3 text-sm dark:bg-neutral-950" /></label>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs">Prix minimum<input type="number" min="0" value={filters.minPrice} onChange={event => setFilters(previous => ({ ...previous, minPrice: event.target.value }))} className="mt-1 w-full rounded-lg border p-2 dark:bg-neutral-950" /></label>

@@ -15,6 +15,20 @@ export const normalizeConfigEnvironment = (value = '') => {
 };
 
 export const RUNTIME_SETTINGS_CATALOG = Object.freeze({
+  commerce_ai_enabled: { category: 'fees_rules', description: 'Activer coach, assistant achats, suggestions, réponses et brief fondateur.', valueType: 'boolean', defaultValue: false, isPublic: true },
+  commerce_ai_daily_budget_xaf: { category: 'fees_rules', description: 'Budget de réservation IA par jour UTC, partagé entre serveurs (estimation, pas facture fournisseur).', valueType: 'number', defaultValue: 10000, min: 0, max: 10000000, isPublic: false },
+  commerce_ai_user_daily_calls: { category: 'fees_rules', description: 'Nombre maximum de requêtes IA par utilisateur ou visiteur et par jour UTC.', valueType: 'number', defaultValue: 20, min: 0, max: 1000, isPublic: false },
+  commerce_ai_text_reserve_xaf: { category: 'fees_rules', description: 'Réservation estimée FCFA pour une génération de texte.', valueType: 'number', defaultValue: 10, min: 1, max: 100000, isPublic: false },
+  commerce_ai_image_reserve_xaf: { category: 'fees_rules', description: 'Réservation estimée FCFA pour une tentative de retouche photo.', valueType: 'number', defaultValue: 200, min: 1, max: 100000, isPublic: false },
+  commerce_ai_input_usd_million: { category: 'fees_rules', description: 'Coût estimé USD par million de tokens entrants du modèle texte (0 = inconnu).', valueType: 'number', defaultValue: 0, min: 0, max: 10000, isPublic: false },
+  commerce_ai_output_usd_million: { category: 'fees_rules', description: 'Coût estimé USD par million de tokens sortants du modèle texte (0 = inconnu).', valueType: 'number', defaultValue: 0, min: 0, max: 10000, isPublic: false },
+  image_edit_price_marketing: { category: 'fees_rules', description: 'Pack marketing : une photo retouchée, deux bannières et textes sociaux. Prix total FCFA.', valueType: 'number', defaultValue: 1500, min: 10, max: 1000000, isPublic: true },
+  image_edit_ai_enabled: { category: 'fees_rules', description: 'Activer les retouches photo IA payantes (OpenAI et PawaPay requis).', valueType: 'boolean', defaultValue: false, isPublic: true },
+  image_edit_price_background: { category: 'fees_rules', description: 'Changement de fond : prix par photo en FCFA (XAF).', valueType: 'number', defaultValue: 500, min: 10, max: 1000000, isPublic: true },
+  image_edit_price_cleanup: { category: 'fees_rules', description: 'Retrait d’un élément : prix par photo en FCFA (XAF).', valueType: 'number', defaultValue: 500, min: 10, max: 1000000, isPublic: true },
+  image_edit_price_lighting: { category: 'fees_rules', description: 'Éclairage : prix par photo en FCFA (XAF).', valueType: 'number', defaultValue: 500, min: 10, max: 1000000, isPublic: true },
+  image_edit_price_custom: { category: 'fees_rules', description: 'Retouche personnalisée : prix par photo en FCFA (XAF).', valueType: 'number', defaultValue: 500, min: 10, max: 1000000, isPublic: true },
+
   commission_rate: {
     category: 'fees_rules',
     description: 'Commission plateforme (%) appliquée sur les ventes.',
@@ -1811,6 +1825,7 @@ export const validateSettingValue = (key, value) => {
       return { ok: false, message: `${key} must be a valid number.` };
     }
     const numericValue = Number(coerced);
+    if (key.startsWith('image_edit_price_') && !Number.isInteger(numericValue)) return { ok: false, message: 'Le prix par photo doit être un nombre entier de FCFA.' };
     if (metadata.min !== undefined && numericValue < metadata.min) {
       return { ok: false, message: `${key} must be >= ${metadata.min}.` };
     }

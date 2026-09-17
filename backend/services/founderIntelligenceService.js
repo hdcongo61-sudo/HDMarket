@@ -1,3 +1,4 @@
+import { getPlatformFinance } from './platformFinanceService.js';
 import mongoose from 'mongoose';
 import Order from '../models/orderModel.js';
 import User from '../models/userModel.js';
@@ -14,7 +15,7 @@ const ENV = String(process.env.CACHE_ENV || process.env.NODE_ENV || 'dev')
   ? 'prod'
   : 'dev';
 
-const FOUNDER_CACHE_KEY = `${ENV}:founder:intelligence`;
+const FOUNDER_CACHE_KEY = `${ENV}:founder:intelligence:v2`;
 const FOUNDER_CACHE_TTL_SECONDS = Math.max(
   30,
   Number(process.env.FOUNDER_INTELLIGENCE_CACHE_SECONDS || 60)
@@ -387,8 +388,6 @@ export const computeFounderIntelligence = async () => {
   const revenue30 = asNumber(revenueAgg30?.[0]?.revenue || 0);
   const orders30 = asNumber(ordersAgg30?.[0]?.count || 0);
   const activeUsers30 = active30Ids.length;
-  const avgOrderValue = safeDiv(revenue30, orders30);
-  const revenuePerActiveUser = safeDiv(revenue30, activeUsers30);
 
   const active7Set = new Set(active7Ids.map(normalizeId));
   const activePrev7Set = new Set(activePrev7Ids.map(normalizeId));
@@ -569,7 +568,7 @@ export const computeFounderIntelligence = async () => {
   const pushOpened = asNumber(pushOpenAgg?.[0]?.opened || 0);
   const shortSessions = asNumber(shortSessionAgg?.[0]?.short || 0);
   const totalSessions = asNumber(shortSessionAgg?.[0]?.total || 0);
-  const [fullPaymentAgg30] = await Order.aggregate([
+  const fullPaymentRows = await Order.aggregate([
     {
       $match: {
         createdAt: { $gte: start30 },
@@ -578,7 +577,7 @@ export const computeFounderIntelligence = async () => {
     },
     {
       $group: {
-        _id: null,
+        _id: { $ifNull: ['$currency', 'UNKNOWN'] },
         ordersPaidInFull: {
           $sum: {
             $cond: [{ $eq: ['$paymentMode', 'FULL_PAYMENT'] }, 1, 0]
@@ -606,21 +605,22 @@ export const computeFounderIntelligence = async () => {
   const timeToFirstPurchaseHours = asNumber(timeToFirstPurchaseAgg?.[0]?.avgHours || 0);
   const growthVelocityDaily = pct(newUsersToday - newUsersYesterday, Math.max(newUsersYesterday, 1));
   const growthVelocityWeekly = pct(newUsersWeek - newUsersPrevWeek, Math.max(newUsersPrevWeek, 1));
-  const ordersPaidInFull = asNumber(fullPaymentAgg30?.ordersPaidInFull || 0);
+  const fullPaymentAgg30 = fullPaymentRows.reduce((total, row) => ({ ordersPaidInFull: total.ordersPaidInFull + asNumber(row.ordersPaidInFull), deliveryFeesWaivedCount: total.deliveryFeesWaivedCount + asNumber(row.deliveryFeesWaivedCount) }), { ordersPaidInFull: 0, deliveryFeesWaivedCount: 0 });
+  const ordersPaidInFull = fullPaymentAgg30.ordersPaidInFull;
   const deliveryFeesWaivedCount = asNumber(fullPaymentAgg30?.deliveryFeesWaivedCount || 0);
-  const deliverySavingsGenerated = asNumber(fullPaymentAgg30?.deliverySavingsGenerated || 0);
-  const waivedDeliveryAmount = asNumber(fullPaymentAgg30?.waivedDeliveryAmount || 0);
   const fullPaymentAdoptionRate = pct(ordersPaidInFull, Math.max(orders30, 1));
 
+  const finance = await getPlatformFinance();
   const responseSummary = {
+    finance,
     generatedAt: now.toISOString(),
     cacheTtlSeconds: FOUNDER_CACHE_TTL_SECONDS,
     kpis: {
-      revenuePerActiveUser: Number(revenuePerActiveUser.toFixed(2)),
+      merchandiseVolumePerActiveUserByCurrency: finance.merchandise.map(row => ({ currency: row._id, amount: safeDiv(row.amount, activeUsers30) })),
       conversionRateByCity: conversionByCity,
       retention7Day,
       retention30Day,
-      averageOrderValue: Number(avgOrderValue.toFixed(2)),
+      averageOrderValueByCurrency: finance.merchandise.map(row => ({ currency: row._id, amount: safeDiv(row.amount, row.orders) })),
       churnDetectionRate,
       timeToFirstPurchaseHours: Number(timeToFirstPurchaseHours.toFixed(2)),
       growthVelocity: {
@@ -631,8 +631,8 @@ export const computeFounderIntelligence = async () => {
         adoptionRate: fullPaymentAdoptionRate,
         ordersPaidInFull,
         deliveryFeesWaivedCount,
-        waivedDeliveryAmount: Number(waivedDeliveryAmount.toFixed(2)),
-        revenueImpact: Number(deliverySavingsGenerated.toFixed(2))
+        waivedDeliveryByCurrency: fullPaymentRows.map(row => ({ currency: row._id, amount: asNumber(row.waivedDeliveryAmount) })),
+        merchandiseVolumeByCurrency: fullPaymentRows.map(row => ({ currency: row._id, amount: asNumber(row.deliverySavingsGenerated) }))
       },
       newVsReturningRatio: {
         newUsers: newActiveUsersCount,
@@ -684,16 +684,16 @@ export const computeFounderIntelligence = async () => {
         dailyNewUsersEstimate: Math.max(0, Math.round((newUsersToday + newUsersYesterday) / 2)),
         weeklyNewUsersEstimate: Math.max(0, Math.round((newUsersWeek + newUsersPrevWeek) / 2))
       },
-      revenueForecast30Days: Number((revenue30 * (1 + growthVelocityWeekly / 100)).toFixed(2)),
+      merchandiseForecast30DaysByCurrency: finance.merchandise.map(row => ({ currency: row._id, amount: row.amount * (1 + growthVelocityWeekly / 100) })),
       sellerChurnRiskCount: sellerRanking.filter((entry) => entry.riskScore >= 40).length,
       engagementDeclineRiskCount: potentialChurnUsers.length
     },
     executiveSummary: {
-      revenueLast30Days: Number(revenue30.toFixed(2)),
+      merchandiseLast30DaysByCurrency: finance.merchandise,
       activeUsers30Days: activeUsers30,
       ordersLast30Days: orders30,
       fullPaymentOrdersLast30Days: ordersPaidInFull,
-      waivedDeliveryAmount: Number(waivedDeliveryAmount.toFixed(2)),
+      waivedDeliveryByCurrency: fullPaymentRows.map(row => ({ currency: row._id, amount: asNumber(row.waivedDeliveryAmount) })),
       keyRisks: [
         `${inactiveHighValueUsers.length} utilisateurs à forte valeur sont inactifs.`,
         `${sellerRanking.filter((entry) => entry.riskScore >= 40).length} vendeurs ont un score de risque élevé.`,

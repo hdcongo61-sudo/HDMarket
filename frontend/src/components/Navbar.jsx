@@ -1,3 +1,4 @@
+import { searchIntentPath } from '../utils/aiSearchIntent';
 import SearchMediaControls from './search/SearchMediaControls';
 import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
@@ -1412,7 +1413,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
   };
 
   // Voice search result → straight to the full search page.
-  const handleVoiceResult = (text) => {
+  const handleVoiceResult = (text, intent = {}) => {
     const term = String(text || '').trim();
     if (!term) return;
     triggerHaptic(50);
@@ -1420,7 +1421,7 @@ export default function Navbar({ hideMobileTabBar = false }) {
     setShowResults(false);
     setIsSearchFullScreen(false);
     setIsHistoryPanelOpen(false);
-    navigate(`/search?q=${encodeURIComponent(term)}`);
+    navigate(searchIntentPath(term, intent));
   };
 
   const handleSearchKeyDown = (event) => {
