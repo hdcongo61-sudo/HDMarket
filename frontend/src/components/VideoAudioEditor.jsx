@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { editVideoAudio } from '../services/videoAudioEditor';
 import AuthContext from '../context/AuthContext';
 import { listSavedVideoSounds, rememberVideoSound, removeSavedVideoSound, SAVED_SOUNDS_CHANGED } from '../services/savedVideoSounds';

@@ -1,5 +1,34 @@
 import { test, expect } from '@playwright/test';
 
+test('audio editor mounts and exposes all sound modes without crashing', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/audio-editor-ui-test', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<html><body><div id="root"></div></body></html>'
+  }));
+  await page.goto('/audio-editor-ui-test');
+  await page.evaluate(async () => {
+    const { default: React } = await import('/node_modules/.vite-tailwind4/deps/react.js');
+    const { default: ReactDOM } = await import('/node_modules/.vite-tailwind4/deps/react-dom_client.js');
+    const { default: VideoAudioEditor } = await import('/src/components/VideoAudioEditor.jsx');
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(VideoAudioEditor, {
+      file: new File([], 'video.mp4', { type: 'video/mp4' }),
+      onApply: () => {}
+    }));
+  });
+  await expect.poll(() => errors.length || page.locator('summary').count()).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+  await page.getByText('Modifier le son', { exact: true }).click();
+  const modes = page.getByRole('combobox');
+  await expect(modes).toHaveValue('mute');
+  await modes.selectOption('replace');
+  await expect(page.getByLabel('Musique ou enregistrement (20 Mo maximum)')).toBeVisible();
+  await modes.selectOption('mix');
+  await expect(page.getByRole('slider', { name: 'Volume du son original' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('renders mute, replacement and mixed audio into playable individual files', async ({ page }) => {
   await page.route('**/audio-editor-test', route => route.fulfill({ contentType: 'text/html', body: '<html><body>Audio test</body></html>' }));
   await page.goto('/audio-editor-test');
