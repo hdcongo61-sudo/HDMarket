@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { Link } from 'react-router-dom';
 import { ArrowPathIcon, ArrowUpTrayIcon, BuildingStorefrontIcon, ChartBarIcon, CheckCircleIcon, CheckIcon, ClockIcon, CursorArrowRaysIcon, EyeIcon, HeartIcon, PlayIcon, PlusIcon, ShoppingCartIcon, TrashIcon, WifiIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api, { isApiCanceledError } from '../services/api';
+import VideoAudioEditor from '../components/VideoAudioEditor';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useToast } from '../context/ToastContext';
@@ -661,6 +662,15 @@ export default function SellerProductVideos() {
                     <p className={`mt-1 text-[11px] font-semibold ${fileStatus === 'error' ? 'text-rose-600 dark:text-rose-300' : fileStatus === 'cancelled' ? 'text-amber-700 dark:text-amber-300' : fileStatus === 'completed' ? 'text-emerald-700 dark:text-emerald-300' : 'text-neutral-500'}`}>
                       {statusMessage}
                     </p>
+                    {!fileState.session && fileStatus !== 'completed' && <VideoAudioEditor
+                      file={file}
+                      disabled={uploading}
+                      onApply={edited => {
+                        setFiles(current => current.map((item, position) => position === index ? edited : item));
+                        setFileUploadProgress(current => current.map((item, position) => position === index ? 0 : item));
+                        setFileUploadStates(current => current.map((item, position) => position === index ? { status: 'ready', session: null, error: '' } : item));
+                      }}
+                    />}
                   </div>
                 );
               })}

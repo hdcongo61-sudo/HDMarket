@@ -1,5 +1,6 @@
 import MarketingPackLauncher from './commerce-ai/MarketingPackLauncher';
 import ProductWritingAssistant from './ProductWritingAssistant';
+import VideoAudioEditor from './VideoAudioEditor';
 import StudioErrorBoundary from './image-studio/StudioErrorBoundary';
 import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import api, { isApiPossiblyCommittedError } from '../services/api';
@@ -4117,6 +4118,7 @@ export default function ProductForm(props) {
                     Le son est coupé : la vidéo sera publiée sans audio.
                   </p>
                 )}
+                <VideoAudioEditor file={videoFile} disabled={isUploadingVideo} maxBytes={MAX_VIDEO_SIZE_BYTES} onApply={edited => { setVideoFile(edited); setVideoMuted(false); }} />
                 <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 truncate font-medium">{videoFile.name}</p>
