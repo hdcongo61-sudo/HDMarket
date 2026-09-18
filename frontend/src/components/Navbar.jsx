@@ -4823,19 +4823,19 @@ className={`h-4 w-4 transition-transform duration-200 ${isMoreMenuOpen ? 'rotate
         onTouchMove={handleBottomBarTouchMove}
         onTouchEnd={handleBottomBarTouchEnd}
       >
-        {/* Swipe indicator */}
-        {!bottomBarExpanded && secondaryItems.length > 0 && (
-          <div
-            className="hidden"
+        {secondaryItems.length > 0 && (
+          <button
+            type="button"
+            aria-label={bottomBarExpanded ? t('nav.hideMoreOptions', 'Masquer les options') : t('nav.showMoreOptions', 'Afficher plus d’options')}
+            aria-expanded={bottomBarExpanded}
             onClick={() => {
-              setBottomBarExpanded(true);
+              setBottomBarExpanded((expanded) => !expanded);
               triggerHaptic('medium');
             }}
+            className="absolute -top-3 left-1/2 z-10 grid h-7 w-7 -translate-x-1/2 place-items-center rounded-full border border-[#e2dcd2] bg-white text-[#e85d00] shadow-sm transition hover:bg-[#fff2e6] dark:border-neutral-700 dark:bg-neutral-950"
           >
-            <div className="bg-[#e85d00] text-white p-1.5 rounded-full shadow-sm">
-              <ChevronUpIcon className="animate-bounce h-3 w-3" />
-            </div>
-          </div>
+            {bottomBarExpanded ? <ChevronDownIcon className="h-4 w-4" /> : <ChevronUpIcon className="h-4 w-4 animate-bounce" />}
+          </button>
         )}
 
         <div className={`mx-auto max-w-3xl px-2 transition-all duration-300 ${bottomBarExpanded ? 'py-3' : 'py-2'}`}>

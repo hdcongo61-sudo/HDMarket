@@ -1,5 +1,8 @@
 # Social Commerce Hub
 
+For the practical launch sequence, content plan, creator tracking, paid tests,
+and weekly dashboard, see the [HDMarket social launch guide](social-launch-guide.md).
+
 Connects social traffic (TikTok, Instagram, Facebook) and messaging (WhatsApp,
 Instagram DM, Facebook Messenger) to HDMarket products, while keeping HDMarket
 as the sole source of truth for products, prices, checkout, orders, payments,
