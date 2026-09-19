@@ -25,7 +25,7 @@ export const getListingFeeChangePreview = ({
   approvedPrice = 0,
   currentReferencePrice = 0,
   currentRequiredFee = 0,
-  previouslyPaidFee = 0,
+  previouslyPaidFee = null,
   ratePercent = 0
 } = {}) => {
   const normalizedApprovedPrice = Math.max(0, Number(approvedPrice || 0));
@@ -34,7 +34,9 @@ export const getListingFeeChangePreview = ({
   const normalizedRate = Math.max(0, Number(ratePercent || 0));
   const estimatedPreviouslyPaidFee = Math.max(
     0,
-    Number(previouslyPaidFee || 0) || Math.round((normalizedApprovedPrice * normalizedRate) / 100)
+    previouslyPaidFee !== null && previouslyPaidFee !== undefined && previouslyPaidFee !== ''
+      ? Number(previouslyPaidFee) || 0
+      : Math.round(normalizedApprovedPrice * normalizedRate + Number.EPSILON) / 100
   );
 
   return {

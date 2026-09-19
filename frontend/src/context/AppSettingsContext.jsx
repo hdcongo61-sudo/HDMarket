@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api, { clearCache } from '../services/api';
 import storage from '../utils/storage';
 import AuthContext from './AuthContext';
@@ -94,6 +94,8 @@ const toBoolean = (value, fallback = false) => {
 export const AppSettingsProvider = ({ children }) => {
   const { user, updateUser } = useContext(AuthContext);
   const { country: selectedCountry } = useCountry();
+  const selectedCountryId = String(selectedCountry?.id || selectedCountry?._id || '');
+  const settingsRequestRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [publicSettings, setPublicSettings] = useState({
@@ -167,17 +169,19 @@ export const AppSettingsProvider = ({ children }) => {
   }, []);
 
   const loadPublicSettings = useCallback(async ({ forceRefresh = false } = {}) => {
+    const requestId = ++settingsRequestRef.current;
     const refreshToken = Date.now();
     const getFreshConfig = () =>
       forceRefresh
         ? {
             skipCache: true,
-            headers: { 'x-skip-cache': '1' },
+            headers: { 'x-skip-cache': '1', ...(selectedCountryId ? { 'x-country-id': selectedCountryId } : {}) },
             params: { refresh: refreshToken }
           }
-        : { silentGlobalError: true };
+        : { silentGlobalError: true, headers: selectedCountryId ? { 'x-country-id': selectedCountryId } : {} };
     try {
       const { data } = await api.get('/settings/public', getFreshConfig());
+      if (requestId !== settingsRequestRef.current) return;
       const normalized = normalizePublicPayload(data || {});
       storage.set(STORAGE_KEYS.publicSettings, normalized);
       return normalized;
@@ -188,6 +192,7 @@ export const AppSettingsProvider = ({ children }) => {
         api.get('/settings/communes', getFreshConfig()),
         api.get('/settings/runtime', getFreshConfig())
       ]);
+      if (requestId !== settingsRequestRef.current) return;
 
       const fallbackPayload = {
         app: {},
@@ -226,7 +231,7 @@ export const AppSettingsProvider = ({ children }) => {
       storage.set(STORAGE_KEYS.publicSettings, normalized);
       return normalized;
     }
-  }, [normalizePublicPayload]);
+  }, [normalizePublicPayload, selectedCountryId]);
 
   // Feature flags can be targeted by user, beta membership, role, location, or
   // app version. Refresh the public projection whenever the authenticated user
@@ -247,7 +252,19 @@ export const AppSettingsProvider = ({ children }) => {
         refreshing = false;
       }
     };
-    return subscribeToSettingsRefresh(handleRefresh);
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible') void handleRefresh();
+    };
+    const unsubscribe = subscribeToSettingsRefresh(handleRefresh);
+    window.addEventListener('focus', refreshVisible);
+    document.addEventListener('visibilitychange', refreshVisible);
+    const interval = window.setInterval(refreshVisible, 30_000);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('focus', refreshVisible);
+      document.removeEventListener('visibilitychange', refreshVisible);
+      window.clearInterval(interval);
+    };
   }, [loadPublicSettings]);
 
   useEffect(() => {
@@ -289,7 +306,7 @@ export const AppSettingsProvider = ({ children }) => {
         setAssistantChatEnabledState(storedAssistantChatEnabled !== false);
         setLoading(false);
 
-        loadPublicSettings().catch(() => {});
+        loadPublicSettings({ forceRefresh: true }).catch(() => {});
       } catch {
         if (!mounted) return;
       } finally {
@@ -300,7 +317,7 @@ export const AppSettingsProvider = ({ children }) => {
     return () => {
       mounted = false;
     };
-  }, [loadPublicSettings, user?.preferredLanguage, user?.preferredCurrency, user?.preferredCity, user?.city]);
+  }, [loadPublicSettings, normalizePublicPayload, user?.preferredLanguage, user?.preferredCurrency, user?.preferredCity, user?.city]);
 
   useEffect(() => {
     storage.set(STORAGE_KEYS.language, language);

@@ -32,6 +32,7 @@ const pawapayCheckoutSchema = new mongoose.Schema(
       index: true
     },
     promoCode: { type: String, trim: true, uppercase: true, default: '' },
+    listingFeeSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
     actionContext: { type: mongoose.Schema.Types.Mixed, default: null },
     returnPath: { type: String, default: '/orders', trim: true },
     status: {

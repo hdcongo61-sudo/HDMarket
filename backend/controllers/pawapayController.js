@@ -27,6 +27,8 @@ import { invalidateVerifiedProductCache } from '../utils/publicProductVisibility
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getListingCommissionRate } from '../services/listingCommissionService.js';
+import { getConfirmedListingFee, getPawaPayListingAmount } from '../utils/pawapayListingFee.js';
 import { recordEscrowAudit } from '../services/escrowService.js';
 import { resolvePaymentProvider } from '../services/paymentService.js';
 
@@ -247,6 +249,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     resourceCurrency = imageEditJob.currency;
   }
   let product = null;
+  let listingFeeSnapshot = null;
   if (purpose === 'LISTING_FEE_FUNDING') {
     if (!productId) {
       return sendPawaPayError(
@@ -257,7 +260,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
       );
     }
     product = await Product.findById(productId)
-      .select('_id user status requiresAdditionalPayment countryId currency')
+      .select('_id user status requiresAdditionalPayment countryId currency price attributes')
       .lean();
     if (!product) {
       return sendPawaPayError(res, 404, 'PAWAPAY_PRODUCT_NOT_FOUND', 'Annonce introuvable.');
@@ -283,6 +286,25 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
         'Utilisez le formulaire de complément pour payer uniquement la différence de commission.'
       );
     }
+    const commissionRate = await getListingCommissionRate(product.countryId);
+    const referencePrice = getHighestProductPrice({ productAttributes: product.attributes, basePrice: product.price });
+    const preview = promoCode
+      ? await previewPromoForSeller({ code: promoCode, sellerId: product.user, productPrice: referencePrice, commissionRate })
+      : null;
+    if (promoCode && !preview?.valid) {
+      return sendPawaPayError(res, 400, 'PAWAPAY_LISTING_PROMO_INVALID', preview?.message || 'Code promo invalide.');
+    }
+    const commission = preview?.commission || calculateCommissionBreakdown({ productPrice: referencePrice, commissionRate });
+    const expectedAmount = getPawaPayListingAmount(commission.dueAmount);
+    if (amount !== expectedAmount) {
+      return sendPawaPayError(res, 409, 'PAWAPAY_LISTING_AMOUNT_CHANGED',
+        'La commission de publication a changé. Le montant a été actualisé ; vérifiez-le avant de réessayer.',
+        { expectedAmount, commissionRate, retryable: true });
+    }
+    listingFeeSnapshot = {
+      ...commission, referencePrice, ratePercent: commissionRate,
+      promo: preview?.promo || null, capturedAt: new Date()
+    };
   }
   if (actionContext?.kind === 'SHOP_CONVERSION_REQUEST') {
     const requestId = String(actionContext.requestId || '').trim();
@@ -381,6 +403,7 @@ export const createPawaPayCheckout = asyncHandler(async (req, res) => {
     returnPath,
     product: product?._id || null,
     promoCode,
+    listingFeeSnapshot,
     actionContext,
     autoValidationState: product || actionContext ? 'PENDING' : 'NOT_APPLICABLE'
   });
@@ -1381,7 +1404,8 @@ const autoValidateListingCheckout = async (checkout) => {
   if (!claimed) return checkout.autoValidatedPayment || null;
 
   try {
-    const product = await Product.findById(claimed.product);
+    const product = await Product.findById(claimed.product)
+      .select('+listingFeePaid +listingFeeRequired');
     if (!product) throw new Error('Annonce introuvable pendant la validation automatique PawaPay.');
     if (String(product.user) !== String(claimed.user)) {
       throw new Error('Le bénéficiaire de l’annonce ne correspond pas au paiement PawaPay.');
@@ -1402,7 +1426,7 @@ const autoValidateListingCheckout = async (checkout) => {
           0
       );
       product.listingFeePaid = Math.max(Number(product.listingFeePaid || 0), creditedFee);
-      product.listingFeeRequired = Math.max(Number(product.listingFeeRequired || 0), creditedFee);
+      product.listingFeeRequired = creditedFee;
       product.listingFeeRemaining = 0;
       product.approvedPrice = Number(product.price || 0);
       product.pendingPrice = null;
@@ -1430,28 +1454,14 @@ const autoValidateListingCheckout = async (checkout) => {
       return existingPayment;
     }
 
-    const commissionRateValue = Number(await getRuntimeConfig('commission_rate', { fallback: 3 }));
-    const commissionRate = Number.isFinite(commissionRateValue) ? commissionRateValue : 3;
-    const referencePrice = getHighestProductPrice({
+    const commission = getConfirmedListingFee(claimed);
+    const commissionRate = commission.ratePercent;
+    const referencePrice = commission.referencePrice ?? getHighestProductPrice({
       productAttributes: product.attributes,
       basePrice: product.price
     });
     const normalizedPromo = normalizePromoCode(claimed.promoCode);
-    const promoPreview = normalizedPromo
-      ? await previewPromoForSeller({
-          code: normalizedPromo,
-          sellerId: claimed.user,
-          productPrice: referencePrice,
-          commissionRate
-        })
-      : null;
-    if (normalizedPromo && !promoPreview?.valid) {
-      throw new Error(promoPreview?.message || 'Le code promo ne peut plus être appliqué.');
-    }
-    const commission =
-      promoPreview?.commission ||
-      calculateCommissionBreakdown({ productPrice: referencePrice, commissionRate });
-    const dueAmount = Number(Number(commission.dueAmount || 0).toFixed(2));
+    const dueAmount = commission.dueAmount;
 
     const payment = await Payment.create({
       user: claimed.user,
@@ -1462,23 +1472,23 @@ const autoValidateListingCheckout = async (checkout) => {
       payerPhoneNumber: '',
       transactionNumber: claimed.checkoutId,
       transactionId: `pawapay-listing-${claimed.checkoutId}`,
-      amount: dueAmount,
-      expectedAmount: dueAmount,
-      amountPaid: dueAmount,
+      amount: commission.amountPaid,
+      expectedAmount: commission.amountPaid,
+      amountPaid: commission.amountPaid,
       currency: claimed.currency || product.currency || 'XAF',
       countryId: claimed.countryId || product.countryId || null,
       commissionReferencePrice: referencePrice,
       commissionBaseAmount: Number(commission.baseAmount || 0),
       commissionDiscountAmount: Number(commission.discountAmount || 0),
       commissionDueAmount: dueAmount,
-      waivedByPromo: Boolean(commission.isWaived && normalizedPromo),
+      waivedByPromo: false,
       promoCodeValue: normalizedPromo || '',
-      promoDiscountType: promoPreview?.promo?.discountType || null,
-      promoDiscountValue: Number(promoPreview?.promo?.discountValue || 0),
+      promoDiscountType: commission.promo?.discountType || null,
+      promoDiscountValue: Number(commission.promo?.discountValue || 0),
       operator: 'OTHER',
       paymentType: 'LISTING_FEE',
       verificationMethod: 'WEBHOOK',
-      paymentMethod: dueAmount > 0 ? 'pawapay' : 'promo',
+      paymentMethod: 'pawapay',
       status: 'verified',
       verifiedBy: claimed.user,
       verifiedAt: new Date(),
@@ -1502,8 +1512,8 @@ const autoValidateListingCheckout = async (checkout) => {
           const consumed = await consumePromoCodeForSeller({
             code: normalizedPromo,
             sellerId: claimed.user,
-            product,
-            commissionRate,
+            productPrice: referencePrice,
+            commissionRate: commissionRate ?? 0,
             paymentId: payment._id
           });
           if (consumed?.promo) {
@@ -1528,8 +1538,11 @@ const autoValidateListingCheckout = async (checkout) => {
     product.payment = payment._id;
     product.status = 'approved';
     const creditedFee = Number(commission.baseAmount || dueAmount || 0);
+    product.listingFeeRate = commissionRate !== null
+      ? commissionRate / 100
+      : referencePrice > 0 ? creditedFee / referencePrice : 0;
     product.listingFeePaid = Math.max(Number(product.listingFeePaid || 0), creditedFee);
-    product.listingFeeRequired = Math.max(Number(product.listingFeeRequired || 0), creditedFee);
+    product.listingFeeRequired = creditedFee;
     product.listingFeeRemaining = 0;
     product.approvedPrice = Number(product.price || 0);
     product.pendingPrice = null;
@@ -1557,7 +1570,7 @@ const autoValidateListingCheckout = async (checkout) => {
       checkout: claimed,
       payment,
       product,
-      amount: dueAmount
+      amount: commission.amountPaid
     });
     return payment;
   } catch (error) {

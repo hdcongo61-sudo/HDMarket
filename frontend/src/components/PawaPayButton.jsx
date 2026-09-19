@@ -4,6 +4,7 @@ import { ArrowPathIcon, ArrowUpRightIcon, ShieldCheckIcon } from '@heroicons/rea
 import api from '../services/api';
 import { getPawaPayRequestError } from '../utils/pawapayErrors';
 import { createIdempotencyKey } from '../utils/idempotency';
+import { emitSettingsRefresh } from '../utils/settingsRefresh';
 import { formatPriceWithStoredSettings } from '../utils/priceFormatter';
 import {
   createPawaPayRouteState,
@@ -143,6 +144,9 @@ export default function PawaPayButton({
       paymentWindow.opener = null;
       paymentWindow.location.assign(paymentUrl);
     } catch (requestError) {
+      if (requestError?.response?.data?.code === 'PAWAPAY_LISTING_AMOUNT_CHANGED') {
+        emitSettingsRefresh();
+      }
       try {
         paymentWindow?.close();
       } catch {

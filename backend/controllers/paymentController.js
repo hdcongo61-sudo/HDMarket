@@ -12,7 +12,7 @@ import { invalidateVerifiedProductCache } from '../utils/publicProductVisibility
 import { dispatchSideEffect } from '../utils/dispatchSideEffect.js';
 import { calculateCommissionBreakdown, normalizePromoCode } from '../utils/promoCodeUtils.js';
 import { consumePromoCodeForSeller, previewPromoForSeller } from '../utils/promoCodeService.js';
-import { getRuntimeConfig } from '../services/configService.js';
+import { getListingCommissionRate } from '../services/listingCommissionService.js';
 import { getHighestProductPrice } from '../utils/productAttributes.js';
 import {
   isTransactionCodeAlreadyUsed,
@@ -49,12 +49,7 @@ export const createPayment = asyncHandler(async (req, res) => {
 
   const sellerId = req.user.id;
   const normalizedPromo = normalizePromoCode(promoCode);
-  const configuredCommissionRate = Number(
-    await getRuntimeConfig('commission_rate', { fallback: 3 })
-  );
-  const commissionRate = Number.isFinite(configuredCommissionRate)
-    ? configuredCommissionRate
-    : 3;
+  const commissionRate = await getListingCommissionRate(product.countryId);
   const highestListingPrice = getHighestProductPrice({
     productAttributes: product.attributes,
     basePrice: product.price
@@ -124,6 +119,7 @@ export const createPayment = asyncHandler(async (req, res) => {
     expectedAmount: Number(commission.dueAmount || 0),
     amountPaid: received,
     currency: 'XAF',
+    countryId: product.countryId || null,
     commissionReferencePrice: highestListingPrice,
     commissionBaseAmount: Number(commission.baseAmount || 0),
     commissionDiscountAmount: Number(commission.discountAmount || 0),
@@ -571,7 +567,8 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   payment.verifiedAt = payment.validatedAt;
   await payment.save();
 
-  const product = await Product.findById(payment.product?._id || payment.product);
+  const product = await Product.findById(payment.product?._id || payment.product)
+    .select('+listingFeePaid +listingFeeRequired');
   if (!product) return res.status(404).json({ message: 'Product not found' });
   product.status = 'approved';
   product.payment = payment._id;
@@ -579,10 +576,10 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     payment.commissionBaseAmount ?? payment.commissionDueAmount ?? payment.amountPaid ?? payment.amount ?? 0
   );
   product.listingFeePaid = Math.max(Number(product.listingFeePaid || 0), creditedListingFee);
-  product.listingFeeRequired = Math.max(
-    Number(product.listingFeeRequired || 0),
-    creditedListingFee
-  );
+  product.listingFeeRequired = creditedListingFee;
+  if (payment.commissionReferencePrice > 0) {
+    product.listingFeeRate = creditedListingFee / payment.commissionReferencePrice;
+  }
   product.listingFeeRemaining = 0;
   product.approvedPrice = Number(product.price || 0);
   product.pendingPrice = null;

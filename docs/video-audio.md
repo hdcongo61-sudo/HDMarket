@@ -1,16 +1,21 @@
-# Modifier le son avant l’envoi
+# Couper le son avant l’envoi
 
-Dans le formulaire produit ou dans chaque vidéo sélectionnée de **Mes HDMarket Videos**, ouvrez **Modifier le son**.
+La seule modification audio proposée est la suppression du son. L’ajout de musique, le mélange audio et la bibliothèque de sons enregistrés ont été retirés.
 
-1. Choisissez **Couper**, **Remplacer** ou **Mélanger**.
-2. Pour remplacer ou mélanger, sélectionnez une piste audio locale (20 Mo maximum). Réglez le volume ajouté et, pour un mélange, celui de la vidéo originale.
-3. Cliquez **Préparer l’aperçu**, écoutez le résultat puis **Appliquer ce son à la vidéo**. Sans application, le fichier sélectionné reste inchangé.
-4. Envoyez la vidéo normalement. Chaque fichier conserve son propre résultat et les reprises utilisent le même fichier préparé.
+## Formulaire produit
 
-Après avoir appliqué une piste, elle est conservée localement dans les **4 sons les plus utilisés** de ce compte. Elle est proposée dans les deux éditeurs, avec son compteur d’utilisation et un bouton **Retirer**. Les fichiers restent dans le stockage du navigateur et ne sont pas envoyés à HDMarket avant d’être utilisés dans une vidéo.
+Après avoir sélectionné une vidéo, utilisez le bouton **Couper le son** de son aperçu. Un message confirme que la vidéo sera publiée sans audio. Le bouton **Activer le son** permet de revenir au son original avant l’envoi. Le serveur supprime la piste audio lors de l’envoi du nouveau fichier ; aucun réencodage local supplémentaire n’est nécessaire.
 
-La piste commence au début de la vidéo, boucle si elle est plus courte et s’arrête avec la vidéo. La préparation locale utilise les codecs disponibles dans le navigateur, jusqu’à 1920 pixels sur le côté le plus long et 30 images/seconde. Elle réencode donc la vidéo et peut modifier sa taille ou sa qualité. Gardez l’onglet visible. Un navigateur incompatible ou un fichier audio illisible affiche une erreur sans remplacer le fichier initial.
+Le bouton de volume sur une vidéo déjà publiée ne modifie que sa lecture dans l’aperçu. Pour publier une version sans son, sélectionnez à nouveau le fichier et activez **Couper le son** avant d’enregistrer.
 
-Les vidéos dont un transfert a déjà démarré ne peuvent plus être modifiées dans la file : retirez-les et sélectionnez-les à nouveau pour changer leur son. La bibliothèque publiée n’est pas modifiée par cet éditeur.
+## Mes HDMarket Videos
 
-Vérification navigateur : `npx playwright test e2e/video-audio.spec.js`. Le test crée des médias locaux, vérifie la lecture, l’absence de piste en mode muet, les fréquences audio du remplacement/mélange et l’annulation, sans publier de vidéo.
+1. Dans chaque vidéo sélectionnée, ouvrez **Couper le son**.
+2. Cliquez sur **Préparer la vidéo sans son**, puis vérifiez l’aperçu.
+3. Cliquez sur **Appliquer la vidéo sans son** avant de l’envoyer. Sans application, le fichier sélectionné reste inchangé.
+
+La préparation locale réencode la vidéo sans piste audio, jusqu’à 1920 pixels sur le côté le plus long et 30 images/seconde. Elle peut modifier la taille ou la qualité du fichier. Gardez l’onglet visible. Une erreur ou une annulation conserve le fichier sélectionné.
+
+Les vidéos dont un transfert a déjà démarré ne peuvent plus être modifiées dans la file : retirez-les et sélectionnez-les à nouveau pour couper leur son.
+
+Vérification navigateur : `npx playwright test e2e/video-audio.spec.js`. Les tests vérifient la lecture sans piste audio, l’annulation et le choix muet dans le formulaire produit, sans publier de vidéo réelle.

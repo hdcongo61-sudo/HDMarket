@@ -4,6 +4,7 @@ import { ArrowRightIcon, BuildingStorefrontIcon, CheckIcon, ClockIcon, CubeIcon,
 import api from '../services/api';
 import AuthContext from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
+import useCommissionRate from '../hooks/useCommissionRate';
 
 const BOOST_META = {
   PRODUCT_BOOST: {
@@ -113,7 +114,7 @@ export default function Plans() {
     };
   }, []);
 
-  const commissionRate = toPositiveNumber(app?.commissionRate, 3);
+  const { commissionRatePercent: commissionRate } = useCommissionRate();
   const configuredConversionAmount = Number(app?.shopConversionAmount);
   const conversionAmount =
     Number.isFinite(configuredConversionAmount) && configuredConversionAmount > 0

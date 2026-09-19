@@ -6,6 +6,12 @@ import {
 } from './productFormUx';
 
 describe('ProductForm UX helpers', () => {
+  it.each([0, 190])('keeps historical credited fees of %s when the configured rate changes', (paid) => {
+    expect(getListingFeeChangePreview({
+      isEditing: true, approvedPrice: 190000, currentReferencePrice: 200000,
+      currentRequiredFee: 6000, previouslyPaidFee: paid, ratePercent: 3
+    })).toMatchObject({ estimatedPreviouslyPaidFee: paid, additionalFee: 6000 - paid });
+  });
   it('returns the required fields in visual form order', () => {
     expect(getMissingProductFormFields({ title: 'Téléphone', price: 20000 })).toEqual([
       { name: 'description', label: 'Description détaillée', missing: true },

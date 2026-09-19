@@ -196,12 +196,14 @@ export const getRuntimeConfig = async (key, options = {}) => {
   const countryId = String(options.countryId || '').trim();
   const cacheKey = makeCacheKey({ type: 'setting', environment: env, key: canonicalKey, countryId });
 
-  const hot = getHot(cacheKey);
-  if (hot !== null) return hot;
+  if (!options.fresh) {
+    const hot = getHot(cacheKey);
+    if (hot !== null) return hot;
 
-  const redisValue = await getRedisValue(cacheKey);
-  if (redisValue !== null) {
-    return setHot(cacheKey, redisValue);
+    const redisValue = await getRedisValue(cacheKey);
+    if (redisValue !== null) {
+      return setHot(cacheKey, redisValue);
+    }
   }
 
   const record = await fetchSettingFromDb({ key: canonicalKey, environment: env, countryId });

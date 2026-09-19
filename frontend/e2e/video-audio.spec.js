@@ -1,39 +1,20 @@
 import { test, expect } from '@playwright/test';
 
-test('audio editor mounts and exposes all sound modes without crashing', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/audio-editor-ui-test', route => route.fulfill({
-    contentType: 'text/html',
-    body: '<html><body><div id="root"></div></body></html>'
-  }));
-  await page.goto('/audio-editor-ui-test');
-  await page.evaluate(async () => {
-    const { default: React } = await import('/node_modules/.vite-tailwind4/deps/react.js');
-    const { default: ReactDOM } = await import('/node_modules/.vite-tailwind4/deps/react-dom_client.js');
-    const { default: VideoAudioEditor } = await import('/src/components/VideoAudioEditor.jsx');
-    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(VideoAudioEditor, {
-      file: new File([], 'video.mp4', { type: 'video/mp4' }),
-      onApply: () => {}
-    }));
+test.beforeEach(async ({ page }) => {
+  await page.route('https://fonts.googleapis.com/**', route => route.abort());
+  await page.route('https://fonts.gstatic.com/**', route => route.abort());
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    const data = path.endsWith('/products')
+      ? [{ _id: 'test-product', title: 'Commode', price: 75000 }]
+      : path.endsWith('/tags') ? { items: [] } : {};
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
   });
-  await expect.poll(() => errors.length || page.locator('summary').count()).toBeGreaterThan(0);
-  expect(errors).toEqual([]);
-  await page.getByText('Modifier le son', { exact: true }).click();
-  const modes = page.getByRole('combobox');
-  await expect(modes).toHaveValue('mute');
-  await modes.selectOption('replace');
-  await expect(page.getByLabel('Musique ou enregistrement (20 Mo maximum)')).toBeVisible();
-  await modes.selectOption('mix');
-  await expect(page.getByRole('slider', { name: 'Volume du son original' })).toBeVisible();
-  expect(errors).toEqual([]);
 });
 
-test('renders mute, replacement and mixed audio into playable individual files', async ({ page }) => {
-  await page.route('**/audio-editor-test', route => route.fulfill({ contentType: 'text/html', body: '<html><body>Audio test</body></html>' }));
-  await page.goto('/audio-editor-test');
-  const result = await page.evaluate(async () => {
-    const { editVideoAudio } = await import('/src/services/videoAudioEditor.js');
+// Generate a real, short video with an audio track; no external media needed.
+async function createVideo(page) {
+  return page.evaluate(async () => {
     const canvas = document.createElement('canvas');
     canvas.width = 160; canvas.height = 120;
     const drawing = canvas.getContext('2d');
@@ -42,7 +23,6 @@ test('renders mute, replacement and mixed audio into playable individual files',
     await context.resume();
     const destination = context.createMediaStreamDestination();
     const tone = context.createOscillator();
-    tone.frequency.value = 440;
     tone.connect(destination); tone.start();
     const stream = canvas.captureStream(30);
     destination.stream.getAudioTracks().forEach(track => stream.addTrack(track));
@@ -55,57 +35,90 @@ test('renders mute, replacement and mixed audio into playable individual files',
       setTimeout(() => { clearInterval(draw); recorder.stop(); }, 1200);
     });
     tone.stop(); stream.getTracks().forEach(track => track.stop()); await context.close();
-    const file = new File(chunks, 'original.mp4', { type: 'video/mp4' });
-    // A short WAV tone also verifies that shorter replacement tracks loop.
-    const samples = 8000, wav = new ArrayBuffer(44 + samples * 2), view = new DataView(wav);
-    const text = (offset, value) => [...value].forEach((char, i) => view.setUint8(offset + i, char.charCodeAt(0)));
-    text(0, 'RIFF'); view.setUint32(4, 36 + samples * 2, true); text(8, 'WAVE'); text(12, 'fmt ');
-    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-    view.setUint32(24, 16000, true); view.setUint32(28, 32000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
-    text(36, 'data'); view.setUint32(40, samples * 2, true);
-    for (let i = 0; i < samples; i++) view.setInt16(44 + i * 2, Math.sin(i / 16000 * Math.PI * 2 * 880) * 8000, true);
-    const audioFile = new File([wav], 'music.wav', { type: 'audio/wav' });
-    const results = [];
-    for (const mode of ['mute', 'replace', 'mix']) {
-      const output = await editVideoAudio(file, { mode, audioFile, originalVolume: 0.25, musicVolume: 0.5 });
+    return Array.from(new Uint8Array(await new Blob(chunks, { type: 'video/mp4' }).arrayBuffer()));
+  });
+}
+
+test('mute produces a playable file with no audio and supports cancellation', async ({ page }) => {
+  await page.route('**/audio-editor-test', route => route.fulfill({ contentType: 'text/html', body: '<html><body>Mute test</body></html>' }));
+  await page.goto('/audio-editor-test');
+  const bytes = await createVideo(page);
+  const result = await page.evaluate(async bytes => {
+    const { muteVideo } = await import('/src/services/videoAudioEditor.js');
+    const file = new File([new Uint8Array(bytes)], 'original.mp4', { type: 'video/mp4' });
+    const output = await muteVideo(file);
+    async function inspect(file) {
       const video = document.createElement('video');
       video.muted = true;
-      const url = URL.createObjectURL(output); video.src = url;
-      await new Promise((resolve, reject) => { video.onloadeddata = resolve; video.onerror = reject; });
+      const url = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => {
+        video.onloadeddata = resolve; video.onerror = reject; video.src = url;
+      });
       await video.play();
       const capture = video.captureStream();
-      let originalTone = 0, addedTone = 0;
-      if (mode !== 'mute') {
-        const decoder = new AudioContext();
-        const decoded = await decoder.decodeAudioData(await output.arrayBuffer());
-        const data = decoded.getChannelData(0);
-        const amplitude = frequency => {
-          let sine = 0, cosine = 0;
-          const start = Math.floor(decoded.sampleRate * 0.2), count = Math.floor(decoded.sampleRate * 0.2);
-          for (let i = start; i < start + count; i++) {
-            const angle = i / decoded.sampleRate * Math.PI * 2 * frequency;
-            sine += data[i] * Math.sin(angle); cosine += data[i] * Math.cos(angle);
-          }
-          return Math.hypot(sine, cosine) * 2 / count;
-        };
-        originalTone = amplitude(440); addedTone = amplitude(880);
-        await decoder.close();
-      }
-      results.push({ mode, size: output.size, width: video.videoWidth, audioTracks: capture.getAudioTracks().length, originalTone, addedTone });
+      const result = { width: video.videoWidth, audioTracks: capture.getAudioTracks().length, size: file.size };
       video.pause(); capture.getTracks().forEach(track => track.stop()); URL.revokeObjectURL(url);
+      return result;
     }
+    const original = await inspect(file), muted = await inspect(output);
     const controller = new AbortController(); controller.abort();
     let cancelled = false;
-    try { await editVideoAudio(file, { mode: 'mute', signal: controller.signal }); } catch (error) { cancelled = error.name === 'AbortError'; }
-    return { results, cancelled };
-  });
+    try { await muteVideo(file, { signal: controller.signal }); } catch (error) { cancelled = error.name === 'AbortError'; }
+    const activeController = new AbortController();
+    let cancelledDuringRender = false;
+    try {
+      await muteVideo(file, { signal: activeController.signal, onProgress: () => activeController.abort() });
+    } catch (error) { cancelledDuringRender = error.name === 'AbortError'; }
+    return { original, muted, cancelled, cancelledDuringRender };
+  }, bytes);
+  expect(result.original.audioTracks).toBe(1);
+  expect(result.muted.audioTracks).toBe(0);
+  expect(result.muted.width).toBe(160);
+  expect(result.muted.size).toBeGreaterThan(100);
   expect(result.cancelled).toBe(true);
-  for (const item of result.results) {
-    expect(item.size).toBeGreaterThan(100);
-    expect(item.width).toBe(160);
-    expect(item.audioTracks).toBe(item.mode === 'mute' ? 0 : 1);
-    if (item.mode !== 'mute') expect(item.addedTone).toBeGreaterThan(0.05);
-    if (item.mode === 'replace') expect(item.originalTone).toBeLessThan(0.02);
-    if (item.mode === 'mix') expect(item.originalTone).toBeGreaterThan(0.1);
-  }
+  expect(result.cancelledDuringRender).toBe(true);
+});
+
+test('seller videos offer only mute and apply the silent file', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/e2e/fixtures/product-form.html?videos');
+  const bytes = await createVideo(page);
+  await page.getByRole('combobox').selectOption('test-product');
+  await page.locator('input[type="file"]').setInputFiles({ name: 'original.mp4', mimeType: 'video/mp4', buffer: Buffer.from(bytes) });
+  await page.getByText('Couper le son', { exact: true }).click();
+  await expect(page.locator('input[accept="audio/*"]')).toHaveCount(0);
+  await expect(page.getByRole('combobox')).toHaveCount(1); // Product selector only.
+  await expect(page.getByText('Vos 4 sons les plus utilisés')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Préparer la vidéo sans son' }).click();
+  await expect(page.getByRole('button', { name: 'Appliquer la vidéo sans son' })).toBeVisible();
+  await expect(page.locator('details video')).toHaveJSProperty('videoWidth', 160);
+  await page.getByRole('button', { name: 'Appliquer la vidéo sans son' }).click();
+  await expect(page.getByText('original-sans-son.webm', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Appliquer la vidéo sans son' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('product form retains only the mute toggle and sends the mute choice', async ({ page }) => {
+  let body = '';
+  await page.route('**/api/products/test-product', route => {
+    body = route.request().postData() || '';
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ _id: 'test-product' }) });
+  });
+  await page.goto('/e2e/fixtures/product-form.html?edit');
+  const bytes = await createVideo(page);
+  await page.getByRole('navigation').getByRole('button', { name: '02 Photos' }).click();
+  await page.locator('#product-form-video-input').setInputFiles({ name: 'original.mp4', mimeType: 'video/mp4', buffer: Buffer.from(bytes) });
+  await expect(page.locator('input[accept="audio/*"]')).toHaveCount(0);
+  await expect(page.getByText('Modifier le son', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Préparer la vidéo sans son' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Couper le son', exact: true }).click();
+  await expect(page.locator('video').first()).toHaveJSProperty('muted', true);
+  await page.getByRole('button', { name: 'Activer le son', exact: true }).click();
+  await expect(page.locator('video').first()).toHaveJSProperty('muted', false);
+  await page.getByRole('button', { name: 'Couper le son', exact: true }).click();
+  await page.getByRole('navigation').getByRole('button', { name: '04 Vérification' }).click();
+  await page.getByRole('button', { name: 'Enregistrer les modifications' }).click();
+  await expect.poll(() => page.evaluate(() => window.formSaved)).toBe(true);
+  expect(body).toMatch(/name="videoMuted"\r\n\r\ntrue/);
 });

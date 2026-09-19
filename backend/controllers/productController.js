@@ -16,6 +16,7 @@ import ShopAssistant from '../models/shopAssistantModel.js';
 import AssistantAuditLog from '../models/assistantAuditLogModel.js';
 import { initRedis, getRedisClient, isRedisReady } from '../config/redisClient.js';
 import { getRuntimeConfig } from '../services/configService.js';
+import { getListingCommissionRate } from '../services/listingCommissionService.js';
 import { createNotification } from '../utils/notificationService.js';
 import { clearProductDraft } from '../services/productDraftReminderService.js';
 import { invalidateProductCache } from '../utils/cache.js';
@@ -994,16 +995,6 @@ export const createProduct = asyncHandler(async (req, res) => {
     productAttributes: normalizedAttributes,
     basePrice: finalPrice
   });
-  const configuredListingFeeRate = Number(
-    await getRuntimeConfig('commission_rate', { fallback: 3 })
-  );
-  const listingFeeRate = normalizeListingFeeRate(configuredListingFeeRate, 3);
-  const initialListingFee = calculateListingFee({
-    price: highestListingPrice,
-    rate: listingFeeRate,
-    paid: 0
-  });
-
   const resolvedCondition = (condition || 'used').toString().toLowerCase();
   const safeCondition = resolvedCondition === 'new' ? 'new' : 'used';
   const seller =
@@ -1017,6 +1008,8 @@ export const createProduct = asyncHandler(async (req, res) => {
     ? await resolveCountryContext({ resourceCountryId: seller.countryId, user: req.user })
     : { country: await ensureDefaultCountry() };
   const ownerCountryId = ownerCountryRecord.countryId || ownerCountryRecord.country?._id;
+  const listingFeeRate = (await getListingCommissionRate(ownerCountryId)) / 100;
+  const initialListingFee = calculateListingFee({ price: highestListingPrice, rate: listingFeeRate, paid: 0 });
   const ownerCurrency = ownerCountryRecord.currency?.code || ownerCountryRecord.country?.currency?.code || 'XAF';
   const isShop = seller.accountType === 'shop';
   const isVerifiedShop = isShop && Boolean(seller.shopVerified);
@@ -3147,7 +3140,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
       });
     }
 
-    const configuredRate = Number(await getRuntimeConfig('commission_rate', { fallback: 3 }));
+    const configuredRate = await getListingCommissionRate(product.countryId);
     const rate = normalizeListingFeeRate(product.listingFeeRate, configuredRate);
     const approvedRequiredFee = calculateListingFee({
       price: approvedVisiblePrice,
@@ -3181,9 +3174,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
       });
     }
 
-    const configuredRate = Number(await getRuntimeConfig('commission_rate', { fallback: 3 }));
-    const rate = normalizeListingFeeRate(product.listingFeeRate, configuredRate);
-    const oldFee = calculateListingFee({ price: originalPriceState.price, rate }).requiredFee;
+    const configuredRate = await getListingCommissionRate(product.countryId);
+    const rate = configuredRate / 100;
+    const oldFee = calculateListingFee({
+      price: originalPriceState.price,
+      rate: normalizeListingFeeRate(product.listingFeeRate, configuredRate)
+    }).requiredFee;
     let paidFee = roundMoney(product.listingFeePaid || 0);
 
     if (paidFee <= 0) {

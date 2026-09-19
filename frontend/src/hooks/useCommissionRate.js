@@ -5,6 +5,7 @@ const DEFAULT_COMMISSION_RATE = 3;
 
 const resolveCommissionRateValue = (values = []) => {
   for (const candidate of values) {
+    if (candidate === null || candidate === undefined || candidate === '' || typeof candidate === 'boolean') continue;
     const parsed = Number(candidate);
     if (Number.isFinite(parsed) && parsed >= 0) {
       return parsed;

@@ -74,7 +74,8 @@ export default function PaymentForm({ product, onSubmitted }) {
   });
 
   const normalizedPromoCode = (form.promoCode || '').trim().toUpperCase();
-  const isValidatedPromo = promoState.status === 'valid' && promoState.code === normalizedPromoCode;
+  const isValidatedPromo = promoState.status === 'valid' && promoState.code === normalizedPromoCode &&
+    promoState.referencePrice === listingReferencePrice && promoState.ratePercent === commissionRatePercent;
 
   const commission = !isReconciliation && isValidatedPromo
     ? promoState.commission
@@ -184,6 +185,8 @@ export default function PaymentForm({ product, onSubmitted }) {
       setPromoState({
         status: 'valid',
         code: normalizedPromoCode,
+        referencePrice: listingReferencePrice,
+        ratePercent: commissionRatePercent,
         message: data?.message || 'Code promo valide.',
         commission: data?.commission || emptyCommission(expected)
       });
@@ -473,7 +476,7 @@ export default function PaymentForm({ product, onSubmitted }) {
             </div>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-slate-400">Commission (base {commissionRateLabel}%):</span>
+                <span className="text-gray-500 dark:text-slate-400">Commission avant réduction:</span>
                 <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(paidCommissionBase)}</span>
               </div>
               <div className="flex justify-between">
@@ -759,7 +762,7 @@ export default function PaymentForm({ product, onSubmitted }) {
 
           {!hasCommissionDue && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              Commission annulée grâce au code promo. Cliquez sur le bouton ci-dessous pour envoyer la demande de validation.
+              {isValidatedPromo ? 'Commission annulée grâce au code promo.' : 'Aucun frais de publication à payer.'} Cliquez sur le bouton ci-dessous pour envoyer la demande de validation.
             </div>
           )}
 
@@ -777,7 +780,7 @@ export default function PaymentForm({ product, onSubmitted }) {
               <>
                 <PaperAirplaneIcon className="w-5 h-5" />
                 <span>
-                  {hasCommissionDue ? 'Soumettre le complément' : 'Soumettre la validation promo'}
+                  {hasCommissionDue ? 'Soumettre le complément' : 'Soumettre la validation'}
                 </span>
               </>
             )}

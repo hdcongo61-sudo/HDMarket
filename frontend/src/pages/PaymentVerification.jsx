@@ -663,7 +663,7 @@ export default function PaymentVerification({ initialPanel = 'payments' }) {
                         <div className="mt-4 grid gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-sm dark:border-neutral-800 dark:bg-neutral-900/70 sm:grid-cols-3">
                           <p>
                             <span className="block text-[11px] font-bold uppercase text-neutral-400">Payé</span>
-                            <span className="font-bold text-neutral-950 dark:text-white">{formatCurrency(payment.amount)}</span>
+                            <span className="font-bold text-neutral-950 dark:text-white">{formatCurrency(payment.amountPaid ?? payment.amount ?? 0)}</span>
                           </p>
                           <p>
                             <span className="block text-[11px] font-bold uppercase text-neutral-400">Commission</span>

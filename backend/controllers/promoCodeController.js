@@ -11,7 +11,7 @@ import {
   serializePromoCodeSummary
 } from '../utils/promoCodeUtils.js';
 import { findPromoCodeByCode, previewPromoForSeller } from '../utils/promoCodeService.js';
-import { getRuntimeConfig } from '../services/configService.js';
+import { getListingCommissionRate } from '../services/listingCommissionService.js';
 import { getHighestProductPrice } from '../utils/productAttributes.js';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -411,7 +411,7 @@ export const validatePromoCodeForSeller = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Produit invalide.' });
   }
 
-  const product = await Product.findById(productId).select('_id user price title attributes');
+  const product = await Product.findById(productId).select('_id user price title attributes countryId');
   if (!product) {
     return res.status(404).json({ message: 'Produit introuvable.' });
   }
@@ -422,12 +422,7 @@ export const validatePromoCodeForSeller = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Forbidden' });
   }
 
-  const configuredCommissionRate = Number(
-    await getRuntimeConfig('commission_rate', { fallback: 3 })
-  );
-  const commissionRate = Number.isFinite(configuredCommissionRate)
-    ? configuredCommissionRate
-    : 3;
+  const commissionRate = await getListingCommissionRate(product.countryId);
 
   const [promoPreview, eligibility] = await Promise.all([
     previewPromoForSeller({
@@ -711,12 +706,7 @@ export const previewPromoCommission = asyncHandler(async (req, res) => {
     ? await PromoCode.findOne({ code: normalized }).select('code discountType discountValue').lean()
     : null;
 
-  const configuredCommissionRate = Number(
-    await getRuntimeConfig('commission_rate', { fallback: 3 })
-  );
-  const commissionRate = Number.isFinite(configuredCommissionRate)
-    ? configuredCommissionRate
-    : 3;
+  const commissionRate = await getListingCommissionRate(req.countryContext?.countryId || req.user?.selectedCountryId || req.user?.countryId);
   const commission = calculateCommissionBreakdown({ productPrice, promo, commissionRate });
 
   res.json({

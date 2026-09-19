@@ -190,9 +190,8 @@ router.post('/promo-preview', protect, async (req, res) => {
       return res.status(400).json({ valid: false, message: 'Code promo et prix requis.' });
     }
     const { previewPromoForSeller } = await import('../utils/promoCodeService.js');
-    const { getRuntimeConfig } = await import('../services/configService.js');
-    const configuredRate = Number(await getRuntimeConfig('commission_rate', { fallback: 3 }));
-    const commissionRate = Number.isFinite(configuredRate) ? configuredRate : 3;
+    const { getListingCommissionRate } = await import('../services/listingCommissionService.js');
+    const commissionRate = await getListingCommissionRate(req.user?.countryId || req.countryContext?.countryId);
     const preview = await previewPromoForSeller({
       code: String(code).trim().toUpperCase(),
       sellerId: req.user.id,

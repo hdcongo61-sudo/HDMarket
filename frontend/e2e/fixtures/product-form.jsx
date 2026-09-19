@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import '../../src/index.css';
 import ProductForm from '../../src/components/ProductForm';
+import SellerProductVideos from '../../src/pages/SellerProductVideos';
 import AuthContext from '../../src/context/AuthContext';
 import AppSettingsContext from '../../src/context/AppSettingsContext';
 import { ToastProvider } from '../../src/context/ToastContext';
@@ -28,9 +29,9 @@ function Harness() {
       <div className={embedded ? 'hd-my-flow' : undefined} style={embedded ? { height: '100dvh', display: 'flex', flexDirection: 'column' } : { padding: '16px 0' }}>
         {embedded && <div style={{ background: '#e85d00', color: 'white', padding: 20, flexShrink: 0 }}>Nouvelle annonce</div>}
         <div style={embedded ? { flex: 1, minHeight: 0, overflowY: 'auto' } : undefined}>
-          <ProductForm initialValues={editing ? existing : undefined} productId={editing ? existing._id : undefined}
+          {params.has('videos') ? <SellerProductVideos /> : <ProductForm initialValues={editing ? existing : undefined} productId={editing ? existing._id : undefined}
             embeddedInModal={embedded} hideHeader={embedded} onCancel={() => {}}
-            onCreated={() => { window.formSaved = true; }} onUpdated={() => { window.formSaved = true; }} />
+            onCreated={() => { window.formSaved = true; }} onUpdated={() => { window.formSaved = true; }} />}
         </div>
       </div>
     </ToastProvider></AppSettingsContext.Provider>

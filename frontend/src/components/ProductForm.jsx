@@ -1,6 +1,5 @@
 import MarketingPackLauncher from './commerce-ai/MarketingPackLauncher';
 import ProductWritingAssistant from './ProductWritingAssistant';
-import VideoAudioEditor from './VideoAudioEditor';
 import StudioErrorBoundary from './image-studio/StudioErrorBoundary';
 import React, { useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import api, { isApiPossiblyCommittedError } from '../services/api';
@@ -2063,7 +2062,7 @@ export default function ProductForm(props) {
 
   const calculateCommission = () => {
     const price = getHighestListingPrice();
-    return Math.round((price * commissionRatePercent) / 100);
+    return Math.round(price * commissionRatePercent + Number.EPSILON) / 100;
   };
 
   cropMoveRef.current = handleCropMouseMove;
@@ -2370,7 +2369,7 @@ export default function ProductForm(props) {
     approvedPrice: initialValues?.approvedPrice || initialValues?.price || 0,
     currentReferencePrice: listingReferencePrice,
     currentRequiredFee: listingFeeRequiredPreview,
-    previouslyPaidFee: initialValues?.listingFeePaid || 0,
+    previouslyPaidFee: initialValues?.listingFeePaid,
     ratePercent: commissionRatePercent
   });
   const priceGridClass = isEditing ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2';
@@ -3856,6 +3855,8 @@ export default function ProductForm(props) {
                       onClick={() => setVideoMuted((m) => !m)}
                       className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-xs font-bold backdrop-blur-sm transition hover:bg-black/80"
                       title={videoMuted ? 'Activer le son' : 'Couper le son'}
+                      aria-label={videoMuted ? 'Activer le son de l’aperçu' : 'Couper le son de l’aperçu'}
+                      aria-pressed={videoMuted}
                     >
                       {videoMuted ? '🔇' : '🔊'}
                     </button>
@@ -3992,6 +3993,9 @@ export default function ProductForm(props) {
                     onClick={() => setVideoMuted((m) => !m)}
                     className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-xs font-bold backdrop-blur-sm transition hover:bg-black/80"
                     title={videoMuted ? 'Activer le son' : 'Couper le son'}
+                    aria-label={videoMuted ? 'Activer le son' : 'Couper le son'}
+                    aria-pressed={videoMuted}
+                    disabled={isUploadingVideo}
                   >
                     {videoMuted ? '🔇' : '🔊'}
                   </button>
@@ -4001,7 +4005,6 @@ export default function ProductForm(props) {
                     Le son est coupé : la vidéo sera publiée sans audio.
                   </p>
                 )}
-                <VideoAudioEditor file={videoFile} disabled={isUploadingVideo} maxBytes={MAX_VIDEO_SIZE_BYTES} onApply={edited => { setVideoFile(edited); setVideoMuted(false); }} />
                 <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-gray-200 bg-white">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 truncate font-medium">{videoFile.name}</p>

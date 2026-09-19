@@ -239,6 +239,7 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
     };
     res.json({
       ...payload,
+      app: { ...payload.app, commissionRate: runtimePayload?.values?.commission_rate ?? payload.app?.commissionRate },
       country: serializePublicCountry(countryContext.country),
       defaultLanguage: countryContext.country.defaultLanguage,
       languages: countryContext.country.supportedLanguages,
